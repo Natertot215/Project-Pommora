@@ -1,0 +1,321 @@
+# MacMarker — Product Requirements Document
+
+**Version**: 1.0 (Compiled)
+**Author**: Nathan Taichman
+**Last updated**: April 26, 2026
+**Status**: Pre-development → MVP build in progress
+
+---
+
+## 1. Overview
+
+### Problem
+
+Folder-based markdown editors on macOS — MWeb being the canonical example — are functionally mature but visually dated, with aesthetics rooted in macOS conventions from 2017–2018. Modern alternatives like Bear and Obsidian solve different problems (proprietary note databases, plugin ecosystems, cross-device sync) and don't serve users who want a *clean, native, aesthetically modern* editor for working with local markdown and text files in arbitrary on-disk locations.
+
+There is currently no macOS app that is simultaneously:
+
+- Native (SwiftUI on macOS 26)
+- Folder-organized rather than database-organized
+- Built around editing files that live wherever the user wants them on disk
+- Polished to current Apple design standards
+
+### Solution
+
+A native macOS markdown and plaintext editor built against the macOS 26 design language. Users build *virtual folders* inside the app — collections of file references — that point to actual `.md` and `.txt` files anywhere on the local filesystem. The editor focuses on a polished writing experience with a three-mode view toggle and configurable save behavior.
+
+The app is an **external gatherer**: it reflects the state of files on disk. Edits made outside the app flow into the editor automatically (v1.1+). The app never duplicates, copies, or owns the files themselves.
+
+### Differentiator
+
+Existing folder-based markdown editors are feature-rich but visually outdated. Note-database editors lock files into proprietary structures. MacMarker occupies the gap: the simplicity and transparency of a folder-based editor with the visual polish of a 2026-era native macOS app.
+
+---
+
+## 2. Target User
+
+**Primary**: macOS users who write in markdown or plaintext, prefer files stored as plain files in known locations, and care about UI polish. Writers, developers, students, journalers.
+
+**Out of scope as users**: users wanting collaborative editing, cross-device sync, proprietary note databases, or full IDE-grade editing features.
+
+---
+
+## 3. Scope
+
+### Release strategy
+
+v1 is split into two coherent phases:
+
+- **v1.0 (MVP)** — "walking skeleton." Daily-driveable end-to-end. Plain `TextEditor` editor, plain-path file refs, manual save only. No rendering toggle, no file watching, no security-scoped bookmarks. **Goal**: ship something usable in one coding pass.
+- **v1.1** — five focused fixup iterations (A–E) that add the technically risky pieces on top of the MVP shell.
+
+### v1.0 (MVP) scope
+
+**File management**
+
+- Multiple flat virtual folders (no nesting)
+- Files added to folders via:
+  - **Download button** in the bottom-left of the sidebar (opens native file picker)
+  - **Drag-and-drop from Finder** onto a virtual folder in the sidebar
+- File references stored as plain paths (security-scoped bookmarks added in v1.1 Iteration A)
+- Files always remain in their original on-disk location; the app never moves or copies user files
+- Sidebar shows virtual folders with their member files
+- **Drag-reorder** of folders and files within the sidebar (visual order only — does not affect on-disk location)
+- **Three-dot menu** on each sidebar file (visible on hover) with two options:
+  - **Remove from app** — deletes the reference from the virtual folder; file on disk is untouched.
+  - **Delete from disk** — permanently deletes the file from the user's filesystem; requires confirmation dialog
+- **Missing files** — if a referenced file no longer exists on disk, the reference is silently auto-removed on next launch. (v1.1 Iteration A replaces this with inline "Locate..." UX.)
+
+**In-app search**
+
+- Search bar at the **top of the sidebar**
+- Searches only what's already attached to the app:
+  - Filenames of all files in all virtual folders
+  - Markdown headings (`#`, `##`, `###`, etc.) within attached `.md` files
+- For `.txt` files, search is filename-only since plaintext has no markdown headings
+- Search is *not* computer-wide — to find an arbitrary file on disk, the user uses the file picker (download button) or Finder drag-drop
+- Live filter as user types. Flat result list, ranked by filename relevance first, then heading relevance.
+
+**State persistence**
+
+- App remembers virtual folder structure, file membership and order, theme preference, and (v1.1) auto-save toggle across launches
+- On launch, the previously open file (if any) is reopened automatically
+- All persistence is local-only via SwiftData; no accounts, no cloud, no remote database
+
+**Editor (MVP)**
+
+- The selected file is **fully editable** in MVP — opening a file in the editor pane lets the user type, delete, paste, and otherwise modify its contents. Cmd+S writes the changes back to the original on-disk path.
+- Edits raw markdown or plaintext — the on-disk content is always the raw source
+- Plain SwiftUI `TextEditor` for the text surface
+- **Editor top banner** — a SwiftUI-themed banner sits above the `TextEditor`, spanning the full width of the editor pane on the main page / for the selected file. Built natively in SwiftUI using semantic materials (`.regularMaterial` / `.bar`) so it adopts Light/Dark theming automatically. Contents in MVP:
+  - The current file's display name (left-aligned)
+  - A view-mode segmented control stub (disabled placeholder — wired up in v1.1 Iteration B)
+  - Reserved trailing space for future actions (info, share, outline toggle) — empty in MVP
+  - When no file is selected, the banner shows an empty/disabled state rather than disappearing, so the editor pane's chrome is stable
+- Manual save only via Cmd+S (auto-save toggle exists in Settings as a non-functional placeholder, wired up in v1.1 Iteration C)
+
+**Editor (v1.1, Iteration B — refines PRD v0.4)**
+
+The original PRD described a binary toggle (raw / styled). MacMarker uses a **three-mode** model instead, accessed via a segmented control in the editor's top toolbar:
+
+- **Raw** — SF Mono, all markdown syntax visible (`## Heading` shown as-typed).
+- **Hybrid** *(default)* — SF Pro proportional, markdown syntax still visible (`## Heading` shown as-typed but in proportional font). Comfortable for prose without hiding structure.
+- **Stylized** — SF Pro + formatted markdown (headings rendered larger/bolder, bold/italic styled, syntax characters hidden).
+
+File on disk is always raw markdown regardless of mode. The mode preference is app-wide (not per-file), persisted via SwiftData.
+
+**Auto-save (v1.1, Iteration C)**
+
+- ON = continuous debounced save on edit
+- OFF = manual save (Cmd+S) with confirmation dialog
+- Default: **OFF**
+- App-wide, not per-file
+
+**Theme (Light / Dark / Device)**
+
+- Settings scene exposes a **Light / Dark / Device** picker.
+- Default: **Device** (follows system). MVP includes this — it's not deferred.
+- Implementation: app-only override via SwiftUI's `.preferredColorScheme(...)`. Does not change the macOS system theme.
+
+**Typography**
+
+- SF Pro and SF Mono throughout, sourced from system installation
+- Type scale and hierarchy aligned to the official Apple Design Resources Figma kit (token JSON shipped in repo at `assets/design/tokens/`)
+
+**File watching (v1.1, Iteration C)**
+
+- The app behaves as an external gatherer. External file changes **always auto-reload** into the editor, regardless of the auto-save setting.
+- The auto-save toggle controls *when the user's edits are written back to disk* — it does not affect external change handling.
+- **Known v1.1 limitation**: with auto-save OFF + unsaved local edits + external file change, the unsaved edits are overwritten on reload. Conflict resolution UX is deferred to v2.
+
+**Outline pane (v1.1, Iteration D)**
+
+A right-side third pane showing the current document's heading hierarchy, click-to-jump. Reuses the same heading parser as in-app search. Not in MVP.
+
+**Distribution (v1.x)**
+
+- Open-source GitHub repository
+- Unsigned binary (users right-click → Open on first launch to bypass Gatekeeper)
+- **Minimum macOS target**: macOS 26 only. No fallback support for earlier versions — keeps the codebase clean and gives full access to current APIs.
+- App Store, signing, notarization, and licensing decisions deferred — not part of v1 scope
+
+### Out of scope (explicitly not v1, possibly never)
+
+Image embedding, paste, or storage. Sub-folders / nested folder structure. Computer-wide file search (Spotlight integration). Full-text content search across attached files. Tags or categories. iCloud or any cloud sync. Themes beyond Light/Dark/Device. Math formula rendering, Mermaid diagrams, code syntax highlighting. Export to PDF, Epub, or HTML. Publishing integrations (WordPress, Medium, etc.). Plugins or extensions. Mobile / iPad version. Collaborative editing. Conflict resolution UX for external changes with unsaved local edits. Version history beyond OS-level Time Machine support.
+
+---
+
+## 4. Technical Approach
+
+### Stack
+
+- **Language**: Swift 6.x
+- **UI shell**: SwiftUI
+- **Editor pane (MVP)**: SwiftUI `TextEditor` with monospaced/proportional font roles
+- **Editor pane (v1.1)**: `NSViewRepresentable`-wrapped `NSTextView`. SwiftUI's `TextEditor` cannot perform the per-line attributed styling required for the three-mode rendering toggle, so the editor pane drops to AppKit in Iteration B.
+- **Persistence**: SwiftData — local-only. Stores virtual folder structure, file references, sidebar ordering, and user preferences.
+- **File access (MVP)**: plain paths on `FileReference.lastKnownPath`.
+- **File access (v1.1)**: security-scoped bookmarks via `URL.bookmarkData(...)` and `URL(resolvingBookmarkData:...)` — added additively in Iteration A.
+- **File watching (v1.1)**: `DispatchSourceFileSystemObject` for external change detection.
+- **Markdown heading extraction**: simple line-based parser (`MacMarker/Library/HeadingParser.swift`). Reused by MVP search and v1.1 outline pane.
+- **Typography**: SF Pro Text, SF Pro Display, SF Mono — all system-installed.
+- **Design tokens**: hand-translated from `assets/design/tokens/apple-macos-26-ui-kit.tokens.json` into `MacMarker/Resources/DesignTokens.swift`. The Swift file is the runtime source of truth.
+
+### Toolchain
+
+- **Editor**: VS Code with the official Swift extension (which bundles `sourcekit-lsp`)
+- **Build / run / preview**: Xcode toolchain. The full Xcode application must be installed. **Day-to-day code editing happens in VS Code; Xcode is opened only for `Cmd+R` runs and SwiftUI Previews.**
+- **Synchronized file groups**: the Xcode project uses `PBXFileSystemSynchronizedRootGroup` (Xcode 16+) — any Swift file added under `MacMarker/MacMarker/<subdir>/` is auto-compiled. No manual project-file edits required.
+
+### Architecture
+
+Standard SwiftUI app split into three primary modules:
+
+**Library module** — manages virtual folders and file references. Owns the SwiftData model layer, sidebar UI, file-add flows (download button + drag-drop), in-app search, and three-dot menu actions.
+
+**Editor module** — owns the editor pane (MVP: `TextEditor`; v1.1: `NSTextView` wrapper), top toolbar, three-mode rendering toggle, save logic, and file-watching behavior. Receives a file reference and operates on it.
+
+**Settings module** — auto-save toggle, theme picker (Light/Dark/Device), persistence of user preferences. (Rendering-mode preference also lives here in v1.1.)
+
+### Data model (SwiftData)
+
+```swift
+@Model
+final class VirtualFolder {
+    var id: UUID
+    var name: String
+    var createdAt: Date
+    var order: Int
+    @Relationship(deleteRule: .cascade) var files: [FileReference]
+}
+
+@Model
+final class FileReference {
+    var id: UUID
+    var lastKnownPath: String      // primary identifier in MVP
+    var displayName: String        // for sidebar; can drift from filename
+    var addedAt: Date
+    var order: Int                 // for drag-reorder within folder
+    var folder: VirtualFolder?
+    // v1.1 Iteration A adds: var bookmarkData: Data
+}
+
+@Model
+final class AppState {
+    var lastOpenedFileID: UUID?    // restored on launch
+    var autoSaveEnabled: Bool      // default false (functional in v1.1)
+    var themePreference: ThemePreference  // default .device
+    // v1.1 Iteration B adds: var renderingMode: RenderingMode (default .hybrid)
+}
+
+enum ThemePreference: String, Codable { case light, dark, device }
+```
+
+### Key technical risks
+
+- **Three-mode rendering toggle inside `NSTextView`** (v1.1 Iteration B) — applying styled text attributes to ranges of the text storage in real time, switching across Raw/Hybrid/Stylized modes without breaking selection, undo, or paste behavior. The technical centerpiece and the hardest single piece of the project.
+- **macOS 26 native APIs** — newer than most AI training data covers comprehensively. Apple's documentation and the Figma kit are the authoritative sources; expect more doc-reading and experimentation than usual.
+- **Security-scoped bookmark edge cases** (v1.1 Iteration A) — files moved, renamed, or on unmounted drives need graceful failure modes.
+- **Heading-search performance** — parsing all attached `.md` files on every keystroke will be slow for large libraries. v1.0 does on-the-fly parsing; if perf is bad, build an in-memory index that updates when files change. Worth measuring before optimizing.
+
+---
+
+## 5. Repo Structure
+
+```
+.                                       # repo root
+├── PRD                                 # this document
+├── README.md                           # build, install, contribution
+├── .claude/
+│   ├── CLAUDE.md                       # operational context for Claude sessions
+│   └── memory/                         # gitignored
+├── .gitignore
+├── assets/
+│   └── design/
+│       └── tokens/
+│           └── apple-macos-26-ui-kit.tokens.json
+├── docs/
+│   └── design/
+│       └── README.md                   # links to Figma file + design notes
+└── MacMarker/                          # Xcode project root
+    ├── MacMarker.xcodeproj/
+    ├── MacMarker/                      # synchronized source group
+    │   ├── MacMarkerApp.swift
+    │   ├── ContentView.swift
+    │   ├── Library/
+    │   ├── Editor/
+    │   ├── Models/
+    │   ├── Settings/
+    │   └── Resources/
+    ├── MacMarkerTests/
+    └── MacMarkerUITests/
+```
+
+---
+
+## 6. Milestones
+
+### MVP (v1.0) — single coding pass
+
+A working three-pane app that persists a virtual library of `.md` and `.txt` files and lets you edit them as plain text with Cmd+S save.
+
+1. Repo scaffold + `.claude/`, `.gitignore`, README, design assets
+2. SwiftData models (`VirtualFolder`, `FileReference`, `AppState`, `ThemePreference`)
+3. App shell — `NavigationSplitView` with sidebar + detail; theme wired via `.preferredColorScheme(...)`
+4. `DesignTokens.swift` from the tokens JSON
+5. Sidebar UI — folder list, search at top, download button bottom-left, three-dot hover menu, drag-reorder
+6. File-add flows — file picker (`NSOpenPanel`) + Finder drag-drop
+7. Editor view — editable `TextEditor` bound to the selected file's contents + SwiftUI top banner (file-name label, disabled view-mode segmented control stub, reserved trailing actions)
+8. Save — Cmd+S writes UTF-8 to disk
+9. Search — live filter on filenames + headings, ranked
+10. Three-dot actions — Remove from app / Delete from disk
+11. Settings scene — Light/Dark/Device theme picker (functional) + auto-save toggle (placeholder)
+12. State restoration — folder structure, sidebar order, last-opened file, theme preference
+13. Missing-file cleanup on launch (silent auto-remove)
+
+### v1.1 — fixup iterations (post-MVP)
+
+Each is a focused branch, mergeable independently:
+
+- **Iteration A — Security-scoped bookmarks**: add `bookmarkData: Data` to `FileReference`, write a one-shot migration that re-resolves existing path-based refs into bookmarks on next launch. Inline "Locate..." UX replaces silent missing-file cleanup.
+- **Iteration B — Three-mode rendering toggle (the hard part)**: replace `TextEditor` with `NSViewRepresentable`-wrapped `NSTextView`; implement Raw / Hybrid / Stylized via `NSTextStorage` attribute updates; toggle activates the segmented control in the editor toolbar. Default = Hybrid.
+- **Iteration C — Auto-save + file watching**: wire `AppState.autoSaveEnabled`. ON = debounced write on edit. External-change watcher via `DispatchSourceFileSystemObject` always reloads.
+- **Iteration D — Outline pane (right side)**: third column showing current document headings via the existing `HeadingParser`. Click-to-jump using `NSTextView` selection ranges.
+- **Iteration E — Polish + hardening**: full Figma-token alignment pass, animations, light/dark refinement, app-icon integration when available, edge cases (empty folders, missing files, unmounted drives, very large files, unicode filenames, simultaneous external edits).
+
+---
+
+## 7. Success Criteria
+
+**v1.0 (MVP) ships when:**
+
+1. **Build & launch** — `xcodebuild -scheme MacMarker -configuration Debug build` succeeds; the resulting `.app` launches cleanly from `Cmd+R` in Xcode on macOS 26.
+2. **Folder/file CRUD** — create a virtual folder, add 3+ `.md` files via file picker, add 1+ via Finder drag-drop. Quit and relaunch: structure persists, last-opened file reopens.
+3. **Editing roundtrip** — open a file, type a sentence directly in the editor pane, Cmd+S, quit app, open the file in TextEdit and verify the change is on disk. The selected file must be live-editable inside MacMarker, not read-only.
+4. **Editor top banner** — when a file is open, the SwiftUI banner above the editor shows the file's display name, renders correctly in Light and Dark themes, and remains visible (in an empty state) when no file is selected.
+5. **Search** — typing a heading text fragment matches the file containing that heading; typing a filename fragment matches the file.
+6. **Reorder** — drag a folder up/down, drag a file within a folder; order persists across launches.
+7. **Sidebar 3-dot actions** — "Remove from app" leaves the file on disk; "Delete from disk" shows confirmation, then removes the file.
+8. **Missing-file cleanup** — externally delete a referenced file in Finder, relaunch app, verify the row silently disappears.
+9. **Theme setting** — Settings (Cmd+,) → switch between Light / Dark / Device. App updates immediately without restart. Set to Device, toggle macOS system theme, verify app follows.
+
+**v1.x ships when:**
+
+- All MVP + Iterations A–E are complete
+- App launches cleanly from a fresh build on a fresh macOS 26 install
+- Repo has a working README with build, install, and contribution instructions
+- README screenshots reflect the current state of the app
+
+**v1.x is a success if:**
+
+- The author uses it daily to manage personal markdown notes
+- The build runs reliably on macOS 26 without crashes during normal use
+- The codebase is organized well enough to onboard another developer quickly
+
+---
+
+## 8. Open Questions
+
+- **Header-match search result UI** — search results are a flat list ranked by filename relevance first, then heading relevance (locked). For v1.0 MVP, heading-match results render as `<filename> · <heading text>` on a single line. Refinement (grouped under file? line context?) deferred to Iteration E.
+- **Toolbar icon set** — the editor top toolbar contains the file-name label and a (disabled) view-mode segmented control stub in v1.0. Final icon complement (info, share, etc.) finalized in Iteration B alongside the rendering toggle that activates the segmented control.
+- **App icon** — placeholder `Assets.xcassets/AppIcon.appiconset/` with empty slots. Real icon integrated in Iteration E.
