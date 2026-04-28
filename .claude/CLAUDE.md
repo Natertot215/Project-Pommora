@@ -48,6 +48,17 @@ The full product spec lives in [`PRD`](../PRD) at the repo root. Read that for p
 | Add a new `.swift` file | Just create it in `Pommora/Pommora/<subdir>/` — synchronized groups pick it up automatically. |
 | Adjust target settings, schemes, capabilities | Xcode (rare) |
 
+## Lessons (required reading — never repeat the same mistake twice)
+
+Mistakes I've already made on Pommora live in [`.claude/lessons/`](lessons/) — one file per failure pattern. **Read the relevant file before doing the matching kind of work.** Index: [`.claude/lessons/README.md`](lessons/README.md).
+
+| Before you do this | Read this |
+|---|---|
+| Any UI change (sizing, fonts, icon scale, padding, row heights, color, materials, drag/drop, animations) | [`lessons/ui-dimensions-and-semantic-primitives.md`](lessons/ui-dimensions-and-semantic-primitives.md) |
+| Introducing or modifying any SwiftUI modifier, initializer, or protocol use | [`lessons/swiftui-api-verification.md`](lessons/swiftui-api-verification.md) |
+
+When Nathan flags a new mistake, **append a dated incident** to the matching lesson file, or create a new file (one mistake per file) and link it from `.claude/lessons/README.md` and the table above.
+
 ## Memory protocol (project-specific override)
 
 **This project does not use the project-memory subsystem at all.** Every operational rule, feedback correction, and non-obvious preference for Pommora lives in this CLAUDE.md so it is always loaded into context and never skipped. This overrides the global three-tier protocol in `~/.claude/CLAUDE.md` for this repo only.

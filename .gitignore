@@ -26,6 +26,9 @@ Package.resolved
 # Claude project memory (not for git)
 .claude/memory/
 
+# Claude scratch screenshots — paste images Nathan sends here; not for git
+.claude/screenshots/
+
 # Editor
 .vscode/
 *.swp
