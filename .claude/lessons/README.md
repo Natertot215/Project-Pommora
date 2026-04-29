@@ -14,3 +14,4 @@ Rules for this directory:
 
 - [ui-dimensions-and-semantic-primitives.md](ui-dimensions-and-semantic-primitives.md) — Don't hand-tune `.frame`, `.font(.system(size:))`, paddings, row heights. Use SwiftUI semantic primitives + cite Apple HIG / shipped apps.
 - [swiftui-api-verification.md](swiftui-api-verification.md) — Don't invent SwiftUI signatures from memory. Grep the `.swiftinterface` (or read Apple docs) before introducing any modifier or initializer.
+- [navigation-split-view-columns.md](navigation-split-view-columns.md) — Use `.navigationSplitViewStyle(.prominentDetail)` so sidebar and content columns resize independently against the detail pane.

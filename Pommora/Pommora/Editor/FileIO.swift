@@ -34,7 +34,7 @@ enum FileIO {
 
     static func write(_ text: String, to url: URL) throws {
         do {
-            try text.data(using: .utf8)?.write(to: url, options: .atomic)
+            try text.data(using: .utf8)!.write(to: url, options: .atomic)
         } catch {
             throw FileIOError.writeFailed(url, underlying: error)
         }

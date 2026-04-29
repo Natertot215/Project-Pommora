@@ -38,35 +38,46 @@ enum LibrarySearch {
         static let empty = Results(filenames: [], headings: [])
     }
 
-    static func run(query: String, folders: [VirtualFolder], cache: LibrarySearchCache) -> Results {
+    static func run(
+        query: String,
+        folders: [VirtualFolder],
+        orphanFiles: [FileReference],
+        cache: LibrarySearchCache
+    ) -> Results {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .empty }
 
         var filenameHits: [Hit] = []
         var headingHits: [Hit] = []
 
-        for folder in folders {
-            let sortedFiles = folder.files.sorted(by: { $0.order < $1.order })
-            for file in sortedFiles {
-                if let range = file.titleWithoutExtension.range(of: trimmed, options: .caseInsensitive) {
-                    filenameHits.append(Hit(
-                        id: "\(file.id):filename",
+        func searchFile(_ file: FileReference) {
+            if let range = file.titleWithoutExtension.range(of: trimmed, options: .caseInsensitive) {
+                filenameHits.append(Hit(
+                    id: "\(file.id):filename",
+                    file: file,
+                    kind: .filename,
+                    matchedRange: range
+                ))
+            }
+            for heading in cache.headings(for: file) {
+                if let range = heading.text.range(of: trimmed, options: .caseInsensitive) {
+                    headingHits.append(Hit(
+                        id: "\(file.id):h\(heading.line)",
                         file: file,
-                        kind: .filename,
+                        kind: .heading(text: heading.text, line: heading.line),
                         matchedRange: range
                     ))
                 }
-                for heading in cache.headings(for: file) {
-                    if let range = heading.text.range(of: trimmed, options: .caseInsensitive) {
-                        headingHits.append(Hit(
-                            id: "\(file.id):h\(heading.line)",
-                            file: file,
-                            kind: .heading(text: heading.text, line: heading.line),
-                            matchedRange: range
-                        ))
-                    }
-                }
             }
+        }
+
+        for folder in folders {
+            for file in folder.files.sorted(by: { $0.order < $1.order }) {
+                searchFile(file)
+            }
+        }
+        for file in orphanFiles.sorted(by: { $0.order < $1.order }) {
+            searchFile(file)
         }
 
         return Results(filenames: filenameHits, headings: headingHits)

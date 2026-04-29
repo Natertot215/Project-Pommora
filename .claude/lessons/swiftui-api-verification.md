@@ -53,4 +53,4 @@ Before introducing or changing any SwiftUI surface, **read an authoritative sour
 
 ## Incidents
 
-- *(none yet — add a dated entry the first time this rule is violated)*
+- **2026-04-28 — Drag-reorder rewrite spiral (4 rejected iterations).** Four successive drag-reorder implementations were rejected because the architectural constraint was never surfaced: `.listStyle(.sidebar)` delegates to `NSOutlineView`, which forces the legacy blue insertion-bar drag regardless of what SwiftUI drag modifiers you apply. The macOS 26 container-drag API (`dragContainer`, `draggable(_:id:containerNamespace:)`) only works correctly under `.listStyle(.inset)` or `.listStyle(.plain)`. Because this was never verified against the swiftinterface and HIG before starting, four iterations were wasted trying to make the new API work in a list style that fights it. Lesson: before any drag/drop rewrite, grep the swiftinterface for the relevant drag modifier signatures, check `@available` annotations, and confirm which list styles are compatible. Surface architectural constraints to Nathan before writing code.

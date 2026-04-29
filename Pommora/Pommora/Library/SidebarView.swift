@@ -22,7 +22,6 @@ struct SidebarView: View {
 
     private static let folderDragPrefix = "folder:"
     private static let fileDragPrefix = "file:"
-    private static let orphanVisibleCap = 25
 
     private var orderedSections: [SidebarSection] {
         SidebarSection.decode(storedSectionOrder)
@@ -176,63 +175,20 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var filesContent: some View {
-        if orphanFiles.count > Self.orphanVisibleCap {
-            ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(orphanFiles) { file in
-                        orphanRow(file)
-                    }
+        ForEach(orphanFiles) { file in
+            SidebarFileRow(file: file)
+                .tag(SidebarSelection.file(file.id))
+                .listRowSeparator(.hidden)
+                .draggable(captureOrphanFileDragStart(file.id))
+                .dropDestination(for: String.self) { items, _ in
+                    let handled = handleOrphanRowDrop(items: items)
+                    draggingOrphanFileID = nil
+                    draggingFolderID = nil
+                    return handled
+                } isTargeted: { targeted in
+                    handleOrphanFileDropTarget(targeted: targeted, overFile: file)
                 }
-            }
-            .frame(height: cappedOrphanHeight)
-            .listRowInsets(EdgeInsets())
-        } else {
-            ForEach(orphanFiles) { file in
-                SidebarFileRow(file: file)
-                    .tag(SidebarSelection.file(file.id))
-                    .listRowSeparator(.hidden)
-                    .draggable(captureOrphanFileDragStart(file.id))
-                    .dropDestination(for: String.self) { items, _ in
-                        let handled = handleOrphanRowDrop(items: items)
-                        draggingOrphanFileID = nil
-                        draggingFolderID = nil
-                        return handled
-                    } isTargeted: { targeted in
-                        handleOrphanFileDropTarget(targeted: targeted, overFile: file)
-                    }
-            }
         }
-    }
-
-    private func orphanRow(_ file: FileReference) -> some View {
-        let isSelected = sidebarSelection == .file(file.id)
-        return SidebarFileRow(file: file)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
-            )
-            .foregroundStyle(isSelected ? Color.white : Color.primary)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                sidebarSelection = .file(file.id)
-            }
-            .draggable(captureOrphanFileDragStart(file.id))
-            .dropDestination(for: String.self) { items, _ in
-                let handled = handleOrphanRowDrop(items: items)
-                draggingOrphanFileID = nil
-                draggingFolderID = nil
-                return handled
-            } isTargeted: { targeted in
-                handleOrphanFileDropTarget(targeted: targeted, overFile: file)
-            }
-    }
-
-    private var cappedOrphanHeight: CGFloat {
-        let estimatedRowHeight: CGFloat = 26
-        return CGFloat(Self.orphanVisibleCap) * estimatedRowHeight
     }
 
     @ViewBuilder
@@ -361,7 +317,7 @@ struct SidebarView: View {
     }
 
     private func updateResults() {
-        results = LibrarySearch.run(query: searchQuery, folders: folders, cache: cache)
+        results = LibrarySearch.run(query: searchQuery, folders: folders, orphanFiles: orphanFiles, cache: cache)
     }
 
     private func addNewFolder() {

@@ -47,6 +47,7 @@ struct ContentView: View {
         } detail: {
             EditorView(file: editorFile)
         }
+        .navigationSplitViewStyle(.prominentDetail)
         .toolbar(removing: .title)
         .onAppear { bootstrapIfNeeded() }
     }

@@ -26,10 +26,10 @@ struct EditorView: View {
         do {
             text = try FileIO.read(file.url)
             loadedFileID = file.id
+            file.lastOpenedAt = .now
         } catch {
             text = ""
             loadedFileID = file.id
         }
-        file.lastOpenedAt = .now
     }
 }

@@ -56,6 +56,7 @@ Mistakes I've already made on Pommora live in [`.claude/lessons/`](lessons/) —
 |---|---|
 | Any UI change (sizing, fonts, icon scale, padding, row heights, color, materials, drag/drop, animations) | [`lessons/ui-dimensions-and-semantic-primitives.md`](lessons/ui-dimensions-and-semantic-primitives.md) |
 | Introducing or modifying any SwiftUI modifier, initializer, or protocol use | [`lessons/swiftui-api-verification.md`](lessons/swiftui-api-verification.md) |
+| Any `NavigationSplitView` layout or column-width change | [`lessons/navigation-split-view-columns.md`](lessons/navigation-split-view-columns.md) |
 
 When Nathan flags a new mistake, **append a dated incident** to the matching lesson file, or create a new file (one mistake per file) and link it from `.claude/lessons/README.md` and the table above.
 
@@ -85,7 +86,7 @@ These are decisions that constrain future work; they are not yet implemented. Be
 
 These describe *what the app does*; the *how* is in the source files.
 
-- **Sidebar** — four top-level sections (`Favorites`, `Folders`, `Files`, `Tags`) plus a `Recents` row at the top. `Favorites` and `Tags` are header-only placeholders. `Folders` lists `VirtualFolder`s as flat rows (no inline file children). `Files` lists *orphan* `FileReference`s (`folder == nil`); cap of 25 before the section becomes internally scrollable. Section order is user-rearrangeable and persists in `@AppStorage("sidebarSectionOrder")`. Sidebar uses `.controlSize(.regular)` and `.scrollEdgeEffectStyle(.soft, for: .top)` so content fades behind the search bar.
+- **Sidebar** — four top-level sections (`Favorites`, `Folders`, `Files`, `Tags`) plus a `Recents` row at the top. `Favorites` and `Tags` are header-only placeholders. `Folders` lists `VirtualFolder`s as flat rows (no inline file children). `Files` lists *orphan* `FileReference`s (`folder == nil`) directly in the sidebar `List` (no inner scroll cap — `List` itself scrolls). Section order is user-rearrangeable and persists in `@AppStorage("sidebarSectionOrder")`. Sidebar uses `.controlSize(.regular)` and `.scrollEdgeEffectStyle(.soft, for: .top)` so content fades behind the search bar.
 - **Three-column layout** — `NavigationSplitView` shows the middle column only when a `VirtualFolder` or `Recents` is selected. File hits (search results, orphan rows) skip the middle column and route directly to the editor.
 - **Recents** — files-only, cap 50, bucketed `Today` / `Yesterday` / `Previous 7 Days` / `Older` via `Calendar` predicates. The display order is **snapshotted on appear** so tapping a file (which stamps `lastOpenedAt`) doesn't jump it to the top mid-interaction; new files prepend on next visit.
 - **Search** — `.searchable(placement: .sidebar)`. Filenames first, headings second; matched-range highlighting via `inlinePresentationIntent = .stronglyEmphasized`. Filename matches against `titleWithoutExtension` (so the matchedRange aligns with the rendered title). Heading parsing is lazy and session-cached in `LibrarySearchCache`. Selecting a heading hit opens the file but does not yet jump to the line.
