@@ -36,6 +36,11 @@ Curated starting pages:
 |---|---|
 | Components (root index) | <https://developer.apple.com/design/human-interface-guidelines/components> |
 | Layout | <https://developer.apple.com/design/human-interface-guidelines/layout> |
+| Layout and organization | <https://developer.apple.com/design/human-interface-guidelines/layout-and-organization> |
+| Sidebars | <https://developer.apple.com/design/human-interface-guidelines/sidebars> |
+| Split views | <https://developer.apple.com/design/human-interface-guidelines/split-views> |
+| Column views | <https://developer.apple.com/design/human-interface-guidelines/column-views> |
+| Outline views | <https://developer.apple.com/design/human-interface-guidelines/outline-views> |
 | Toolbars | <https://developer.apple.com/design/human-interface-guidelines/toolbars> |
 | Materials | <https://developer.apple.com/design/human-interface-guidelines/materials> |
 | Search fields | <https://developer.apple.com/design/human-interface-guidelines/search-fields> |
