@@ -2,6 +2,36 @@
 
 Applies to any task touching Swift, SwiftUI, or macOS frontend code. These rules override default behavior.
 
+## Documentation lookup — Context7 first
+
+Before writing or modifying any frontend code (SwiftUI, AppKit-bridged surfaces, any UI framework), use the Context7 MCP server to fetch active, version-current documentation for the surface you're about to touch. Training memory is stale; web docs are JS-rendered and frequently fail to fetch; Context7 returns live docs.
+
+Workflow:
+
+1. Resolve the library you need:
+   ```
+   mcp__plugin_context7_context7__resolve-library-id(libraryName: "SwiftUI")
+   ```
+2. Query the relevant doc page:
+   ```
+   mcp__plugin_context7_context7__query-docs(libraryId: "<id>", query: "<modifier or type name>")
+   ```
+3. Cite the returned doc snippet (or its source URL if Context7 returns one) in the code change description.
+
+When this is mandatory:
+
+- Before any new SwiftUI modifier, initializer, type, or protocol use.
+- Before any change to a third-party library's API surface.
+- Before answering a technical "how does X work" question that involves library/SDK behavior.
+
+Context7 does **not** replace the `.swiftinterface` check (Source authority §1) or the HIG check (HIG adherence section). Treat them as complementary:
+
+- **Context7** → narrative docs, behavior, current usage examples.
+- **`.swiftinterface`** → exact signatures, generics, defaults, `@available` annotations, line-cited.
+- **HIG** → visual correctness, spacing, control sizing, accessibility.
+
+If Context7 is unreachable, fall through to the existing source-authority hierarchy below and report the failure to Nathan — do not skip the lookup silently.
+
 ## Source authority
 
 - Authoritative sources, in this order:
