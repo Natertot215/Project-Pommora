@@ -56,10 +56,11 @@ Also write to `~/.claude/projects/<proj>/memory/` for auto-memory recall when th
 
 ## Things we do NOT do
 
-- Don't write to disk on every edit. Auto-save is OFF in MVP and stays OFF in v1.1.
 - Don't invent `// MARK:` comment headers in short files.
 - Don't add doc-comments to obvious symbols.
 - Don't add error handling for impossible cases — force-unwraps inside controlled `do/catch` are fine.
 - Don't add backwards-compat shims — macOS 26 is the only target.
 - Don't reach for `.font(.system(size:))` or hand-mixed `Color(red:green:blue:)` — use semantic primitives. (See L-001.)
-- Don't propose AppKit wraps (`NSViewRepresentable`) in v1.0 — Swift-only until v1.1.
+- Don't propose AppKit wraps (`NSViewRepresentable`). Skeleton is Swift-only; surface the gap to Nathan if a feature genuinely needs AppKit and wait for confirmation.
+- Don't scaffold `.modelContainer(for: [])` on `WindowGroup` — it silently breaks window rendering on macOS 26. Add a container only when an `@Model` type exists. (See L-007.)
+- Don't write fixture/seed code or persistence flows speculatively — the skeleton has no features yet, so there's nothing to seed or persist.
