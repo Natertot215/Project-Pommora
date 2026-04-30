@@ -1,6 +1,6 @@
 # Pommora — Project Context
 
-A native macOS markdown and plaintext editor built against the macOS 26 design language. This file is the thin operational hub. The substance lives in the linked files below — read those before planning or coding.
+A generic native macOS app skeleton built against the macOS 26 design language. This file is the thin operational hub. The substance lives in the linked files below — read those before planning or coding. The skeleton has no product features yet; it provides a verified `NavigationSplitView` shell, a `.searchable` sidebar, a placeholder middle column, and a `Components/` library of swiftinterface-verified SwiftUI primitives ready to be assembled into features.
 
 ## Stack
 
@@ -30,6 +30,7 @@ Read the right file for the work you're about to do.
 | [`feedback.md`](feedback.md) | Persistent behavior corrections from Nathan | Every session start |
 | [`lessons.md`](lessons.md) | Failure patterns (L-001…L-006) — never make the same mistake twice | The kind of work that previously failed (UI changes, SwiftUI APIs, NavigationSplitView, file paths, drag/drop) |
 | [`swift-uix-rules.md`](swift-uix-rules.md) | SwiftUI / macOS rules — source authority, component constraints, HIG adherence, build→screenshot→review loop | **Mandatory** — see rule below |
+| [`components-reference.md`](components-reference.md) | Catalogue of verified SwiftUI components in `Pommora/Pommora/Components/` — names, swiftinterface citations, idiomatic snippets | Adding any new SwiftUI surface — check here first before writing from memory |
 | [`session-recaps/`](session-recaps/) | Dated summaries of significant sessions | When picking up state from a prior session |
 
 ## MANDATORY rule for Swift / SwiftUI / macOS work
@@ -46,7 +47,7 @@ Memory is mandatory, not optional. Skipping these triggers is how the same mista
 
 - Nathan corrects your behavior → append to [`feedback.md`](feedback.md) immediately, before moving on.
 - A bug or mistake is discovered and fixed → append a dated incident to the matching L-00X entry in [`lessons.md`](lessons.md). If it's a new failure pattern, add a new L-00X entry.
-- An architectural constraint surfaces, or v1.0/v1.1 scope shifts → update [`framework.md`](framework.md) (Standing constraints, Deferred decisions, or Current state).
+- An architectural constraint surfaces, or skeleton scope shifts → update [`framework.md`](framework.md) (Skeleton scope, Standing constraints, or Component categories).
 - Nathan directs you to record the session → create a new file in [`session-recaps/`](session-recaps/) named `Session DD-MM-YY (#).md` (see that folder's README).
 
 **What to write:** the non-obvious part. If it's in the code or git history, don't duplicate it. Write the *why*, the *constraint*, the *decision that surprised you*, or the *mistake pattern* — so future sessions don't have to rediscover it.
