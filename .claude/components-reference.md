@@ -115,4 +115,18 @@ Example file: [`ListComponents.swift`](../Pommora/Pommora/Components/ListCompone
 
 ---
 
-(further categories will be appended in Task 12)
+### Navigation
+
+HIG:
+- <https://developer.apple.com/design/human-interface-guidelines/sidebars>
+- <https://developer.apple.com/design/human-interface-guidelines/split-views>
+- <https://developer.apple.com/design/human-interface-guidelines/column-views>
+
+| Component | swiftinterface line | Use this for |
+|---|---|---|
+| `NavigationStack` | SwiftUI:14608 | Push-based navigation with `navigationDestination(for:)` |
+| `NavigationSplitView` | SwiftUI:20410 | Sidebar / content / detail. **Always pair with `.navigationSplitViewStyle(.prominentDetail)`** — see L-003. |
+| `NavigationLink` | SwiftUI:11185 | Value-based push (preferred) or label-based push |
+| `TabView` | SwiftUI:2483 | Top-level switching between independent panes |
+
+Example file: [`NavigationComponents.swift`](../Pommora/Pommora/Components/NavigationComponents.swift).
