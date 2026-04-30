@@ -71,4 +71,18 @@ Example file: [`LayoutComponents.swift`](../Pommora/Pommora/Components/LayoutCom
 
 ---
 
-(further categories will be appended in Tasks 9–12)
+### Text
+
+HIG: <https://developer.apple.com/design/human-interface-guidelines/typography>
+
+| Component | swiftinterface line | Use this for |
+|---|---|---|
+| `Text` | SwiftUICore 18180 | Read-only string with `.font`, `.foregroundStyle`, etc. |
+| `Label` | SwiftUI 23050 | Icon + title pairing — preferred over hand-rolled `HStack { Image; Text }`. See L-001. |
+| `TextField` | SwiftUI 5193 | Single-line text input with binding |
+
+Example file: [`TextComponents.swift`](../Pommora/Pommora/Components/TextComponents.swift).
+
+---
+
+(further categories will be appended in Tasks 10–12)
