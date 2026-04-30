@@ -98,4 +98,21 @@ Example file: [`ControlComponents.swift`](../Pommora/Pommora/Components/ControlC
 
 ---
 
-(further categories will be appended in Tasks 11–12)
+### Lists
+
+HIG:
+- <https://developer.apple.com/design/human-interface-guidelines/outline-views>
+- <https://developer.apple.com/design/human-interface-guidelines/components>
+
+| Component | swiftinterface line | Use this for |
+|---|---|---|
+| `List` | SwiftUI:6456 | Vertical scrolling collection with optional `selection:` binding |
+| `ForEach` | SwiftUICore:16946 | Iteration inside `List` / `Form` / stacks; requires `Identifiable` or `id:` keypath |
+| `Section` | SwiftUI:11007 | Group rows under a header (and optional footer) |
+| `Table` | SwiftUI:1119 | Multi-column data display with sortable `KeyPath` columns |
+
+Example file: [`ListComponents.swift`](../Pommora/Pommora/Components/ListComponents.swift).
+
+---
+
+(further categories will be appended in Task 12)
