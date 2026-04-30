@@ -85,4 +85,17 @@ Example file: [`TextComponents.swift`](../Pommora/Pommora/Components/TextCompone
 
 ---
 
-(further categories will be appended in Tasks 10–12)
+### Controls
+
+HIG: <https://developer.apple.com/design/human-interface-guidelines/components>
+
+| Component | swiftinterface line | Use this for |
+|---|---|---|
+| `Button` | SwiftUI 21934 | Tap action with title or custom label. Styles: `.bordered`, `.borderedProminent`, `.plain`, `.link`. |
+| `Toggle` | SwiftUI 4916 | Boolean binding control with optional label |
+
+Example file: [`ControlComponents.swift`](../Pommora/Pommora/Components/ControlComponents.swift).
+
+---
+
+(further categories will be appended in Tasks 11–12)
