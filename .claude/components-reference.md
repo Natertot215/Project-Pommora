@@ -53,4 +53,22 @@ When a component category is added below, link the relevant HIG page(s) — from
 
 ## Categories
 
-(populated as `Components/` files are added — see Tasks 8–12)
+### Layout
+
+HIG: <https://developer.apple.com/design/human-interface-guidelines/layout-and-organization>
+
+| Component | swiftinterface line | Use this for |
+|---|---|---|
+| `VStack` | SwiftUICore 1128 | Vertical stack with optional alignment + spacing |
+| `HStack` | SwiftUICore 5404 | Horizontal stack with optional alignment + spacing |
+| `ZStack` | SwiftUICore 341 | Depth stack — overlays children with optional alignment |
+| `Spacer` | SwiftUICore 3419 | Flexible empty space inside a stack |
+| `Divider` | SwiftUI 8816 | Thin separator line, axis inferred from container |
+
+Note: `VStack`, `HStack`, `ZStack`, and `Spacer` are declared in the `SwiftUICore` swiftinterface (`MacOSX.sdk/.../SwiftUICore.framework/.../arm64e-apple-macos.swiftinterface`); `Divider` is declared in the `SwiftUI` swiftinterface at the path documented above. Re-exported through `import SwiftUI`.
+
+Example file: [`LayoutComponents.swift`](../Pommora/Pommora/Components/LayoutComponents.swift). Five `#Preview` blocks: VStack, HStack, ZStack, Spacer, Divider.
+
+---
+
+(further categories will be appended in Tasks 9–12)
