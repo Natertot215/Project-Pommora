@@ -19,7 +19,7 @@ What's shipped in the skeleton:
 - Three-column `NavigationSplitView` with `.navigationSplitViewStyle(.prominentDetail)` — sidebar and middle column resize independently; the detail (right) column absorbs all width changes.
 - Sidebar with a single placeholder `Favorites` section and the `.searchable(placement: .sidebar)` scaffold (search field renders; no targets to search yet).
 - Middle column shows a `ContentUnavailableView` placeholder when nothing is selected.
-- Empty SwiftData `ModelContainer` (no schema entries; ready to register types when a feature lands).
+- No `ModelContainer` attached to the app yet. SwiftData is **not** imported in `PommoraApp.swift`. When the first feature needs persistence, import `SwiftData`, declare an `@Model` type, and add `.modelContainer(for: <YourModel>.self)` to the `WindowGroup`. **Do not** scaffold a `.modelContainer(for: [])` empty container — see L-007.
 - `Components/` directory containing one file per primitive category, each with verified SwiftUI examples and `#Preview` blocks.
 
 Hard constraints (carried over from Pommora; transcend the re-scope):

@@ -143,3 +143,18 @@ Verify: `grep -n "prominentDetail" …arm64e-apple-macos.swiftinterface` → `Pr
 
 **Incidents:**
 - **2026-04-28** — Finder-style displacement drag rejected 4 times. Constraint (`.listStyle(.sidebar)` → `NSOutlineView`) was never surfaced upfront.
+
+---
+
+## L-007 · Don't scaffold an empty `.modelContainer(for: [])` — omit it entirely until a model exists
+
+**Applies before:** stripping SwiftData out of an app skeleton, or scaffolding a new SwiftUI macOS app where SwiftData is anticipated but no `@Model` types are defined yet.
+
+**The mistake:** Leaving `.modelContainer(for: [], inMemory: false)` on the `WindowGroup` when no `@Model` types exist. Reasoning: "the container is empty now and ready when a feature lands." Looks harmless.
+
+**Why it's wrong:** On macOS 26, attaching `.modelContainer(for: [])` to a `WindowGroup` causes the container init to fail silently — the app launches, the process is alive, but **no window renders**. From the outside this looks like the app is broken; from `xcodebuild` it builds fine. The failure mode is invisible until you actually try to launch and observe the (missing) window.
+
+**The rule:** No `.modelContainer(...)` until at least one `@Model` type is registered. The minimum viable skeleton `App` is just `WindowGroup { ContentView() }` with no `import SwiftData` and no container modifier. When the first feature lands, import SwiftData, declare the `@Model`, and only then add `.modelContainer(for: YourModel.self)`.
+
+**Incidents:**
+- **2026-04-30** — During the PommoraUI strip (Task 7), the planned `.modelContainer(for: [], inMemory: false)` shipped from Task 6's stripped `PommoraApp`. Build succeeded; the UI smoke test failed because the app launched but no window rendered, so search field / Favorites section / placeholder all reported "does not exist." Removing the modifier and the `import SwiftData` resolved the failure: window rendered, all 8 assertions passed. Cost: one full test run + diagnostic loop. Worth pinning so the next skeleton scaffold doesn't repeat it.
