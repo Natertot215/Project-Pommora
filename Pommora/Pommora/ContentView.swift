@@ -15,7 +15,7 @@ struct ContentView: View {
             Color.clear
                 .overlay(alignment: .topLeading) {
                     HoverRevealButton(
-                        systemImage: "sidebar.left",
+                        systemImage: "chevron.compact.left",
                         help: "Collapse content column"
                     ) {
                         contentCollapsed = true
@@ -31,7 +31,7 @@ struct ContentView: View {
                 .overlay(alignment: .topLeading) {
                     if contentCollapsed {
                         HoverRevealButton(
-                            systemImage: "sidebar.left",
+                            systemImage: "chevron.compact.right",
                             help: "Expand content column"
                         ) {
                             contentCollapsed = false
@@ -41,7 +41,7 @@ struct ContentView: View {
                 .overlay(alignment: .topTrailing) {
                     if !inspectorPresented {
                         HoverRevealButton(
-                            systemImage: "sidebar.right",
+                            systemImage: "chevron.compact.left",
                             help: "Show inspector"
                         ) {
                             inspectorPresented = true
@@ -54,7 +54,7 @@ struct ContentView: View {
             InspectorView()
                 .overlay(alignment: .topLeading) {
                     HoverRevealButton(
-                        systemImage: "sidebar.right",
+                        systemImage: "chevron.compact.right",
                         help: "Hide inspector"
                     ) {
                         inspectorPresented = false
