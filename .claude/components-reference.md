@@ -113,10 +113,10 @@ HIG:
 
 | Component | swiftinterface line | Apple Docs (canonical code) | Use this for |
 |---|---|---|---|
-| `List` | SwiftUI:6456 | <https://developer.apple.com/documentation/swiftui/list> | Vertical scrolling collection with optional `selection:` binding |
-| `ForEach` | SwiftUICore:16946 | <https://developer.apple.com/documentation/swiftui/foreach> | Iteration inside `List` / `Form` / stacks; requires `Identifiable` or `id:` keypath |
-| `Section` | SwiftUI:11007 | <https://developer.apple.com/documentation/swiftui/section> | Group rows under a header (and optional footer) |
-| `Table` | SwiftUI:1119 | <https://developer.apple.com/documentation/swiftui/table> | Multi-column data display with sortable `KeyPath` columns |
+| `List` | SwiftUI 6456 | <https://developer.apple.com/documentation/swiftui/list> | Vertical scrolling collection with optional `selection:` binding |
+| `ForEach` | SwiftUICore 16946 | <https://developer.apple.com/documentation/swiftui/foreach> | Iteration inside `List` / `Form` / stacks; requires `Identifiable` or `id:` keypath |
+| `Section` | SwiftUI 11007 | <https://developer.apple.com/documentation/swiftui/section> | Group rows under a header (and optional footer) |
+| `Table` | SwiftUI 1119 | <https://developer.apple.com/documentation/swiftui/table> | Multi-column data display with sortable `KeyPath` columns |
 
 Example file: [`ListComponents.swift`](../Pommora/Pommora/Components/ListComponents.swift).
 
@@ -131,9 +131,9 @@ HIG:
 
 | Component | swiftinterface line | Apple Docs (canonical code) | Use this for |
 |---|---|---|---|
-| `NavigationStack` | SwiftUI:14608 | <https://developer.apple.com/documentation/swiftui/navigationstack> | Push-based navigation with `navigationDestination(for:)` |
-| `NavigationSplitView` | SwiftUI:20410 | <https://developer.apple.com/documentation/swiftui/navigationsplitview> | Sidebar / content / detail. **Always pair with `.navigationSplitViewStyle(.prominentDetail)`** — see L-003. |
-| `NavigationLink` | SwiftUI:11185 | <https://developer.apple.com/documentation/swiftui/navigationlink> | Value-based push (preferred) or label-based push |
-| `TabView` | SwiftUI:2483 | <https://developer.apple.com/documentation/swiftui/tabview> | Top-level switching between independent panes |
+| `NavigationStack` | SwiftUI 14608 | <https://developer.apple.com/documentation/swiftui/navigationstack> | Push-based navigation with `navigationDestination(for:)` |
+| `NavigationSplitView` | SwiftUI 20410 | <https://developer.apple.com/documentation/swiftui/navigationsplitview> | Sidebar / content / detail. **Always pair with `.navigationSplitViewStyle(.prominentDetail)`** — see L-003. |
+| `NavigationLink` | SwiftUI 11185 | <https://developer.apple.com/documentation/swiftui/navigationlink> | Value-based push (preferred) or label-based push |
+| `TabView` | SwiftUI 2483 | <https://developer.apple.com/documentation/swiftui/tabview> | Top-level switching between independent panes |
 
 Example file: [`NavigationComponents.swift`](../Pommora/Pommora/Components/NavigationComponents.swift).
