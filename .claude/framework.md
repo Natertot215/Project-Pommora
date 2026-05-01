@@ -24,7 +24,7 @@ What's shipped in the skeleton:
 
 Hard constraints (carried over from Pommora; transcend the re-scope):
 
-- No AppKit wraps — `NSViewRepresentable` is off the table ("swift ONLY items").
+- **No AppKit wraps** — `NSViewRepresentable` is off the table ("swift ONLY items"). **Rule precedence:** when this rule conflicts with a documented Apple SwiftUI / macOS API or pattern, the **documented Apple method wins** — implement it. The "no AppKit" constraint applies only when there is no documented pure-SwiftUI path to the same outcome. Cite the Apple doc URL in the commit message when invoking this clause.
 - No third-party UI libraries.
 - macOS 26 only — no backward compat.
 - No auto-save logic, no file IO scaffold (none needed without a feature).
@@ -78,6 +78,8 @@ Chronological record of components added to the app. **No code** — just name +
 |---|---|
 | Settings scene — theme picker (Light/Dark/Device) | 2026-04-30 |
 | Window chrome — `.windowToolbarStyle(.unified(showsTitle: false))` (no app-name title, no title-bar separator, vertical column dividers extend full height); empty content/detail columns (`Color.clear`) replace `ContentUnavailableView` placeholders | 2026-04-30 |
+| Right-side inspector — hover-reveal toggle (top-right of detail to open / top-left of inspector to close), drag-to-dismiss; ⌃⌘I shortcut via `InspectorCommands()`. Opens by compressing existing columns (window does not grow — see L-008). | 2026-04-30 |
+| Content-column collapse — hover-reveal toggle (top-left of content to collapse / top-left of detail to expand) using `.navigationSplitViewColumnWidth(...)` to shrink the column to zero | 2026-04-30 |
 
 ---
 

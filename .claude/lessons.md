@@ -158,3 +158,23 @@ Verify: `grep -n "prominentDetail" …arm64e-apple-macos.swiftinterface` → `Pr
 
 **Incidents:**
 - **2026-04-30** — During the PommoraUI strip (Task 7), the planned `.modelContainer(for: [], inMemory: false)` shipped from Task 6's stripped `PommoraApp`. Build succeeded; the UI smoke test failed because the app launched but no window rendered, so search field / Favorites section / placeholder all reported "does not exist." Removing the modifier and the `import SwiftData` resolved the failure: window rendered, all 8 assertions passed. Cost: one full test run + diagnostic loop. Worth pinning so the next skeleton scaffold doesn't repeat it.
+
+---
+
+## L-008 · `.windowResizeAnchor` + `.windowResizability(.contentSize)` does NOT auto-grow the window when `.inspector(...)` adds a sibling column
+
+**Applies before:** any task where you intend to grow the macOS window in response to a SwiftUI state change — e.g. adding a column, opening a panel, expanding a section that should push the window wider rather than compress siblings.
+
+**The mistake:** Assuming the documented Apple pattern from <https://developer.apple.com/documentation/swiftui/view/windowresizeanchor(_:)> (which shows a single view's `.frame(width:height:)` driving live window resize via `.windowResizability(.contentSize)`) generalizes to a `NavigationSplitView` + `.inspector(isPresented:)` configuration where opening the inspector should grow the window off its right edge.
+
+**Why it's wrong:** Empirically on macOS 26, the pattern works for a single view whose own intrinsic size changes via state — but NOT when a `NavigationSplitView` adds a sibling column via `.inspector(...)`. The inspector slots into the existing window's available width and compresses the other columns; the window does not grow. `.windowResizeAnchor(.leading)` and a dynamic `.frame(idealWidth:)` on the NavigationSplitView root have no observable effect in this configuration.
+
+**The rule:** When the documented Apple SwiftUI pattern doesn't achieve a desired outcome empirically:
+1. Per the framework.md "Rule precedence" addendum: documented Apple method wins, full stop. **Do not** reach for `NSWindow` access (or any AppKit shim) as a workaround.
+2. Accept the default behavior. Document the limitation. Move on.
+3. Surface the finding to Nathan so the project's mental model stays accurate.
+
+For window-grow-on-inspector-open specifically: accept that opening the inspector compresses the existing columns. The user can manually drag the window edge wider if they want more detail real estate. macOS native behavior in pure SwiftUI; not configurable past `inspectorColumnWidth(...)`.
+
+**Incidents:**
+- **2026-04-30** — Implementing the right-side inspector with hover-reveal toggles (commit `e70ec52` follow-up). Tried the documented Apple pattern: `.windowResizability(.contentSize)` on WindowGroup + dynamic `.frame(idealWidth:)` on ContentView + `.windowResizeAnchor(.leading)`. Built fine; on toggle, the inspector animated in but the window stayed at 1033 px — the existing columns compressed instead. Removed the dead-code modifiers; accepted compression as the shipped behavior. Per Nathan's "official method wins" rule (framework.md hard constraint addendum), no AppKit fallback was attempted.
