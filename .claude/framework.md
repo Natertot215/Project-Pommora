@@ -62,11 +62,21 @@ These are non-obvious facts that don't surface from reading the code or git hist
 ## Deferred / locked decisions
 
 1. **No features in the skeleton.** Features are added in subsequent sessions, one at a time, on top of this foundation.
-2. **No `Settings` scene yet.** Add when the first feature requires user-configurable state.
+2. **Settings scene** — present. Light/Dark/Device theme picker, `Cmd+,`. Future settings tabs added as features require them.
 3. **No `AppState` global model yet.** Add when feature state needs sharing across columns.
 4. **Search field has no targets.** The `.searchable` modifier renders, but the binding doesn't filter anything until a feature provides a list.
 5. **Middle column is `ContentUnavailableView` only.** Replaced by feature-owned content when the first feature lands.
 6. **Components library is curated, not exhaustive.** Five categories at skeleton time. New categories added on demand and recorded in this file's table.
+
+---
+
+## Components log
+
+Chronological record of components added to the app. **No code** — just name + date. For implementation details, read the source. Append a new line whenever a feature or component lands.
+
+| Component | Date |
+|---|---|
+| Settings scene — theme picker (Light/Dark/Device) | 2026-04-30 |
 
 ---
 
