@@ -7,17 +7,9 @@ struct ContentView: View {
         NavigationSplitView {
             SidebarView(searchText: $searchText)
         } content: {
-            ContentUnavailableView(
-                "No selection",
-                systemImage: "square.dashed",
-                description: Text("Select an item from the sidebar.")
-            )
+            Color.clear
         } detail: {
-            ContentUnavailableView(
-                "No detail",
-                systemImage: "doc",
-                description: Text("Detail will appear here.")
-            )
+            Color.clear
         }
         .navigationSplitViewStyle(.prominentDetail)
     }

@@ -9,6 +9,7 @@ struct PommoraApp: App {
             ContentView()
                 .preferredColorScheme(themePreference.colorScheme)
         }
+        .windowToolbarStyle(.unified(showsTitle: false))
 
         Settings {
             SettingsView()

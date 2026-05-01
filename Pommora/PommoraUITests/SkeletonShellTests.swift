@@ -1,7 +1,7 @@
 import XCTest
 
 final class SkeletonShellTests: XCTestCase {
-    func test_appLaunches_andShowsSearchFieldAndPlaceholder() throws {
+    func test_appLaunches_andShowsSearchFieldAndFavoritesSection() throws {
         let app = XCUIApplication()
         app.launch()
 
@@ -22,9 +22,12 @@ final class SkeletonShellTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Recents"].exists,
                        "Sidebar should NOT show Recents row in skeleton")
 
-        // Middle column shows the empty-state placeholder.
-        XCTAssertTrue(app.staticTexts["No selection"].exists
-                      || app.staticTexts["Select an item"].exists,
-                      "Middle column should show ContentUnavailableView placeholder")
+        // Middle and detail columns are intentionally empty (no ContentUnavailableView placeholder
+        // — that was removed once the skeleton's empty state was finalized). Future features
+        // populate them via sidebar selection.
+        XCTAssertFalse(app.staticTexts["No selection"].exists,
+                       "Middle column should not display the removed 'No selection' placeholder")
+        XCTAssertFalse(app.staticTexts["No detail"].exists,
+                       "Detail column should not display the removed 'No detail' placeholder")
     }
 }

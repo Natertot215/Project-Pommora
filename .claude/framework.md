@@ -77,6 +77,7 @@ Chronological record of components added to the app. **No code** — just name +
 | Component | Date |
 |---|---|
 | Settings scene — theme picker (Light/Dark/Device) | 2026-04-30 |
+| Window chrome — `.windowToolbarStyle(.unified(showsTitle: false))` (no app-name title, no title-bar separator, vertical column dividers extend full height); empty content/detail columns (`Color.clear`) replace `ContentUnavailableView` placeholders | 2026-04-30 |
 
 ---
 
