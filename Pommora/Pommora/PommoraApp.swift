@@ -10,9 +10,6 @@ struct PommoraApp: App {
                 .preferredColorScheme(themePreference.colorScheme)
         }
         .windowToolbarStyle(.unified(showsTitle: false))
-        .commands {
-            InspectorCommands()
-        }
 
         Settings {
             SettingsView()
