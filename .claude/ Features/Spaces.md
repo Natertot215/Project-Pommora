@@ -1,0 +1,79 @@
+### Spaces
+
+A Space is a **Notion-page-style composed surface** — text, headings, lists, callouts, columns, and widgets, all intermixed in a block-composition canvas. Spaces are the only surface in Pommora with Notion-style block manipulation. Independent of Collections — a Space is never *inside* a Collection.
+
+Conceptually: a Space is "a Notion page that happens to not be a Markdown file." All the rich block composition Notion offers, with widget blocks for aggregating linked Pages and embedded Collection views.
+
+---
+
+#### On disk
+
+- A `.space.json` file in `_pommora// spaces//` (e.g. `_pommora// spaces// Pommora.space.json`)
+- Each Space has an ID (ULID)
+- The file holds the full block tree as structured JSON. Claude (or any tool) reading the file sees: the Space's metadata, every block's type and configuration, and which Pages are linked-to via widget blocks.
+- No Markdown body — Spaces are pure structured config. The block tree is the canonical content.
+- The Space's title comes from the **filename** (e.g. `Pommora.space.json` → "Pommora"). Renaming a Space in the UI renames the file on disk.
+
+---
+
+#### Schema
+
+```json
+{
+  "id": "01HXXXXX...",
+  "icon": "rocket",
+  "blocks": [
+    { "type": "heading", "level": 1, "text": "Pommora" },
+    { "type": "paragraph", "text": "Active project notes." },
+    { "type": "linked-pages", "view": "list", "filter": "..." },
+    { "type": "columns", "children": [
+      { "type": "embedded-collection-view", "collection_id": "01H...", "view_id": "01H..." },
+      { "type": "link-list", "items": [ /* ... */ ] }
+    ]},
+    { "type": "callout", "icon": "info", "text": "..." }
+  ]
+}
+```
+
+---
+
+#### Editor surface
+
+Spaces are composed in a **page-like canvas with drag-and-drop blocks** — Notion-style structured layout (1D vertical flow with one nestable `columns` container), not free X/Y positioning. Drag and drop blocks of any type, slash-menu insertion, reordering, multi-column layout, the full Notion-style block experience. This is the only surface in Pommora with this composition complexity.
+
+**For React**
+
+`@dnd-kit/core` v6.x with a flat-array `[id, depth, parentId]` tree representation. Cross-level drag (a block dragged into a `columns` child or out into the top-level vertical flow) requires the flat-array shape; nested arrays don't compose well with dnd-kit's sortable strategies. Block JSON is validated with Zod on load and save; atomic write via `.tmp` + rename; ULID per block. Detail → `// ReactInfo.md`.
+
+**For Swift**
+
+`Codable` `Block` enum as the model + `ReorderableVStack` from `visfitness/reorderable` (the vertical block stack) + `HSplit` from `stevengharris/SplitView` (the columns container). No SwiftUI library is a clean equivalent of React's `dnd-kit-sortable-tree`, but the shape of Pommora's problem (one nestable `columns` container + 1D vertical flow elsewhere) is the easiest version of this and the libraries above compose cleanly. Rough edges to handle: drop-indicator UX, auto-scroll while dragging, slash-menu positioning, HSplitView polish in nested splits, heterogenous `Transferable` for the block enum. Detail → `// SwiftInfo.md`.
+
+---
+
+#### Block types in v1
+
+**Text blocks** (same as a Notion page):
+
+- Paragraph
+- Headings (H1–H3)
+- Lists (bulleted, numbered)
+- Callout
+- Code block
+- Quote
+- Divider
+- Columns (multi-column container, can nest other blocks)
+
+**Widget blocks** (the data-aggregation layer):
+
+- **Linked Pages** — list / cards / grid of Pages whose `spaces` property includes this Space. Filterable, sortable.
+
+- **Embedded Collection View** — render a saved view from any Collection inline within the Space. References a Collection by ID and overrides filter / sort / group / shown-properties locally without modifying the Collection's saved views. Same `<CollectionViewRenderer>` (React) used in standalone Collection pages.
+
+- **Link list** — manually curated list of links to specific Pages, Collections, or Spaces.
+
+---
+
+#### Why Spaces exist
+
+Spaces subsume what Notion calls "homepage" pages and what Obsidian users assemble manually with Dataview queries. They're the *aggregation and dashboard* layer — where you compose a topic-level view of your work. A Space called "Pommora" gathers every Page linked to it (via the Page's `spaces` property), can embed views from any Collection, and lets the user write supporting text and structure around all of it.
