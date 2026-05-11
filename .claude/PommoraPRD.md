@@ -28,13 +28,14 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property and q
 
 #### Domain Model
 
-Pommora is composed of three top-level entity types:
+Pommora is composed of three top-level entity types, plus one Collection-bound member type:
 
 - **Pages** — single Markdown documents. Prose-first editor; flat (Obsidian-style filesystem flexibility, no semantic nesting).
-- **Collections** — first-class database entities (Notion-style). Hold property schemas and saved view configurations. Pages belong to Collections via frontmatter, not via folder location.
+- **Collections** — first-class database entities (Notion-style). Hold property schemas and saved view configurations. Page membership is by file location (a `.md` inside the Collection's folder); Items are entries in the Collection's `_items.json` sidecar.
+- **Items** — Collection-bound row entities. Lightweight, property-driven, short-description entries that don't warrant a full Markdown Page (ideas, tasks, references, list items). Stored as JSON entries in `_items.json` inside their Collection's folder. Items use the same property catalog as Pages and can hold relations, but have no Markdown body.
 - **Spaces** — customizable dashboard surfaces at the interface level. Composed of widgets that aggregate Pages and Collection items linked to them.
 
-The model deliberately separates content (Pages), structure (Collections), and interface (Spaces). Collections and Spaces are config-style entities; only Pages hold prose. Full definitions, on-disk shapes, linking model, and open questions live in `// Features//Domain-Model.md`.
+The model deliberately separates content (Pages), row-shaped data (Items), structure (Collections), and interface (Spaces). Items and Pages are both *members* of a Collection — Pages for entries that warrant prose, Items for entries that don't. Full definitions, on-disk shapes, linking model, and open questions live in `// Features//Domain-Model.md`.
 
 ---
 
@@ -67,9 +68,17 @@ Pommora's *functionalities* are designed to work across both stack paths. If one
 
 A second load-bearing constraint, separate from stack portability:
 
-- **Cross-vault queryability** — each Collection's schema and member set is encapsulated in its folder, but the Collection participates in vault-wide queries and links. A Page or Space anywhere in the vault can query, link to, or embed any Collection regardless of folder location. Collections are never *isolated* — only their schemas and Pages are *contained*.
-- **Cloud sync compatibility** — the model must translate cleanly to a cloud database (e.g. Supabase). The mapping is direct and mirrors the local SQLite shape: a single shared `pages` table where each row carries `collection_id` and a `properties` JSONB column (matching Notion / Airtable / AFFiNE convention); each `_collection.json` schema → a row in a `collections` table; each Space → one row in a `spaces` table with the block tree as a JSON column. Sync arrives later as an additive translation layer; v1 must not paint us into a corner that requires redesigning the on-disk model when sync lands.
-- **Implication for relations:** frontmatter relation properties reference targets by **ID** (not by path or filename), so renames don't break links. Body wikilinks (`[[Page Name]]`) reference by name and are rewritten on rename. Two reference mechanisms, each fit for purpose.
+- **Cross-vault queryability** — each Collection's schema and member set is encapsulated in its folder, but the Collection participates in vault-wide queries and links. A Page or Space anywhere in the vault can query, link to, or embed any Collection regardless of folder location. Collections are never *isolated* — only their schemas, Pages, and Items are *contained*.
+- **Cloud sync compatibility** — the model must translate cleanly to a cloud database (e.g. Supabase). The mapping is direct and mirrors the local SQLite shape: a single shared `pages` table where each row carries `collection_id` and a `properties` JSONB column; a parallel `items` table with the same shape for Item entries (matching Notion / Airtable / AFFiNE convention); each `_collection.json` schema → a row in a `collections` table; each Space → one row in a `spaces` table with the block tree as a JSON column. Sync arrives later as an additive translation layer; v1 must not paint us into a corner that requires redesigning the on-disk model when sync lands.
+- **Implication for relations:** frontmatter relation properties (Pages) and JSON-entry relation values (Items) reference targets by **ID** (not by path or filename), so renames don't break links. Body wikilinks (`[[Page Name]]`) reference by name and are rewritten on rename. Two reference mechanisms, each fit for purpose.
+
+##### Persistent Immediate Legibility for Agents (Load-Bearing)
+
+A third load-bearing constraint, and the project's central differentiator from Notion-via-MCP:
+
+- **Vault as immediate context for agentic AI.** An external agent (Claude, any MCP client, any tool with filesystem access) can read Pommora's entire structured graph — Pages, Items, Collection schemas, Spaces, relations, properties — directly from files, without ever issuing a tool call to the app. SQLite is performance scaffolding, not the source of truth; the vault is fully self-describing on disk.
+- **Why this matters.** Notion gives you Notion-grade structure but locks it behind an API: every relation traversal is a round-trip, every property check is a tool call, the workspace is opaque until queried. Obsidian gives you local file legibility but no structured layer to traverse. Pommora is the intersection — Notion's structure expressed in files an agent can see continuously, the way Claude sees a codebase when it opens a repo.
+- **Implication for architecture.** Anywhere a design choice would trade file-canonical legibility for app-internal convenience (e.g. SQLite-only entities, virtual collections-as-views with no on-disk presence, opaque binary blobs), the trade violates this constraint. Items live in `_items.json` (not a SQLite-only row table) for this reason. Collections are folders (not virtual views) for this reason.
 
 ##### Storage Model
 
@@ -81,10 +90,12 @@ A second load-bearing constraint, separate from stack portability:
 ~// PommoraVault//
   Tasks//                      ← Collection (folder + _collection.json inside)
     _collection.json           ← Schema + saved views for this Collection
-    Buy groceries.md           ← Member Page
+    _items.json                ← Row-shaped Item entries for this Collection (optional; absent if none)
+    Buy groceries.md           ← Member Page (warrants prose / notes)
     Fix sink.md                ← Member Page
   Projects//                   ← Another Collection
     _collection.json
+    _items.json
     Pommora.md
   Quick note.md                ← Loose Page (not inside any Collection folder)
   Notes//                      ← Cosmetic folder (no _collection.json → not a Collection)

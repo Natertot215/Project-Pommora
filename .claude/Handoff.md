@@ -2,7 +2,7 @@
 
 #### Current State
 
-Three-entity domain model locked: **Pages** (Markdown files), **Collections** (folder + `_collection.json` schema sidecar), **Spaces** (`.space.json` block trees). Per-entity feature specs live in `// Features//Pages.md`, `// Features//Collections.md`, `// Features//Spaces.md`.
+Domain model locked: three top-level entities — **Pages** (Markdown files), **Collections** (folder + `_collection.json` schema + `_items.json` items sidecar), **Spaces** (`.space.json` block trees) — plus **Items**, the Collection-bound row-shaped member type for entries that don't warrant a full Page. Per-entity feature specs live in `// Features//Pages.md`, `// Features//Collections.md`, `// Features//Items.md` (brief), `// Features//Spaces.md`.
 
 Architecture framing is **conceptual portability of functionalities** — file formats, schemas, semantic operations, design tokens, and UX patterns survive a stack rebuild; the codebase doesn't. No enforced layer separation; the portability comes from documented decisions, not code structure.
 
@@ -41,6 +41,14 @@ No code yet — `.claude//` contains project specs only.
 ---
 
 #### Recent Changes (this session)
+
+- **Items entity added.** Collections now host two member types — Pages (Markdown files, prose-bearing) and Items (JSON entries in `_items.json` alongside `_collection.json`, row-shaped, no Markdown body). Items solve the Notion problem where wishlist entries and life domains are both full Pages. Same property catalog as Pages; same view participation; relations by ID, rename-safe. Items have no loose form — they only exist inside a Collection. Brief feature spec at `// Features//Items.md`; on-disk shape in `Collections.md`; entity table updated in `Domain-Model.md`; storage tree updated in `PommoraPRD.md`.
+
+- **Persistent immediate legibility for agents articulated as the third load-bearing constraint.** Sibling to stack-portability and cross-vault-queryability + cloud-sync-compatibility. The project's central differentiator from Notion-via-MCP: Notion's MCP is tool-mediated (every relation traversal is an API round-trip; the workspace is opaque until queried); Obsidian is locally legible but unstructured; Pommora is the intersection — Notion-grade structure expressed in files an agent can read continuously without tool calls. Codified in PRD ("Persistent Immediate Legibility for Agents" section), CLAUDE.md core principles, Architecture.md ("agent legibility contract" in what-survives + practical-discipline lists), and Domain-Model.md resolved decisions.
+
+- **"Files are canonical" clarified to mean "every entity is a file an external tool can open," not "everything is Markdown."** Pages → `.md`; Collections → folder + `_collection.json` + `_items.json`; Spaces → `.space.json`; Items → JSON entries in `_items.json`. SQLite remains regeneratable index. CLAUDE.md core principles updated.
+
+- **Spaces sharpened as referential, not containers.** A Space's `.space.json` doesn't *hold* Pages or Items — it embeds them via `@view` directives, linked-pages widgets, and link lists. The framing was implicit; now explicit in `Spaces.md` and in the Domain-Model entity table.
 
 - **Per-entity feature docs created.** Pages, Collections, and Spaces each got a dedicated detail doc in `// Features//` (`Pages.md`, `Collections.md`, `Spaces.md`). `Domain-Model.md` trimmed to a brief overview that links to the per-entity files plus retains cross-cutting topics (linking model, properties summary, sidebar, resolved decisions). PRD and CLAUDE.md Document Map updated to point to the new structure.
 

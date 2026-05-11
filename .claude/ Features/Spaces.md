@@ -4,6 +4,8 @@ A Space is a **Notion-page-style composed surface** — text, headings, lists, c
 
 Conceptually: a Space is "a Notion page that happens to not be a Markdown file." All the rich block composition Notion offers, with widget blocks for aggregating linked Pages and embedded Collection views.
 
+**Spaces are referential, not containers.** A Space doesn't *hold* its referenced Pages, Items, or Collection rows — it embeds them via `@view` directives (filtered Collection views), `linked-pages` widgets (Pages whose `spaces` property points here), and link lists. Think "grouping tag plus its own canvas": the Space carries its own content (layout, prose, callouts) and references everything else by query or ID. This is what keeps Spaces queryable and agent-legible without duplicating content — an external agent reads the `.space.json`, resolves the directives by walking files or hitting the index, and assembles the materialized view the same way the app does.
+
 ---
 
 #### On disk
@@ -66,11 +68,11 @@ Spaces are composed in a **page-like canvas with drag-and-drop blocks** — Noti
 
 **Widget blocks** (the data-aggregation layer):
 
-- **Linked Pages** — list / cards / grid of Pages whose `spaces` property includes this Space. Filterable, sortable.
+- **Linked Pages** — list / cards / grid of Pages whose `spaces` property includes this Space. Filterable, sortable. Items whose `spaces` field includes this Space surface in the same widget (configurable: pages-only, items-only, or both).
 
-- **Embedded Collection View** — render a saved view from any Collection inline within the Space. References a Collection by ID and overrides filter / sort / group / shown-properties locally without modifying the Collection's saved views. Same `<CollectionViewRenderer>` (React) used in standalone Collection pages.
+- **Embedded Collection View** — render a saved view from any Collection inline within the Space. References a Collection by ID and overrides filter / sort / group / shown-properties / `members` (pages / items / both) locally without modifying the Collection's saved views. Same `<CollectionViewRenderer>` (React) used in standalone Collection pages.
 
-- **Link list** — manually curated list of links to specific Pages, Collections, or Spaces.
+- **Link list** — manually curated list of links to specific Pages, Items, Collections, or Spaces.
 
 ---
 
