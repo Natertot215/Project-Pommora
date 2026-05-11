@@ -35,7 +35,7 @@ The decision is deferred. Documentation across the project is written stack-agno
 
 - **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips. Across both stacks.
 
-- **Design system lives in Figma.** Variables use semantic role-based names (`surface// primary// bg`, never `bg-zinc-900`) so the same design exports to both CSS custom properties (React) and SwiftUI Color extensions.
+- **Design system lives in Figma / Storybook.** Variables use semantic role-based names (`surface// primary// bg`, never `bg-zinc-900`) so the same design exports to both CSS custom properties (React) and SwiftUI Color extensions.
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 

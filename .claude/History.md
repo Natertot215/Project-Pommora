@@ -61,7 +61,6 @@
 - **"Collapsed-by-default disclosure" is the general default UI pattern** for any hierarchical or grouped content elsewhere in the app
 
 ##### Design System
-- **Figma is the source of truth** for visual design
 - **Dual-export naming discipline:** Figma Variables use semantic role-based names that export to both CSS custom properties (React) and SwiftUI Color extensions (SwiftUI)
 - **One initial scheme** in v0.x — no built-in light/dark; customization deferred to v2
 - **Dual-axis tier model:** surface tier × element tier (independent axes)
