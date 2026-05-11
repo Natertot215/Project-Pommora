@@ -2,7 +2,7 @@
 
 #### Overview
 
-A simpler Notion that's also a more capable Obsidian. Composed of three top-level entity types: **Pages** (Markdown documents), **Collections** (folder + `_collection.json` schema sidecar — Make.md folder-notes pattern applied to Notion-style databases), **Spaces** (Notion-page-style block-composed surfaces). SQLite indexes properties, links, and relations for fast queries. Personal-first, Mac-first, always open-source. Stack portability across React+Electron and SwiftUI is the load-bearing constraint.
+A simpler Notion that's also a more capable Obsidian. Composed of three top-level entity types: **Pages** (Markdown documents), **Collections** (folder + `_collection.json` schema sidecar — Make.md folder-notes pattern applied to Notion-style databases), **Spaces** (Notion-page-style block-composed surfaces). Collections additionally host **Items** — lightweight row-shaped entries (entries in `_items.json` alongside the schema) for database content that doesn't warrant a full Markdown Page. SQLite indexes properties, links, and relations for fast queries. Personal-first, Mac-first, always open-source. Stack portability across React+Electron and SwiftUI is the load-bearing constraint.
 
 #### Working with Nathan
 
@@ -23,11 +23,13 @@ The decision is deferred. Documentation across the project is written stack-agno
 
 - **Conceptual portability across stacks.** Pommora's *functionalities* (file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design tokens, UX patterns) are designed to work across React+Electron and SwiftUI. If one stack ships and Pommora is later rebuilt in the other, that rebuild is guided translation work — not redesign. There's no enforced layer separation or "Core has zero UI imports" rule; portability comes from documented decisions, not code structure. See `// Features//Architecture.md` for what survives a rebuild.
 
-- **Cross-vault queryability + cloud sync compatibility (second load-bearing constraint).** Collections aren't isolated — they're queryable and linkable from anywhere in the vault. The on-disk model must translate cleanly to a cloud DB (Collection → table, Pages → rows, schema → columns) so future sync (e.g. Supabase) is additive, not a redesign. Frontmatter relations use IDs (rename-safe); body wikilinks use names (rewritten on rename).
+- **Cross-vault queryability + cloud sync compatibility (second load-bearing constraint).** Collections aren't isolated — they're queryable and linkable from anywhere in the vault. The on-disk model must translate cleanly to a cloud DB (Collection → table, Pages and Items → rows, schema → columns) so future sync (e.g. Supabase) is additive, not a redesign. Frontmatter relations use IDs (rename-safe); body wikilinks use names (rewritten on rename).
+
+- **Persistent immediate legibility for agents (third load-bearing constraint).** The vault is laid out so an agentic AI with filesystem access can read the entire structured graph — properties, relations, schemas, items, spaces — directly from files, without tool-call round-trips. This is the project's central differentiator: Notion's structure has to be queried piece by piece through an API (tool-mediated); Obsidian is locally legible but unstructured; Pommora gives a local agent persistent immediate access to a Notion-grade structured graph. Architectural decisions that would trade file-canonical legibility for app-internal convenience violate this constraint.
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
-- **Files are canonical.** Markdown for Pages, JSON for Collection schemas (`_collection.json` inside each Collection folder) and Spaces (`.space.json` in `_pommora// spaces//`). SQLite is purely a regeneratable index — no user data trapped in it.
+- **Files are canonical (≠ everything is Markdown).** Every entity is a file an external tool can open and read. Only **Pages** are Markdown. **Collections** are folder + `_collection.json` (schema) + `_items.json` (item entries). **Spaces** are `.space.json` block trees in `_pommora// spaces//`. **Items** are JSON entries inside their Collection's `_items.json`. SQLite is purely a regeneratable index — no user data trapped in it.
 
 - **Filename = title.** No `title` fields anywhere. Renaming in the UI renames the file. Independent UI titles are wishlist.
 
@@ -51,10 +53,11 @@ The decision is deferred. Documentation across the project is written stack-agno
 - `// Features//`
   - `Domain-Model.md` — entity overview, linking model, properties summary, sidebar pattern, resolved decisions
   - `Pages.md` — Pages on-disk, frontmatter, block-level features, editor surface (React BlockNote / Swift Phase A + Phase B), wikilinks
-  - `Collections.md` — `_collection.json` schema, view types, capabilities, loose Pages, embedded views
-  - `Spaces.md` — `.space.json` schema, drag-and-drop canvas, block types
+  - `Collections.md` — `_collection.json` schema, `_items.json` schema, view types, capabilities, loose Pages, embedded views
+  - `Items.md` — brief: lightweight row-shaped entries inside Collections; on-disk, capabilities, Page-vs-Item choice
+  - `Spaces.md` — `.space.json` schema, drag-and-drop canvas, block types, referential framing
   - `Architecture.md` — what survives a stack rebuild (conceptual portability of functionalities), what doesn't
-  - `Properties.md` — property type catalog
+  - `Properties.md` — property type catalog (shared between Pages and Items)
   - `Prospects.md` — potential post-v1 features and brainstormed ideas (not committed to any version)
 - `// Planning//`
   - `v0.0.md` — current build spec (React+Electron-locked; rewritten if SwiftUI chosen)

@@ -6,9 +6,10 @@ Detailed specification for Pommora's property system. Referenced from `PommoraPR
 
 #### Model
 
-- **Property values** live in YAML frontmatter on each page — directly editable by any text editor, any tool, or Claude.
-- **Property schemas** live in SQLite — accessed and edited through Pommora's UI.
-- **Properties are scoped to a database** (a folder). The `Tasks//` database has its own `status` definition; the `Projects//` database has its own. Same property name in two databases = two independent definitions.
+- **Property values** live in YAML frontmatter on each Page, or under the `properties` key inside each Item's JSON entry in `_items.json` — directly editable by any text editor, any tool, or Claude.
+- **Property schemas** live inside each Collection's `_collection.json` sidecar (canonical, file-based — agent-readable without going through SQLite). SQLite mirrors the schema for fast queries; the JSON file is the source of truth.
+- **Properties are scoped to a Collection** (a folder containing `_collection.json`). The `Tasks//` Collection has its own `status` definition; the `Projects//` Collection has its own. Same property name in two Collections = two independent definitions.
+- **The same property catalog applies to Pages and Items** — both kinds of Collection members conform to the same schema. The only difference is storage substrate: Pages store values in YAML frontmatter, Items store values in JSON.
 
 #### How Properties Are Created
 
@@ -51,12 +52,17 @@ What happens when a user changes a property's definition:
 
 #### Auto-Managed Properties
 
-Two properties exist on every page automatically and aren't user-creatable:
+These fields exist on every Page (in frontmatter) and every Item (in its JSON entry) automatically and aren't user-creatable:
 
-- `id` — ULID assigned at file creation, never changes
+- `id` — ULID assigned at file/entry creation, never changes
 - `created_at`, `modified_at` — UNIX timestamps maintained by Pommora
 
 These appear in the property panel at the bottom (collapsed by default).
+
+Items also carry two additional built-in fields that aren't user-defined properties but are part of the Item entity itself:
+
+- `name` — the Item's title equivalent (plays the title role since Items have no filename)
+- `description` — short plain-text field for one-line context. Not Markdown, not editable as a property; rendered alongside the name in views.
 
 #### Open Questions
 
