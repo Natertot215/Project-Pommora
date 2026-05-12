@@ -12,20 +12,45 @@ Reference document for the React + Electron implementation path. Captures resear
 - **`@dnd-kit/core` v6.x** is the drag-and-drop library for Spaces. Stable, recipe-rich. **NOT `@dnd-kit/react`** (v0.x, pre-1.0 ground-up rewrite by the same author).
 - **`@parcel/watcher` v2.5+** for vault folder watching — native FSEvents on macOS; ms vs seconds vs chokidar at large tree scale. Used by VSCode, Nx, Tailwind.
 - **`better-sqlite3` (WAL mode) + SQLite FTS5** for the local index. External-content table + `unicode61` tokenizer (`remove_diacritics=2`) is the recommended pattern for vault scale (1k–10k pages).
-- **`remark-directive` + `mdast-util-directive`** for `:::columns` / `:::callout` / toggles. Container directives have a clean AST and `directiveToMarkdown()` round-trips them back to `:::` syntax. Nesting requires the outer fence to use more colons (`::::columns` containing `:::callout`) to avoid ambiguous closes.
+- **`remark-directive` + `mdast-util-directive`** for `:::columns` and `:::callout` directives. Container directives have a clean AST and `directiveToMarkdown()` round-trips them back to `:::` syntax. Nesting requires the outer fence to use more colons (`::::columns` containing `:::callout`) to avoid ambiguous closes. (Blockquotes use standard `>` syntax — not a directive. Callouts are now a distinct construct with their own directive, not a styled blockquote.)
 - **`@flowershow/remark-wiki-link` v3.3.1+** for Obsidian-flavored wikilinks: `[[name]]`, `[[name|alias]]`, `[[name#heading]]`, combined `[[name#heading|alias]]`, and `![[asset]]` embeds with dimensions. Healthiest of the maintained options.
 
 ---
 
 #### Where React+Electron breaks for Pommora
 
-##### Editor: BlockNote markdown is lossy by design
+##### Editor serialization architecture — Markdown on disk, JSON in-editor
 
-Confirmed in BlockNote's official docs: `blocksToMarkdownLossy` and `tryParseMarkdownToBlocks` are lossy by design; the team explicitly recommends `JSON.stringify(editor.document)` as the canonical store. Behaviors that drop on round-trip include nested non-list blocks getting flattened, custom blocks without serializers being skipped, and inline marks beyond the built-ins (bold/italic/strike/code/link) silently dropping.
+The React editor uses **two serialization formats deliberately**, each chosen for what it does best. This is the editor's architecture, not a risk mitigation — both formats are first-class and Pommora needs both to function.
 
-**Implication for Pommora's "files canonical" principle:** the markdown round-trip layer is something Pommora must own end-to-end. Custom serialization is achievable without forking ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426); register `toExternalHTML`/markdown handlers per custom block spec), but covering every block type *is* the canonical-format guarantee — it's a real layer, not a small add-on.
+**Markdown (`.md` on disk) — canonical content format.**
 
-**Plan B if BlockNote disappoints:** CodeMirror 6 is buffer-based (markdown literally *is* the document; round-trip is perfect by definition). Architecturally it's how Obsidian Live Preview works (`StateField` parses the document; `Decoration.replace` swaps source ranges with `WidgetType` block widgets). Trade-off: getting a prose-first feel requires building widget enter/exit, caret behavior across widget boundaries, and placeholder rendering yourself — meaningfully more work than a block editor like BlockNote.
+- **Used for:** every Page's storage in the vault. The file is what an external agent reads, what Obsidian / GitHub / `cat` render, what `grep` searches. The third load-bearing constraint (persistent immediate legibility for agents) requires this.
+- **API:** `blocksToMarkdownLossy(blocks?: Block[]): string` (write) and `tryParseMarkdownToBlocks(markdown: string): Promise<Block[]>` (read).
+- **Carries:** standard Markdown (paragraphs, headings, lists, code blocks, images, GFM tables, blockquotes, horizontal rules) plus the two Pommora directives (`:::columns`, `:::callout`).
+- **`Lossy` in the function name is honest naming.** A generic BlockNote block tree can't always round-trip through Markdown perfectly — deeply nested non-list blocks flatten; undocumented custom blocks without explicit serializers are skipped; inline marks beyond the built-ins drop. None of that applies in Pommora because Pommora's content model is the standard set plus the two well-defined directives.
+
+**BlockNote JSON (in-memory) — working editor state and perfect-fidelity export.**
+
+- **Used for:** the editor's internal working state (always JSON in memory while editing), undo/redo history, debug snapshots, any case where perfect round-trip fidelity matters and Markdown can't carry it (selection ranges, in-flight transforms, Pommora-to-Pommora interchange).
+- **API:** `editor.document` reads the block tree; `JSON.stringify` serializes it.
+- **Never lossy.** This is BlockNote's canonical store; round-trip is exact by construction.
+
+**Custom serializers for the two directives.**
+
+- `:::columns` and `:::callout` get per-block `toExternalHTML` / markdown handlers ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426) pattern).
+- These bridge the in-memory JSON representation of Pommora's directives to their Markdown form on disk. Without them, the directives would fall back to BlockNote's default serialization on save.
+- Two block types, two pairs of handlers — small, well-bounded code surface, not an open-ended serializer burden.
+
+**Why both formats are necessary:**
+
+- Markdown alone can't carry editor state (cursor positions, selection ranges, in-flight operations, undo stack). The editor needs a richer working format.
+- JSON alone breaks agent-legibility, external-tool compatibility, and vault portability. Pages must be Markdown on disk.
+- Custom serializers alone don't help if the editor can't represent the directives internally; they're the boundary code, not the working format.
+
+The Markdown ↔ JSON split is deliberate, not a workaround. Treat it as a load-bearing architectural detail of the React path.
+
+**If BlockNote's block-per-paragraph UX disappoints:** Milkdown (markdown-first by design; ProseMirror foundation; the most natural fit for "Pages are one Markdown stream") or CodeMirror 6 (buffer-based; markdown literally *is* the document). Both have analogous Markdown ↔ internal-state splits — the architecture pattern survives a pivot; only the API names and the boundary code change.
 
 ##### Mac OS integration ceiling
 
@@ -52,7 +77,7 @@ The runtime is a stack: Vite + Electron main + Electron renderer + Tailwind + be
 **Locked direction (if React + Electron is picked):** BlockNote (open-source MPL-2.0 core) configured prose-first.
 
 - Disable BlockNote's per-paragraph drag handles; the prose feel comes from the absence of block UI on every line
-- Custom block specs for `:::columns`, `:::callout`, toggles via `createReactBlockSpec`
+- Custom block specs for `:::columns` and `:::callout` via `createReactBlockSpec`. Blockquotes use standard `>` syntax — BlockNote's built-in blockquote, with Pommora's distinct visual styling (filled background + left-side emphasis bar via `blockquote//` tokens). Callouts are now a distinct construct with their own custom spec (outlined box; `callout//` tokens).
 - Build the multi-column block in BlockNote core (avoid `@blocknote/xl-multi-column`; that's GPL-3.0 OR $195/mo commercial — depending on Pommora's project license, may be inheriting GPL or unaffordable)
 - Custom markdown serializer per block type to enforce files-canonical round-trip
 - Wikilinks render as styled colored inline text via custom inline marks; pair with `@flowershow/remark-wiki-link` for the parse direction

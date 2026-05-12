@@ -1,76 +1,113 @@
 ### Pommora — History
 
+Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
+
 #### Decisions
 
 ##### Stack
-- **Initial direction:** React + Electron + Tailwind + TypeScript + BlockNote + better-sqlite3 + Material Symbols, with SwiftUI as a deferred v2 path
-- **Currently:** under re-evaluation. Both React+Electron and SwiftUI remain viable. The architecture's conceptual-portability framing (file formats, schemas, semantic operations, design tokens, UX patterns survive a stack rebuild) preserves either-direction translation; only the editor surface and desktop shell are inherently stack-specific
-- **2026 SwiftUI research (logged for reference):** WWDC25 added native `AttributedString` binding to `TextEditor`, removing the long-standing rich-text-editing blocker for SwiftUI. `apple/swift-markdown` (block directives), GRDB.swift (FTS5 + `ValueObservation`), and SF Symbols all production-ready. The one remaining gap (chip/pill inline attachments) is moot because wikilinks render as styled colored spans, not chips
-- **2026 dual-stack tools/considerations research (logged for reference):** distribution and auto-update story is equivalent between stacks (electron-updater ≈ Sparkle 2.x; both ship cleanly to MAS via security-scoped bookmarks). React edges on dev loop (electron-vite HMR); SwiftUI edges on first-party tooling. Mac OS native integrations lean materially toward SwiftUI: QuickLook (.md preview via Finder spacebar), CoreSpotlight, Share Extensions, Finder file-promise drag-out, sidebar vibrancy, and accessibility all show meaningful gaps in pure Electron (some require shipping a separate Swift bundle to deliver at all). Equal: app menu, deep links, basic notifications, dark-mode toggling. Detail in `// Resources.md` and `// SwiftInfo.md`
-- **Editor (React path) — picked BlockNote (open-source MPL-2.0 core).** Considered alternatives during this session: Tiptap (eliminated free Cloud plan in 2026; commercial-trajectory risk for an "always open-source" project), Milkdown (markdown-first by design, MIT, ProseMirror foundation), Yoopta (Slate-based, MIT, 20+ built-in plugins including a callout). All three remain on the table as **pivot doors** if BlockNote disappoints in real use
-- `better-sqlite3` chosen over `node:sqlite` for the React path
+- **Initial direction:** React + Electron + Tailwind + TypeScript + BlockNote + better-sqlite3 + Material Symbols, with SwiftUI as a deferred v2 path.
+- **Currently under re-evaluation.** Both React+Electron and SwiftUI remain viable; only the editor surface and desktop shell are stack-specific (rest is portable).
+- **2026 SwiftUI research:** WWDC25's native `AttributedString` binding to `TextEditor` removed the long-standing rich-text-editing blocker. `apple/swift-markdown`, GRDB.swift (FTS5 + `ValueObservation`), SF Symbols all production-ready. Wikilinks-as-styled-spans dissolves the chip/pill inline attachment gap.
+- **2026 dual-stack research:** distribution is a wash (electron-updater ≈ Sparkle 2.x; both ship cleanly to MAS). React edges on dev loop (electron-vite HMR); SwiftUI edges on first-party tooling. Mac OS integration leans materially toward SwiftUI (QuickLook, CoreSpotlight, Share Extensions, Finder file-promise drag-out, sidebar vibrancy, accessibility). Detail in `Resources.md` and `SwiftInfo.md`.
+- **Editor (React path) — BlockNote (open-source MPL-2.0 core).** Pivot doors held: Milkdown (markdown-first), Yoopta (Slate-based), CodeMirror 6 (buffer-based, Plan B). Tiptap removed from active candidacy in 2026 (eliminated free Cloud plan; commercial-trajectory risk).
+- **SwiftUI editor strategy (if chosen): two open paths, neither locked.** Option A — fork Clearly (working native AppKit markdown editor; FSL-1.1-MIT, converts to MIT Feb 2028) as a running baseline and layer Pommora's extensions (`:::columns`, `:::callout`, wikilinks, properties integration) on top. Option B — build an original native markdown editor. Both deliver the same source-with-decorations + Obsidian-style Live Preview model. Tiptap / CodeMirror / any WKWebView-hosted JS editor are NOT in scope for the SwiftUI path (defeats native cohesion that motivates picking SwiftUI). Implementation specifics deferred to the build.
+- `better-sqlite3` over `node:sqlite` for the React path.
 
-##### Architecture
-- **Conceptual portability of functionalities** — Pommora's *functionalities* (file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design tokens, UX patterns) are designed to survive a stack rebuild. If one stack ships and Pommora is later rebuilt in the other, that rebuild is guided translation work, not redesign. **The earlier three-layer enforcement model (Core/Adapter/UI with "Core has zero UI imports" rule) was dropped as over-engineered for indie development** — portability now comes from documented decisions, not enforced code structure
-- **Cross-vault queryability + cloud sync compatibility is the second load-bearing constraint** — Collections aren't isolated to their folder; they're queryable and linkable from anywhere in the vault. The on-disk model must translate cleanly to a cloud database (Collection → table, Pages and Items → rows, schema → columns, Space → row with JSON block tree) so a future sync layer (e.g. Supabase) is additive, not a redesign
-- **Persistent immediate legibility for agents is the third load-bearing constraint** — the vault is laid out so an external agentic AI with filesystem access can read the entire structured graph (Pages, Items, schemas, Spaces, relations, properties) directly from files, without tool-call round-trips. SQLite is performance scaffolding, not source of truth. This is Pommora's central differentiator from Notion-via-MCP (Notion is tool-mediated; vault contents are opaque until queried via API) and from Obsidian (locally legible but unstructured). Pommora = local + structured. Codified in `PommoraPRD.md` "Persistent Immediate Legibility for Agents" section
-- **"Files are canonical" means "every entity is a file an external tool can open," not "everything is Markdown"** — Pages = `.md`; Collections = folder + `_collection.json` + `_items.json`; Spaces = `.space.json`; Items = JSON entries inside `_items.json`. SQLite remains a regeneratable index
-- **Reference convention:** frontmatter relations (Pages) and JSON-entry relation values (Items) use IDs (rename-safe); body wikilinks use names (rewritten on rename)
+##### Architecture (three load-bearing constraints)
+1. **Stack portability of functionalities** — file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design tokens, UX patterns survive a stack rebuild. The codebase doesn't. **No enforced layer separation** (the earlier Core/Adapter/UI rule was dropped); portability comes from documented decisions.
+2. **Cross-vault queryability + cloud sync compatibility** — Collections aren't isolated; they're queryable and linkable from anywhere. The on-disk model maps cleanly to a cloud DB (single shared `pages` / `items` tables keyed by `collection_id`; `_collection.json` → `collections` row; each Space → `spaces` row). Sync arrives later as additive translation, not redesign. Cloud sync is real long-term intent.
+3. **Persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. SQLite is performance scaffolding, not source of truth. Differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Pommora = local + structured.
 
-##### Domain Model (current)
-- Three top-level entity types: **Pages**, **Collections**, **Spaces** — plus **Items** as a Collection-bound member type. Definitions in `// Features//Domain-Model.md`
-- **Pages** = Markdown files. Prose-first editor (Bear / iA Writer style, not Notion-style block-per-paragraph). One embed type in body for v1: `@Columns`. Each Page is a member of the Collection whose folder it lives in, OR a loose Page if it lives outside any Collection folder. Pages are never shared between multiple Collections
-- **Items** = lightweight row-shaped entries inside a Collection. JSON entries in `_items.json` alongside `_collection.json` in the Collection's folder. Hold properties (same catalog as Pages), relations (by ID), an `id`, a `name` (acts as title), a short plain-text `description`, optional `icon`, and a `spaces` multi-relation. No Markdown body. Items solve the Notion problem of every database row being a full Page — wishlist entries, quick ideas, reference list items, tasks without notes are Items, not Pages. Items have no loose form; they only exist inside a Collection. Brief spec in `// Features//Items.md`; on-disk in `// Features//Collections.md`
-- **Page vs. Item — when:** Page if the entry has a body you'll write or read (prose, notes); Item if it's a row-shaped entry with properties and maybe a short description (no body). Decision is content-shape, not data-shape — both can hold the same properties and relations
-- **Collections** = a folder + a `_collection.json` schema sidecar + an optional `_items.json` items sidecar inside the folder (Make.md folder-notes pattern applied to databases). Hold property schemas and saved view configurations (table / board / list / cards / gallery). **No text-editor surface** — purely database viewers. Members are the `.md` Pages alongside the sidecars and the Items inside `_items.json`. Views can show pages-only, items-only, or both via a `members` field; default both
-- **Spaces** = Notion-page-style block-composition surfaces. Stored as `.space.json` files (not Markdown) in `_pommora// spaces//`, holding the full block tree. Text blocks (paragraph, headings, lists, callout, code, columns, image) and widget blocks (linked-pages, embedded-collection-view, link-list) intermixed in one canvas. The only surface in Pommora with Notion-style block manipulation. **Referential, not container** — Spaces don't hold their referenced Pages/Items, they embed them via `@view` directives and wikilinks. Independent of Collections
-- **Folder semantics:** a folder containing a `_collection.json` is a Collection (semantic). A folder without one is cosmetic filesystem organization (no semantic meaning). Pages inside cosmetic folders are loose Pages
-- **Page-to-Space linking:** `spaces` multi-relation property in Page frontmatter (locked). Items use the same `spaces` field in their JSON entry
-- **Page-to-Collection membership:** by file location (locked). No `collection` frontmatter field. **Item-to-Collection membership:** by file (Item is an entry in that Collection's `_items.json`)
-- **Cross-Collection linking:** normal — relation properties on Pages, Items, or Spaces can reference any other entity in the vault, regardless of folder location
-- **No default "Inbox" Collection** — loose Pages take the place of an Inbox
-- **Filename = title** (Pages and Collections and Spaces) **/ `name` field = title** (Items). No separate `title` field anywhere. Renaming a Page / Collection / Space in the UI renames the underlying file/folder; renaming an Item updates its `name` in `_items.json`. Independent UI titles are a wishlist item
-- **No ad-hoc properties for v1.** Page and Item properties must conform to the Collection's schema. The only "outside the schema" things are sidebar ordering / sorting (UI state, not file content)
-- **No free-form text property type.** Title is the filename for Pages (handled by the file system, not a property) or the `name` field for Items; all other properties are typed (number, date, checkbox, select, multi-select, relation, URL). "Text-shaped" property values use Select / Multi-select with creatable options — typing a new label adds it to the catalog (Notion behavior). Items also carry a built-in `description` plain-text field (entity-level, not a user-defined property)
-- **Spaces are page-like canvases with drag-and-drop blocks** — Notion-style structured layout (1D vertical flow with one nestable `columns` container), not free X/Y positioning
+##### Domain Model
+- Three top-level entities: **Pages** (`.md`), **Collections** (folder + `_collection.json`), **Spaces** (`.space.json`). Plus **Items** (`.json`, Collection-bound).
+- **Collections are typed at creation** (`kind: "pages" | "items"`, persistent). Pages collections hold `.md` members; Items collections hold `.json` members. No mixed kinds. Personal use never mixes — the kind decision belongs at the Collection level, not per-entry.
+- **Membership is by file location.** A `.md` inside a Pages collection folder is a member; a `.json` inside an Items collection folder is a member. No `collection` frontmatter field.
+- **Loose Pages and loose Items both exist** — files outside any Collection folder. They carry identity and built-in fields but no schema-conforming properties. Reachable via search, wikilinks, and (eventually) pinning to Saved. Not a sidebar group.
+- **Folder semantics**: a folder with `_collection.json` is a Collection; without one, it's cosmetic filesystem organization.
+- **Spaces are referential, not containers** — they embed Pages / Items / Collection views via widgets and directives, not by holding them.
+- **Filename = title canonical for all purposes** — Pages, Items, Collections (folder name), Spaces all derive their title from the filesystem name. No `title` field anywhere. No `name` field on Items. Independent UI titles are a Prospect.
+- **No ad-hoc properties for members in v1** — must conform to the Collection's schema. Loose entities have no schema.
+- **Page-to-Space and Item-to-Space linking**: `spaces` multi-relation, by Space ID.
+- **No in-place Item ↔ Page promotion in v1.** Design insight preserved in `Prospects.md` — promotion is a format conversion (shared property catalog), not a data migration; demotion strips the Markdown body.
+- **Sub-pages (nested Page hierarchy) is a v2 candidate.** Pages stay flat within Collections in v1.
+- **No default seeded Collections.** First launch seeds only the `Homepage` Space.
 
-##### Data
-- **Files canonical, SQLite as index.** Markdown for Pages on disk; JSON for Collection schemas, Item entries, and Spaces; SQLite for fast queries
-- **Per-Collection schemas** — each Collection's `_collection.json` sidecar (inside the Collection's folder) holds its own property schema and saved views. The earlier shared `_pommora// schemas.json` proposal is dropped
-- **Property values:** Pages store values in YAML frontmatter; Items store values in JSON inside their entry's `properties` key in `_items.json`. Same property catalog, two storage substrates. Both directly editable in any text editor
-- **Local-end translation principle:** files store the spec, not the rendered data — view directives reference what they render but don't inline it
-- **Items serialization:** `_items.json` inside each Collection's folder (locked, optional file — absent if no Items). JSON canonical; SQLite indexes from it
-- **Spaces serialization:** `.space.json` files in `_pommora// spaces//` (locked, not Markdown — full block tree)
-- **Collection serialization:** `_collection.json` sidecar inside each Collection's folder (locked, Make.md folder-notes pattern)
-- **Cloud sync mapping clarified.** The earlier PRD wording "each Collection → one cloud table" was misleading — would produce dynamically-created Postgres tables in production. Corrected mapping: a single shared `pages` table where each row carries `collection_id` and a `properties` JSONB column (matching local SQLite shape, and matching the Notion / Airtable / AFFiNE convention). A parallel `items` table holds Item rows with the same shape. Each `_collection.json` schema → a row in a `collections` table; each Space → a row in a `spaces` table with the block tree as a JSON column
+##### Storage Layout
+- **Vault location is user-pickable on first launch** (default suggestion `~// PommoraVault//`). The user can place the vault in iCloud Drive / Dropbox / any synced folder for free device-to-device sync in v1.
+- **App-internal config folder: `.pommora//`** (leading dot, hidden by default — matches `.obsidian` convention; renamed from the earlier underscore-prefix `_pommora//`). Lives inside the vault. Holds `pommora.db` (SQLite index — regeneratable), `spaces//` (`.space.json` files), `saved.json` (pinned-to-Saved sidebar IDs placeholder, wired when pinning ships).
+- **`.space.json` files** carry the full block tree. `_collection.json` is the Collection's schema sidecar (Make.md folder-notes pattern).
+- **Files canonical, SQLite as index.** Markdown for Pages; JSON for everything else. SQLite is regeneratable from files.
+- **Cloud-sync mapping** in PRD: a single shared `pages` table with `collection_id` + `properties` JSONB column; parallel `items` table with the same shape; one `collections` row per `_collection.json`; one `spaces` row per `.space.json`.
+
+##### Property Model
+- **No free-form text property.** Title is the filename; "text-shaped" values use Select / Multi-select with creatable options (Notion behavior).
+- **No dedicated `Status` type.** Status-like behavior = a Select named "Status" with user-defined options.
+- **v1 catalog (8 types):** number, checkbox, date, datetime, select, multi-select, relation, URL.
+- **Per-Collection schemas** — each `_collection.json` holds its own property schema and saved views. No shared schemas file.
+- **Property values** — Pages in YAML frontmatter; Items in the `.json` file's `properties` key. Same catalog, two storage substrates.
+- **Color palette for Select / Multi-select** = fixed 9-color Notion palette (`gray`, `brown`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`, `red`). Custom hex picker is a Prospect.
+- **Property panel shows every schema property always** (Notion-style), even unset. Hide-empty is a Prospect.
+- **Option order within Select / Multi-select properties defines sort behavior** — drag-to-reorder options; ascending sort returns first-listed first. Replaces alphabetical sort.
+- **View-level column ordering is visual, per-view** (drag column headers; stored in the view spec). Schema-level property declaration order is append-on-add in v1.
+- **Inline cell editing in Table view** confirmed.
+- **Relations are stored by ID** (rename-safe) and **displayed as the target's current title** (resolves ID → title at render time; renames update display automatically).
+- **Move-strip rule (Notion-style):** moving a member across Collections (or in/out of loose state) strips properties not in the destination schema. No `_orphaned` quarantine, no backup. Same rule applies to property deletion.
+- **Auto-managed fields**: `id` (ULID), `created_at`, `modified_at` on every member and every loose entity.
 
 ##### Editor
-- **Wikilinks render as styled colored inline text** (Obsidian-style hyperlink), NOT Notion-style chips/pills — across both stacks. This decision dissolves the SwiftUI editor blocker around inline view attachments
-- **Pages use a prose-first editor**, not block-per-paragraph. Slash menu / toolbar inserts block-level features; no draggable block handles on every paragraph
-- **In v1, block-level features inside a Page are `@Columns`, callouts, and toggles.** The earlier-proposed `@View` directive (in-line database view inside a Page) is deferred to v2+. Embedded Collection views remain available *inside Spaces* (as widgets) for v1.
+- **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips/pills — both stacks.
+- **Pages are Markdown documents, not block surfaces** — one continuous Markdown stream. "Block-level features" as a project term belongs to Spaces only.
+- **Two Pommora-specific Markdown directives on Pages**: `@Columns` (`:::columns`) renders a section in N horizontal columns; `:::callout` renders an outlined-box callout (distinct from blockquotes). Both directives resolve cleanly when read by external Markdown tools.
+- **Standard Markdown features**: paragraphs, headings H1–H5 (in v0's type scale; no H6 token; **headings are foldable by default** — built-in UI, not a directive), lists, code blocks + inline code, images, GFM tables, blockquotes, horizontal rules. Tables are GFM. Dividers are `---`. Side-by-side callouts or blockquotes via `@Columns` wrapping.
+- **Blockquotes vs callouts are distinct constructs.** Blockquotes use standard `>` syntax and render as a filled box with a left-side emphasis bar. Callouts use the `:::callout` directive and render as a minimally-rounded outlined box. Both adhere to dedicated token families: `blockquote// fg` / `bg` / `accent` (left bar) and `callout// fg` / `bg` / `border`, all tied to the color system.
+- **Code rendering tokens.** Code blocks and inline code render in mono font (SF Mono) at 1.0 em with dedicated tokens: `code// fg` (default `#FF2525`) and `code// bg` (default `#323233`). Tied to color primitives; tunable through the color system independently of text and accent.
+- **Columns are equidistant in v1** — width division by child count. Adjustable widths deferred.
+- **`@View` (in-line database view embed in a Page) is deferred to v2+** and React-conditional — `@View` inside the prose flow is the harder direction on a native editor, so the v2+ revisit is React-conditional. Embedded Collection views remain available *inside Spaces* (widget blocks) for v1.
+- **Wikilink syntax variants in scope, incremental**: `[[Page Name]]` ships in v0.5; aliases (`[[name|alias]]`), heading anchors (`[[name#heading]]`), and asset embeds (`![[asset]]`) land as follow-ups.
+- **Editor serialization architecture (React path) is load-bearing.** Three components:
+  - **Markdown on disk** (`.md` via `blocksToMarkdownLossy` / `tryParseMarkdownToBlocks`) — canonical content format; required by agent legibility and external-tool compatibility.
+  - **BlockNote JSON in-editor** (via `editor.document`) — working format + perfect-fidelity export for cursor state, undo / redo, Pommora-to-Pommora interchange.
+  - **Custom per-block serializers** — bridge the two for the two Pommora directives, via the [Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426) pattern.
+  Both formats are necessary. The `Lossy` suffix on `blocksToMarkdownLossy` is honest naming for BlockNote's general API; Pommora's restricted content model puts the lossy edges out of reach. Generalized in `Architecture.md` as a cross-stack principle (every editor has on-disk and in-memory formats; explicit serializers bridge them).
+- **SwiftUI editor feasibility confirmed.** Native macOS markdown editing with Obsidian-style Live Preview (markers hidden when cursor leaves a construct, revealed when it enters) is achievable on the source-with-decorations pattern that Bear, iA Writer, and Clearly all use — text storage IS the markdown source, styling is layered as attributes, marker hiding/reveal is selection-driven. Clearly's existing native implementation is fork-able as a baseline; an original native build is the alternative. The editor is no longer the deciding factor in the stack call.
 
-  **For React** — `@View` would become a custom block component on top of BlockNote core (well-trodden) when revisited.
+##### Sidebar + Shell
+- **Three top-level collapsible headings, default-collapsed, user-reorderable**: Spaces (leaf labels), Saved (pinned Pages — placeholder until pinning ships), Collections (kind-agnostic; each Collection is a folder-style disclosure).
+- **No Loose sidebar group.** Loose entities reach via search, wikilinks, or pinning.
+- **No raw filesystem view in v1.**
+- **"Collapsed-by-default disclosure"** is the general UI pattern for any hierarchical or grouped content.
+- **Three-pane shell**: sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes drag-resizable from v0.0; widths persist across launches.
+- **Main pane is multi-tabbed** (Obsidian / Notion pattern). Tab row at the top of the main pane; each tab is one open view — a Page, a Collection (with active saved view), or a Space. Tab chrome ships in v0.0 (visual, non-functional); tab navigation wired in v0.1 when files open. `+` / `×` / `Cmd+T` / `Cmd+W` / `Cmd+1..9` / `Ctrl+Tab` standard shortcuts. Open tabs + active tab persist across launches. Items don't get their own tabs in v1 — they open in the inspector. Detail → `PommoraPRD.md` ("Top-Bar Tabs").
+- **Property panel default location is the right inspector pane.** Below-heading and page-bottom placements are Prospects.
 
-  **For Swift** — `@View` is not feasible inside the native `TextEditor`; would require an `NSTextView` / TextKit 2 surface. The v2+ revisit is React-conditional for this reason.
-- **Columns are equidistant in v1.** Width division is determined by child count — three children = three equal columns. No per-column width configuration, no inline width attributes, no sidecar layout file. Adjustable widths deferred to a later version.
-- **Callouts are visual containers with optional color** — single design pattern (one border style), no icons, no semantic types (no "warning" / "info" / "error" variants). Default border color inherits from text color; explicit color comes from a catalog. Inner content is editable markdown. Composes with `@Columns` for Notion-style side-by-side callouts.
-- **Toggles are collapsible content blocks** (Notion-style) — clickable triangle expands/collapses inner content. Useful for FAQs, condensed reference sections, optional detail. Inner content is editable markdown.
-- **If SwiftUI is the chosen stack, the editor strategy is two-phase.** Phase A is v1 scope: native `TextEditor<AttributedString>` (iOS 26 / macOS 26+) with a quick fork to add H4-H6 and toggles support; sufficient for ship. Phase B is a **committed post-v1 core feature** (not optional, not Prospects, but scheduled after v1): full custom editor with hover-on-selection bubble toolbar (Medium / Notion-style — select text, popover with formatting actions appears). Both phases use a segment-based render pattern for callouts and columns (page = `[Segment]`; prose segments use `TextEditor`; column/callout segments use specialized container views). Native text engine = system spell check, undo/redo, dictation, accessibility all free. Detail in `// Pages.md` and `// SwiftInfo.md`.
-- **BlockNote markdown is lossy by design** (confirmed in official docs): nested non-list blocks flatten on export, custom blocks need custom serializers, inline marks beyond built-ins drop silently. Custom serialization is achievable via per-block `toExternalHTML`/markdown handlers (Issue #221 / PR #426) but covering every block type *is* the canonical-format guarantee — not a small layer. CodeMirror 6 (markdown literally *is* the document; perfect round-trip by definition) remains the markdown-canonical Plan B at 2-3× implementation cost
-- **SwiftUI editor segment-render is the load-bearing risk on the SwiftUI path** (logged for reference): no shipped Mac markdown app uses the segment-based render pattern; Bear / iA Writer / Craft all use single-text-view-with-decorations precisely to avoid the cross-segment cursor problem. Mitigations if SwiftUI is picked: treat per-segment selection as a Notion-like feature, or drop down to STTextView (TextKit 2) if cross-segment selection becomes a hard requirement. Detail in `// SwiftInfo.md`
+##### Views
+- **Five view types in v1**: table, board, list, cards, gallery.
+- **Inline cell editing** in Table view; **board view ships as visual kanban layout** in v0.9 (cards grouped by a property's options; edit a card to "move" it); **drag-to-rewrite-frontmatter kanban** is a planned post-v1.0 follow-up.
+- **Two contexts for views**: inside a Collection (saved views in `_collection.json`); embedded as a Space widget (filter / sort / group / shown-properties override locally).
 
-##### Sidebar Pattern
-- **Top-level groups:** Spaces, Collections, Loose Pages
-- **Collections are collapsible disclosure groups** — default state collapsed. Expanding reveals member Pages
-- **No raw filesystem view** in v1 (no Files toggle). Sidebar surfaces only the logical model
-- **"Collapsed-by-default disclosure" is the general default UI pattern** for any hierarchical or grouped content elsewhere in the app
+##### Scope and Posture
+- **Mac for v1**; Linux / Windows not on v1 path but not forever-closed. **iOS / iPad is real long-term intent** — affects the stack call materially (SwiftUI ships to iPad essentially free; React needs a parallel build).
+- **Plugin system out of scope**, now and indefinitely. Personal tool, not a platform.
+- **Versioning / file history delegated to OS tools** (Time Machine, git, filesystem snapshots). Pommora handles in-session undo only.
+- **Single-user.** Multi-user collaboration is out of scope.
+
+##### First-Launch Experience
+- **Empty sidebars + seeded `Homepage` Space.** No tutorial, no walkthrough wizard. First Pages / Collections are user-created.
 
 ##### Design System
-- **Dual-export naming discipline:** Figma Variables use semantic role-based names that export to both CSS custom properties (React) and SwiftUI Color extensions (SwiftUI)
-- **One initial scheme** in v0.x — no built-in light/dark; customization deferred to v2
-- **Dual-axis tier model:** surface tier × element tier (independent axes)
-- **Material Symbols** (React path) or **SF Symbols** (SwiftUI path)
+- **Two-tier source of truth.** Figma owns design tokens — semantic role-based names (`surface// primary// bg`) exporting to CSS custom properties (React) and SwiftUI Color extensions (Swift). The component library owns components — built from those tokens; once in the library, consumed as-is during feature work (no per-screen tweaks). React library lives on Pommora's own localhost (no Storybook intermediary).
+- **Build order**: Figma design-system phase (pre-v0.0; stack-agnostic at the variable level) → stack decision → v0.0 shell consumes the design system. Design system precedes the stack call.
+- **One initial scheme** in v0.x — no built-in light / dark; in-app customization for colors and typography lands in Framework v0.12.
+- **Dual-axis tier model** — surface tier × element tier (independent axes), each with primary / secondary / tertiary.
+- **Visual direction:** Notion-comfortable density; pastel-leaning color treatment (muted / desaturated); flat dark chrome (no shadows except on overlays); mixed-scale rounding (pill for tags / chips, tight for buttons / toggles / labels, surface for cards / panels / modals — Notion / Claude-style).
+- **Typography pairing:** SF Pro (sans) + SF Mono (mono), system-native. Heading scale is em-relative (H1–H5; no H6 in v0) so changing body rescales every heading.
+- **Accent:** Single-hue purple, 2×2 matrix — `accent// primary// active`, `primary// muted`, `secondary// active`, `secondary// muted`. All 4 stops share the same hue; descending in saturation + lightness. Pastel-muted.
+- **Baseline tokens committed** — see `// Planning//Figma Prompt.md`. All hex / sizing values are baselines for Figma round 1.
+- **Material Symbols (outlined as default)** on React; **SF Symbols** on Swift. Icon role table seeded in `// Planning//Figma Prompt.md` (canonical seed for `.pommora// symbols.json`); covers shell, common actions, entity kinds, sidebar sections, editor formatting, property types, views, and view controls.
+- **Symbol indirection (React only).** Components reference semantic symbol roles (`settings`, `add`, etc.), not direct Material / SF names. The mapping lives in `.pommora// symbols.json` (seeded on first launch from the role table in the Figma Prompt) so the icon library can be swapped via a planned setting without rewriting components. Detail → `// Guidelines//Symbols-guide.md`.
+- **In-app token override (React-conditional).** Variables export to CSS custom properties; settings panel writes user-scoped overrides to a separate CSS layer cascading on top of defaults — single property mutation at runtime, no rebuild. Token names remain stack-portable so a future SwiftUI rebuild inherits the same override pattern via `@AppStorage` + the SwiftUI environment. Framework v0.12 covers color + typography only; spacing / radius / shadow stay on baseline.
+- **Disclosure pattern + DisclosureLine.** Pommora has multiple disclosure types (tree / folder, heading, toggle block, sidebar section header), all built on a single `Disclosure` primitive with an `indent line` variant. `true` for tree / folder disclosures — renders a `DisclosureLine` hairline guide tracing depth (Obsidian / VSCode pattern). `false` for heading disclosures and toggle blocks — no line. DisclosureLine is a sub-element of Disclosure, never placed independently.
 
 #### Features Implemented
 
-None yet. v0.0 in spec stage; the spec itself is React+Electron-locked and gets rewritten if the SwiftUI path is chosen.
+None yet. v0.0 in spec stage; `// Planning//v0.0.md` is React+Electron-locked and gets rewritten if SwiftUI is chosen.

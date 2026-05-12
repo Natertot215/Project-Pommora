@@ -2,93 +2,93 @@
 
 #### Current State
 
-Domain model locked: three top-level entities — **Pages** (Markdown files), **Collections** (folder + `_collection.json` schema + `_items.json` items sidecar), **Spaces** (`.space.json` block trees) — plus **Items**, the Collection-bound row-shaped member type for entries that don't warrant a full Page. Per-entity feature specs live in `// Features//Pages.md`, `// Features//Collections.md`, `// Features//Items.md` (brief), `// Features//Spaces.md`.
+Domain model: **Pages** (`.md`), **Collections** (folder + `_collection.json`), **Spaces** (`.space.json` block trees), **Items** (`.json`, Collection-bound). Collections are typed at creation (`kind: "pages" | "items"`); Pages and Items can also exist loose (outside any Collection folder — built-in fields only, no schema-conforming properties). Moving members across Collections strips non-matching properties Notion-style.
 
-Architecture framing is **conceptual portability of functionalities** — file formats, schemas, semantic operations, design tokens, and UX patterns survive a stack rebuild; the codebase doesn't. No enforced layer separation; the portability comes from documented decisions, not code structure.
+Pages are Markdown documents with two Pommora rendering directives (`@Columns`, `:::callout`); headings are foldable by default; blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Spaces are block-composition surfaces — "block-level features" as a term belongs only to Spaces. Wikilinks render as styled colored inline text.
 
-Both stack paths (React+Electron and SwiftUI) are fully audited. Per-stack deep references in `ReactInfo.md` and `SwiftInfo.md` are parallel-structured for direct comparison; `Resources.md` catalogs external libraries per stack. The PRD's dual-stack table summarizes the side-by-side.
+Sidebar: three top-level collapsible headings (Spaces / Saved / Collections), user-reorderable, default-collapsed. Spaces are leaf labels; Collections expand to their members; Saved is a pinning placeholder until pinning ships. Shell: three-pane (sidebar / main / inspector); both side panes drag-resizable from v0.0 (240 / 280 defaults). Inspector hosts the property panel. **Main pane is multi-tabbed** (Obsidian / Notion pattern); tab chrome renders in v0.0; tabs become functional in v0.1 as files open.
 
-No code yet — `.claude//` contains project specs only.
+Vault: user-pickable on first launch (default suggestion `~// PommoraVault//`). App-internal config lives in `.pommora//` inside the vault (matches `.obsidian` convention). First launch seeds a `Homepage` Space; nothing else. Versioning is delegated to OS tools (Time Machine / git).
 
----
+Architecture: **conceptual portability of functionalities** — file formats, schemas, design tokens, and UX patterns survive a stack rebuild; the codebase doesn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Both stack paths (React+Electron, SwiftUI) audited; PRD has the dual-stack table.
 
-#### Immediate Decisions
-
-1. **Stack** — React+Electron or SwiftUI. **Gating decision for everything else.** All research is in: `ReactInfo.md`, `SwiftInfo.md`, the PRD dual-stack table, and `History.md`'s editor section. The mirror-image tradeoff: React makes the editor easy and Mac integration ~80%; SwiftUI makes Mac integration 100% and Phase B editor a real R&D project.
-
-2. **Project license** — what Pommora ships under (MIT, Apache, GPL-3.0). Affects the React path specifically: BlockNote's `xl-multi-column` is GPL-3.0 viral OR $195/mo commercial. A permissive license means custom multi-column block in BlockNote core; GPL-3.0 means `xl-multi-column` is fine. Independent of but coupled to the stack call.
+No code yet — `.claude//` contains specs only.
 
 ---
 
-#### Immediate Explorations
+#### Active Work — Design System (Pre-v0.0)
 
-- **Figma file setup** — design system foundations (colors, typography, spacing, three-pane shell components). Stack-agnostic at the token level; can run parallel to the stack decision. Use `figma-use` skill.
+The Figma design-system build is the next concrete activity. Build brief saved at `// Planning//Figma Prompt.md` — pasteable into a fresh session with `/figma-use` invoked. Architectural decisions and baseline token values are locked; Figma round 1 refines exact hex / sizing within the locked structure.
 
-- **Audit findings to commit or defer** — `chokidar` → `@parcel/watcher`, `@dnd-kit/core` v6 pin, Zod validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety, `gray-matter` alternatives. Currently captured as findings, not committed. Decide which to lock in once the stack lands.
+**Output landing zone:** the design system's outputs will feed `// UI-UX//` (project root, outside `.claude//`). Folder structure created with guidelines docs at `UI-UX//UI-UX.md`, `UI-UX//Design//Design Guidelines.md`, `UI-UX//Components//Component Guidelines.md`. `Design//` populates with exported tokens during v0.0 step 2 (Figma export); `Components//` populates with primitives + composed components during v0.0 step 3 (Figma → code translation). Pre-translation the folders are empty except for the guidelines docs — components are born from Figma, never invented in code first.
 
-- **Spike before commit (optional)** — if the stack call wants empirical validation before locking: spike BlockNote markdown round-trip with a custom serializer for `:::columns`, OR spike SwiftUI `TextEditor` segment-based render to size the cross-segment cursor problem. Either spike is bounded; neither is required.
+**Visual direction locked this session:**
+- **Density:** Notion-comfortable (moderate breathing room, ~1.6 body line-height)
+- **Color treatment:** Pastel-leaning, muted / desaturated
+- **Typography:** SF Pro (sans) + SF Mono (mono) — system-native
+- **Chrome:** Flat dark (no shadows except on overlays)
+- **Rounding:** Mixed scale by role (pill for tags, tight for buttons / toggles / labels, surface for cards / panels / modals)
+- **Accent:** Single-hue purple, 2×2 matrix (primary / secondary × active / muted); pastel-muted
+
+Full token taxonomy and baseline hex values live in `// Planning//Figma Prompt.md`.
+
+Design-system output (Variables + primitives + composed components) is stack-agnostic at the variable level. The output is what makes the stack decision evidence-based.
+
+---
+
+#### Pending Decisions
+
+1. **Stack — React+Electron or SwiftUI.** Deferred behind the design-system build — Nathan is doing the React-flavored Figma design system first to see what the UIX outcome looks like before committing. Editor de-risked on both paths (React: BlockNote; SwiftUI: fork Clearly or build original native). Tradeoff is now non-editor: React = cross-platform horizon (Win / Linux without rewrite); SwiftUI = 100% Mac-ecosystem cohesion + iOS / iPad ships essentially free. Linux / Windows not on v1 path but not forever-closed; iOS / iPad is real long-term intent.
+
+---
+
+#### Pending Explorations (after the design system)
+
+- **Audit findings to commit or defer** — `@parcel/watcher`, `@dnd-kit/core` v6 pin, Zod validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety, `gray-matter` alternatives. Captured as findings, not committed. Decide once stack lands.
+
+- **Optional spike before commit** — Milkdown / BlockNote Markdown round-trip with a custom serializer for `:::columns` and `:::callout` (React), OR fork Clearly to see how far its native editor takes us before we'd extend it (SwiftUI), OR a minimal original native markdown editor to size the build effort (SwiftUI). Bounded; not required.
 
 ---
 
 #### Open Questions
 
-- **Stack:** React+Electron or SwiftUI?
+- **Stack:** React+Electron or SwiftUI? Decided after the design system is built (the React-flavored design system reveals what the React UIX outcome will feel like).
 
-- **License:** what does Pommora ship under?
-
-- **Design (lower priority):** Figma file location and naming; default font choice (system stack vs opinionated); shell layout proportions (sidebar 240px, inspector 280px proposed in v0.0).
+Resolved this session: Figma file created at https://www.figma.com/design/cm2wRDXWKg05iydG412z4B/Project-Pommora; build brief saved at `// Planning//Figma Prompt.md`.
 
 ---
 
-#### Recent Changes (this session)
+#### Known Spec Gaps
 
-- **Items entity added.** Collections now host two member types — Pages (Markdown files, prose-bearing) and Items (JSON entries in `_items.json` alongside `_collection.json`, row-shaped, no Markdown body). Items solve the Notion problem where wishlist entries and life domains are both full Pages. Same property catalog as Pages; same view participation; relations by ID, rename-safe. Items have no loose form — they only exist inside a Collection. Brief feature spec at `// Features//Items.md`; on-disk shape in `Collections.md`; entity table updated in `Domain-Model.md`; storage tree updated in `PommoraPRD.md`.
+Real items needing resolution before they bite, organized by when they'll surface.
 
-- **Persistent immediate legibility for agents articulated as the third load-bearing constraint.** Sibling to stack-portability and cross-vault-queryability + cloud-sync-compatibility. The project's central differentiator from Notion-via-MCP: Notion's MCP is tool-mediated (every relation traversal is an API round-trip; the workspace is opaque until queried); Obsidian is locally legible but unstructured; Pommora is the intersection — Notion-grade structure expressed in files an agent can read continuously without tool calls. Codified in PRD ("Persistent Immediate Legibility for Agents" section), CLAUDE.md core principles, Architecture.md ("agent legibility contract" in what-survives + practical-discipline lists), and Domain-Model.md resolved decisions.
+##### Implementation risk
 
-- **"Files are canonical" clarified to mean "every entity is a file an external tool can open," not "everything is Markdown."** Pages → `.md`; Collections → folder + `_collection.json` + `_items.json`; Spaces → `.space.json`; Items → JSON entries in `_items.json`. SQLite remains regeneratable index. CLAUDE.md core principles updated.
+- **Editor risk — substantially de-risked, two stack-specific notes.** React: Milkdown may align better than BlockNote for "Pages are one Markdown stream" — pivot door, revisit at stack decision. SwiftUI: native markdown editing with Live Preview is solved territory (Clearly ships a working native AppKit editor; the source-with-decorations pattern is achievable on `TextEditor<AttributedString>` or `NSTextView`). Two open SwiftUI editor paths — fork Clearly, or build an original native editor — both documented in `SwiftInfo.md`. A bounded spike on the chosen stack (BlockNote round-trip for React; fork-Clearly assessment or minimal original-editor build for SwiftUI) would de-risk implementation specifics before committing.
 
-- **Spaces sharpened as referential, not containers.** A Space's `.space.json` doesn't *hold* Pages or Items — it embeds them via `@view` directives, linked-pages widgets, and link lists. The framing was implicit; now explicit in `Spaces.md` and in the Domain-Model entity table.
+- **`pommora.db` location.** PRD currently places the SQLite index at `.pommora// pommora.db` inside the user-pickable vault. If the user puts the vault on iCloud Drive, iCloud's file-conflict resolution can corrupt SQLite. Move to `~//Library//Application Support//Pommora//<vault-id>//`; the vault should hold only canonical content.
 
-- **Per-entity feature docs created.** Pages, Collections, and Spaces each got a dedicated detail doc in `// Features//` (`Pages.md`, `Collections.md`, `Spaces.md`). `Domain-Model.md` trimmed to a brief overview that links to the per-entity files plus retains cross-cutting topics (linking model, properties summary, sidebar, resolved decisions). PRD and CLAUDE.md Document Map updated to point to the new structure.
+##### Framework version ordering (surfaces v0.6–v0.8)
 
-- **Phase B Swift editor reframed as committed post-v1 core feature.** Was previously framed ambiguously (in-scope for SwiftUI path); now explicitly: Phase A = v1 (native `TextEditor` + quick fork for H4-H6 + toggles); Phase B = committed post-v1 (full custom editor with hover-on-selection bubble toolbar). Phase B is a must-have eventually for the Swift path, not Prospects. Captured in `Pages.md`, `SwiftInfo.md`, and `History.md`.
+- **v0.6 reads `_collection.json` before v0.8 introduces Collections.** Likely reorder: v0.6 (Collections: typed, schema, basic views) → v0.7 (Properties: simple) → v0.8 (Properties: rich) → v0.9 (more views).
+- **Sidebar shape changes mid-flight.** v0.1 mirrors folder structure; v0.8 shifts to the three-heading logical model. Either the logical sidebar lands earlier with stub Collection support, or the v0.1 sidebar is throwaway scaffolding.
+- **Saved heading is unscheduled.** Three-heading sidebar lands at v0.8 with Saved as a placeholder; pinning isn't on any numbered version. Either slot pinning into v0.9 / v0.10, or omit Saved from the v1 sidebar entirely until pinning ships.
 
-- **Architecture simplified.** Dropped the three-layer enforcement model (Core / Adapter / UI separation rules; "Core has zero UI imports" rule) as over-engineered for indie development. New framing: **conceptual portability of functionalities** — file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design tokens, and UX patterns are designed to survive a stack rebuild. The codebase isn't pre-arranged for hot-swap; portability comes from documented decisions, not enforced code structure.
+##### SQLite / indexing
 
-- **Files reorganized.** `Resources.md`, `ReactInfo.md`, `SwiftInfo.md` moved from `// Features//` to `.claude/` top level — they're cross-stack reference catalogs, not per-entity feature specs. All path references across the project updated.
+- **`links` table doesn't capture Space outlinks.** `from_kind` is currently `'page' | 'item'`; Spaces' widget blocks reference Collections / Pages / Items by ID without going into the index. Either expand `from_kind` to include `'space'` or document the limitation.
+- **Pages lack `created_at` in frontmatter** (Items have it). Filesystem `mtime` gets clobbered by iCloud / git sync. Pages should have `created_at` in frontmatter for parity.
 
-- **Doc-convention restructure landed.** Introduced a `**For React**` / `**For Swift**` labeling convention within shared docs (PRD, Architecture, Domain-Model, Prospects, UIX-Guide) so stack-conditional content is visibly distinct. Created `// ReactInfo.md` as parallel to `SwiftInfo.md` (mirror structure section-for-section). Convention + exceptions (comparison tables, catalogs, stack-locked specs) documented in `CLAUDE.md`'s Document Map. Fixed long-standing `UIX-Guide.md` path discrepancy in CLAUDE.md / PRD / Architecture (file lives in `// Guidelines//`, not `// Features//`).
+##### Underspecified UX edges
 
-- **Research cycle 2 — tools and considerations dive.** Four parallel agents covered build/distribution, Mac OS integrations, editor internals, and state/data layer for both stacks. Findings landed in `Resources.md` and `SwiftInfo.md`. Key reads:
-  - **Distribution is a wash.** Both stacks ship cleanly to MAS (security-scoped bookmarks pattern is identical) and have production-grade auto-update (electron-updater / Sparkle 2.x). React edges on dev loop (electron-vite HMR); SwiftUI edges on first-party tooling.
-  - **Mac OS integrations lean materially toward SwiftUI.** QuickLook (.md preview via Finder spacebar), Share Extensions, CoreSpotlight, Finder file-promise drag-out, sidebar vibrancy, and accessibility all show meaningful gaps in pure Electron. Equal: app menu, deep links, basic notifications, dark-mode toggling.
-  - **SwiftUI editor segment-render is the load-bearing risk.** No shipped Mac app uses the segment-based pattern Pommora's plan calls for; Bear / iA Writer / Craft all use single-text-view-with-decorations to avoid the cross-segment cursor problem. Mitigations: treat per-segment selection as a feature (Notion-like), or drop down to STTextView if cross-segment becomes a hard requirement.
-  - **BlockNote markdown is lossy by design** (now confirmed in official docs). Custom serialization is achievable via per-block `toExternalHTML`/markdown handlers, but covering every block type *is* the canonical-format guarantee — not a small layer on top.
-  - **State + data patterns confirmed for both stacks.** React: Zustand vanilla (Core) + hand-rolled table-keyed pub/sub (~80 LOC, ports to Swift) + better-sqlite3 + FTS5 (`unicode61`) + @parcel/watcher v2.5+. SwiftUI: `@Observable` + GRDB.swift v7.5+ + `ValueObservation` + FSEventStream wrapper. SwiftData remains unsafe for "files canonical" use cases.
-
-- **Property catalog refined** — no free-form text property; title is the filename; "text-shaped" values use Select / Multi-select with creatable options (Notion behavior). `// Features//Properties.md` updated.
-
-- **Callouts spec locked** — visual container with optional color, no icons or semantic types, single design pattern, composes with `@Columns` for side-by-side. PRD + Domain-Model + History updated.
-
-- **Columns spec locked** — equidistant width division by child count in v1; no per-column width config (no inline attrs, no sidecar layout file). Adjustable widths deferred. PRD + Domain-Model + History updated.
-
-- **Spaces framing clarified** — page-like canvas with drag-and-drop blocks, Notion-style structured layout (1D vertical flow with one nestable `columns` container), not free X/Y positioning.
-
-- **Cloud-sync mapping fixed in PRD** — corrected from "each Collection → one cloud table" to "shared `pages` table with `collection_id + properties JSONB`" (matches local SQLite shape and Notion / Airtable / AFFiNE convention). It's a prospective feature, not currently in-scope.
-
-- **Editor evaluation (React path) logged** — BlockNote vs Tiptap vs Milkdown vs Yoopta researched in depth. Nathan's call: BlockNote (open-source core); alternatives stay as pivot doors. See `History.md`.
-
-- **SwiftUI editor strategy locked** — two-phase. Phase A: native `TextEditor<AttributedString>` with quick fork to add H4-H6 and toggles; would be implemented in 1-2 days. Phase B: full custom editor with hover-on-selection bubble toolbar (Medium/Notion-style). Segment-based render handles callouts and columns; would be added once the apps core features are solidified. Captured in `// SwiftInfo.md`.
-
-- **Toggles added as v1 Pages feature** — collapsible content blocks (Notion-style). Joins `@Columns` and callouts as the third Page block-level feature; added natively with React editors, would be quickly added during Phase A if Swift.
-
-- **SwiftUI exploration completed** — Interactful clarified as a reference app (not a library). Spaces viable in pure SwiftUI (`visfitness/reorderable` + `stevengharris/SplitView`).
-
-- **Resources.md populated** — library references for both React and SwiftUI paths, plus the editor evaluation links.
+- **Filename collisions on creation** — auto-suffix (`Notes 2.md`)? Reject? Prompt? Wikilink-resolution collisions have rules; creation-time collisions don't.
+- **Invalid filename characters** in titles (`/`, `:`, `\`) — silent replacement or rejection?
+- **Pommora-flavored Markdown is a dialect** — the `:::columns` and `:::callout` directives appear as inert notation in non-Pommora tools. Standard Markdown round-trips perfectly; the directives don't. Worth acknowledging this honestly in the docs rather than implying universal portability.
+- **First-launch with an existing folder** — if the user picks a vault folder that already has `.pommora//` from a prior install, behavior isn't specified.
+- **`@view` language in Spaces is imprecise** — docs use "`@view` directive" but `.space.json` is structured JSON with `embedded-collection-view` blocks. Either formalize a directive grammar or change the language to "embedded-view blocks."
 
 ---
 
 #### Branch Status
 
-Main branch. Initial commit pushed to `Natertot215/Project-Pommora` (force-pushed, replacing prior history).
+Main branch. Initial commit pushed to `Natertot215/Project-Pommora`. Studio root is current source of truth.

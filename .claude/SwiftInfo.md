@@ -12,47 +12,25 @@ Reference document for the SwiftUI implementation path. Captures research findin
 - **`apple/swift-markdown`** parses Markdown into a typed AST. Suitable as a parse / query layer.
 - **Native `.draggable` + `.dropDestination` + `Transferable`** are the modern, type-safe Apple-recommended drag/drop primitives for new code.
 - **Wikilinks-as-styled-spans is the easy part** — pattern-detect `[[...]]` in `AttributedString`, stamp custom attributes, attach a `pommora://page/<id>` link for tap. Matches the WWDC25 Session 280 pattern exactly.
-- **SwiftUI Editor Custom** - Create a simplistic custom rich text editor in SwiftUI; headings 1-6, toggles, tables, callouts, dividers...
 - **`AttributedString` round-trip is one-way out of the box.** `AttributedString(markdown:)` parses; there's no `.markdown` accessor going back. Custom attributes (e.g., wikilink IDs) work via `AttributeScope` + `CodableAttributedStringKey` + `MarkdownDecodableAttributedStringKey`, which makes them encode/decode-stable. The markdown init normalizes whitespace, drops unknown directives, and flattens table/list nuances — so the canonical save path needs a hand-rolled writer that walks Pommora's domain model (not the swift-markdown AST) back to bytes.
 
-#### Where SwiftUI breaks for Pommora
+#### Where SwiftUI lands for Pommora
 
-##### Editor: TextEditor is linear (handled with segment splits)
+##### Editor: two open paths
 
-`TextEditor` is fundamentally a single-column linear text run. It does not support inline non-text views, embedded SwiftUI views inside the prose, or block-level layout (side-by-side columns within the text flow). Pommora's `:::columns` and `:::callout` blocks require escaping the linear flow at segment boundaries.
+Native macOS markdown editing is solved territory — there are working precedents (Clearly itself, Bear, iA Writer) and the pattern they share is *source-with-decorations on a native text engine*: the document IS the markdown string, styling is layered on as text attributes, and Obsidian-style Live Preview (markers hidden when the cursor leaves a construct, revealed when it enters) is achievable without leaving native AppKit.
 
-**Two-phase plan (locked by Nathan, if SwiftUI path is picked):**
+The SwiftUI Pommora editor has **two open paths**, neither locked:
 
-**Phase A — basic native editor with quick fork (v1 scope):**
+- **Fork Clearly.** [Shpigford//clearly](https://github.com/Shpigford/clearly) is a native AppKit/SwiftUI markdown editor with a working markdown syntax highlighter (`MarkdownSyntaxHighlighter` in its `ClearlyCore` Swift Package), fold-state plumbing, and a polished editor shell. License is FSL-1.1-MIT (converts to MIT in Feb 2028); the highlighter and surrounding pieces are extractable. Forking gives a running baseline; Pommora-specific extensions (`:::columns`, `:::callout`, wikilinks, properties panel integration) layer on top.
 
-- Native `TextEditor<AttributedString>` as the prose surface
-- Heading detection and formatting (H1–H3 standard); fork quickly to add **H4–H6** and **toggles** (collapsible content blocks)
-- Bold / italic / underline / inline code via `AttributedString` attributes + toolbar + standard keyboard shortcuts
-- Wikilinks: pattern-detect `[[...]]`, custom attributes, styled colored text, tap-to-navigate (WWDC25 Session 280 pattern)
-- Callouts and columns: segment splits (callout = styled container wrapping a sub-`TextEditor`; columns = `HStack` of sub-`TextEditor`s, equidistant)
-- Horizontal divider shortcut via (---) that creates an in-page divider
-- Slash menu: position-anchored popover; inserts directives/blocks at cursor
-- Free from the system: undo/redo, copy/paste, spell check, autocorrect, dictation, accessibility, native cursor behavior
+- **Build an original native markdown editor.** Build on `TextEditor<AttributedString>` (macOS 26+, character-level styling with `AttributedTextFormattingDefinition`) or drop one layer deeper to `NSTextView` / TextKit for finer control. Either subpath delivers the same source-with-decorations model. WWDC25 Session 280's wikilink-as-styled-span pattern applies; Live Preview marker reveal is implementable via attribute manipulation on selection change (or via a custom `NSLayoutManager` if going deeper). The build is more work than a fork but the codebase is fully owned.
 
-Phase A ships in v1 — sufficient for usable editing.
+**What's not on the table:**
 
-**Phase B — full custom editor (committed post-v1 core feature):**
-
-A committed core feature for the Swift path — not optional, not Prospects, but scheduled after the app's v1 core features solidify.
-
-- Hover-on-selection bubble toolbar (Medium / Notion-style — select text, popover with formatting actions appears)
-- Richer block manipulation, drag handles, inline action affordances. Still not a full block editor; that's not the point.
-- Still built on native text engine primitives where possible; falls back to NSTextView/TextKit 2 only where SwiftUI's `TextEditor` genuinely can't deliver
-
-**NOT taken: NSTextView + TextKit 2 ground-up rebuild.** Significant AppKit work; only justified if Phase A/B hits a hard ceiling.
-
-##### Editor: load-bearing risk on the segment-based render
-
-The segment-based plan (page = `[Segment]`; prose segments use `TextEditor`; column/callout segments use specialized container views) **has no shipped reference implementation in any Mac app reviewed.** Bear, iA Writer, and Craft all use single-text-view-with-decorations precisely to avoid the cross-segment cursor problem: with one `TextEditor` per segment, selection cannot span segments. `@FocusState` swaps focus between editors, the previous editor commits its state, and any "select across two segments" UX has to be reconstructed in Pommora's own model. This isn't theoretical — it's the reason every shipped Mac markdown editor uses the single-view architecture instead.
-
-Mitigations if the SwiftUI path is picked:
-- Treat the cursor-flow constraint as a feature, not a bug — selections inside a callout / column don't extend out by design (matches Notion's per-block selection model).
-- If cross-segment selection becomes a hard requirement, drop down to STTextView (TextKit 2) for the page surface and re-architect as decorations-on-a-single-buffer (closer to the Bear / Obsidian Live Preview pattern).
+- **Tiptap-in-WKWebView.** Tiptap is a web library; running it requires WKWebView; bridging breaks the native cohesion that motivates picking SwiftUI in the first place. Tiptap is also paradigmatically wrong for Live Preview (consumes markers at parse time) regardless of host.
+- **CodeMirror 6.** Same reason — JavaScript, web-only, would require WKWebView. CM6 belongs on the React+Electron side.
+- **NSTextView ground-up rebuild that ignores existing prior art.** Either of the two paths above outperforms reinventing everything; reach for raw TextKit only where neither path can deliver.
 
 ##### swift-markdown gotchas
 
@@ -142,7 +120,7 @@ If Pommora ever pivots to SwiftUI, the actually-useful component libraries to kn
 
 #### Editor evaluation context (for the React side, mirrored here for completeness)
 
-The React-path editor evaluation that resolved on BlockNote (open-source MPL-2.0 core) doesn't directly apply to SwiftUI — the SwiftUI editor primitive is `TextEditor` + `AttributedString`, which is a different paradigm entirely (system text engine vs. third-party block editor library). If SwiftUI is picked, the editor work is "build the hybrid segment renderer" rather than "configure a third-party library."
+The React-path editor evaluation resolved on BlockNote (open-source MPL-2.0 core); it's a third-party block-editor library and a different paradigm from anything on the SwiftUI side. If SwiftUI is picked, the editor work is either forking a working native editor (Clearly) or building an original on native text-engine primitives — not configuring a third-party JS library.
 
 ---
 

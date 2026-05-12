@@ -24,9 +24,9 @@ Catalogue of external resources (documentation, libraries, references) to consul
 
 ##### Editor research notes
 
-- **BlockNote markdown is lossy by design.** Confirmed in official docs: nested non-list blocks get flattened on export, custom blocks need custom serializers, inline marks beyond built-ins drop silently. Custom serialization is achievable without forking ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426) — register `toExternalHTML`/markdown handlers per block spec) but covering every block type *is* the canonical-format guarantee, not a minor layer.
+- **BlockNote serialization architecture (load-bearing on the React path).** Pommora uses two serialization formats deliberately, each chosen for what it does best: **Markdown** (`.md` on disk, via `blocksToMarkdownLossy(blocks)` to write and `tryParseMarkdownToBlocks(md)` to read) is the canonical content format for every Page; **JSON** (in-memory, via `editor.document`) is BlockNote's perfect-fidelity working store for editor state, undo / redo, and any case where Markdown can't carry the information. Custom serializers bridge the two for Pommora's two directives (`:::columns`, `:::callout`) via per-block `toExternalHTML` / markdown handlers ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426)). Both formats are first-class and necessary — Markdown alone can't carry editor state; JSON alone breaks agent-legibility. The `Lossy` suffix on `blocksToMarkdownLossy` is honest naming for the general case (a generic block tree can't always round-trip Markdown perfectly); Pommora's restricted content model puts the lossy edges out of reach. See `// ReactInfo.md` for the full architecture.
 
-- **Milkdown / Yoopta** also use ProseMirror state / Slate JSON as the canonical store with markdown as an export. Same compromise as BlockNote — none of the React block editors are markdown-canonical out of the box; the "files canonical" guarantee is something you build on top of any of them.
+- **Milkdown / Yoopta / CodeMirror 6** follow the same pattern with different internal stores (ProseMirror state, Slate JSON, CodeMirror's `EditorState`). The Markdown ↔ working-state split is a property of every modern editor framework; the pattern survives an editor pivot, only the API names and boundary code change.
 
 ---
 
@@ -56,9 +56,9 @@ Catalogue of external resources (documentation, libraries, references) to consul
 
 - **Tailwind CSS v4** — styling, with CSS custom properties from the design system. [Docs](https://tailwindcss.com/docs)
 
-- **Storybook** — localhost component gallery. [Docs](https://storybook.js.org/docs)
-
 - **Figma Code Connect** — link Figma components to real component code. [Docs](https://www.figma.com/code-connect-docs/)
+
+(No Storybook — Pommora uses its own localhost dev server for component preview / iteration; designs flow Figma → Pommora localhost directly.)
 
 - **react-material-symbols** — icon delivery. [npm](https://www.npmjs.com/package/react-material-symbols)
 
@@ -97,7 +97,8 @@ Detailed in `// SwiftInfo.md`. Library shortlist:
 ##### Editor + parsing
 
 - **Apple swift-markdown** — Markdown parser + AST. Block directives use DocC `@Name(args){}` syntax (NOT Pandoc `:::`). [GitHub](https://github.com/swiftlang/swift-markdown)
-- **STTextView** — TextKit 2 NSTextView replacement with a SwiftUI shim (`STTextViewSwiftUI`). Drop down when SwiftUI's `TextEditor` can't deliver: line-number gutters, programmatic decoration insertion, multi-cursor, custom selection rendering. [GitHub](https://github.com/krzyzanowskim/STTextView)
+- **STTextView** — TextKit 2 NSTextView replacement with a SwiftUI shim (`STTextViewSwiftUI`). Useful drop-down for line-number gutters, programmatic decoration insertion, multi-cursor, custom selection rendering. [GitHub](https://github.com/krzyzanowskim/STTextView)
+- **[Shpigford//clearly](https://github.com/Shpigford/clearly)** — native AppKit / SwiftUI markdown editor for macOS. Working source-with-decorations editor with a syntax highlighter, fold-state plumbing, and editor shell. Fork-candidate for Pommora's SwiftUI editor path. License: FSL-1.1-MIT (converts to MIT in Feb 2028).
 
 ##### Spaces (drag-and-drop blocks)
 

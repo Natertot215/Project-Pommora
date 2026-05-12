@@ -1,20 +1,17 @@
 ### Spaces
 
-A Space is a **Notion-page-style composed surface** — text, headings, lists, callouts, columns, and widgets, all intermixed in a block-composition canvas. Spaces are the only surface in Pommora with Notion-style block manipulation. Independent of Collections — a Space is never *inside* a Collection.
+A Space is a **Notion-page-style composed surface** — text, headings, lists, callouts, columns, and widgets, all intermixed in a block-composition canvas. The only surface in Pommora with Notion-style block manipulation. Independent of Collections — a Space is never inside one.
 
-Conceptually: a Space is "a Notion page that happens to not be a Markdown file." All the rich block composition Notion offers, with widget blocks for aggregating linked Pages and embedded Collection views.
-
-**Spaces are referential, not containers.** A Space doesn't *hold* its referenced Pages, Items, or Collection rows — it embeds them via `@view` directives (filtered Collection views), `linked-pages` widgets (Pages whose `spaces` property points here), and link lists. Think "grouping tag plus its own canvas": the Space carries its own content (layout, prose, callouts) and references everything else by query or ID. This is what keeps Spaces queryable and agent-legible without duplicating content — an external agent reads the `.space.json`, resolves the directives by walking files or hitting the index, and assembles the materialized view the same way the app does.
+**Spaces are referential, not containers.** A Space doesn't *hold* its referenced Pages, Items, or Collection rows — it embeds them via widget blocks: filtered Collection views (`embedded-collection-view`), Pages-with-this-Space-in-`spaces` (`linked-pages`), and manually curated lists (`link-list`). Think "grouping tag plus its own canvas": the Space carries its own content (prose, callouts, layout) and references everything else by query or ID. This is what keeps Spaces queryable and agent-legible without duplicating content.
 
 ---
 
 #### On disk
 
-- A `.space.json` file in `_pommora// spaces//` (e.g. `_pommora// spaces// Pommora.space.json`)
-- Each Space has an ID (ULID)
-- The file holds the full block tree as structured JSON. Claude (or any tool) reading the file sees: the Space's metadata, every block's type and configuration, and which Pages are linked-to via widget blocks.
-- No Markdown body — Spaces are pure structured config. The block tree is the canonical content.
-- The Space's title comes from the **filename** (e.g. `Pommora.space.json` → "Pommora"). Renaming a Space in the UI renames the file on disk.
+- A `.space.json` file in `.pommora// spaces//` (e.g. `.pommora// spaces// Pommora.space.json`).
+- Each Space has an ID (ULID).
+- The file holds the full block tree as structured JSON — the block tree is the canonical content. No Markdown body.
+- Title = filename (e.g. `Pommora.space.json` → "Pommora"). Renaming in the UI renames the file.
 
 ---
 
@@ -32,7 +29,7 @@ Conceptually: a Space is "a Notion page that happens to not be a Markdown file."
       { "type": "embedded-collection-view", "collection_id": "01H...", "view_id": "01H..." },
       { "type": "link-list", "items": [ /* ... */ ] }
     ]},
-    { "type": "callout", "icon": "info", "text": "..." }
+    { "type": "callout", "text": "..." }
   ]
 }
 ```
@@ -70,7 +67,7 @@ Spaces are composed in a **page-like canvas with drag-and-drop blocks** — Noti
 
 - **Linked Pages** — list / cards / grid of Pages whose `spaces` property includes this Space. Filterable, sortable. Items whose `spaces` field includes this Space surface in the same widget (configurable: pages-only, items-only, or both).
 
-- **Embedded Collection View** — render a saved view from any Collection inline within the Space. References a Collection by ID and overrides filter / sort / group / shown-properties / `members` (pages / items / both) locally without modifying the Collection's saved views. Same `<CollectionViewRenderer>` (React) used in standalone Collection pages.
+- **Embedded Collection View** — render a saved view from any Collection inline within the Space. References a Collection by ID and overrides filter / sort / group / shown-properties locally without modifying the Collection's saved views. Renders members of whichever kind the source Collection is (a Pages collection renders Pages; an Items collection renders Items). Same `<CollectionViewRenderer>` (React) used in standalone Collection pages.
 
 - **Link list** — manually curated list of links to specific Pages, Items, Collections, or Spaces.
 
