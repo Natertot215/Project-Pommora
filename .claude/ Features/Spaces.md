@@ -40,13 +40,11 @@ A Space is a **Notion-page-style composed surface** — text, headings, lists, c
 
 Spaces are composed in a **page-like canvas with drag-and-drop blocks** — Notion-style structured layout (1D vertical flow with one nestable `columns` container), not free X/Y positioning. Drag and drop blocks of any type, slash-menu insertion, reordering, multi-column layout, the full Notion-style block experience. This is the only surface in Pommora with this composition complexity.
 
-**For React**
+`Codable` `Block` enum as the model + `ReorderableVStack` from `visfitness/reorderable` (the vertical block stack) + `HSplit` from `stevengharris/SplitView` (the columns container). The shape of Pommora's problem (one nestable `columns` container + 1D vertical flow elsewhere) is the easiest version of structured-block-tree drag-and-drop, and the libraries above compose cleanly. Rough edges to handle: drop-indicator UX, auto-scroll while dragging, slash-menu positioning, HSplitView polish in nested splits, heterogenous `Transferable` for the block enum.
 
-`@dnd-kit/core` v6.x with a flat-array `[id, depth, parentId]` tree representation. Cross-level drag (a block dragged into a `columns` child or out into the top-level vertical flow) requires the flat-array shape; nested arrays don't compose well with dnd-kit's sortable strategies. Block JSON is validated with Zod on load and save; atomic write via `.tmp` + rename; ULID per block. Detail → `// ReactInfo.md`.
+Block JSON serialization discipline (validate with `Codable` decoding strictness on load and save, atomic write via `.tmp` + rename, ULID per block) is stack-portable; the data shape doesn't change with the renderer.
 
-**For Swift**
-
-`Codable` `Block` enum as the model + `ReorderableVStack` from `visfitness/reorderable` (the vertical block stack) + `HSplit` from `stevengharris/SplitView` (the columns container). No SwiftUI library is a clean equivalent of React's `dnd-kit-sortable-tree`, but the shape of Pommora's problem (one nestable `columns` container + 1D vertical flow elsewhere) is the easiest version of this and the libraries above compose cleanly. Rough edges to handle: drop-indicator UX, auto-scroll while dragging, slash-menu positioning, HSplitView polish in nested splits, heterogenous `Transferable` for the block enum. Detail → `// SwiftInfo.md`.
+> If pivoting to React, see `// ReactInfo// Spaces-DnD.md` for the `@dnd-kit/core` + flat-array tree approach.
 
 ---
 

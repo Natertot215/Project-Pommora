@@ -112,9 +112,9 @@ Each view spec carries: source Collection (implicit from the sidecar's location)
 
 2. **Embedded as a Space widget** — the "Embedded Collection View" widget renders any saved Collection view inside a Space. References a Collection by ID and overrides filter / sort / group / shown-properties locally without modifying the Collection's saved views. The widget shows whatever the source Collection's kind holds (a Pages collection renders Page rows; an Items collection renders Item rows).
 
-**For React**
+A single shared view-renderer dispatches by view type and is reused in both contexts (standalone Collection page and embedded Space widget). Mirrors Notion's `child_database` block pattern.
 
-A single shared `<CollectionViewRenderer>` component dispatches by view type and is reused in both contexts (standalone Collection page and embedded Space widget). Mirrors Notion's `child_database` block pattern.
+> If pivoting to React, see `// ReactInfo// ReactInfo.md` for the React-side `<CollectionViewRenderer>` naming.
 
 ---
 

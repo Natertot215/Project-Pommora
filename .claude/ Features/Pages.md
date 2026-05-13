@@ -57,23 +57,11 @@ The earlier-proposed `@View` (in-line database view embed) is **deferred** to v2
 
 #### Editor surface
 
-Pages on disk are a continuous Markdown stream. The editor surface differs by stack — both write the same Markdown. On either, wikilinks render as styled colored inline text (Obsidian-style); a slash menu or toolbar inserts the two Pommora directives (`@Columns`, `:::callout`); heading-fold (toggling content under a heading) is built-in UI behavior on every heading, not a directive.
+Pages on disk are a continuous Markdown stream. Wikilinks render as styled colored inline text (Obsidian-style); a slash menu or toolbar inserts the two Pommora directives (`@Columns`, `:::callout`); heading-fold (toggling content under a heading) is built-in UI behavior on every heading, not a directive.
 
-**Block-level features (Spaces) vs. block-style editor UI (Pages, React):** distinct concepts. Pages stay continuous Markdown on disk regardless of stack. The React Page editor adds Notion-style per-paragraph affordances (`+` insertion + drag-handle reordering markers on the left) as a UX layer on top of that Markdown stream — orthogonal to the content model.
+Two editor options. Option 1: native Swift editor — fork Clearly or build original on NSTextView/AppKit, delivering source-with-decorations on a native text engine (markers hidden when cursor leaves a construct, revealed when it enters). Option 2 (likely direction): WKWebView hosting Tiptap, Milkdown, or BlockNote — all three translate cleanly to on-disk Markdown; the native SwiftUI shell wraps the editor canvas; the editor is styled to match the design system via CSS.
 
-**For React**
-
-Two co-primary editor candidates — BlockNote (MPL-2.0, batteries-included) and Tiptap (MIT, headless framework BlockNote is built on). Either configured as a **Notion-style block editor surface**: per-paragraph `+` (insert) and drag-handle (reorder) markers on the left of every block, slash menu, formatting toolbar. This is the **wanted UX** on React — the block-style affordances are how you insert directives, reorder paragraphs without selecting them, and anchor focus visually while editing. The on-disk format stays Markdown; the block UI is purely an editing affordance, not a content-model change. Pick at React commit time.
-
-The editor uses **two serialization formats deliberately**: Markdown (`.md` on disk) is the canonical content format that agents, external tools, and the vault see; the editor's internal JSON is the working format in memory and the perfect-fidelity export when Markdown can't carry the information (cursor state, undo / redo, Pommora-to-Pommora interchange). Custom per-block / per-node serializers bridge the two for the two Pommora directives (`:::columns`, `:::callout`); standard Markdown round-trips natively. Both formats are first-class — neither replaces the other. **BlockNote API:** `blocksToMarkdownLossy` / `tryParseMarkdownToBlocks` / `editor.document`. **Tiptap API:** `@tiptap/markdown` / `editor.getJSON()`. See `// ReactInfo.md` "Editor serialization architecture" for the full picture.
-
-Pivot doors (Milkdown, CodeMirror 6) trade the Notion-style block UI for a markdown-first / buffer-based surface — the opposite tradeoff from what React wants. They remain in the catalog only because their Markdown ↔ working-state architecture is analogous; pivoting would mean accepting a different editor UX. Wikilinks via custom inline marks paired with `@flowershow/remark-wiki-link` for the parse direction. Detail → `// ReactInfo.md`.
-
-**For Swift**
-
-Two options documented in `// SwiftInfo.md`. Option 1: native Swift editor — fork Clearly or build original on NSTextView/AppKit, delivering source-with-decorations on a native text engine (markers hidden when cursor leaves a construct, revealed when it enters). Option 2 (likely direction if SwiftUI chosen): WKWebView hosting Tiptap, Milkdown, or BlockNote — all three translate cleanly to on-disk Markdown; the native SwiftUI shell wraps the editor canvas; the editor is styled to match the design system via CSS. Wikilinks render as styled colored inline text on either path.
-
-Both stacks produce the same on-disk Markdown.
+> If pivoting to React, see `// ReactInfo// Editor.md` for the React-side approach.
 
 ---
 
@@ -88,6 +76,6 @@ Pages are flat within a Pages collection. No forced sub-page nesting. A Pages co
 - `[[Page Name]]` resolves by basename match (Obsidian-style).
 - If two Pages share a basename, disambiguation uses path: `[[Notes// Roadmap]]` vs `[[Personal// Roadmap]]`.
 - Renaming a Page that has ambiguous siblings updates only the references that resolve to it.
-- Wikilinks render as **styled colored inline text** (Obsidian-style hyperlink), not as Notion-style chips/pills — across both stacks.
+- Wikilinks render as **styled colored inline text** (Obsidian-style hyperlink), not as Notion-style chips/pills.
 
 Full rename + wikilink-rewrite algorithm lives in `PommoraPRD.md` ("File Renames and Wikilink Updates").

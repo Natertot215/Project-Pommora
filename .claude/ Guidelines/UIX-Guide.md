@@ -1,6 +1,6 @@
 ### UIX Guide
 
-Pommora's visual identity, component library, and design tokens. Stack-agnostic at the design layer — the Figma source of truth exports cleanly to either stack's consumer.
+Pommora's visual identity, component library, and design tokens. Figma is the source of truth; tokens export to SwiftUI `Color` / `Font` extensions.
 
 ---
 
@@ -8,7 +8,7 @@ Pommora's visual identity, component library, and design tokens. Stack-agnostic 
 
 Two-tier model:
 
-- **Figma is the source of truth for design tokens.** Colors, typography, spacing, radii, shadows. The Figma file holds the canonical token values; both stacks consume them.
+- **Figma is the source of truth for design tokens.** Colors, typography, spacing, radii, shadows. The Figma file holds the canonical token values; the SwiftUI export consumes them.
 - **The component library is the source of truth for components.** Components are built using Figma's tokens; once a component lands in the library it's authoritative. Features consume from the library — they don't fork or tweak components per-screen.
 
 **Components are not edited during implementation.** When building features, components from the library get used as-is. If a component needs to change, the change happens in the library first (which propagates everywhere it's used), then feature work continues. This keeps the library a single canonical reference and prevents drift between intended and actual visual identity.
@@ -21,21 +21,11 @@ Tokens (~118 vars) and primitives + composed components are built in the Figma f
 
 **Next step:** FRAME → COMPONENT_SET conversion per `.claude// Planning// Figma Components 5-13.md`. After conversion, the file is a real reusable component library (single source per concept, variant properties, INSTANCE references everywhere) ready for code translation.
 
-**Then:** translate Figma → React components in `UI-UX// Components//` and stand up the localhost dev server. The live React demo is what makes the Figma-flavored UIX outcome legible — a working demo is the gate on the stack decision (Figma file alone reveals static intent, not interaction behavior).
-
-**What the Figma build has shown about the React translation path:** the workflow is real and gives the design system Nathan wants, but it's not free. Figma → React produces really good UIX in places and is gimmicky in others; some things that look obvious to a designer require tweaking that Claude has trouble implementing directly. Worth knowing before scoping the live-demo work.
-
-**For React**
-
-The component library lives on Pommora's own localhost dev server (the Vite + Electron renderer); **no Storybook intermediary.** The localhost preview IS the component gallery and the working app surface, at different stages of development. Components reference design tokens via CSS custom properties consumed from the Figma export. Designs flow Figma → Pommora localhost directly via the Claude Figma skills (`figma:figma-generate-design`, `figma:figma-use`).
-
-**For Swift**
-
-The component library lives as SwiftUI views inside the app target (or a small Swift Package), browsed via Xcode `#Preview`. Components reference design tokens via SwiftUI `Color` and `Font` extensions consumed from the Figma export.
+**Then:** translate Figma → SwiftUI views in `UI-UX// Components//` and browse via Xcode `#Preview`. The component library lives as SwiftUI views inside the app target (or a small Swift Package); components reference design tokens via SwiftUI `Color` and `Font` extensions consumed from the Figma export.
 
 #### Dual-Export Naming Discipline
 
-The hard rule that makes either stack viable: **Figma Variables use semantic role-based names, never implementation-flavored names.**
+The hard rule that keeps tokens stack-portable: **Figma Variables use semantic role-based names, never implementation-flavored names.**
 
 | ✅ Use | ❌ Avoid |
 |---|---|
@@ -44,17 +34,9 @@ The hard rule that makes either stack viable: **Figma Variables use semantic rol
 | `text/muted` | `gray-400` |
 | `border/subtle` | `border-zinc-800` |
 
-Export targets:
+Export target: SwiftUI `Color` extensions: `Color.surface.primary.bg`. Generated as a Swift source file consumed by the SwiftUI views from the same Figma source — adding a new token in Figma updates the export automatically.
 
-**For React**
-
-CSS custom properties: `--surface-primary-bg`. Tailwind CSS v4 references the variables directly.
-
-**For Swift**
-
-SwiftUI `Color` extensions: `Color.surface.primary.bg`. Generated as a Swift source file consumed by the SwiftUI views.
-
-The CSS variable file and the SwiftUI Color file are different artifacts generated from the same Figma source. Adding a new token in Figma → both export targets get the new value automatically.
+> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` — export target becomes CSS custom properties (`--surface-primary-bg`) referenced directly by Tailwind CSS v4.
 
 #### Tier Model (Two Axes)
 
@@ -80,41 +62,29 @@ One initial scheme ships in v0.x — **no built-in light/dark, no theme switcher
 
 The scheme leans neutral and quiet so customization feels like personalization rather than choosing between two presets. Exact color values are defined in the Figma file.
 
-**For React**
-
-Dark mode first. Visual reference for foundations: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop. Pommora's design tokens define the actual values; the reference apps inform the *feel* (density, contrast, typographic restraint) but aren't copied.
-
-**For Swift**
-
-Dark mode first. Same Pommora design tokens applied on top of SwiftUI's native primitives (NSVisualEffectView for vibrancy, SF Symbols for icons, system controls for behavior). Native cohesion comes from the primitives; Pommora's visual identity comes from the tokens.
+Dark mode first. Pommora design tokens applied on top of SwiftUI's native primitives (NSVisualEffectView for vibrancy, SF Symbols for icons, system controls for behavior). Native cohesion comes from the primitives; Pommora's visual identity comes from the tokens. Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop — tokens define the actual values; reference apps inform density, contrast, typographic restraint but aren't copied.
 
 #### Icon System
 
-Pommora's icon language adapts to whichever stack lands.
-
 **Symbol color tokens.** Symbols have their own color Variables (`symbol// primary`, `symbol// muted`, `symbol// active`) that default-resolve to text / accent values but can be overridden independently. Default symbol color is `symbol// muted` — every icon renders muted unless a component explicitly binds it to `primary` or `active`.
 
-**Initial-build placeholder.** Until specific icons are finalized per role, the Figma design system uses the `crop_free` Material Symbol (a square frame) for every symbol slot. The icon-role finalization (mapping each placeholder to its real Material Symbol / SF Symbol equivalent) is post-conversion work; until then `crop_free` stays inline and the INSTANCE_SWAP `vector` slot on the Icon component is deferred.
+**Initial-build placeholder.** Until specific icons are finalized per role, the Figma design system uses the `crop_free` Material Symbol (a square frame) for every symbol slot. The icon-role finalization (mapping each placeholder to its real SF Symbol equivalent) is post-conversion work; until then `crop_free` stays inline and the INSTANCE_SWAP `vector` slot on the Icon component is deferred.
 
-**For React**
+**SF Symbols** via SwiftUI's `Image(systemName:)` (outlined default; symbol weight and rendering mode adjusted per usage). Icons are defined as view modifiers consistent per surface tier. No indirection layer needed — SF Symbols is the native iconography, available everywhere.
 
-**Material Symbols** via `react-material-symbols` (outlined default; variable font allows weight / fill / grade / optical-size adjustments per usage). Components reference **semantic symbol roles** (`settings`, `add`, etc.), not direct Material Symbol names — the mapping lives in `.pommora// symbols.json` and carries the SF Symbols equivalent for each role so the icon library can be swapped via a planned setting. Detail → `Symbols-guide.md`. Sizing per surface tier is applied by the same wrapper that resolves the semantic role.
-
-**For Swift**
-
-**SF Symbols** via SwiftUI's `Image(systemName:)` (outlined default; symbol weight and rendering mode adjusted per usage). Icons are defined as view modifiers consistent per surface tier.
+> If pivoting to React, see `// ReactInfo// Symbols-guide.md` for the semantic-role indirection layer (`.pommora// symbols.json`) that lets the icon library be swapped without rewriting components.
 
 #### v0.x Scope
 
 **In:**
 - Figma file with foundations: colors, typography, spacing, radii, shadows
 - Three-pane shell components: Sidebar, MainContent, Inspector
-- Token export to whichever stack lands (CSS custom properties for React; SwiftUI Color extensions for Swift)
-- Icon system per stack (Material Symbols for React; SF Symbols for Swift)
+- Token export to SwiftUI `Color` / `Font` extensions
+- SF Symbols icon system
 
 **Deferred to v1:**
 - Auditor UI (token browser, component browser, hover-to-target)
-- User-authored CSS snippets (`.pommora//snippets//user.css`)
+- User-authored design overrides
 - Theme files (full token remaps)
 - Light/dark mode (revisit only after customization story is validated)
 
@@ -126,4 +96,4 @@ Pommora's icon language adapts to whichever stack lands.
 
 #### Open Questions
 
-(none currently — Figma file is built; conversion plan is at `.claude// Planning// Figma Components 5-13.md`; live React demo is the next gate after conversion completes.)
+(none currently — Figma file is built; conversion plan is at `.claude// Planning// Figma Components 5-13.md`; SwiftUI translation begins after the conversion completes.)

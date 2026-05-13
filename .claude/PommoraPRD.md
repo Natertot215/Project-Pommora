@@ -30,7 +30,7 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property and q
 
 Three top-level entity types plus one Collection-bound member type:
 
-- **Pages** — Markdown documents; flat (no semantic nesting). Editor surface is stack-conditional (Notion-style block UI on React with per-paragraph `+` / drag-handle markers; source-with-decorations native text editor on SwiftUI). Live inside Pages collections, or loose anywhere outside Collection folders.
+- **Pages** — Markdown documents; flat (no semantic nesting). Editor surface is one of two SwiftUI options: Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor (likely direction). Live inside Pages collections, or loose anywhere outside Collection folders.
 - **Collections** — folder + `_collection.json` schema sidecar. Hold property schemas, saved view configurations, and a `kind` (`"pages"` or `"items"`) set at creation and persistent. Members are uniformly one kind: a Pages collection holds `.md` files; an Items collection holds `.json` files. Membership is by file location.
 - **Items** — row entities living inside Items collections (or loose anywhere outside). Lightweight, property-driven, short-description entries that don't warrant prose (tasks, contacts, wishlist, events, citations). One `.json` file per Item; filename = title; same property catalog as Pages; no Markdown body. Open in an **Item window** — a popover-style floating surface anchored to the trigger (Calendar-event-detail pattern) showing title + property inputs + a 250-character plain-text description. Not a tab, not a full page.
 - **Spaces** — composed dashboard surfaces. `.space.json` files holding a block tree of text blocks and widget blocks. Referential (embed Pages / Items / Collection views via widgets), not container (Spaces don't hold their referenced entities).
@@ -127,9 +127,7 @@ Both directives resolve cleanly when read by an external Markdown tool — the d
 
 **Block-level features as a project term belongs to Spaces only.** Pages don't have blocks.
 
-**For React** — `@View` is reachable when revisited (both BlockNote and Tiptap support inline custom views as block / node components).
-
-**For Swift** — `@View` inside the prose flow is the harder direction on a native editor; the v2+ revisit is React-conditional for this reason. Embedded views remain available inside Spaces on both stacks.
+`@View` inside the prose flow is the harder direction on Option 1 (native editor); on Option 2 (WKWebView + JS editor), the same node-component approach BlockNote and Tiptap support directly applies. Embedded views remain available inside Spaces regardless of editor path.
 
 ##### Collections
 
@@ -279,15 +277,13 @@ Five view types in v1:
 
 Each view spec carries: source Collection (implicit from sidecar location), view type, filter expression, sort, group-by property, properties to display, and (for gallery) cover image property. Filter expressions parse to a small DSL and translate to parameterized `json_extract` SQL queries. **Filters and sorts on a view never modify the source Collection** — purely view-local.
 
-In-line view embeds *inside Pages* (a `@View` directive in prose) are out of v1 and React-only when revisited.
+In-line view embeds *inside Pages* (a `@View` directive in prose) are out of v1. The v2+ revisit is feasible on Option 2 (WKWebView + JS editor); harder on Option 1 (native editor) due to layout-attachment complexity.
 
 ##### Columns
 
 The `@Columns` directive is supported in both Pages and Spaces. **V1 columns are equidistant** — widths divide the available horizontal space evenly by child count. No per-column width configuration in v1.
 
-**For React** — implemented as a custom block / node in the chosen editor (BlockNote core, avoiding the one copyleft-or-commercial `@blocknote/xl-multi-column` package; or Tiptap, where it's a custom node like any other).
-
-**For Swift** — implementation deferred to the editor build; the directive ships as a Pommora-specific render with equidistant child columns (file format stays standard `:::columns` Markdown on disk).
+Implementation is deferred to the editor build; the directive ships as a Pommora-specific render with equidistant child columns (file format stays standard `:::columns` Markdown on disk).
 
 ##### Sidebar Navigation
 
@@ -343,11 +339,11 @@ On first launch, after the user picks a vault location, Pommora opens with empty
 
 ##### Design System
 
-Two-tier source of truth: Figma owns design tokens; the stack's component library owns components (built from those tokens; once in the library, consumed as-is during feature work — no per-screen tweaks). v1 ships with one initial scheme **plus in-app customization for colors and typography** (see Framework v0.12). Variables use semantic role-based names (`surface// primary// bg`) so the same design exports to either stack. Build brief: `// Planning//Figma Prompt.md`.
+Two-tier source of truth: Figma owns design tokens; Pommora's component library owns components (built from those tokens; once in the library, consumed as-is during feature work — no per-screen tweaks). v1 ships with one initial scheme **plus in-app customization for colors and typography** (see Framework v0.12). Variables use semantic role-based names (`surface// primary// bg`) so the design exports cleanly to SwiftUI `Color` / `Font` extensions (and to CSS custom properties if pivoted). Build brief: `// Planning//Figma Prompt.md`.
 
-**For React** — tokens export to CSS custom properties (`--surface-primary-bg`); icons via Material Symbols (`react-material-symbols`) through a semantic role indirection layer. The component library lives at `// UI-UX//Components//` and runs on Pommora's own localhost dev server (Vite + Electron renderer); **no Storybook intermediary.** The Claude Figma skills (`figma:figma-generate-design`, `figma:figma-use`) handle the Figma side.
+Tokens export to SwiftUI `Color` / `Font` extensions (`Color.surface.primary.bg`); icons via SF Symbols (`Image(systemName:)`). Component library lives as SwiftUI views inside the app target, browsed via Xcode `#Preview`. The Claude Figma skills (`figma:figma-generate-design`, `figma:figma-use`) handle the Figma side.
 
-**For Swift** — tokens export to SwiftUI `Color` / `Font` extensions (`Color.surface.primary.bg`); icons via SF Symbols (`Image(systemName:)`). Component library lives as SwiftUI views inside the app target, browsed via Xcode `#Preview`.
+> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` and `// ReactInfo// Symbols-guide.md` for the CSS-custom-properties export + Material Symbols indirection layer + Vite + Electron localhost dev server pattern.
 
 Full token taxonomy, dual-axis tier model, and customization details → `// Guidelines//UIX-Guide.md`.
 
@@ -364,7 +360,7 @@ Renames are automatic and atomic. When a Page is renamed:
 - `[[Page Name]]` resolves by basename match (Obsidian-style).
 - If two Pages share a basename, disambiguation uses path: `[[Notes// Roadmap]]` vs. `[[Personal// Roadmap]]`.
 - Renaming a Page with ambiguous siblings updates only the references that resolve to it.
-- Wikilinks render as styled colored inline text (Obsidian-style), not Notion-style chips — both stacks.
+- Wikilinks render as styled colored inline text (Obsidian-style), not Notion-style chips.
 
 Relation properties store target IDs and display the target's current title (resolved at render time; renames update display automatically).
 
@@ -374,7 +370,7 @@ Relation properties store target IDs and display the target's current title (res
 
 **In:**
 
-- **Pages** — Markdown documents with YAML frontmatter; editor surface is stack-conditional (Notion-style block UI with per-paragraph `+` / drag-handle markers on React; source-with-decorations native text editor on SwiftUI). Standard Markdown (paragraphs, headings H1–H5 in v0's type scale (foldable by default), lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, horizontal rules) plus two Pommora-specific rendering directives (`@Columns` + `:::callout`). Blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Members conform to a Pages collection's schema; loose Pages hold only built-in fields.
+- **Pages** — Markdown documents with YAML frontmatter; editor surface is one of two SwiftUI options (Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor — likely direction). Standard Markdown (paragraphs, headings H1–H5 in v0's type scale (foldable by default), lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, horizontal rules) plus two Pommora-specific rendering directives (`@Columns` + `:::callout`). Blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Members conform to a Pages collection's schema; loose Pages hold only built-in fields.
 - **Collections** — folder + `_collection.json` schema sidecar. Typed at creation (`"kind": "pages" | "items"`). Property schemas + saved view configurations inside the sidecar. Five view types (table / board / list / cards / gallery) with per-view filter / sort / group / shown-properties controls.
 - **Items** — `.json` files. Filename = title; member Items conform to the Collection schema; loose Items carry only built-in fields. `id`, `icon`, `description` (plain text, 250-char cap), `spaces`, timestamps. No Markdown body. Open in an Item window (popover), not a tab.
 - **Spaces** — Notion-page-style composition surfaces (`.space.json`) with a full block tree. Text blocks + widget blocks intermixed. Drag-to-arrange and slash-menu insertion.

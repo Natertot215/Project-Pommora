@@ -24,22 +24,15 @@ Full primitive list, composed-component list, and acceptance criteria → `.clau
 
 ---
 
-#### Stack-conditional implementation
-
-**For React**
-
-- TypeScript (strict mode)
-- Components consume tokens via CSS custom properties (exported from Figma into `// UI-UX//Design//tokens.css` or similar)
-- Material Symbols via `react-material-symbols` through the semantic role indirection layer (`.pommora// symbols.json`; see `.claude// Guidelines//Symbols-guide.md`)
-- **This folder hosts the Vite + Electron localhost dev server.** The running app IS the component gallery; no Storybook intermediary.
-- Initial-build symbol placeholder is `crop_free`; replace per-role during round 2.
-
-**For Swift**
+#### Implementation
 
 - SwiftUI views in the app target or a small Swift Package
 - Components consume tokens via SwiftUI `Color` and `Font` extensions (generated from Figma Variables, exported to `// UI-UX//Design//Tokens.swift`)
-- SF Symbols via `Image(systemName:)` through the same role table
+- SF Symbols via `Image(systemName:)` (no indirection layer needed)
 - Browsed via Xcode `#Preview`
+- Initial-build symbol placeholder is `crop_free`; replace per-role during round 2.
+
+> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` and `// ReactInfo// Symbols-guide.md` for the TypeScript + CSS custom properties + Material Symbols indirection setup, plus the Vite + Electron localhost dev server pattern.
 
 ---
 

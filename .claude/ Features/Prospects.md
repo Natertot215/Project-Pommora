@@ -19,13 +19,9 @@ Each prospect uses the format below. Easy to add new entries: copy the template,
 #### In-line view embeds (`@View`) inside Pages
 **Description:** Embed a Collection view directly inside a Page's prose via the `@View` directive — Notion-style. Embedded Collection views remain available *inside Spaces* (as widget blocks) for v1; this prospect is about extending them inline into Pages.
 
-**For React**
+On Option 1 (native editor), hosting a non-text view inline in the prose flow requires custom layout attachment work — materially harder than on a JS editor. On Option 2 (WKWebView + JS editor), the same node-component approach BlockNote and Tiptap support directly applies, making this feasible if Option 2 is the editor path.
 
-An `@View` directive becomes a custom block / node component on top of BlockNote or Tiptap — well-trodden territory on either.
-
-**For Swift**
-
-On SwiftUI Option 1 (native editor), hosting a non-text view inline in the prose flow requires custom layout attachment work — materially harder than on a JS editor. On Option 2 (WKWebView + JS editor), the same BlockNote / Tiptap approach used on React applies, making this feasible on either stack if a JS editor is chosen.
+> If pivoting to React, see `// ReactInfo// Editor.md` — `@View` becomes a custom block / node component on BlockNote or Tiptap, well-trodden territory.
 
 #### Ad-hoc page-local properties
 **Description:** Allow a Page to declare properties not in its Collection's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Collection. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
@@ -36,13 +32,9 @@ On SwiftUI Option 1 (native editor), hosting a non-text view inline in the prose
 #### Mobile companion (iOS / iPad)
 **Description:** Real long-term intent (not just "potential"). Read and edit access to the vault from mobile devices. iPad and iOS are both on the table.
 
-**For React**
+Essentially free — the same Swift Package codebase ships to iPad and iOS with platform adaptations. The natural growth path on the current stack.
 
-A separate effort — Capacitor wrapper or a parallel native build. Any data-layer TypeScript that's been kept UI-free can be reused, but the React UI is not portable to mobile-native paradigms.
-
-**For Swift**
-
-Essentially free — the same Swift Package codebase ships to iPad and iOS with platform adaptations. The natural growth path on this stack.
+> If pivoting to React, see `// ReactInfo// ReactInfo.md` — mobile becomes a Capacitor wrapper or parallel native build; data-layer TypeScript can be UI-decoupled, but the UI itself isn't portable to mobile-native paradigms.
 
 #### Sub-pages (nested Page hierarchy)
 **Description:** v2 candidate. Allow a Page to contain other Pages as children — Notion-style nesting. Filesystem realization: a sub-folder named after the parent Page holds its children. v1 keeps Pages flat within a Pages collection (no nesting), with linking handling "this Page belongs to that Page" relationships. Sub-pages complicate the membership rules (is a child Page in the same Collection as its parent? what if the parent is loose?) — worth implementing once the flat model is well-exercised in practice.
