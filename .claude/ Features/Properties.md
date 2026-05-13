@@ -70,7 +70,7 @@ What happens when a user changes a property's definition:
 
 #### Moving Members Between Collections
 
-Moving a Page from one Pages collection to another (or an Item from one Items collection to another) strips any properties not in the destination Collection's schema — same behavior as Notion. The user is responsible for either adding the property to the destination schema first, or accepting that the values drop on move.
+Moving a Page from one Pages collection to another (or an Item from one Items collection to another) strips any properties not in the destination Collection's schema — same behavior as Notion. **A simple confirmation warning** lists the properties that will be stripped before the move proceeds; the user can cancel, add the property to the destination schema first, or accept the strip.
 
 The same rule applies in both directions involving loose state:
 

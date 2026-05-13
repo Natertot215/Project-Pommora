@@ -16,21 +16,21 @@ Reference document for the SwiftUI implementation path. Captures research findin
 
 #### Where SwiftUI lands for Pommora
 
-##### Editor: two open paths
+##### Editor: two options
 
-Native macOS markdown editing is solved territory — there are working precedents (Clearly itself, Bear, iA Writer) and the pattern they share is *source-with-decorations on a native text engine*: the document IS the markdown string, styling is layered on as text attributes, and Obsidian-style Live Preview (markers hidden when the cursor leaves a construct, revealed when it enters) is achievable without leaving native AppKit.
+The SwiftUI Pommora editor has **two options**:
 
-The SwiftUI Pommora editor has **two open paths**, neither locked:
+- **Option 1 — Native Swift markdown editor.** Two sub-approaches with the same UX outcome: fork **Clearly** ([Shpigford/clearly](https://github.com/Shpigford/clearly) — native AppKit/SwiftUI markdown editor with a working `MarkdownSyntaxHighlighter` in its `ClearlyCore` Swift Package, fold-state plumbing, and a polished editor shell; license FSL-1.1-MIT, converts to MIT Feb 2028), or build an original native editor on `NSTextView` / AppKit text-engine primitives. Either delivers source-with-decorations on a native text engine — the document IS the markdown string, styling layered as text attributes, Obsidian-style Live Preview (markers hidden when cursor leaves a construct, revealed when it enters) implemented via attribute manipulation on selection change. Full native text behavior (smart quotes, system dictionary, AppKit caret and selection). GFM table inline rendering requires custom layout fragments; TextKit 2 has confirmed production instability for advanced layout work — factor into build planning.
 
-- **Fork Clearly.** [Shpigford//clearly](https://github.com/Shpigford/clearly) is a native AppKit/SwiftUI markdown editor with a working markdown syntax highlighter (`MarkdownSyntaxHighlighter` in its `ClearlyCore` Swift Package), fold-state plumbing, and a polished editor shell. License is FSL-1.1-MIT (converts to MIT in Feb 2028); the highlighter and surrounding pieces are extractable. Forking gives a running baseline; Pommora-specific extensions (`:::columns`, `:::callout`, wikilinks, properties panel integration) layer on top.
+- **Option 2 — WKWebView hosting a JS markdown editor. (Likely direction if SwiftUI is chosen.)** Host **Tiptap**, **Milkdown**, or **BlockNote** in a WKWebView. All three have solid markdown translation — they read from and write to on-disk Markdown cleanly, keeping files canonical. The JS editor handles the editor surface; the SwiftUI shell wraps it with a native toolbar, menus, keyboard shortcuts, three-pane layout, sidebar, and inspector — everything outside the editor canvas stays native. The editor canvas is styled to match the design system (SF Pro via `font-family: -apple-system`, Pommora's design tokens as CSS custom properties). Scroll physics and caret animation are WebKit's rather than AppKit's — the main UX seam. WWDC25 shipped a first-class `WebView` in SwiftUI (iOS 26.0+ / macOS 26.0+), eliminating the `NSViewRepresentable` wrapper for those targets; older OS targets keep using `WKWebView` via `NSViewRepresentable`. MarkEdit (App Store) is the production reference for this architecture.
 
-- **Build an original native markdown editor.** Build on `TextEditor<AttributedString>` (macOS 26+, character-level styling with `AttributedTextFormattingDefinition`) or drop one layer deeper to `NSTextView` / TextKit for finer control. Either subpath delivers the same source-with-decorations model. WWDC25 Session 280's wikilink-as-styled-span pattern applies; Live Preview marker reveal is implementable via attribute manipulation on selection change (or via a custom `NSLayoutManager` if going deeper). The build is more work than a fork but the codebase is fully owned.
+  Implementation shape: the editor's JS bundle (CodeMirror 6 / Tiptap / Milkdown / BlockNote) ships **inside** the Pommora `.app` — fully self-contained, no external network fetches at runtime. Served to the WebView via a custom URL scheme handler (`WKURLSchemeHandler` registered for e.g. `editor://`), because WKWebView treats `file://` URLs as a null origin and blocks `<script type="module">` execution (WebKit bug #154916). The custom-scheme workaround is the Apple-documented pattern. Because the editor doesn't fetch from external origins, the known caveat that custom schemes are treated as insecure for cross-origin fetch doesn't apply. `WKScriptMessageHandler` carries editor events into Swift; Swift writes Markdown to disk and updates SQLite. Only Markdown crosses the bridge on save. iOS/iPad parity is intact — WKWebView is cross-Apple-platform.
 
-**What's not on the table:**
-
-- **Tiptap-in-WKWebView.** Tiptap is a web library; running it requires WKWebView; bridging breaks the native cohesion that motivates picking SwiftUI in the first place. Tiptap is also paradigmatically wrong for Live Preview (consumes markers at parse time) regardless of host.
-- **CodeMirror 6.** Same reason — JavaScript, web-only, would require WKWebView. CM6 belongs on the React+Electron side.
-- **NSTextView ground-up rebuild that ignores existing prior art.** Either of the two paths above outperforms reinventing everything; reach for raw TextKit only where neither path can deliver.
+  Editor candidates — pick at SwiftUI commit time. Needs to be evaluated in practice before committing:
+  - **Tiptap (MIT)** — headless ProseMirror framework; most configurable; every package Pommora needs ships MIT.
+  - **Milkdown (MIT)** — markdown-first by design; round-trip integrity built into the framework; plugin ecosystem covers slash menu, history, clipboard, math, upload.
+  - **BlockNote (MPL-2.0)** — batteries-included; built on Tiptap; fastest to a working editor. Avoid `@blocknote/xl-multi-column` (GPL-3.0 or commercial) — build the columns block in core instead.
+  - **MarkdownEditor ([Pallepadehat/MarkdownEditor](https://github.com/Pallepadehat/MarkdownEditor), MIT)** — a pre-packaged Swift Package wrapping CodeMirror 6 in WKWebView with a clean SwiftUI API (`EditorWebView(text: $markdown)`). Ships with Obsidian-style syntax hiding built in (`hideSyntax: true` default), GFM tables via the `GFM` lezer extension, SF fonts as default, light/dark theme, and a command palette triggered by `/`. Missing for Pommora: `:::callout`, `:::columns`, and wikilinks (all addable as CM6 extensions in TypeScript). Personal project, one contributor, v1.0.1 — recommend forking rather than depending. CM6 is the engine under the hood; this package provides the UI on top. Requires seeing it in practice before committing.
 
 ##### swift-markdown gotchas
 
@@ -120,7 +120,7 @@ If Pommora ever pivots to SwiftUI, the actually-useful component libraries to kn
 
 #### Editor evaluation context (for the React side, mirrored here for completeness)
 
-The React-path editor evaluation resolved on BlockNote (open-source MPL-2.0 core); it's a third-party block-editor library and a different paradigm from anything on the SwiftUI side. If SwiftUI is picked, the editor work is either forking a working native editor (Clearly) or building an original on native text-engine primitives — not configuring a third-party JS library.
+The React-path editor evaluation resolved on two co-primary candidates — BlockNote (MPL-2.0) and Tiptap (MIT), both ProseMirror-React block editors and a different paradigm from anything on the SwiftUI side. If SwiftUI is picked, the editor work is either forking a working native editor (Clearly) or building an original on native text-engine primitives — not configuring a third-party JS library.
 
 ---
 

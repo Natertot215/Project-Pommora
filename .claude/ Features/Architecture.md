@@ -11,6 +11,7 @@ This is **conceptual** portability — the decisions survive a stack pivot. It i
 These are the decisions that define Pommora and would carry forward to a rebuild in the other stack:
 
 - **File formats** — Markdown for Pages (inside Pages collections, or loose anywhere outside Collection folders), `_collection.json` for Collection schemas (carries `kind`: `"pages"` | `"items"`), one `.json` per Item (inside an Items collection, or loose), `.space.json` for Spaces (block trees), YAML frontmatter shape
+- **Vault structure conventions** — `.pommora//` at vault root holds app config and SQLite index (regeneratable); `.trash//` at vault root holds deleted entities (preserving original relative path; restoration is a file move back); both are leading-dot hidden folders
 - **SQLite schema** — `pages`, `items`, `collections`, `spaces`, `links` tables; FTS5 indexing pattern; JSON1 query patterns
 - **Domain model** — Pages, Items, Collections (typed at creation: `kind` = `"pages"` or `"items"`), Spaces; their definitions, linking model, membership rules (`// Features//Domain-Model.md`)
 - **Property type catalog** — number, checkbox, date, datetime, select, multi-select, relation, URL; config shapes; schema mutation rules. Shared between Pages (values in frontmatter) and Items (values in JSON entry) (`// Features//Properties.md`). No dedicated `Status` type — Status-like properties are just Selects named "Status."
@@ -19,7 +20,7 @@ These are the decisions that define Pommora and would carry forward to a rebuild
 - **Wikilink behavior** — name-based resolution, rename cascade, ambiguity disambiguation
 - **View directives** — table / board / list / cards / gallery; saved view spec shape; embed-time override semantics. Views render members of whichever kind the source Collection is (no per-view member-kind switch — that decision lives at the Collection level).
 - **Design tokens** — Figma's semantic role-based naming exports cleanly to either CSS custom properties (React) or SwiftUI Color extensions (`// Guidelines//UIX-Guide.md`)
-- **UX patterns** — three-pane shell, sidebar logical model, collapsed-by-default disclosure, prose-first editor feel
+- **UX patterns** — three-pane shell, sidebar logical model, collapsed-by-default disclosure, wikilinks-as-styled-colored-inline-text, Item window (popover anchored to trigger; Calendar-event-detail pattern). (Editor UX itself is stack-specific and does NOT survive a rebuild: React Pages run a Notion-style block editor with per-paragraph `+` / drag-handle markers; SwiftUI Pages run either a source-with-decorations native text editor (Option 1) or a WKWebView-hosted JS editor — Tiptap, Milkdown, or BlockNote (Option 2, likely direction). All paths write the same Markdown on disk.)
 - **Agent legibility contract** — every entity is a file an external agent can read directly; SQLite is performance scaffolding, not source of truth. Survives any stack rebuild trivially because the contract is about the on-disk shape, not the runtime.
 
 Whichever stack ships uses these decisions. A rebuild in the other stack re-implements them in the other language; the decisions don't change.
@@ -32,7 +33,7 @@ These are inherently stack-locked and would be rewritten in a rebuild:
 
 - The codebase itself (TypeScript ↔ Swift)
 - UI framework idioms (React components ↔ SwiftUI views)
-- Editor primitive (BlockNote on React ↔ native markdown editor on SwiftUI — fork of Clearly, or an original build)
+- Editor primitive (BlockNote or Tiptap on React ↔ SwiftUI Option 1: native markdown editor — fork Clearly or original build; or Option 2: WKWebView hosting Tiptap / Milkdown / BlockNote — likely direction)
 - Reactive primitives (Zustand + hooks ↔ `@Observable` + `ValueObservation`)
 - Build / packaging tooling (electron-vite + electron-builder ↔ Xcode + SPM)
 - File watching (`@parcel/watcher` ↔ FSEventStream)

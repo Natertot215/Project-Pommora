@@ -12,21 +12,21 @@ This document is the brief overview. Per-entity detail (on-disk shapes, editor s
 
 | Entity | Role | On disk | Editor surface |
 |---|---|---|---|
-| **Page** | A Markdown document — one continuous Markdown stream. Member of a Pages collection by folder location; otherwise loose. Not a block surface. | `.md` files anywhere in the vault | Prose-first editor: standard Markdown plus two Pommora-specific rendering directives (`@Columns`, `:::callout`); foldable headings built-in; blockquotes and callouts are distinct constructs |
-| **Item** | A row-shaped entry. Member of an Items collection by folder location; otherwise loose. For database entries that don't warrant prose. | `.json` files anywhere in the vault | Property panel + short-description field; no prose editor |
+| **Page** | A Markdown document — one continuous Markdown stream. Member of a Pages collection by folder location; otherwise loose. Not a block surface. | `.md` files anywhere in the vault | Stack-conditional surface — React: Notion-style block editor with per-paragraph `+` / drag-handle markers writing to Markdown. SwiftUI: two options — native source-with-decorations text editor (Option 1) or WKWebView-hosted JS editor, likely direction (Option 2). All paths render standard Markdown plus two Pommora-specific directives (`@Columns`, `:::callout`); foldable headings built-in; blockquotes and callouts are distinct constructs |
+| **Item** | A row-shaped entry. Member of an Items collection by folder location; otherwise loose. For database entries that don't warrant prose. | `.json` files anywhere in the vault | Opens in an **Item window** — popover-style floating surface anchored to the trigger (Calendar-event-detail pattern). Title + property inputs + plain-text description (hard cap 250 chars). No tab, no full page, no inspector. |
 | **Collection** | A folder + a `_collection.json` schema sidecar with a `kind` (`"pages"` or `"items"`). Functions like a Notion database: property schema, saved views, members of one kind. No text editor. | A folder containing `_collection.json` plus the member files (all `.md` if Pages, all `.json` if Items) | Database UI: switch between saved views (table / board / list / cards / gallery) over the members |
 | **Space** | A Notion-page-style composition surface — text + widgets intermixed. Referential, not container: embeds Pages / Items / Collection views by widget. Independent of Collections. | `.space.json` files in `.pommora// spaces//`, holding the full block tree | Block-composition canvas: drag/drop blocks of any type into a layout |
 
-Loose entities (`.md` or `.json` files outside any Collection folder) hold identity and built-in fields but no schema-conforming properties. Moving a member out of a Collection (or between Collections) **strips properties not in the destination's schema** — Notion-style, no quarantine.
+Loose entities (`.md` or `.json` files outside any Collection folder) hold identity and built-in fields but no schema-conforming properties. Moving a member out of a Collection (or between Collections) **strips properties not in the destination's schema** — Notion-style, no quarantine. The user gets a simple confirmation warning listing which properties will be stripped before the move proceeds.
 
 **Picking the Collection kind:**
 
 - **Pages collection** when entries warrant prose — journals, papers, project briefs, reading reports.
-- **Items collection** when entries are fundamentally rows — tasks, contacts, wishlist, events, citations. Properties and maybe a short description; no body.
+- **Items collection** when entries are fundamentally rows — tasks, contacts, wishlist, events, citations. Properties and a 250-char plain-text description; no body; opens in an Item window (popover), not a tab.
 
 Per-entity detail:
 
-- **`Pages.md`** — on-disk shape, frontmatter, Markdown features (standard MD + two rendering directives: `@Columns`, `:::callout`; foldable headings built-in), editor surface (React BlockNote / Swift Phase A + Phase B), wikilinks.
+- **`Pages.md`** — on-disk shape, frontmatter, Markdown features (standard MD + two rendering directives: `@Columns`, `:::callout`; foldable headings built-in), editor surface (React: BlockNote or Tiptap / Swift: two options in `SwiftInfo.md`), wikilinks.
 - **`Collections.md`** — `_collection.json` schema (including `kind`), view types, capabilities, embedded views in Spaces.
 - **`Items.md`** — brief: row-shaped `.json` entries; on-disk, capabilities, constraints.
 - **`Spaces.md`** — `.space.json` schema, drag-and-drop canvas, block types, referential framing.
@@ -74,10 +74,10 @@ Full type catalog and config shapes → `Properties.md`.
 The sidebar surfaces curated, app-relevant navigation, not filesystem layout. Three top-level collapsible disclosure groups, all default-collapsed. **The user can drag the headings to reorder them**; initial-boot order is Spaces / Saved / Collections.
 
 - **Spaces** — list of all Spaces. Each Space is a leaf label (no per-Space disclosure); clicking opens the Space.
-- **Saved** — pinned Pages (and eventually Items). Sidebar bookmark only; doesn't modify the pinned entity's properties. Placeholder / non-operational in early v0.x iterations.
+- **Saved** — placeholder heading only. Pinning is **out of v1 scope** and ships post-v1; the heading exists in the sidebar architecture so it doesn't need to be re-added later.
 - **Collections** — list of all Collections, kind-agnostic. Each Collection is itself a folder-style disclosure expanding to its members. A per-row kind indicator (Page-icon vs Item-icon) is a setting-toggleable Prospect.
 
-**Loose Pages and loose Items aren't a sidebar group.** Reach them via search, wikilinks, or pinning to Saved. Cosmetic folders (no `_collection.json`) carry no semantic meaning. No raw filesystem view in v1.
+**Loose Pages and loose Items aren't a sidebar group.** Reach them via search or wikilinks. Cosmetic folders (no `_collection.json`) carry no semantic meaning. No raw filesystem view in v1.
 
 > "Collapsed-by-default disclosure" is the general default UI pattern for any hierarchical or grouped content elsewhere in the app.
 
@@ -85,7 +85,7 @@ The sidebar surfaces curated, app-relevant navigation, not filesystem layout. Th
 
 #### Main pane tabs
 
-The main pane is multi-tabbed (Obsidian / Notion pattern). Each tab represents one open view — a Page, a Collection (with active saved view), or a Space. Items don't get their own tabs in v1; selecting an Item opens its property panel in the inspector. Open tabs and active tab persist across launches. Detail → `PommoraPRD.md` ("Top-Bar Tabs").
+The main pane is multi-tabbed (Obsidian / Notion pattern). Each tab represents one open view — a Page, a Collection (with active saved view), or a Space. Items don't get their own tabs in v1; selecting an Item opens an **Item window** (popover anchored to the trigger), not a tab. Open tabs and active tab persist across launches. Detail → `PommoraPRD.md` ("Top-Bar Tabs", "Item Window").
 
 ---
 

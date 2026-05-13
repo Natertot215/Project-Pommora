@@ -13,7 +13,17 @@ Two-tier model:
 
 **Components are not edited during implementation.** When building features, components from the library get used as-is. If a component needs to change, the change happens in the library first (which propagates everywhere it's used), then feature work continues. This keeps the library a single canonical reference and prevents drift between intended and actual visual identity.
 
-Figma file: https://www.figma.com/design/cm2wRDXWKg05iydG412z4B/Project-Pommora (fileKey `cm2wRDXWKg05iydG412z4B`). Build brief: `// Planning//Figma Prompt.md`.
+Figma file: https://www.figma.com/design/cm2wRDXWKg05iydG412z4B/Project-Pommora (fileKey `cm2wRDXWKg05iydG412z4B`).
+
+#### Current build state
+
+Tokens (~118 vars) and primitives + composed components are built in the Figma file as gallery FRAMEs with full token bindings. Nine Tag components are converted to standalone COMPONENTs; the remaining 35 gallery items are still FRAMEs.
+
+**Next step:** FRAME → COMPONENT_SET conversion per `.claude// Planning// Figma Components 5-13.md`. After conversion, the file is a real reusable component library (single source per concept, variant properties, INSTANCE references everywhere) ready for code translation.
+
+**Then:** translate Figma → React components in `UI-UX// Components//` and stand up the localhost dev server. The live React demo is what makes the Figma-flavored UIX outcome legible — a working demo is the gate on the stack decision (Figma file alone reveals static intent, not interaction behavior).
+
+**What the Figma build has shown about the React translation path:** the workflow is real and gives the design system Nathan wants, but it's not free. Figma → React produces really good UIX in places and is gimmicky in others; some things that look obvious to a designer require tweaking that Claude has trouble implementing directly. Worth knowing before scoping the live-demo work.
 
 **For React**
 
@@ -84,7 +94,7 @@ Pommora's icon language adapts to whichever stack lands.
 
 **Symbol color tokens.** Symbols have their own color Variables (`symbol// primary`, `symbol// muted`, `symbol// active`) that default-resolve to text / accent values but can be overridden independently. Default symbol color is `symbol// muted` — every icon renders muted unless a component explicitly binds it to `primary` or `active`.
 
-**Initial-build placeholder.** Until specific icons are finalized per role, the Figma design system uses the `crop_free` Material Symbol (a square frame) for every symbol slot. The canonical icon role table (in `.claude// Planning//Figma Prompt.md`) records what each placeholder eventually becomes.
+**Initial-build placeholder.** Until specific icons are finalized per role, the Figma design system uses the `crop_free` Material Symbol (a square frame) for every symbol slot. The icon-role finalization (mapping each placeholder to its real Material Symbol / SF Symbol equivalent) is post-conversion work; until then `crop_free` stays inline and the INSTANCE_SWAP `vector` slot on the Icon component is deferred.
 
 **For React**
 
@@ -110,9 +120,10 @@ Pommora's icon language adapts to whichever stack lands.
 
 #### Resolved (formerly open)
 
-- **Default typography** — locked: SF Pro (sans) + SF Mono (mono), system-native. Body 14px baseline; em-relative heading scale (H1–H5; no H6 in v0). Type tokens scoped per type so v0.12 in-app customization can override each independently. Full scale in `// Planning//Figma Prompt.md`.
+- **Default typography** — locked: SF Pro (sans) + SF Mono (mono), system-native. Body 14px baseline; em-relative heading scale (H1–H5; no H6 in v0). Sub-body sizes added: caption 12px, micro 10px. Type tokens scoped per type so v0.12 in-app customization can override each independently. Full scale lives in the Figma file (`Tokens` collection, `font/size/*` and `font/lineHeight/*`).
 - **Density** — locked: Notion-comfortable (moderate breathing room, ~1.6 body line-height).
+- **Accent semantics** — locked: components binding to "accent" use a single accent token slot (typically `accent/primary/active`). Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top — they do NOT swap between accent sub-tokens. The 2×2 accent matrix exists for designer choice across contexts, not as a state-axis within a single component.
 
 #### Open Questions
 
-(none currently — Figma file is created and linked above; build brief is at `// Planning//Figma Prompt.md`.)
+(none currently — Figma file is built; conversion plan is at `.claude// Planning// Figma Components 5-13.md`; live React demo is the next gate after conversion completes.)

@@ -1,6 +1,6 @@
 ### Items
 
-An Item is a **row-shaped record** stored as a `.json` file. Properties + relations + a short description — no Markdown body. For database entries that don't warrant a full Page: tasks, wishlist entries, contacts, events, references.
+An Item is a **row-shaped record** stored as a `.json` file. Properties + relations + a 250-character plain-text description, opened in an **Item window** (popover-style — Calendar-event-detail pattern). For database entries that don't warrant a full Page: tasks, wishlist entries, contacts, events, references. No Markdown body, no tab, no full page.
 
 Items solve the Notion problem of every database row being a full page. The kind split lives at the Collection level (see `Collections.md`): a Collection is either an Items collection or a Pages collection, set at creation. Member Items live inside an Items collection's folder; **loose Items** live anywhere outside Collection folders and carry only built-in fields (no schema-conforming properties).
 
@@ -27,7 +27,7 @@ Renaming an Item in the UI renames the `.json` file on disk. Inbound relations s
 Each Item file holds:
 
 - `id` — ULID, stable across renames (target of relations)
-- `description` — short plain-text field, one-line context. Not Markdown, not a body.
+- `description` — plain-text field, **hard cap 250 characters**. Sized so the field fits within the Item window without scrolling. Not Markdown, not a body.
 - `icon` — optional, same catalog as Pages and Collections
 - `properties` — values conforming to the Collection's schema (same property catalog as Pages)
 - `spaces` — Space ID multi-relation (Items can appear on Space homepages like Pages can)
@@ -58,9 +58,17 @@ If an entry inside an Items collection later needs prose, it doesn't get "promot
 
 ---
 
-#### Editor surface
+#### Item window
 
-Items have no prose editor. Opening an Item shows its property panel (typed inputs for each schema property) plus the filename (rename to retitle) and `description` field. No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
+Items don't have a prose editor; they open in an **Item window** — a popover-style floating surface anchored to the trigger (sidebar click, table cell, wikilink, embedded-view row). Reference pattern: Calendar.app event-detail popover; macOS Finder's Get Info window. Not a tab, not a full page, not the inspector.
+
+The window contains:
+
+- **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
+- **Properties** — typed inputs for each property in the parent Items collection's schema. Loose Items show no schema-conforming properties (only built-in fields).
+- **Description** — plain-text field, **hard cap 250 characters**. Sized to fit the window without scrolling; keeps the JSON file small and cloud-sync-friendly.
+
+Dismissed by clicking outside, pressing Esc, or closing the window. No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
 
 ---
 

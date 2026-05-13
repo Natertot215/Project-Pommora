@@ -21,11 +21,11 @@ Each prospect uses the format below. Easy to add new entries: copy the template,
 
 **For React**
 
-An `@View` directive becomes a custom block component on top of BlockNote core — well-trodden territory.
+An `@View` directive becomes a custom block / node component on top of BlockNote or Tiptap — well-trodden territory on either.
 
 **For Swift**
 
-Embedding a custom view inside the prose flow is materially more work on a native editor than it is on BlockNote — the editor surface needs to host non-text views inline. The v2+ revisit is React-conditional for this reason.
+On SwiftUI Option 1 (native editor), hosting a non-text view inline in the prose flow requires custom layout attachment work — materially harder than on a JS editor. On Option 2 (WKWebView + JS editor), the same BlockNote / Tiptap approach used on React applies, making this feasible on either stack if a JS editor is chosen.
 
 #### Ad-hoc page-local properties
 **Description:** Allow a Page to declare properties not in its Collection's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Collection. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
@@ -61,6 +61,9 @@ Slot this as a probable v1.x or v2.0 quality-of-life addition once the typed-Col
 
 #### Property panel placement options
 **Description:** v1 puts the property panel in the right inspector pane. Two alternate placements are nice-to-haves for later: below the page heading (Notion-style) and at the page bottom. Setting-toggleable per user. Doesn't block v1 — the inspector is the natural starting point — but the placements have different feel for different writing modes (top = reference-while-writing, inspector = reference-while-navigating).
+
+#### AI chat interface in the inspector
+**Description:** Add an AI chat surface as a second view in the right inspector pane (toggled or tabbed alongside the property panel). **Frontend to Nathan's existing local CLI, not an API integration** — the chat UI sends user input to a CLI subprocess and renders streamed output. No model hosting inside the app, no API keys to manage, no per-token costs. Nathan has already built and uses this pattern on Obsidian; the same architecture ports cleanly to Pommora. The inspector has the right dimensions for chat (narrow, vertical, persistent during navigation) and the right context (already attached to the active Page). Implementation is essentially a chat-UI component + a subprocess bridge. v1 ships with the inspector hosting only the property panel; this addition slots in cleanly post-v1 without changing the shell.
 
 #### Sidebar Collection-kind indicator toggle
 **Description:** A setting that adds a small per-row icon distinguishing Pages collections from Items collections in the sidebar. The default v1 sidebar is kind-agnostic; this is a power-user detail for users who want the type division visible at a glance.

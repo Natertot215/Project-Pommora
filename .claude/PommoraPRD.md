@@ -30,9 +30,9 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property and q
 
 Three top-level entity types plus one Collection-bound member type:
 
-- **Pages** — Markdown documents. Prose-first editor; flat (no semantic nesting). Live inside Pages collections, or loose anywhere outside Collection folders.
+- **Pages** — Markdown documents; flat (no semantic nesting). Editor surface is stack-conditional (Notion-style block UI on React with per-paragraph `+` / drag-handle markers; source-with-decorations native text editor on SwiftUI). Live inside Pages collections, or loose anywhere outside Collection folders.
 - **Collections** — folder + `_collection.json` schema sidecar. Hold property schemas, saved view configurations, and a `kind` (`"pages"` or `"items"`) set at creation and persistent. Members are uniformly one kind: a Pages collection holds `.md` files; an Items collection holds `.json` files. Membership is by file location.
-- **Items** — row entities living inside Items collections (or loose anywhere outside). Lightweight, property-driven, short-description entries that don't warrant prose (tasks, contacts, wishlist, events, citations). One `.json` file per Item; filename = title; same property catalog as Pages, no Markdown body.
+- **Items** — row entities living inside Items collections (or loose anywhere outside). Lightweight, property-driven, short-description entries that don't warrant prose (tasks, contacts, wishlist, events, citations). One `.json` file per Item; filename = title; same property catalog as Pages; no Markdown body. Open in an **Item window** — a popover-style floating surface anchored to the trigger (Calendar-event-detail pattern) showing title + property inputs + a 250-character plain-text description. Not a tab, not a full page.
 - **Spaces** — composed dashboard surfaces. `.space.json` files holding a block tree of text blocks and widget blocks. Referential (embed Pages / Items / Collection views via widgets), not container (Spaces don't hold their referenced entities).
 
 The Collection kind is the dimension that splits "what shape does an entry have," lifted to the Collection level — eliminates the per-entry "Page or Item?" decision Notion forces. Full definitions, on-disk shapes, linking model in `// Features//Domain-Model.md`.
@@ -50,7 +50,7 @@ Two viable paths. Both produce identical on-disk Markdown and identical SQLite i
 | Desktop shell | Electron | SwiftUI on macOS Tahoe (26+) |
 | UI framework | React + TypeScript (strict) | SwiftUI |
 | Styling | Tailwind CSS | SwiftUI native + Color / Font extensions from Figma |
-| Editor (Pages) | BlockNote (open-source MPL-2.0 core); pivot doors to Milkdown, Yoopta, CodeMirror 6 | Two open paths: fork Clearly (working native AppKit markdown editor), or build an original native markdown editor. Live Preview behavior on either |
+| Editor (Pages) | BlockNote (MPL-2.0) or Tiptap (MIT) — co-primary candidates; pivot doors: Milkdown, Yoopta, CodeMirror 6 | Two options: (1) native Swift editor — fork Clearly or build original on NSTextView/AppKit; (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction if SwiftUI chosen; all three have solid Markdown translation |
 | Spaces composer | `@dnd-kit/core` v6 | SwiftUI `.draggable` / `.dropDestination` |
 | Backend layer | Node.js + TypeScript | Pure Swift |
 | Database | SQLite via `better-sqlite3` (WAL mode) | SQLite via GRDB.swift (FTS5 + `ValueObservation`) |
@@ -97,15 +97,17 @@ The decision is deferred. Functional portability ensures either choice survives 
     image.png
   .pommora//
     pommora.db                 ← SQLite index (regeneratable)
-    saved.json                 ← Pinned-to-Saved IDs (populated when pinning ships)
-    symbols.json               ← Semantic symbol role → Material / SF mapping (React only)
+    symbols.json               ← Semantic symbol role → Material name mapping (React only)
     spaces//
       Homepage.space.json      ← Seeded on first launch; default landing
       Pommora.space.json
       Health.space.json
+  .trash//                     ← Deleted entities (vault-local trash)
+    Tasks//
+      Old task.json            ← Preserves original relative path
 ```
 
-A folder is a **Collection** if and only if it contains a `_collection.json` file. Folders without one are cosmetic filesystem organization — files inside them are loose (no schema-conforming properties). The app-internal config folder is `.pommora//` (leading dot, hidden — matches `.obsidian` convention).
+A folder is a **Collection** if and only if it contains a `_collection.json` file. Folders without one are cosmetic filesystem organization — files inside them are loose (no schema-conforming properties). The app-internal config folder is `.pommora//` (leading dot, hidden — matches `.obsidian` convention). Deleted entities go to **`.trash//`** at the vault root (sibling of `.pommora//`); the entity's original relative path is preserved inside `.trash//` so restoration is a straight file move.
 
 ##### Pages
 
@@ -125,7 +127,7 @@ Both directives resolve cleanly when read by an external Markdown tool — the d
 
 **Block-level features as a project term belongs to Spaces only.** Pages don't have blocks.
 
-**For React** — `@View` is reachable when revisited (BlockNote supports inline custom views as block components).
+**For React** — `@View` is reachable when revisited (both BlockNote and Tiptap support inline custom views as block / node components).
 
 **For Swift** — `@View` inside the prose flow is the harder direction on a native editor; the v2+ revisit is React-conditional for this reason. Embedded views remain available inside Spaces on both stacks.
 
@@ -170,7 +172,7 @@ The Space's title comes from the filename. Spaces hold both *text blocks* (parag
 
 ##### Local-End Translation Principle
 
-**The local file is the spec, not the render.** Anything SQLite computes — the contents of a board view, the cards in a gallery, backlinks, aggregated counts — is referenced by directive but never inlined. An agent reading the file sees the directive and understands the structure; the data lives in SQLite and is rendered only inside Pommora.
+**The local file is the spec, not the render.** Anything SQLite computes — the contents of a board view, the cards in a gallery, aggregated counts, relation lookups — is referenced by directive but never inlined. An agent reading the file sees the directive and understands the structure; the data lives in SQLite and is rendered only inside Pommora.
 
 ##### SQLite Schema
 
@@ -254,7 +256,7 @@ WHERE collection_id = '01HXXXXX...'
 - **Properties are scoped per Collection** and created on-demand, Notion-style.
 - **Members must conform to the Collection's schema.** Ad-hoc page-local properties are out of v1 scope (Prospect). Loose entities have no schema and hold only built-in fields.
 - **V1 catalog (8 types):** number, checkbox, date, date & time, select, multi-select, relation, URL. **No free-form text type** — title is the filename; "text-shaped" values use Select / Multi-select with creatable options. **No dedicated Status type** — Status-like properties are Selects named "Status."
-- **Move-strip rule (Notion-style):** moving a member across Collections (or in/out of loose state) strips properties not in the destination's schema. No quarantine, no backup.
+- **Move-strip rule (Notion-style):** moving a member across Collections (or in/out of loose state) strips properties not in the destination's schema. No quarantine, no backup. The user gets a **simple confirmation warning** listing which properties will be stripped before the move proceeds.
 
 Full type catalog, config shapes, schema-mutation rules → `// Features//Properties.md`.
 
@@ -283,7 +285,7 @@ In-line view embeds *inside Pages* (a `@View` directive in prose) are out of v1 
 
 The `@Columns` directive is supported in both Pages and Spaces. **V1 columns are equidistant** — widths divide the available horizontal space evenly by child count. No per-column width configuration in v1.
 
-**For React** — implemented as a custom block in BlockNote core (avoiding `@blocknote/xl-multi-column`, which is GPL-3.0 OR a paid commercial license).
+**For React** — implemented as a custom block / node in the chosen editor (BlockNote core, avoiding the one copyleft-or-commercial `@blocknote/xl-multi-column` package; or Tiptap, where it's a custom node like any other).
 
 **For Swift** — implementation deferred to the editor build; the directive ships as a Pommora-specific render with equidistant child columns (file format stays standard `:::columns` Markdown on disk).
 
@@ -292,16 +294,16 @@ The `@Columns` directive is supported in both Pages and Spaces. **V1 columns are
 The sidebar surfaces curated, app-relevant navigation, not filesystem layout. Three top-level headings, all collapsible disclosure groups, all default-collapsed. **The user can drag the headings to reorder them**; initial-boot order is Spaces / Saved / Collections.
 
 - **Spaces** — list of all Spaces. Each Space is a leaf label (no disclosure); clicking opens the Space.
-- **Saved** — pinned Pages (and eventually Items). Sidebar bookmark only, doesn't modify the pinned entity's properties. Placeholder / non-operational in early v0.x iterations.
+- **Saved** — placeholder heading only. Pinning is **out of v1 scope**; the heading exists in the sidebar architecture so it doesn't need to be re-added later, but it's non-operational in v1. Pinning ships post-v1.
 - **Collections** — list of all Collections, kind-agnostic. Each Collection is a folder-style disclosure expanding to its members (`.md` Pages or `.json` Items as leaf labels). A per-row kind indicator (Page-icon vs Item-icon) is a setting-toggleable Prospect.
 
-**Loose Pages and loose Items aren't a sidebar group.** Reach them via search, wikilinks, or pinning to Saved. Cosmetic folders (no `_collection.json`) carry no semantic meaning and are user-driven filesystem organization only. No raw filesystem view in v1.
+**Loose Pages and loose Items aren't a sidebar group.** Reach them via search or wikilinks. Cosmetic folders (no `_collection.json`) carry no semantic meaning and are user-driven filesystem organization only. No raw filesystem view in v1.
 
 "Collapsed-by-default disclosure" is the general default for any hierarchical UI elsewhere in the app.
 
 ##### Three-Pane Shell + Property Panel
 
-Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes are drag-resizable via splitters from v0.0 onward; resized widths persist across launches. The inspector hosts the property panel for the active Page or Item in v1.
+Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes are drag-resizable via splitters from v0.0 onward; resized widths persist across launches. The inspector's **default view is the property panel** for the active Page in v1; an **AI chat interface** is a planned future addition to the inspector (post-v1; a frontend to Nathan's existing local CLI — not an API integration; see `// Features//Prospects.md`). (Items don't use the inspector — they open in an Item window. See "Item Window" below.)
 
 **Window chrome — macOS unified title bar.** No separate Pommora title bar. The macOS traffic-light buttons render in the top-left at runtime (OS-rendered, not custom) within the sidebar pane's column. The top-bar tab row sits in the same horizontal band as the traffic lights, starting from the right edge of the sidebar column and spanning across the main pane. Pattern: Obsidian / Notion / Linear on macOS.
 
@@ -321,7 +323,19 @@ Tab labels show the entity's title (= filename) and a small icon (entity-kind ic
 
 **State persistence:** open tabs and the active tab persist across launches. Stored in app settings (or `.pommora// tabs.json` if a vault-portable surface is preferred — TBD during implementation).
 
-**Items don't get their own tabs in v1** — selecting an Item opens its property panel in the inspector. Tabs are reserved for full-pane views (Pages, Collections, Spaces).
+**Items don't get their own tabs in v1** — selecting an Item opens an **Item window** (popover anchored to the trigger), not a tab. Tabs are reserved for full-pane views (Pages, Collections, Spaces).
+
+##### Item Window
+
+Items don't open as tabs or in the inspector. Selecting an Item — from a sidebar row, a table cell in a Collection view, a wikilink, or an embedded Collection view — opens an **Item window**: a popover-style floating surface anchored to where the click occurred. Reference: Calendar.app event-detail popover; macOS Finder's Get Info window.
+
+The window contains:
+
+- **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
+- **Properties** — typed inputs for each property in the parent Items collection's schema. Loose Items show no schema-conforming properties (only built-in fields).
+- **Description** — plain-text field, **hard cap 250 characters**. Sized so the field fits within the window without scrolling; keeps the JSON file small and cloud-sync-friendly.
+
+Dismissed by clicking outside, pressing Esc, or closing the window.
 
 ##### First-Launch Experience
 
@@ -360,16 +374,16 @@ Relation properties store target IDs and display the target's current title (res
 
 **In:**
 
-- **Pages** — Markdown documents with YAML frontmatter, prose-first editor. Standard Markdown (paragraphs, headings H1–H5 in v0's type scale (foldable by default), lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, horizontal rules) plus two Pommora-specific rendering directives (`@Columns` + `:::callout`). Blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Members conform to a Pages collection's schema; loose Pages hold only built-in fields.
+- **Pages** — Markdown documents with YAML frontmatter; editor surface is stack-conditional (Notion-style block UI with per-paragraph `+` / drag-handle markers on React; source-with-decorations native text editor on SwiftUI). Standard Markdown (paragraphs, headings H1–H5 in v0's type scale (foldable by default), lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, horizontal rules) plus two Pommora-specific rendering directives (`@Columns` + `:::callout`). Blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Members conform to a Pages collection's schema; loose Pages hold only built-in fields.
 - **Collections** — folder + `_collection.json` schema sidecar. Typed at creation (`"kind": "pages" | "items"`). Property schemas + saved view configurations inside the sidecar. Five view types (table / board / list / cards / gallery) with per-view filter / sort / group / shown-properties controls.
-- **Items** — `.json` files. Filename = title; member Items conform to the Collection schema; loose Items carry only built-in fields. `id`, `icon`, `description`, `spaces`, timestamps. No body.
+- **Items** — `.json` files. Filename = title; member Items conform to the Collection schema; loose Items carry only built-in fields. `id`, `icon`, `description` (plain text, 250-char cap), `spaces`, timestamps. No Markdown body. Open in an Item window (popover), not a tab.
 - **Spaces** — Notion-page-style composition surfaces (`.space.json`) with a full block tree. Text blocks + widget blocks intermixed. Drag-to-arrange and slash-menu insertion.
 - Property panel UI driven by Collection schemas, all v1 property types (8).
-- Wikilinks plus a backlinks panel (styled colored inline text).
+- Wikilinks (styled colored inline text).
 - Automatic file rename with cross-vault wikilink rewrite.
 - File watcher keeping SQLite synced.
 - Global search (SQLite FTS5 over Page bodies and frontmatter).
-- Three-heading sidebar (Spaces / Saved / Collections), user-reorderable, default-collapsed; loose entities reachable via search / wikilinks / pinning (not a sidebar group).
+- Three-heading sidebar (Spaces / Saved / Collections), user-reorderable, default-collapsed. Saved is a non-operational placeholder heading in v1 (pinning is post-v1). Loose entities reachable via search or wikilinks (not a sidebar group).
 - Single initial design scheme driven by Figma tokens, plus in-app customization for colors and typography (Framework v0.12).
 
 **Out (post-v1):**

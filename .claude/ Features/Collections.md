@@ -68,7 +68,7 @@ Inside an **Items collection**, each member is its own `.json` file. The filenam
 Each Item file carries:
 
 - `id` — ULID, never changes (used by relations targeting this Item)
-- `description` — short plain-text field for one-line context. Not Markdown, not a body. Items have no prose body.
+- `description` — plain-text field shown in the Item window, **hard cap 250 characters** (sized to fit the window without scrolling). Not Markdown, not a body. Items have no prose body.
 - `icon` — optional, same icon catalog as Pages and Collections
 - `properties` — values conforming to the Collection's schema. Same catalog as Page frontmatter.
 - `spaces` — Space ID multi-relation (Items can appear on Space homepages like Pages can)
@@ -125,7 +125,7 @@ Files outside any Collection folder — i.e., outside any folder containing a `_
 - **Loose Pages** — `.md` files in the vault root or in cosmetic folders (any folder without `_collection.json`). Frontmatter holds only built-in fields (`id`, `icon`, `spaces`) plus whatever the user manually writes. No schema enforcement.
 - **Loose Items** — `.json` files in the vault root or cosmetic folders. Carry `id`, `icon`, `description`, `spaces`, timestamps — but no `properties` (no schema to conform to).
 
-Loose entities don't appear as their own sidebar group; reach them via global search, wikilinks, or (eventually) by pinning to Saved. Cosmetic folders carry no semantic meaning to Pommora — they're purely user-driven filesystem organization. Moving a loose entity into a matching-kind Collection folder makes it a member and applies the schema (empty values for new properties); moving a member out drops it back to loose state.
+Loose entities don't appear as their own sidebar group; reach them via global search or wikilinks. Cosmetic folders carry no semantic meaning to Pommora — they're purely user-driven filesystem organization. Moving a loose entity into a matching-kind Collection folder makes it a member and applies the schema (empty values for new properties); moving a member out drops it back to loose state.
 
 ---
 

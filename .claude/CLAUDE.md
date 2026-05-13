@@ -2,7 +2,7 @@
 
 #### Overview
 
-A simpler Notion that's also a more capable Obsidian. Three top-level entities — **Pages** (Markdown documents), **Collections** (folder + `_collection.json` schema sidecar), **Spaces** (Notion-page-style block-composed surfaces) — plus **Items** (`.json`, Collection-bound row-shaped). Collections are typed at creation (`kind: "pages" | "items"`). SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Stack portability across React+Electron and SwiftUI is the load-bearing constraint.
+A simpler Notion that's also a more capable Obsidian. Three top-level entities — **Pages** (Markdown documents), **Collections** (folder + `_collection.json` schema sidecar), **Spaces** (Notion-page-style block-composed surfaces) — plus **Items** (`.json`, Collection-bound row-shaped; open in a popover-style **Item window** — title + properties + 250-char description, not a tab or full page). Collections are typed at creation (`kind: "pages" | "items"`). SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Stack portability across React+Electron and SwiftUI is the load-bearing constraint.
 
 #### Working with Nathan
 
@@ -33,7 +33,7 @@ Two viable paths: **React + Electron** or **SwiftUI**. Both produce identical on
 
 - **Relations stored by ID, displayed by title.** Frontmatter relation properties hold the target's ID (rename-safe); the editor renders the target's current title as styled colored inline text.
 
-- **Move-strip rule.** Moving a member across Collections (or in/out of loose state) strips properties not in the destination schema — Notion-style; no quarantine.
+- **Move-strip rule.** Moving a member across Collections (or in/out of loose state) strips properties not in the destination schema — Notion-style; no quarantine. The user gets a simple confirmation warning listing which properties will be stripped.
 
 - **Design system lives in Figma; components live in `// UI-UX//Components//`** (which hosts Pommora's own localhost dev server on the React path; SwiftUI views browsed via Xcode `#Preview` on the Swift path). Two-tier source of truth: Figma owns design tokens (semantic role-based names: `surface// primary// bg`); the component library owns components built from them. Designs flow Figma → component library directly — **no Storybook intermediary**. Same Figma source exports to CSS custom properties (React) and SwiftUI Color extensions. Detail → `// UI-UX//UI-UX.md`; build brief → `.claude// Planning//Figma Prompt.md`.
 
@@ -52,7 +52,7 @@ Two viable paths: **React + Electron** or **SwiftUI**. Both produce identical on
   - `Domain-Model.md` — entity overview, linking, sidebar, resolved decisions
   - `Pages.md` — on-disk shape, Markdown features + two rendering directives, editor surface, wikilinks
   - `Collections.md` — typed-Collection semantics, `_collection.json` schema, view types, loose entities, embedded views
-  - `Items.md` — brief: row-shaped `.json` entries; on-disk, capabilities, kind-picking guidance
+  - `Items.md` — brief: row-shaped `.json` entries; on-disk, capabilities, Item window UI (popover, 250-char description), kind-picking guidance
   - `Spaces.md` — `.space.json` schema, drag-and-drop canvas, block types, referential framing
   - `Architecture.md` — what survives a stack rebuild (conceptual portability)
   - `Properties.md` — property type catalog (shared between Pages and Items)

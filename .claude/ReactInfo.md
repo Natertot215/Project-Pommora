@@ -6,9 +6,25 @@ Reference document for the React + Electron implementation path. Captures resear
 
 ---
 
+#### Design system status (Figma → React)
+
+The Figma design system is built at the variable + visual-mock level: ~118 tokens with full binding, primitives and composed components rendered as gallery FRAMEs, three-pane shell mockup. Conversion of gallery FRAMEs into reusable COMPONENT_SETs is planned at `.claude// Planning// Figma Components 5-13.md` and runs next.
+
+**What the Figma build revealed about the React path:** Figma produces really good UIX for React — the Figma → React translation is a real, well-supported workflow that gives Nathan the design system he wants. It's also gimmicky in places, requires tweaking, and has things that look obvious to a designer but are hard for Claude to implement directly. The design system is a real option, not a free one — it requires work and frustration like anything else. This matters for the stack decision because it sizes the rest-of-app build effort: React's path means every component is a Figma → translation chain, and Nathan owns that surface.
+
+**Live React demo is the gate.** Until components are translated to React + Tailwind in `UI-UX// Components//` and the localhost dev server is running, "what React feels like" is hypothetical. The Figma file alone reveals static design intent; the live demo reveals UIX behavior under interaction. Stack decision is deferred until the live demo exists — the Figma file is necessary but not sufficient evidence.
+
+**Build sequence to live demo (after Figma component conversion):**
+1. Figma Variables → CSS custom properties → `UI-UX// Design// tokens.css`
+2. Figma COMPONENT_SETs → React components in `UI-UX// Components//` consuming those tokens
+3. Vite + Electron renderer scaffolded with `UI-UX// Components//` as root
+4. Localhost dev server running the component gallery — this is the demo
+
+---
+
 #### What's been verified
 
-- **BlockNote (open-source MPL-2.0 core)** is the editor primitive direction. ProseMirror-based block editor with custom block specs, slash menu, formatting toolbar, drag handles (which Pommora disables for the prose-first feel). Pivot doors held open: Tiptap (commercial-trajectory risk), Milkdown (markdown-first by design), Yoopta (Slate-based), CodeMirror 6 (markdown-canonical Plan B).
+- **BlockNote (MPL-2.0) and Tiptap (MIT)** are the two co-primary editor candidates — both ProseMirror-based, both fully open-source and free for Pommora's scope, either able to deliver the **wanted Notion-style block editor surface**: per-paragraph `+` (insert) and drag-handle (reorder) markers on the left, slash menu, formatting toolbar, custom blocks for `:::columns` / `:::callout`, markdown round-trip. The block UI is a wanted feature on React — the affordance for inserting directives, reordering paragraphs, and anchoring focus visually — sitting on top of an on-disk continuous Markdown stream. BlockNote is the higher-level / batteries-included option (it's literally built on top of Tiptap); Tiptap is the lower-level / fully-configurable option. Pick at React commit time. Pivot doors (only if the block UX disappoints): Milkdown (markdown-first by design), Yoopta (Slate-based), CodeMirror 6 (markdown-canonical Plan B).
 - **`@dnd-kit/core` v6.x** is the drag-and-drop library for Spaces. Stable, recipe-rich. **NOT `@dnd-kit/react`** (v0.x, pre-1.0 ground-up rewrite by the same author).
 - **`@parcel/watcher` v2.5+** for vault folder watching — native FSEvents on macOS; ms vs seconds vs chokidar at large tree scale. Used by VSCode, Nx, Tailwind.
 - **`better-sqlite3` (WAL mode) + SQLite FTS5** for the local index. External-content table + `unicode61` tokenizer (`remove_diacritics=2`) is the recommended pattern for vault scale (1k–10k pages).
@@ -28,19 +44,18 @@ The React editor uses **two serialization formats deliberately**, each chosen fo
 - **Used for:** every Page's storage in the vault. The file is what an external agent reads, what Obsidian / GitHub / `cat` render, what `grep` searches. The third load-bearing constraint (persistent immediate legibility for agents) requires this.
 - **API:** `blocksToMarkdownLossy(blocks?: Block[]): string` (write) and `tryParseMarkdownToBlocks(markdown: string): Promise<Block[]>` (read).
 - **Carries:** standard Markdown (paragraphs, headings, lists, code blocks, images, GFM tables, blockquotes, horizontal rules) plus the two Pommora directives (`:::columns`, `:::callout`).
-- **`Lossy` in the function name is honest naming.** A generic BlockNote block tree can't always round-trip through Markdown perfectly — deeply nested non-list blocks flatten; undocumented custom blocks without explicit serializers are skipped; inline marks beyond the built-ins drop. None of that applies in Pommora because Pommora's content model is the standard set plus the two well-defined directives.
+- **`Lossy` is a generic-API label, not a Pommora concern.** Pommora's content model is the standard Markdown set plus two well-defined directives (`:::columns`, `:::callout`); the per-block / per-node serializers below close that gap. Small, bounded code — quick fix at the boundary, not an ongoing risk.
 
-**BlockNote JSON (in-memory) — working editor state and perfect-fidelity export.**
+**Working JSON state (in-memory) — editor state and perfect-fidelity export.**
 
 - **Used for:** the editor's internal working state (always JSON in memory while editing), undo/redo history, debug snapshots, any case where perfect round-trip fidelity matters and Markdown can't carry it (selection ranges, in-flight transforms, Pommora-to-Pommora interchange).
-- **API:** `editor.document` reads the block tree; `JSON.stringify` serializes it.
-- **Never lossy.** This is BlockNote's canonical store; round-trip is exact by construction.
+- **API (BlockNote):** `editor.document` reads the block tree; `JSON.stringify` serializes it. **API (Tiptap):** `editor.getJSON()` reads the ProseMirror document as JSON; `editor.getHTML()` for the HTML form. Both are canonical stores; round-trip is exact by construction.
 
 **Custom serializers for the two directives.**
 
-- `:::columns` and `:::callout` get per-block `toExternalHTML` / markdown handlers ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426) pattern).
-- These bridge the in-memory JSON representation of Pommora's directives to their Markdown form on disk. Without them, the directives would fall back to BlockNote's default serialization on save.
-- Two block types, two pairs of handlers — small, well-bounded code surface, not an open-ended serializer burden.
+- `:::columns` and `:::callout` get per-block / per-node markdown handlers. **BlockNote pattern:** `toExternalHTML` / markdown handlers per block spec ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426)). **Tiptap pattern:** `renderHTML` per node + the first-party `@tiptap/markdown` extension's `MarkdownManager` (`editor.markdown.parse(md)` / `editor.markdown.serialize(json)` / `editor.getMarkdown()` / `editor.commands.setContent(md, { contentType: 'markdown' })`). Markdown round-trip is first-class — no extensibility hooks or parallel `prosemirror-markdown` wiring required.
+- These bridge the in-memory JSON representation of Pommora's directives to their Markdown form on disk. Without them, the directives fall back to the editor's default serialization on save.
+- Two block / node types, two pairs of handlers — small, well-bounded code surface, not an open-ended serializer burden.
 
 **Why both formats are necessary:**
 
@@ -50,7 +65,7 @@ The React editor uses **two serialization formats deliberately**, each chosen fo
 
 The Markdown ↔ JSON split is deliberate, not a workaround. Treat it as a load-bearing architectural detail of the React path.
 
-**If BlockNote's block-per-paragraph UX disappoints:** Milkdown (markdown-first by design; ProseMirror foundation; the most natural fit for "Pages are one Markdown stream") or CodeMirror 6 (buffer-based; markdown literally *is* the document). Both have analogous Markdown ↔ internal-state splits — the architecture pattern survives a pivot; only the API names and the boundary code change.
+**If the BlockNote / Tiptap block UX fails to land as wanted** (unlikely — both are mature implementations of the Notion-style pattern), Milkdown (markdown-first; ProseMirror foundation) or CodeMirror 6 (buffer-based; markdown literally *is* the document) remain in the catalog. Both trade the Notion-style block UI for a different editor model — the opposite tradeoff from what React wants. The Markdown ↔ internal-state architecture survives the pivot; only the API names and the boundary code change.
 
 ##### Mac OS integration ceiling
 
@@ -74,22 +89,25 @@ The runtime is a stack: Vite + Electron main + Electron renderer + Tailwind + be
 
 #### Editor strategy
 
-**Locked direction (if React + Electron is picked):** BlockNote (open-source MPL-2.0 core) configured prose-first.
+**Co-primary candidates (if React + Electron is picked) — pick at commit time:**
 
-- Disable BlockNote's per-paragraph drag handles; the prose feel comes from the absence of block UI on every line
-- Custom block specs for `:::columns` and `:::callout` via `createReactBlockSpec`. Blockquotes use standard `>` syntax — BlockNote's built-in blockquote, with Pommora's distinct visual styling (filled background + left-side emphasis bar via `blockquote//` tokens). Callouts are now a distinct construct with their own custom spec (outlined box; `callout//` tokens).
-- Build the multi-column block in BlockNote core (avoid `@blocknote/xl-multi-column`; that's GPL-3.0 OR $195/mo commercial — depending on Pommora's project license, may be inheriting GPL or unaffordable)
-- Custom markdown serializer per block type to enforce files-canonical round-trip
+- **BlockNote (MPL-2.0)** — batteries-included block editor built on Tiptap; slash menu, formatting toolbar, drag handles, schema enforcement all wired by default. Faster to a working editor; less ceremony for custom blocks. License caveat on the XL packages (`@blocknote/xl-multi-column` is GPL-3.0 OR a paid commercial Business subscription — pricing not pinned in docs, verify on blocknotejs.org/pricing; build the multi-column block in core to avoid the question entirely).
+- **Tiptap (MIT)** — headless editor framework; the underlying primitive BlockNote is built on. Every package Pommora would use (`@tiptap/core`, `@tiptap/react`, `@tiptap/extension-drag-handle-react`, `@tiptap/markdown`, etc.) ships under MIT from the regular `@tiptap/*` npm scope. Trades batteries for full configurability — slash menu, formatting toolbar, drag handles are wired explicitly.
+
+Either editor delivers the same wanted UX:
+
+- Keep per-paragraph `+` insertion markers and drag-handle (grip) markers on the left of every block — they're the wanted Notion-style affordance, how you insert directives and reorder paragraphs without diving to a menu. The on-disk format stays continuous Markdown; the block UI is purely the editing surface.
+- Custom block / node specs for `:::columns` and `:::callout` (BlockNote: `createReactBlockSpec`; Tiptap: `Node.create` with a React node view). Blockquotes use standard `>` syntax via the built-in blockquote node, with Pommora's distinct visual styling (filled background + left-side emphasis bar via `blockquote//` tokens). Callouts are a distinct construct with their own custom spec / node (outlined box; `callout//` tokens).
+- Build the multi-column block in-tree on BlockNote (don't pull `@blocknote/xl-multi-column`, which is the one copyleft-or-commercial BlockNote package); on Tiptap, build it as a custom node directly — no comparable package to avoid
+- Custom markdown serializer per block / node type to enforce files-canonical round-trip
 - Wikilinks render as styled colored inline text via custom inline marks; pair with `@flowershow/remark-wiki-link` for the parse direction
-- Slash menu via BlockNote's built-in slash menu; bubble toolbar via the formatting toolbar API
-- All built-in: undo/redo, copy/paste, keyboard shortcuts, content schema enforcement
+- Slash menu, bubble toolbar, undo / redo, copy / paste, keyboard shortcuts, content schema enforcement — built-in on BlockNote, wired explicitly on Tiptap
 
-**Pivot doors held open** (in order of decreasing similarity to BlockNote's developer experience):
+**Pivot doors held open** (in order of decreasing similarity to BlockNote / Tiptap):
 
 - **Milkdown** — markdown-first by design (round-trip integrity built into the framework); MIT; ProseMirror foundation. Plugin ecosystem includes slash, history, clipboard, listener, prism, math, emoji, upload, tooltip.
 - **Yoopta** — Slate-based; MIT; 20+ built-in plugins including a callout.
-- **Tiptap** — MIT core editor + MIT `@tiptap/markdown` extension. Note: Tiptap eliminated their free Cloud/Pro plan in 2026; AI / Conversion / Collaboration / Comments are paid. Free for Pommora's specific needs but commercial trajectory worth tracking.
-- **CodeMirror 6** — buffer-based; perfect markdown round-trip by construction; meaningfully more work for prose-first feel.
+- **CodeMirror 6** — buffer-based; perfect markdown round-trip by construction; meaningfully more work to layer Notion-style block UI on top (its strength is the markdown-as-document model, the opposite tradeoff from what React wants).
 
 ---
 
