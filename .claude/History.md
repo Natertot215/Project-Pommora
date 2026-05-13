@@ -8,10 +8,22 @@ Locked decisions, ordered by area. Brief by design — implementation detail liv
 - **Initial direction:** React + Electron + Tailwind + TypeScript + BlockNote + better-sqlite3 + Material Symbols, with SwiftUI as a deferred v2 path.
 - **Currently under re-evaluation.** Both React+Electron and SwiftUI remain viable; only the editor surface and desktop shell are stack-specific (rest is portable).
 - **2026 SwiftUI research:** WWDC25's native `AttributedString` binding to `TextEditor` removed the long-standing rich-text-editing blocker. `apple/swift-markdown`, GRDB.swift (FTS5 + `ValueObservation`), SF Symbols all production-ready. Wikilinks-as-styled-spans dissolves the chip/pill inline attachment gap.
-- **2026 dual-stack research:** distribution is a wash (electron-updater ≈ Sparkle 2.x; both ship cleanly to MAS). React edges on dev loop (electron-vite HMR); SwiftUI edges on first-party tooling. Mac OS integration leans materially toward SwiftUI (QuickLook, CoreSpotlight, Share Extensions, Finder file-promise drag-out, sidebar vibrancy, accessibility). Detail in `Resources.md` and `SwiftInfo.md`.
+- **2026 dual-stack research:** distribution is a wash (electron-updater ≈ Sparkle 2.x; both ship cleanly to MAS). React edges on dev loop (electron-vite HMR); SwiftUI edges on first-party tooling. Mac OS integration leans materially toward SwiftUI (QuickLook, CoreSpotlight, Share Extensions, Finder file-promise drag-out, sidebar vibrancy, accessibility). Detail in `Resources.md` and `PommoraPRD.md` "Mac OS Integration" section.
 - **Editor (React path) — two co-primary candidates: BlockNote (MPL-2.0) and Tiptap (MIT).** BlockNote is batteries-included; Tiptap is the headless ProseMirror-React framework BlockNote is built on (more configurable, more wiring). Both are fully open-source and free; every Tiptap package Pommora would use (`@tiptap/core`, `@tiptap/react`, `@tiptap/extension-drag-handle-react`, `@tiptap/markdown`, etc.) ships under MIT from the regular `@tiptap/*` npm scope. Either delivers the full editor surface — pick at React commit time. Pivot doors held: Milkdown (markdown-first), Yoopta (Slate-based), CodeMirror 6 (buffer-based, Plan B).
-- **SwiftUI editor strategy (if chosen): two options.** Option 1 — native Swift markdown editor: fork Clearly (FSL-1.1-MIT, converts to MIT Feb 2028) or build original on NSTextView/AppKit; delivers source-with-decorations + Obsidian-style Live Preview (markers hidden when cursor leaves a construct, revealed when it enters). Option 2 (likely direction) — WKWebView hosting Tiptap, Milkdown, or BlockNote; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas; editor styled to match the design system via CSS. Detail in `SwiftInfo.md`.
+- **SwiftUI editor strategy: two options.** Option 1 — native Swift markdown editor: fork Clearly (FSL-1.1-MIT, converts to MIT Feb 2028) or build original on NSTextView/AppKit; delivers source-with-decorations + Obsidian-style Live Preview (markers hidden when cursor leaves a construct, revealed when it enters). Option 2 (likely direction) — WKWebView hosting Tiptap, Milkdown, or BlockNote; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas; editor styled to match the design system via CSS. Detail in `// Features//Pages.md` editor section.
 - `better-sqlite3` over `node:sqlite` for the React path.
+
+##### SwiftUI research findings (preserved)
+
+- `TextEditor(text: Binding<AttributedString>)` real and shipping in Xcode 16.4+ (iOS 26 / macOS 26 Tahoe).
+- `apple/swift-markdown` for parse / AST / query (NOT save-path serializer — `MarkupFormatter` reformats; custom blocks can crash it).
+- Native `.draggable` + `.dropDestination` + `Transferable` are the modern primitives.
+- Wikilinks-as-styled-spans pattern matches WWDC25 Session 280.
+- `AttributedString(markdown:)` is one-way — hand-rolled writer required for save path.
+- swift-markdown block directives use DocC `@Name(args){...}` syntax (NOT Pandoc / Obsidian `:::` fenced divs) — Pommora needs either a `:::` ↔ `@` preprocessor or a fork.
+- Component libraries: `stevengharris/SplitView`, `visfitness/reorderable`, `SwiftUIX/SwiftUIX`.
+- Reference: WWDC25 Session 280 ("Cook up a rich text experience in SwiftUI with AttributedString").
+- Reference: Apple "Building rich SwiftUI text experiences".
 
 ##### Architecture (three load-bearing constraints)
 1. **Stack portability of functionalities** — file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design tokens, UX patterns survive a stack rebuild. The codebase doesn't. **No enforced layer separation** (the earlier Core/Adapter/UI rule was dropped); portability comes from documented decisions.
@@ -112,4 +124,4 @@ Locked decisions, ordered by area. Brief by design — implementation detail liv
 
 #### Features Implemented
 
-None yet. v0.0 in spec stage; `// Planning//v0.0.md` is React+Electron-locked and gets rewritten if SwiftUI is chosen.
+None yet. v0.0 in spec stage; the React+Electron-locked version is preserved at `// ReactInfo// v0.0.md` while the SwiftUI v0.0 spec is authored in a focused later session.

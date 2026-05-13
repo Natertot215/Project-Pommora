@@ -305,6 +305,8 @@ Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side pan
 
 Below-heading and page-bottom property-panel placements are post-v1 Prospects.
 
+Implemented via SwiftUI's `NavigationSplitView` — confirmed top-level-only with fixed master/detail, which fits the three-pane shell exactly.
+
 ##### Top-Bar Tabs
 
 The main pane is **multi-tabbed.** A row of tabs sits at the top of the main pane; each tab represents one open view — a Page, a Collection (with its active saved view), or a Space. One tab is active; clicking another switches the main pane to that view. Pattern reference: Obsidian's tab UI, Notion's tab navigation.
@@ -363,6 +365,45 @@ Renames are automatic and atomic. When a Page is renamed:
 - Wikilinks render as styled colored inline text (Obsidian-style), not Notion-style chips.
 
 Relation properties store target IDs and display the target's current title (resolved at render time; renames update display automatically).
+
+##### Data, State, File Watching
+
+**State.** `@Observable` macro (Swift 5.9+, mature in 6.2) is the standard — per-property tracking eliminates wasteful redraws; `@State` replaces `@StateObject`. Heavy services (VaultIndex, parsers) stay in DI, not view state, to avoid re-init on view rebuild.
+
+**Persistence.** `GRDB.swift v7.5+` is the only credible choice for Pommora's "SQLite as index, files canonical" shape. `ValueObservation.tracking { db in ... }` is exactly the reactive primitive needed; `.values(in:)` returns an `AsyncThrowingStream` that integrates with structured concurrency. FTS5 first-class via `FTS5Pattern`. Requires Swift 6.1+/Xcode 16.3+.
+
+SwiftData is **not** a viable alternative — it wraps Core Data, can't use a custom SQLite schema or FTS5 directly, and continues to be unsafe for production cases that don't match Apple's reference patterns.
+
+**Core code pattern.** Pure Swift Package for the data + parsing layer; keep SwiftUI imports out of this layer so the same code is callable from a CLI tool target if needed. `actor VaultIndex` for the database boundary; mark records `Sendable`; expose `AsyncSequence` (preferred over Combine in Swift 6 strict concurrency). GRDB's `.values(in:)` *is* the reactive surface from data to UI — no wrapper needed. (Not an enforced rule per Pommora's architecture — see `// Features//Architecture.md` — just a discipline that keeps Swift code simpler.)
+
+**File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool for vault-folder watching. Use FSEventStream via a Swift wrapper (`EonilFSEvents`, or hand-rolled `FSEventStreamCreate`). APFS / atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete events; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
+
+> If pivoting to React, see `// ReactInfo// StateData.md` for the Zustand + hand-rolled pub/sub + `@parcel/watcher` equivalent.
+
+##### Mac OS Integration
+
+Areas where SwiftUI is first-party (no companion bundles needed):
+
+- **QuickLook (.md preview via Finder spacebar).** Ship a `QLPreviewProvider` subclass via a QuickLook Preview Extension target; declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pommora pages straight from Finder.
+- **CoreSpotlight (vault-wide system search).** `CSSearchableItem` + `CSSearchableItemAttributeSet` indexes pages into Spotlight; `.onContinueUserActivity(CSSearchableItemActionType)` deep-links results back into Pommora.
+- **Share Extension (receive shares from Safari/Mail).** Add a Share Extension target conforming to `NSExtensionPrincipalClass`. Standard macOS pattern.
+- **NSServices ("New Pommora Page from Selection").** Declare in `Info.plist`, implement selector. One-method handler.
+- **MenuBarExtra (macOS 13+).** First-party menu-bar item; `.menuBarExtraStyle(.window)` enables rich popovers; instant, native-feel.
+- **Sidebar vibrancy + accent.** `NSVisualEffectView` via SwiftUI's `Material` (`.regular`, `.sidebar`, etc.); automatic accent color via `Color.accentColor`; reactive theme integration.
+- **Finder file-promise drag-out.** Native via `Transferable` + `.draggable` — drag a page from the sidebar to Finder writes the file at the drop location.
+- **Accessibility (VoiceOver, Dynamic Type, keyboard nav).** First-party modifiers (`.accessibilityLabel/Hint/Value/Action`); Dynamic Type free; VoiceOver rotor support free.
+- **Window state restoration with Spaces.** `Scene` + `@SceneStorage` integrates with NSWindow restoration including macOS Spaces.
+- **Deep links.** `.onOpenURL` + `Info.plist` `CFBundleURLTypes` for `pommora://` URLs.
+
+> If pivoting to React, see `// ReactInfo// MacIntegration.md` for the Electron ceilings, companion-bundle territory, and hard ceilings on each of the above.
+
+##### Distribution
+
+- **Sparkle 2.x** is the non-MAS auto-update standard (EdDSA-signed, sandbox-compatible, full SwiftUI support via `SPUStandardUpdaterController`).
+- **TestFlight for Mac** is fully shipped — same capabilities as iOS.
+- **Sandboxing for MAS:** user-picked vault folders work via security-scoped bookmarks (`URL.bookmarkData(options: .withSecurityScope)`) persisted and resolved with `startAccessingSecurityScopedResource()` on each launch. Standard pattern; no feature blocker.
+
+> If pivoting to React, see `// ReactInfo// Distribution.md` for the electron-vite + electron-builder + electron-updater + `@electron/notarize` equivalent.
 
 ---
 

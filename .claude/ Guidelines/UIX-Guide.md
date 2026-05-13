@@ -94,6 +94,15 @@ Dark mode first. Pommora design tokens applied on top of SwiftUI's native primit
 - **Density** — locked: Notion-comfortable (moderate breathing room, ~1.6 body line-height).
 - **Accent semantics** — locked: components binding to "accent" use a single accent token slot (typically `accent/primary/active`). Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top — they do NOT swap between accent sub-tokens. The 2×2 accent matrix exists for designer choice across contexts, not as a state-axis within a single component.
 
+#### AppKit Interop
+
+Where pure SwiftUI is sufficient vs. where `NSViewRepresentable` wrapping is the right tool for production polish:
+
+- **Block reorder in a vertical stack** — pure SwiftUI is sufficient (`visfitness/reorderable`).
+- **Resizable columns with persistent splitter** — SwiftUI's `HSplitView` works but is rough; wrap `NSSplitView` via `NSViewRepresentable` for production polish.
+- **Tree-shaped reorderable structure with cross-level drag** — pure SwiftUI is doable (`DisclosureGroup` + manual `NSItemProvider`) but not pretty. Reference: [shufflingB/swiftui-macos-tree-list-demo](https://github.com/shufflingB/swiftui-macos-tree-list-demo).
+- **Unified cursor flow across columns / callouts** — only achievable via `NSTextView` / TextKit 2 (STTextView).
+
 #### Open Questions
 
 (none currently — Figma file is built; conversion plan is at `.claude// Planning// Figma Components 5-13.md`; SwiftUI translation begins after the conversion completes.)

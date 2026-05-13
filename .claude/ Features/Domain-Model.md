@@ -26,7 +26,7 @@ Loose entities (`.md` or `.json` files outside any Collection folder) hold ident
 
 Per-entity detail:
 
-- **`Pages.md`** — on-disk shape, frontmatter, Markdown features (standard MD + two rendering directives: `@Columns`, `:::callout`; foldable headings built-in), editor surface (React: BlockNote or Tiptap / Swift: two options in `SwiftInfo.md`), wikilinks.
+- **`Pages.md`** — on-disk shape, frontmatter, Markdown features (standard MD + two rendering directives: `@Columns`, `:::callout`; foldable headings built-in), editor surface (two SwiftUI options — native Option 1 or WKWebView Option 2), wikilinks.
 - **`Collections.md`** — `_collection.json` schema (including `kind`), view types, capabilities, embedded views in Spaces.
 - **`Items.md`** — brief: row-shaped `.json` entries; on-disk, capabilities, constraints.
 - **`Spaces.md`** — `.space.json` schema, drag-and-drop canvas, block types, referential framing.

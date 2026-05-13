@@ -56,7 +56,7 @@ Design system built in Figma at the variable + visual-mock level: ~118 tokens (1
 
 - **Audit findings to commit or defer** — `@parcel/watcher`, `@dnd-kit/core` v6 pin, Zod validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety, `gray-matter` alternatives. Captured as findings, not committed. Decide once stack lands.
 
-- **Optional spike before commit** — BlockNote / Tiptap / Milkdown Markdown round-trip with a custom serializer for `:::columns` and `:::callout` (React), OR fork-Clearly assessment to size the native build gap (SwiftUI Option 1). SwiftUI Option 2 (WKWebView hosting a JS editor) is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `SwiftInfo.md`).
+- **Optional spike before commit** — BlockNote / Tiptap / Milkdown Markdown round-trip with a custom serializer for `:::columns` and `:::callout` (React-side, in `// ReactInfo// Editor.md`), OR fork-Clearly assessment to size the native build gap (Option 1). Option 2 (WKWebView hosting a JS editor) is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`).
 
 ---
 
@@ -76,7 +76,7 @@ Real items needing resolution before they bite, organized by when they'll surfac
 
 ##### Implementation risk
 
-- **Editor risk — substantially de-risked, two stack-specific notes.** React: BlockNote and Tiptap are co-primary candidates (both fully open-source and free; BlockNote is batteries-included, Tiptap is the headless framework it's built on); Milkdown remains a pivot door. Pick at React commit. SwiftUI: two editor options documented in `SwiftInfo.md` — (1) native Swift editor: fork Clearly or build original on NSTextView/AppKit (source-with-decorations, fully native); (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction if SwiftUI chosen; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas. A bounded spike (WKWebView-host JS editor PoC, or fork-Clearly assessment for the native path) would de-risk specifics before committing.
+- **Editor risk — substantially de-risked.** Two editor options documented in `// Features//Pages.md`: (1) native Swift editor — fork Clearly or build original on NSTextView/AppKit (source-with-decorations, fully native); (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas. A bounded spike (WKWebView-host JS editor PoC, or fork-Clearly assessment for the native path) would de-risk specifics before committing. React-side reference at `// ReactInfo// Editor.md`.
 
 - **`pommora.db` location.** PRD currently places the SQLite index at `.pommora// pommora.db` inside the user-pickable vault. If the user puts the vault on iCloud Drive, iCloud's file-conflict resolution can corrupt SQLite. Move to `~//Library//Application Support//Pommora//<vault-id>//`; the vault should hold only canonical content.
 

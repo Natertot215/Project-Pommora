@@ -59,9 +59,34 @@ The earlier-proposed `@View` (in-line database view embed) is **deferred** to v2
 
 Pages on disk are a continuous Markdown stream. Wikilinks render as styled colored inline text (Obsidian-style); a slash menu or toolbar inserts the two Pommora directives (`@Columns`, `:::callout`); heading-fold (toggling content under a heading) is built-in UI behavior on every heading, not a directive.
 
-Two editor options. Option 1: native Swift editor — fork Clearly or build original on NSTextView/AppKit, delivering source-with-decorations on a native text engine (markers hidden when cursor leaves a construct, revealed when it enters). Option 2 (likely direction): WKWebView hosting Tiptap, Milkdown, or BlockNote — all three translate cleanly to on-disk Markdown; the native SwiftUI shell wraps the editor canvas; the editor is styled to match the design system via CSS.
+The editor has two options:
 
-> If pivoting to React, see `// ReactInfo// Editor.md` for the React-side approach.
+- **Option 1 — Native Swift markdown editor.** Two sub-approaches with the same UX outcome: fork **Clearly** ([Shpigford/clearly](https://github.com/Shpigford/clearly) — native AppKit/SwiftUI markdown editor with a working `MarkdownSyntaxHighlighter` in its `ClearlyCore` Swift Package, fold-state plumbing, and a polished editor shell; license FSL-1.1-MIT, converts to MIT Feb 2028), or build an original native editor on `NSTextView` / AppKit text-engine primitives. Either delivers source-with-decorations on a native text engine — the document IS the markdown string, styling layered as text attributes, Obsidian-style Live Preview (markers hidden when cursor leaves a construct, revealed when it enters) implemented via attribute manipulation on selection change. Full native text behavior (smart quotes, system dictionary, AppKit caret and selection). GFM table inline rendering requires custom layout fragments; TextKit 2 has confirmed production instability for advanced layout work — factor into build planning.
+
+- **Option 2 — WKWebView hosting a JS markdown editor.** Likely direction. Host **Tiptap**, **Milkdown**, or **BlockNote** in a WKWebView. All three have solid markdown translation — they read from and write to on-disk Markdown cleanly, keeping files canonical. The JS editor handles the editor surface; the SwiftUI shell wraps it with a native toolbar, menus, keyboard shortcuts, three-pane layout, sidebar, and inspector — everything outside the editor canvas stays native. The editor canvas is styled to match the design system (SF Pro via `font-family: -apple-system`, Pommora's design tokens as CSS custom properties). Scroll physics and caret animation are WebKit's rather than AppKit's — the main UX seam. WWDC25 shipped a first-class `WebView` in SwiftUI (iOS 26.0+ / macOS 26.0+), eliminating the `NSViewRepresentable` wrapper for those targets; older OS targets keep using `WKWebView` via `NSViewRepresentable`. MarkEdit (App Store) is the production reference for this architecture.
+
+  Implementation shape: the editor's JS bundle (CodeMirror 6 / Tiptap / Milkdown / BlockNote) ships **inside** the Pommora `.app` — fully self-contained, no external network fetches at runtime. Served to the WebView via a custom URL scheme handler (`WKURLSchemeHandler` registered for e.g. `editor://`), because WKWebView treats `file://` URLs as a null origin and blocks `<script type="module">` execution (WebKit bug #154916). The custom-scheme workaround is the Apple-documented pattern. Because the editor doesn't fetch from external origins, the known caveat that custom schemes are treated as insecure for cross-origin fetch doesn't apply. `WKScriptMessageHandler` carries editor events into Swift; Swift writes Markdown to disk and updates SQLite. Only Markdown crosses the bridge on save. iOS/iPad parity is intact — WKWebView is cross-Apple-platform.
+
+  Editor candidates — pick at commit time, evaluate in practice before committing:
+  - **Tiptap (MIT)** — headless ProseMirror framework; most configurable; every package Pommora needs ships MIT.
+  - **Milkdown (MIT)** — markdown-first by design; round-trip integrity built into the framework; plugin ecosystem covers slash menu, history, clipboard, math, upload.
+  - **BlockNote (MPL-2.0)** — batteries-included; built on Tiptap; fastest to a working editor. Avoid `@blocknote/xl-multi-column` (GPL-3.0 or commercial) — build the columns block in core instead.
+  - **MarkdownEditor ([Pallepadehat/MarkdownEditor](https://github.com/Pallepadehat/MarkdownEditor), MIT)** — pre-packaged Swift Package wrapping CodeMirror 6 in WKWebView with a clean SwiftUI API (`EditorWebView(text: $markdown)`). Ships with Obsidian-style syntax hiding built in (`hideSyntax: true` default), GFM tables via the `GFM` lezer extension, SF fonts as default, light/dark theme, and a command palette triggered by `/`. Missing for Pommora: `:::callout`, `:::columns`, wikilinks (all addable as CM6 extensions in TypeScript). Personal project, one contributor, v1.0.1 — fork rather than depend. CM6 is the engine under the hood; this package provides the UI on top.
+
+##### Markdown serialization caveats
+
+- **Block directives use DocC `@Name(args){...}` syntax** in Apple's swift-markdown — it does NOT parse Pandoc / Obsidian / Docusaurus `:::name` fenced divs. Pommora's markdown uses `:::columns` and `:::callout`, so Pommora needs either a `:::` ↔ `@` preprocessor or a fork of swift-markdown.
+- **`MarkupFormatter` is NOT safe as a save-path serializer.** It reformats the AST as a fresh document — whitespace, list markers, fence choice all normalized. Custom blocks can crash it. Use swift-markdown only as a parse / query / AST layer, never to write files back.
+- **Hand-rolled markdown writer is unavoidable.** Apple's ecosystem implicitly avoids markdown round-trip — Notes / Bear use proprietary stores. A "files canonical" Mac app is doing something Apple doesn't ship infrastructure for. The writer walks Pommora's domain model directly (not the swift-markdown AST) and emits bytes deterministically. Not technically hard; just unowned territory.
+
+##### Verified primitives
+
+- `TextEditor(text: Binding<AttributedString>)` is real and shipping in Xcode 16.4+ (iOS 26 / macOS 26 Tahoe). Supports character-level styling (font, color, underline, kerning, links). Constraint via `AttributedTextFormattingDefinition`.
+- `apple/swift-markdown` parses Markdown into a typed AST. Suitable as a parse / query layer.
+- Wikilinks-as-styled-spans is the easy part — pattern-detect `[[...]]` in `AttributedString`, stamp custom attributes, attach a `pommora://page/<id>` link for tap. Matches the WWDC25 Session 280 pattern.
+- `AttributedString` round-trip is one-way out of the box. `AttributedString(markdown:)` parses; there's no `.markdown` accessor going back. Custom attributes (e.g., wikilink IDs) work via `AttributeScope` + `CodableAttributedStringKey` + `MarkdownDecodableAttributedStringKey`, which makes them encode/decode-stable. The markdown init normalizes whitespace, drops unknown directives, and flattens table/list nuances — this is the reason the canonical save path needs the hand-rolled writer described above.
+
+> If pivoting to React, see `// ReactInfo// Editor.md` for the React-side approach (BlockNote/Tiptap directly, no WebView wrapper).
 
 ---
 

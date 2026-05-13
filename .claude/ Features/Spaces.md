@@ -40,9 +40,35 @@ A Space is a **Notion-page-style composed surface** — text, headings, lists, c
 
 Spaces are composed in a **page-like canvas with drag-and-drop blocks** — Notion-style structured layout (1D vertical flow with one nestable `columns` container), not free X/Y positioning. Drag and drop blocks of any type, slash-menu insertion, reordering, multi-column layout, the full Notion-style block experience. This is the only surface in Pommora with this composition complexity.
 
-`Codable` `Block` enum as the model + `ReorderableVStack` from `visfitness/reorderable` (the vertical block stack) + `HSplit` from `stevengharris/SplitView` (the columns container). The shape of Pommora's problem (one nestable `columns` container + 1D vertical flow elsewhere) is the easiest version of structured-block-tree drag-and-drop, and the libraries above compose cleanly. Rough edges to handle: drop-indicator UX, auto-scroll while dragging, slash-menu positioning, HSplitView polish in nested splits, heterogenous `Transferable` for the block enum.
+The shape of Pommora's Spaces problem (one nestable `columns` container + 1D vertical flow elsewhere) is the easiest version of the structured-block-tree problem — pure SwiftUI handles it with composable libraries.
 
-Block JSON serialization discipline (validate with `Codable` decoding strictness on load and save, atomic write via `.tmp` + rename, ULID per block) is stack-portable; the data shape doesn't change with the renderer.
+**Pattern:**
+
+- `Codable` `Block` enum as the model — serializes straight to `.space.json`
+- `ReorderableVStack` from [visfitness/reorderable](https://github.com/visfitness/reorderable) for the vertical block stack
+- `HSplit` from [stevengharris/SplitView](https://github.com/stevengharris/SplitView) for the columns block
+
+**Rough edges that will cost time:**
+
+- Drop-indicator UX (no native insertion line — render from drag-session state)
+- Auto-scroll while dragging (`reorderable` provides `.autoScrollOnEdges()`)
+- Slash menu (caret-anchored positioning may need NSTextView)
+- HSplitView polish in nested splits
+- Heterogenous `Transferable` conformance per block kind
+
+**Block JSON serialization discipline** (stack-portable; the data shape doesn't change with the renderer):
+
+- Validate with `Codable` decoding strictness on load and save
+- Atomic write via `.tmp` + rename
+- ULID per block
+
+##### Custom Layout protocol
+
+`Layout` (iOS 16+ / macOS 13+) controls *how children get positioned*, not *how users reorder them*. Useful only if `:::columns` ever needs custom flow behavior beyond `HStack`. For v1's equidistant columns, `HStack` suffices.
+
+##### Verified drag primitives
+
+Native `.draggable` + `.dropDestination` + `Transferable` are the modern, type-safe Apple-recommended drag/drop primitives for new code.
 
 > If pivoting to React, see `// ReactInfo// Spaces-DnD.md` for the `@dnd-kit/core` + flat-array tree approach.
 
