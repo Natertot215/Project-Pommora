@@ -1,12 +1,16 @@
 ### Pommora — Resources
 
-Catalogue of external resources (documentation, libraries, references) to consult during research and implementation. Items are listed for reference; not all are committed dependencies. Stack-conditional sections are marked.
+Catalogue of external resources (documentation, libraries, references) to consult during research and implementation. Items are listed for reference; not all are committed dependencies.
 
 ---
 
 #### Editor primitives
 
-##### Co-primary candidates (if React + Electron)
+The JS editor candidates below are evaluated for the SwiftUI Option 2 path (WKWebView hosting the editor); under Option 1 (native NSTextView) only `apple/swift-markdown` and STTextView apply.
+
+For React-side editor candidates inside WKWebView Option 2, see `// ReactInfo// Editor.md` and `// ReactInfo// Resources.md`.
+
+##### Co-primary candidates
 
 - **BlockNote** — open-source MPL-2.0 core; batteries-included block editor built on top of Tiptap. Slash menu, formatting toolbar, drag handles, schema enforcement all wired by default. [Docs](https://www.blocknotejs.org/docs) · [Custom blocks guide](https://www.blocknotejs.org/docs/features/custom-schemas/custom-blocks) · [Slash menu](https://www.blocknotejs.org/docs/slash-menu) · [Theming](https://www.blocknotejs.org/docs/react/styling-theming/themes) · [Pricing / licensing](https://www.blocknotejs.org/pricing) · [GitHub](https://github.com/TypeCellOS/BlockNote)
 
@@ -20,88 +24,24 @@ Catalogue of external resources (documentation, libraries, references) to consul
 
 - **Yoopta-Editor** — MIT, Slate-based, 20+ built-in plugins including a callout. [Site](https://yoopta.dev/) · [Docs](https://docs.yoopta.dev/) · [Callout plugin](https://github.com/yoopta-editor/Yoopta-Editor/blob/master/packages/plugins/callout/README.md) · [GitHub](https://github.com/yoopta-editor/Yoopta-Editor)
 
-- **CodeMirror 6** — buffer-based editor (markdown literally *is* the document; round-trip is perfect by definition). Used as Obsidian Live Preview's foundation: `StateField` parses markdown, `Decoration.replace` swaps source ranges with `WidgetType` block widgets. Layering the wanted Notion-style block UI (per-paragraph `+` / drag-handle markers, slash menu, formatting toolbar) on top of CodeMirror is materially more work than starting from a block editor — CodeMirror's strength is the markdown-as-document model, the opposite tradeoff from what React wants. Strongest "files canonical" guarantee in the React shortlist. [Docs](https://codemirror.net/) · [GitHub](https://github.com/codemirror/dev)
+- **CodeMirror 6** — buffer-based editor (markdown literally *is* the document; round-trip is perfect by definition). Used as Obsidian Live Preview's foundation: `StateField` parses markdown, `Decoration.replace` swaps source ranges with `WidgetType` block widgets. [Docs](https://codemirror.net/) · [GitHub](https://github.com/codemirror/dev)
 
 ##### Editor research notes
 
-- **Serialization architecture (load-bearing on the React path).** Pommora uses two serialization formats deliberately, each chosen for what it does best: **Markdown** (`.md` on disk) is the canonical content format for every Page; **JSON** (in-memory) is the editor's perfect-fidelity working store for editor state, undo / redo, and any case where Markdown can't carry the information. **BlockNote API:** `blocksToMarkdownLossy(blocks)` / `tryParseMarkdownToBlocks(md)` for the Markdown boundary; `editor.document` for the JSON store; per-block `toExternalHTML` / markdown handlers for the two directives ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426)). **Tiptap API:** `@tiptap/markdown` for the Markdown boundary; `editor.getJSON()` for the JSON store; per-node `renderHTML` + custom serializer for the two directives. Both formats are first-class and necessary — Markdown alone can't carry editor state; JSON alone breaks agent-legibility. The `Lossy` suffix on BlockNote's API is generic-case naming — a non-issue in Pommora, closed by the small per-block / per-node serializers for the two directives. See `// ReactInfo.md` for the full architecture.
+- **Serialization architecture.** Pommora uses two serialization formats deliberately, each chosen for what it does best: **Markdown** (`.md` on disk) is the canonical content format for every Page; **JSON** (in-memory) is the editor's perfect-fidelity working store for editor state, undo / redo, and any case where Markdown can't carry the information. **BlockNote API:** `blocksToMarkdownLossy(blocks)` / `tryParseMarkdownToBlocks(md)` for the Markdown boundary; `editor.document` for the JSON store; per-block `toExternalHTML` / markdown handlers for the two directives ([Issue #221](https://github.com/TypeCellOS/BlockNote/issues/221) → [PR #426](https://github.com/TypeCellOS/BlockNote/pull/426)). **Tiptap API:** `@tiptap/markdown` for the Markdown boundary; `editor.getJSON()` for the JSON store; per-node `renderHTML` + custom serializer for the two directives. Both formats are first-class and necessary — Markdown alone can't carry editor state; JSON alone breaks agent-legibility. See `// ReactInfo// Editor.md` for the full architecture.
 
 - **Milkdown / Yoopta / CodeMirror 6** follow the same pattern with different internal stores (ProseMirror state, Slate JSON, CodeMirror's `EditorState`). The Markdown ↔ working-state split is a property of every modern editor framework; the pattern survives an editor pivot, only the API names and boundary code change.
 
 ---
 
-#### React + Electron stack (one of two viable paths)
-
-##### Shell, build, distribution
-
-- **Electron** — desktop shell. [Docs](https://www.electronjs.org/docs/latest)
-
-- **electron-vite** — Vite-first dev experience with HMR for the main process. Pairs with electron-builder for packaging; cleanest dev loop of the React tooling options. [Docs](https://electron-vite.org/)
-
-- **Electron Forge 7+** — alternative all-in-one tool, official + maintained by the Electron team; first-party features (ASAR integrity, universal builds, code signing, notarytool) land here first. [Docs](https://www.electronforge.io/)
-
-- **electron-builder** — packaging + bundled `electron-updater` for auto-update. [Docs](https://www.electron.build/) · [Auto-update](https://www.electron.build/auto-update.html)
-
-- **@electron/rebuild** — native module rebuild for ABI compatibility (better-sqlite3). [GitHub](https://github.com/electron/rebuild)
-
-- **@electron/notarize** — wraps Apple's `notarytool` (post-altool deprecation). [GitHub](https://github.com/electron/notarize)
-
-- **Sentry-Electron** — crash reporting (Crashpad-backed; covers main/renderer/utility processes). [Docs](https://docs.sentry.io/platforms/javascript/guides/electron/)
-- **Vite** — bundler / dev server. [Docs](https://vitejs.dev/)
-
-##### UI, styling, components
-
-- **React** — UI framework. [Docs](https://react.dev/)
-- **TypeScript** — strict mode. [Docs](https://www.typescriptlang.org/docs/)
-
-- **Tailwind CSS v4** — styling, with CSS custom properties from the design system. [Docs](https://tailwindcss.com/docs)
-
-- **Figma Code Connect** — link Figma components to real component code. [Docs](https://www.figma.com/code-connect-docs/)
-
-(No Storybook — Pommora uses its own localhost dev server for component preview / iteration; designs flow Figma → Pommora localhost directly.)
-
-- **react-material-symbols** — icon delivery. [npm](https://www.npmjs.com/package/react-material-symbols)
-
-##### State, data, search
-
-- **better-sqlite3** — SQLite for Node.js (WAL mode). [GitHub](https://github.com/WiseLibs/better-sqlite3)
-
-- **SQLite FTS5** — full-text search. External-content mode + `unicode61` tokenizer (with `remove_diacritics=2`) is the recommended pattern for vault-scale (1k–10k pages). [SQLite docs](https://www.sqlite.org/fts5.html)
-
-- **Zustand v5+** — state management; `zustand/vanilla` produces a framework-agnostic store that React binds via `useSyncExternalStore`. Conceptually translatable to `@Observable` + `ValueObservation` on a future Swift rebuild. Cleaner fit than Jotai / Valtio / Redux Toolkit / Preact Signals for solo work. [Docs](https://github.com/pmndrs/zustand)
-
-- **TanStack Query v5** — alternative to a hand-rolled pub/sub for SQLite reactivity (manual `invalidateQueries` after every mutation). Heavier-weight pattern; the hand-rolled table-keyed pub/sub (~80 LOC, ports straight to Swift) is the lighter and more portable option. [Docs](https://tanstack.com/query/latest)
-
-- **chokidar** — file watcher. [GitHub](https://github.com/paulmillr/chokidar) (audit recommended evaluating `@parcel/watcher` as a faster alternative — pending review)
-
-- **@parcel/watcher v2.5+** — native FSEvents on macOS; used by VSCode/Nx/Tailwind; ms vs seconds on large trees compared to chokidar. Gotchas: editor atomic-save (write `.tmp` + rename) emits create+delete for the temp; debounce 50–100ms by path. APFS clones don't fire events. [npm](https://www.npmjs.com/package/@parcel/watcher)
-
-- **gray-matter** — YAML frontmatter parser. [GitHub](https://github.com/jonschlinkert/gray-matter) (upstream stale since 2019; audit recommended `@11ty/gray-matter` fork or `remark-frontmatter` — pending review)
-
-##### Markdown / parsing
-
-- **remark + remark-directive + mdast-util-directive** — Markdown parser + container directive support for `:::columns`, `:::callout`. `directiveToMarkdown()` round-trips back to `:::` syntax. Nesting requires the outer fence to use more colons (`::::columns` containing `:::callout`) to avoid ambiguous closes. [remark](https://github.com/remarkjs/remark) · [remark-directive](https://github.com/remarkjs/remark-directive) · [mdast-util-directive](https://github.com/syntax-tree/mdast-util-directive)
-
-- **@flowershow/remark-wiki-link v3.3.1+** — Obsidian-flavored wikilink parser; handles `[[name]]`, `[[name|alias]]`, `[[name#heading]]`, combined `[[name#heading|alias]]`, and `![[asset]]` embeds. Healthiest of the maintained options (alternatives `@portaljs/remark-wiki-link` ~2yr stale; `heavycircle/remark-obsidian` solo-maintained). [GitHub](https://github.com/flowershow/remark-wiki-link)
-
-##### Drag-and-drop (Spaces)
-
-- **dnd-kit** — drag-and-drop for the Spaces composer. Two confusingly-named packages: [@dnd-kit/core](https://github.com/clauderic/dnd-kit) (v6.x, stable) and [@dnd-kit/react](https://dndkit.com/react/) (v0.x, ground-up rewrite, pre-1.0).
-
----
-
-#### SwiftUI stack (one of two viable paths)
-
-Detailed in `// SwiftInfo.md`. Library shortlist:
-
-##### Editor + parsing
+#### Editor + parsing
 
 - **Apple swift-markdown** — Markdown parser + AST. Block directives use DocC `@Name(args){}` syntax (NOT Pandoc `:::`). [GitHub](https://github.com/swiftlang/swift-markdown)
 - **STTextView** — TextKit 2 NSTextView replacement with a SwiftUI shim (`STTextViewSwiftUI`). Useful for line-number gutters, programmatic decoration insertion, multi-cursor, custom selection rendering. [GitHub](https://github.com/krzyzanowskim/STTextView)
 - **[Shpigford/clearly](https://github.com/Shpigford/clearly)** — native AppKit / SwiftUI markdown editor for macOS. Working source-with-decorations editor with a syntax highlighter, fold-state plumbing, and editor shell. Fork-candidate for Pommora's SwiftUI Option 1 (native editor). License: FSL-1.1-MIT (converts to MIT Feb 2028).
 - **[Pallepadehat/MarkdownEditor](https://github.com/Pallepadehat/MarkdownEditor)** — Swift Package wrapping CodeMirror 6 in WKWebView with a clean SwiftUI API (`EditorWebView(text: $markdown)`). Ships with Obsidian-style syntax hiding built in, GFM tables, SF fonts by default, light/dark theme, and a command palette triggered by `/`. Key candidate for Option 2 (WKWebView-based editor). Missing for Pommora: `:::callout`, `:::columns`, wikilinks (addable as CM6 extensions). Personal project, one contributor — recommend forking rather than depending. MIT license. [GitHub](https://github.com/Pallepadehat/MarkdownEditor)
 
-##### Spaces (drag-and-drop blocks)
+#### Spaces (drag-and-drop blocks)
 
 - **stevengharris/SplitView** — nestable resizable splits with persistence. [GitHub](https://github.com/stevengharris/SplitView)
 
@@ -109,7 +49,7 @@ Detailed in `// SwiftInfo.md`. Library shortlist:
 
 - **SwiftUIX** — large SwiftUI gap-filler (text views, scroll behavior, AppKit bridges). [GitHub](https://github.com/SwiftUIX/SwiftUIX)
 
-##### State, data, file watching
+#### State, data, file watching
 
 - **GRDB.swift v7.5+** — SQLite for Swift; FTS5 first-class via `FTS5Pattern`; `ValueObservation.tracking { db in ... }` is the reactive primitive — `.values(in:)` returns an `AsyncThrowingStream` (Swift 6 idiom over Combine). Requires Swift 6.1+/Xcode 16.3+. [GitHub](https://github.com/groue/GRDB.swift)
 
@@ -117,18 +57,18 @@ Detailed in `// SwiftInfo.md`. Library shortlist:
 
 - **SwiftData** — wraps Core Data; can't use a custom SQLite schema or FTS5 directly. Still not safe for Pommora's "files canonical + custom schema" shape in 2026. **Skip in favor of GRDB.**
 
-- **EonilFSEvents** (or hand-rolled `FSEventStreamCreate`) — vault folder watching. `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool. Same APFS / atomic-rename gotchas as the React side. [EonilFSEvents on GitHub](https://github.com/eonil/FSEvents)
+- **EonilFSEvents** (or hand-rolled `FSEventStreamCreate`) — vault folder watching. `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool. Same APFS / atomic-rename gotchas apply: editor atomic-save (write `.tmp` + rename) emits create+delete for the temp; debounce 50–100ms by path; track outbound mtimes to ignore your own writes. [EonilFSEvents on GitHub](https://github.com/eonil/FSEvents)
 
 - **TestFlight for Mac** — fully shipped (post-2021); same capabilities as iOS, internal/external tester model, builds expire after 90 days. [Apple Developer](https://developer.apple.com/testflight/)
 
-##### Mac OS integration (first-party APIs)
+#### Mac OS integration (first-party APIs)
 
-These are areas where SwiftUI has materially less friction than Electron — see `// SwiftInfo.md` for the gap analysis.
+Areas where SwiftUI is first-party where Electron has either ceilings or companion-bundle workarounds.
 
-- **CoreSpotlight** — `CSSearchableItem` + `CSSearchableItemAttributeSet`; `.onContinueUserActivity(CSSearchableItemActionType)` deep-links results back into the app. 
+- **CoreSpotlight** — `CSSearchableItem` + `CSSearchableItemAttributeSet`; `.onContinueUserActivity(CSSearchableItemActionType)` deep-links results back into the app.
 [Apple docs](https://developer.apple.com/documentation/corespotlight)
 
-- **QuickLook Preview Extension** — ship a `QLPreviewProvider` subclass; 
+- **QuickLook Preview Extension** — ship a `QLPreviewProvider` subclass;
 declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pommora pages straight from Finder via spacebar. [Apple docs](https://developer.apple.com/documentation/quicklook)
 
 - **NSServices** — declare in `Info.plist`, implement selector; e.g. "New Pommora Page from Selection". [Edenwaith guide](https://www.edenwaith.com/blog/index.php?p=133)
@@ -139,7 +79,7 @@ declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pom
 
 - **NSVisualEffectView via SwiftUI `Material`** — sidebar vibrancy / system materials. [Apple docs](https://developer.apple.com/documentation/swiftui/material)
 
-- **Transferable + `.draggable` / `.dropDestination`** — Finder file-promise drag-out and drag-in (the area where Electron's story has been broken for years). [Apple docs](https://developer.apple.com/documentation/coretransferable/transferable)
+- **Transferable + `.draggable` / `.dropDestination`** — Finder file-promise drag-out and drag-in. [Apple docs](https://developer.apple.com/documentation/coretransferable/transferable)
 
 - **`.onOpenURL` + `Info.plist` `CFBundleURLTypes`** — `pommora://` deep links. [Apple docs](https://developer.apple.com/documentation/swiftui/view/onopenurl(perform:))
 
@@ -165,6 +105,5 @@ declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pom
 
 #### Maintenance notes
 
-- This file is curated by hand. Add entries as research surfaces them; remove entries that become irrelevant after a stack pivot or library swap.
+- This file is curated by hand. Add entries as research surfaces them; remove entries that become irrelevant after a library swap.
 - For audit findings that affect specific libraries (version pins, compatibility caveats, license details), capture in the relevant entry above rather than in a separate document.
-- When the stack lands and the React vs SwiftUI section is no longer dual, prune the unused half.
