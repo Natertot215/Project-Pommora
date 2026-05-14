@@ -64,6 +64,18 @@ Dark mode first. SwiftUI semantic colors cover the shell; Pommora extensions pro
 
 ---
 
+#### Chrome animation
+
+Apple's native chrome animations (`NSSplitView` sidebar collapse, toolbar reflow, inspector reveal) are the gold standard — Mail, Notes, and Finder use them. **Don't replace system chrome with custom-animated equivalents** — the cost is duplicate buttons, mismatched timing, and a worse result than the system gives for free.
+
+- **The system sidebar toggle (`≡`) is auto-provided by `NavigationSplitView` + `.unified` toolbar style** and uses `NSSplitView`'s native animation. Don't add a custom sidebar toggle wrapped in `withAnimation`. Don't bind `columnVisibility` unless there's a non-toolbar reason (programmatic control, keyboard shortcut, restoration state). The system path is the path.
+- **`.toolbar(removing: .sidebarToggle)` is unreliable on `NavigationSplitView` in macOS 26+.** It compiles but may not actually suppress the system toggle, producing duplicate sidebar buttons. Avoid; if needed for a future case, visually verify before assuming it worked.
+- **Only wrap `withAnimation` on chrome that has no system equivalent.** `.inspector(isPresented:)` qualifies — its panel reveal isn't routed through SwiftUI's animation transaction by default, so view content inside snaps while column geometry animates. Curve: `withAnimation(.smooth(duration: 0.30))` matches macOS-native column timing.
+- **Inspector toolbar items belong inside the `.inspector(...) { content }` closure**, not on the root view's `.toolbar`. Items in the inspector content's `.toolbar` anchor to the inspector's segment of the unified toolbar — they sit at the trailing edge and visually attach to the inspector's column when the panel is open. Items on the root toolbar may render in the wrong segment.
+- **Don't extract animation constants for fewer than three call sites.** Inline `.smooth(duration: 0.30)` directly. Premature abstraction adds nothing.
+
+---
+
 #### AppKit Interop
 
 Areas where pure SwiftUI is expected to be sufficient and areas where wrapping AppKit via `NSViewRepresentable` is likely to be the right tool. Specific tradeoffs are confirmed in build:

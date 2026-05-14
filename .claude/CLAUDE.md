@@ -54,6 +54,8 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
   - `Collections.md` — typed-Collection semantics, `_collection.json` schema, view types, loose entities, embedded views
   - `Items.md` — brief: row-shaped `.json` entries; on-disk, capabilities, Item window UI (popover, 250-char description), kind-picking guidance
   - `Spaces.md` — `.space.json` schema, drag-and-drop canvas, block types, referential framing
+  - `Navigation-Bar.md` — single-row toolbar spec: layout, tab-strip behavior, hover-visibility modes, deferred features
+  - `Sidebar.md` — sidebar selection language (subtle gray fill + accent foreground), light/dark behavior, deferred hover and keyboard nav
   - `Architecture.md` — what survives a stack rebuild (conceptual portability; Swift-locked, React as contingency)
   - `Properties.md` — property type catalog (shared between Pages and Items)
   - `Prospects.md` — post-v1 features and brainstormed ideas
