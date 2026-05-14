@@ -299,7 +299,7 @@ The sidebar surfaces curated, app-relevant navigation, not filesystem layout. Th
 
 ##### Three-Pane Shell + Property Panel
 
-Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes are drag-resizable via splitters from v0.0 onward; resized widths persist across launches. The inspector's **default view is the property panel** for the active Page in v1; an **AI chat interface** is a planned future addition to the inspector (post-v1; a frontend to Nathan's existing local CLI — not an API integration; see `// Features//Prospects.md`). (Items don't use the inspector — they open in an Item window. See "Item Window" below.)
+Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes are drag-resizable via splitters from v0.0 onward; resized widths persist across launches. Default window size 1200×800; minimum 960×560 (keeps both side panes legible). The inspector's **default view is the property panel** for the active Page in v1; an **AI chat interface** is a planned future addition to the inspector (post-v1; a frontend to Nathan's existing local CLI — not an API integration; see `// Features//Prospects.md`). (Items don't use the inspector — they open in an Item window. See "Item Window" below.)
 
 **Window chrome — macOS unified title bar.** No separate Pommora title bar. The macOS traffic-light buttons render in the top-left at runtime (OS-rendered, not custom) within the sidebar pane's column. The top-bar tab row sits in the same horizontal band as the traffic lights, starting from the right edge of the sidebar column and spanning across the main pane. Pattern: Obsidian / Notion / Linear on macOS.
 
@@ -317,7 +317,7 @@ The main pane is **multi-tabbed.** A row of tabs sits at the top of the main pan
 - **Cycle** — `Cmd+1..9` jumps to that-numbered tab; `Ctrl+Tab` / `Ctrl+Shift+Tab` cycle next / previous.
 - **Multiple tabs** — open at once; each preserves internal state (scroll position, selection where reasonable) when switching away and back.
 
-Tab labels show the entity's title (= filename) and a small icon (entity-kind icon: page / collection / space). The active tab is visually distinguished from inactive tabs. Tab chrome is the same shell chrome — consumes `surface// secondary` for the inactive tab background and `surface// primary` for the active tab (continuous with the main pane it heads).
+Tab labels show the entity's title (= filename) and a small icon (entity-kind icon: page / collection / space). The active tab is visually continuous with the main pane it heads; inactive tabs sit recessed. Implementation uses SwiftUI `Material` for the tab-row backdrop with the active tab distinguished via opacity / brightness on top — no custom color extensions for tab states.
 
 **State persistence:** open tabs and the active tab persist across launches. Stored in app settings.
 

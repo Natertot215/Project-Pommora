@@ -60,7 +60,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 - `// Guidelines//`
   - `UIX-Guide.md` — SwiftUI-native design philosophy, component conventions, AppKit interop
 - `// Planning//`
-  - (active SwiftUI v0.0 spec — deferred to a focused later session; the React-locked predecessor is preserved at `// ReactInfo//v0.0.md`)
+  - (currently empty — v0.0 builds from `Framework.md` + `PommoraPRD.md` + `UIX-Guide.md`; React-locked predecessor at `// ReactInfo//v0.0.md`)
 - `// ReactInfo//` — React+Electron contingency reference
   - `Contingency.md` — translation methodology and the update-obligation pattern
   - `ReactInfo.md` — folder index + preserved verified-findings appendix
@@ -75,4 +75,4 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Active Version
 
-**v0.0** — App launches into a styled three-pane shell. No editor, no data wiring. The active SwiftUI v0.0 spec is authored in a focused later session; the React-locked predecessor is preserved at `// ReactInfo//v0.0.md`.
+**v0.0** — App launches into a styled three-pane shell. No editor, no data wiring. Build spec lives in `Framework.md` v0.0 entry + `PommoraPRD.md` shell sections + `// Guidelines//UIX-Guide.md`. Pre-build step is `AccentColor.colorset` in `Assets.xcassets`. The React+Electron-locked predecessor spec is preserved at `// ReactInfo//v0.0.md`.

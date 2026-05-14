@@ -6,7 +6,7 @@ Active and archived plan documents live here.
 
 #### Active Plans
 
-(SwiftUI v0.0 spec deferred to a focused later session)
+None. v0.0 builds directly from `Framework.md` v0.0 entry + `PommoraPRD.md` + `// Guidelines//UIX-Guide.md`; no separate planning doc needed.
 
 #### Completed Plans
 

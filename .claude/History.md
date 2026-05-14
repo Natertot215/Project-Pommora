@@ -121,4 +121,4 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 
 #### Features Implemented
 
-None yet. v0.0 in spec stage; the React+Electron-locked version is preserved at `// ReactInfo// v0.0.md` while the SwiftUI v0.0 spec is authored in a focused later session.
+None yet. v0.0 is build-ready from `Framework.md` + `PommoraPRD.md` + `UIX-Guide.md`; pre-build step is `AccentColor.colorset`. The React+Electron-locked v0.0 spec is preserved at `// ReactInfo// v0.0.md` for contingency.

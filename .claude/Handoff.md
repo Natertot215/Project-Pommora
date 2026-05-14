@@ -16,21 +16,19 @@ No code yet — `.claude//` contains specs only.
 
 ---
 
-#### Active Work — Figma Design System Re-pass + Swift v0.0 Spec (in progress)
+#### Active Work — v0.0 build-ready; Figma re-pass (contingency) ongoing
 
-**Figma re-pass (contingency-side, ongoing):** Nathan is fixing bugs and finalizing the Figma design system. The Figma file remains the React-side translation source if a future pivot ever happens; for Swift, the design is implemented in SwiftUI native idioms with a small set of Pommora-brand `Color` / `Font` extensions for values not covered by semantic colors. Figma-tool workflow detail (file URL, current build state, FRAME → COMPONENT_SET conversion plan) lives at `// ReactInfo//Styling-Tokens.md`.
+**v0.0 is buildable from the current docs.** Framework v0.0 carries the build spec (deployment target macOS 26+, window dimensions, pane defaults, what renders); PRD covers shell + tab chrome; UIX-Guide covers SwiftUI conventions + AppKit interop. Pre-v0.0 step is one Asset Catalog entry (`AccentColor.colorset` with light/dark pastel-muted purple) — Nathan picks the hex at build time. `Color+Pommora.swift` and `Font+Pommora.swift` can be empty stubs until their consuming features land (code colors v0.3+, callout / blockquote v0.3–v0.4).
 
-**Next concrete activity (Swift-side):** author the SwiftUI v0.0 spec at `// Planning//v0.0.md`. The React+Electron-locked predecessor is preserved at `// ReactInfo//v0.0.md`. The SwiftUI v0.0 spec covers an Xcode project + three-pane `NavigationSplitView` consuming SwiftUI semantic colors + Pommora-brand extensions — no editor, no data wiring.
+**Figma re-pass (contingency-side, ongoing):** Nathan is finalizing the Figma design system. The Figma file is the React-side translation source if a future pivot is ever needed; for Swift, the design is implemented in SwiftUI native idioms — the Figma file isn't consumed by the Swift build. Figma-tool workflow at `// ReactInfo//Styling-Tokens.md`.
 
 **Visual direction (locked):**
-- **Density:** Notion-comfortable (~1.6 body line-height)
+- **Density:** Notion-comfortable
 - **Color treatment:** pastel-leaning, muted / desaturated
-- **Typography:** SF Pro (sans) + SF Mono (mono); body 14, caption 12, micro 10
+- **Typography:** SF Pro (sans) + SF Mono (mono), system-native via SwiftUI Font scale
 - **Chrome:** flat dark (no shadows except on overlays)
 - **Rounding:** mixed scale by role (pill for tags, tight for buttons / toggles / labels, surface for cards / panels / modals)
-- **Accent:** single-hue purple, 2×2 matrix (primary / secondary × active / muted), pastel-muted
-
-**Accent rule:** components binding to "accent" use a single accent token slot (typically `accent/primary/active`). Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top — they do NOT swap between accent sub-tokens.
+- **Accent:** pastel-muted purple, single-hue. Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top of `Color.accentColor` — not separate accent values.
 
 ---
 
