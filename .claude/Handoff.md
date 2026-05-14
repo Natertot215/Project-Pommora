@@ -22,14 +22,6 @@ No code yet — `.claude//` contains specs only.
 
 **Figma re-pass (contingency-side, ongoing):** Nathan is finalizing the Figma design system. The Figma file is the React-side translation source if a future pivot is ever needed; for Swift, the design is implemented in SwiftUI native idioms — the Figma file isn't consumed by the Swift build. Figma-tool workflow at `// ReactInfo//Styling-Tokens.md`.
 
-**Visual direction (locked):**
-- **Density:** Notion-comfortable
-- **Color treatment:** pastel-leaning, muted / desaturated
-- **Typography:** SF Pro (sans) + SF Mono (mono), system-native via SwiftUI Font scale
-- **Chrome:** flat dark (no shadows except on overlays)
-- **Rounding:** mixed scale by role (pill for tags, tight for buttons / toggles / labels, surface for cards / panels / modals)
-- **Accent:** pastel-muted purple, single-hue. Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top of `Color.accentColor` — not separate accent values.
-
 ---
 
 #### Pending Explorations
@@ -37,14 +29,6 @@ No code yet — `.claude//` contains specs only.
 - **Audit findings to commit or defer** — Zod-equivalent validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety. Captured as findings, not committed. Decide once v0.0 implementation begins.
 
 - **Optional spike before commit** — fork-Clearly assessment to size the native build gap (Option 1), or a WKWebView-host JS editor PoC (Option 2). Option 2 is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`). React-side reference at `// ReactInfo// Editor.md`.
-
----
-
-#### Open Questions
-
-(none currently)
-
-Resolved: Stack call → SwiftUI. Figma design system locked at variables + visual-mocks level; React-side detail preserved at `// ReactInfo// Styling-Tokens.md`. Context7 research run across React and SwiftUI library claims — `@tiptap/markdown` is first-party, `@dnd-kit/core` v6 vs `@dnd-kit/react` split, BlockNote XL pricing, SwiftUI Option 2 WKWebView details (including `WKURLSchemeHandler` workaround) all documented.
 
 ---
 
@@ -72,7 +56,6 @@ Real items needing resolution before they bite, organized by when they'll surfac
 ##### Underspecified UX edges
 
 - **Filename collisions on creation** — auto-suffix (`Notes 2.md`)? Reject? Prompt? Wikilink-resolution collisions have rules; creation-time collisions don't.
-- ~~Invalid filename characters in titles.~~ **Out of scope** — Pommora doesn't enforce filename validity beyond what the OS enforces; that's an Obsidian-style concern, not Pommora's.
 - **Pommora-flavored Markdown is a dialect** — the `:::columns` and `:::callout` directives appear as inert notation in non-Pommora tools. Standard Markdown round-trips perfectly; the directives don't. Worth acknowledging this honestly in the docs rather than implying universal portability.
 - **First-launch with an existing folder** — if the user picks a vault folder that already has `.pommora//` from a prior install, behavior isn't specified.
 - **`@view` language in Spaces is imprecise** — docs use "`@view` directive" but `.space.json` is structured JSON with `embedded-collection-view` blocks. Either formalize a directive grammar or change the language to "embedded-view blocks."
@@ -82,3 +65,12 @@ Real items needing resolution before they bite, organized by when they'll surfac
 #### Branch Status
 
 Main branch. Remote: `https://github.com/Natertot215/Project-Pommora.git`. Studio working tree is the current source of truth.
+
+#### Open Questions
+
+Pre-v0.0 step (one thing Nathan does before pointing Claude at a build):
+
+Add AccentColor.colorset to Assets.xcassets with light/dark variants of the pastel-muted purple. Nathan picks the hex.
+Color+Pommora.swift and Font+Pommora.swift can be empty stubs; populated as code/callout/blockquote features land in v0.3+.
+Bundle ID (Nathan picks at Xcode project creation — e.g., com.nathantaichman.Pommora)
+Editor option 1 vs option 2 (v0.3+ decision; doesn't affect v0.0)

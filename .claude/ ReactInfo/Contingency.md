@@ -27,6 +27,8 @@ The trigger phrase is "something big OR an obvious React way" — if either appl
 ##### Design tokens
 - SwiftUI `Color` / `Font` extensions → CSS custom properties (`--surface-primary-bg`). Same Figma source exports both; only the export target file changes. See `Styling-Tokens.md`.
 
+Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop. Pommora picks density, contrast, and typographic restraint cues from these but doesn't copy values.
+
 ##### Icons
 - SF Symbols via `Image(systemName:)` (no indirection needed) → Material Symbols via `react-material-symbols` through `.pommora// symbols.json` semantic-role layer. See `Symbols-guide.md`.
 
