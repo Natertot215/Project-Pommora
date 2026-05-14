@@ -8,7 +8,7 @@ Iconography indirection on the React path. Components reference **semantic symbo
 
 #### The mapping file
 
-`.pommora// symbols.json` inside the vault. **Seeded on first launch from the canonical icon role table in `// Planning//Figma Prompt.md`** (covers shell / chrome, common actions, entity kinds, sidebar sections, editor formatting, property types, views, and view controls). Format:
+`.pommora// symbols.json` inside the vault. Seeded on first launch from the canonical icon role table — covers shell / chrome, common actions, entity kinds, sidebar sections, editor formatting, property types, views, and view controls. Format:
 
 > **Symbol color tokens** — symbols have their own color tokens (`symbol// primary`, `symbol// muted`, `symbol// active`); default render is `symbol// muted`. Defined in the Figma file alongside other Variables. Components can bind a specific symbol slot to a different `symbol//` token without touching text or accent.
 >

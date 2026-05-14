@@ -65,14 +65,6 @@ Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, A
 
 ---
 
-#### Resolved (formerly open)
-
-- **Default typography** — locked: SF Pro (sans) + SF Mono (mono), system-native via SwiftUI Font scale. Body baseline maps to `.font(.body)`; custom sizes for caption / micro where needed.
-- **Density** — locked: Notion-comfortable (moderate breathing room, ~1.6 body line-height).
-- **Accent semantics** — locked: components binding to "accent" use `Color.accentColor` (system-tinted) or the Pommora accent extension. Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers via standard SwiftUI patterns (`.opacity()`, `.brightness()`, `ButtonStyle` configurations) — they do NOT swap between separate accent values.
-
----
-
 #### AppKit Interop
 
 Areas where pure SwiftUI is expected to be sufficient and areas where wrapping AppKit via `NSViewRepresentable` is likely to be the right tool. Specific tradeoffs are confirmed in build:

@@ -19,7 +19,7 @@ These are the decisions that define Pommora and would carry forward to a rebuild
 - **Editor serialization architecture — canonical on-disk format vs rich in-editor working format.** Every editor framework has an internal working representation that isn't its on-disk format. Pommora's design treats this as a load-bearing decision: the on-disk format (Markdown for Pages, JSON for Spaces / Items / Collections) is what agents and external tools see; the in-editor working format is whatever the editor framework prefers (a styled-attribute model on the SwiftUI native editor; the JS editor's internal block tree on WKWebView Option 2). Explicit serializers bridge the two for the Pommora-specific directives. This pattern survives a stack pivot — the on-disk format is canonical regardless of which editor the codebase uses; the in-editor working format is stack-specific by definition.
 - **Wikilink behavior** — name-based resolution, rename cascade, ambiguity disambiguation
 - **View directives** — table / board / list / cards / gallery; saved view spec shape; embed-time override semantics. Views render members of whichever kind the source Collection is (no per-view member-kind switch — that decision lives at the Collection level).
-- **Design tokens** — Figma's semantic role-based naming exports cleanly to SwiftUI Color extensions (and, if pivoted, to CSS custom properties) (`// Guidelines//UIX-Guide.md`)
+- **Design values** — Pommora-brand accent / code / callout / blockquote values live in `Assets.xcassets` + `Color+Pommora.swift` / `Font+Pommora.swift`. SwiftUI semantic colors and Font scale carry the rest. The values themselves (hex, sizing, role intent) translate cleanly to CSS custom properties for a hypothetical React rebuild; the React-flavored ~118-token taxonomy is preserved at `// ReactInfo//Styling-Tokens.md`. (`// Guidelines//UIX-Guide.md` covers Swift-side conventions.)
 - **UX patterns** — three-pane shell, sidebar logical model, collapsed-by-default disclosure, wikilinks-as-styled-colored-inline-text, Item window (popover anchored to trigger; Calendar-event-detail pattern). Editor UX is stack-specific and does NOT survive a rebuild: SwiftUI Pages run either a source-with-decorations native text editor (Option 1) or a WKWebView-hosted JS editor — Tiptap, Milkdown, or BlockNote (Option 2, likely direction). On-disk Markdown is identical regardless of editor choice.
 - **Agent legibility contract** — every entity is a file an external agent can read directly; SQLite is performance scaffolding, not source of truth. Survives any stack rebuild trivially because the contract is about the on-disk shape, not the runtime.
 
@@ -48,11 +48,11 @@ The React-side detail for each of these lives in `// ReactInfo//` (organized by 
 
 These aren't enforced separations or structural rules — they're patterns that keep a future rebuild scenario tractable:
 
-- Frontmatter schemas live in JSON sidecars (canonical files), not embedded in code, so a rebuild loads the same schemas
-- Item entries live as individual `.json` files (canonical files), not in SQLite-only rows — so a rebuild reads them with `JSONDecoder` / `JSON.parse` and gets the same data
-- View specs (filter, sort, group, shown-properties) are data, not code — same files work in both stacks
-- File renames + wikilink rewrites are an algorithm specified in the PRD, not a stack-specific code pattern
-- The Markdown file is the spec, not the render — directives reference data; data lives in SQLite; rendering is stack-specific but the directives aren't
+- Frontmatter schemas live in JSON sidecars (canonical files), not embedded in code, so a rebuild loads the same schemas.
+- Item entries live as individual `.json` files (canonical files), not in SQLite-only rows — a rebuild reads them with `JSONDecoder` and gets the same data.
+- View specs (filter, sort, group, shown-properties) are data, not code — the same files would be consumed identically by a React rebuild.
+- File renames + wikilink rewrites are an algorithm specified in the PRD, not a code-shape pattern.
+- The Markdown file is the spec, not the render — directives reference data; data lives in SQLite; rendering depends on the editor implementation but the directives don't.
 - The agent-legibility contract is a discipline applied to every architecture decision: would an external agent reading files-only still see this? If no, the decision needs revisiting.
 
 There is no "Core layer with zero UI imports" rule. There is no enforced three-layer model. Implementation patterns are SwiftUI-natural — the portability comes from the documented decisions above, not from how the code is organized.

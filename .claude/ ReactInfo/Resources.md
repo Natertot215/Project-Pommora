@@ -1,6 +1,6 @@
 ### React-side Library Catalog
 
-Sliced from `.claude//Resources.md` during the Swift-lock restructure. Editor primitives that are co-evaluated for both stacks (BlockNote, Tiptap, Milkdown, etc.) are duplicated here for navigation convenience — the Swift-side catalog also references them under WKWebView Option 2.
+React-side library catalog for the contingency path. Editor primitives (BlockNote, Tiptap, Milkdown, etc.) are also the candidate JS editors for Pommora's Swift Option 2 (WKWebView host); the Swift-side catalog at `.claude//Resources.md` cross-references them there.
 
 ---
 

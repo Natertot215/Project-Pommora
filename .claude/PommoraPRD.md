@@ -20,7 +20,7 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property and q
 
 #### Audience and Posture
 
-- Personal-first, single-user, Mac-first for v1. Linux / Windows are not on the v1 path but aren't forever-closed — the stack call shapes how viable they'd be later. iOS / iPad is real long-term intent.
+- Personal-first, single-user, Mac-first for v1. Linux / Windows aren't on the v1 path and become contingency-only on SwiftUI — they'd need a React rebuild. iOS / iPad is real long-term intent (SwiftUI ships there essentially for free).
 - Always open-source.
 - Architected so future cross-device and cloud sync support remain viable — but those aren't v1 concerns. Multi-user collaboration and a plugin system are explicitly out of scope (now and indefinitely).
 

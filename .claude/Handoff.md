@@ -18,7 +18,7 @@ No code yet — `.claude//` contains specs only.
 
 #### Active Work — Figma Design System Re-pass + Swift v0.0 Spec (in progress)
 
-**Figma re-pass (contingency-side, ongoing):** Nathan is fixing bugs and finalizing the Figma design system. The Figma file remains the React-side translation source if a future pivot ever happens; for Swift, the design is implemented in SwiftUI native idioms with a small set of Pommora-brand Color/Font extensions for values not covered by semantic colors. Figma-tool workflow detail at `// ReactInfo//Styling-Tokens.md`. The FRAME → COMPONENT_SET conversion plan (~28 source SETs from 35 gallery FRAMEs) lives at `// Planning// Figma Components 5-13.md`.
+**Figma re-pass (contingency-side, ongoing):** Nathan is fixing bugs and finalizing the Figma design system. The Figma file remains the React-side translation source if a future pivot ever happens; for Swift, the design is implemented in SwiftUI native idioms with a small set of Pommora-brand `Color` / `Font` extensions for values not covered by semantic colors. Figma-tool workflow detail (file URL, current build state, FRAME → COMPONENT_SET conversion plan) lives at `// ReactInfo//Styling-Tokens.md`.
 
 **Next concrete activity (Swift-side):** author the SwiftUI v0.0 spec at `// Planning//v0.0.md`. The React+Electron-locked predecessor is preserved at `// ReactInfo//v0.0.md`. The SwiftUI v0.0 spec covers an Xcode project + three-pane `NavigationSplitView` consuming SwiftUI semantic colors + Pommora-brand extensions — no editor, no data wiring.
 
