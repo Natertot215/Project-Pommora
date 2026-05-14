@@ -1,98 +1,77 @@
 ### UIX Guide
 
-Pommora's visual identity, component library, and design tokens. Figma is the source of truth; tokens export to SwiftUI `Color` / `Font` extensions.
+Pommora's visual identity, component library, and design conventions — Swift/Apple-native.
 
 ---
 
-#### Source of Truth
+#### Design philosophy
 
-Two-tier model:
+Pommora follows Apple's macOS Human Interface Guidelines for native cohesion. The toolkit is **SwiftUI primary + AppKit where SwiftUI doesn't reach** — both are first-class. The shell uses SwiftUI native idioms wherever possible:
 
-- **Figma is the source of truth for design tokens.** Colors, typography, spacing, radii, shadows. The Figma file holds the canonical token values; the SwiftUI export consumes them.
-- **The component library is the source of truth for components.** Components are built using Figma's tokens; once a component lands in the library it's authoritative. Features consume from the library — they don't fork or tweak components per-screen.
+- **Semantic colors** — `Color(.systemBackground)`, `Color(.secondarySystemBackground)`, `.foregroundStyle(.primary)`, `.foregroundStyle(.secondary)`. Automatic dark mode and accessibility support; no overrides needed.
+- **Materials** — `Material.regular`, `.thin`, `.thick`, `.ultraThin`, `.sidebar` for vibrancy/translucency.
+- **Native typography** — SwiftUI Font scale (`.font(.body)`, `.font(.callout)`, `.font(.caption)`, `.font(.system(.body, design: .monospaced))`). Custom sizes only where the scale doesn't fit. Dynamic Type is free.
+- **SF Symbols** — `Image(systemName: "settings")`. The native iconography, available everywhere.
+- **Native controls** — system Button, Slider, Toggle, etc. with `ButtonStyle` and `ViewModifier` for reusable Pommora-specific styling.
+- **Window chrome** — macOS unified title bar, OS-rendered traffic-light buttons.
 
-**Components are not edited during implementation.** When building features, components from the library get used as-is. If a component needs to change, the change happens in the library first (which propagates everywhere it's used), then feature work continues. This keeps the library a single canonical reference and prevents drift between intended and actual visual identity.
+**AppKit is used directly** where SwiftUI is insufficient or rough — most notably for the editor on Option 1 (NSTextView / TextKit 2 carries source-with-decorations text behavior; STTextView is the modern wrapper) and for splitter polish (NSSplitView via `NSViewRepresentable` outperforms SwiftUI's `HSplitView` in production). AppKit isn't an escape hatch — it's the Apple-native answer when SwiftUI's surface stops short. The AppKit Interop section below catalogues the specific places this comes up.
 
-Figma file: https://www.figma.com/design/cm2wRDXWKg05iydG412z4B/Project-Pommora (fileKey `cm2wRDXWKg05iydG412z4B`).
+On top of the SwiftUI + AppKit baseline, Pommora has a small set of brand-specific values that don't have native equivalents — pastel-muted purple accent, code block colors, callout border, blockquote accent bar — that express Pommora's character within the Apple aesthetic.
 
-#### Current build state
+---
 
-Tokens (~118 vars) and primitives + composed components are built in the Figma file as gallery FRAMEs with full token bindings. Nine Tag components are converted to standalone COMPONENTs; the remaining 35 gallery items are still FRAMEs.
+#### Where Pommora's brand values live
 
-**Next step:** FRAME → COMPONENT_SET conversion per `.claude// Planning// Figma Components 5-13.md`. After conversion, the file is a real reusable component library (single source per concept, variant properties, INSTANCE references everywhere) ready for code translation.
+- **App accent color** — Asset Catalog (`Assets.xcassets/AccentColor.colorset`) with light/dark variants. Accessed natively via `Color.accentColor` or set globally with `.tint(.accentColor)`.
+- **Pommora-specific Colors** — small Color extensions (`Color+Pommora.swift` or Asset Catalog color sets) for the handful of values SwiftUI semantic colors don't cover: code block fg/bg, callout border (+ optional bg), blockquote accent bar, any custom surface variants. Apple-idiomatic naming: `Color.pommoraCodeBackground`, `Color.pommoraCalloutBorder`, etc.
+- **Pommora-specific Fonts** — small Font extensions where the SwiftUI scale doesn't fit (e.g. micro / caption variants).
 
-**Then:** translate Figma → SwiftUI views in `UI-UX// Components//` and browse via Xcode `#Preview`. The component library lives as SwiftUI views inside the app target (or a small Swift Package); components reference design tokens via SwiftUI `Color` and `Font` extensions consumed from the Figma export.
+That's the entire "Pommora brand surface" on Swift. SwiftUI semantic colors and Font scale carry the rest.
 
-#### Dual-Export Naming Discipline
+> The full ~118-token design system (with semantic role-based naming, surface/element tier model, dual-axis taxonomy) is a React-pattern that prototyped well in Figma. It lives as the React-side reference at `// ReactInfo// Styling-Tokens.md`. For Swift, that level of token engineering isn't needed — SwiftUI's semantic system does most of the work.
 
-The hard rule that keeps tokens stack-portable: **Figma Variables use semantic role-based names, never implementation-flavored names.**
+---
 
-| ✅ Use | ❌ Avoid |
-|---|---|
-| `surface/primary/bg` | `bg-zinc-900` |
-| `element/secondary/fg` | `text-blue-500` |
-| `text/muted` | `gray-400` |
-| `border/subtle` | `border-zinc-800` |
+#### Editor canvas (WKWebView Option 2)
 
-Export target: SwiftUI `Color` extensions: `Color.surface.primary.bg`. Generated as a Swift source file consumed by the SwiftUI views from the same Figma source — adding a new token in Figma updates the export automatically.
+The WKWebView editor renders HTML/CSS inside a native shell. CSS theming inside the canvas **does** use design tokens (CSS custom properties) because that's how web-side styling works. The token set is small — it mirrors the SwiftUI brand values above so the editor matches the shell — and gets injected into the editor canvas via the JS bridge at editor mount.
 
-> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` — export target becomes CSS custom properties (`--surface-primary-bg`) referenced directly by Tailwind CSS v4.
+If Option 1 (native NSTextView) is chosen instead, no CSS tokens are needed; the editor styles with SwiftUI attributes directly.
 
-#### Tier Model (Two Axes)
+---
 
-Components reference tokens organized on two independent axes:
+#### Component conventions
 
-**Surface tier (UI region):**
-- `surface/primary/*` — main content area (editor, page body)
-- `surface/secondary/*` — persistent chrome (sidebars, top bar, property panel)
-- `surface/tertiary/*` — transient overlays (popovers, tooltips, modals, dropdowns)
+- **Prefer SwiftUI semantic colors and fonts.** Use Pommora extensions only for values that don't have native equivalents.
+- **Modern modifiers.** `.foregroundStyle(.primary)` not `.foregroundColor()`. `.clipShape(.rect(cornerRadius: 12))` not `.cornerRadius()`.
+- **Reusable styling via `ViewModifier` and `ButtonStyle`.** Encapsulate repeated visual patterns. Example: `cardStyle()` modifier wraps padding + background + corner radius.
+- **Single component per concept.** One `Button` with a `style` enum or `ButtonStyle`, not seven button files.
+- **Cascade discipline.** Brand values change in one place (Asset Catalog or extension); propagation is automatic.
 
-**Element tier (interactive prominence):**
-- `element/primary/*` — main CTAs, accent actions, selected states
-- `element/secondary/*` — supporting buttons, cards, neutral actions
-- `element/tertiary/*` — quiet UI, ghost buttons, dividers, muted controls
+---
 
-**Combinatorial rule:** any element tier can render on any surface tier. A primary button on a tertiary surface (a modal) is fully defined by referencing both tokens.
+#### Component library
 
-Each tier exposes per-role tokens: `bg`, `bg-hover`, `bg-active`, `fg`, `fg-muted`, `border`, `border-strong` (where relevant).
+`// UI-UX//Components//` holds SwiftUI views (app target or a small Swift Package), browsed via Xcode `#Preview`. Components are not edited during feature work — refinements happen in the library first, then propagate.
 
-#### Initial Scheme
+---
 
-One initial scheme ships in v0.x — **no built-in light/dark, no theme switcher.** In-app customization for color + typography tokens lands in Framework v0.12.
+#### Initial scheme
 
-The scheme leans neutral and quiet so customization feels like personalization rather than choosing between two presets. Exact color values are defined in the Figma file.
+Dark mode first. SwiftUI semantic colors cover the shell; Pommora extensions provide the accent and brand-specific values. No built-in light/dark toggle in v0.x; in-app customization for the accent + typography size lands in Framework v0.12.
 
-Dark mode first. Pommora design tokens applied on top of SwiftUI's native primitives (NSVisualEffectView for vibrancy, SF Symbols for icons, system controls for behavior). Native cohesion comes from the primitives; Pommora's visual identity comes from the tokens. Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop — tokens define the actual values; reference apps inform density, contrast, typographic restraint but aren't copied.
+Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop. Pommora picks density, contrast, and typographic restraint cues from these but doesn't copy values.
 
-#### Icon System
-
-**Symbol color tokens.** Symbols have their own color Variables (`symbol// primary`, `symbol// muted`, `symbol// active`) that default-resolve to text / accent values but can be overridden independently. Default symbol color is `symbol// muted` — every icon renders muted unless a component explicitly binds it to `primary` or `active`.
-
-**Initial-build placeholder.** Until specific icons are finalized per role, the Figma design system uses the `crop_free` Material Symbol (a square frame) for every symbol slot. The icon-role finalization (mapping each placeholder to its real SF Symbol equivalent) is post-conversion work; until then `crop_free` stays inline and the INSTANCE_SWAP `vector` slot on the Icon component is deferred.
-
-**SF Symbols** via SwiftUI's `Image(systemName:)` (outlined default; symbol weight and rendering mode adjusted per usage). Icons are defined as view modifiers consistent per surface tier. No indirection layer needed — SF Symbols is the native iconography, available everywhere.
-
-> If pivoting to React, see `// ReactInfo// Symbols-guide.md` for the semantic-role indirection layer (`.pommora// symbols.json`) that lets the icon library be swapped without rewriting components.
-
-#### v0.x Scope
-
-**In:**
-- Figma file with foundations: colors, typography, spacing, radii, shadows
-- Three-pane shell components: Sidebar, MainContent, Inspector
-- Token export to SwiftUI `Color` / `Font` extensions
-- SF Symbols icon system
-
-**Deferred to v1:**
-- Auditor UI (token browser, component browser, hover-to-target)
-- User-authored design overrides
-- Theme files (full token remaps)
-- Light/dark mode (revisit only after customization story is validated)
+---
 
 #### Resolved (formerly open)
 
-- **Default typography** — locked: SF Pro (sans) + SF Mono (mono), system-native. Body 14px baseline; em-relative heading scale (H1–H5; no H6 in v0). Sub-body sizes added: caption 12px, micro 10px. Type tokens scoped per type so v0.12 in-app customization can override each independently. Full scale lives in the Figma file (`Tokens` collection, `font/size/*` and `font/lineHeight/*`).
+- **Default typography** — locked: SF Pro (sans) + SF Mono (mono), system-native via SwiftUI Font scale. Body baseline maps to `.font(.body)`; custom sizes for caption / micro where needed.
 - **Density** — locked: Notion-comfortable (moderate breathing room, ~1.6 body line-height).
-- **Accent semantics** — locked: components binding to "accent" use a single accent token slot (typically `accent/primary/active`). Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top — they do NOT swap between accent sub-tokens. The 2×2 accent matrix exists for designer choice across contexts, not as a state-axis within a single component.
+- **Accent semantics** — locked: components binding to "accent" use `Color.accentColor` (system-tinted) or the Pommora accent extension. Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers via standard SwiftUI patterns (`.opacity()`, `.brightness()`, `ButtonStyle` configurations) — they do NOT swap between separate accent values.
+
+---
 
 #### AppKit Interop
 
@@ -102,7 +81,3 @@ Where pure SwiftUI is sufficient vs. where `NSViewRepresentable` wrapping is the
 - **Resizable columns with persistent splitter** — SwiftUI's `HSplitView` works but is rough; wrap `NSSplitView` via `NSViewRepresentable` for production polish.
 - **Tree-shaped reorderable structure with cross-level drag** — pure SwiftUI is doable (`DisclosureGroup` + manual `NSItemProvider`) but not pretty. Reference: [shufflingB/swiftui-macos-tree-list-demo](https://github.com/shufflingB/swiftui-macos-tree-list-demo).
 - **Unified cursor flow across columns / callouts** — only achievable via `NSTextView` / TextKit 2 (STTextView).
-
-#### Open Questions
-
-(none currently — Figma file is built; conversion plan is at `.claude// Planning// Figma Components 5-13.md`; SwiftUI translation begins after the conversion completes.)

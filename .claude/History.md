@@ -4,7 +4,11 @@ Locked decisions, ordered by area. Brief by design — implementation detail liv
 
 #### Decisions
 
-##### Stack
+##### Stack — Resolved: SwiftUI
+
+Locked to SwiftUI after full review (Mac cohesion + Apple ecosystem alignment + iOS/iPad future intent). React+Electron is preserved as the contingency path; translation methodology lives at `// ReactInfo//Contingency.md`. Detail below preserved as the research record that informed the decision.
+
+
 - **Initial direction:** React + Electron + Tailwind + TypeScript + BlockNote + better-sqlite3 + Material Symbols, with SwiftUI as a deferred v2 path.
 - **Currently under re-evaluation.** Both React+Electron and SwiftUI remain viable; only the editor surface and desktop shell are stack-specific (rest is portable).
 - **2026 SwiftUI research:** WWDC25's native `AttributedString` binding to `TextEditor` removed the long-standing rich-text-editing blocker. `apple/swift-markdown`, GRDB.swift (FTS5 + `ValueObservation`), SF Symbols all production-ready. Wikilinks-as-styled-spans dissolves the chip/pill inline attachment gap.
@@ -109,7 +113,7 @@ Locked decisions, ordered by area. Brief by design — implementation detail liv
 - **Empty sidebars + seeded `Homepage` Space.** No tutorial, no walkthrough wizard. First Pages / Collections are user-created.
 
 ##### Design System
-- **Two-tier source of truth.** Figma owns design tokens — semantic role-based names (`surface// primary// bg`) exporting to CSS custom properties (React) and SwiftUI Color extensions (Swift). The component library owns components — built from those tokens; once in the library, consumed as-is during feature work (no per-screen tweaks). React library lives on Pommora's own localhost (no Storybook intermediary).
+- **Two-tier source of truth (resolved to Swift-native baseline).** Pommora uses SwiftUI semantic colors + Pommora-brand Color/Font extensions for values not covered by native semantics; the component library at `// UI-UX//Components//` consumes them (no per-screen tweaks). Original tokens were built in Figma with semantic role-based names (`surface// primary// bg`); that full ~118-token taxonomy is React-flavored and preserved in `// ReactInfo//Styling-Tokens.md`. For Swift, only a small subset matters (accent, code, callout, blockquote) — SwiftUI semantic colors carry the rest.
 - **Build order**: Figma design-system phase (pre-v0.0; stack-agnostic at the variable level) → stack decision → v0.0 shell consumes the design system. Design system precedes the stack call.
 - **One initial scheme** in v0.x — no built-in light / dark; in-app customization for colors and typography lands in Framework v0.12.
 - **Dual-axis tier model** — surface tier × element tier (independent axes), each with primary / secondary / tertiary.

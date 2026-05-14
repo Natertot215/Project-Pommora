@@ -2,7 +2,7 @@
 
 #### Current State
 
-Domain model: **Pages** (`.md`), **Collections** (folder + `_collection.json`), **Spaces** (`.space.json` block trees), **Items** (`.json`, Collection-bound). Collections are typed at creation (`kind: "pages" | "items"`); Pages and Items can also exist loose (outside any Collection folder — built-in fields only, no schema-conforming properties). Moving members across Collections strips non-matching properties Notion-style.
+Stack locked to **SwiftUI**. Domain model: **Pages** (`.md`), **Collections** (folder + `_collection.json`), **Spaces** (`.space.json` block trees), **Items** (`.json`, Collection-bound). Collections are typed at creation (`kind: "pages" | "items"`); Pages and Items can also exist loose (outside any Collection folder — built-in fields only, no schema-conforming properties). Moving members across Collections strips non-matching properties Notion-style.
 
 Pages are Markdown documents with two Pommora rendering directives (`@Columns`, `:::callout`); headings are foldable by default; blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Spaces are block-composition surfaces — "block-level features" as a term belongs only to Spaces. Wikilinks render as styled colored inline text.
 
@@ -10,63 +10,43 @@ Sidebar: three top-level collapsible headings (Spaces / Saved / Collections), us
 
 Vault: user-pickable on first launch (default suggestion `~// PommoraVault//`). App-internal config lives in `.pommora//` inside the vault (matches `.obsidian` convention). First launch seeds a `Homepage` Space; nothing else. Versioning is delegated to OS tools (Time Machine / git).
 
-Architecture: **conceptual portability of functionalities** — file formats, schemas, design tokens, and UX patterns survive a stack rebuild; the codebase doesn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Both stack paths (React+Electron, SwiftUI) audited; PRD has the dual-stack table.
+Architecture: **conceptual portability of functionalities** — file formats, schemas, design tokens, and UX patterns would survive a stack rebuild to React+Electron; the codebase wouldn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Pivot methodology at `// ReactInfo//Contingency.md`.
 
 No code yet — `.claude//` contains specs only.
 
 ---
 
-#### Active Work — Figma Design System (in progress)
+#### Active Work — Figma Design System Re-pass + Swift v0.0 Spec (in progress)
 
-Design system built in Figma at the variable + visual-mock level: ~118 tokens (100% binding except for one technical text-lineHeight constraint), primitives and composed components rendered as gallery FRAMEs, three-pane shell mockup assembled. Nine Tag components converted to standalone COMPONENTs in the previous session; remaining 35 gallery items are still FRAMEs (can't be referenced as instances anywhere yet).
+**Figma re-pass (contingency-side, ongoing):** Nathan is fixing bugs and finalizing the Figma design system. The Figma file remains the React-side translation source if a future pivot ever happens; for Swift, the design is implemented in SwiftUI native idioms with a small set of Pommora-brand Color/Font extensions for values not covered by semantic colors. Figma-tool workflow detail at `// ReactInfo//Styling-Tokens.md`. The FRAME → COMPONENT_SET conversion plan (~28 source SETs from 35 gallery FRAMEs) lives at `// Planning// Figma Components 5-13.md`.
 
-**Next concrete activity:** FRAME → COMPONENT_SET conversion per the plan at `// Planning// Figma Components 5-13.md`. Converts the 35 gallery FRAMEs into ~28 source COMPONENT_SETs (Button consolidates 4 galleries into one 40-variant SET; Disclosure consolidates 2 galleries). After conversion the Figma file becomes a real reusable component library that the React translation can consume directly.
-
-**After conversion: the live React demo.** Translating components Figma → React + Tailwind in `UI-UX// Components//` and getting the localhost dev server running is what makes the React-flavored UIX outcome legible. Until the live demo exists, "what React feels like" is hypothetical and the stack decision can't be evidence-based.
+**Next concrete activity (Swift-side):** author the SwiftUI v0.0 spec at `// Planning//v0.0.md`. The React+Electron-locked predecessor is preserved at `// ReactInfo//v0.0.md`. The SwiftUI v0.0 spec covers an Xcode project + three-pane `NavigationSplitView` consuming SwiftUI semantic colors + Pommora-brand extensions — no editor, no data wiring.
 
 **Visual direction (locked):**
 - **Density:** Notion-comfortable (~1.6 body line-height)
 - **Color treatment:** pastel-leaning, muted / desaturated
-- **Typography:** SF Pro (sans) + SF Mono (mono); body 14, caption 12, micro 10 (added this session)
+- **Typography:** SF Pro (sans) + SF Mono (mono); body 14, caption 12, micro 10
 - **Chrome:** flat dark (no shadows except on overlays)
 - **Rounding:** mixed scale by role (pill for tags, tight for buttons / toggles / labels, surface for cards / panels / modals)
 - **Accent:** single-hue purple, 2×2 matrix (primary / secondary × active / muted), pastel-muted
 
-**Accent rule (clarified this session):** components binding to "accent" use a single accent token slot (typically `accent/primary/active`). Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top — they do NOT swap between accent sub-tokens.
-
-**Output landing zone:** `// UI-UX//` (project root, outside `.claude//`). Folder structure exists with guidelines docs only; `Design//` populates from Figma export, `Components//` populates from Figma → code translation. Components are born from Figma, never invented in code first.
+**Accent rule:** components binding to "accent" use a single accent token slot (typically `accent/primary/active`). Interactive states (hover / active / focus / disabled) apply opacity / brightness modifiers on top — they do NOT swap between accent sub-tokens.
 
 ---
 
-#### Pending Decisions
+#### Pending Explorations
 
-1. **Stack — React+Electron or SwiftUI.** Both remain fully open. The decision hinges on two axes:
+- **Audit findings to commit or defer** — Zod-equivalent validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety. Captured as findings, not committed. Decide once v0.0 implementation begins.
 
-   - **Editor capability.** React: BlockNote / Tiptap are mature and easy to integrate. SwiftUI Option 2 (WKWebView + JS editor) uses the same JS libraries — Tiptap, Milkdown, BlockNote, or MarkdownEditor — making the editor capability gap with React effectively zero if Option 2 is chosen. SwiftUI Option 1 (native text editor) is more build work with TextKit 2 friction but delivers full native text behavior. Editor research is complete; the gap is well-understood on both sides.
-
-   - **Rest-of-app build effort.** React: every component is a Figma → translation; Nathan owns the full UI surface; broader effort but full visual control. SwiftUI: native primitives (Table, LazyVGrid, NavigationSplitView, ReorderableVStack) handle much of the interaction for free; the Spaces and Collection view requirements are within documented SwiftUI capabilities; less total build effort for the shell.
-
-   - **The trade:** React = full control at constant effort across everything. SwiftUI = effort concentrated at specific known edges, native Mac cohesion and iOS/iPad portability for free.
-
-   - **Decision still open.** The Figma design system (functionally the React design system, per Nathan) is built and exports to either stack in 1-2 days. Sunk cost is symmetric — no Pommora code is committed on either stack. The decision rests on forward fit (Mac-first cohesion, iOS/iPad future, Linux/Windows openness, runtime simplicity), not on prototypes.
-
----
-
-#### Pending Explorations (after the design system)
-
-- **Audit findings to commit or defer** — `@parcel/watcher`, `@dnd-kit/core` v6 pin, Zod validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety, `gray-matter` alternatives. Captured as findings, not committed. Decide once stack lands.
-
-- **Optional spike before commit** — BlockNote / Tiptap / Milkdown Markdown round-trip with a custom serializer for `:::columns` and `:::callout` (React-side, in `// ReactInfo// Editor.md`), OR fork-Clearly assessment to size the native build gap (Option 1). Option 2 (WKWebView hosting a JS editor) is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`).
+- **Optional spike before commit** — fork-Clearly assessment to size the native build gap (Option 1), or a WKWebView-host JS editor PoC (Option 2). Option 2 is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`). React-side reference at `// ReactInfo// Editor.md`.
 
 ---
 
 #### Open Questions
 
-- **Stack:** React+Electron or SwiftUI? Decision is on forward fit (Mac-first cohesion, iOS/iPad future intent, Linux/Windows openness, runtime simplicity), not sunk cost — the Figma design system exports to either stack in 1-2 days and no Pommora code is committed yet.
+(none currently)
 
-Resolved prior session: Figma design system locked at variables + visual-mocks level (file at https://www.figma.com/design/cm2wRDXWKg05iydG412z4B/Project-Pommora); FRAME → COMPONENT_SET conversion plan saved at `// Planning// Figma Components 5-13.md`.
-
-Resolved this session: Context7 research run across React and SwiftUI library claims — docs scrubbed of outdated framings (`@tiptap/markdown` is first-party, `@dnd-kit/core` v6 vs `@dnd-kit/react` split, BlockNote XL pricing softened, SwiftUI Option 2 WKWebView details formalized including `file://` ES-module block + `WKURLSchemeHandler` workaround).
+Resolved: Stack call → SwiftUI. Figma design system locked at variables + visual-mocks level; React-side detail preserved at `// ReactInfo// Styling-Tokens.md`. Context7 research run across React and SwiftUI library claims — `@tiptap/markdown` is first-party, `@dnd-kit/core` v6 vs `@dnd-kit/react` split, BlockNote XL pricing, SwiftUI Option 2 WKWebView details (including `WKURLSchemeHandler` workaround) all documented.
 
 ---
 

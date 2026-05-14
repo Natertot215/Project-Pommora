@@ -41,24 +41,24 @@ The Collection kind is the dimension that splits "what shape does an entry have,
 
 #### Core Architectural Decisions
 
-##### Stack — Under Active Evaluation
+##### Stack
 
-Two viable paths. Both produce identical on-disk Markdown and identical SQLite indexes; they differ in the editor surface and desktop shell.
+Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the likely direction for the Pages editor.
 
-| Layer | If React + Electron | If SwiftUI |
-|---|---|---|
-| Desktop shell | Electron | SwiftUI on macOS Tahoe (26+) |
-| UI framework | React + TypeScript (strict) | SwiftUI |
-| Styling | Tailwind CSS | SwiftUI native + Color / Font extensions from Figma |
-| Editor (Pages) | BlockNote (MPL-2.0) or Tiptap (MIT) — co-primary candidates; pivot doors: Milkdown, Yoopta, CodeMirror 6 | Two options: (1) native Swift editor — fork Clearly or build original on NSTextView/AppKit; (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction if SwiftUI chosen; all three have solid Markdown translation |
-| Spaces composer | `@dnd-kit/core` v6 | SwiftUI `.draggable` / `.dropDestination` |
-| Backend layer | Node.js + TypeScript | Pure Swift |
-| Database | SQLite via `better-sqlite3` (WAL mode) | SQLite via GRDB.swift (FTS5 + `ValueObservation`) |
-| Markdown parser | `remark` + `remark-directive` | `apple/swift-markdown` |
-| File watcher | `@parcel/watcher` | `FSEventStream` |
-| Icons | Material Symbols (`react-material-symbols`) | SF Symbols |
+| Layer | SwiftUI |
+|---|---|
+| Desktop shell | SwiftUI on macOS Tahoe (26+) |
+| UI framework | SwiftUI primary + AppKit interop where SwiftUI falls short (NSTextView/TextKit 2, NSSplitView, NSItemProvider for some drag/drop) |
+| Styling | SwiftUI native semantic colors / Materials / Font scale + small Pommora-brand `Color` / `Font` extensions for accent + code + callout values |
+| Editor (Pages) | Option 2 (likely): WKWebView hosting Tiptap, Milkdown, or BlockNote — all translate cleanly to Markdown. Option 1 (more ambitious): native NSTextView/AppKit (fork Clearly or original build). |
+| Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `visfitness/reorderable` + `stevengharris/SplitView` + `Codable Block` enum |
+| Backend layer | Pure Swift |
+| Database | SQLite via GRDB.swift v7.5+ (FTS5 + `ValueObservation`) |
+| Markdown parser | `apple/swift-markdown` (parse only; hand-rolled writer for save path) |
+| File watcher | FSEventStream via Swift wrapper |
+| Icons | SF Symbols via `Image(systemName:)` (no indirection needed) |
 
-The decision is deferred. Functional portability ensures either choice survives a future pivot.
+> If pivoting to React, see `// ReactInfo//Contingency.md` for translation patterns and `// ReactInfo//ReactInfo.md` for the topic-based reference index.
 
 ##### Three load-bearing constraints
 
@@ -341,13 +341,15 @@ On first launch, after the user picks a vault location, Pommora opens with empty
 
 ##### Design System
 
-Two-tier source of truth: Figma owns design tokens; Pommora's component library owns components (built from those tokens; once in the library, consumed as-is during feature work — no per-screen tweaks). v1 ships with one initial scheme **plus in-app customization for colors and typography** (see Framework v0.12). Variables use semantic role-based names (`surface// primary// bg`) so the design exports cleanly to SwiftUI `Color` / `Font` extensions (and to CSS custom properties if pivoted). Build brief: `// Planning//Figma Prompt.md`.
+Pommora uses SwiftUI native idioms: semantic colors (`Color(.systemBackground)`, `.foregroundStyle(.primary)`), Materials (`Material.regular`, `.sidebar`), Font scale (`.font(.body)`, `.font(.callout)`, `.font(.system(.body, design: .monospaced))`), SF Symbols (`Image(systemName:)`). On top of that, a small set of Pommora-specific Color/Font extensions covers the brand accent (pastel-muted purple), code block colors, callout/blockquote treatments — anything SwiftUI semantic colors don't cover. App accent color lives in the Asset Catalog (`Assets.xcassets/AccentColor.colorset`); other Pommora-brand values live as `Color+Pommora.swift` / `Font+Pommora.swift` extensions in `// UI-UX//Design//`.
 
-Tokens export to SwiftUI `Color` / `Font` extensions (`Color.surface.primary.bg`); icons via SF Symbols (`Image(systemName:)`). Component library lives as SwiftUI views inside the app target, browsed via Xcode `#Preview`. The Claude Figma skills (`figma:figma-generate-design`, `figma:figma-use`) handle the Figma side.
+Component library at `// UI-UX//Components//` (SwiftUI views, browsed via Xcode `#Preview`) consumes SwiftUI native + Pommora extensions; no per-screen tweaks. v1 ships with one initial scheme **plus in-app customization for accent and typography** (see Framework v0.12).
 
-> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` and `// ReactInfo// Symbols-guide.md` for the CSS-custom-properties export + Material Symbols indirection layer + Vite + Electron localhost dev server pattern.
+Inside the WKWebView editor canvas (Option 2), CSS custom properties theme the editor's content rendering. The CSS values mirror the SwiftUI Color extensions so the editor matches the shell.
 
-Full token taxonomy, dual-axis tier model, and customization details → `// Guidelines//UIX-Guide.md`.
+> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` for the full ~118-token design system (Figma file + CSS custom properties + Tailwind v4) and `// ReactInfo// Symbols-guide.md` for the Material Symbols indirection layer.
+
+Design philosophy, component conventions, and AppKit interop guidance → `// Guidelines//UIX-Guide.md`.
 
 ##### File Renames and Wikilink Updates
 
