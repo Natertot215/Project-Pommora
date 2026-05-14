@@ -13,7 +13,7 @@ A Markdown-canonical, SQLite-indexed personal management platform that combines 
 Each version adds one capability cluster on top of the previous. Slicing is incremental and demoable — every version produces a verifiable outcome you can run.
 
 ##### v0.0 — Shell opens
-Toolchain proof. App launches on macOS 26+ (Tahoe) into a styled three-pane shell — sidebar (default 240) / main (flex) / inspector (default 280) — built on SwiftUI's `NavigationSplitView`. Both side panes drag-resizable from launch; widths persist across launches. Top-bar tab chrome renders in the main pane (single placeholder tab, non-functional; `+` and `×` buttons render but don't open / close anything). Sidebar and inspector are empty styled surfaces — no data wiring, no vault picker, no editor. Default window 1200×800; minimum 960×560.
+Toolchain proof. App launches on macOS 26+ (Tahoe) into a barebones three-pane shell — sidebar (default 240) / main (flex) / pop-out inspector (default 280, **hidden by default**) — built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with the inspector pane attached via the `.inspector(isPresented:)` modifier on the detail column. Sidebar drag-resizable from launch via `.navigationSplitViewColumnWidth`; inspector drag-resizable when shown via `.inspectorColumnWidth`; widths persist across launches. Inspector toggle lives in two places: a toolbar icon (`sidebar.right` SF Symbol at `.primaryAction`) and the View menu (free from `InspectorCommands()` registered in the App's `.commands`). All three panes are completely empty surfaces — no labels, no data wiring, no vault picker, no editor, no tab chrome (tab chrome and tab navigation both land in v0.1 when files open). Window title is suppressed via `.windowToolbarStyle(.unified(showsTitle: false))` — the macOS unified title bar renders traffic-light buttons but no "Pommora" title text. Default window 1200×800; minimum 960×560.
 
 **Pre-v0.0 prerequisite:** Asset Catalog `AccentColor.colorset` exists (Xcode default is fine — brand-accent value is deferred). `Color+Pommora.swift` and `Font+Pommora.swift` can be empty stubs in v0.0 — populated as their consuming features land (code colors v0.3+, callout/blockquote v0.3–v0.4).
 
@@ -63,4 +63,6 @@ No specific phase commitments yet. Potential features and brainstormed ideas for
 
 #### Current Focus
 
-**v0.0** — buildable from this Framework entry + PRD + UIX-Guide; pre-build step is `AccentColor.colorset` in `Assets.xcassets`. Per-version planning docs are authored as we approach each version, not pre-stubbed. Implementation order has not been reviewed or approved by Nathan; this order will likely change.
+**v0.0 shipped.** Barebones three-pane shell (sidebar + main + hidden-by-default pop-out inspector) lives at [Pommora/Pommora/](Pommora/Pommora/). Build verified via `xcodebuild`.
+
+**Next: v0.1** — vault reads + functional tab chrome. Per-version planning docs are authored as we approach each version, not pre-stubbed. Implementation order has not been reviewed or approved by Nathan; this order will likely change.

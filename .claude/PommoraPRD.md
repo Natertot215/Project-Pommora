@@ -305,7 +305,7 @@ Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side pan
 
 Below-heading and page-bottom property-panel placements are post-v1 Prospects.
 
-Built on SwiftUI's `NavigationSplitView` (the three-column `sidebar` / `content` / `detail` initializer), which fits the three-pane shell shape.
+Built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with the inspector pane attached to the detail column via the `.inspector(isPresented:)` modifier (macOS 14+). This is Apple's idiomatic pattern for main-pane + supplementary side panel — used by Mail, Notes, and Pages. Inspector width is set via `.inspectorColumnWidth(min:ideal:max:)`; the toolbar toggle integrates automatically via `InspectorCommands`. The third-column variant of `NavigationSplitView` was considered and rejected — that column is designed for selected-item drill-down (Mail's list → message-list → message), not for a contextual supplementary panel.
 
 ##### Top-Bar Tabs
 

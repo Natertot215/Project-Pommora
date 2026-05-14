@@ -75,4 +75,4 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Active Version
 
-**v0.0** — App launches into a styled three-pane shell. No editor, no data wiring. Build spec lives in `Framework.md` v0.0 entry + `PommoraPRD.md` shell sections + `// Guidelines//UIX-Guide.md`. Pre-build step is `AccentColor.colorset` in `Assets.xcassets`. The React+Electron-locked predecessor spec is preserved at `// ReactInfo//v0.0.md`.
+**v0.0 shipped.** Barebones three-pane shell (sidebar + main + hidden-by-default pop-out inspector) lives at [Pommora/Pommora/](Pommora/Pommora/). Build verified via `xcodebuild`. **Next: v0.1** — vault reads + functional tab chrome. Per-version spec lives in `Framework.md`. The React+Electron-locked predecessor spec for v0.0 is preserved at `// ReactInfo//v0.0.md`.

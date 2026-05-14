@@ -6,7 +6,7 @@ Stack locked to **SwiftUI**. Domain model: **Pages** (`.md`), **Collections** (f
 
 Pages are Markdown documents with two Pommora rendering directives (`@Columns`, `:::callout`); headings are foldable by default; blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Spaces are block-composition surfaces — "block-level features" as a term belongs only to Spaces. Wikilinks render as styled colored inline text.
 
-Sidebar: three top-level collapsible headings (Spaces / Saved / Collections), user-reorderable, default-collapsed. Spaces are leaf labels; Collections expand to their members; Saved is a non-operational placeholder in v1 (pinning is post-v1). Shell: three-pane (sidebar / main / inspector); both side panes drag-resizable from v0.0 (240 / 280 defaults). Inspector's default view is the property panel for the active Page; an AI chat interface (frontend to Nathan's existing local CLI — not an API integration) is a planned post-v1 addition. **Main pane is multi-tabbed** (Obsidian / Notion pattern); tab chrome renders in v0.0; tabs become functional in v0.1 as files open. **Items don't get tabs or the inspector** — they open in an **Item window** (popover anchored to trigger; Calendar-event-detail pattern; title + properties + 250-char description).
+Sidebar: three top-level collapsible headings (Spaces / Saved / Collections), user-reorderable, default-collapsed. Spaces are leaf labels; Collections expand to their members; Saved is a non-operational placeholder in v1 (pinning is post-v1). Shell: three-pane (sidebar / main / pop-out inspector); sidebar drag-resizable from v0.0 (240 default); inspector drag-resizable when shown (280 default), hidden by default in v0.0 and toggled via a toolbar icon (`sidebar.right` SF Symbol) or the View menu. Inspector's default view (once content lands) is the property panel for the active Page; an AI chat interface (frontend to Nathan's existing local CLI — not an API integration) is a planned post-v1 addition. **Main pane is multi-tabbed** (Obsidian / Notion pattern); tab chrome and functional tab navigation both ship in v0.1 when files open (v0.0 has no tab chrome). **Items don't get tabs or the inspector** — they open in an **Item window** (popover anchored to trigger; Calendar-event-detail pattern; title + properties + 250-char description).
 
 Vault: user-pickable on first launch (default suggestion `~// PommoraVault//`). App-internal config lives in `.pommora//` inside the vault (matches `.obsidian` convention). First launch seeds a `Homepage` Space; nothing else. Versioning is delegated to OS tools (Time Machine / git).
 
@@ -16,9 +16,11 @@ Architecture: **conceptual portability of functionalities** — file formats, sc
 
 ---
 
-#### Active Work — v0.0 shell scaffolding pending
+#### Active Work — v0.0 shipped
 
-**Next concrete activity:** replace Xcode's stock `ContentView.swift` with the three-pane shell per Framework v0.0 spec (`NavigationSplitView` sidebar / content / detail; sidebar default 240, inspector default 280; both drag-resizable; top-bar tab chrome with single non-functional placeholder tab + `+` / `×` buttons). Add window dimensions to `PommoraApp.swift` (`.defaultSize(width: 1200, height: 800)`, `.windowResizability(.contentMinSize)` with min 960×560). Set deployment target to macOS 26+ if not already.
+**v0.0 shell scaffolded and verified.** [ContentView.swift](Pommora/Pommora/ContentView.swift) holds a barebones `NavigationSplitView(sidebar:detail:)` with `.inspector(isPresented:)` on the detail column. Sidebar + main + hidden-by-default pop-out inspector — three completely empty surfaces (`Color.clear`). A toolbar icon (`sidebar.right` SF Symbol at `.primaryAction` on the detail column) toggles the inspector visibly; the View menu's "Show Inspector" item is the secondary route. [PommoraApp.swift](Pommora/Pommora/PommoraApp.swift) sets `.defaultSize(1200, 800)`, `.windowResizability(.contentMinSize)`, `.windowToolbarStyle(.unified(showsTitle: false))` (suppresses the "Pommora" title text — traffic lights still render), and registers `InspectorCommands()` for the View-menu toggle + default keyboard shortcut. Deployment target macOS 26.5. Build verified via `xcodebuild`.
+
+**Next: v0.1 — Vault reads + tabs functional.** Sidebar tree mirrors the folder structure of the user-picked vault (default suggestion `~// PommoraVault//`); clicking a `.md` file opens it as a tab in the top-bar tab row; tab chrome lands here (`+` / `×` / `Cmd+T` / `Cmd+W` / standard tab shortcuts); open tabs + active tab persist across launches. No parsing, no editor yet — main pane shows raw markdown.
 
 **Brand accent deferred.** Xcode's default `AccentColor.colorset` stands in for v0.0; the brand accent hue is picked at design lock. `Color+Pommora.swift` and `Font+Pommora.swift` remain empty stubs until their consuming features land (code colors v0.3+, callout / blockquote v0.3–v0.4).
 
@@ -28,7 +30,7 @@ Architecture: **conceptual portability of functionalities** — file formats, sc
 
 #### Pending Explorations
 
-- **Audit findings to commit or defer** — Zod-equivalent validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety. Captured as findings, not committed. Decide once v0.0 implementation begins.
+- **Audit findings to commit or defer** — Zod-equivalent validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety. Captured as findings, not committed. Decide once v0.2 (SQLite + watcher) implementation begins.
 
 - **Optional spike before commit** — fork-Clearly assessment to size the native build gap (Option 1), or a WKWebView-host JS editor PoC (Option 2). Option 2 is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`). React-side reference at `// ReactInfo// Editor.md`.
 
