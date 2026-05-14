@@ -75,9 +75,9 @@ Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, A
 
 #### AppKit Interop
 
-Where pure SwiftUI is sufficient vs. where `NSViewRepresentable` wrapping is the right tool for production polish:
+Areas where pure SwiftUI is expected to be sufficient and areas where wrapping AppKit via `NSViewRepresentable` is likely to be the right tool. Specific tradeoffs are confirmed in build:
 
-- **Block reorder in a vertical stack** — pure SwiftUI is sufficient (`visfitness/reorderable`).
-- **Resizable columns with persistent splitter** — SwiftUI's `HSplitView` works but is rough; wrap `NSSplitView` via `NSViewRepresentable` for production polish.
-- **Tree-shaped reorderable structure with cross-level drag** — pure SwiftUI is doable (`DisclosureGroup` + manual `NSItemProvider`) but not pretty. Reference: [shufflingB/swiftui-macos-tree-list-demo](https://github.com/shufflingB/swiftui-macos-tree-list-demo).
-- **Unified cursor flow across columns / callouts** — only achievable via `NSTextView` / TextKit 2 (STTextView).
+- **Block reorder in a vertical stack** — pure SwiftUI looks sufficient; a candidate community library is [visfitness/reorderable](https://github.com/visfitness/reorderable).
+- **Resizable columns with persistent splitter** — SwiftUI's `HSplitView` exists; community reports suggest wrapping `NSSplitView` via `NSViewRepresentable` yields better splitter polish on macOS. Evaluate when the Spaces composer goes from spec to build.
+- **Tree-shaped reorderable structure with cross-level drag** — doable in pure SwiftUI via `DisclosureGroup` + manual `NSItemProvider`. Reference: [shufflingB/swiftui-macos-tree-list-demo](https://github.com/shufflingB/swiftui-macos-tree-list-demo). Whether the SwiftUI-only path is good enough vs. an AppKit wrap is open.
+- **Unified cursor flow across columns / callouts** — generally requires `NSTextView` / TextKit 2 (STTextView is a modern wrapper) since SwiftUI's text primitives don't currently span sibling containers.

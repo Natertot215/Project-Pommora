@@ -19,13 +19,13 @@ Locked to SwiftUI after full review (Mac cohesion + Apple ecosystem alignment + 
 
 ##### SwiftUI research findings (preserved)
 
-- `TextEditor(text: Binding<AttributedString>)` real and shipping in Xcode 16.4+ (iOS 26 / macOS 26 Tahoe).
-- `apple/swift-markdown` for parse / AST / query (NOT save-path serializer — `MarkupFormatter` reformats; custom blocks can crash it).
-- Native `.draggable` + `.dropDestination` + `Transferable` are the modern primitives.
-- Wikilinks-as-styled-spans pattern matches WWDC25 Session 280.
-- `AttributedString(markdown:)` is one-way — hand-rolled writer required for save path.
-- swift-markdown block directives use DocC `@Name(args){...}` syntax (NOT Pandoc / Obsidian `:::` fenced divs) — Pommora needs either a `:::` ↔ `@` preprocessor or a fork.
-- Component libraries: `stevengharris/SplitView`, `visfitness/reorderable`, `SwiftUIX/SwiftUIX`.
+- `TextEditor(text: Binding<AttributedString>, selection:)` is documented for iOS 26+ / macOS 26+ (Tahoe).
+- `apple/swift-markdown` is suitable as a parse / AST / query layer. `MarkupFormatter` reformats rather than round-trips and isn't a fit for the save path; a hand-rolled writer is the expected approach.
+- Native `.draggable` + `.dropDestination` + `Transferable` are Apple's documented drag-and-drop API for new SwiftUI code.
+- The wikilinks-as-styled-spans pattern follows WWDC25 Session 280's rich-text guidance; in-Pommora behavior verified in build.
+- `AttributedString(markdown:)` is one-way (no `.markdown` accessor going back) — the save path needs its own writer.
+- swift-markdown block directives use DocC `@Name(args){...}` syntax (NOT Pandoc / Obsidian `:::` fenced divs), enabled via `ParseOptions.parseBlockDirectives`. A `:::` ↔ `@` preprocessor or a fork of swift-markdown is needed for Pommora's directives on the parse side.
+- Candidate component libraries surfaced during research: `stevengharris/SplitView`, `visfitness/reorderable`, `SwiftUIX/SwiftUIX`. Selection happens at build time.
 - Reference: WWDC25 Session 280 ("Cook up a rich text experience in SwiftUI with AttributedString").
 - Reference: Apple "Building rich SwiftUI text experiences".
 

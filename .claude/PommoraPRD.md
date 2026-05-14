@@ -51,7 +51,7 @@ Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the like
 | UI framework | SwiftUI primary + AppKit interop where SwiftUI falls short (NSTextView/TextKit 2, NSSplitView, NSItemProvider for some drag/drop) |
 | Styling | SwiftUI native semantic colors / Materials / Font scale + small Pommora-brand `Color` / `Font` extensions for accent + code + callout values |
 | Editor (Pages) | Option 2 (likely): WKWebView hosting Tiptap, Milkdown, or BlockNote — all translate cleanly to Markdown. Option 1 (more ambitious): native NSTextView/AppKit (fork Clearly or original build). |
-| Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `visfitness/reorderable` + `stevengharris/SplitView` + `Codable Block` enum |
+| Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `Codable` block enum; candidate vertical-reorder and split-pane component libraries (e.g. `visfitness/reorderable`, `stevengharris/SplitView`) evaluated at build time |
 | Backend layer | Pure Swift |
 | Database | SQLite via GRDB.swift v7.5+ (FTS5 + `ValueObservation`) |
 | Markdown parser | `apple/swift-markdown` (parse only; hand-rolled writer for save path) |
@@ -305,7 +305,7 @@ Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side pan
 
 Below-heading and page-bottom property-panel placements are post-v1 Prospects.
 
-Implemented via SwiftUI's `NavigationSplitView` — confirmed top-level-only with fixed master/detail, which fits the three-pane shell exactly.
+Likely implemented on SwiftUI's `NavigationSplitView` (the three-column `sidebar` / `content` / `detail` initializer), which fits the three-pane shell shape. Per-pane resizing behavior and persistence are verified in build.
 
 ##### Top-Bar Tabs
 
@@ -372,11 +372,11 @@ Relation properties store target IDs and display the target's current title (res
 
 **State.** `@Observable` macro (Swift 5.9+, mature in 6.2) is the standard — per-property tracking eliminates wasteful redraws; `@State` replaces `@StateObject`. Heavy services (VaultIndex, parsers) stay in DI, not view state, to avoid re-init on view rebuild.
 
-**Persistence.** `GRDB.swift v7.5+` is the only credible choice for Pommora's "SQLite as index, files canonical" shape. `ValueObservation.tracking { db in ... }` is exactly the reactive primitive needed; `.values(in:)` returns an `AsyncThrowingStream` that integrates with structured concurrency. FTS5 first-class via `FTS5Pattern`. Requires Swift 6.1+/Xcode 16.3+.
+**Persistence.** `GRDB.swift v7.5+` is the established SQLite toolkit for Pommora's "SQLite as index, files canonical" shape. The relevant primitives — `ValueObservation.tracking { db in ... }` for observation, `.values(in:)` returning an `AsyncSequence` over change notifications, and `FTS5Pattern` for full-text — are documented and stable.
 
-SwiftData is **not** a viable alternative — it wraps Core Data, can't use a custom SQLite schema or FTS5 directly, and continues to be unsafe for production cases that don't match Apple's reference patterns.
+SwiftData isn't a fit — it wraps Core Data and doesn't expose a custom SQLite schema or FTS5 directly, both of which Pommora needs.
 
-**Core code pattern.** Pure Swift Package for the data + parsing layer; keep SwiftUI imports out of this layer so the same code is callable from a CLI tool target if needed. `actor VaultIndex` for the database boundary; mark records `Sendable`; expose `AsyncSequence` (preferred over Combine in Swift 6 strict concurrency). GRDB's `.values(in:)` *is* the reactive surface from data to UI — no wrapper needed. (Not an enforced rule per Pommora's architecture — see `// Features//Architecture.md` — just a discipline that keeps Swift code simpler.)
+**Likely code shape.** A pure Swift Package for the data + parsing layer keeps SwiftUI imports out of it so the same code remains callable from a CLI tool target if useful. An `actor` wrapping the database boundary, `Sendable` records, and `AsyncSequence` surfaces over Combine fit Swift 6 strict concurrency. GRDB's `.values(in:)` can serve as the data-to-UI reactive surface directly. None of this is locked architecture (see `// Features//Architecture.md`) — it's the pattern the documented APIs lend themselves to.
 
 **File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool for vault-folder watching. Use FSEventStream via a Swift wrapper (`EonilFSEvents`, or hand-rolled `FSEventStreamCreate`). APFS / atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete events; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
 
