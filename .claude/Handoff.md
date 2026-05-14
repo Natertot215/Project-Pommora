@@ -12,13 +12,15 @@ Vault: user-pickable on first launch (default suggestion `~// PommoraVault//`). 
 
 Architecture: **conceptual portability of functionalities** — file formats, schemas, design values, and UX patterns would survive a stack rebuild to React+Electron; the codebase wouldn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Pivot methodology at `// ReactInfo//Contingency.md`.
 
-No code yet — `.claude//` contains specs only.
+**Xcode project scaffolded** at `Pommora//` (project root) — macOS App template, SwiftUI interface, Swift Testing, Storage: None. Default `ContentView.swift` and `PommoraApp.swift` are Xcode template stock; no Pommora shell logic yet. `.gitignore` covers Xcode/Swift (`xcuserdata/`, `DerivedData/`, `.swiftpm/`).
 
 ---
 
-#### Active Work — v0.0 build-ready; Figma re-pass (contingency) ongoing
+#### Active Work — v0.0 shell scaffolding pending
 
-**v0.0 is buildable from the current docs.** Framework v0.0 carries the build spec (deployment target macOS 26+, window dimensions, pane defaults, what renders); PRD covers shell + tab chrome; UIX-Guide covers SwiftUI conventions + AppKit interop. Pre-v0.0 step is one Asset Catalog entry (`AccentColor.colorset` with light/dark pastel-muted purple) — Nathan picks the hex at build time. `Color+Pommora.swift` and `Font+Pommora.swift` can be empty stubs until their consuming features land (code colors v0.3+, callout / blockquote v0.3–v0.4).
+**Next concrete activity:** replace Xcode's stock `ContentView.swift` with the three-pane shell per Framework v0.0 spec (`NavigationSplitView` sidebar / content / detail; sidebar default 240, inspector default 280; both drag-resizable; top-bar tab chrome with single non-functional placeholder tab + `+` / `×` buttons). Add window dimensions to `PommoraApp.swift` (`.defaultSize(width: 1200, height: 800)`, `.windowResizability(.contentMinSize)` with min 960×560). Set deployment target to macOS 26+ if not already.
+
+**Brand accent deferred.** Xcode's default `AccentColor.colorset` stands in for v0.0; the brand accent hue is picked at design lock. `Color+Pommora.swift` and `Font+Pommora.swift` remain empty stubs until their consuming features land (code colors v0.3+, callout / blockquote v0.3–v0.4).
 
 **Figma re-pass (contingency-side, ongoing):** Nathan is finalizing the Figma design system. The Figma file is the React-side translation source if a future pivot is ever needed; for Swift, the design is implemented in SwiftUI native idioms — the Figma file isn't consumed by the Swift build. Figma-tool workflow at `// ReactInfo//Styling-Tokens.md`.
 
@@ -68,9 +70,5 @@ Main branch. Remote: `https://github.com/Natertot215/Project-Pommora.git`. Studi
 
 #### Open Questions
 
-Pre-v0.0 step (one thing Nathan does before pointing Claude at a build):
-
-Add AccentColor.colorset to Assets.xcassets with light/dark variants of the pastel-muted purple. Nathan picks the hex.
-Color+Pommora.swift and Font+Pommora.swift can be empty stubs; populated as code/callout/blockquote features land in v0.3+.
-Bundle ID (Nathan picks at Xcode project creation — e.g., com.nathantaichman.Pommora)
-Editor option 1 vs option 2 (v0.3+ decision; doesn't affect v0.0)
+- **Brand accent value.** Xcode default stands in for v0.0; final accent hue picked at design lock (not v0.0-blocking).
+- **Editor option 1 vs option 2.** v0.3+ decision; doesn't affect v0.0.

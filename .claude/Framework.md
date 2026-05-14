@@ -15,7 +15,7 @@ Each version adds one capability cluster on top of the previous. Slicing is incr
 ##### v0.0 — Shell opens
 Toolchain proof. App launches on macOS 26+ (Tahoe) into a styled three-pane shell — sidebar (default 240) / main (flex) / inspector (default 280) — built on SwiftUI's `NavigationSplitView`. Both side panes drag-resizable from launch; widths persist across launches. Top-bar tab chrome renders in the main pane (single placeholder tab, non-functional; `+` and `×` buttons render but don't open / close anything). Sidebar and inspector are empty styled surfaces — no data wiring, no vault picker, no editor. Default window 1200×800; minimum 960×560.
 
-**Pre-v0.0 prerequisite:** Asset Catalog `AccentColor.colorset` with light/dark variants of Pommora's pastel-muted purple. `Color+Pommora.swift` and `Font+Pommora.swift` can be empty stubs in v0.0 — populated as their consuming features land (code colors v0.3+, callout/blockquote v0.3–v0.4).
+**Pre-v0.0 prerequisite:** Asset Catalog `AccentColor.colorset` exists (Xcode default is fine — brand-accent value is deferred). `Color+Pommora.swift` and `Font+Pommora.swift` can be empty stubs in v0.0 — populated as their consuming features land (code colors v0.3+, callout/blockquote v0.3–v0.4).
 
 The React+Electron-locked v0.0 spec is preserved at `// ReactInfo//v0.0.md` for contingency.
 

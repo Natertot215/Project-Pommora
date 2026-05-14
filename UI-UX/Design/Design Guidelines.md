@@ -6,7 +6,7 @@ Guidelines for design assets and materials in `// UI-UX//Design//`.
 
 #### Where values live
 
-Pommora uses SwiftUI native semantic colors and Font scale wherever possible. Pommora-specific brand values (accent purple, code block colors, callout treatments) live as:
+Pommora uses SwiftUI native semantic colors and Font scale wherever possible. Pommora-specific brand values (accent color, code block colors, callout treatments) live as:
 
 - **`Assets.xcassets`** — color sets with light/dark variants for the app accent color, brand assets, image placeholders.
 - **`Color+Pommora.swift`** — Swift extensions for code-defined Pommora colors that need access from SwiftUI views.

@@ -14,7 +14,7 @@ Top-level home for Pommora's UI-UX layer. Contains design materials (`Assets.xca
 #### Where Pommora's design values live
 
 - **Native SwiftUI semantic colors and Font scale** carry most of the design surface — `Color(.systemBackground)`, `.foregroundStyle(.primary)`, `.font(.body)`, `Material.regular`. Pulled directly from SwiftUI in components.
-- **Pommora-brand values** (accent purple, code block colors, callout treatments) live in `// Design//Assets.xcassets` and `// Design//Color+Pommora.swift`. Components consume these alongside the SwiftUI native semantics; brand values change in one place, propagation is automatic.
+- **Pommora-brand values** (accent color, code block colors, callout treatments) live in `// Design//Assets.xcassets` and `// Design//Color+Pommora.swift`. Components consume these alongside the SwiftUI native semantics; brand values change in one place, propagation is automatic.
 - **AppKit is used directly via `NSViewRepresentable`** where SwiftUI falls short — most notably NSTextView/TextKit 2 for Option 1 editor, NSSplitView for splitter polish. Both SwiftUI and AppKit are first-class Pommora tools; AppKit isn't an escape hatch. Detail → `.claude// Guidelines//UIX-Guide.md` "AppKit Interop" section.
 
 ---
