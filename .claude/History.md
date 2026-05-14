@@ -111,12 +111,12 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 
 ##### Design System
 - **Swift-native baseline.** Pommora uses SwiftUI semantic colors + Pommora-brand `Color` / `Font` extensions for values not covered by native semantics; the component library at `// UI-UX//Components//` consumes them (no per-screen tweaks). For Swift, only a small subset matters (accent, code, callout, blockquote) — SwiftUI semantic colors carry the rest. The full ~118-token Figma-built taxonomy with semantic role-based naming is React-flavored and preserved at `// ReactInfo//Styling-Tokens.md`.
-- **One initial scheme** in v0.x — no built-in light / dark; in-app customization for accent + typography lands in Framework v0.12.
+- **One initial scheme** in v0.x — no built-in light / dark; in-app customization is limited to accent color + font size (Framework v0.12). SwiftUI semantic colors, Materials, and Dynamic Type cover the rest natively.
 - **Visual direction:** Notion-comfortable density; pastel-leaning color treatment (muted / desaturated); flat dark chrome (no shadows except on overlays); mixed-scale rounding (pill for tags / chips, tight for buttons / toggles / labels, surface for cards / panels / modals — Notion / Claude-style).
 - **Typography pairing:** SF Pro (sans) + SF Mono (mono), system-native via SwiftUI Font scale. Heading scale is em-relative (H1–H5; no H6 in v0) so changing body rescales every heading.
 - **Accent:** Single-hue purple, 2×2 matrix — primary/active, primary/muted, secondary/active, secondary/muted. All 4 stops share the same hue; descending in saturation + lightness. Pastel-muted. App accent color lives in `Assets.xcassets/AccentColor.colorset`; the other stops live as `Color+Pommora.swift` extensions.
 - **SF Symbols on Swift** via `Image(systemName:)` — no indirection layer. (Material Symbols + role-indirection via `.pommora//symbols.json` is the React-side approach, preserved at `// ReactInfo//Symbols-guide.md`.)
-- **In-app customization** (Framework v0.12) covers accent color and typography size — written to user-scoped overrides on top of the Asset Catalog / extension defaults. Spacing / radius / shadow stay on baseline.
+- **In-app customization** (Framework v0.12) covers two values: accent color and font size. SwiftUI handles dark mode, semantic colors, Materials, and Dynamic Type natively — no additional override surface needed. Spacing / radius / shadow stay on baseline.
 - **Disclosure pattern + DisclosureLine.** Pommora has multiple disclosure types (tree / folder, heading, toggle block, sidebar section header), all built on a single `Disclosure` primitive with an `indent line` variant. `true` for tree / folder disclosures — renders a `DisclosureLine` hairline guide tracing depth (Obsidian / VSCode pattern). `false` for heading disclosures and toggle blocks — no line. DisclosureLine is a sub-element of Disclosure, never placed independently.
 
 #### Features Implemented

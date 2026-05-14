@@ -49,7 +49,7 @@ Spaces are a first-class entity — Notion-page-style block-composition surfaces
 Multi-column layout inside Spaces (`columns` block). Embedded Collection view widget (renders any saved Collection view inline). Link list widget (manually curated). Global FTS5 search over Page bodies and frontmatter.
 
 ##### v0.12 — In-app customization
-Settings panel exposes Pommora-brand values for user override — accent color, custom surface tones, font scale. The user can change these from inside the app; changes apply live and persist. Override layer sits on top of the Asset Catalog and `Color+Pommora.swift` defaults.
+Settings panel exposes two user-overridable values: the accent color and the font size. SwiftUI handles everything else natively (semantic colors auto-adapt for dark mode, Dynamic Type for typography scale, Materials for vibrancy) — no additional override surface needed. Changes apply live and persist; the override layer sits on top of the Asset Catalog accent and the default font scale.
 
 ##### v1.0 — Stabilization
 No new features. Polish, performance, bug-fix across everything from v0.0 through v0.12.

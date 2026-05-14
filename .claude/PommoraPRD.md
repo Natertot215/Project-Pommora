@@ -343,7 +343,7 @@ On first launch, after the user picks a vault location, Pommora opens with empty
 
 Pommora uses SwiftUI native idioms: semantic colors (`Color(.systemBackground)`, `.foregroundStyle(.primary)`), Materials (`Material.regular`, `.sidebar`), Font scale (`.font(.body)`, `.font(.callout)`, `.font(.system(.body, design: .monospaced))`), SF Symbols (`Image(systemName:)`). On top of that, a small set of Pommora-specific Color/Font extensions covers the brand accent (pastel-muted purple), code block colors, callout/blockquote treatments — anything SwiftUI semantic colors don't cover. App accent color lives in the Asset Catalog (`Assets.xcassets/AccentColor.colorset`); other Pommora-brand values live as `Color+Pommora.swift` / `Font+Pommora.swift` extensions in `// UI-UX//Design//`.
 
-Component library at `// UI-UX//Components//` (SwiftUI views, browsed via Xcode `#Preview`) consumes SwiftUI native + Pommora extensions; no per-screen tweaks. v1 ships with one initial scheme **plus in-app customization for accent and typography** (see Framework v0.12).
+Component library at `// UI-UX//Components//` (SwiftUI views, browsed via Xcode `#Preview`) consumes SwiftUI native + Pommora extensions; no per-screen tweaks. v1 ships with one initial scheme plus **in-app customization for accent color and font size** (Framework v0.12) — everything else (dark mode, semantic colors, Materials, Dynamic Type) is handled by SwiftUI natively and needs no user override.
 
 Inside the WKWebView editor canvas (Option 2), CSS custom properties theme the editor's content rendering. The CSS values mirror the SwiftUI Color extensions so the editor matches the shell.
 
@@ -423,7 +423,7 @@ Areas where SwiftUI is first-party (no companion bundles needed):
 - File watcher keeping SQLite synced.
 - Global search (SQLite FTS5 over Page bodies and frontmatter).
 - Three-heading sidebar (Spaces / Saved / Collections), user-reorderable, default-collapsed. Saved is a non-operational placeholder heading in v1 (pinning is post-v1). Loose entities reachable via search or wikilinks (not a sidebar group).
-- Single initial design scheme driven by Figma tokens, plus in-app customization for colors and typography (Framework v0.12).
+- Single initial design scheme, plus in-app customization for accent color and font size (Framework v0.12). SwiftUI native handles everything else.
 
 **Out (post-v1):**
 

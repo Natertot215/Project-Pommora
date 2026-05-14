@@ -17,7 +17,7 @@ Pommora follows Apple's macOS Human Interface Guidelines for native cohesion. Th
 
 **AppKit is used directly** where SwiftUI is insufficient or rough — most notably for the editor on Option 1 (NSTextView / TextKit 2 carries source-with-decorations text behavior; STTextView is the modern wrapper) and for splitter polish (NSSplitView via `NSViewRepresentable` outperforms SwiftUI's `HSplitView` in production). AppKit isn't an escape hatch — it's the Apple-native answer when SwiftUI's surface stops short. The AppKit Interop section below catalogues the specific places this comes up.
 
-On top of the SwiftUI + AppKit baseline, Pommora has a small set of brand-specific values that don't have native equivalents — pastel-muted purple accent, code block colors, callout border, blockquote accent bar — that express Pommora's character within the Apple aesthetic.
+On top of the SwiftUI + AppKit baseline, Pommora has a small set of brand-specific values that don't have native equivalents — code block colors, callout border, blockquote accent bar — that express Pommora's character within the Apple aesthetic.
 
 ---
 
@@ -59,9 +59,7 @@ If Option 1 (native NSTextView) is chosen instead, no CSS tokens are needed; the
 
 #### Initial scheme
 
-Dark mode first. SwiftUI semantic colors cover the shell; Pommora extensions provide the accent and brand-specific values. No built-in light/dark toggle in v0.x; in-app customization for the accent + typography size lands in Framework v0.12.
-
-Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop. Pommora picks density, contrast, and typographic restraint cues from these but doesn't copy values.
+Dark mode first. SwiftUI semantic colors cover the shell; Pommora extensions provide the accent and brand-specific values. No built-in light/dark toggle in v0.x. In-app customization (Framework v0.12) is limited to accent color + font size — everything else is handled by SwiftUI natively (dark mode auto-adapts, Materials handle vibrancy, Dynamic Type handles typography scale).
 
 ---
 

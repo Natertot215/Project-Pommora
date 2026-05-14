@@ -83,4 +83,4 @@ Real items needing resolution before they bite, organized by when they'll surfac
 
 #### Branch Status
 
-Main branch. Initial commit pushed to `Natertot215/Project-Pommora`. Studio root is current source of truth.
+Main branch. Remote: `https://github.com/Natertot215/Project-Pommora.git`. Studio working tree is the current source of truth.
