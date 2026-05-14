@@ -55,7 +55,7 @@ These aren't enforced separations or structural rules — they're patterns that 
 - The Markdown file is the spec, not the render — directives reference data; data lives in SQLite; rendering depends on the editor implementation but the directives don't.
 - The agent-legibility contract is a discipline applied to every architecture decision: would an external agent reading files-only still see this? If no, the decision needs revisiting.
 
-There is no "Core layer with zero UI imports" rule. There is no enforced three-layer model. Implementation patterns are SwiftUI-natural — the portability comes from the documented decisions above, not from how the code is organized.
+There is no enforced layer separation — no "Core layer with zero UI imports" rule, no three-tier model. Implementation patterns are SwiftUI-natural; portability comes from the documented decisions above, not from how the code is organized.
 
 ---
 

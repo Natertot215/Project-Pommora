@@ -30,7 +30,7 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property and q
 
 Three top-level entity types plus one Collection-bound member type:
 
-- **Pages** — Markdown documents; flat (no semantic nesting). Editor surface is one of two SwiftUI options: Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor (likely direction). Live inside Pages collections, or loose anywhere outside Collection folders.
+- **Pages** — Markdown documents; flat (no semantic nesting). Editor surface is one of two SwiftUI options: Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor. Live inside Pages collections, or loose anywhere outside Collection folders.
 - **Collections** — folder + `_collection.json` schema sidecar. Hold property schemas, saved view configurations, and a `kind` (`"pages"` or `"items"`) set at creation and persistent. Members are uniformly one kind: a Pages collection holds `.md` files; an Items collection holds `.json` files. Membership is by file location.
 - **Items** — row entities living inside Items collections (or loose anywhere outside). Lightweight, property-driven, short-description entries that don't warrant prose (tasks, contacts, wishlist, events, citations). One `.json` file per Item; filename = title; same property catalog as Pages; no Markdown body. Open in an **Item window** — a popover-style floating surface anchored to the trigger (Calendar-event-detail pattern) showing title + property inputs + a 250-character plain-text description. Not a tab, not a full page.
 - **Spaces** — composed dashboard surfaces. `.space.json` files holding a block tree of text blocks and widget blocks. Referential (embed Pages / Items / Collection views via widgets), not container (Spaces don't hold their referenced entities).
@@ -62,7 +62,7 @@ Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the like
 
 ##### Three load-bearing constraints
 
-1. **Stack portability of functionalities.** File formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design tokens, and UX patterns survive a stack rebuild. The codebase doesn't. No enforced layer separation; portability comes from documented decisions. Detail → `// Features//Architecture.md`.
+1. **Stack portability of functionalities.** File formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design values, and UX patterns survive a stack rebuild. The codebase doesn't. No enforced layer separation; portability comes from documented decisions. Detail → `// Features//Architecture.md`.
 
 2. **Cross-vault queryability + cloud sync compatibility.** Collections aren't isolated — a Page or Space anywhere in the vault can query, link to, or embed any Collection regardless of folder location. The on-disk model maps cleanly to a cloud DB: a single shared `pages` table with `collection_id` + `properties` JSONB; a parallel `items` table; one `collections` row per `_collection.json`; one `spaces` row per `.space.json`. Sync arrives later as additive translation, not redesign. Cloud sync is real long-term intent. For v1, users get device-to-device sync for free by placing the vault in iCloud Drive / Dropbox / any synced folder. **Reference convention:** relations are stored by ID (rename-safe); body wikilinks use names (rewritten on rename).
 
@@ -305,7 +305,7 @@ Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side pan
 
 Below-heading and page-bottom property-panel placements are post-v1 Prospects.
 
-Likely implemented on SwiftUI's `NavigationSplitView` (the three-column `sidebar` / `content` / `detail` initializer), which fits the three-pane shell shape. Per-pane resizing behavior and persistence are verified in build.
+Built on SwiftUI's `NavigationSplitView` (the three-column `sidebar` / `content` / `detail` initializer), which fits the three-pane shell shape.
 
 ##### Top-Bar Tabs
 
@@ -319,7 +319,7 @@ The main pane is **multi-tabbed.** A row of tabs sits at the top of the main pan
 
 Tab labels show the entity's title (= filename) and a small icon (entity-kind icon: page / collection / space). The active tab is visually distinguished from inactive tabs. Tab chrome is the same shell chrome — consumes `surface// secondary` for the inactive tab background and `surface// primary` for the active tab (continuous with the main pane it heads).
 
-**State persistence:** open tabs and the active tab persist across launches. Stored in app settings (or `.pommora// tabs.json` if a vault-portable surface is preferred — TBD during implementation).
+**State persistence:** open tabs and the active tab persist across launches. Stored in app settings.
 
 **Items don't get their own tabs in v1** — selecting an Item opens an **Item window** (popover anchored to the trigger), not a tab. Tabs are reserved for full-pane views (Pages, Collections, Spaces).
 
@@ -376,7 +376,7 @@ Relation properties store target IDs and display the target's current title (res
 
 SwiftData isn't a fit — it wraps Core Data and doesn't expose a custom SQLite schema or FTS5 directly, both of which Pommora needs.
 
-**Likely code shape.** A pure Swift Package for the data + parsing layer keeps SwiftUI imports out of it so the same code remains callable from a CLI tool target if useful. An `actor` wrapping the database boundary, `Sendable` records, and `AsyncSequence` surfaces over Combine fit Swift 6 strict concurrency. GRDB's `.values(in:)` can serve as the data-to-UI reactive surface directly. None of this is locked architecture (see `// Features//Architecture.md`) — it's the pattern the documented APIs lend themselves to.
+**Code shape.** A pure Swift Package for the data + parsing layer keeps SwiftUI imports out of it so the same code remains callable from a CLI tool target if useful. An `actor` wrapping the database boundary, `Sendable` records, and `AsyncSequence` surfaces (preferred over Combine in Swift 6 strict concurrency) fit the documented GRDB APIs — `.values(in:)` serves as the data-to-UI reactive surface directly. Not enforced architecture (see `// Features//Architecture.md`).
 
 **File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool for vault-folder watching. Use FSEventStream via a Swift wrapper (`EonilFSEvents`, or hand-rolled `FSEventStreamCreate`). APFS / atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete events; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
 
@@ -413,7 +413,7 @@ Areas where SwiftUI is first-party (no companion bundles needed):
 
 **In:**
 
-- **Pages** — Markdown documents with YAML frontmatter; editor surface is one of two SwiftUI options (Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor — likely direction). Standard Markdown (paragraphs, headings H1–H5 in v0's type scale (foldable by default), lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, horizontal rules) plus two Pommora-specific rendering directives (`@Columns` + `:::callout`). Blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Members conform to a Pages collection's schema; loose Pages hold only built-in fields.
+- **Pages** — Markdown documents with YAML frontmatter; editor surface is one of two SwiftUI options (Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor). Standard Markdown (paragraphs, headings H1–H5 in v0's type scale (foldable by default), lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, horizontal rules) plus two Pommora-specific rendering directives (`@Columns` + `:::callout`). Blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Members conform to a Pages collection's schema; loose Pages hold only built-in fields.
 - **Collections** — folder + `_collection.json` schema sidecar. Typed at creation (`"kind": "pages" | "items"`). Property schemas + saved view configurations inside the sidecar. Five view types (table / board / list / cards / gallery) with per-view filter / sort / group / shown-properties controls.
 - **Items** — `.json` files. Filename = title; member Items conform to the Collection schema; loose Items carry only built-in fields. `id`, `icon`, `description` (plain text, 250-char cap), `spaces`, timestamps. No Markdown body. Open in an Item window (popover), not a tab.
 - **Spaces** — Notion-page-style composition surfaces (`.space.json`) with a full block tree. Text blocks + widget blocks intermixed. Drag-to-arrange and slash-menu insertion.

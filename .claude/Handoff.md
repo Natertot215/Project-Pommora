@@ -10,7 +10,7 @@ Sidebar: three top-level collapsible headings (Spaces / Saved / Collections), us
 
 Vault: user-pickable on first launch (default suggestion `~// PommoraVault//`). App-internal config lives in `.pommora//` inside the vault (matches `.obsidian` convention). First launch seeds a `Homepage` Space; nothing else. Versioning is delegated to OS tools (Time Machine / git).
 
-Architecture: **conceptual portability of functionalities** — file formats, schemas, design tokens, and UX patterns would survive a stack rebuild to React+Electron; the codebase wouldn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Pivot methodology at `// ReactInfo//Contingency.md`.
+Architecture: **conceptual portability of functionalities** — file formats, schemas, design values, and UX patterns would survive a stack rebuild to React+Electron; the codebase wouldn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Pivot methodology at `// ReactInfo//Contingency.md`.
 
 No code yet — `.claude//` contains specs only.
 

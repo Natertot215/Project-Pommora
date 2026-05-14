@@ -64,7 +64,7 @@ Pommora's Spaces shape (one nestable `columns` container + 1D vertical flow else
 
 ##### Custom Layout protocol
 
-`Layout` (iOS 16+ / macOS 13+) controls *how children get positioned*, not *how users reorder them*. Useful only if `:::columns` ever needs custom flow behavior beyond `HStack`. For v1's equidistant columns, `HStack` suffices.
+The `Layout` protocol (iOS 16+ / macOS 13+) governs positioning, not reordering — `HStack` covers v1's equidistant columns; `Layout` only matters if `:::columns` ever needs custom flow.
 
 ##### Drag primitives
 
