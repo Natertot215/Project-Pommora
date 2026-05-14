@@ -56,7 +56,7 @@ Pommora's Spaces shape (one nestable `columns` container + 1D vertical flow else
 - Splitter polish in nested splits.
 - Heterogenous `Transferable` conformance per block kind.
 
-**Block JSON serialization discipline** (stack-portable; the data shape doesn't change with the renderer):
+**Block JSON serialization discipline:**
 
 - Validate with `Codable` decoding strictness on load and save
 - Atomic write via `.tmp` + rename

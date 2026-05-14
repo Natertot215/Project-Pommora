@@ -101,7 +101,7 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 - **Two contexts for views**: inside a Collection (saved views in `_collection.json`); embedded as a Space widget (filter / sort / group / shown-properties override locally).
 
 ##### Scope and Posture
-- **Mac for v1**; Linux / Windows not on v1 path but not forever-closed. **iOS / iPad is real long-term intent** — affects the stack call materially (SwiftUI ships to iPad essentially free; React needs a parallel build).
+- **Mac for v1**; Linux / Windows aren't on the v1 path and become contingency-only on SwiftUI. **iOS / iPad is real long-term intent** — SwiftUI ships there essentially for free; one of the values that drove the SwiftUI lock.
 - **Plugin system out of scope**, now and indefinitely. Personal tool, not a platform.
 - **Versioning / file history delegated to OS tools** (Time Machine, git, filesystem snapshots). Pommora handles in-session undo only.
 - **Single-user.** Multi-user collaboration is out of scope.

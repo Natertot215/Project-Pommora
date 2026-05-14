@@ -12,7 +12,7 @@ This document is the brief overview. Per-entity detail (on-disk shapes, editor s
 
 | Entity | Role | On disk | Editor surface |
 |---|---|---|---|
-| **Page** | A Markdown document — one continuous Markdown stream. Member of a Pages collection by folder location; otherwise loose. Not a block surface. | `.md` files anywhere in the vault | Stack-conditional surface — React: Notion-style block editor with per-paragraph `+` / drag-handle markers writing to Markdown. SwiftUI: two options — native source-with-decorations text editor (Option 1) or WKWebView-hosted JS editor, likely direction (Option 2). All paths render standard Markdown plus two Pommora-specific directives (`@Columns`, `:::callout`); foldable headings built-in; blockquotes and callouts are distinct constructs |
+| **Page** | A Markdown document — one continuous Markdown stream. Member of a Pages collection by folder location; otherwise loose. Not a block surface. | `.md` files anywhere in the vault | Two SwiftUI options — native source-with-decorations text editor (Option 1) or WKWebView-hosted JS editor (Option 2, likely direction). Renders standard Markdown plus two Pommora-specific directives (`@Columns`, `:::callout`); foldable headings built-in; blockquotes and callouts are distinct constructs |
 | **Item** | A row-shaped entry. Member of an Items collection by folder location; otherwise loose. For database entries that don't warrant prose. | `.json` files anywhere in the vault | Opens in an **Item window** — popover-style floating surface anchored to the trigger (Calendar-event-detail pattern). Title + property inputs + plain-text description (hard cap 250 chars). No tab, no full page, no inspector. |
 | **Collection** | A folder + a `_collection.json` schema sidecar with a `kind` (`"pages"` or `"items"`). Functions like a Notion database: property schema, saved views, members of one kind. No text editor. | A folder containing `_collection.json` plus the member files (all `.md` if Pages, all `.json` if Items) | Database UI: switch between saved views (table / board / list / cards / gallery) over the members |
 | **Space** | A Notion-page-style composition surface — text + widgets intermixed. Referential, not container: embeds Pages / Items / Collection views by widget. Independent of Collections. | `.space.json` files in `.pommora// spaces//`, holding the full block tree | Block-composition canvas: drag/drop blocks of any type into a layout |
@@ -89,8 +89,3 @@ The main pane is multi-tabbed (Obsidian / Notion pattern). Each tab represents o
 
 ---
 
-#### Open Questions
-
-The domain model is locked except for one item:
-
-1. **Stack** — React+Electron vs SwiftUI. Editor implementations differ for both Pages and Spaces; everything else is identical. Domain model is stack-agnostic.

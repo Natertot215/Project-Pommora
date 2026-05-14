@@ -337,7 +337,7 @@ Dismissed by clicking outside, pressing Esc, or closing the window.
 
 ##### First-Launch Experience
 
-On first launch, after the user picks a vault location, Pommora opens with empty sidebars plus a single seeded `Homepage` Space at `.pommora// spaces// Homepage.space.json`, opened as the landing surface. On the React path, `.pommora// symbols.json` is also seeded with the default Material ↔ SF mapping (see `// Guidelines//Symbols-guide.md`). No tutorial, no walkthrough wizard.
+On first launch, after the user picks a vault location, Pommora opens with empty sidebars plus a single seeded `Homepage` Space at `.pommora// spaces// Homepage.space.json`, opened as the landing surface. No tutorial, no walkthrough wizard.
 
 ##### Design System
 
