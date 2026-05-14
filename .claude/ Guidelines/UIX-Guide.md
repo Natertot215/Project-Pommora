@@ -48,6 +48,7 @@ If Option 1 (native NSTextView) is chosen instead, no CSS tokens are needed; the
 - **Reusable styling via `ViewModifier` and `ButtonStyle`.** Encapsulate repeated visual patterns. Example: `cardStyle()` modifier wraps padding + background + corner radius.
 - **Single component per concept.** One `Button` with a `style` enum or `ButtonStyle`, not seven button files.
 - **Cascade discipline.** Brand values change in one place (Asset Catalog or extension); propagation is automatic.
+- **SF Symbol weight matches text weight.** Symbols inherit weight from the surrounding text style when paired — keep that link. Don't render a `.thin` symbol next to `.heavy` text (or vice versa); the mismatch reads as inconsistent. If a symbol's weight needs to deviate, apply `.fontWeight()` to the symbol explicitly so the choice is visible.
 
 ---
 
