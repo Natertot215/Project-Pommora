@@ -2,23 +2,23 @@
 
 #### Current State
 
-**v0.0 shell shipped on SwiftUI / macOS Tahoe (26.5).** Committed and pushed to `main` at `4431420`. Three-pane shell at [Pommora/Pommora/](Pommora/Pommora/) — `NavigationSplitView(sidebar:detail:)` + `.inspector(isPresented:)`.
+**v0.1a Nexus Foundation shipped on SwiftUI / macOS Tahoe (26.4).** Sandboxed picker, security-scoped bookmark persistence, `.nexus/` initialization, sidebar mirroring the user-picked nexus folder. Manually verified end-to-end — picker, init flow, sidebar tree filtering, persistent bookmarks, vault rename recovery.
 
-Sidebar scaffolded with placeholder content: three top Items (no header), a collapsible **Spaces** section, and a collapsible **Collections** section with `DisclosureGroup`-based toggle-folders containing member rows. Native sidebar geometry — `.listRowInsets` overrides removed so flat-row icons align with Collection-row icons under the system's chevron-column reservation. Section headers explicit `.foregroundStyle(.secondary)` (string-shorthand `Section("Title", isExpanded:)` was rendering darker than Mail's reference tone on `.scrollContentBackground(.hidden)`). NSSearchField anchored to `.safeAreaInset(.top)`. Inspector pop-out wrapped in `withAnimation(.smooth(duration: 0.30))`.
+15 commits on `main` since v0.0. Implementation lives at [Pommora/Pommora/Nexus/](Pommora/Pommora/Nexus/) (7 files: `Nexus`, `NexusManager`, `NexusBookmark`, `NexusStore`, `NexusIdentity`, `AppState`, `ULID`, `FolderTree`) and [Pommora/Pommora/Sidebar/](Pommora/Pommora/Sidebar/) (3 files: `SidebarView`, `SidebarRow`, `SidebarNode`). 25 unit tests pass. Design + Findings preserved at [.claude/Planning/v0.1-nexus-foundation-design.md](.claude/Planning/v0.1-nexus-foundation-design.md).
 
-No content yet — every row is a placeholder Label. Nexus reads, tab chrome, and editor all land in v0.1+. Stack, domain model, architecture, and locked decisions live in `PommoraPRD.md`, `History.md`, and `// Features//`.
+The placeholder sidebar rows from v0.0 have been replaced. The `NSSearchField` anchored via `.safeAreaInset(.top)` and the inspector toggle wrapped in `withAnimation(.smooth(duration: 0.30))` are preserved unchanged.
 
 ---
 
 #### Next Session — Discussion Items
 
-Three threads to open next session, in no particular order. They're interconnected (symbol convention informs nexus-tree row rendering; filesystem connection produces real tab content; tab strip needs the symbol set to render correctly), so order of attack is a session-start decision.
+Two threads remain after the foundation, plus an adjacent symbol-registry decision parked from before.
 
-1. **Standard-symbol convention / registry.** Currently every placeholder row uses `Image(systemName: "square.dashed")`. Nathan wants a stable registry — "for X type of entity, use Y SF Symbol" — so placeholder symbols become semantic from the start without per-instance specification. Open shape: JSON lookup file? Swift extensions (e.g., `Symbol.spaceIcon`, `Symbol.collectionIcon`)? Markdown reference table consumed by docs? Decide format, then populate initial mapping for Spaces / Collections / Items / Pages / loose entities / etc. React-side semantic-role pattern already exists at `// ReactInfo// Symbols-guide.md` — could inform the Swift shape.
+1. **Standard-symbol convention / registry.** Every sidebar row currently uses placeholder SF Symbols (`folder` / `doc.text` / `list.bullet.rectangle`) hardcoded in `SidebarRow.swift`. Nathan wants a stable registry — "for X type of entity, use Y SF Symbol" — so symbols become semantic without per-row specification. Open shape: JSON lookup file? Swift extensions (e.g., `Symbol.pageIcon`, `Symbol.collectionIcon`)? Markdown reference table? Decide format, populate mapping for Spaces / Collections / Items / Pages / loose entities, swap out the placeholders in `SidebarRow.swift`. React-side semantic-role pattern at `// ReactInfo// Symbols-guide.md` could inform the Swift shape.
 
-2. **Filesystem connection (begin v0.1).** Make the sidebar mirror a user-picked nexus. Default `~// PommoraNexus//`. Read folder tree, surface `.md` files in the sidebar as actual Item rows (replacing placeholders). No parsing, no editor yet — clicking a file opens it as a tab; main pane shows raw markdown. Per Framework.md v0.1 scope. Folder-watching strategy + iCloud-safe storage paths need a brief decision.
+2. **v0.1b — Tab integration.** Sidebar entries are currently selectable but click does nothing. Wire up: clicking a `.md` row opens it as a tab in the top-bar tab strip; main pane shows raw markdown. Standard `+` / `×` / `⌘T` / `⌘W` / `⌘1..9` chrome per [Features/Navigation-Bar.md](Features/Navigation-Bar.md). Open tabs + active tab persist via `.nexus/state.json` inside the nexus (per the v0.1a state-file separation).
 
-3. **Top-bar tab implementation.** Single-row toolbar with the tab strip spec'd in `// Features//Navigation-Bar.md`. Standard tab chrome: `+` / `×` / `Cmd+T` / `Cmd+W` / `Cmd+1..9`; open tabs + active tab persist. Decide whether tabs land before or after the nexus read so we know what content the strip displays during the build.
+3. **v0.1a UX polish (deferred per direction).** All UI copy is functional/minimal — no welcome states, no error alerts, no descriptive panel text. Design pass picks these up. Specifically: empty-nexus state in the sidebar; first-launch picker-canceled empty state; error display surface for `NexusManager.pendingError`.
 
 ---
 
@@ -42,7 +42,7 @@ Real items needing resolution before they bite, organized by when they'll surfac
 
 - **Editor risk — substantially de-risked.** Two editor options documented in `// Features//Pages.md`: (1) native Swift editor — fork Clearly or build original on NSTextView/AppKit (source-with-decorations, fully native); (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas. A bounded spike (WKWebView-host JS editor PoC, or fork-Clearly assessment for the native path) would de-risk specifics before committing. React-side reference at `// ReactInfo// Editor.md`.
 
-- **`pommora.db` location.** PRD currently places the SQLite index at `.pommora// pommora.db` inside the user-pickable nexus. If the user puts the nexus on iCloud Drive, iCloud's file-conflict resolution can corrupt SQLite. Move to `~//Library//Application Support//Pommora//<nexus-id>//`; the nexus should hold only canonical content.
+- **`nexus.db` location** — *resolved in v0.1a.* SQLite index lives at `~//Library//Application Support//com.nathantaichman.Pommora//nexuses//<nexus-id>//nexus.db` per Apple Foundation + GRDB.swift recommendation. Per-nexus subdir keyed by ULID survives nexus rename/move; marked `isExcludedFromBackupKey` for iCloud-Backup quota hygiene. The nexus folder stays purely canonical content.
 
 ##### Framework version ordering (surfaces v0.6–v0.8)
 
@@ -58,14 +58,14 @@ Real items needing resolution before they bite, organized by when they'll surfac
 
 - **Filename collisions on creation** — auto-suffix (`Notes 2.md`)? Reject? Prompt? Wikilink-resolution collisions have rules; creation-time collisions don't.
 - **Pommora-flavored Markdown is a dialect** — the `:::columns` and `:::callout` directives appear as inert notation in non-Pommora tools. Standard Markdown round-trips perfectly; the directives don't. Worth acknowledging this honestly in the docs rather than implying universal portability.
-- **First-launch with an existing folder** — if the user picks a nexus folder that already has `.pommora//` from a prior install, behavior isn't specified.
+- **First-launch with an existing folder** — *resolved in v0.1a.* `.nexus/` already present → load existing `nexus.json`, skip init. Empty folder → silent init. Non-empty folder without `.nexus/` → confirm dialog before init.
 - **`@view` language in Spaces is imprecise** — docs use "`@view` directive" but `.space.json` is structured JSON with `embedded-collection-view` blocks. Either formalize a directive grammar or change the language to "embedded-view blocks."
 
 ---
 
 #### Branch Status
 
-`main`, pushed to remote `https://github.com/Natertot215/Project-Pommora.git` at `4431420`. Studio working tree is the current source of truth.
+`main`. v0.1a foundation work landed across 15 commits since v0.0; latest is the post-implementation doc sync. Studio working tree is the current source of truth.
 
 #### Open Questions
 

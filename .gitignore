@@ -25,4 +25,4 @@ dist/
 # Pommora — per-nexus app-internal config
 # Skipped from any git-tracked folder used as a dev test nexus
 # (e.g. when pointing Pommora at the Studio or a project subfolder)
-.pommora/
+.nexus/

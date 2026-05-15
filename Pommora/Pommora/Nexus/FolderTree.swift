@@ -9,7 +9,7 @@ import Foundation
 /// v0.1 sidebar scope rules.
 ///
 /// Filter rules (decided in the v0.1 brainstorm):
-/// - Skip entries whose name starts with `.` (`.pommora/`, `.trash/`, `.git/`,
+/// - Skip entries whose name starts with `.` (`.nexus/`, `.trash/`, `.git/`,
 ///   `.DS_Store`, etc.)
 /// - For files, only `.md` (Pages) and `.json` (Items) pass — other file types
 ///   stay invisible (PDFs, images, etc. belong to attachments, not the sidebar)

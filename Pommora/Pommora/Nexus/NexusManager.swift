@@ -118,7 +118,7 @@ final class NexusManager {
         }
         replaceAccessingURL(with: url)
 
-        let identityURL = pommoraIdentityURL(in: url)
+        let identityURL = nexusIdentityURL(in: url)
         let identity: NexusIdentity
         do {
             identity = try NexusIdentity.load(from: identityURL)
@@ -148,14 +148,14 @@ final class NexusManager {
     }
 
     /// Routes a freshly-picked URL through init (empty/silent or non-empty/confirm)
-    /// or load (existing `.pommora/`).
+    /// or load (existing `.nexus/`).
     private func openPicked(at url: URL) async {
-        let pommoraDir = url.appendingPathComponent(".pommora", isDirectory: true)
-        let identityURL = pommoraDir.appendingPathComponent("nexus.json", isDirectory: false)
+        let nexusConfigDir = url.appendingPathComponent(".nexus", isDirectory: true)
+        let identityURL = nexusConfigDir.appendingPathComponent("nexus.json", isDirectory: false)
         let fm = FileManager.default
 
         let identity: NexusIdentity
-        if fm.fileExists(atPath: pommoraDir.path) {
+        if fm.fileExists(atPath: nexusConfigDir.path) {
             do {
                 identity = try NexusIdentity.load(from: identityURL)
             } catch {
@@ -177,7 +177,7 @@ final class NexusManager {
             }
 
             do {
-                try fm.createDirectory(at: pommoraDir, withIntermediateDirectories: true)
+                try fm.createDirectory(at: nexusConfigDir, withIntermediateDirectories: true)
                 identity = NexusIdentity(id: ULID.generate())
                 try identity.save(to: identityURL)
             } catch {
@@ -213,9 +213,9 @@ final class NexusManager {
 
     // MARK: - Helpers
 
-    private func pommoraIdentityURL(in nexusURL: URL) -> URL {
+    private func nexusIdentityURL(in nexusURL: URL) -> URL {
         nexusURL
-            .appendingPathComponent(".pommora", isDirectory: true)
+            .appendingPathComponent(".nexus", isDirectory: true)
             .appendingPathComponent("nexus.json", isDirectory: false)
     }
 

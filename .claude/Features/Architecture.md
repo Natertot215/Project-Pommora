@@ -11,7 +11,7 @@ This is **conceptual** portability — the decisions survive a stack pivot. It i
 These are the decisions that define Pommora and would carry forward to a rebuild in React+Electron:
 
 - **File formats** — Markdown for Pages (inside Pages collections, or loose anywhere outside Collection folders), `_collection.json` for Collection schemas (carries `kind`: `"pages"` | `"items"`), one `.json` per Item (inside an Items collection, or loose), `.space.json` for Spaces (block trees), YAML frontmatter shape
-- **Nexus structure conventions** — `.pommora//` at nexus root holds app config and SQLite index (regeneratable); `.trash//` at nexus root holds deleted entities (preserving original relative path; restoration is a file move back); both are leading-dot hidden folders
+- **Nexus structure conventions** — `.nexus//` at nexus root holds app config and SQLite index (regeneratable); `.trash//` at nexus root holds deleted entities (preserving original relative path; restoration is a file move back); both are leading-dot hidden folders
 - **SQLite schema** — `pages`, `items`, `collections`, `spaces`, `links` tables; FTS5 indexing pattern; JSON1 query patterns
 - **Domain model** — Pages, Items, Collections (typed at creation: `kind` = `"pages"` or `"items"`), Spaces; their definitions, linking model, membership rules (`// Features//Domain-Model.md`)
 - **Property type catalog** — number, checkbox, date, datetime, select, multi-select, relation, URL; config shapes; schema mutation rules. Shared between Pages (values in frontmatter) and Items (values in JSON entry) (`// Features//Properties.md`). No dedicated `Status` type — Status-like properties are just Selects named "Status."

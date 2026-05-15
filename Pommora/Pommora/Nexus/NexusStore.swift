@@ -14,7 +14,7 @@ import Foundation
 ///     state.json                      ← appStateURL()
 ///     nexuses/
 ///       <nexus-id>/                   ← nexusDataDir(nexusID:)
-///         pommora.db                  ← databaseURL(nexusID:) [reserved in v0.1; created in v0.2+]
+///         nexus.db                  ← databaseURL(nexusID:) [reserved in v0.1; created in v0.2+]
 ///         cache/                      ← future
 /// ```
 ///
@@ -73,7 +73,7 @@ enum NexusStore {
     /// database file itself is created in v0.2 by the GRDB layer.
     static func databaseURL(nexusID: String) throws -> URL {
         try nexusDataDir(nexusID: nexusID)
-            .appendingPathComponent("pommora.db", isDirectory: false)
+            .appendingPathComponent("nexus.db", isDirectory: false)
     }
 
     private static func markExcludedFromBackup(_ url: URL) throws {

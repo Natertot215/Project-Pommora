@@ -23,7 +23,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
-- **Files are canonical (≠ everything is Markdown).** Pages = `.md`. Collections = folder + `_collection.json` (carries the Collection's `kind`). Items = individual `.json` files (one per Item; filename = title); members live inside Items collections, loose Items live anywhere else. Spaces = `.space.json` block trees in `.pommora// spaces//`. Loose Pages and loose Items both exist; carry only built-in fields. SQLite is regeneratable index — no user data trapped in it.
+- **Files are canonical (≠ everything is Markdown).** Pages = `.md`. Collections = folder + `_collection.json` (carries the Collection's `kind`). Items = individual `.json` files (one per Item; filename = title); members live inside Items collections, loose Items live anywhere else. Spaces = `.space.json` block trees in `.nexus// spaces//`. Loose Pages and loose Items both exist; carry only built-in fields. SQLite is regeneratable index — no user data trapped in it.
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 

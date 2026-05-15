@@ -63,44 +63,52 @@ Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the like
 
 ##### Storage Model
 
-**Nexus location:** User-pickable on first launch. Pommora suggests `~// PommoraNexus//` as the default; the user can place the nexus anywhere — including iCloud Drive, Dropbox, or any synced folder for free device-to-device sync. The chosen path is stored in app settings (security-scoped bookmark on MAS builds) and used for the watcher and indexer.
+**Nexus location:** User-pickable on first launch. Pommora suggests `~// PommoraNexus//` as the default; the user can place the nexus anywhere — including iCloud Drive, Dropbox, or any synced folder for free device-to-device sync. The chosen path is persisted via security-scoped bookmark in app-level state; sandbox is enabled from v0.1a (forward-compatible with MAS distribution).
 
-**On disk** (path shown is the suggested default):
+**On disk:**
 
 ```
-~// PommoraNexus//
-  Tasks//                      ← Items collection (_collection.json declares kind: "items")
+<picked nexus folder>//                   ← canonical content lives here, syncs with cloud
+  Tasks//                                  ← Items collection (_collection.json declares kind: "items")
     _collection.json
     Buy groceries.json
     Fix sink.json
     Steam Deck OLED.json
-  Papers//                     ← Pages collection (_collection.json declares kind: "pages")
+  Papers//                                 ← Pages collection (_collection.json declares kind: "pages")
     _collection.json
     Attention is all you need.md
     Compiler Construction.md
-  Projects//                   ← Pages collection (project briefs warrant prose)
+  Projects//                               ← Pages collection
     _collection.json
     Pommora.md
-  Quick note.md                ← Loose Page
-  Bookmark.json                ← Loose Item
-  Inbox//                      ← Cosmetic folder (no _collection.json)
-    Travel ideas.md            ← Loose Page (folder is just organization)
-    Saved tweet.json           ← Loose Item
+  Quick note.md                            ← Loose Page
+  Bookmark.json                            ← Loose Item
+  Inbox//                                  ← Cosmetic folder (no _collection.json)
+    Travel ideas.md                        ← Loose Page (folder is just organization)
+    Saved tweet.json                       ← Loose Item
   attachments//
     image.png
-  .pommora//
-    pommora.db                 ← SQLite index (regeneratable)
-    symbols.json               ← Semantic symbol role → Material name mapping (React only)
-    spaces//
-      Homepage.space.json      ← Seeded on first launch; default landing
+  .nexus//                               ← app-internal config (vault-portable, syncs)
+    nexus.json                             ← Codable VaultIdentity: ULID + createdAt (v0.1a)
+    state.json                             ← Codable nexus-portable user state (v0.2+)
+    spaces//                               ← (v0.10+)
+      Homepage.space.json                  ← Seeded on first launch; default landing
       Pommora.space.json
-      Health.space.json
-  .trash//                     ← Deleted entities (nexus-local trash)
+  .trash//                                 ← Deleted entities (nexus-local trash; v1+)
     Tasks//
-      Old task.json            ← Preserves original relative path
+      Old task.json                        ← Preserves original relative path
+
+~//Library//Application Support//com.nathantaichman.Pommora//   ← machine-specific, never syncs
+  state.json                               ← Codable AppState: bookmark + future recent-nexuses
+  nexuses//
+    <nexus-id>//                           ← keyed by ULID from .nexus/nexus.json
+      nexus.db                           ← SQLite index (v0.2+); regeneratable
+      cache//                              ← future
 ```
 
-A folder is a **Collection** if and only if it contains a `_collection.json` file. Folders without one are cosmetic filesystem organization — files inside them are loose (no schema-conforming properties). The app-internal config folder is `.pommora//` (leading dot, hidden — matches `.obsidian` convention). Deleted entities go to **`.trash//`** at the nexus root (sibling of `.pommora//`); the entity's original relative path is preserved inside `.trash//` so restoration is a straight file move.
+A folder is a **Collection** if and only if it contains a `_collection.json` file. Folders without one are cosmetic filesystem organization — files inside them are loose (no schema-conforming properties). The app-internal config folder is `.nexus//` (leading dot, hidden — matches `.obsidian` convention). Deleted entities go to **`.trash//`** at the nexus root; the entity's original relative path is preserved inside `.trash//` so restoration is a straight file move.
+
+**Why the SQLite index lives outside the nexus:** placing `nexus.db` inside a vault that may be on iCloud Drive / Dropbox / another sync surface risks file-conflict-driven corruption (SQLite's locking assumes single-host filesystem semantics). The Application Support per-nexus subdir, keyed by ULID, survives vault rename/move and is marked `isExcludedFromBackupKey` so iCloud Backup skips the regeneratable index. The vault folder stays purely canonical content; the index is the app's private mirror.
 
 ##### Pages
 
@@ -140,7 +148,7 @@ The Collection's title comes from the folder name. Members are uniformly one kin
 
 ##### Spaces
 
-Each Space is a `.space.json` file in `.pommora// spaces//` holding the full block tree:
+Each Space is a `.space.json` file in `.nexus// spaces//` holding the full block tree:
 
 ```json
 {
@@ -330,7 +338,7 @@ Dismissed by clicking outside, pressing Esc, or closing the window.
 
 ##### First-Launch Experience
 
-On first launch, after the user picks a nexus location, Pommora opens with empty sidebars plus a single seeded `Homepage` Space at `.pommora// spaces// Homepage.space.json`, opened as the landing surface. No tutorial, no walkthrough wizard.
+On first launch, after the user picks a nexus location, Pommora opens with empty sidebars plus a single seeded `Homepage` Space at `.nexus// spaces// Homepage.space.json`, opened as the landing surface. No tutorial, no walkthrough wizard.
 
 ##### Design System
 

@@ -13,7 +13,7 @@ For pivot methodology and translation patterns, see `Contingency.md`. For the ob
 - `StateData.md` — Zustand vanilla + `useSyncExternalStore`, table-keyed pub/sub for `better-sqlite3` reactivity, `@parcel/watcher` v2.5+ gotchas, FTS5 `unicode61` patterns
 - `MacIntegration.md` — Pure-Electron first-party areas, companion-bundle territory, hard ceilings
 - `Distribution.md` — electron-vite + electron-builder, code signing + notarization, MAS sandbox, auto-update via electron-updater
-- `Symbols-guide.md` — Semantic symbol roles + `.pommora// symbols.json` mapping for library swap (React-only — SwiftUI uses SF Symbols natively)
+- `Symbols-guide.md` — Semantic symbol roles + `.nexus// symbols.json` mapping for library swap (React-only — SwiftUI uses SF Symbols natively)
 - `Resources.md` — React-side library catalog
 - `v0.0.md` — Preserved React+Electron-locked v0.0 spec (the SwiftUI v0.0 build runs directly from `Framework.md` + `PommoraPRD.md` + `UIX-Guide.md`, no separate spec doc)
 

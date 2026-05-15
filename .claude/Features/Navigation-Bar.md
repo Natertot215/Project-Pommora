@@ -52,7 +52,7 @@ Title text truncates with an ellipsis when the tab is too narrow. Inactive vs ac
 
 #### Persistence
 
-Open tabs and the active-tab pointer **persist across launches**. v0.1: `@AppStorage` (UserDefaults). v0.2+: moves to `.pommora//state.json` once the watcher + state layer ships. Tab state is **per-window**.
+Open tabs and the active-tab pointer **persist across launches**. Stored in `<nexus>//.nexus//state.json` (Codable; vault-portable user state) from v0.1b onward — no UserDefaults dependency. State-file separation rationale lives in [Planning/v0.1-nexus-foundation-design.md](../Planning/v0.1-nexus-foundation-design.md). Tab state is **per-window**.
 
 ---
 

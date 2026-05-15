@@ -20,7 +20,7 @@ Toolchain proof. App launches on macOS 26+ (Tahoe) into a barebones three-pane s
 The React+Electron-locked v0.0 spec is preserved at `// ReactInfo//v0.0.md` for contingency.
 
 ##### v0.1 — Nexus reads + tabs functional
-Sidebar tree mirrors folder structure of `~// PommoraNexus//`. Clicking a `.md` file in the sidebar opens it as a tab in the top-bar tab row; the main pane shows the file's raw markdown. Multiple tabs can be open simultaneously; clicking a tab switches the main pane; closing a tab removes it. New tab via `+` or `Cmd+T` opens an empty state. Open tabs and active tab persist across launches. No parsing, no editor yet.
+Split into two phases. **v0.1a — Nexus Foundation (shipped):** sandboxed picker, security-scoped bookmark persistence in app-level `state.json` under Application Support, `.nexus/` folder init flow (silent for empty folders, confirm dialog for non-empty), per-nexus subdirectory under Application Support keyed by ULID, and a sidebar tree that mirrors the picked folder with `.md` + `.json` shown (extensions stripped) and leading-dot entries / non-content files filtered. File menu → Open Nexus… for switching nexuses; Debug menu → Reset Nexus Bookmark for dev iteration. **v0.1b — Tabs (next):** clicking a sidebar entry opens it as a tab; main pane shows raw markdown. Multiple tabs simultaneously; standard `+` / `×` / `⌘T` / `⌘W` chrome; persistence via `.nexus/state.json` inside the nexus. No parsing, no editor yet.
 
 ##### v0.2 — Index + watcher
 SQLite index + frontmatter parser + file watcher. Pages indexed at launch; sidebar displays titles derived from filenames; changes on disk update the sidebar live.
@@ -47,7 +47,7 @@ Collection construct first-class: a folder + a `_collection.json` schema sidecar
 Three remaining view types. Board view ships as a **visual kanban layout** — cards grouped by a property's options (status, type, etc.); editing a card's property via the card UI moves it visually between columns. **Drag-to-rewrite-frontmatter** (dragging a card across kanban columns to mutate the source's property value directly) is post-v1.0 — it needs the property edit / atomic write / watcher loop hardened first.
 
 ##### v0.10 — Spaces: composition foundation
-Spaces are a first-class entity — Notion-page-style block-composition surfaces. Canvas-based composer with drag/drop and slash-menu insertion. Text blocks: paragraph, headings, lists, callout, code, image. Plus the linked-pages widget block (renders Pages whose `spaces` property points to this Space). Block tree persists to `.space.json` files in `.pommora// spaces//`.
+Spaces are a first-class entity — Notion-page-style block-composition surfaces. Canvas-based composer with drag/drop and slash-menu insertion. Text blocks: paragraph, headings, lists, callout, code, image. Plus the linked-pages widget block (renders Pages whose `spaces` property points to this Space). Block tree persists to `.space.json` files in `.nexus// spaces//`.
 
 ##### v0.11 — Spaces: rich blocks + search
 Multi-column layout inside Spaces (`columns` block). Embedded Collection view widget (renders any saved Collection view inline). Link list widget (manually curated). Global FTS5 search over Page bodies and frontmatter.
@@ -63,6 +63,6 @@ No specific phase commitments yet. Potential features and brainstormed ideas for
 
 #### Current Focus
 
-**v0.0 shipped.** Barebones three-pane shell (sidebar + main + hidden-by-default pop-out inspector) lives at [Pommora/Pommora/](Pommora/Pommora/). Build verified via `xcodebuild`.
+**v0.1a Nexus Foundation shipped.** Sandboxed picker, security-scoped bookmark persistence, `.nexus/` initialization, sidebar mirroring the user-picked nexus folder. 25 unit tests pass. Design + Findings preserved at [.claude/Planning/v0.1-nexus-foundation-design.md](.claude/Planning/v0.1-nexus-foundation-design.md).
 
-**Next: v0.1** — nexus reads + functional tab chrome. Per-version planning docs are authored as we approach each version, not pre-stubbed. Implementation order has not been reviewed or approved by Nathan; this order will likely change.
+**Next: v0.1b — Tab integration.** Click a sidebar entry → opens as a tab in the top-bar strip; main pane shows raw markdown. Standard tab chrome per [Features/Navigation-Bar.md](Features/Navigation-Bar.md). Per-version planning docs are authored as we approach each version, not pre-stubbed.

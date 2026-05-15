@@ -24,7 +24,7 @@ On top of the SwiftUI + AppKit baseline, Pommora has a small set of brand-specif
 #### Where Pommora's brand values live
 
 - **App accent color** — Asset Catalog (`Assets.xcassets/AccentColor.colorset`) with light/dark variants. Accessed natively via `Color.accentColor` or set globally with `.tint(.accentColor)`.
-- **Pommora-specific Colors** — small Color extensions (`Color+Pommora.swift` or Asset Catalog color sets) for the handful of values SwiftUI semantic colors don't cover: code block fg/bg, callout border (+ optional bg), blockquote accent bar. Apple-idiomatic naming: `Color.pommoraCodeBackground`, `Color.pommoraCalloutBorder`, etc.
+- **Pommora-specific Colors** — small Color extensions (`Color+Pommora.swift` or Asset Catalog color sets) for the handful of values SwiftUI semantic colors don't cover: code block fg/bg, callout border (+ optional bg), blockquote accent bar. Apple-idiomatic naming: `Color.nexusCodeBackground`, `Color.nexusCalloutBorder`, etc.
 - **Pommora-specific Fonts** — small Font extensions where the SwiftUI scale doesn't fit (e.g. micro / caption variants).
 
 That's the entire "Pommora brand surface" on Swift. SwiftUI semantic colors and Font scale carry the rest.

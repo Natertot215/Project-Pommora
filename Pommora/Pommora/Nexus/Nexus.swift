@@ -6,10 +6,10 @@
 import Foundation
 
 /// A Pommora Nexus: a user-picked folder that holds the canonical content
-/// (Pages, Items, Collections, Spaces) plus a hidden `.pommora/` config folder
+/// (Pages, Items, Collections, Spaces) plus a hidden `.nexus/` config folder
 /// at its root.
 ///
-/// The id is a ULID stored in `.pommora/nexus.json`; it survives the nexus
+/// The id is a ULID stored in `.nexus/nexus.json`; it survives the nexus
 /// folder being renamed or moved on disk.
 struct Nexus: Equatable, Hashable, Identifiable {
     let id: String

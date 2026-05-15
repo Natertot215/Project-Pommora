@@ -11,7 +11,7 @@ struct FolderTreeTests {
     @Test func skipsLeadingDotEntries() throws {
         let root = try makeFixture(entries: [
             "Visible.md",
-            ".pommora",
+            ".nexus",
             ".DS_Store",
             ".git",
         ])

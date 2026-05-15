@@ -15,7 +15,7 @@ import Foundation
 /// etc.) extend this same shape.
 ///
 /// Vault-portable per-nexus state (open tabs, sidebar collapsed state)
-/// lives separately at `<nexus>/.pommora/state.json` and is the concern
+/// lives separately at `<nexus>/.nexus/state.json` and is the concern
 /// of a future v0.2+ type — not this one.
 struct AppState: Codable, Equatable {
     var schemaVersion: Int

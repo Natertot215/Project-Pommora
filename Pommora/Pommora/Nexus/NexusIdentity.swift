@@ -5,7 +5,7 @@
 
 import Foundation
 
-/// Vault-portable identity persisted at `<nexus>/.pommora/nexus.json`.
+/// Vault-portable identity persisted at `<nexus>/.nexus/nexus.json`.
 ///
 /// Holds the nexus's stable ULID and creation timestamp. Travels with the
 /// nexus folder if the user moves it across machines via cloud sync — never

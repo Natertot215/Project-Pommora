@@ -8,7 +8,7 @@ A Space is a **Notion-page-style composed surface** — text, headings, lists, c
 
 #### On disk
 
-- A `.space.json` file in `.pommora// spaces//` (e.g. `.pommora// spaces// Pommora.space.json`).
+- A `.space.json` file in `.nexus// spaces//` (e.g. `.nexus// spaces// Pommora.space.json`).
 - Each Space has an ID (ULID).
 - The file holds the full block tree as structured JSON — the block tree is the canonical content. No Markdown body.
 - Title = filename (e.g. `Pommora.space.json` → "Pommora"). Renaming in the UI renames the file.

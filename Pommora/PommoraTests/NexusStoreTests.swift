@@ -38,7 +38,7 @@ struct NexusStoreTests {
     @Test func databaseURLEndsWithPommoraDB() throws {
         let id = ULID.generate()
         let url = try NexusStore.databaseURL(nexusID: id)
-        #expect(url.lastPathComponent == "pommora.db")
+        #expect(url.lastPathComponent == "nexus.db")
         // Cleanup the dir created as a side effect of nexusDataDir
         try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
     }

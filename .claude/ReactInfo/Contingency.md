@@ -30,7 +30,7 @@ The trigger phrase is "something big OR an obvious React way" — if either appl
 Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, Apple, Claude Desktop. Pommora picks density, contrast, and typographic restraint cues from these but doesn't copy values.
 
 ##### Icons
-- SF Symbols via `Image(systemName:)` (no indirection needed) → Material Symbols via `react-material-symbols` through `.pommora// symbols.json` semantic-role layer. See `Symbols-guide.md`.
+- SF Symbols via `Image(systemName:)` (no indirection needed) → Material Symbols via `react-material-symbols` through `.nexus// symbols.json` semantic-role layer. See `Symbols-guide.md`.
 
 ##### Distribution
 - Sparkle 2.x → electron-updater (GitHub Releases path of least resistance). Code-signing + notarization patterns are documented per stack; sandboxing constraints are identical. See `Distribution.md`.
