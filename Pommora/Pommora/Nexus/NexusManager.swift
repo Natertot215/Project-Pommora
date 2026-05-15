@@ -230,7 +230,7 @@ final class NexusManager {
 
     private func confirmInitialization(for url: URL) -> Bool {
         let alert = NSAlert()
-        alert.messageText = "Initialize as Pommora nexus?"
+        alert.messageText = "Initialize as Pommora Nexus?"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Initialize")
         alert.addButton(withTitle: "Cancel")
