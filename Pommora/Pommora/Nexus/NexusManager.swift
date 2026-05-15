@@ -7,9 +7,9 @@ import AppKit
 import Foundation
 import Observation
 
-/// Errors that can surface during nexus lifecycle. Set on `NexusManager.pendingError`
-/// for SwiftUI to present via an alert binding.
-enum NexusError: LocalizedError, Equatable {
+/// Errors that can surface during nexus lifecycle. Logged to stderr by the
+/// manager; UI presentation is deferred to the design pass.
+enum NexusError: Error, Equatable {
     case accessDenied
     case corruptIdentity
     case enumerationFailed(String)
@@ -17,25 +17,6 @@ enum NexusError: LocalizedError, Equatable {
     case resolutionFailed(String)
     case bookmarkSaveFailed(String)
     case appSupportFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .accessDenied:
-            return "Pommora couldn't access the nexus folder. Try picking it again."
-        case .corruptIdentity:
-            return "The .pommora/nexus.json file is unreadable. Pick the folder again to re-initialize."
-        case .enumerationFailed(let detail):
-            return "Couldn't read the nexus folder contents.\n\n\(detail)"
-        case .initFailed(let detail):
-            return "Couldn't initialize the nexus.\n\n\(detail)"
-        case .resolutionFailed(let detail):
-            return "The nexus folder is no longer at its previous location.\n\n\(detail)"
-        case .bookmarkSaveFailed(let detail):
-            return "Couldn't remember this nexus across launches.\n\n\(detail)"
-        case .appSupportFailed(let detail):
-            return "Pommora couldn't prepare its data directory.\n\n\(detail)"
-        }
-    }
 }
 
 /// Single source of truth for the active nexus. Drives the SwiftUI sidebar via
@@ -47,7 +28,8 @@ final class NexusManager {
     /// user picks a folder.
     var currentNexus: Nexus?
 
-    /// Last non-fatal error. Bind this to a SwiftUI `.alert(item:)` modifier.
+    /// Last non-fatal error. UI presentation is deferred to the design pass;
+    /// for now the property is just observable state.
     var pendingError: NexusError?
 
     /// The URL we currently hold security-scoped access to. Cleared when the
@@ -90,9 +72,6 @@ final class NexusManager {
     /// picked folder. Cancellation is silent (no error, no state change).
     func pickNexus() async {
         let panel = NSOpenPanel()
-        panel.title = "Choose Nexus"
-        panel.prompt = "Choose Nexus"
-        panel.message = "Pick a folder to use as your Pommora nexus, or create a new one."
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
@@ -251,11 +230,7 @@ final class NexusManager {
 
     private func confirmInitialization(for url: URL) -> Bool {
         let alert = NSAlert()
-        alert.messageText = "Initialize this folder as a Pommora nexus?"
-        alert.informativeText = """
-        Pommora will create a hidden .pommora folder inside \"\(url.lastPathComponent)\" for its \
-        index and configuration. Existing files in the folder will not be modified.
-        """
+        alert.messageText = "Initialize as Pommora nexus?"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Initialize")
         alert.addButton(withTitle: "Cancel")

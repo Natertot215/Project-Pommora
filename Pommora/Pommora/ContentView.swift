@@ -12,8 +12,6 @@ struct ContentView: View {
     @State private var searchQuery = ""
 
     var body: some View {
-        @Bindable var manager = nexusManager
-
         NavigationSplitView {
             SidebarView(manager: nexusManager)
                 .safeAreaInset(edge: .top, spacing: 8) {
@@ -36,7 +34,6 @@ struct ContentView: View {
                         } label: {
                             Label("Toggle Inspector", systemImage: "sidebar.trailing")
                         }
-                        .help("Toggle Inspector")
                     }
                 }
         }
@@ -44,18 +41,6 @@ struct ContentView: View {
         .frame(minWidth: 960, minHeight: 560)
         .task {
             await nexusManager.loadOnLaunch()
-        }
-        .alert(
-            "Nexus Error",
-            isPresented: Binding(
-                get: { manager.pendingError != nil },
-                set: { presented in if !presented { manager.pendingError = nil } }
-            ),
-            presenting: manager.pendingError
-        ) { _ in
-            Button("OK", role: .cancel) { manager.pendingError = nil }
-        } message: { error in
-            Text(error.errorDescription ?? "Unknown error.")
         }
     }
 }
