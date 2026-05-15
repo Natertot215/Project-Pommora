@@ -34,7 +34,6 @@ struct ContentView: View {
                         } label: {
                             Label("Toggle Inspector", systemImage: "sidebar.trailing")
                         }
-                        .buttonStyle(.borderless)
                     }
                 }
         }
