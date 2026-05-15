@@ -38,7 +38,7 @@ Each type has a fixed config shape, stored as JSON inside the property's entry i
 | **Date & Time** | `"2026-06-15T14:30"` | `{ includeTime: true, format: "MMM D, YYYY h:mm A" }` | Date + time picker. |
 | **Select** | `"Active"` | `{ options: [{ value: "Active", color: "blue" }, ...] }` | Dropdown with colored pills. New options created inline by typing — text label becomes a new option in the catalog. Option order is user-defined (drag in the option editor) and defines sort behavior — see "Property options and sort order" below. |
 | **Multi-select** | `["planning", "frontend"]` | `{ options: [...] }` | Tag-style multi-pick; new options created inline by typing. Same option-order-defines-sort behavior as Select. |
-| **Relation** | `"01HXYZ..."` or `["01H...", "01H..."]` (target IDs) | `{ scope?: "Projects//", multiple: true \| false }` | Picker scoped to the configured folder if `scope` is set, otherwise vault-wide. **Stored as the target's ID** (rename-safe — survives renames of the target). **Displayed as the target's current title**, rendered as styled colored inline text (same look as wikilinks in body). The relation lookup resolves ID → current title at render time; rename a referenced Page and the relation's display updates automatically. |
+| **Relation** | `"01HXYZ..."` or `["01H...", "01H..."]` (target IDs) | `{ scope?: "Projects//", multiple: true \| false }` | Picker scoped to the configured folder if `scope` is set, otherwise nexus-wide. **Stored as the target's ID** (rename-safe — survives renames of the target). **Displayed as the target's current title**, rendered as styled colored inline text (same look as wikilinks in body). The relation lookup resolves ID → current title at render time; rename a referenced Page and the relation's display updates automatically. |
 | **URL** | `"https://..."` | `{}` | URL input; rendered as clickable link with favicon. |
 
 **No separate `Status` type.** Status-like behavior is a Select property named "Status" with options like `Not started`, `In progress`, `Done`.
@@ -64,7 +64,7 @@ Two different orderings, two different storage layers:
 What happens when a user changes a property's definition:
 
 - **Adding a new property** — appears as empty on every member of the Collection; no file writes required until a value is set.
-- **Renaming a property** — schema rename + a vault-wide rewrite across the Collection's members (frontmatter for Pages, `properties` block for Items), using the same atomic-transaction pattern as wikilink renames.
+- **Renaming a property** — schema rename + a nexus-wide rewrite across the Collection's members (frontmatter for Pages, `properties` block for Items), using the same atomic-transaction pattern as wikilink renames.
 - **Changing a property's type** — only allowed when the conversion is lossless (e.g., Date → Date & Time, or Select → Multi-select). Otherwise the user is prompted and must confirm; on confirm, conflicting values are dropped.
 - **Deleting a property** — schema row removed; values removed from every member of the Collection. No backup or `_orphaned` quarantine — Notion-style: the property and its values are gone.
 
@@ -74,7 +74,7 @@ Moving a Page from one Pages collection to another (or an Item from one Items co
 
 The same rule applies in both directions involving loose state:
 
-- **Member → Loose** (moving a `.md` or `.json` out of a Collection folder into the vault root / a cosmetic folder): all schema-conforming properties are stripped; the entity becomes loose with only built-in fields remaining.
+- **Member → Loose** (moving a `.md` or `.json` out of a Collection folder into the nexus root / a cosmetic folder): all schema-conforming properties are stripped; the entity becomes loose with only built-in fields remaining.
 - **Loose → Member** (moving into a matching-kind Collection folder): the destination Collection's schema applies; the new member starts with empty values for every property in the schema.
 
 This keeps the model simple and matches user intuition from Notion — no quarantine, no orphan archives, no undo-the-strip-property semantics.

@@ -27,7 +27,7 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 
 ##### Architecture (three load-bearing constraints)
 1. **Stack portability of functionalities** — file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design values, UX patterns survive a stack rebuild. The codebase doesn't. **No enforced layer separation** (the earlier Core/Adapter/UI rule was dropped); portability comes from documented decisions.
-2. **Cross-vault queryability + cloud sync compatibility** — Collections aren't isolated; they're queryable and linkable from anywhere. The on-disk model maps cleanly to a cloud DB (single shared `pages` / `items` tables keyed by `collection_id`; `_collection.json` → `collections` row; each Space → `spaces` row). Sync arrives later as additive translation, not redesign. Cloud sync is real long-term intent.
+2. **Cross-nexus queryability + cloud sync compatibility** — Collections aren't isolated; they're queryable and linkable from anywhere. The on-disk model maps cleanly to a cloud DB (single shared `pages` / `items` tables keyed by `collection_id`; `_collection.json` → `collections` row; each Space → `spaces` row). Sync arrives later as additive translation, not redesign. Cloud sync is real long-term intent.
 3. **Persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. SQLite is performance scaffolding, not source of truth. Differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Pommora = local + structured.
 
 ##### Domain Model
@@ -45,9 +45,9 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 - **No default seeded Collections.** First launch seeds only the `Homepage` Space.
 
 ##### Storage Layout
-- **Vault location is user-pickable on first launch** (default suggestion `~// PommoraVault//`). The user can place the vault in iCloud Drive / Dropbox / any synced folder for free device-to-device sync in v1.
-- **App-internal config folder: `.pommora//`** (leading dot, hidden by default — matches `.obsidian` convention; renamed from the earlier underscore-prefix `_pommora//`). Lives inside the vault. Holds `pommora.db` (SQLite index — regeneratable) and `spaces//` (`.space.json` files). (Earlier-planned `saved.json` for pinning is post-v1 — pinning is out of v1 scope.)
-- **Vault-local trash: `.trash//`** at the vault root (sibling of `.pommora//`). Deleted entities move here, preserving original relative path. Restoration is a straight file move back. Auto-purge / age-based clearing is post-v1; v1 ships with manual clear only.
+- **Nexus location is user-pickable on first launch** (default suggestion `~// PommoraNexus//`). The user can place the nexus in iCloud Drive / Dropbox / any synced folder for free device-to-device sync in v1.
+- **App-internal config folder: `.pommora//`** (leading dot, hidden by default — matches `.obsidian` convention; renamed from the earlier underscore-prefix `_pommora//`). Lives inside the nexus. Holds `pommora.db` (SQLite index — regeneratable) and `spaces//` (`.space.json` files). (Earlier-planned `saved.json` for pinning is post-v1 — pinning is out of v1 scope.)
+- **Nexus-local trash: `.trash//`** at the nexus root (sibling of `.pommora//`). Deleted entities move here, preserving original relative path. Restoration is a straight file move back. Auto-purge / age-based clearing is post-v1; v1 ships with manual clear only.
 - **`.space.json` files** carry the full block tree. `_collection.json` is the Collection's schema sidecar (Make.md folder-notes pattern).
 - **Files canonical, SQLite as index.** Markdown for Pages; JSON for everything else. SQLite is regeneratable from files.
 - **Cloud-sync mapping** in PRD: a single shared `pages` table with `collection_id` + `properties` JSONB column; parallel `items` table with the same shape; one `collections` row per `_collection.json`; one `spaces` row per `.space.json`.

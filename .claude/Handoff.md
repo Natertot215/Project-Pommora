@@ -6,19 +6,19 @@
 
 Sidebar scaffolded with placeholder content: three top Items (no header), a collapsible **Spaces** section, and a collapsible **Collections** section with `DisclosureGroup`-based toggle-folders containing member rows. Native sidebar geometry — `.listRowInsets` overrides removed so flat-row icons align with Collection-row icons under the system's chevron-column reservation. Section headers explicit `.foregroundStyle(.secondary)` (string-shorthand `Section("Title", isExpanded:)` was rendering darker than Mail's reference tone on `.scrollContentBackground(.hidden)`). NSSearchField anchored to `.safeAreaInset(.top)`. Inspector pop-out wrapped in `withAnimation(.smooth(duration: 0.30))`.
 
-No content yet — every row is a placeholder Label. Vault reads, tab chrome, and editor all land in v0.1+. Stack, domain model, architecture, and locked decisions live in `PommoraPRD.md`, `History.md`, and `// Features//`.
+No content yet — every row is a placeholder Label. Nexus reads, tab chrome, and editor all land in v0.1+. Stack, domain model, architecture, and locked decisions live in `PommoraPRD.md`, `History.md`, and `// Features//`.
 
 ---
 
 #### Next Session — Discussion Items
 
-Three threads to open next session, in no particular order. They're interconnected (symbol convention informs vault-tree row rendering; filesystem connection produces real tab content; tab strip needs the symbol set to render correctly), so order of attack is a session-start decision.
+Three threads to open next session, in no particular order. They're interconnected (symbol convention informs nexus-tree row rendering; filesystem connection produces real tab content; tab strip needs the symbol set to render correctly), so order of attack is a session-start decision.
 
 1. **Standard-symbol convention / registry.** Currently every placeholder row uses `Image(systemName: "square.dashed")`. Nathan wants a stable registry — "for X type of entity, use Y SF Symbol" — so placeholder symbols become semantic from the start without per-instance specification. Open shape: JSON lookup file? Swift extensions (e.g., `Symbol.spaceIcon`, `Symbol.collectionIcon`)? Markdown reference table consumed by docs? Decide format, then populate initial mapping for Spaces / Collections / Items / Pages / loose entities / etc. React-side semantic-role pattern already exists at `// ReactInfo// Symbols-guide.md` — could inform the Swift shape.
 
-2. **Filesystem connection (begin v0.1).** Make the sidebar mirror a user-picked vault. Default `~// PommoraVault//`. Read folder tree, surface `.md` files in the sidebar as actual Item rows (replacing placeholders). No parsing, no editor yet — clicking a file opens it as a tab; main pane shows raw markdown. Per Framework.md v0.1 scope. Folder-watching strategy + iCloud-safe storage paths need a brief decision.
+2. **Filesystem connection (begin v0.1).** Make the sidebar mirror a user-picked nexus. Default `~// PommoraNexus//`. Read folder tree, surface `.md` files in the sidebar as actual Item rows (replacing placeholders). No parsing, no editor yet — clicking a file opens it as a tab; main pane shows raw markdown. Per Framework.md v0.1 scope. Folder-watching strategy + iCloud-safe storage paths need a brief decision.
 
-3. **Top-bar tab implementation.** Single-row toolbar with the tab strip spec'd in `// Features//Navigation-Bar.md`. Standard tab chrome: `+` / `×` / `Cmd+T` / `Cmd+W` / `Cmd+1..9`; open tabs + active tab persist. Decide whether tabs land before or after the vault read so we know what content the strip displays during the build.
+3. **Top-bar tab implementation.** Single-row toolbar with the tab strip spec'd in `// Features//Navigation-Bar.md`. Standard tab chrome: `+` / `×` / `Cmd+T` / `Cmd+W` / `Cmd+1..9`; open tabs + active tab persist. Decide whether tabs land before or after the nexus read so we know what content the strip displays during the build.
 
 ---
 
@@ -42,7 +42,7 @@ Real items needing resolution before they bite, organized by when they'll surfac
 
 - **Editor risk — substantially de-risked.** Two editor options documented in `// Features//Pages.md`: (1) native Swift editor — fork Clearly or build original on NSTextView/AppKit (source-with-decorations, fully native); (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas. A bounded spike (WKWebView-host JS editor PoC, or fork-Clearly assessment for the native path) would de-risk specifics before committing. React-side reference at `// ReactInfo// Editor.md`.
 
-- **`pommora.db` location.** PRD currently places the SQLite index at `.pommora// pommora.db` inside the user-pickable vault. If the user puts the vault on iCloud Drive, iCloud's file-conflict resolution can corrupt SQLite. Move to `~//Library//Application Support//Pommora//<vault-id>//`; the vault should hold only canonical content.
+- **`pommora.db` location.** PRD currently places the SQLite index at `.pommora// pommora.db` inside the user-pickable nexus. If the user puts the nexus on iCloud Drive, iCloud's file-conflict resolution can corrupt SQLite. Move to `~//Library//Application Support//Pommora//<nexus-id>//`; the nexus should hold only canonical content.
 
 ##### Framework version ordering (surfaces v0.6–v0.8)
 
@@ -58,7 +58,7 @@ Real items needing resolution before they bite, organized by when they'll surfac
 
 - **Filename collisions on creation** — auto-suffix (`Notes 2.md`)? Reject? Prompt? Wikilink-resolution collisions have rules; creation-time collisions don't.
 - **Pommora-flavored Markdown is a dialect** — the `:::columns` and `:::callout` directives appear as inert notation in non-Pommora tools. Standard Markdown round-trips perfectly; the directives don't. Worth acknowledging this honestly in the docs rather than implying universal portability.
-- **First-launch with an existing folder** — if the user picks a vault folder that already has `.pommora//` from a prior install, behavior isn't specified.
+- **First-launch with an existing folder** — if the user picks a nexus folder that already has `.pommora//` from a prior install, behavior isn't specified.
 - **`@view` language in Spaces is imprecise** — docs use "`@view` directive" but `.space.json` is structured JSON with `embedded-collection-view` blocks. Either formalize a directive grammar or change the language to "embedded-view blocks."
 
 ---

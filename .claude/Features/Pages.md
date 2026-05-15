@@ -1,14 +1,14 @@
 ### Pages
 
-A Page is one Markdown file in the vault. Pages are the only Markdown-file entity in Pommora and the only entity that holds prose content. A Page **belongs to one Pages collection** (member) **or stands alone** (loose). Member Pages conform to their Collection's schema; loose Pages have no schema and hold only built-in frontmatter fields (`id`, `icon`, `spaces`) plus inline body content. Pages are never shared between multiple Collections.
+A Page is one Markdown file in the nexus. Pages are the only Markdown-file entity in Pommora and the only entity that holds prose content. A Page **belongs to one Pages collection** (member) **or stands alone** (loose). Member Pages conform to their Collection's schema; loose Pages have no schema and hold only built-in frontmatter fields (`id`, `icon`, `spaces`) plus inline body content. Pages are never shared between multiple Collections.
 
 ---
 
 #### On disk
 
-- A single `.md` file in the vault.
+- A single `.md` file in the nexus.
 
-- **Collection membership is determined by location.** A Page inside a folder whose `_collection.json` has `"kind": "pages"` is a member of that Pages collection. A Page anywhere else (vault root, cosmetic folders) is a loose Page. A `.md` file inside an Items collection's folder is a vault-integrity warning — it doesn't belong there.
+- **Collection membership is determined by location.** A Page inside a folder whose `_collection.json` has `"kind": "pages"` is a member of that Pages collection. A Page anywhere else (nexus root, cosmetic folders) is a loose Page. A `.md` file inside an Items collection's folder is a nexus-integrity warning — it doesn't belong there.
 
 - Move a Page between folders → its Collection assignment changes accordingly. Move it out of any Collection folder → it becomes loose.
 
@@ -92,7 +92,7 @@ The editor has two options:
 
 #### Hierarchy
 
-Pages are flat within a Pages collection. No forced sub-page nesting. A Pages collection's folder typically holds its member `.md` files directly (no nested sub-folders inside a Collection). Loose Pages can live anywhere outside Collection folders, in any user-defined folder structure (vault root, cosmetic folders). Sub-pages (nested Page hierarchy inside a Collection) is a v2 candidate (see `Prospects.md`).
+Pages are flat within a Pages collection. No forced sub-page nesting. A Pages collection's folder typically holds its member `.md` files directly (no nested sub-folders inside a Collection). Loose Pages can live anywhere outside Collection folders, in any user-defined folder structure (nexus root, cosmetic folders). Sub-pages (nested Page hierarchy inside a Collection) is a v2 candidate (see `Prospects.md`).
 
 ---
 

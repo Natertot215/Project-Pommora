@@ -30,7 +30,7 @@ On Option 1 (native editor), hosting a non-text view inline in the prose flow re
 **Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `collection_id` + `properties` JSONB; a parallel `items` table; each `_collection.json` schema → a row in a `collections` table; each Space → one row in a `spaces` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
 
 #### Mobile companion (iOS / iPad)
-**Description:** Real long-term intent (not just "potential"). Read and edit access to the vault from mobile devices. iPad and iOS are both on the table.
+**Description:** Real long-term intent (not just "potential"). Read and edit access to the nexus from mobile devices. iPad and iOS are both on the table.
 
 Essentially free — the same Swift Package codebase ships to iPad and iOS with platform adaptations. The natural growth path on the current stack.
 

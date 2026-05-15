@@ -11,7 +11,7 @@ This is **conceptual** portability — the decisions survive a stack pivot. It i
 These are the decisions that define Pommora and would carry forward to a rebuild in React+Electron:
 
 - **File formats** — Markdown for Pages (inside Pages collections, or loose anywhere outside Collection folders), `_collection.json` for Collection schemas (carries `kind`: `"pages"` | `"items"`), one `.json` per Item (inside an Items collection, or loose), `.space.json` for Spaces (block trees), YAML frontmatter shape
-- **Vault structure conventions** — `.pommora//` at vault root holds app config and SQLite index (regeneratable); `.trash//` at vault root holds deleted entities (preserving original relative path; restoration is a file move back); both are leading-dot hidden folders
+- **Nexus structure conventions** — `.pommora//` at nexus root holds app config and SQLite index (regeneratable); `.trash//` at nexus root holds deleted entities (preserving original relative path; restoration is a file move back); both are leading-dot hidden folders
 - **SQLite schema** — `pages`, `items`, `collections`, `spaces`, `links` tables; FTS5 indexing pattern; JSON1 query patterns
 - **Domain model** — Pages, Items, Collections (typed at creation: `kind` = `"pages"` or `"items"`), Spaces; their definitions, linking model, membership rules (`// Features//Domain-Model.md`)
 - **Property type catalog** — number, checkbox, date, datetime, select, multi-select, relation, URL; config shapes; schema mutation rules. Shared between Pages (values in frontmatter) and Items (values in JSON entry) (`// Features//Properties.md`). No dedicated `Status` type — Status-like properties are just Selects named "Status."
@@ -63,8 +63,8 @@ There is no enforced layer separation — no "Core layer with zero UI imports" r
 
 Some adjacent concerns are intentionally left to OS-level tools rather than built into Pommora:
 
-- **Versioning / file history.** Pommora handles in-session undo (free from the editor). Long-term history is the user's responsibility via Time Machine, git on the vault folder, or filesystem snapshots. Pommora does not maintain an internal version store or auto-commit on save. This keeps the vault clean and avoids duplicating what the OS already does well.
-- **Cross-device sync (for v1).** The vault is user-pickable on first launch, so a user can place it in iCloud Drive / Dropbox / a synced folder and get device-to-device sync for free. Real cloud sync (Supabase or similar) is a real long-term Prospect, but v1 leans on filesystem sync.
+- **Versioning / file history.** Pommora handles in-session undo (free from the editor). Long-term history is the user's responsibility via Time Machine, git on the nexus folder, or filesystem snapshots. Pommora does not maintain an internal version store or auto-commit on save. This keeps the nexus clean and avoids duplicating what the OS already does well.
+- **Cross-device sync (for v1).** The nexus is user-pickable on first launch, so a user can place it in iCloud Drive / Dropbox / a synced folder and get device-to-device sync for free. Real cloud sync (Supabase or similar) is a real long-term Prospect, but v1 leans on filesystem sync.
 - **Backup.** Same as versioning — Time Machine and friends.
 
 ---

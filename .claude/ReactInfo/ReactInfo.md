@@ -27,7 +27,7 @@ The contents of these files were sliced from the previous monolithic `.claude//R
 
 - **BlockNote (MPL-2.0) and Tiptap (MIT)** are co-primary editor candidates; both deliver the Notion-style block editor surface on top of continuous Markdown on disk. Detail → `Editor.md`.
 - **`@dnd-kit/core` v6.x** for Spaces composer. **NOT** `@dnd-kit/react` (v0.x, pre-1.0). Detail → `Spaces-DnD.md`.
-- **`@parcel/watcher` v2.5+** for vault folder watching — native FSEvents on macOS, materially faster than chokidar at large tree scale. Detail → `StateData.md`.
+- **`@parcel/watcher` v2.5+** for nexus folder watching — native FSEvents on macOS, materially faster than chokidar at large tree scale. Detail → `StateData.md`.
 - **`better-sqlite3` (WAL mode) + SQLite FTS5** for the local index. Detail → `StateData.md`.
 - **`remark-directive` + `mdast-util-directive`** for `:::columns` and `:::callout`. Nesting requires outer fence to use more colons (`::::columns` containing `:::callout`). Detail → `Editor.md`.
 - **`@flowershow/remark-wiki-link` v3.3.1+** for Obsidian-flavored wikilinks. Detail → `Editor.md`.

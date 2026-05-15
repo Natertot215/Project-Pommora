@@ -19,7 +19,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Core Principles
 
-- **Three load-bearing constraints:** (1) **conceptual portability of functionalities** — file formats, schemas, design values, UX patterns survive a stack rebuild; (2) **cross-vault queryability + cloud sync compatibility** — the on-disk model maps cleanly to a cloud DB so sync arrives as additive translation; (3) **persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. Full detail → `// Features//Architecture.md`.
+- **Three load-bearing constraints:** (1) **conceptual portability of functionalities** — file formats, schemas, design values, UX patterns survive a stack rebuild; (2) **cross-nexus queryability + cloud sync compatibility** — the on-disk model maps cleanly to a cloud DB so sync arrives as additive translation; (3) **persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. Full detail → `// Features//Architecture.md`.
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
@@ -77,4 +77,4 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Active Version
 
-**v0.0 shipped.** Barebones three-pane shell (sidebar + main + hidden-by-default pop-out inspector) lives at [Pommora/Pommora/](Pommora/Pommora/). Build verified via `xcodebuild`. **Next: v0.1** — vault reads + functional tab chrome. Per-version spec lives in `Framework.md`. The React+Electron-locked predecessor spec for v0.0 is preserved at `// ReactInfo//v0.0.md`.
+**v0.0 shipped.** Barebones three-pane shell (sidebar + main + hidden-by-default pop-out inspector) lives at [Pommora/Pommora/](Pommora/Pommora/). Build verified via `xcodebuild`. **Next: v0.1** — nexus reads + functional tab chrome. Per-version spec lives in `Framework.md`. The React+Electron-locked predecessor spec for v0.0 is preserved at `// ReactInfo//v0.0.md`.

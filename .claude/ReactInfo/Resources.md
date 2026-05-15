@@ -38,7 +38,7 @@ React-side library catalog for the contingency path. Editor primitives (BlockNot
 
 - **better-sqlite3** — SQLite for Node.js (WAL mode). [GitHub](https://github.com/WiseLibs/better-sqlite3)
 
-- **SQLite FTS5** — full-text search. External-content mode + `unicode61` tokenizer (with `remove_diacritics=2`) is the recommended pattern for vault-scale (1k–10k pages). [SQLite docs](https://www.sqlite.org/fts5.html)
+- **SQLite FTS5** — full-text search. External-content mode + `unicode61` tokenizer (with `remove_diacritics=2`) is the recommended pattern for nexus-scale (1k–10k pages). [SQLite docs](https://www.sqlite.org/fts5.html)
 
 - **Zustand v5+** — state management; `zustand/vanilla` produces a framework-agnostic store that React binds via `useSyncExternalStore`. Conceptually translatable to `@Observable` + `ValueObservation` on a future Swift rebuild. Cleaner fit than Jotai / Valtio / Redux Toolkit / Preact Signals for solo work. [Docs](https://github.com/pmndrs/zustand)
 

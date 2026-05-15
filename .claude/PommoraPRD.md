@@ -57,18 +57,18 @@ Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the like
 
 1. **Stack portability of functionalities.** File formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design values, and UX patterns survive a stack rebuild. The codebase doesn't. No enforced layer separation; portability comes from documented decisions. Detail → `// Features//Architecture.md`.
 
-2. **Cross-vault queryability + cloud sync compatibility.** Collections aren't isolated — a Page or Space anywhere in the vault can query, link to, or embed any Collection regardless of folder location. The on-disk model maps cleanly to a cloud DB: a single shared `pages` table with `collection_id` + `properties` JSONB; a parallel `items` table; one `collections` row per `_collection.json`; one `spaces` row per `.space.json`. Sync arrives later as additive translation, not redesign. Cloud sync is real long-term intent. For v1, users get device-to-device sync for free by placing the vault in iCloud Drive / Dropbox / any synced folder. **Reference convention:** relations are stored by ID (rename-safe); body wikilinks use names (rewritten on rename).
+2. **Cross-nexus queryability + cloud sync compatibility.** Collections aren't isolated — a Page or Space anywhere in the nexus can query, link to, or embed any Collection regardless of folder location. The on-disk model maps cleanly to a cloud DB: a single shared `pages` table with `collection_id` + `properties` JSONB; a parallel `items` table; one `collections` row per `_collection.json`; one `spaces` row per `.space.json`. Sync arrives later as additive translation, not redesign. Cloud sync is real long-term intent. For v1, users get device-to-device sync for free by placing the nexus in iCloud Drive / Dropbox / any synced folder. **Reference convention:** relations are stored by ID (rename-safe); body wikilinks use names (rewritten on rename).
 
 3. **Persistent immediate legibility for agents.** An external agent (Claude, any MCP client, any tool with filesystem access) reads Pommora's entire structured graph — Pages, Items, Collection schemas, Spaces, relations, properties — directly from files, without tool-call round-trips. SQLite is performance scaffolding, not the source of truth. This is Pommora's differentiator from Notion-via-MCP (tool-mediated, opaque) and from Obsidian (locally legible but unstructured). Architectural choices that would trade file-canonical legibility for app-internal convenience violate this constraint.
 
 ##### Storage Model
 
-**Vault location:** User-pickable on first launch. Pommora suggests `~// PommoraVault//` as the default; the user can place the vault anywhere — including iCloud Drive, Dropbox, or any synced folder for free device-to-device sync. The chosen path is stored in app settings (security-scoped bookmark on MAS builds) and used for the watcher and indexer.
+**Nexus location:** User-pickable on first launch. Pommora suggests `~// PommoraNexus//` as the default; the user can place the nexus anywhere — including iCloud Drive, Dropbox, or any synced folder for free device-to-device sync. The chosen path is stored in app settings (security-scoped bookmark on MAS builds) and used for the watcher and indexer.
 
 **On disk** (path shown is the suggested default):
 
 ```
-~// PommoraVault//
+~// PommoraNexus//
   Tasks//                      ← Items collection (_collection.json declares kind: "items")
     _collection.json
     Buy groceries.json
@@ -95,12 +95,12 @@ Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the like
       Homepage.space.json      ← Seeded on first launch; default landing
       Pommora.space.json
       Health.space.json
-  .trash//                     ← Deleted entities (vault-local trash)
+  .trash//                     ← Deleted entities (nexus-local trash)
     Tasks//
       Old task.json            ← Preserves original relative path
 ```
 
-A folder is a **Collection** if and only if it contains a `_collection.json` file. Folders without one are cosmetic filesystem organization — files inside them are loose (no schema-conforming properties). The app-internal config folder is `.pommora//` (leading dot, hidden — matches `.obsidian` convention). Deleted entities go to **`.trash//`** at the vault root (sibling of `.pommora//`); the entity's original relative path is preserved inside `.trash//` so restoration is a straight file move.
+A folder is a **Collection** if and only if it contains a `_collection.json` file. Folders without one are cosmetic filesystem organization — files inside them are loose (no schema-conforming properties). The app-internal config folder is `.pommora//` (leading dot, hidden — matches `.obsidian` convention). Deleted entities go to **`.trash//`** at the nexus root (sibling of `.pommora//`); the entity's original relative path is preserved inside `.trash//` so restoration is a straight file move.
 
 ##### Pages
 
@@ -170,7 +170,7 @@ The Space's title comes from the filename. Spaces hold both *text blocks* (parag
 Five tables. All rebuilt from files on launch or on demand. Property schemas live inside per-Collection JSON files (canonical) and are loaded into memory at app start.
 
 ```sql
--- Page index (rebuilt from .md files in the vault)
+-- Page index (rebuilt from .md files in the nexus)
 CREATE TABLE pages (
   id TEXT PRIMARY KEY,                -- ULID from frontmatter
   path TEXT UNIQUE NOT NULL,          -- 'Tasks// Buy groceries.md' or 'Quick note.md'
@@ -330,7 +330,7 @@ Dismissed by clicking outside, pressing Esc, or closing the window.
 
 ##### First-Launch Experience
 
-On first launch, after the user picks a vault location, Pommora opens with empty sidebars plus a single seeded `Homepage` Space at `.pommora// spaces// Homepage.space.json`, opened as the landing surface. No tutorial, no walkthrough wizard.
+On first launch, after the user picks a nexus location, Pommora opens with empty sidebars plus a single seeded `Homepage` Space at `.pommora// spaces// Homepage.space.json`, opened as the landing surface. No tutorial, no walkthrough wizard.
 
 ##### Design System
 
@@ -340,7 +340,7 @@ SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus 
 
 Renames are automatic and atomic. When a Page is renamed:
 
-1. Pommora locates every wikilink targeting the old name using the `links` index — one indexed query, not a vault-wide scan.
+1. Pommora locates every wikilink targeting the old name using the `links` index — one indexed query, not a nexus-wide scan.
 2. Inside one transaction: rename the file on disk; update the Page's `path` in SQLite; rewrite every `[[Old Name]]` reference to `[[New Name]]` across referencing Pages; write each affected file atomically (`.tmp` + `rename`).
 3. The file watcher coalesces resulting change events.
 
@@ -355,7 +355,7 @@ Relation properties store target IDs and display the target's current title (res
 
 ##### Data, State, File Watching
 
-**State.** `@Observable` macro (Swift 5.9+, mature in 6.2) is the standard — per-property tracking eliminates wasteful redraws; `@State` replaces `@StateObject`. Heavy services (VaultIndex, parsers) stay in DI, not view state, to avoid re-init on view rebuild.
+**State.** `@Observable` macro (Swift 5.9+, mature in 6.2) is the standard — per-property tracking eliminates wasteful redraws; `@State` replaces `@StateObject`. Heavy services (NexusIndex, parsers) stay in DI, not view state, to avoid re-init on view rebuild.
 
 **Persistence.** `GRDB.swift v7.5+` is the established SQLite toolkit for Pommora's "SQLite as index, files canonical" shape. The relevant primitives — `ValueObservation.tracking { db in ... }` for observation, `.values(in:)` returning an `AsyncSequence` over change notifications, and `FTS5Pattern` for full-text — are documented and stable.
 
@@ -363,7 +363,7 @@ SwiftData isn't a fit — it wraps Core Data and doesn't expose a custom SQLite 
 
 **Code shape.** A pure Swift Package for the data + parsing layer keeps SwiftUI imports out of it so the same code remains callable from a CLI tool target if useful. An `actor` wrapping the database boundary, `Sendable` records, and `AsyncSequence` surfaces (preferred over Combine in Swift 6 strict concurrency) fit the documented GRDB APIs — `.values(in:)` serves as the data-to-UI reactive surface directly. Not enforced architecture (see `// Features//Architecture.md`).
 
-**File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool for vault-folder watching. Use FSEventStream via a Swift wrapper (`EonilFSEvents`, or hand-rolled `FSEventStreamCreate`). APFS / atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete events; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
+**File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool for nexus-folder watching. Use FSEventStream via a Swift wrapper (`EonilFSEvents`, or hand-rolled `FSEventStreamCreate`). APFS / atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete events; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
 
 > If pivoting to React, see `// ReactInfo// StateData.md` for the Zustand + hand-rolled pub/sub + `@parcel/watcher` equivalent.
 
@@ -372,7 +372,7 @@ SwiftData isn't a fit — it wraps Core Data and doesn't expose a custom SQLite 
 Areas where SwiftUI is first-party (no companion bundles needed):
 
 - **QuickLook (.md preview via Finder spacebar).** Ship a `QLPreviewProvider` subclass via a QuickLook Preview Extension target; declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pommora pages straight from Finder.
-- **CoreSpotlight (vault-wide system search).** `CSSearchableItem` + `CSSearchableItemAttributeSet` indexes pages into Spotlight; `.onContinueUserActivity(CSSearchableItemActionType)` deep-links results back into Pommora.
+- **CoreSpotlight (nexus-wide system search).** `CSSearchableItem` + `CSSearchableItemAttributeSet` indexes pages into Spotlight; `.onContinueUserActivity(CSSearchableItemActionType)` deep-links results back into Pommora.
 - **Share Extension (receive shares from Safari/Mail).** Add a Share Extension target conforming to `NSExtensionPrincipalClass`. Standard macOS pattern.
 - **NSServices ("New Pommora Page from Selection").** Declare in `Info.plist`, implement selector. One-method handler.
 - **MenuBarExtra (macOS 13+).** First-party menu-bar item; `.menuBarExtraStyle(.window)` enables rich popovers; instant, native-feel.
@@ -388,7 +388,7 @@ Areas where SwiftUI is first-party (no companion bundles needed):
 
 - **Sparkle 2.x** is the non-MAS auto-update standard (EdDSA-signed, sandbox-compatible, full SwiftUI support via `SPUStandardUpdaterController`).
 - **TestFlight for Mac** is fully shipped — same capabilities as iOS.
-- **Sandboxing for MAS:** user-picked vault folders work via security-scoped bookmarks (`URL.bookmarkData(options: .withSecurityScope)`) persisted and resolved with `startAccessingSecurityScopedResource()` on each launch. Standard pattern; no feature blocker.
+- **Sandboxing for MAS:** user-picked nexus folders work via security-scoped bookmarks (`URL.bookmarkData(options: .withSecurityScope)`) persisted and resolved with `startAccessingSecurityScopedResource()` on each launch. Standard pattern; no feature blocker.
 
 > If pivoting to React, see `// ReactInfo// Distribution.md` for the electron-vite + electron-builder + electron-updater + `@electron/notarize` equivalent.
 
@@ -404,7 +404,7 @@ Areas where SwiftUI is first-party (no companion bundles needed):
 - **Spaces** — Notion-page-style composition surfaces (`.space.json`) with a full block tree. Text blocks + widget blocks intermixed. Drag-to-arrange and slash-menu insertion.
 - Property panel UI driven by Collection schemas, all v1 property types (8).
 - Wikilinks (styled colored inline text).
-- Automatic file rename with cross-vault wikilink rewrite.
+- Automatic file rename with cross-nexus wikilink rewrite.
 - File watcher keeping SQLite synced.
 - Global search (SQLite FTS5 over Page bodies and frontmatter).
 - Three-heading sidebar (Spaces / Saved / Collections), user-reorderable, default-collapsed. Saved is a non-operational placeholder heading in v1 (pinning is post-v1). Loose entities reachable via search or wikilinks (not a sidebar group).

@@ -17,7 +17,7 @@ Tasks//                     ← Items collection
   Fix sink.json
   Steam Deck OLED.json
 
-Bookmark.json               ← loose Item in vault root (built-in fields only, no properties)
+Bookmark.json               ← loose Item in nexus root (built-in fields only, no properties)
 Inbox//                     ← cosmetic folder (no _collection.json)
   Quick reference.json      ← loose Item
 ```
@@ -51,7 +51,7 @@ If an entry inside an Items collection later needs prose, it doesn't get "promot
 #### Capabilities
 
 - Hold typed properties from the Collection's schema (same catalog as Pages; full type list → `Properties.md`)
-- Hold typed relations to any other entity in the vault (Pages, Items, Collections, Spaces) by ID — rename-safe
+- Hold typed relations to any other entity in the nexus (Pages, Items, Collections, Spaces) by ID — rename-safe
 - Appear in the Collection's views (table / board / list / cards / gallery). Views in an Items collection show its Item rows uniformly — no per-view member-kind filter needed.
 - Appear on Space homepages via the `spaces` field, the same way Pages do
 - Be linked-to from a Space's link-list widget or referenced by an embedded Collection view
@@ -75,7 +75,7 @@ Dismissed by clicking outside, pressing Esc, or closing the window. No body, no 
 #### Constraints
 
 - A member Item belongs to **exactly one Items collection**. Loose Items belong to no Collection and carry no schema-conforming properties. No multi-Collection membership.
-- An Items collection only holds Items (no `.md` Pages in the same folder). A Pages collection only holds Pages. `.md` or `.json` in the wrong-kind Collection folder is a vault-integrity warning.
+- An Items collection only holds Items (no `.md` Pages in the same folder). A Pages collection only holds Pages. `.md` or `.json` in the wrong-kind Collection folder is a nexus-integrity warning.
 - No ad-hoc properties on members (properties must come from the Collection's schema). Loose Items have no schema at all.
 - The Item's filename cannot be empty — it's the title equivalent (same as Pages).
 - No in-place promotion to Page in v1 (see `Prospects.md`).
@@ -84,4 +84,4 @@ Dismissed by clicking outside, pressing Esc, or closing the window. No body, no 
 
 #### Why Items exist
 
-Notion conflates "row in a database" with "page with a body" because every database entry is a full page. Pommora keeps them distinct and lifts the distinction to the Collection level — a Collection is either prose-bearing or row-shaped, never mixed. This keeps the vault scannable (an Items collection folder is uniformly `.json`; a Pages collection folder is uniformly `.md`), maps cleanly to cloud sync (parallel `pages` / `items` tables keyed by `collection_id`), preserves file-canonical agent legibility (each Item is its own openable JSON file), and removes the per-entry "Page or Item?" decision Notion forces.
+Notion conflates "row in a database" with "page with a body" because every database entry is a full page. Pommora keeps them distinct and lifts the distinction to the Collection level — a Collection is either prose-bearing or row-shaped, never mixed. This keeps the nexus scannable (an Items collection folder is uniformly `.json`; a Pages collection folder is uniformly `.md`), maps cleanly to cloud sync (parallel `pages` / `items` tables keyed by `collection_id`), preserves file-canonical agent legibility (each Item is its own openable JSON file), and removes the per-entry "Page or Item?" decision Notion forces.

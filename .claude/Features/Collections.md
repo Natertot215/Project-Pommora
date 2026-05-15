@@ -8,9 +8,9 @@ Collections have **no text-editor surface** — opening one shows its database U
 
 #### On disk
 
-- A folder in the vault (e.g. `~// PommoraVault// Tasks//`)
+- A folder in the nexus (e.g. `~// PommoraNexus// Tasks//`)
 - Inside the folder: a `_collection.json` file holding the schema, views, **and the Collection's `kind`** (underscore-prefix keeps the schema sidecar visually grouped to the top of the folder)
-- Inside the folder: the member files — all `.md` (Pages collection) **or** all `.json` (Items collection). Mixed contents are a vault-integrity warning, not a normal state.
+- Inside the folder: the member files — all `.md` (Pages collection) **or** all `.json` (Items collection). Mixed contents are a nexus-integrity warning, not a normal state.
 - Each Collection has its own ID (ULID), stored in `_collection.json`. Each Item has its own ID (ULID), stored as `id` inside its own `.json` file. Each Page has its own ID in frontmatter.
 
 ```
@@ -122,8 +122,8 @@ A single shared view-renderer dispatches by view type and is reused in both cont
 
 Files outside any Collection folder — i.e., outside any folder containing a `_collection.json` — are loose. Both kinds can be loose:
 
-- **Loose Pages** — `.md` files in the vault root or in cosmetic folders (any folder without `_collection.json`). Frontmatter holds only built-in fields (`id`, `icon`, `spaces`) plus whatever the user manually writes. No schema enforcement.
-- **Loose Items** — `.json` files in the vault root or cosmetic folders. Carry `id`, `icon`, `description`, `spaces`, timestamps — but no `properties` (no schema to conform to).
+- **Loose Pages** — `.md` files in the nexus root or in cosmetic folders (any folder without `_collection.json`). Frontmatter holds only built-in fields (`id`, `icon`, `spaces`) plus whatever the user manually writes. No schema enforcement.
+- **Loose Items** — `.json` files in the nexus root or cosmetic folders. Carry `id`, `icon`, `description`, `spaces`, timestamps — but no `properties` (no schema to conform to).
 
 Loose entities don't appear as their own sidebar group; reach them via global search or wikilinks. Cosmetic folders carry no semantic meaning to Pommora — they're purely user-driven filesystem organization. Moving a loose entity into a matching-kind Collection folder makes it a member and applies the schema (empty values for new properties); moving a member out drops it back to loose state.
 

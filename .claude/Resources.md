@@ -57,7 +57,7 @@ For React-side editor candidates inside WKWebView Option 2, see `// ReactInfo// 
 
 - **SwiftData** — wraps Core Data; can't use a custom SQLite schema or FTS5 directly. Still not safe for Pommora's "files canonical + custom schema" shape in 2026. **Skip in favor of GRDB.**
 
-- **EonilFSEvents** (or hand-rolled `FSEventStreamCreate`) — vault folder watching. `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool. Same APFS / atomic-rename gotchas apply: editor atomic-save (write `.tmp` + rename) emits create+delete for the temp; debounce 50–100ms by path; track outbound mtimes to ignore your own writes. [EonilFSEvents on GitHub](https://github.com/eonil/FSEvents)
+- **EonilFSEvents** (or hand-rolled `FSEventStreamCreate`) — nexus folder watching. `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool. Same APFS / atomic-rename gotchas apply: editor atomic-save (write `.tmp` + rename) emits create+delete for the temp; debounce 50–100ms by path; track outbound mtimes to ignore your own writes. [EonilFSEvents on GitHub](https://github.com/eonil/FSEvents)
 
 - **TestFlight for Mac** — fully shipped (post-2021); same capabilities as iOS, internal/external tester model, builds expire after 90 days. [Apple Developer](https://developer.apple.com/testflight/)
 

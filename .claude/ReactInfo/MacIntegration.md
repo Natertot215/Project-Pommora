@@ -41,7 +41,7 @@ The areas where pure Electron has a hard ceiling and "Mac-first cohesion" doesn'
 
 - **QuickLook (.md preview via Finder spacebar):** no path in Electron without shipping a separate Swift bundle outside the app.
 - **Share Extension** (receive shares from Safari / Mail / etc.): impossible in pure Electron ([Issue #31984](https://github.com/electron/electron/issues/31984) still open). Would require a sidecar Swift extension target.
-- **CoreSpotlight (vault-wide system search):** possible only via `electron-spotlight` (Objective-C native module), which is maintained by one person and requires a signed build to talk to `corespotlightd`. Fragile.
+- **CoreSpotlight (nexus-wide system search):** possible only via `electron-spotlight` (Objective-C native module), which is maintained by one person and requires a signed build to talk to `corespotlightd`. Fragile.
 - **NSServices** ("New Pommora Page from Selection"): `Info.plist` registration works, but receiving selection requires native bridging the framework doesn't expose ([Issue #8394](https://github.com/electron/electron/issues/8394) still open).
 - **Finder file-promise drag-out** (drag a Page from the sidebar to Finder writes the file at the drop location): broken for years; community workarounds write a temp file then call `startDrag`.
 - **Sidebar vibrancy:** Electron exposes `vibrancy: 'sidebar'` on `BrowserWindow`, but it can flicker on resize and bleeds through DOM. Looks ~80% right; the remaining 20% is exactly what cohesion-sensitive users notice.

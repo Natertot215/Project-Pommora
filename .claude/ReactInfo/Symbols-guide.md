@@ -1,6 +1,6 @@
 ### Symbols Guide
 
-Iconography indirection on the React path. Components reference **semantic symbol roles** (`settings`, `add`, `delete`, `expand`, etc.); the active icon library is resolved at render time from a vault-local mapping file. **Material Symbols (outlined)** is the default; swapping to SF Symbols is a planned setting (not v1-committed) that flips a value rather than touching components.
+Iconography indirection on the React path. Components reference **semantic symbol roles** (`settings`, `add`, `delete`, `expand`, etc.); the active icon library is resolved at render time from a nexus-local mapping file. **Material Symbols (outlined)** is the default; swapping to SF Symbols is a planned setting (not v1-committed) that flips a value rather than touching components.
 
 > **Stack-conditional — React only.** SwiftUI uses SF Symbols natively via `Image(systemName:)`; no indirection layer needed.
 
@@ -8,7 +8,7 @@ Iconography indirection on the React path. Components reference **semantic symbo
 
 #### The mapping file
 
-`.pommora// symbols.json` inside the vault. Seeded on first launch from the canonical icon role table — covers shell / chrome, common actions, entity kinds, sidebar sections, editor formatting, property types, views, and view controls. Format:
+`.pommora// symbols.json` inside the nexus. Seeded on first launch from the canonical icon role table — covers shell / chrome, common actions, entity kinds, sidebar sections, editor formatting, property types, views, and view controls. Format:
 
 > **Symbol color tokens** — symbols have their own color tokens (`symbol// primary`, `symbol// muted`, `symbol// active`); default render is `symbol// muted`. Defined in the Figma file alongside other Variables. Components can bind a specific symbol slot to a different `symbol//` token without touching text or accent.
 >
@@ -67,6 +67,6 @@ A user setting (probably alongside Framework v0.12 in-app customization) flips t
 
 #### Editing the mapping
 
-The file lives in the vault, so the user can edit it directly: override a role's mappings, or add new semantic roles. Changes persist across re-installs and travel with iCloud / Dropbox sync.
+The file lives in the nexus, so the user can edit it directly: override a role's mappings, or add new semantic roles. Changes persist across re-installs and travel with iCloud / Dropbox sync.
 
 Per-component icon overrides are **not** a feature — every icon usage resolves through the semantic role, not through a per-call override.

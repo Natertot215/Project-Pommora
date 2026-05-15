@@ -12,7 +12,7 @@ The React editor uses **two serialization formats deliberately**, each chosen fo
 
 **Markdown (`.md` on disk) — canonical content format.**
 
-- **Used for:** every Page's storage in the vault. The file is what an external agent reads, what Obsidian / GitHub / `cat` render, what `grep` searches. The third load-bearing constraint (persistent immediate legibility for agents) requires this.
+- **Used for:** every Page's storage in the nexus. The file is what an external agent reads, what Obsidian / GitHub / `cat` render, what `grep` searches. The third load-bearing constraint (persistent immediate legibility for agents) requires this.
 - **API:** `blocksToMarkdownLossy(blocks?: Block[]): string` (write) and `tryParseMarkdownToBlocks(markdown: string): Promise<Block[]>` (read).
 - **Carries:** standard Markdown (paragraphs, headings, lists, code blocks, images, GFM tables, blockquotes, horizontal rules) plus the two Pommora directives (`:::columns`, `:::callout`).
 - **`Lossy` is a generic-API label, not a Pommora concern.** Pommora's content model is the standard Markdown set plus two well-defined directives (`:::columns`, `:::callout`); the per-block / per-node serializers below close that gap. Small, bounded code — quick fix at the boundary, not an ongoing risk.
@@ -31,7 +31,7 @@ The React editor uses **two serialization formats deliberately**, each chosen fo
 **Why both formats are necessary:**
 
 - Markdown alone can't carry editor state (cursor positions, selection ranges, in-flight operations, undo stack). The editor needs a richer working format.
-- JSON alone breaks agent-legibility, external-tool compatibility, and vault portability. Pages must be Markdown on disk.
+- JSON alone breaks agent-legibility, external-tool compatibility, and nexus portability. Pages must be Markdown on disk.
 - Custom serializers alone don't help if the editor can't represent the directives internally; they're the boundary code, not the working format.
 
 The Markdown ↔ JSON split is deliberate, not a workaround. Treat it as a load-bearing architectural detail of the React path.
