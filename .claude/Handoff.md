@@ -2,29 +2,19 @@
 
 #### Current State
 
-Stack locked to **SwiftUI**. Domain model: **Pages** (`.md`), **Collections** (folder + `_collection.json`), **Spaces** (`.space.json` block trees), **Items** (`.json`, Collection-bound). Collections are typed at creation (`kind: "pages" | "items"`); Pages and Items can also exist loose (outside any Collection folder — built-in fields only, no schema-conforming properties). Moving members across Collections strips non-matching properties Notion-style.
+**v0.0 shell shipped on SwiftUI / macOS Tahoe (26.5).** Three-pane shell at [Pommora/Pommora/](Pommora/Pommora/) — `NavigationSplitView(sidebar:detail:)` + `.inspector(isPresented:)`; no content yet (tree, tabs, editor all land later). Stack, domain model, architecture, and locked decisions live in `PommoraPRD.md`, `History.md`, and `// Features//`. Read those for the model; this doc is for what's running and what's next.
 
-Pages are Markdown documents with two Pommora rendering directives (`@Columns`, `:::callout`); headings are foldable by default; blockquotes and callouts are distinct constructs (blockquote = filled with left bar; callout = outlined). Spaces are block-composition surfaces — "block-level features" as a term belongs only to Spaces. Wikilinks render as styled colored inline text.
-
-Sidebar: three top-level collapsible headings (Spaces / Saved / Collections), user-reorderable, default-collapsed. Spaces are leaf labels; Collections expand to their members; Saved is a non-operational placeholder in v1 (pinning is post-v1). Shell: three-pane (sidebar / main / pop-out inspector); sidebar drag-resizable from v0.0 (240 default); inspector drag-resizable when shown (280 default), hidden by default in v0.0 and toggled via a toolbar icon (`sidebar.right` SF Symbol) or the View menu. Inspector's default view (once content lands) is the property panel for the active Page; an AI chat interface (frontend to Nathan's existing local CLI — not an API integration) is a planned post-v1 addition. **Main pane is multi-tabbed** (Obsidian / Notion pattern); tab chrome and functional tab navigation both ship in v0.1 when files open (v0.0 has no tab chrome). **Items don't get tabs or the inspector** — they open in an **Item window** (popover anchored to trigger; Calendar-event-detail pattern; title + properties + 250-char description).
-
-Vault: user-pickable on first launch (default suggestion `~// PommoraVault//`). App-internal config lives in `.pommora//` inside the vault (matches `.obsidian` convention). First launch seeds a `Homepage` Space; nothing else. Versioning is delegated to OS tools (Time Machine / git).
-
-Architecture: **conceptual portability of functionalities** — file formats, schemas, design values, and UX patterns would survive a stack rebuild to React+Electron; the codebase wouldn't. Three load-bearing constraints: stack portability, cross-vault queryability + cloud sync compatibility, persistent agent legibility. Pivot methodology at `// ReactInfo//Contingency.md`.
-
-**Xcode project scaffolded** at `Pommora//` (project root) — macOS App template, SwiftUI interface, Swift Testing, Storage: None. Default `ContentView.swift` and `PommoraApp.swift` are Xcode template stock; no Pommora shell logic yet. `.gitignore` covers Xcode/Swift (`xcuserdata/`, `DerivedData/`, `.swiftpm/`).
+**Doc cleanup pass (recent):** Tier 1 visual specs (Sidebar.md, Navigation-Bar.md, UIX-Guide.md) trimmed to principle-level after the small-chrome revert exposed Tahoe-rendering uncertainty. Rendered-outcome detail (hover states, tab-row sizing, control sizes, opacity values) now resolves at v0.1+ when content lands. PommoraPRD.md Domain Model + Design System sections trimmed to defer to canonical files.
 
 ---
 
 #### Active Work — v0.0 shipped
 
-**v0.0 shell scaffolded, polished, verified.** [ContentView.swift](Pommora/Pommora/ContentView.swift) holds a barebones `NavigationSplitView(sidebar:detail:)` with `.inspector(isPresented:)` applied at the split-view level. Sidebar shell is an empty `List` with `.listStyle(.sidebar)` (tree content lands v0.1); detail and inspector both render `EmptyPane` (windowBackgroundColor fill). The inspector toggle (`sidebar.trailing` SF Symbol at `.primaryAction`, **placed inside the `.inspector { … }` closure so it anchors to the inspector's segment of the unified toolbar**) fires `withAnimation(.smooth(duration: 0.30))` to sync content + column geometry. **Sidebar collapse uses the system `≡` toggle and `NSSplitView`'s native animation** — not replaced with a custom button (the system path matches Mail / Notes / Finder). View menu's "Show Inspector" item is the secondary route. [PommoraApp.swift](Pommora/Pommora/PommoraApp.swift) sets `.defaultSize(1440, 810)`, `.windowResizability(.contentMinSize)`, `.windowToolbarStyle(.unified(showsTitle: false))` (suppresses the "Pommora" title text — traffic lights still render), and registers `InspectorCommands()` for the View-menu toggle + default keyboard shortcut. Deployment target macOS 26.5. Build verified via `xcodebuild`.
+**v0.0 shell scaffolded, polished, verified.** Implementation specifics (NavigationSplitView + inspector wiring, toolbar-style choice, animation curve, window sizing) locked in `History.md` "Features Implemented" and [ContentView.swift](Pommora/Pommora/ContentView.swift) / [PommoraApp.swift](Pommora/Pommora/PommoraApp.swift). Build verified via `xcodebuild`.
 
-**Next: v0.1 — Vault reads + tabs functional.** Sidebar tree mirrors the folder structure of the user-picked vault (default suggestion `~// PommoraVault//`); clicking a `.md` file opens it as a tab in the top-bar tab row; tab chrome lands here (`+` / `×` / `Cmd+T` / `Cmd+W` / standard tab shortcuts); open tabs + active tab persist across launches. No parsing, no editor yet — main pane shows raw markdown.
+**Next: v0.1 — Vault reads + tabs functional.** Sidebar tree mirrors the user-picked vault (default `~// PommoraVault//`); clicking a `.md` file opens it as a tab; standard tab chrome (`+` / `×` / `Cmd+T` / `Cmd+W` / `Cmd+1..9`); open tabs + active tab persist. No parsing, no editor yet — main pane shows raw markdown.
 
-**Brand accent deferred.** Xcode's default `AccentColor.colorset` stands in for v0.0; the brand accent hue is picked at design lock. `Color+Pommora.swift` and `Font+Pommora.swift` remain empty stubs until their consuming features land (code colors v0.3+, callout / blockquote v0.3–v0.4).
-
-**Figma re-pass (contingency-side, ongoing):** Nathan is finalizing the Figma design system. The Figma file is the React-side translation source if a future pivot is ever needed; for Swift, the design is implemented in SwiftUI native idioms — the Figma file isn't consumed by the Swift build. Figma-tool workflow at `// ReactInfo//Styling-Tokens.md`.
+**Brand accent + Figma deferred.** Xcode-default `AccentColor.colorset` stands in for v0.0; brand accent value picked at design lock. Figma design system being finalized as the React-side translation source; not consumed by the Swift build. Workflow at `// ReactInfo// Styling-Tokens.md`.
 
 ---
 
@@ -33,6 +23,8 @@ Architecture: **conceptual portability of functionalities** — file formats, sc
 - **Audit findings to commit or defer** — Zod-equivalent validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety. Captured as findings, not committed. Decide once v0.2 (SQLite + watcher) implementation begins.
 
 - **Optional spike before commit** — fork-Clearly assessment to size the native build gap (Option 1), or a WKWebView-host JS editor PoC (Option 2). Option 2 is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`). React-side reference at `// ReactInfo// Editor.md`.
+
+- **Sidebar inline-chevron experiment (Finder pattern).** Spiked during v0.0 polish: dropping `DisclosureGroup` for Collections and hand-rolling chevron + member ForEach gives flush-left flat rows (Items/Spaces sit at sidebar leading edge, no chevron-column reservation). Reverted to `DisclosureGroup` for now (Apple-default Mail/Xcode pattern stays the v0.0 baseline). Nathan wants to revisit with v0.1+ content — specifically tighter chevron-to-icon spacing than Apple's default, with the rest of the sidebar visually matching. Full note → `// Features//Sidebar.md`.
 
 ---
 

@@ -1,79 +1,42 @@
 ### Sidebar
 
-The leading-edge navigation pane in Pommora's three-pane shell. Contains three top-level headings (Spaces / Saved / Collections) with disclosure-style expansion. Structural detail and entity-routing rules live in `Domain-Model.md`; this file documents the sidebar's **visual and selection behavior**.
-
-The sidebar's selection language is one of Pommora's load-bearing design decisions — deliberately distinct from SwiftUI's default and aligned with **Mail**, **Finder**, and the **macOS 26 file picker**, not Settings.app.
+The leading-edge navigation pane in Pommora's three-pane shell. Three top-level headings (Spaces / Saved / Collections), disclosure-style expansion. Structural detail and entity-routing rules live in `Domain-Model.md`; this file captures the sidebar's **design direction** — pieces that are intended but not all built yet.
 
 ---
 
-#### Selection behavior
+#### Selection language (intent — not yet built)
 
-Selection on a sidebar row uses a **brightness-shift background** + **accent foreground**, not an accent-color fill. This applies to every selectable row in the sidebar tree (Spaces, Saved items, Collections, Collection members).
+The intended selection treatment is a **subtle gray fill background + accent foreground**, not an accent-color fill. The target gray is Apple's `unemphasizedSelectedContentBackgroundColor` — the same color Mail and Finder use for their always-on selection. Selection contrast should come from the foreground tone shift (icon + text turning accent), not from the background fill.
 
-##### Visual treatment
+This direction is deliberately distinct from the **accent-fill** pattern used by Settings.app and SwiftUI's default `List(selection:) + .sidebar` (solid accent bar with white foreground). That pattern is visually loud in a notes/database context where the user selects and re-selects rapidly. The intended Pommora pattern reads understated — eye drawn to foreground tone, not a color block.
 
-| Element | Selected | Unselected |
-|---|---|---|
-| Row background | Subtle gray fill (Apple's `unemphasizedSelectedContentBackgroundColor`) | Transparent |
-| Row icon | Accent color | Primary (adapts to appearance) |
-| Row text | Accent color | Primary (adapts to appearance) |
+**Status (v0.0):** the running build uses macOS-default `.listStyle(.sidebar)` selection (accent-blue fill + white foreground). The gray-fill direction wasn't built — `.tint(_:)` doesn't recolor sidebar List selection on macOS 26 Tahoe (the underlying `NSTableView` ignores SwiftUI's tint for its source-list highlight), and the AppKit introspection workaround was judged too much surface for v0.0 chrome polish. Open to revisit when content lands and the visual cost of bright-accent selection becomes concrete.
 
-The gray fill comes from Apple's named semantic color for "selected content that doesn't shout for attention" — the same color Mail and Finder use as their always-on selection. Selection contrast comes from the **foreground color shift** (icon + text turning accent), not from the background fill itself.
-
-##### What this is explicitly not
-
-Pommora's sidebar selection rejects the **accent-color fill** pattern used by Settings.app and SwiftUI's default `List(selection:) + .sidebar`:
-
-| Element | Settings pattern (rejected) | Pommora pattern |
-|---|---|---|
-| Background | Solid accent fill | Subtle gray fill |
-| Icon | White (high-contrast on fill) | Accent color |
-| Text | White (high-contrast on fill) | Accent color |
-
-The accent-fill pattern is visually loud — bright colored bars dominate the sidebar even for transient selection. Pommora's pattern reads as understated; the eye is drawn to the foreground tone shift, not a hard color block.
+When built, the styling should be appearance-aware via SwiftUI's semantic colors; no mode-specific overrides needed. The rule should apply regardless of how selection is triggered (mouse, keyboard, programmatic).
 
 ---
 
-#### Light and dark mode
+#### Indentation mechanisms (working vocabulary)
 
-Selection styling is appearance-aware throughout. No mode-specific overrides needed:
+When adjusting sidebar geometry, the mechanism depends on what's being adjusted — these are NOT interchangeable:
 
-- **Gray fill** — `unemphasizedSelectedContentBackgroundColor` renders different values in light vs. dark mode automatically. In light mode it's a faint darker-than-sidebar gray; in dark mode it's a faint lighter-than-sidebar gray (the brightness-raise Nathan asked for).
-- **Accent foreground** — `Color.accentColor` resolves to the current accent. Xcode's default (system blue) stands in for v0.0–v0.x; replaced by brand purple after design lock.
-- **Primary foreground** (unselected) — `Color.primary` renders black in light mode, white in dark mode.
-
-The selection adapts cleanly to the user's macOS appearance preference and, eventually, to the brand accent override (Settings, v0.12).
-
----
-
-#### Implementation pattern (brief)
-
-Achieved with two modifiers — one on the List, one per-row. The List's selection background color is set via `.tint(Color(nsColor: .unemphasizedSelectedContentBackgroundColor))`; each row's foreground is conditionally set to `.accentColor` when selected and `.primary` otherwise. No custom row rendering needed for v0.1.
-
-If the system's hover treatment proves wrong (see *Hover* below), the fallback is a fully custom row-rendering approach — same visual rule, different mechanism.
+- **Row leading indent** — `.padding(.leading, N)` on the row, or `.listRowInsets(EdgeInsets(...))` modifier. Use for nesting/grouping (e.g., member rows inside a Collection).
+- **Chevron-to-icon gap on a custom disclosure row** — `HStack(spacing: N)` between the chevron view and the `Label`. Only applies when the chevron is hand-rolled (not when SwiftUI's `DisclosureGroup` renders it internally).
+- **Icon-to-text gap inside a row** — internal to `Label`, controlled by a custom `LabelStyle` or by writing the row as `HStack { Image; Text }` instead of `Label`. `HStack(spacing:)` on the outer row does NOT control this.
+- **Chevron-column reservation across flat rows** — implicit, triggered by `DisclosureGroup`'s presence in a `.listStyle(.sidebar)` List. Not directly user-controllable; only suppressible by dropping `DisclosureGroup` and hand-rolling expansion.
 
 ---
 
-#### Hover — deferred
+#### Inline-chevron experiment (Finder-style flush-left flats)
 
-The sidebar's hover treatment isn't fully resolved. SwiftUI's `List(selection:)` exposes limited hover customization.
+Apple's default for `.listStyle(.sidebar) + DisclosureGroup` (Mail/Xcode pattern) reserves a chevron column on every row, so flat-row icons align horizontally with disclosure-row icons but sit indented from the sidebar leading edge. Finder uses a different pattern — flat rows sit flush-left, only "folder" rows show the inline chevron + slight indent.
 
-**Intent**: hovered (but unselected) rows show an even subtler gray fill — roughly half the opacity of the selected-row fill. This gives the sidebar a third visible state (idle / hovered / selected) without introducing new colors.
+The Finder pattern is achievable by **dropping `DisclosureGroup`** for Collection rows and hand-rolling the expansion as `HStack(spacing: N) { chevronButton; Label(...) }` with `if collectionExpansion[c]` gating the member ForEach beneath. Verified working at v0.0.
 
-**Reality**: pending visual verification once rows actually populate the sidebar (v0.1+). If the system default hover is too subtle or absent, the workaround is custom row rendering. Treated as polish, not blocking.
-
----
-
-#### Keyboard navigation — deferred
-
-Up/down arrow navigation through sidebar items lands with the v0.1 sidebar (folder mirroring). Specifics — focus-ring styling, traversal across disclosure-group boundaries, keyboard shortcuts for expand/collapse — resolve at that point. The selection-styling rule applies regardless of how selection is triggered (mouse, keyboard, programmatic).
+Captured intent (not committed): experiment with the chevron-to-icon gap value (currently `4` in the spike) — Nathan wants this **tighter than Apple's default**, with the rest of the sidebar matching the tighter visual. Resolution deferred until v0.1 content lands so spacing can be tuned against real data, not placeholders.
 
 ---
 
-#### Why this exists
+#### Open until v0.1 lands content
 
-The sidebar is Pommora's primary navigation surface — every workflow starts here. The default SwiftUI sidebar selection is visually **loud**: accent-fill backgrounds dominate the sidebar with bright colored bars even for transient selection. This works for Settings.app where each row is a destination commitment, but feels wrong in a notes/database app where users select and re-select rapidly across many items.
-
-Mail and Finder solve this with a quieter selection language — subtle gray fill that doesn't draw the eye, with foreground color shift providing the contrast. The selection is **legible without being noisy**.
-
-This restraint pairs with Pommora's broader design intent: **chrome should be supportive, not assertive**. The single-row navigation bar already commits to minimal chrome; the sidebar's selection language matches that restraint. The two decisions reinforce each other — together they produce a window that reads as content-forward, with the structural pieces visible but never competing for attention.
+Row density, hover treatment, keyboard navigation, focus-ring styling, and any timing/opacity specifics resolve once the v0.1 sidebar tree populates and Tahoe rendering can be observed. Captured intent (not commitment): a third hovered state, subtler than the selected fill.

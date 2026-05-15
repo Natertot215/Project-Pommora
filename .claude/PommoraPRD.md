@@ -28,14 +28,7 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property and q
 
 #### Domain Model
 
-Three top-level entity types plus one Collection-bound member type:
-
-- **Pages** — Markdown documents; flat (no semantic nesting). Editor surface is one of two SwiftUI options: Option 1 native source-with-decorations text editor, or Option 2 WKWebView hosting a JS editor. Live inside Pages collections, or loose anywhere outside Collection folders.
-- **Collections** — folder + `_collection.json` schema sidecar. Hold property schemas, saved view configurations, and a `kind` (`"pages"` or `"items"`) set at creation and persistent. Members are uniformly one kind: a Pages collection holds `.md` files; an Items collection holds `.json` files. Membership is by file location.
-- **Items** — row entities living inside Items collections (or loose anywhere outside). Lightweight, property-driven, short-description entries that don't warrant prose (tasks, contacts, wishlist, events, citations). One `.json` file per Item; filename = title; same property catalog as Pages; no Markdown body. Open in an **Item window** — a popover-style floating surface anchored to the trigger (Calendar-event-detail pattern) showing title + property inputs + a 250-character plain-text description. Not a tab, not a full page.
-- **Spaces** — composed dashboard surfaces. `.space.json` files holding a block tree of text blocks and widget blocks. Referential (embed Pages / Items / Collection views via widgets), not container (Spaces don't hold their referenced entities).
-
-The Collection kind is the dimension that splits "what shape does an entry have," lifted to the Collection level — eliminates the per-entry "Page or Item?" decision Notion forces. Full definitions, on-disk shapes, linking model in `// Features//Domain-Model.md`.
+Three top-level entity types — **Pages** (`.md`), **Collections** (folder + `_collection.json` sidecar with a `kind`), **Spaces** (`.space.json` block trees) — plus **Items** (`.json`, Collection-bound row-shaped). The Collection kind splits "what shape does an entry have" at the Collection level rather than per-entry. Full definitions, on-disk shapes, capabilities, linking model → `// Features//Domain-Model.md` + per-entity files (`Pages.md`, `Collections.md`, `Items.md`, `Spaces.md`).
 
 ---
 
@@ -341,15 +334,7 @@ On first launch, after the user picks a vault location, Pommora opens with empty
 
 ##### Design System
 
-Pommora uses SwiftUI native idioms: semantic colors (`Color(.systemBackground)`, `.foregroundStyle(.primary)`), Materials (`Material.regular`, `.sidebar`), Font scale (`.font(.body)`, `.font(.callout)`, `.font(.system(.body, design: .monospaced))`), SF Symbols (`Image(systemName:)`). On top of that, a small set of Pommora-specific Color/Font extensions covers the brand accent, code block colors, and callout/blockquote treatments — anything SwiftUI semantic colors don't cover. App accent color lives in the Asset Catalog (`Assets.xcassets/AccentColor.colorset`); other Pommora-brand values live as `Color+Pommora.swift` / `Font+Pommora.swift` extensions in `// UI-UX//Design//`. The brand accent value is deferred — the Xcode-default accent stands in until the design lock.
-
-Component library at `// UI-UX//Components//` (SwiftUI views, browsed via Xcode `#Preview`) consumes SwiftUI native + Pommora extensions; no per-screen tweaks. v1 ships with one initial scheme plus **in-app customization for accent color and font size** (Framework v0.12) — everything else (dark mode, semantic colors, Materials, Dynamic Type) is handled by SwiftUI natively and needs no user override.
-
-Inside the WKWebView editor canvas (Option 2), CSS custom properties theme the editor's content rendering. The CSS values mirror the SwiftUI Color extensions so the editor matches the shell.
-
-> If pivoting to React, see `// ReactInfo// Styling-Tokens.md` for the full ~118-token design system (Figma file + CSS custom properties + Tailwind v4) and `// ReactInfo// Symbols-guide.md` for the Material Symbols indirection layer.
-
-Design philosophy, component conventions, and AppKit interop guidance → `// Guidelines//UIX-Guide.md`.
+SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus a small set of Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). v1 ships with one initial scheme plus in-app customization for accent color and font size (Framework v0.12). Full design philosophy, component conventions, brand-value placement → `// Guidelines//UIX-Guide.md`. React-side reference (~118-token Figma system) at `// ReactInfo// Styling-Tokens.md`.
 
 ##### File Renames and Wikilink Updates
 
