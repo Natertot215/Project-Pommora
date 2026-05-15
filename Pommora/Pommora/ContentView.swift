@@ -6,75 +6,21 @@
 import AppKit
 import SwiftUI
 
-enum SidebarItem: Hashable {
-    case top(Int)
-    case space(Int)
-    case collection(Int)
-    case member(collection: Int, member: Int)
-}
-
 struct ContentView: View {
+    @Environment(NexusManager.self) private var nexusManager
     @State private var inspectorPresented = false
-    @State private var selected: SidebarItem? = .top(0)
     @State private var searchQuery = ""
-    @State private var spacesExpanded = true
-    @State private var collectionsExpanded = true
-    @State private var collectionExpansion: [Int: Bool] = [0: false, 1: false, 2: false]
 
     var body: some View {
+        @Bindable var manager = nexusManager
+
         NavigationSplitView {
-            List(selection: $selected) {
-                Section {
-                    ForEach(0..<3, id: \.self) { i in
-                        Label("Item \(i + 1)", systemImage: "square.dashed")
-                            .tag(SidebarItem.top(i))
-                    }
+            SidebarView(manager: nexusManager)
+                .safeAreaInset(edge: .top, spacing: 8) {
+                    SidebarSearchField(text: $searchQuery)
+                        .padding(.horizontal, 10)
                 }
-
-                Section(isExpanded: $spacesExpanded) {
-                    ForEach(0..<3, id: \.self) { i in
-                        Label("Space \(i + 1)", systemImage: "square.dashed")
-                            .tag(SidebarItem.space(i))
-                    }
-                } header: {
-                    Text("Spaces")
-                        .foregroundStyle(.secondary)
-                }
-
-                Section(isExpanded: $collectionsExpanded) {
-                    ForEach(0..<3, id: \.self) { c in
-                        DisclosureGroup(
-                            isExpanded: Binding(
-                                get: { collectionExpansion[c] ?? false },
-                                set: { newValue in
-                                    withAnimation(.smooth(duration: 0.25)) {
-                                        collectionExpansion[c] = newValue
-                                    }
-                                }
-                            )
-                        ) {
-                            ForEach(0..<3, id: \.self) { m in
-                                Label("Item \(m + 1)", systemImage: "square.dashed")
-                                    .tag(SidebarItem.member(collection: c, member: m))
-                            }
-                        } label: {
-                            Label("Collection \(c + 1)", systemImage: "square.dashed")
-                                .tag(SidebarItem.collection(c))
-                        }
-                    }
-                } header: {
-                    Text("Collections")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .listStyle(.sidebar)
-            .environment(\.sidebarRowSize, .medium)
-            .scrollContentBackground(.hidden)
-            .safeAreaInset(edge: .top, spacing: 8) {
-                SidebarSearchField(text: $searchQuery)
-                    .padding(.horizontal, 10)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
             EmptyPane()
         }
@@ -96,6 +42,21 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
+        .task {
+            await nexusManager.loadOnLaunch()
+        }
+        .alert(
+            "Nexus Error",
+            isPresented: Binding(
+                get: { manager.pendingError != nil },
+                set: { presented in if !presented { manager.pendingError = nil } }
+            ),
+            presenting: manager.pendingError
+        ) { _ in
+            Button("OK", role: .cancel) { manager.pendingError = nil }
+        } message: { error in
+            Text(error.errorDescription ?? "Unknown error.")
+        }
     }
 }
 
@@ -137,5 +98,6 @@ private struct EmptyPane: View {
 
 #Preview {
     ContentView()
+        .environment(NexusManager())
         .frame(width: 1200, height: 800)
 }
