@@ -27,7 +27,7 @@ When adjusting sidebar geometry, the mechanism depends on what's being adjusted 
 
 ---
 
-#### Inline-chevron experiment (Finder-style flush-left flats)
+#### Inline-chevron experiment (Flush-left Icons)
 
 Apple's default for `.listStyle(.sidebar) + DisclosureGroup` (Mail/Xcode pattern) reserves a chevron column on every row, so flat-row icons align horizontally with disclosure-row icons but sit indented from the sidebar leading edge. Finder uses a different pattern — flat rows sit flush-left, only "folder" rows show the inline chevron + slight indent.
 
