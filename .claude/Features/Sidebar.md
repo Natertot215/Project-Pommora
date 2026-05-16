@@ -8,8 +8,9 @@ The leading-edge navigation pane in Pommora's three-pane shell. Three top-level 
 
 **Subtle gray fill + accent foreground, with a brightness boost.** Specifics:
 
-- Fill: `Color.gray.opacity(0.11)`, 6pt continuous corner radius, inset 6pt horizontal + 2pt vertical from row edges. Painted via `.listRowBackground(...)` so it spans the full row width.
+- Fill: `Color.gray.opacity(0.11)`, 6pt continuous corner radius, inset **11pt horizontal + 2pt vertical** from row edges (the 11pt aligns the fill's leading edge with the search field). Painted via `.listRowBackground(...)` so it spans the full row width.
 - Foreground: selected icon and text shift to `Color.accentColor`. **Text** gets `.brightness(0.12)` to lift the accent over the fill; **icon** gets no brightness modifier.
+- Row content padding: **4pt leading, 0 trailing, 2pt vertical**. The 4pt leading aligns the icon at roughly the same distance from the sidebar edge that a `DisclosureGroup` chevron would sit, so flat rows and disclosure rows visually line up.
 
 **Why text-only brightness:** SF Symbols rendered through `.brightness()` composite differently inside `Section` vs `DisclosureGroup` vs direct-`List`, so the same icon brightness produced visibly different selected shades per context. `Text.brightness(_:)` composites predictably; removing the modifier from the icon eliminates the inconsistency.
 

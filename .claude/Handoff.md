@@ -6,7 +6,7 @@
 
 **Sidebar visual scaffolding pass landed.** FolderTree-driven sidebar from v0.1a swapped for hardcoded placeholders (3 loose Items + Spaces × 3 + Collections × 3 × 3 Placeholders) to iterate selection chrome without real-data noise. `FolderTree.swift` / `SidebarNode.swift` / `SidebarRow.swift` stay in the target but dormant — re-wire next session.
 
-**Selection language locked** — custom `SelectableRow` with tap-driven selection, `Color.gray.opacity(0.11)` rounded fill via `.listRowBackground`, accent foreground on icon + text, `Text.brightness(0.12)` to lift the accent over the fill. *Icon stays unbrightened* — that was the cross-context shading fix (SF Symbol `.brightness()` composites inconsistently across `Section` vs `DisclosureGroup` vs direct-`List`; `Text` is predictable). Symmetric 6pt horizontal row padding. `.symbolRenderingMode(.monochrome)` so foregroundStyle applies. Detail → [.claude/Features/Sidebar.md](.claude/Features/Sidebar.md). Trade-off: fill doesn't desaturate on window unfocus the way Finder/Mail do (no `NSVisualEffectView` + `.sourceList`).
+**Selection language locked** — custom `SelectableRow` with tap-driven selection, `Color.gray.opacity(0.11)` rounded fill via `.listRowBackground`, accent foreground on icon + text, `Text.brightness(0.12)` to lift the accent over the fill. *Icon stays unbrightened* — that was the cross-context shading fix (SF Symbol `.brightness()` composites inconsistently across `Section` vs `DisclosureGroup` vs direct-`List`; `Text` is predictable). Fill rect inset 11pt horizontal + 2pt vertical (aligns with search field); row content padding 4pt leading / 0 trailing / 2pt vertical (4pt leading lines the icon up with where a chevron sits). `.symbolRenderingMode(.monochrome)` so foregroundStyle applies. Detail → [.claude/Features/Sidebar.md](.claude/Features/Sidebar.md). Trade-off: fill doesn't desaturate on window unfocus the way Finder/Mail do (no `NSVisualEffectView` + `.sourceList`).
 
 **Detail pane:** `EmptyPane` wrapper dropped; `detail:` is bare `Color.clear`. Inspector toggle reverted to pre-807057d placement (inside `.inspector { }.toolbar { }`); inspector-segment Liquid Glass accepted as a known v0.0 visual gap.
 
@@ -25,6 +25,40 @@ Two threads remain after the foundation, plus an adjacent symbol-registry decisi
 4. **v0.1a UX polish (deferred per direction).** All UI copy is functional/minimal — no welcome states, no error alerts, no descriptive panel text. Design pass picks these up. Specifically: empty-nexus state in the sidebar; first-launch picker-canceled empty state; error display surface for `NexusManager.pendingError`.
 
 5. **Alternative directions surfaced end-of-session (no commitment).** Considered: (a) **Settings scene scaffold** — empty `Settings { TabView }` keyed to ⌘, that future features (Debug → Reset Nexus Bookmark, v0.12 accent/font) plug into; small commit, high optionality. (b) **File CRUD from sidebar UI** — add/rename/sort/delete; chunky, forces resolving filename-collision and sort-semantics underspecifications first. (c) **JSON schemas + Codable types** for the four entities (`PageFrontmatter`, `CollectionSchema`, `ItemFile`, `SpaceFile`) + atomic-write helpers + frontmatter parser (likely `apple/swift-markdown`); foundational, unblocks v0.2 indexer + CRUD writes + tab content rendering. **Recommended order if pivoting from Framework: schemas → settings → CRUD.** Tabs (Framework v0.1b) remains the locked default if no pivot.
+
+---
+
+#### Architectural Reconsideration — Vault Hierarchy (Pre-Decision)
+
+Captured for thinking during remote sessions before any commitment.
+
+**Proposal**: shift from the locked 3-entity model (Pages / Collections / Spaces + Items) to a 4-entity Capacities-style model (Spaces / Vaults / Collections / Items). Vaults become databases (schema holders); Collections become structural sub-categories within a Vault (sharing the Vault's schema); Items still live in Collections; Pages and Spaces semantics unchanged.
+
+Filesystem reshape: `/Tasks/_collection.json + /Tasks/Buy groceries.json` → `/Planner/_vault.json + /Planner/Tasks/Buy groceries.json + /Planner/Goals/Q1 goals.json`. Example layout:
+
+- **Planner** vault → Events / Tasks / To-do / Goals / Phases collections
+- **Materials** vault → Documents / Records / Prompts / Assignments collections
+- **Bookmarks** vault → its own collections
+
+**Why it's meaningful**: domain-model change, not refactor. Categorization moves from a property ("group by Type") to a structural fact (which Collection a member lives in) — matches how Nathan describes actually organizing.
+
+**Why now is the cheapest moment**: only v0.1a foundation has shipped. No SQLite schema, property UI, view configurations, editor, or tabs depend on the 3-entity model yet. Cost rises sharply after v0.2 (SQLite schema) and v0.6 (property UI).
+
+**Open questions to resolve before docs revise:**
+1. Collection kind — Vault-level (whole Vault is Pages or Items) or Collection-level (mixed kinds inside a Vault allowed)?
+2. Property scope — Vault-wide (all Collections share schema) or per-Collection (each Collection overrides)?
+3. Loose entities — still allowed outside any Vault, or must everything live in a Vault?
+4. Sidebar shape — "Spaces / Saved / Vaults" with Collections nested? Or restructure further?
+5. Naming — "Vault" collides with Obsidian's name for the whole user folder (Pommora calls that a Nexus). Alternatives: Database, Catalog, Domain, Pool, Store. Or commit to "Vault" knowing the overlap.
+6. Vault semantics — does a Vault have a viewable face (saved views, schema editor) or is it invisible scaffolding?
+
+**Recommended decision approach (for the gym-planning session):**
+1. Pick a name first (docs need a word)
+2. Write 3–5 real scenarios (Planner / Materials / Calendar / your actual stuff) — concretely list Vault, Collections, properties per category. Validates the model against real usage before docs are touched.
+3. Resolve questions 1–6 against those scenarios
+4. Then revise docs: `Domain-Model.md` first (top of the architecture), cascade through `Collections.md`, `Items.md`, new `Vaults.md`, `Properties.md`, `Sidebar.md`, `PommoraPRD.md`, `Framework.md`
+
+**Claude's recommendation**: do it if the structural-categorical model genuinely matches how you organize (Capacities-style). The architectural cost only goes up from here. The "Vault" name collision is the one real friction worth deciding deliberately.
 
 ---
 

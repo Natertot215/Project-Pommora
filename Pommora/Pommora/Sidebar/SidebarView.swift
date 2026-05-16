@@ -82,7 +82,7 @@ private struct SelectableRow: View {
         return AnyView(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(Color.gray.opacity(0.11))
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 11)
                 .padding(.vertical, 2)
         )
     }
@@ -99,9 +99,9 @@ private struct SelectableRow: View {
                 .brightness(isSelected ? 0.11 : 0)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 3)
-        .padding(.leading, 6)
-        .padding(.trailing, 6)
+        .padding(.vertical, 2)
+        .padding(.leading, 4)
+        .padding(.trailing, 0)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { selection = tag }
