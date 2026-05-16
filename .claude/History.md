@@ -90,6 +90,7 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 
 ##### Sidebar + Shell
 - **Three top-level collapsible headings, default-collapsed, user-reorderable**: Spaces (leaf labels), Saved (non-operational placeholder in v1 — pinning is post-v1), Collections (kind-agnostic; each Collection is a folder-style disclosure).
+- **Sidebar selection language locked**: custom `SelectableRow` view with tap-driven `@State var selection: String?` (not `List(selection:)`). `Color.gray.opacity(0.11)` rounded fill via `.listRowBackground`, accent foreground on selected icon + text, `+0.11` brightness boost on the foreground via `.brightness(_:)` to compensate for the fill subtly dimming the accent, `.symbolRenderingMode(.monochrome)` so foregroundStyle applies to symbols. Required because `.tint(_:)` doesn't recolor sidebar List selection on macOS Tahoe — the underlying NSTableView ignores SwiftUI's tint for `.sourceList` highlight. The custom approach is also what lets us combine gray fill *and* accent foreground; the system's default keeps them reciprocal. Trade-off: fill is fixed, doesn't desaturate on window unfocus like Finder/Mail (`NSVisualEffectView` + `.sourceList`). Detail → `// Features//Sidebar.md`.
 - **No Loose sidebar group.** Loose entities reach via search, wikilinks, or pinning.
 - **No raw filesystem view in v1.**
 - **"Collapsed-by-default disclosure"** is the general UI pattern for any hierarchical or grouped content.
@@ -138,5 +139,7 @@ Pommora's stack is SwiftUI. The earlier dual-stack evaluation (React+Electron vs
 - **Stylistic UI copy intentionally absent** in v0.1a per direction — no welcome screens, no error alerts, no empty-state descriptions, no NSOpenPanel customizations beyond defaults. Design pass adds these.
 
 Design + 4 implementation Findings preserved at [.claude/Planning/v0.1-nexus-foundation-design.md](.claude/Planning/v0.1-nexus-foundation-design.md).
+
+**Post-v0.1a sidebar visual scaffolding pass.** Sidebar UI swapped from FolderTree-driven to hardcoded placeholder Sections (3 loose Items + Spaces section × 3 entries + Collections section with 3 collection-folders × 3 placeholders each) to iterate on selection language without real-data noise. New private `SelectableRow` view consolidates icon + text + tap selection + selection chrome. `FolderTree` / `SidebarNode` / `SidebarRow` remain in the target but dormant — re-wire when de-scaffolding. `EmptyPane` removed from `ContentView`; detail closure is bare `Color.clear`. Inspector toggle stays in `.inspector { ... }.toolbar { }` per the v0.0 UIX-Guide direction (the toolbar-move experiment from commit 807057d was reverted in-session). Pommora-specific selection language captured in the Sidebar+Shell decisions above and documented at `// Features//Sidebar.md`.
 
 The React+Electron-locked v0.0 spec is preserved at `// ReactInfo// v0.0.md` for contingency.

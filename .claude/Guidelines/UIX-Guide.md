@@ -73,9 +73,7 @@ Section header disclosure chevrons appear **on hover only**, never always-visibl
 
 Apple's native chrome animations (`NSSplitView` sidebar collapse, toolbar reflow, inspector reveal) are the gold standard — Mail, Notes, and Finder use them. **Don't replace system chrome with custom-animated equivalents.**
 
-`.inspector(isPresented:)` is an exception that needs explicit animation — its panel reveal isn't routed through SwiftUI's animation transaction by default, so wrap the toggle in `withAnimation(.smooth(duration: 0.30))` to sync content + column geometry.
-
-**Inspector toolbar items live in the main toolbar, not the inspector segment.** The original v0.0 plan put the inspector toggle inside `.inspector { Color.clear.toolbar { ... } }` to anchor it to the inspector's toolbar segment (Apple HIG default). That created an inspector-segment glass material on macOS Tahoe (Liquid Glass) that couldn't be opted out without dropping the whole toolbar background. Resolution: put the inspector toggle in the NavigationSplitView's top-level `.toolbar { }` with `.primaryAction` placement — the toggle still appears at the trailing edge visually, no inspector-segment glass renders. Style with `.buttonStyle(.borderless).controlSize(.large)` for the borderless icon look.
+`.inspector(isPresented:)` is an exception that needs explicit animation — its panel reveal isn't routed through SwiftUI's animation transaction by default, so wrap the toggle in `withAnimation(.smooth(duration: 0.30))` to sync content + column geometry. Inspector toolbar items belong **inside the `.inspector(...) { content }` closure** so they anchor to the inspector's segment of the unified toolbar.
 
 Specific platform quirks (e.g. `.toolbar(removing:)` reliability on macOS 26+, exact animation curves) get verified in build and noted in `Handoff.md` "Known Spec Gaps" rather than locked here.
 

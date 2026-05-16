@@ -4,15 +4,24 @@ The leading-edge navigation pane in Pommora's three-pane shell. Three top-level 
 
 ---
 
-#### Selection language (intent — not yet built)
+#### Selection language
 
-The intended selection treatment is a **subtle gray fill background + accent foreground**, not an accent-color fill. The target gray is Apple's `unemphasizedSelectedContentBackgroundColor` — the same color Mail and Finder use for their always-on selection. Selection contrast should come from the foreground tone shift (icon + text turning accent), not from the background fill.
+**Subtle gray fill + accent foreground, with a brightness boost.** Specifics:
 
-This direction is deliberately distinct from the **accent-fill** pattern used by Settings.app and SwiftUI's default `List(selection:) + .sidebar` (solid accent bar with white foreground). That pattern is visually loud in a notes/database context where the user selects and re-selects rapidly. The intended Pommora pattern reads understated — eye drawn to foreground tone, not a color block.
+- Fill: `Color.gray.opacity(0.11)`, 6pt continuous corner radius, inset 6pt horizontal + 2pt vertical from row edges. Painted via `.listRowBackground(...)` so it spans the full row width.
+- Foreground: selected icon and text shift to `Color.accentColor`. **Text** gets `.brightness(0.12)` to lift the accent over the fill; **icon** gets no brightness modifier.
 
-**Status (v0.0):** the running build uses macOS-default `.listStyle(.sidebar)` selection (accent-blue fill + white foreground). The gray-fill direction wasn't built — `.tint(_:)` doesn't recolor sidebar List selection on macOS 26 Tahoe (the underlying `NSTableView` ignores SwiftUI's tint for its source-list highlight), and the AppKit introspection workaround was judged too much surface for v0.0 chrome polish. Open to revisit when content lands and the visual cost of bright-accent selection becomes concrete.
+**Why text-only brightness:** SF Symbols rendered through `.brightness()` composite differently inside `Section` vs `DisclosureGroup` vs direct-`List`, so the same icon brightness produced visibly different selected shades per context. `Text.brightness(_:)` composites predictably; removing the modifier from the icon eliminates the inconsistency.
 
-When built, the styling should be appearance-aware via SwiftUI's semantic colors; no mode-specific overrides needed. The rule should apply regardless of how selection is triggered (mouse, keyboard, programmatic).
+Deliberately distinct from the **accent-fill** pattern (Settings.app, SwiftUI's default `List(selection:) + .sidebar`). That pattern is visually loud for a notes/database context with rapid selection churn; Pommora's reads understated — eye drawn to foreground tone, not a color block.
+
+**Implementation** ([Pommora/Pommora/Sidebar/SidebarView.swift](../../Pommora/Pommora/Sidebar/SidebarView.swift)): private `SelectableRow` with custom tap-driven selection (`@State var selection: String?` + `.onTapGesture`), not `List(selection:)`. Required because `.tint(_:)` doesn't recolor sidebar List selection on macOS Tahoe (`NSTableView` ignores SwiftUI tint for its `.sourceList` highlight), and the system's default keeps fill + foreground reciprocal (accent fill → white text), blocking the gray-fill + accent-fg combo we want.
+
+The icon uses `.symbolRenderingMode(.monochrome)` so `.foregroundStyle(.accentColor)` actually applies — sidebar-context `Label` rendering can otherwise ignore foregroundStyle via its built-in icon tinting.
+
+Appearance-aware via `Color.accentColor` and `Color.primary`; no mode-specific overrides.
+
+**Trade-off:** fill doesn't desaturate on window unfocus the way Finder/Mail do via `NSVisualEffectView` + `.sourceList`. Acceptable for v0.0 chrome.
 
 ---
 

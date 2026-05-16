@@ -13,31 +13,29 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            SidebarView(manager: nexusManager)
+            SidebarView()
                 .safeAreaInset(edge: .top, spacing: 8) {
                     SidebarSearchField(text: $searchQuery)
                         .padding(.horizontal, 10)
                 }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
-            EmptyPane()
+            Color.clear
         }
         .inspector(isPresented: $inspectorPresented) {
             Color.clear
                 .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    withAnimation(.smooth(duration: 0.30)) {
-                        inspectorPresented.toggle()
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            withAnimation(.smooth(duration: 0.30)) {
+                                inspectorPresented.toggle()
+                            }
+                        } label: {
+                            Label("Toggle Inspector", systemImage: "sidebar.trailing")
+                        }
                     }
-                } label: {
-                    Label("Toggle Inspector", systemImage: "sidebar.trailing")
                 }
-                .buttonStyle(.borderless)
-                .controlSize(.large)
-            }
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
@@ -73,13 +71,6 @@ private struct SidebarSearchField: NSViewRepresentable {
             guard let field = notification.object as? NSSearchField else { return }
             text.wrappedValue = field.stringValue
         }
-    }
-}
-
-private struct EmptyPane: View {
-    var body: some View {
-        Color(nsColor: .windowBackgroundColor)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
