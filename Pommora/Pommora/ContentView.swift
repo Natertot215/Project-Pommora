@@ -25,17 +25,19 @@ struct ContentView: View {
         .inspector(isPresented: $inspectorPresented) {
             Color.clear
                 .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            withAnimation(.smooth(duration: 0.30)) {
-                                inspectorPresented.toggle()
-                            }
-                        } label: {
-                            Label("Toggle Inspector", systemImage: "sidebar.trailing")
-                        }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    withAnimation(.smooth(duration: 0.30)) {
+                        inspectorPresented.toggle()
                     }
+                } label: {
+                    Label("Toggle Inspector", systemImage: "sidebar.trailing")
                 }
+                .buttonStyle(.borderless)
+                .controlSize(.large)
+            }
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
