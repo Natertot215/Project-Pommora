@@ -1,6 +1,15 @@
 {
-  "originHash" : "00fc82b0de716b0b6fae8646fae1c289e5b4679f93a4b0a9aca7e47cd71f9315",
+  "originHash" : "39c7254a63d734ac1e0d7953e851716f03bd207b95f3d42e427b4843ce6048f8",
   "pins" : [
+    {
+      "identity" : "symbolpicker",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/xnth97/SymbolPicker.git",
+      "state" : {
+        "revision" : "8bb08c982235b8e601bc500a41e770d7e198759b",
+        "version" : "1.6.2"
+      }
+    },
     {
       "identity" : "yams",
       "kind" : "remoteSourceControl",

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8475654BCB51D0B18213B9EB /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 5E2C4C707607B1D3CB1123E0 /* Yams */; };
+		A5002505C0E488056AD90FDF /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 0D02FB2735C4A696A974BAE7 /* SymbolPicker */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8475654BCB51D0B18213B9EB /* Yams in Frameworks */,
+				A5002505C0E488056AD90FDF /* SymbolPicker in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = Pommora;
 			packageProductDependencies = (
 				5E2C4C707607B1D3CB1123E0 /* Yams */,
+				0D02FB2735C4A696A974BAE7 /* SymbolPicker */,
 			);
 			productName = Pommora;
 			productReference = 545485B12FB5555E0076D5F2 /* Pommora.app */;
@@ -203,6 +206,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4443A67854CD971CB2619256 /* XCRemoteSwiftPackageReference "Yams" */,
+				5B3B426775BAA8549370D768 /* XCRemoteSwiftPackageReference "SymbolPicker" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 545485B22FB5555E0076D5F2 /* Products */;
@@ -596,6 +600,14 @@
 				minimumVersion = 5.1.0;
 			};
 		};
+		5B3B426775BAA8549370D768 /* XCRemoteSwiftPackageReference "SymbolPicker" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/xnth97/SymbolPicker.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -603,6 +615,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4443A67854CD971CB2619256 /* XCRemoteSwiftPackageReference "Yams" */;
 			productName = Yams;
+		};
+		0D02FB2735C4A696A974BAE7 /* SymbolPicker */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5B3B426775BAA8549370D768 /* XCRemoteSwiftPackageReference "SymbolPicker" */;
+			productName = SymbolPicker;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
