@@ -60,7 +60,7 @@ struct SidebarView: View {
             case .newPage(let c, _):         SheetStubView(label: "New Page in \(c.title) — coming in Task 56")
             case .newItem(let c, _):         SheetStubView(label: "New Item in \(c.title) — coming in Task 56")
             case .editTopicParents(let t):   SheetStubView(label: "Edit Topic Parents — \(t.title) — coming in Task 53")
-            case .editIcon:                  SheetStubView(label: "Icon Picker — coming in Task 51")
+            case .editIcon(let target):      IconPickerSheet(target: target)
             case .editColor(let s):          ColorPickerSheet(space: s)
             }
         }

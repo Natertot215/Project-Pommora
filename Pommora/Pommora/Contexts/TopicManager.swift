@@ -301,4 +301,23 @@ final class TopicManager {
         arr.removeAll { $0.id == sub.id }
         subtopicsByParent[parent.id] = arr
     }
+
+    func updateSubtopicIcon(_ sub: Subtopic, to icon: String?) async throws {
+        guard let parentID = sub.parents.first,
+              let parent = topics.first(where: { $0.id == parentID })
+        else { throw SubtopicValidator.ValidationError.missingParent }
+
+        var updated = sub
+        updated.icon = icon
+        updated.modifiedAt = Date()
+        let url = NexusPaths.subtopicFileURL(
+            forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+        )
+        try updated.save(to: url)
+        var arr = subtopicsByParent[parent.id] ?? []
+        if let i = arr.firstIndex(where: { $0.id == sub.id }) {
+            arr[i] = updated
+        }
+        subtopicsByParent[parent.id] = arr
+    }
 }
