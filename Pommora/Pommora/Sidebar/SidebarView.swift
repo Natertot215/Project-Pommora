@@ -184,14 +184,12 @@ struct SpacesSection: View {
     var body: some View {
         Section("Spaces") {
             ForEach(spaceManager.spaces) { space in
-                // Placeholder for SpaceRow (Task 45). Replaced inline when SpaceRow lands.
-                SelectableRow(
-                    title: space.title,
-                    symbol: space.icon ?? "circle.fill",
-                    tag: SelectionTag.space(space.id),
+                SpaceRow(
+                    space: space,
                     selection: $selection,
-                    accent: space.color.swiftUIColor,
-                    onSelect: { selection = .space(space) }
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
                 )
             }
             Button {
