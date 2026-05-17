@@ -49,11 +49,8 @@ struct SidebarView: View {
             case .newSubtopic(let t):        NewSubtopicSheet(parent: t)
             case .newVault:                  NewVaultSheet()
             case .newCollection(let v):      NewCollectionSheet(vault: v)
-            case .newPage(let c, let v):     NewPageSheet(collection: c, vault: v)
-            case .newPageInVault(let v):
-                Text("Vault-root Page sheet — wired in Commit 3 (vault: \(v.title))")
-                    .frame(minWidth: 360, minHeight: 160)
-                    .padding()
+            case .newPage(let c, let v):     NewPageSheet(parent: .collection(c, vault: v))
+            case .newPageInVault(let v):     NewPageSheet(parent: .vaultRoot(v))
             case .newItem(let c, let v):     NewItemSheet(collection: c, vault: v)
             case .editTopicParents(let t):   EditTopicParentsSheet(topic: t)
             case .editIcon(let target):      IconPickerSheet(target: target)

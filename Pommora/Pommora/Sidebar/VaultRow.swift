@@ -9,12 +9,23 @@ struct VaultRow: View {
     @State private var expanded: Bool = false
 
     @Environment(VaultManager.self) private var vaultManager
+    @Environment(ContentManager.self) private var contentManager
 
     @State private var draft: String = ""
     @FocusState private var renameFocused: Bool
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
+            // Vault-root Pages render ABOVE Collections per spec
+            // (Vaults.md:112-114). PageRow is a leaf — not selectable in v0.2.
+            ForEach(contentManager.pages(in: vault)) { page in
+                PageRow(
+                    page: page,
+                    parent: .vaultRoot(vault),
+                    editingID: $editingID,
+                    confirmingDelete: $confirmingDelete
+                )
+            }
             ForEach(vaultManager.collections(in: vault)) { coll in
                 CollectionRow(
                     collection: coll,
@@ -27,6 +38,12 @@ struct VaultRow: View {
             }
         } label: {
             label
+        }
+        // Load vault-root Pages/Items when the row appears, regardless of
+        // disclosure state. `.task` fires once on appearance; if it were
+        // attached to the disclosure children it would only fire on expand.
+        .task {
+            await contentManager.loadAll(for: vault)
         }
     }
 

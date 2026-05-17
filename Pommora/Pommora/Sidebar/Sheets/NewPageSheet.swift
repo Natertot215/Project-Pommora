@@ -1,8 +1,7 @@
 import SwiftUI
 
 struct NewPageSheet: View {
-    let collection: Pommora.Collection
-    let vault: Vault
+    let parent: PageParent
     @Environment(\.dismiss) private var dismiss
     @Environment(ContentManager.self) private var contentManager
 
@@ -12,7 +11,7 @@ struct NewPageSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("New Page in \"\(collection.title)\"").font(.headline)
+            Text(headerText).font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
             }
@@ -34,9 +33,23 @@ struct NewPageSheet: View {
         .onAppear { nameFocused = true }
     }
 
+    private var headerText: String {
+        switch parent {
+        case .collection(let coll, _):
+            return "New Page in \"\(coll.title)\""
+        case .vaultRoot(let vault):
+            return "New Page in \"\(vault.title)\""
+        }
+    }
+
     private func create() async {
         do {
-            try await contentManager.createPage(name: name, in: collection, vault: vault)
+            switch parent {
+            case .collection(let coll, let vault):
+                try await contentManager.createPage(name: name, in: coll, vault: vault)
+            case .vaultRoot(let vault):
+                _ = try await contentManager.createPage(name: name, inVaultRoot: vault)
+            }
             dismiss()
         } catch let error as PageValidator.ValidationError {
             errorMessage = friendly(error)
@@ -49,7 +62,11 @@ struct NewPageSheet: View {
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle: return "A Page with that name already exists in this Collection."
+        case .duplicateTitle:
+            switch parent {
+            case .collection: return "A Page with that name already exists in this Collection."
+            case .vaultRoot:  return "A Page with that name already exists in this Vault's root."
+            }
         case .missingCreatedAt: return "Internal: created_at not set."
         case .tierMismatch: return "Internal: tier reference invalid."
         case .unknownProperty(let n): return "Property '\(n)' not in Vault schema."
