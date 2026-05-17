@@ -59,7 +59,7 @@ struct SidebarView: View {
             case .newCollection(let v):      NewCollectionSheet(vault: v)
             case .newPage(let c, let v):     NewPageSheet(collection: c, vault: v)
             case .newItem(let c, let v):     NewItemSheet(collection: c, vault: v)
-            case .editTopicParents(let t):   SheetStubView(label: "Edit Topic Parents — \(t.title) — coming in Task 53")
+            case .editTopicParents(let t):   EditTopicParentsSheet(topic: t)
             case .editIcon(let target):      IconPickerSheet(target: target)
             case .editColor(let s):          ColorPickerSheet(space: s)
             }
