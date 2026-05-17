@@ -61,7 +61,7 @@ struct SidebarView: View {
             case .newItem(let c, _):         SheetStubView(label: "New Item in \(c.title) — coming in Task 56")
             case .editTopicParents(let t):   SheetStubView(label: "Edit Topic Parents — \(t.title) — coming in Task 53")
             case .editIcon:                  SheetStubView(label: "Icon Picker — coming in Task 51")
-            case .editColor(let s):          SheetStubView(label: "Color Picker — \(s.title) — coming in Task 50")
+            case .editColor(let s):          ColorPickerSheet(space: s)
             }
         }
         .confirmationDialog(
