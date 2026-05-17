@@ -213,14 +213,12 @@ struct TopicsSection: View {
     var body: some View {
         Section("Topics") {
             ForEach(topicManager.topics) { topic in
-                // Placeholder for TopicRow (Task 46). Replaced inline when TopicRow lands.
-                SelectableRow(
-                    title: topic.title,
-                    symbol: topic.icon ?? "folder",
-                    tag: SelectionTag.topic(topic.id),
+                TopicRow(
+                    topic: topic,
                     selection: $selection,
-                    accent: nil,
-                    onSelect: { selection = .topic(topic) }
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
                 )
             }
             Button {
