@@ -8,6 +8,7 @@ enum SidebarSheet: Identifiable {
     case newVault
     case newCollection(vault: Vault)
     case newPage(collection: Pommora.Collection, vault: Vault)
+    case newPageInVault(vault: Vault)
     case newItem(collection: Pommora.Collection, vault: Vault)
     case editTopicParents(Topic)
     case editIcon(IconTarget)
@@ -30,6 +31,7 @@ enum SidebarSheet: Identifiable {
         case .newVault:                       return "newVault"
         case .newCollection(let v):           return "newCollection-\(v.id)"
         case .newPage(let c, _):              return "newPage-\(c.id)"
+        case .newPageInVault(let v):          return "newPageInVault-\(v.id)"
         case .newItem(let c, _):              return "newItem-\(c.id)"
         case .editTopicParents(let t):        return "editTopicParents-\(t.id)"
         case .editIcon(let target):

@@ -50,6 +50,10 @@ struct SidebarView: View {
             case .newVault:                  NewVaultSheet()
             case .newCollection(let v):      NewCollectionSheet(vault: v)
             case .newPage(let c, let v):     NewPageSheet(collection: c, vault: v)
+            case .newPageInVault(let v):
+                Text("Vault-root Page sheet — wired in Commit 3 (vault: \(v.title))")
+                    .frame(minWidth: 360, minHeight: 160)
+                    .padding()
             case .newItem(let c, let v):     NewItemSheet(collection: c, vault: v)
             case .editTopicParents(let t):   EditTopicParentsSheet(topic: t)
             case .editIcon(let target):      IconPickerSheet(target: target)
@@ -142,7 +146,7 @@ struct SavedSection: View {
     @Environment(SavedConfigManager.self) private var savedConfigManager
 
     var body: some View {
-        Section("Saved") {
+        Section {
             ForEach(savedConfigManager.config.items) { item in
                 SelectableRow(
                     title: item.label,
@@ -153,7 +157,7 @@ struct SavedSection: View {
                     onSelect: { selection = .savedKey(item.key) }
                 )
             }
-        }
+        } header: { EmptyView() }
     }
 
     private func iconFor(_ key: String) -> String {
@@ -184,13 +188,16 @@ struct SpacesSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            Button {
-                presentedSheet = .newSpace
-            } label: {
-                Label("New Space", systemImage: "plus")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            // Hit-test row so right-clicking empty whitespace inside the section
+            // opens the area-level "New Space" context menu. .contextMenu on the
+            // Section itself doesn't reliably render in .sidebar List style.
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 24)
+                .listRowBackground(Color.clear)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("New Space") { presentedSheet = .newSpace }
+                }
         }
     }
 }
@@ -213,13 +220,14 @@ struct TopicsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            Button {
-                presentedSheet = .newTopic
-            } label: {
-                Label("New Topic", systemImage: "plus")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            // Empty-whitespace hit-test for area-level "New Topic" menu.
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 24)
+                .listRowBackground(Color.clear)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("New Topic") { presentedSheet = .newTopic }
+                }
         }
     }
 }
@@ -242,13 +250,14 @@ struct VaultsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            Button {
-                presentedSheet = .newVault
-            } label: {
-                Label("New Vault", systemImage: "plus")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            // Empty-whitespace hit-test for area-level "New Vault" menu.
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 24)
+                .listRowBackground(Color.clear)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("New Vault") { presentedSheet = .newVault }
+                }
         }
     }
 }

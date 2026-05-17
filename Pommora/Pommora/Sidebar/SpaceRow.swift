@@ -26,6 +26,8 @@ struct SpaceRow: View {
                     onSelect: { selection = .space(space) }
                 )
                 .contextMenu {
+                    Button("New Space") { presentedSheet = .newSpace }
+                    Divider()
                     Button("Rename") { startRename() }
                     Button("Change Color") { presentedSheet = .editColor(space) }
                     Button("Change Icon") { presentedSheet = .editIcon(.space(space)) }
@@ -59,10 +61,10 @@ struct SpaceRow: View {
         Task {
             do {
                 try await spaceManager.rename(space, to: draft)
+                editingID = nil  // success: dismiss edit mode
             } catch {
-                // error surfaces in spaceManager.pendingError
+                // editingID stays set on failure so user can retry; pendingError will be set in Commit 4
             }
-            editingID = nil
         }
     }
 

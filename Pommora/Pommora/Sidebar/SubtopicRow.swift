@@ -49,8 +49,12 @@ struct SubtopicRow: View {
     private func commit() {
         guard draft != subtopic.title else { editingID = nil; return }
         Task {
-            do { try await topicManager.renameSubtopic(subtopic, to: draft) } catch {}
-            editingID = nil
+            do {
+                try await topicManager.renameSubtopic(subtopic, to: draft)
+                editingID = nil
+            } catch {
+                // editingID stays set; user can retry
+            }
         }
     }
 }

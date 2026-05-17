@@ -26,15 +26,6 @@ struct TopicRow: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            Button {
-                presentedSheet = .newSubtopic(parent: topic)
-            } label: {
-                Label("New Sub-topic", systemImage: "plus")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .padding(.leading, 6)
         } label: {
             label
         }
@@ -65,6 +56,9 @@ struct TopicRow: View {
                 )
             }
             .contextMenu {
+                Button("New Topic") { presentedSheet = .newTopic }
+                Button("New Sub-topic (in This Topic)") { presentedSheet = .newSubtopic(parent: topic) }
+                Divider()
                 Button("Rename") { editingID = topic.id }
                 Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }
                 Button("Change Icon") { presentedSheet = .editIcon(.topic(topic)) }
@@ -79,8 +73,12 @@ struct TopicRow: View {
     private func commit() {
         guard draft != topic.title else { editingID = nil; return }
         Task {
-            do { try await topicManager.renameTopic(topic, to: draft) } catch {}
-            editingID = nil
+            do {
+                try await topicManager.renameTopic(topic, to: draft)
+                editingID = nil
+            } catch {
+                // editingID stays set; user can retry
+            }
         }
     }
 }

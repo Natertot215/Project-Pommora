@@ -21,18 +21,10 @@ struct VaultRow: View {
                     parentVault: vault,
                     selection: $selection,
                     editingID: $editingID,
+                    presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
             }
-            Button {
-                presentedSheet = .newCollection(vault: vault)
-            } label: {
-                Label("New Collection", systemImage: "plus")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .padding(.leading, 6)
         } label: {
             label
         }
@@ -60,6 +52,10 @@ struct VaultRow: View {
                 onSelect: { selection = .vault(vault) }
             )
             .contextMenu {
+                Button("New Vault") { presentedSheet = .newVault }
+                Button("New Collection (in This Vault)") { presentedSheet = .newCollection(vault: vault) }
+                Button("New Page (in This Vault root)") { presentedSheet = .newPageInVault(vault: vault) }
+                Divider()
                 Button("Rename") { editingID = vault.id }
                 Button("Change Icon") { presentedSheet = .editIcon(.vault(vault)) }
                 Divider()
@@ -74,8 +70,12 @@ struct VaultRow: View {
     private func commit() {
         guard draft != vault.title else { editingID = nil; return }
         Task {
-            do { try await vaultManager.renameVault(vault, to: draft) } catch {}
-            editingID = nil
+            do {
+                try await vaultManager.renameVault(vault, to: draft)
+                editingID = nil
+            } catch {
+                // editingID stays set; user can retry
+            }
         }
     }
 }

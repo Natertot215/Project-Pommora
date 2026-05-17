@@ -5,6 +5,7 @@ struct CollectionRow: View {
     let parentVault: Vault
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
     @Environment(VaultManager.self) private var vaultManager
@@ -34,6 +35,10 @@ struct CollectionRow: View {
                     onSelect: { selection = .collection(collection) }
                 )
                 .contextMenu {
+                    Button("New Page (in This Collection)") {
+                        presentedSheet = .newPage(collection: collection, vault: parentVault)
+                    }
+                    Divider()
                     Button("Rename") { editingID = collection.id }
                     Divider()
                     Button("Delete", role: .destructive) {
@@ -47,8 +52,12 @@ struct CollectionRow: View {
     private func commit() {
         guard draft != collection.title else { editingID = nil; return }
         Task {
-            do { try await vaultManager.renameCollection(collection, to: draft) } catch {}
-            editingID = nil
+            do {
+                try await vaultManager.renameCollection(collection, to: draft)
+                editingID = nil
+            } catch {
+                // editingID stays set; user can retry
+            }
         }
     }
 }
