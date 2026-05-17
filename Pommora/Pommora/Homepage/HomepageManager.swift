@@ -5,7 +5,7 @@ import Observation
 @Observable
 final class HomepageManager {
     var homepage: Homepage = Homepage.defaultSeed()
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
 

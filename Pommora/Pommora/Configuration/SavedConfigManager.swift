@@ -5,7 +5,7 @@ import Observation
 @Observable
 final class SavedConfigManager {
     var config: SavedConfig = SavedConfig.defaultSeed()
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
 

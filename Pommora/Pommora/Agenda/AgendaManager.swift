@@ -6,7 +6,7 @@ import Observation
 final class AgendaManager {
     private(set) var schema: AgendaSchema = AgendaSchema.defaultSeed()
     private(set) var items: [AgendaItem] = []
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
 

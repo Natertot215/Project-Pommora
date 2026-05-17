@@ -5,7 +5,7 @@ import Observation
 @Observable
 final class SpaceManager {
     private(set) var spaces: [Space] = []
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
 

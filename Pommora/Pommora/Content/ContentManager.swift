@@ -15,7 +15,7 @@ final class ContentManager {
     /// Keyed by Collection.id.
     private(set) var pagesByCollection: [String: [PageMeta]] = [:]
     private(set) var itemsByCollection: [String: [Item]] = [:]
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
     private let contextProvider: @MainActor () -> NexusContext

@@ -6,7 +6,7 @@ import Observation
 final class VaultManager {
     private(set) var vaults: [Vault] = []
     private(set) var collectionsByVault: [String: [Collection]] = [:]
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
 

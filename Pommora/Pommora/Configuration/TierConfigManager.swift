@@ -5,7 +5,7 @@ import Observation
 @Observable
 final class TierConfigManager {
     var config: TierConfig = TierConfig.defaultSeed()
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
 

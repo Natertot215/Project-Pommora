@@ -7,7 +7,7 @@ final class TopicManager {
     private(set) var topics: [Topic] = []
     /// Keyed by parent Topic ID.
     private(set) var subtopicsByParent: [String: [Subtopic]] = [:]
-    var pendingError: Error?
+    var pendingError: (any Error)?
 
     private let nexus: Nexus
     private let contextProvider: @MainActor () -> NexusContext
