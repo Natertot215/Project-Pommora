@@ -11,14 +11,18 @@ struct ContentView: View {
     @State private var inspectorPresented = false
     @State private var searchQuery = ""
     @State private var sidebarSelection: SidebarSelection = .none
+    @State private var presentedSheet: SidebarSheet?
 
-    // Interim manager wiring — Task 64 will lift this into a richer
-    // constructManagers(for:) that also builds Content/Agenda/Homepage/Tier
-    // managers and triggers parallel loadAll. For now, Task 48's sidebar only
-    // needs Space/Topic/Vault/SavedConfig; ProgressView until nexus settles.
+    // Task 64: full 8-manager environment. TopicManager + ContentManager receive
+    // real contextProvider closures with live cross-manager lookups (replacing
+    // Task 48's NexusContext.empty placeholder).
     @State private var spaceManager: SpaceManager?
     @State private var topicManager: TopicManager?
     @State private var vaultManager: VaultManager?
+    @State private var contentManager: ContentManager?
+    @State private var agendaManager: AgendaManager?
+    @State private var homepageManager: HomepageManager?
+    @State private var tierConfigManager: TierConfigManager?
     @State private var savedConfigManager: SavedConfigManager?
 
     var body: some View {
@@ -30,7 +34,7 @@ struct ContentView: View {
                 }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
-            Color.clear
+            detail
         }
         .inspector(isPresented: $inspectorPresented) {
             Color.clear
@@ -80,34 +84,101 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var detail: some View {
+        if let spaceMgr = spaceManager,
+           let vaultMgr = vaultManager,
+           let contentMgr = contentManager
+        {
+            SidebarDetailView(
+                selection: $sidebarSelection,
+                presentedSheet: $presentedSheet
+            )
+            .environment(spaceMgr)
+            .environment(vaultMgr)
+            .environment(contentMgr)
+        } else {
+            Color.clear
+        }
+    }
+
     private func constructManagers(for nexus: Nexus?) {
         guard let nexus else {
             spaceManager = nil
             topicManager = nil
             vaultManager = nil
+            contentManager = nil
+            agendaManager = nil
+            homepageManager = nil
+            tierConfigManager = nil
             savedConfigManager = nil
             return
         }
 
         let spaceMgr = SpaceManager(nexus: nexus)
         let vaultMgr = VaultManager(nexus: nexus)
-        // TopicValidator lookup closures are @Sendable; capturing the MainActor
-        // managers directly is rejected by Swift 6 strict concurrency. Task 48's
-        // sidebar UI never triggers validator-driven lookups (Topic CRUD UI is
-        // stubbed); supply .empty for now. Task 64 will rebuild this with the
-        // correct lookup wiring once the UI actually creates/edits Topics.
-        let topicMgr = TopicManager(nexus: nexus) { NexusContext.empty }
+
+        // TopicManager needs SpaceManager + VaultManager for cross-entity lookups.
+        // The outer closure runs on MainActor (per TopicManager's signature) and
+        // reads live state from the peer managers, then bakes value-type snapshots
+        // into the @Sendable NexusContext lookup closures — this is what allows
+        // capturing through Swift 6 strict concurrency: managers themselves are
+        // @MainActor-isolated and non-Sendable, but `[Space]` / `[Vault]` are.
+        let topicMgr = TopicManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+            let spaces = spaceMgr.spaces
+            let vaults = vaultMgr.vaults
+            return NexusContext(
+                lookupSpace:    { id in spaces.first { $0.id == id } },
+                lookupTopic:    { _ in nil },
+                lookupSubtopic: { _ in nil },
+                lookupVault:    { id in vaults.first { $0.id == id } }
+            )
+        }
+
+        // ContentManager needs Space + Topic + Subtopic + Vault for tier validation.
+        // Same snapshot pattern as TopicManager: outer closure reads live state on
+        // MainActor; inner @Sendable closures use value-type snapshots.
+        let contentMgr: ContentManager = ContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+            let spaces = spaceMgr.spaces
+            let vaults = vaultMgr.vaults
+            let topics = topicMgr.topics
+            let subsByParent = topicMgr.subtopicsByParent
+            return NexusContext(
+                lookupSpace:    { id in spaces.first { $0.id == id } },
+                lookupTopic:    { id in topics.first { $0.id == id } },
+                lookupSubtopic: { id in
+                    for arr in subsByParent.values {
+                        if let s = arr.first(where: { $0.id == id }) { return s }
+                    }
+                    return nil
+                },
+                lookupVault:    { id in vaults.first { $0.id == id } }
+            )
+        }
+
+        let agendaMgr = AgendaManager(nexus: nexus)
+        let homepageMgr = HomepageManager(nexus: nexus)
+        let tierMgr = TierConfigManager(nexus: nexus)
         let savedMgr = SavedConfigManager(nexus: nexus)
 
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
+        self.contentManager = contentMgr
+        self.agendaManager = agendaMgr
+        self.homepageManager = homepageMgr
+        self.tierConfigManager = tierMgr
         self.savedConfigManager = savedMgr
 
+        // Initial load — fire all in parallel.
+        // ContentManager loads per-collection lazily on detail-view appear.
         Task {
             async let _ = spaceMgr.loadAll()
             async let _ = topicMgr.loadAll()
             async let _ = vaultMgr.loadAll()
+            async let _ = agendaMgr.loadAll()
+            async let _ = homepageMgr.load()
+            async let _ = tierMgr.load()
             async let _ = savedMgr.load()
         }
     }
