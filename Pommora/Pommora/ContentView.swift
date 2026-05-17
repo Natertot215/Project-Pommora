@@ -66,12 +66,14 @@ struct ContentView: View {
         if let spaceMgr = spaceManager,
            let topicMgr = topicManager,
            let vaultMgr = vaultManager,
+           let contentMgr = contentManager,
            let savedMgr = savedConfigManager
         {
             SidebarView(selection: $sidebarSelection)
                 .environment(spaceMgr)
                 .environment(topicMgr)
                 .environment(vaultMgr)
+                .environment(contentMgr)
                 .environment(savedMgr)
         } else {
             VStack(spacing: 8) {
