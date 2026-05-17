@@ -253,13 +253,39 @@ struct VaultsSection: View {
 
 // MARK: - SelectableRow (updated to use SelectionTag)
 
-struct SelectableRow: View {
+/// Self-contained sidebar row with its own selection chrome. Uses an in-content
+/// `.background` (not `.listRowBackground`) so the selection fill paints
+/// correctly whether the row is a top-level List row (SpaceRow, SubtopicRow,
+/// Saved items) or nested inside a `DisclosureGroup` label slot (TopicRow,
+/// VaultRow, CollectionRow). `trailing` is an optional ViewBuilder slot for
+/// callers that need to render content at the right edge inside the selection
+/// chrome (e.g. TopicRow's ParentSpaceTags dots).
+struct SelectableRow<Trailing: View>: View {
     let title: String
     let symbol: String
     let tag: SelectionTag
     @Binding var selection: SidebarSelection
     let accent: Color?
     let onSelect: () -> Void
+    @ViewBuilder let trailing: () -> Trailing
+
+    init(
+        title: String,
+        symbol: String,
+        tag: SelectionTag,
+        selection: Binding<SidebarSelection>,
+        accent: Color?,
+        onSelect: @escaping () -> Void,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+    ) {
+        self.title = title
+        self.symbol = symbol
+        self.tag = tag
+        self._selection = selection
+        self.accent = accent
+        self.onSelect = onSelect
+        self.trailing = trailing
+    }
 
     var isSelected: Bool {
         tag.matches(selection)
@@ -275,32 +301,33 @@ struct SelectableRow: View {
                 .foregroundStyle(isSelected ? Color.accentColor : .primary)
                 .brightness(isSelected ? 0.12 : 0)
             Spacer(minLength: 0)
+            trailing()
         }
-        .padding(.vertical, 2)
-        .padding(.leading, 4)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect() }
-        .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
-        .listRowBackground(
+        .background(
             isSelected
-                ? RoundedRectangle(cornerRadius: 6)
+                ? RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.gray.opacity(0.11))
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 2)
                 : nil
         )
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect() }
     }
 }
 
 // MARK: - SectionHeader
 
 /// Section header strip used by Spaces / Topics / Vaults: secondary-styled title,
-/// trailing "+" button to open the corresponding "New" sheet, and a section-wide
-/// right-click context menu offering the same action.
+/// trailing "+" button that fades in on hover (matching the disclosure-chevron's
+/// hover affordance), and a section-wide right-click context menu offering the
+/// same action regardless of hover state.
 private struct SectionHeader: View {
     let title: String
     let onAdd: () -> Void
+
+    @State private var hovered: Bool = false
 
     var body: some View {
         HStack(spacing: 4) {
@@ -316,7 +343,12 @@ private struct SectionHeader: View {
             }
             .buttonStyle(.plain)
             .help("New")
+            .opacity(hovered ? 1 : 0)
+            .allowsHitTesting(hovered)
+            .animation(.easeInOut(duration: 0.12), value: hovered)
         }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
         .contextMenu {
             Button("New") { onAdd() }
         }

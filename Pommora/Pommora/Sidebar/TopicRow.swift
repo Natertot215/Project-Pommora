@@ -44,17 +44,17 @@ struct TopicRow: View {
                     renameFocused = true
                 }
         } else {
-            HStack(spacing: 6) {
-                ParentSpaceTags(topic: topic, spaceManager: spaceManager)
-                SelectableRow(
-                    title: topic.title,
-                    symbol: topic.icon ?? "folder",
-                    tag: SelectionTag.topic(topic.id),
-                    selection: $selection,
-                    accent: nil,
-                    onSelect: { selection = .topic(topic) }
-                )
-            }
+            SelectableRow(
+                title: topic.title,
+                symbol: topic.icon ?? "folder",
+                tag: SelectionTag.topic(topic.id),
+                selection: $selection,
+                accent: nil,
+                onSelect: { selection = .topic(topic) },
+                trailing: {
+                    ParentSpaceTags(topic: topic, spaceManager: spaceManager)
+                }
+            )
             .contextMenu {
                 Button("New Topic") { presentedSheet = .newTopic }
                 Button("New Sub-topic (in This Topic)") { presentedSheet = .newSubtopic(parent: topic) }
