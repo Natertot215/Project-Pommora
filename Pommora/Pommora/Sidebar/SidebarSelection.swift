@@ -9,5 +9,5 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case topic(Topic)
     case subtopic(Subtopic)
     case vault(Vault)
-    case collection(Collection)
+    case collection(Pommora.Collection)
 }
