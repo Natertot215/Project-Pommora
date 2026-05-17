@@ -53,7 +53,7 @@ struct SidebarView: View {
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .newSpace:                  NewSpaceSheet()
-            case .newTopic:                  SheetStubView(label: "New Topic — coming in Task 53")
+            case .newTopic:                  NewTopicSheet()
             case .newSubtopic(let t):        SheetStubView(label: "New Sub-topic in \(t.title) — coming in Task 54")
             case .newVault:                  SheetStubView(label: "New Vault — coming in Task 55")
             case .newCollection(let v):      SheetStubView(label: "New Collection in \(v.title) — coming in Task 55")
