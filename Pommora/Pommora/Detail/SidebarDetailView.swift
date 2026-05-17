@@ -71,9 +71,7 @@ struct SidebarDetailView: View {
             }
         }
         .sheet(item: $presentedItem) { item in
-            Text(item.title)
-                .padding(40)
-                .frame(minWidth: 320, minHeight: 160)
+            ItemWindow(item: item)
         }
     }
 
