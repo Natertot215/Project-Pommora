@@ -174,8 +174,10 @@ struct SpacesSection: View {
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(SpaceManager.self) private var spaceManager
 
+    @State private var expanded: Bool = true
+
     var body: some View {
-        Section("Spaces") {
+        Section(isExpanded: $expanded) {
             ForEach(spaceManager.spaces) { space in
                 SpaceRow(
                     space: space,
@@ -185,16 +187,10 @@ struct SpacesSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            // Hit-test row so right-clicking empty whitespace inside the section
-            // opens the area-level "New Space" context menu. .contextMenu on the
-            // Section itself doesn't reliably render in .sidebar List style.
-            Color.clear
-                .frame(maxWidth: .infinity, minHeight: 24)
-                .listRowBackground(Color.clear)
-                .contentShape(Rectangle())
-                .contextMenu {
-                    Button("New Space") { presentedSheet = .newSpace }
-                }
+        } header: {
+            SectionHeader(title: "Spaces") {
+                presentedSheet = .newSpace
+            }
         }
     }
 }
@@ -206,8 +202,10 @@ struct TopicsSection: View {
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(TopicManager.self) private var topicManager
 
+    @State private var expanded: Bool = true
+
     var body: some View {
-        Section("Topics") {
+        Section(isExpanded: $expanded) {
             ForEach(topicManager.topics) { topic in
                 TopicRow(
                     topic: topic,
@@ -217,14 +215,10 @@ struct TopicsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            // Empty-whitespace hit-test for area-level "New Topic" menu.
-            Color.clear
-                .frame(maxWidth: .infinity, minHeight: 24)
-                .listRowBackground(Color.clear)
-                .contentShape(Rectangle())
-                .contextMenu {
-                    Button("New Topic") { presentedSheet = .newTopic }
-                }
+        } header: {
+            SectionHeader(title: "Topics") {
+                presentedSheet = .newTopic
+            }
         }
     }
 }
@@ -236,8 +230,10 @@ struct VaultsSection: View {
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(VaultManager.self) private var vaultManager
 
+    @State private var expanded: Bool = true
+
     var body: some View {
-        Section("Vaults") {
+        Section(isExpanded: $expanded) {
             ForEach(vaultManager.vaults) { vault in
                 VaultRow(
                     vault: vault,
@@ -247,14 +243,10 @@ struct VaultsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            // Empty-whitespace hit-test for area-level "New Vault" menu.
-            Color.clear
-                .frame(maxWidth: .infinity, minHeight: 24)
-                .listRowBackground(Color.clear)
-                .contentShape(Rectangle())
-                .contextMenu {
-                    Button("New Vault") { presentedSheet = .newVault }
-                }
+        } header: {
+            SectionHeader(title: "Vaults") {
+                presentedSheet = .newVault
+            }
         }
     }
 }
@@ -278,14 +270,18 @@ struct SelectableRow: View {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
+                .frame(width: 16, alignment: .leading)
             Text(title)
                 .foregroundStyle(isSelected ? Color.accentColor : .primary)
                 .brightness(isSelected ? 0.12 : 0)
+            Spacer(minLength: 0)
         }
-        .padding(.leading, 4)
         .padding(.vertical, 2)
+        .padding(.leading, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { onSelect() }
+        .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
         .listRowBackground(
             isSelected
                 ? RoundedRectangle(cornerRadius: 6)
@@ -297,3 +293,32 @@ struct SelectableRow: View {
     }
 }
 
+// MARK: - SectionHeader
+
+/// Section header strip used by Spaces / Topics / Vaults: secondary-styled title,
+/// trailing "+" button to open the corresponding "New" sheet, and a section-wide
+/// right-click context menu offering the same action.
+private struct SectionHeader: View {
+    let title: String
+    let onAdd: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button(action: onAdd) {
+                Image(systemName: "plus")
+                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("New")
+        }
+        .contextMenu {
+            Button("New") { onAdd() }
+        }
+    }
+}
