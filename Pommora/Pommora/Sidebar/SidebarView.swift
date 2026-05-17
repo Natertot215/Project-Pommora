@@ -52,7 +52,7 @@ struct SidebarView: View {
         .scrollContentBackground(.hidden)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .newSpace:                  SheetStubView(label: "New Space — coming in Task 52")
+            case .newSpace:                  NewSpaceSheet()
             case .newTopic:                  SheetStubView(label: "New Topic — coming in Task 53")
             case .newSubtopic(let t):        SheetStubView(label: "New Sub-topic in \(t.title) — coming in Task 54")
             case .newVault:                  SheetStubView(label: "New Vault — coming in Task 55")
