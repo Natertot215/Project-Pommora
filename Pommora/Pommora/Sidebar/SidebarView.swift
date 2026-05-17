@@ -5,15 +5,7 @@
 
 import SwiftUI
 
-/// Four-section sidebar: Saved / Spaces / Topics / Vaults.
-///
-/// Section ForEach bodies currently use the in-file `SelectableRow` as a
-/// placeholder for `SpaceRow` / `TopicRow` / `VaultRow` — those land in
-/// Tasks 45-47 and will replace the SelectableRow invocations inline. Sub-topic
-/// and Collection disclosure trees are deferred (flat rows for now).
-///
-/// `.sheet(item:)` cases render `SheetStubView` until Tasks 50-56 ship the real
-/// sheet views (NewSpaceSheet, IconPickerSheet, etc.).
+/// Four-section sidebar: Saved (pinned-headerless) / Spaces / Topics / Vaults. Rows extracted to *Row.swift files; sheets at Sheets/*Sheet.swift.
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
@@ -299,18 +291,3 @@ struct SelectableRow: View {
     }
 }
 
-// MARK: - Sheet stubs (replaced progressively in Tasks 50-56)
-
-private struct SheetStubView: View {
-    let label: String
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text(label).font(.title3).foregroundStyle(.secondary)
-            Button("Done") { dismiss() }
-        }
-        .padding(40)
-        .frame(minWidth: 320, minHeight: 160)
-    }
-}
