@@ -1,0 +1,54 @@
+import SwiftUI
+
+struct NewCollectionSheet: View {
+    let vault: Vault
+    @Environment(\.dismiss) private var dismiss
+    @Environment(VaultManager.self) private var vaultManager
+
+    @State private var name: String = ""
+    @State private var errorMessage: String?
+    @FocusState private var nameFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("New Collection in \"\(vault.title)\"").font(.headline)
+            Form {
+                TextField("Name", text: $name).focused($nameFocused)
+            }
+            if let errorMessage {
+                Text(errorMessage).foregroundStyle(.red).font(.callout)
+            }
+            HStack {
+                Button("Cancel") { dismiss() }
+                Spacer()
+                Button("Create") {
+                    Task { await create() }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding()
+        .frame(width: 380, height: 220)
+        .onAppear { nameFocused = true }
+    }
+
+    private func create() async {
+        do {
+            try await vaultManager.createCollection(name: name, inVault: vault)
+            dismiss()
+        } catch let error as CollectionValidator.ValidationError {
+            errorMessage = friendly(error)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func friendly(_ error: CollectionValidator.ValidationError) -> String {
+        switch error {
+        case .emptyTitle: return "Name can't be empty."
+        case .invalidTitleCharacters: return "Name can't contain / \\ :"
+        case .duplicateTitle: return "A Collection with that name already exists in this Vault."
+        }
+    }
+}
