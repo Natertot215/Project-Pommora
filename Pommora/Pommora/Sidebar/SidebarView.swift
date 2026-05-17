@@ -242,14 +242,12 @@ struct VaultsSection: View {
     var body: some View {
         Section("Vaults") {
             ForEach(vaultManager.vaults) { vault in
-                // Placeholder for VaultRow (Task 47). Replaced inline when VaultRow lands.
-                SelectableRow(
-                    title: vault.title,
-                    symbol: vault.icon ?? "archivebox",
-                    tag: SelectionTag.vault(vault.id),
+                VaultRow(
+                    vault: vault,
                     selection: $selection,
-                    accent: nil,
-                    onSelect: { selection = .vault(vault) }
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
                 )
             }
             Button {
