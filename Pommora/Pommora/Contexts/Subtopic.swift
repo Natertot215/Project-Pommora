@@ -40,7 +40,7 @@ struct Subtopic: Codable, Equatable, Identifiable, Hashable, Sendable {
         case modifiedAt = "modified_at"
     }
 
-    init(from decoder: Decoder) throws {
+    init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(String.self, forKey: .id)
         self.tier = try c.decodeIfPresent(Int.self, forKey: .tier) ?? 3
@@ -52,7 +52,7 @@ struct Subtopic: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
     }
 
-    func encode(to encoder: Encoder) throws {
+    func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
         try c.encode(3, forKey: .tier)

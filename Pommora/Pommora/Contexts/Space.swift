@@ -34,7 +34,7 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
         case id, tier, color, icon, blocks, modifiedAt = "modified_at"
     }
 
-    init(from decoder: Decoder) throws {
+    init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(String.self, forKey: .id)
         self.tier = try c.decodeIfPresent(Int.self, forKey: .tier) ?? 1
@@ -45,7 +45,7 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
     }
 
-    func encode(to encoder: Encoder) throws {
+    func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
         try c.encode(1, forKey: .tier)
