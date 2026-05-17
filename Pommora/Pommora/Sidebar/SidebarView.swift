@@ -5,107 +5,318 @@
 
 import SwiftUI
 
-/// Scaffold sidebar — hardcoded placeholder structure showing the three
-/// top-level concepts: loose Items, the Spaces section, and the Collections
-/// section with nested collection folders. Real data plumbing (FolderTree,
-/// SidebarNode, SidebarRow) is parked until the entity layer wires in.
+/// Four-section sidebar: Saved / Spaces / Topics / Vaults.
 ///
-/// Selection chrome is custom: gray-at-11% rounded fill + accent foreground
-/// on icon + text. Required because `List(selection:)` paints opaque accent.
+/// Section ForEach bodies currently use the in-file `SelectableRow` as a
+/// placeholder for `SpaceRow` / `TopicRow` / `VaultRow` — those land in
+/// Tasks 45-47 and will replace the SelectableRow invocations inline. Sub-topic
+/// and Collection disclosure trees are deferred (flat rows for now).
+///
+/// `.sheet(item:)` cases render `SheetStubView` until Tasks 50-56 ship the real
+/// sheet views (NewSpaceSheet, IconPickerSheet, etc.).
 struct SidebarView: View {
-    @State private var selection: String?
-    @State private var spacesExpanded = true
-    @State private var collectionsExpanded = true
-    @State private var collectionExpanded: [Bool] = [true, true, true]
+    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(TopicManager.self) private var topicManager
+    @Environment(VaultManager.self) private var vaultManager
+    @Environment(SavedConfigManager.self) private var savedConfigManager
+
+    @Binding var selection: SidebarSelection
+
+    @State private var editingID: String? = nil
+    @State private var presentedSheet: SidebarSheet? = nil
+    @State private var confirmingDelete: SidebarConfirmation? = nil
 
     var body: some View {
         List {
-            ForEach(0..<3, id: \.self) { index in
-                SelectableRow(
-                    title: "Item",
-                    symbol: "list.bullet.rectangle",
-                    tag: "item-\(index)",
-                    selection: $selection
-                )
-            }
-
-            Section(isExpanded: $spacesExpanded) {
-                SelectableRow(title: "Space One", symbol: "square.stack",
-                              tag: "space-one", selection: $selection)
-                SelectableRow(title: "Space Two", symbol: "square.stack",
-                              tag: "space-two", selection: $selection)
-                SelectableRow(title: "Space Three", symbol: "square.stack",
-                              tag: "space-three", selection: $selection)
-            } header: {
-                Text("Spaces").foregroundStyle(.secondary)
-            }
-
-            Section(isExpanded: $collectionsExpanded) {
-                ForEach(collectionExpanded.indices, id: \.self) { collectionIndex in
-                    DisclosureGroup(isExpanded: $collectionExpanded[collectionIndex]) {
-                        ForEach(0..<3, id: \.self) { placeholderIndex in
-                            SelectableRow(
-                                title: "Placeholder",
-                                symbol: "doc.text",
-                                tag: "placeholder-\(collectionIndex)-\(placeholderIndex)",
-                                selection: $selection
-                            )
-                        }
-                    } label: {
-                        SelectableRow(
-                            title: "Collection",
-                            symbol: "folder",
-                            tag: "collection-\(collectionIndex)",
-                            selection: $selection
-                        )
-                    }
-                }
-            } header: {
-                Text("Collections").foregroundStyle(.secondary)
-            }
+            SavedSection(selection: $selection)
+            SpacesSection(
+                selection: $selection,
+                editingID: $editingID,
+                presentedSheet: $presentedSheet,
+                confirmingDelete: $confirmingDelete
+            )
+            TopicsSection(
+                selection: $selection,
+                editingID: $editingID,
+                presentedSheet: $presentedSheet,
+                confirmingDelete: $confirmingDelete
+            )
+            VaultsSection(
+                selection: $selection,
+                editingID: $editingID,
+                presentedSheet: $presentedSheet,
+                confirmingDelete: $confirmingDelete
+            )
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .newSpace:                  SheetStubView(label: "New Space — coming in Task 52")
+            case .newTopic:                  SheetStubView(label: "New Topic — coming in Task 53")
+            case .newSubtopic(let t):        SheetStubView(label: "New Sub-topic in \(t.title) — coming in Task 54")
+            case .newVault:                  SheetStubView(label: "New Vault — coming in Task 55")
+            case .newCollection(let v):      SheetStubView(label: "New Collection in \(v.title) — coming in Task 55")
+            case .newPage(let c, _):         SheetStubView(label: "New Page in \(c.title) — coming in Task 56")
+            case .newItem(let c, _):         SheetStubView(label: "New Item in \(c.title) — coming in Task 56")
+            case .editTopicParents(let t):   SheetStubView(label: "Edit Topic Parents — \(t.title) — coming in Task 53")
+            case .editIcon:                  SheetStubView(label: "Icon Picker — coming in Task 51")
+            case .editColor(let s):          SheetStubView(label: "Color Picker — \(s.title) — coming in Task 50")
+            }
+        }
+        .confirmationDialog(
+            confirmationTitle,
+            isPresented: Binding(
+                get: { confirmingDelete != nil },
+                set: { if !$0 { confirmingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: confirmingDelete
+        ) { confirmation in
+            confirmationButtons(for: confirmation)
+        } message: { confirmation in
+            Text(confirmationMessage(for: confirmation))
+        }
+    }
+
+    private var confirmationTitle: String {
+        switch confirmingDelete {
+        case .deleteSpace(let s)?:      return "Delete Space \"\(s.title)\"?"
+        case .deleteTopic(let t, _)?:   return "Delete Topic \"\(t.title)\"?"
+        case .deleteSubtopic(let s)?:   return "Delete Sub-topic \"\(s.title)\"?"
+        case .deleteVault(let v, _)?:   return "Delete Vault \"\(v.title)\"?"
+        case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
+        case nil: return ""
+        }
+    }
+
+    private func confirmationMessage(for confirmation: SidebarConfirmation) -> String {
+        switch confirmation {
+        case .deleteSpace: return "This action cannot be undone."
+        case .deleteTopic(_, let count): return count > 0
+            ? "Contains \(count) Sub-topic(s). Promote them or delete all?"
+            : "This action cannot be undone."
+        case .deleteSubtopic: return "This action cannot be undone."
+        case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
+        case .deleteCollection: return "All Pages and Items inside will be deleted."
+        }
+    }
+
+    @ViewBuilder
+    private func confirmationButtons(for confirmation: SidebarConfirmation) -> some View {
+        switch confirmation {
+        case .deleteSpace(let s):
+            Button("Delete", role: .destructive) {
+                Task { try? await spaceManager.delete(s); confirmingDelete = nil }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .deleteTopic(let t, let count):
+            if count > 0 {
+                Button("Delete & Promote Sub-topics", role: .destructive) {
+                    Task { try? await topicManager.deleteTopic(t, promotingSubtopics: true); confirmingDelete = nil }
+                }
+                Button("Delete All", role: .destructive) {
+                    Task { try? await topicManager.deleteTopic(t, promotingSubtopics: false); confirmingDelete = nil }
+                }
+            } else {
+                Button("Delete", role: .destructive) {
+                    Task { try? await topicManager.deleteTopic(t, promotingSubtopics: true); confirmingDelete = nil }
+                }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .deleteSubtopic(let s):
+            Button("Delete", role: .destructive) {
+                Task { try? await topicManager.deleteSubtopic(s); confirmingDelete = nil }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .deleteVault(let v, _):
+            Button("Delete", role: .destructive) {
+                Task { try? await vaultManager.deleteVault(v); confirmingDelete = nil }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .deleteCollection(let c):
+            Button("Delete", role: .destructive) {
+                Task { try? await vaultManager.deleteCollection(c); confirmingDelete = nil }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        }
     }
 }
 
-private struct SelectableRow: View {
+// MARK: - Sections
+
+struct SavedSection: View {
+    @Binding var selection: SidebarSelection
+    @Environment(SavedConfigManager.self) private var savedConfigManager
+
+    var body: some View {
+        Section("Saved") {
+            ForEach(savedConfigManager.config.items) { item in
+                SelectableRow(
+                    title: item.label,
+                    symbol: iconFor(item.key),
+                    tag: SelectionTag.savedKey(item.key),
+                    selection: $selection,
+                    accent: nil,
+                    onSelect: { selection = .savedKey(item.key) }
+                )
+            }
+        }
+    }
+
+    private func iconFor(_ key: String) -> String {
+        switch key {
+        case "homepage": return "house"
+        case "calendar": return "calendar"
+        case "recents":  return "clock"
+        default: return "questionmark.square"
+        }
+    }
+}
+
+struct SpacesSection: View {
+    @Binding var selection: SidebarSelection
+    @Binding var editingID: String?
+    @Binding var presentedSheet: SidebarSheet?
+    @Binding var confirmingDelete: SidebarConfirmation?
+    @Environment(SpaceManager.self) private var spaceManager
+
+    var body: some View {
+        Section("Spaces") {
+            ForEach(spaceManager.spaces) { space in
+                // Placeholder for SpaceRow (Task 45). Replaced inline when SpaceRow lands.
+                SelectableRow(
+                    title: space.title,
+                    symbol: space.icon ?? "circle.fill",
+                    tag: SelectionTag.space(space.id),
+                    selection: $selection,
+                    accent: space.color.swiftUIColor,
+                    onSelect: { selection = .space(space) }
+                )
+            }
+            Button {
+                presentedSheet = .newSpace
+            } label: {
+                Label("New Space", systemImage: "plus")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+struct TopicsSection: View {
+    @Binding var selection: SidebarSelection
+    @Binding var editingID: String?
+    @Binding var presentedSheet: SidebarSheet?
+    @Binding var confirmingDelete: SidebarConfirmation?
+    @Environment(TopicManager.self) private var topicManager
+
+    var body: some View {
+        Section("Topics") {
+            ForEach(topicManager.topics) { topic in
+                // Placeholder for TopicRow (Task 46). Replaced inline when TopicRow lands.
+                SelectableRow(
+                    title: topic.title,
+                    symbol: topic.icon ?? "folder",
+                    tag: SelectionTag.topic(topic.id),
+                    selection: $selection,
+                    accent: nil,
+                    onSelect: { selection = .topic(topic) }
+                )
+            }
+            Button {
+                presentedSheet = .newTopic
+            } label: {
+                Label("New Topic", systemImage: "plus")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+struct VaultsSection: View {
+    @Binding var selection: SidebarSelection
+    @Binding var editingID: String?
+    @Binding var presentedSheet: SidebarSheet?
+    @Binding var confirmingDelete: SidebarConfirmation?
+    @Environment(VaultManager.self) private var vaultManager
+
+    var body: some View {
+        Section("Vaults") {
+            ForEach(vaultManager.vaults) { vault in
+                // Placeholder for VaultRow (Task 47). Replaced inline when VaultRow lands.
+                SelectableRow(
+                    title: vault.title,
+                    symbol: vault.icon ?? "archivebox",
+                    tag: SelectionTag.vault(vault.id),
+                    selection: $selection,
+                    accent: nil,
+                    onSelect: { selection = .vault(vault) }
+                )
+            }
+            Button {
+                presentedSheet = .newVault
+            } label: {
+                Label("New Vault", systemImage: "plus")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - SelectableRow (updated to use SelectionTag)
+
+struct SelectableRow: View {
     let title: String
     let symbol: String
-    let tag: String
-    @Binding var selection: String?
+    let tag: SelectionTag
+    @Binding var selection: SidebarSelection
+    let accent: Color?
+    let onSelect: () -> Void
 
-    private var isSelected: Bool { selection == tag }
-
-    private var rowBackground: AnyView? {
-        guard isSelected else { return nil }
-        return AnyView(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.gray.opacity(0.11))
-                .padding(.horizontal, 11)
-                .padding(.vertical, 2)
-        )
+    var isSelected: Bool {
+        tag.matches(selection)
     }
 
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                .brightness(isSelected ? 0.0 : 0)
-                .frame(width: 16, alignment: .leading)
+                .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
             Text(title)
-                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                .brightness(isSelected ? 0.11 : 0)
-            Spacer(minLength: 0)
+                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .brightness(isSelected ? 0.12 : 0)
         }
-        .padding(.vertical, 2)
         .padding(.leading, 4)
-        .padding(.trailing, 0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
-        .onTapGesture { selection = tag }
-        .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
-        .listRowBackground(rowBackground)
+        .onTapGesture { onSelect() }
+        .listRowBackground(
+            isSelected
+                ? RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(0.11))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 2)
+                : nil
+        )
+    }
+}
+
+// MARK: - Sheet stubs (replaced progressively in Tasks 50-56)
+
+private struct SheetStubView: View {
+    let label: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(label).font(.title3).foregroundStyle(.secondary)
+            Button("Done") { dismiss() }
+        }
+        .padding(40)
+        .frame(minWidth: 320, minHeight: 160)
     }
 }

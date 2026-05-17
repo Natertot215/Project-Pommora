@@ -11,3 +11,26 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case vault(Vault)
     case collection(Pommora.Collection)
 }
+
+/// Used by SelectableRow to compare against the current SidebarSelection
+/// for highlight state. Each case carries the entity's ULID.
+enum SelectionTag: Equatable, Hashable, Sendable {
+    case savedKey(String)
+    case space(String)
+    case topic(String)
+    case subtopic(String)
+    case vault(String)
+    case collection(String)
+
+    func matches(_ selection: SidebarSelection) -> Bool {
+        switch (self, selection) {
+        case (.savedKey(let k), .savedKey(let s)):       return k == s
+        case (.space(let id), .space(let s)):            return id == s.id
+        case (.topic(let id), .topic(let t)):            return id == t.id
+        case (.subtopic(let id), .subtopic(let st)):     return id == st.id
+        case (.vault(let id), .vault(let v)):            return id == v.id
+        case (.collection(let id), .collection(let c)):  return id == c.id
+        default: return false
+        }
+    }
+}
