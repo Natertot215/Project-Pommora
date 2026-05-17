@@ -12,6 +12,7 @@ struct CollectionRow: View {
     @Environment(ContentManager.self) private var contentManager
 
     @State private var draft: String = ""
+    @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
     @State private var expanded: Bool = false
 
@@ -39,15 +40,7 @@ struct CollectionRow: View {
     @ViewBuilder
     private var label: some View {
         if editingID == collection.id {
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) { editingID = nil; return .handled }
-                .onAppear {
-                    draft = collection.title
-                    renameFocused = true
-                }
+            renamingRow
         } else {
             SelectableRow(
                 title: collection.title,
@@ -71,9 +64,38 @@ struct CollectionRow: View {
         }
     }
 
+    private var renamingRow: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "folder")
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.primary)
+                .frame(width: 16, alignment: .leading)
+            TextField("", text: $draft)
+                .textFieldStyle(.plain)
+                .focused($renameFocused)
+                .onSubmit { commit() }
+                .onKeyPress(.escape) { cancel(); return .handled }
+                .onChange(of: renameFocused) { _, focused in
+                    if !focused && !isCommitting && editingID == collection.id {
+                        cancel()
+                    }
+                }
+                .onAppear {
+                    draft = collection.title
+                    renameFocused = true
+                }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func commit() {
         guard draft != collection.title else { editingID = nil; return }
+        isCommitting = true
         Task {
+            defer { isCommitting = false }
             do {
                 try await vaultManager.renameCollection(collection, to: draft)
                 editingID = nil
@@ -81,5 +103,9 @@ struct CollectionRow: View {
                 // editingID stays set; user can retry
             }
         }
+    }
+
+    private func cancel() {
+        editingID = nil
     }
 }

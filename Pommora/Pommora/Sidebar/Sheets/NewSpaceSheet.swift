@@ -6,7 +6,7 @@ struct NewSpaceSheet: View {
 
     @State private var name: String = ""
     @State private var color: SpaceColor = .blue
-    @State private var icon: String = "person.circle"
+    @State private var icon: String? = "person.circle"
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
 
@@ -21,7 +21,9 @@ struct NewSpaceSheet: View {
                 LabeledContent("Color") {
                     SpaceColorPicker(color: $color)
                 }
-                TextField("Icon (SF Symbol name)", text: $icon)
+                LabeledContent("Icon") {
+                    IconPickerField(symbol: $icon)
+                }
             }
 
             if let errorMessage {
@@ -47,7 +49,7 @@ struct NewSpaceSheet: View {
 
     private func create() async {
         do {
-            let iconValue: String? = icon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : icon
+            let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
             try await spaceManager.create(name: name, color: color, icon: iconValue)
             dismiss()
         } catch let error as SpaceValidator.ValidationError {

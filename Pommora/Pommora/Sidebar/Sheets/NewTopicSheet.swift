@@ -7,7 +7,7 @@ struct NewTopicSheet: View {
 
     @State private var name: String = ""
     @State private var selectedParents: Set<String> = []
-    @State private var icon: String = ""
+    @State private var icon: String? = nil
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
 
@@ -19,7 +19,9 @@ struct NewTopicSheet: View {
             Form {
                 TextField("Name", text: $name)
                     .focused($nameFocused)
-                TextField("Icon (SF Symbol name)", text: $icon)
+                LabeledContent("Icon") {
+                    IconPickerField(symbol: $icon)
+                }
                 Section("Parent Spaces (optional)") {
                     ForEach(spaceManager.spaces) { space in
                         Toggle(isOn: Binding(
@@ -60,7 +62,7 @@ struct NewTopicSheet: View {
     private func create() async {
         do {
             let parents = Array(selectedParents)
-            let iconValue: String? = icon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : icon
+            let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
             try await topicManager.createTopic(name: name, parents: parents, icon: iconValue)
             dismiss()
         } catch let error as TopicValidator.ValidationError {

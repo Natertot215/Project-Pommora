@@ -12,6 +12,7 @@ struct VaultRow: View {
     @Environment(ContentManager.self) private var contentManager
 
     @State private var draft: String = ""
+    @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
 
     var body: some View {
@@ -50,15 +51,7 @@ struct VaultRow: View {
     @ViewBuilder
     private var label: some View {
         if editingID == vault.id {
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) { editingID = nil; return .handled }
-                .onAppear {
-                    draft = vault.title
-                    renameFocused = true
-                }
+            renamingRow
         } else {
             SelectableRow(
                 title: vault.title,
@@ -84,9 +77,38 @@ struct VaultRow: View {
         }
     }
 
+    private var renamingRow: some View {
+        HStack(spacing: 6) {
+            Image(systemName: vault.icon ?? "tray.2")
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.primary)
+                .frame(width: 16, alignment: .leading)
+            TextField("", text: $draft)
+                .textFieldStyle(.plain)
+                .focused($renameFocused)
+                .onSubmit { commit() }
+                .onKeyPress(.escape) { cancel(); return .handled }
+                .onChange(of: renameFocused) { _, focused in
+                    if !focused && !isCommitting && editingID == vault.id {
+                        cancel()
+                    }
+                }
+                .onAppear {
+                    draft = vault.title
+                    renameFocused = true
+                }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func commit() {
         guard draft != vault.title else { editingID = nil; return }
+        isCommitting = true
         Task {
+            defer { isCommitting = false }
             do {
                 try await vaultManager.renameVault(vault, to: draft)
                 editingID = nil
@@ -94,5 +116,9 @@ struct VaultRow: View {
                 // editingID stays set; user can retry
             }
         }
+    }
+
+    private func cancel() {
+        editingID = nil
     }
 }

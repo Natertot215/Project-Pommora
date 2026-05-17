@@ -6,7 +6,7 @@ struct NewSubtopicSheet: View {
     @Environment(TopicManager.self) private var topicManager
 
     @State private var name: String = ""
-    @State private var icon: String = ""
+    @State private var icon: String? = nil
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
 
@@ -16,7 +16,9 @@ struct NewSubtopicSheet: View {
                 .font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
-                TextField("Icon (SF Symbol name)", text: $icon)
+                LabeledContent("Icon") {
+                    IconPickerField(symbol: $icon)
+                }
             }
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.red).font(.callout)
@@ -38,7 +40,7 @@ struct NewSubtopicSheet: View {
 
     private func create() async {
         do {
-            let iconValue: String? = icon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : icon
+            let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
             try await topicManager.createSubtopic(name: name, inTopic: parent, icon: iconValue)
             dismiss()
         } catch let error as SubtopicValidator.ValidationError {

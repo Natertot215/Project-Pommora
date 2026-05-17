@@ -16,22 +16,21 @@ struct PageRow: View {
     @Environment(ContentManager.self) private var contentManager
 
     @State private var draft: String = ""
+    @State private var isCommitting: Bool = false
     @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
-        Group {
-            if editingID == page.id {
-                renameField
-            } else {
-                leafLabel
-                    .contextMenu {
-                        Button("Rename") { editingID = page.id }
-                        Divider()
-                        Button("Delete", role: .destructive) {
-                            Task { await delete() }
-                        }
+        if editingID == page.id {
+            renamingRow
+        } else {
+            leafLabel
+                .contextMenu {
+                    Button("Rename") { editingID = page.id }
+                    Divider()
+                    Button("Delete", role: .destructive) {
+                        Task { await delete() }
                     }
-            }
+                }
         }
     }
 
@@ -50,23 +49,40 @@ struct PageRow: View {
         .contentShape(Rectangle())
     }
 
-    private var renameField: some View {
-        TextField("", text: $draft)
-            .textFieldStyle(.plain)
-            .focused($nameFieldFocused)
-            .onSubmit { commit() }
-            .onKeyPress(.escape) { editingID = nil; return .handled }
-            .onAppear {
-                draft = page.title
-                nameFieldFocused = true
-            }
+    /// Mirrors leafLabel's HStack shape (icon stays visible during rename),
+    /// only the title slot becomes a TextField.
+    private var renamingRow: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "doc.text")
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.primary)
+            TextField("", text: $draft)
+                .textFieldStyle(.plain)
+                .focused($nameFieldFocused)
+                .onSubmit { commit() }
+                .onKeyPress(.escape) { cancel(); return .handled }
+                .onChange(of: nameFieldFocused) { _, focused in
+                    if !focused && !isCommitting && editingID == page.id {
+                        cancel()
+                    }
+                }
+                .onAppear {
+                    draft = page.title
+                    nameFieldFocused = true
+                }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 4)
+        .padding(.vertical, 2)
     }
 
     // MARK: - Actions
 
     private func commit() {
         guard draft != page.title else { editingID = nil; return }
+        isCommitting = true
         Task {
+            defer { isCommitting = false }
             do {
                 switch parent {
                 case .collection(let coll, let vault):
@@ -79,6 +95,10 @@ struct PageRow: View {
                 // editingID stays set; user can retry
             }
         }
+    }
+
+    private func cancel() {
+        editingID = nil
     }
 
     private func delete() async {

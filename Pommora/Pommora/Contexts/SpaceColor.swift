@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The 9-color Notion-palette options for Spaces.
-/// Stored as lowercase string in JSON; mapped to SwiftUI `Color` for rendering.
+/// The 10-color palette options for Spaces (9 Notion-palette colors + the app
+/// accent). Stored as lowercase string in JSON; mapped to SwiftUI `Color` for
+/// rendering. `.accent` maps to `Color.accentColor`, which tracks the
+/// Pommora-brand accent and updates if the brand accent changes.
 enum SpaceColor: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
-    case gray, brown, orange, yellow, green, blue, purple, pink, red
+    case gray, brown, orange, yellow, green, blue, purple, pink, red, accent
 
     var id: String { rawValue }
 
@@ -18,6 +20,7 @@ enum SpaceColor: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
         case .purple: return Color.purple
         case .pink:   return Color.pink
         case .red:    return Color.red
+        case .accent: return Color.accentColor
         }
     }
 

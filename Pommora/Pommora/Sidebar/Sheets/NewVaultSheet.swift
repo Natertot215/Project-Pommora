@@ -5,7 +5,7 @@ struct NewVaultSheet: View {
     @Environment(VaultManager.self) private var vaultManager
 
     @State private var name: String = ""
-    @State private var icon: String = "tray.2"
+    @State private var icon: String? = "tray.2"
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
 
@@ -14,7 +14,9 @@ struct NewVaultSheet: View {
             Text("New Vault").font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
-                TextField("Icon (SF Symbol name)", text: $icon)
+                LabeledContent("Icon") {
+                    IconPickerField(symbol: $icon)
+                }
             }
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.red).font(.callout)
@@ -36,7 +38,7 @@ struct NewVaultSheet: View {
 
     private func create() async {
         do {
-            let iconValue: String? = icon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : icon
+            let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
             try await vaultManager.createVault(name: name, icon: iconValue)
             dismiss()
         } catch let error as VaultValidator.ValidationError {
