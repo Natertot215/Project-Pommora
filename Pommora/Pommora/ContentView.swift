@@ -44,21 +44,24 @@ struct ContentView: View {
         .inspector(isPresented: $inspectorPresented) {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
-        }
-        .toolbar {
-            if case .page = sidebarSelection {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        withAnimation(.smooth(duration: 0.25)) {
-                            inspectorPresented.toggle()
+                .toolbar {
+                    // Attached to the inspector's content closure so the
+                    // toggle Button renders at the inspector column's trailing
+                    // edge (which is the window's trailing edge). Putting this
+                    // outside the .inspector content closure routes the item
+                    // to the leading detail toolbar — the bug fixed in C.5.1.
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            withAnimation(.smooth(duration: 0.25)) {
+                                inspectorPresented.toggle()
+                            }
+                        } label: {
+                            Label("Toggle Inspector", systemImage: "sidebar.trailing")
                         }
-                    } label: {
-                        Label("Toggle Inspector", systemImage: "sidebar.trailing")
+                        .keyboardShortcut("0", modifiers: [.option, .command])
+                        .help("Toggle Inspector (⌥⌘0)")
                     }
-                    .keyboardShortcut("0", modifiers: [.option, .command])
-                    .help("Toggle Inspector (⌥⌘0)")
                 }
-            }
         }
         .onChange(of: sidebarSelection) { _, newValue in
             // Per-Page inspector state: when a Page becomes selected, restore
