@@ -21,7 +21,8 @@ struct VaultDetailView: View {
             footer
         }
         .task(id: vault.id) {
-            // Ensure every Collection inside this Vault has its content loaded
+            // Load vault-root Pages/Items + every Collection's content
+            await contentManager.loadAll(for: vault)
             for coll in vaultManager.collections(in: vault) {
                 await contentManager.loadAll(for: coll)
             }
@@ -93,7 +94,20 @@ struct VaultDetailView: View {
     // MARK: - Row construction
 
     private var rows: [DetailRow] {
-        vaultManager.collections(in: vault).map { coll in
+        // Vault-root Pages and Items appear as top-level rows alongside Collections.
+        let rootPages = contentManager.pages(in: vault).map(ContentItem.page)
+        let rootItems = contentManager.items(in: vault).map(ContentItem.item)
+        let rootRows: [DetailRow] = (rootPages + rootItems).map { ci in
+            DetailRow(
+                id: ci.id,
+                title: ci.title,
+                kind: contentKind(ci),
+                iconName: ci.iconName,
+                modifiedAt: ci.modifiedAt,
+                children: nil
+            )
+        }
+        let collectionRows: [DetailRow] = vaultManager.collections(in: vault).map { coll in
             let pages = contentManager.pages(in: coll).map(ContentItem.page)
             let items = contentManager.items(in: coll).map(ContentItem.item)
             let kids: [DetailRow] = (pages + items).map { ci in
@@ -115,6 +129,7 @@ struct VaultDetailView: View {
                 children: kids
             )
         }
+        return rootRows + collectionRows
     }
 
     private func contentKind(_ ci: ContentItem) -> DetailRow.Kind {

@@ -188,7 +188,7 @@ struct SavedSection: View {
                     onSelect: { selection = .savedKey(item.key) }
                 )
             }
-        } header: { EmptyView() }
+        }
     }
 
     private func iconFor(_ key: String) -> String {
@@ -326,7 +326,7 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 10) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
