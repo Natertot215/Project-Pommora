@@ -262,3 +262,45 @@ Long session covering Framework audit + semver conversion + Pages/Tabs reorder +
 **Item Window v0.5 redesign now targets v0.3.0:** the redesign was previously slotted alongside Properties at v0.5.0; with Properties moving to v0.3.0 in the reorder, the Item Window redesign comes along.
 
 **Tomorrow's session opens with:** v0.2.4 swift-format baseline, then v0.2.5 `.trash//` data foundation, then v0.2.6 spec catch-up, then v0.2.7 Pages editor (with the editor-library decision reopened first). See `Handoff.md` "Tomorrow's plan."
+
+---
+
+#### Session 5 — 2026-05-18 (v0.2.4 → v0.2.6 shipped via subagent-driven-development)
+
+Execution session: shipped four code patches + one end-of-day doc sweep, ending at v0.2.6 — Pommora now has CI + formatter + `.trash//` data layer + spec docs synced, ready for the editor-library decision and v0.2.7 Pages. All commits land on `main` directly per Nathan's session-local override ("execute; but let's keep it on this branch"); not pushed (Nathan reviews + pushes himself).
+
+**Execution model:** `subagent-driven-development` skill for v0.2.4 and v0.2.5 (full implementer + spec-reviewer + code-quality-reviewer chain). Compressed review for v0.2.5.1 and v0.2.6 (already-reviewed Minor items + mechanical string/doc updates — full ceremony would have been overkill). Builder subagent for xcodebuild verification where reachable; piped-log fallback otherwise.
+
+**Five patches shipped:**
+
+1. **`60e2ef6` — v0.2.4: swift-format baseline.** `.swift-format` config at repo root (lineLength 120 / 4-space indent / `respectsExistingLineBreaks: true` / `OrderedImports: true` / `NeverForceUnwrap: false` to honor `try!` use). One-time formatter pass over 97 Swift files (+593/-422; mechanical whitespace + import-ordering only, no semantic changes). CI `swift format lint --strict --recursive` step in `.github/workflows/ci.yml` after "Show toolchain" — fail-fast. Also fixed two pre-existing `OneCasePerLine` violations in `Recurrence.swift` (`Kind` and `Day` enums) since the formatter can't auto-fix that rule — the alternative (disabling the rule) was worse. Code quality reviewer flagged one cosmetic regression: `swift format` mangled ~12 single-line `do { try await … } catch { /* … */ }` patterns in `SidebarView.swift` + `IconPickerSheet.swift` into `} catch\n{ … }` shape (`respectsExistingLineBreaks: true` can't preserve single-line catch bodies that span the `{`). Recommended structural fix (extract `runDelete(_:)` helpers) when SidebarView is next touched — likely during v0.2.7 work; not config-driven.
+
+2. **`9f56fbe` — v0.2.5: `.trash//` data foundation.** 5 new APIs: `NexusPaths.trashDir(in: nexus)` returns `<nexus>/.trash/`; `Filesystem.moveToTrash(_:in:)` (@discardableResult URL throws) preserves the deleted entity's relative path under nexus root, creates intermediate `.trash` dirs, resolves collisions via timestamp suffix; private `Filesystem.suffixedWithTimestamp(_:)` helper; `FilesystemError.sourceNotInNexus(source:, nexus:)` case (new `LocalizedError` enum — no pre-existing type to extend); file-private `String.removingPrefix(_:)` helper. Swapped 10 manager delete call-sites: SpaceManager.delete / TopicManager.deleteTopic + deleteSubtopic / VaultManager.deleteVault + deleteCollection / ContentManager+CRUD.deletePage×2 + deleteItem×2 / AgendaManager.deleteItem. All 10 managers already held a `nexus` reference — no threading required. Pre-existing `pendingError` flow preserved. New `Pommora/PommoraTests/AtomicIO/FilesystemTrashTests.swift` with 4 tests (movesFile / movesFolder / collisionAddsTimestampSuffix / rejectsExternalSource). Extended v0.2.2's `ContentManagerTests.deletes` + `VaultManagerTests.deleteVault`/`deleteCollection` assertions to ALSO check trash-side existence (the cross-patch coordination flagged in the plan). Tests: 182 → 186. PRD-aligned: `.trash//` lives inside the nexus (syncs with iCloud/Dropbox as user data, not regeneratable index), unlike `nexus.db` which lives in Application Support.
+
+3. **`25de7c6` — v0.2.5.1: Trash cleanup.** Three Minor items from the v0.2.5 code quality reviewer: (a) `suffixedWithTimestamp` now appends a 4-char hex discriminator (UUID prefix) after the UTC `YYYYMMDD-HHMMSS` timestamp — guarantees uniqueness for the same-second collision edge case (`@MainActor` serialization makes this impossible today, but future batch-delete scenarios would benefit). Filenames become `Notes.20260518-093215-A3F2.md` — slightly noisier but always unique without loop ceremony. (b) `rejectsExternalSource` test tightened to pattern-match the specific `FilesystemError.sourceNotInNexus` case via the closure form `throws: { error in case ... = error }`, matching existing test convention in `AgendaManagerTests` / `SpaceManagerTests` / `AtomicYAMLMarkdownTests`. (c) UTC documentation folded into the suffix function's docstring (cross-timezone determinism rationale).
+
+4. **`7b17d1d` — v0.2.6: Spec catch-up.** 5 Swift literal `Text(...)` version strings updated to align with the locked Framework reorder:
+   - `ItemWindow.swift` `"Property-panel relation editor coming v0.5"` → `"Property panel coming v0.3.0"`
+   - `PropertyEditorRow.swift` `"Relation editor coming v0.5"` → `"Relation editor coming v0.3.0"`
+   - `ContextDetailPlaceholder.swift` `"Composed view coming v0.9"` → `"Composed view coming v0.7.0"` (+ matching doc comment synced)
+   - `SidebarDetailView.swift` `"Saved view coming v0.5"` → `"Saved view coming v0.6.0"`
+   - `SidebarDetailView.swift` `"Page editor coming v0.6"` → `"Page editor coming v0.2.7"`
+   
+   Doc passes: `// Features//Pages.md` softened from "Tiptap LOCKED" framing to "leading candidate; final pick reopens at v0.2.7 prep" with a structured candidate list (Tiptap / Milkdown / BlockNote / CodeMirror 6) and stack-agnostic architecture restated; cross-references Paradigm-Decision #7. `// Features//Sidebar.md` updated the right-click table's Page row entry to reference v0.2.7 and replaced the "discoverability deferred to quick-capture" section with a "hover-icon `+` complement + quick-capture" section acknowledging the hover-only `+` buttons that actually shipped in v0.2.0 — the spec doc was stale on what was already live.
+
+5. **`<pending>` — docs-end-5-18: End-of-session doc sweep.** This `History.md` entry + `Handoff.md` rewrite (end-of-5-18 state replaces end-of-5-17 state) + `Framework.md` "Current Focus" update + v0.2.x "Shipped" section expanded to cover v0.2.4 → v0.2.6 + `CLAUDE.md` Active Version table updated with the 4 new SHAs + quirk #12 added (`swift format` invoked as subcommand). `PommoraPRD.md` and `Paradigm-Decisions.md` required no changes — paradigm-decision #7 (Tiptap demoted) already reflects current state; PRD is intentionally version-agnostic.
+
+**Combined build state verified end-of-session:**
+- `xcodebuild build` → BUILD SUCCEEDED, 0 source warnings ✅
+- `xcodebuild test -only-testing:PommoraTests` → **186/186 pass**, 0 failures ✅
+- `swift format lint --strict --recursive Pommora/Pommora Pommora/PommoraTests Pommora/PommoraUITests` → exit 0 ✅
+- Sandbox entitlements present ✅
+- Working tree clean post-doc-commit ✅
+
+**No new paradigm-solidifying decisions this session.** Purely execution + spec hygiene. The 10-entry Paradigm-Decisions registry from end-of-5-17 remains current.
+
+**Project quirk added (#12 in `CLAUDE.md`):** `swift format` is invoked as a subcommand (`swift format format`, `swift format lint`) via Xcode 26's bundled toolchain. The direct `swift-format` binary is not on `$PATH` on this machine. CI uses the same subcommand form. Locked at v0.2.4.
+
+**SourceKit staleness re-confirmed (quirk #3):** SourceKit emitted false "Cannot find type X" diagnostics for same-module types and "No such module 'Testing'" after multiple Edit/Write tool runs throughout the session — `Nexus`, `Space`, `NexusPaths`, `Filesystem`, `NexusContext`, `Item`, `Vault`, `PropertyValue`, `ContentManager`, etc. xcodebuild + `xcodebuild test` consistently passed. This is the documented IDE-staleness pattern; squiggles clear after re-indexing. No action needed.
+
+**Next session opens with:** confirm push of v0.2.4 → v0.2.6 to origin (first CI smoke-test on `runs-on: macos-26`; fall back to `macos-latest` + Xcode 26 path if needed) → reopen editor library decision via `superpowers:brainstorming` → **v0.2.7 Pages editor** per `// Planning//Page-Editor-Plan.md`. Use `subagent-driven-development` skill. See `Handoff.md` verbatim resume prompt.

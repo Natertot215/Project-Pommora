@@ -93,7 +93,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Active Version
 
-**v0.0.0 + v0.1a + v0.2.0 + v0.2.1 + v0.2.2 + v0.2.3 all shipped on `main`** (end of 2026-05-17 session). Implementation at [Pommora/Pommora/](Pommora/Pommora/). 182/182 unit tests pass on combined state; sandbox verified; 0 source warnings.
+**v0.0.0 + v0.1.0 + v0.2.0 → v0.2.6 all shipped on `main`** (end of 2026-05-18 session, locally committed; NOT pushed yet). Implementation at [Pommora/Pommora/](Pommora/Pommora/). **186/186 unit tests pass**; `swift format lint --strict` exit 0; sandbox verified; 0 source warnings.
 
 | SHA | Version | Description |
 |---|---|---|
@@ -101,10 +101,14 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 | `3bcf328` | v0.2.1 | Parallel-session Swift UX tweaks + page selection wiring |
 | `2e140ed` | v0.2.2 | CodeRabbit tightening (ItemWindow refetch + ContentManagerTests filesystem) |
 | `56efd68` | v0.2.3 | CI baseline (GitHub Actions workflow) |
+| `60e2ef6` | v0.2.4 | swift-format baseline (config + formatter pass + CI lint step) |
+| `9f56fbe` | v0.2.5 | `.trash//` data foundation (`Filesystem.moveToTrash` + 10 manager swaps + 4 new tests) |
+| `25de7c6` | v0.2.5.1 | Trash cleanup (UUID-discriminated timestamp + tighter test pattern) |
+| `7b17d1d` | v0.2.6 | Spec catch-up (5 stale version strings + Pages.md + Sidebar.md doc passes) |
 
-**Currently working toward v0.3.0** which = **Properties** (NOT Pages editor anymore — see Framework reorder below). The Pages editor + Tabs ship as v0.2.x patches before v0.3.0 begins.
+**Currently working toward v0.3.0** which = **Properties** (NOT Pages editor anymore — see Framework reorder). The Pages editor + Tabs ship as v0.2.x patches before v0.3.0 begins. Three remaining v0.2.x patches before v0.3.0: v0.2.7 (Pages) + v0.2.8 (Tabs) + v0.2.9 (directives + heading fold + slash menu) + v0.2.10 (wikilinks + rename cascade). v0.2.7 ↔ v0.2.8 order is interchangeable.
 
-**Tomorrow's session opens with:** v0.2.4 swift-format baseline, then v0.2.5 `.trash//` data foundation, then v0.2.6 spec catch-up, then v0.2.7 Pages editor (after reopening editor-library decision). See `Handoff.md` "Tomorrow's plan."
+**Next session opens with:** confirm push of v0.2.4 → v0.2.6 to origin (first CI smoke-test on `runs-on: macos-26`), then reopen the editor library decision (Tiptap leading; Milkdown / BlockNote / CodeMirror 6 reopen) via `superpowers:brainstorming`, then **v0.2.7 Pages editor** per `// Planning//Page-Editor-Plan.md` — opening commit is `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)`. See `Handoff.md` for verbatim resume prompt.
 
 **Framework reorder locked end-of-2026-05-17** (see `Framework.md` "Roadmap reorders" + `Handoff.md` "Framework reorder"): Pages + Tabs ship as v0.2.7 + v0.2.8 patches (interchangeable order) — NOT as v0.3.0/v0.4.0 minors. Editor library NOT solidified — Tiptap leading candidate, final pick at v0.2.7 prep. Properties → v0.3.0. SQLite + Watcher → v0.4.0. Vault views → v0.5.0. EventKit + Agenda UI ship together at v0.6.0 (hand-in-hand). v0.6.0 consolidates a11y + perf + onboarding + Settings + accent customization. `.trash//` data layer → v0.2.5; UI window → v0.4.0.
 
@@ -125,3 +129,4 @@ The React+Electron-locked predecessor spec for v0.0.0 is preserved at `// ReactI
 9. **Section structure in SidebarView is load-bearing.** Changes to `Section(isExpanded:) { } header: { SectionHeader(...) }` patterns or to the `SectionHeader`/`SelectableRow`/`SelectionChrome` shape risk regressing a launch crash (the in-content `.background` workaround tried during the polish series broke `OutlineListCoordinator.recursivelyDiffRows`). Verify via `xcodebuild test` (tests must actually bootstrap, not just compile).
 10. **Sidebar selection chrome lives at row file level via `.listRowBackground(SelectionChrome(...))`**, not in-content `.background`. Locked spec at `// Features//Sidebar.md` "Selection language" + paradigm decision #6. Row files derive `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. SelectableRow itself is pure content — no chrome.
 11. **Parallel-session caveat** — Nathan may have a separate session running small UI tweaks. Pommora/* working tree is NOT guaranteed clean between subagent dispatches. Never revert unattributed working-tree changes; surface in report rather than bundling or discarding.
+12. **`swift format` is invoked as a subcommand** (`swift format format --in-place ...`, `swift format lint --strict --recursive ...`) via Xcode 26's bundled toolchain. The direct `swift-format` binary is NOT on `$PATH` on this machine. CI uses the same subcommand form. Locked at v0.2.4 (`.swift-format` config + CI lint step).
