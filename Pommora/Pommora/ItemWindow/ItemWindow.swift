@@ -194,9 +194,11 @@ struct ItemWindow: View {
             // If title changed, rename first
             if updated.title != item.title {
                 try await contentManager.renameItem(item, to: updated.title, in: coll, vault: vault)
-                // refetch the renamed item to get the new identity-preserving record
+                // Force reload from disk before refetch — guards against stale in-memory state
+                await contentManager.loadAll(for: coll)
                 guard let refetched = contentManager.items(in: coll).first(where: { $0.id == item.id }) else {
-                    errorMessage = "Rename succeeded but couldn't refetch."
+                    errorMessage = "Rename succeeded on disk but in-memory refetch failed. Item state may be stale; please close + reopen."
+                    dismiss()
                     return
                 }
                 updated = refetched

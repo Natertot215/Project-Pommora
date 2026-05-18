@@ -60,9 +60,14 @@ struct ContentManagerTests {
         defer { TempNexus.cleanup(nexus) }
         try await manager.createItem(name: "X", in: coll, vault: vault)
         let item = manager.items(in: coll).first!
+        let oldURL = NexusPaths.itemFileURL(forTitle: "X", in: coll.folderURL)
 
         try await manager.renameItem(item, to: "Y", in: coll, vault: vault)
+        let newURL = NexusPaths.itemFileURL(forTitle: "Y", in: coll.folderURL)
+
         #expect(manager.items(in: coll).first?.title == "Y")
+        #expect(!FileManager.default.fileExists(atPath: oldURL.path))
+        #expect(FileManager.default.fileExists(atPath: newURL.path))
     }
 
     @Test("updateItem persists property changes")
@@ -88,11 +93,16 @@ struct ContentManagerTests {
         try await manager.createItem(name: "I", in: coll, vault: vault)
         let page = manager.pages(in: coll).first!
         let item = manager.items(in: coll).first!
+        let pageURL = NexusPaths.pageFileURL(forTitle: "P", in: coll.folderURL)
+        let itemURL = NexusPaths.itemFileURL(forTitle: "I", in: coll.folderURL)
 
         try await manager.deletePage(page, in: coll)
         try await manager.deleteItem(item, in: coll)
+
         #expect(manager.pages(in: coll).isEmpty)
         #expect(manager.items(in: coll).isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: pageURL.path))
+        #expect(!FileManager.default.fileExists(atPath: itemURL.path))
     }
 
     @Test("loadAll discovers existing .md + .json in a Collection")
