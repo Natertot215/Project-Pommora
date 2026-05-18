@@ -58,12 +58,20 @@ struct PageEditorView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 4)
+                .background(Color.clear)
                 .onSubmit {
                     Task { await commitRename() }
                 }
 
+            // Defensive: SwiftUI's NSViewRepresentable wrapper around WKWebView
+            // can paint a system bg over the transparent WebKit content if we
+            // don't explicitly clear it on the SwiftUI side. Together with the
+            // fork's drawsBackground=false + underPageBackgroundColor=.clear,
+            // this lets the parent window color show through.
             EditorWebView(text: $viewModel.body, configuration: pommoraEditorConfig)
+                .background(Color.clear)
         }
+        .background(Color.clear)
         .onAppear {
             AppGlobals.register(viewModel)
         }
