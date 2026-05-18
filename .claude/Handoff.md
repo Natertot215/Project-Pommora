@@ -29,6 +29,33 @@ Snapshot refs retained for archive: `paradigm-scaffolding` (`0bc4c8d`), `v0.2.2-
 
 ---
 
+#### What we did 2026-05-18 (continued — editor research second half)
+
+After the v0.2.4 → v0.2.6 patch sequence + doc sweep landed, Nathan reopened the editor library decision and pushed for an honest evaluation of native AppKit / TextKit 2 against the prior Tiptap-leaning framing. Research session, no code committed.
+
+- **Skills invoked:** `superpowers:brainstorming` (decision framing), `swiftui-expert-skill` (TextKit 2 / AttributedString / macOS-views references), `context7` (`/swiftlang/swift-markdown` API + source-range tracking + GFM tables + visitor patterns). Explore agent (background) covered WWDC25 Session 280, Bear 2, Drafts, MarkEdit, the user-shared Reddit thread, plus open-source precedents.
+
+- **Linchpin clarifier:** Nathan confirmed Live Preview (Obsidian/Bear pattern — markers fade by cursor proximity) AND pure WYSIWYG are both acceptable — "as long as Markdown syntax isn't always visible and the page looks like a page rather than a file." Removes the constraint that drove Tiptap-over-CodeMirror earlier in the branch.
+
+- **Deep-dive on `Pallepadehat/MarkdownEditor`** (cloned + read full source). 3,010 LOC total (~1,300 Swift, ~1,700 TypeScript). MIT, v1.0.1 (Feb 11 2026), 26★. WKWebView + CodeMirror 6 + `@codemirror/lang-markdown` + `@lezer/markdown` GFM. Ships Live Preview marker fading (`syntax-hiding.ts`, 185 LOC), slash menu (`command-palette/`, ~500 LOC), KaTeX, Mermaid, inline images, Xcode-themed light/dark, smart calculator, `@codemirror/search`. Pre-built `editor.html` ships as SPM Resource (no JS toolchain needed in consumer build). Doesn't ship: wikilinks, `:::callout`, `@Columns`, visual table rendering, heading fold, bubble menu, Pommora theme — all addable as TypeScript widget files following the existing pattern in `CoreEditor/src/widgets/`.
+
+- **Reference for native path:** [`nodes-app/swift-markdown-engine`](https://github.com/nodes-app/swift-markdown-engine) (Apache 2.0, 455★, v0.4.0 May 2026, pre-1.0). NSTextView + TextKit 2 + SwiftUI bridge. Ships wikilinks with `[[Name|<id>]]` round-trip (matches Pommora's spec), LaTeX, code highlight, task checkboxes, Writing Tools. Doesn't ship tables/multi-column/callouts.
+
+- **Three options now in `// Planning//Page-Editor-Plan.md`** (rewrote it from the prior Tiptap-locked plan into an objective inventory — 169 lines, no recommendations in the doc):
+  1. **Native Swift** (swift-markdown + TextKit 2; optionally wrapping `nodes-app/swift-markdown-engine`)
+  2. **JS editor library + macOS shell we build** (Tiptap / Milkdown / BlockNote inside a WKWebView shell we author — shell itself is ~1–2 sessions of standard WebKit work)
+  3. **Fork `Pallepadehat/MarkdownEditor`** (CodeMirror 6 + WKWebView; the fork is ours after fork; we add Pommora widgets to it)
+
+- **Swap costs** documented in the plan (in Claude sessions): all transitions are 1–2 sessions for the shell/wrapper swap + 1 session per Pommora widget needing porting. `.md` file format is the firewall — user data is portable across all transitions. Reversibility roughly symmetric.
+
+- **Recommendation (chat-only, not in the doc):** Try Option 3 first. Cheapest experiment (v0.2.7 prose ships in 1 session); surfaces the WKWebView-feel question fast; bus factor mitigated by forking. Concrete session-1 deliverable spec captured in the resume prompt below.
+
+- **StudioMD updated** with new "Effort estimates use Claude-time" rule (Nexus source → Studio deploy). Mandates Claude sessions/hours framing — never weeks/months — since Claude is the implementer and calendar time isn't the cost unit.
+
+- **Nexus mirror** of `Page-Editor-Plan.md` to `//The Nexus//Topics//Pommora//Planning//` for mobile viewing.
+
+---
+
 #### What we did 2026-05-18
 
 A long execution session: shipped four code patches + one doc sweep, end-of-day at v0.2.6 — Pommora now has CI + formatter + trash + clean spec docs, ready for the editor-library decision and v0.2.7 Pages.
@@ -49,36 +76,37 @@ A long execution session: shipped four code patches + one doc sweep, end-of-day 
 
 #### Next session's plan
 
-**1. Editor library decision (brainstorming, before v0.2.7 scaffolding)**
+**1. Push v0.2.4 → v0.2.6 to origin/main (first CI smoke-test)**
 
-Tiptap is the leading candidate but NOT locked (Paradigm-Decision #7 demoted to "leading direction"). Reopen at the START of v0.2.7 work. Candidates and trade-offs:
+`main` is 5 commits ahead of origin. First push triggers the first GitHub Actions run on `runs-on: macos-26`. Surface result; if the runner label doesn't resolve, fall back to `macos-latest` + explicit Xcode 26 path as a one-line patch.
 
-| Library | Stack | Markdown round-trip | License | Bundle | Notes |
-|---|---|---|---|---|---|
-| **Tiptap** | ProseMirror, vanilla TS | Good (custom serializer) | MIT | ~250 KB | Leading; node-component model maps cleanly to `:::callout` / `@Columns` |
-| **Milkdown** | ProseMirror, remark-based | Near-perfect | MIT | ~400 KB | Better round-trip than Tiptap if directive fidelity matters more than bundle size |
-| **BlockNote** | React + block-first | OK | GPL/commercial | larger | Blocks-first conflicts with prose-flow aesthetic; license concern |
-| **CodeMirror 6** | Source-with-decorations | N/A (source view) | MIT | varies | Paradigm switch — would rewrite Pages.md spec around Live-Preview model |
+**2. v0.2.7 — Pages editor — Nathan picks editor option, implement immediately**
 
-Use `superpowers:brainstorming` skill to make the call. Architecture stays stack-agnostic regardless: WKWebView + MarkEdit-pattern native shell + 7-message JSON bridge + `WKURLSchemeHandler` for `pommora-editor://` bundle. Swap effort: 1-2 days for sibling ProseMirror editors, 3-5 days for CodeMirror.
+The editor library decision has been researched and narrowed to three options inventoried at `// Planning//Page-Editor-Plan.md`. Nathan picks one of:
 
-**2. v0.2.7 — Pages editor (the big one)**
+- **Option 1 — Native Swift** (swift-markdown + TextKit 2; optionally wrap `nodes-app/swift-markdown-engine`)
+- **Option 2 — JS editor library + macOS shell we build** (Tiptap / Milkdown / BlockNote)
+- **Option 3 — Fork `Pallepadehat/MarkdownEditor`** (CodeMirror 6 + WKWebView; recommended for first try per end-of-5-18 chat)
 
-Pre-work:
-- Reopen editor-library decision (above).
-- Confirm WKWebView bundle scaffold approach matches the locked architecture.
+Once picked, implement immediately — no further brainstorming round. The plan doc covers what each option provides, what we'd build, and swap costs (in Claude sessions) if reversal needed later.
 
-Implementation order:
-- `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` lands first (mirrors `updateItem` shape — atomicity rollback + `pendingError` CRUD pattern from v0.2.0).
-- Then bundle scaffold under `.app/Contents/Resources/Editor/` (`index.html` + `bundle.js` + `bundle.css`).
-- `WKURLSchemeHandler` for `pommora-editor://` registration.
-- `PageEditorBridge` (Swift side of the 7-message JSON bridge).
-- `PageEditorViewModel` + `PageEditorView`.
-- Theme bridge + bubble menu.
-- Detail-pane dispatch routes `.page(PageMeta)` selection to `PageEditorView` (replaces the v0.2.1/v0.2.6 placeholder).
-- Standalone window via `WindowGroup(for: PageRef.self)` + `⌥⌘O`.
+**Common to all three options — `ContentManager.updatePage` lands first.** Two variants (`_:in:vault:` for Collection-scoped Pages + `_:inVaultRoot:` for vault-root Pages) mirroring `updateItem(_:in:vault:)` + `(_:inVaultRoot:)` at the existing call sites. Atomicity rollback + `pendingError` CRUD pattern from v0.2.0. Tests: happy-path + validator failure + IO failure surfacing via `pendingError`. This is editor-agnostic.
 
-Scope: WYSIWYG prose with paragraphs, headings (H1–H5), lists, code blocks, GFM tables, blockquotes (filled box + left bar), horizontal rules. Bubble menu on selection. Markdown round-trips edge-to-edge.
+**If Nathan picks Option 3 (Pallepadehat fork) — concrete session-1 deliverable:**
+
+1. Add `Pallepadehat/MarkdownEditor` to `Package.swift` SPM deps (or via Xcode "Add Package Dependencies" → `https://github.com/Pallepadehat/MarkdownEditor.git`, pin to `from: "1.0.0"`).
+2. `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` per above.
+3. New `Pommora/Pages/PageEditorView.swift` — SwiftUI view wrapping `EditorWebView(text: $body, configuration: pommoraConfig)` with `hideSyntax: true` (Obsidian-style Live Preview default). Loads `PageFile`; routes `editorDidChangeContent` via VM to `ContentManager.updatePage`.
+4. New `Pommora/Pages/PageEditorViewModel.swift` — `@MainActor @Observable`. Owns the loaded `PageFile`, 300ms debounce on body changes, surfaces errors via `pendingError`. Tests use a `BridgeProtocol` stub (no WKWebView in tests).
+5. `SidebarDetailView` learns to render `PageEditorView` when sidebar selection is `.page(PageMeta)` — replaces the existing v0.2.6 `PageDetailView` placeholder ("Page editor coming v0.2.7").
+6. App Sandbox: enable Outgoing Connections (Client) entitlement (required by WKWebView XPC). Verify on `Pommora.entitlements`.
+7. Standalone window via `WindowGroup(for: PageRef.self)` + `⌥⌘O` shortcut + right-click "Open in New Window" menu item.
+8. Tests: `PageEditorViewModelTests` for debounce + save flow + error surfacing.
+9. Manual gold-path: create Page → click in sidebar → editor opens in detail pane → type prose → switch Pages → switch back → body persisted on disk. Right-click → Open in New Window → edit in standalone → close + reopen main window → body matches.
+
+Scope for v0.2.7 on Option 3: prose editing (paragraphs, headings, lists, blockquotes, code blocks, hr, links, inline marks), Live Preview marker fading. Tables parsed by GFM but rendered as syntax-highlighted source (no visual grid widget yet — that's v0.2.9 work or later). No directives, no wikilinks, no slash menu — those are v0.2.9 + v0.2.10.
+
+**If Nathan picks Option 1 or 2 — concrete session-1 deliverable lives in `Page-Editor-Plan.md` per-option section.** Same `ContentManager.updatePage` commit lands first; editor wrapper structure differs per option. Read the relevant section of the plan, then proceed.
 
 **3. v0.2.8 — Tabs (interchangeable order with v0.2.7)**
 
@@ -113,13 +141,21 @@ Net: 7 minor versions to v1.0.0 (v0.3.0 → v0.8.0 + v1.0.0). v0.2.x is the long
 
 ---
 
-#### Page editor — editor stack STILL UNDER DECISION
+#### Page editor — three options inventoried, awaiting Nathan's pick
 
-`// Planning//Page-Editor-Plan.md` may still read in places as if Tiptap is locked. `// Features//Pages.md` was updated this session (v0.2.6) to reflect the demoted-to-leading-candidate framing. `Page-Editor-Plan.md` itself is a separate sync pass — fold into v0.2.7 prep, after the editor decision actually lands.
+End-of-5-18 research narrowed the editor decision to three honest options, fully documented at `// Planning//Page-Editor-Plan.md`:
 
-`// Guidelines//Paradigm-Decisions.md` Decision #7 is "leading direction, awaiting v0.2.7 confirmation" — current.
+1. **Native Swift** — `swift-markdown` + TextKit 2 + `NSTextView`. Optionally wrap `nodes-app/swift-markdown-engine` (Apache 2.0, 455★, ships wikilinks matching Pommora's spec). Inherits all native AppKit behavior (caret, scroll, Look Up, Services, Dictation, Writing Tools). Tables/multi-column/callouts each need custom `NSTextAttachment` work — no native primitive ships.
+2. **JS editor library + macOS shell we build** — Tiptap (WYSIWYG, ~250KB, MIT) or Milkdown (better Markdown round-trip, ~400KB, MIT) inside a WKWebView shell we author. Shell itself is ~1–2 Claude sessions of standard WebKit work; no Swift Package wrapper exists for these libraries.
+3. **Fork `Pallepadehat/MarkdownEditor`** — CodeMirror 6 + WKWebView wrapped as a Swift Package. MIT, v1.0.1, ships Live Preview + slash-menu shell + KaTeX + Mermaid + images + Xcode themes + Cmd-F search. We fork to add Pommora widgets (wikilinks, `:::callout`, `@Columns`, tables, bubble menu, brand theme).
 
-**Architecture stays stack-agnostic** regardless: WKWebView + MarkEdit-pattern native shell + 7-message JSON bridge + `WKURLSchemeHandler` for `pommora-editor://` bundle. Swap effort: 1-2 days for sibling ProseMirror editors, 3-5 days for paradigm switch (CodeMirror).
+Chat-only recommendation at end of session: **Option 3 first.** Cheapest experiment (v0.2.7 prose ships in 1 session), surfaces the WKWebView-feel question fast, reversibility is high (Pallepadehat dep is a clean SPM cut). Concrete session-1 deliverable spec is in "Next session's plan" section above.
+
+`// Features//Pages.md` editor section updated this session to point at `Page-Editor-Plan.md` as the canonical inventory (no library named as leading in the feature spec anymore).
+
+`// Guidelines//Paradigm-Decisions.md` Decision #7 (Tiptap leading direction) is now superseded by the three-option inventory; sync at v0.2.7 implementation start once the pick lands.
+
+`.md` file format is the architectural firewall — user data is portable across all three options. Swap costs (in Claude sessions) documented in the plan: 1–2 sessions for any wrapper swap + 1 session per Pommora widget needing porting. Reversibility roughly symmetric.
 
 ---
 
@@ -174,13 +210,13 @@ No new decisions this session — purely execution + spec hygiene. Existing regi
 
 #### Verbatim resume prompt for next session
 
-> Open of next session. `main` is at v0.2.6 completed (`7b17d1d`), all locally committed but NOT pushed. **First action: confirm whether Nathan wants v0.2.4 → v0.2.6 pushed to origin/main now** (so CI runs for the first time on `runs-on: macos-26` — surface the runner-availability smoke-test result, fall back to `macos-latest` + Xcode 26 path if needed). Then **reopen the editor library decision** via `superpowers:brainstorming` skill (Tiptap leading; Milkdown / BlockNote / CodeMirror 6 reopen) before any v0.2.7 scaffolding lands. Once editor is picked: **v0.2.7 Pages editor** per `// Planning//Page-Editor-Plan.md` — opening commit is `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` mirroring `updateItem`. Then bundle scaffold → `WKURLSchemeHandler` → `PageEditorBridge` → `PageEditorViewModel` → `PageEditorView` → theme bridge + bubble menu → detail-pane dispatch → `WindowGroup(for: PageRef.self)`. Use `subagent-driven-development` skill. Project quirk #13 holds: push to feature branches by default; `main` only on explicit Nathan go-ahead.
+> Open of next session. `main` is at v0.2.6 completed (`7b17d1d`), all locally committed but NOT pushed. End-of-5-18 research narrowed the editor library decision to three options, fully documented at `// Planning//Page-Editor-Plan.md`. **First action: confirm whether Nathan wants v0.2.4 → v0.2.6 pushed to origin/main now** (first CI run on `runs-on: macos-26` — surface runner-availability result; fall back to `macos-latest` + Xcode 26 path if needed). **Second: confirm Nathan's pick among the three editor options** (chat-only end-of-5-18 recommendation was Option 3 — fork Pallepadehat/MarkdownEditor — for cheapest v0.2.7 experiment with high reversibility). **Third: implement v0.2.7 immediately** — no further brainstorming. The Handoff "Next session's plan" section above contains the concrete session-1 deliverable spec for Option 3 (the recommended path) and points at `Page-Editor-Plan.md` per-option sections for Options 1 and 2. Common to all options: `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` lands first, mirroring `updateItem`. Use `subagent-driven-development` skill. Project quirk #13 holds: push to feature branches by default; `main` only on explicit Nathan go-ahead.
 
 ---
 
 #### Open questions
 
-- **Editor library final pick** — Tiptap leading, but reopens at v0.2.7 prep.
+- **Editor library final pick — Nathan picks one of three options** at v0.2.7 start. Inventory at `// Planning//Page-Editor-Plan.md`. Recommendation: Option 3 (Pallepadehat fork). All three documented with per-option setup + swap costs (in Claude sessions).
 - **CI `runs-on: macos-26` runner availability** — first push (whenever Nathan signals) is the smoke test.
 - **When to delete snapshot branches** — Nathan's call. Not blocking.
 - **Brand accent value** — Xcode default stands in; final accent hue at design lock.

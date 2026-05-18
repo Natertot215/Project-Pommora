@@ -79,24 +79,23 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 **Slash menu (`/`) for directive insertion.** Typing `/` at line start opens a popover listing the two Pommora directives (Callout, Columns) alongside other block insertions (code block, table, heading levels, divider). SF Symbol icons; filterable by typing.
 
-**Editor engine: leading candidate is Tiptap (ProseMirror) in WKWebView; final pick reopens at v0.2.7 implementation start.** The editor's JS bundle (engine + Pommora's custom nodes) ships **inside** the Pommora `.app` — fully self-contained, no external network fetches at runtime. A `WKURLSchemeHandler` registered for `pommora-editor://` serves `index.html` + `bundle.js` + `bundle.css` from `.app/Contents/Resources/Editor/` (works around WebKit's null-origin restriction on `file://` ESM, [bug #154916](https://bugs.webkit.org/show_bug.cgi?id=154916)). The SwiftUI shell wraps the WebView with a native toolbar, menus, keyboard shortcuts, three-pane layout, sidebar, and inspector — everything outside the editor canvas stays native. WWDC25 shipped a first-class `WebView` in SwiftUI (macOS 26.0+), eliminating the `NSViewRepresentable` wrapper for those targets. `WKScriptMessageHandler` carries editor events into Swift; Swift writes Markdown to disk via `ContentManager.updatePage`. Only Markdown crosses the bridge on save (frontmatter never leaves Swift; the editor's working state never serializes to disk).
+**Editor implementation — three options inventoried at `// Planning//Page-Editor-Plan.md`** (end-of-5-18 research). The plan is the canonical decision document for which engine/stack to use; Nathan picks at v0.2.7 implementation start. The three options at a glance:
 
-**Editor library decision (reopens at v0.2.7 prep — see `// Guidelines//Paradigm-Decisions.md` #7):**
+1. **Native Swift** — `swift-markdown` + TextKit 2 + `NSTextView`. Optionally wrap `nodes-app/swift-markdown-engine` (Apache 2.0, 455★) which ships wikilinks-with-ID-round-trip matching Pommora's spec.
+2. **JS editor library + macOS shell we build** — Tiptap / Milkdown / BlockNote inside a WKWebView shell we author.
+3. **Fork `Pallepadehat/MarkdownEditor`** — CodeMirror 6 + WKWebView wrapped as a Swift Package; ours after fork.
 
-- **Tiptap** (ProseMirror, vanilla TS, MIT, ~250 KB) — leading candidate. WYSIWYG-first, headless (no opinion on chrome), custom-node model maps cleanly to `:::callout` / `@Columns`. Pommora opts into bubble-menu + slash-menu + wikilink-suggestion and opts out of heavier block-UI affordances.
-- **Milkdown** (ProseMirror + remark, MIT, ~400 KB) — better Markdown round-trip fidelity than Tiptap; comparable extension model.
-- **BlockNote** (React, GPL/commercial multi-column) — blocks-first model conflicts with Pommora's prose-flow aesthetic; license concern for an open-source project.
-- **CodeMirror 6** (MIT) — source-with-decorations / Live Preview (Obsidian / MarkEdit pattern). Considered and likely rejected — WYSIWYG is Pommora's preferred interaction model; the user shouldn't have to think about Markdown syntax. A switch here would rewrite the Pages spec around source-with-decorations.
+**`.md` file format is the architectural firewall** — Pages on disk are identical across all three options, so the engine choice is reversible without user data migration. `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` is the Swift-side write path used by all three; mirrors the existing `updateItem` shape.
 
-**Shared requirement** any candidate must satisfy: WYSIWYG editing with quiet prose-flow chrome, Markdown input shortcuts, custom nodes for `:::callout` / `@Columns`, floating toolbar on selection, slash menu for insertion, wikilinks as styled inline text.
+**Pommora-specific surface behavior** (regardless of which engine implements it):
 
-**Architecture is stack-agnostic regardless of choice.** The WKWebView + 7-message bridge + MarkEdit-pattern shell + `WKURLSchemeHandler` for `pommora-editor://` survives any swap inside the ProseMirror sibling family (Tiptap ↔ Milkdown: 1-2 days). A switch to CodeMirror would rewrite the Pages spec around source-with-decorations (3-5 days). **MarkEdit** ([github.com/MarkEdit-app/MarkEdit](https://github.com/MarkEdit-app/MarkEdit), MIT) remains the production reference for the WKWebView + native-shell architecture (the shell pattern is reused; the editor engine differs).
+- Markdown round-trip on disk — body is what's saved; frontmatter handled separately in Swift.
+- Live Preview marker hiding (Obsidian/Bear pattern) OR pure WYSIWYG (Notion/Tiptap pattern) — both acceptable to Nathan; the page should look like a page, not a file, in the default view.
+- Apple-native styling in the canvas — system font stack (`-apple-system, BlinkMacSystemFont, "SF Mono", Menlo`), system caret, accent-derived selection color; brand values from `Color+Pommora.swift` bridged to the editor (CSS custom properties for WKWebView paths, direct attributes for native).
+- Standalone window via `WindowGroup(for: PageRef.self)` + `⌥⌘O` works the same regardless of engine.
+- Frontmatter never reaches the editor canvas; property panel is a separate SwiftUI surface (v0.3.0 Properties).
 
-Apple-native styling in the canvas: `font-family: -apple-system, BlinkMacSystemFont, system-ui;` for prose, `ui-monospace, "SF Mono", Menlo;` for code; brand values (accent, code bg/fg, callout border, blockquote bar) bridged from `Color+Pommora.swift` to CSS custom properties at editor mount; scroll physics + caret are WebKit's (the one UX seam); no web-default chrome (custom focus rings, restrained line-height, instant style transitions).
-
-Full editor architecture, file layout, bridge contract, save path, custom node specs, code skeletons, test approach, and v0.3a/b/c task breakdown live at `// Planning//Page-Editor-Plan.md`. **A fresh implementation chat should read both this Pages.md spec and Page-Editor-Plan.md as the complete implementation brief.**
-
-**Hot-swap discipline.** The 7-message bridge contract is the firewall — as long as the editor sends `save{markdown}` on edit and Swift sends `init{markdown,theme}` on mount, the Swift app cannot tell which editor is running in the WebView. Swap target estimates: Tiptap → Milkdown 1-2 days, Tiptap → BlockNote 1-2 days, Tiptap → CodeMirror 6 3-5 days + a Pages.md spec rewrite to reflect Live Preview UX. The 6 disciplines that protect this are documented in `// Planning//Page-Editor-Plan.md` → "Hot-swap disciplines."
+Per-option setup details, swap costs (in Claude sessions), and reference implementations live in `// Planning//Page-Editor-Plan.md`. A fresh implementation chat should read both this Pages.md spec and Page-Editor-Plan.md as the complete implementation brief.
 
 > If pivoting to React, see `// ReactInfo//Editor.md` for the React-side approach (Tiptap directly, no WKWebView wrapper).
 
