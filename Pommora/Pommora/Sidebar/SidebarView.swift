@@ -338,7 +338,7 @@ struct SelectableRow<Trailing: View>: View {
                 .frame(width: 16, height: 16, alignment: .center)
             Text(title)
                 .foregroundStyle(isSelected ? Color.accentColor : .primary)
-                .brightness(isSelected ? 0.12 : 0)
+                .brightness(isSelected ? 0.10 : 0)
             Spacer(minLength: 0)
             trailing()
         }
@@ -376,7 +376,7 @@ struct SelectionChrome: View {
     var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.gray.opacity(0.11))
+                .fill(Color.gray.opacity(0.10))
                 .padding(style.insets)
         } else {
             Color.clear
