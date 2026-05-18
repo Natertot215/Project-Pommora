@@ -69,6 +69,41 @@ Section header disclosure chevrons appear **on hover only**, never always-visibl
 
 ---
 
+#### Creation affordance pattern: right-click context menus, scoped by cursor location
+
+**Canonical pattern for all sidebar CRUD-creation** (paradigm decision 2026-05-17). No always-visible "+ New" buttons in the sidebar; users right-click the relevant heading / row / area and get a context menu whose "New X" options auto-scope to that location's parent.
+
+Implementation pattern in SwiftUI:
+
+```swift
+ForEach(vaultManager.vaults) { vault in
+    VaultRow(vault: vault, ...)
+        .contextMenu {
+            // Scoped creation — entity bindings carry through to the sheet
+            Button("New Vault") { presentedSheet = .newVault }
+            Button("New Collection") { presentedSheet = .newCollection(vault: vault) }
+            Button("New Page") { presentedSheet = .newPage(collection: nil, vault: vault) }
+            Divider()
+            Button("Rename") { ... }
+            Button("Change Icon") { presentedSheet = .editIcon(.vault(vault)) }
+            Divider()
+            Button("Delete", role: .destructive) { confirmingDelete = .deleteVault(vault, collectionCount: ...) }
+        }
+}
+```
+
+The `.contextMenu` attaches to the row view directly — clicking on the Vault row's chevron, title, or icon all open the same scoped menu. For section-level context menus (right-click in empty section area or on the section heading), attach `.contextMenu` to the Section's content via a transparent overlay or to the heading directly. Each enum case in `SidebarSheet` / `SidebarConfirmation` carries the parent entity binding through to the presented sheet — the sheet never re-asks for parent location.
+
+**Why this pattern over always-visible "+ New" buttons:**
+- Sidebar reads as content-forward when idle (matches the chevron-on-hover principle above)
+- Right-click is universal macOS muscle memory (Finder, Notion, Obsidian)
+- Location scoping is automatic — no "create at X" picker needed because the cursor already identified X
+- Quick-capture (Cmd+Shift+N, post-v0.2) absorbs the discoverable / global creation path; sidebar right-click stays the contextual one
+
+Detail → `// Features//Sidebar.md` for the full right-click menu table.
+
+---
+
 #### Chrome animation
 
 Apple's native chrome animations (`NSSplitView` sidebar collapse, toolbar reflow, inspector reveal) are the gold standard — Mail, Notes, and Finder use them. **Don't replace system chrome with custom-animated equivalents.**

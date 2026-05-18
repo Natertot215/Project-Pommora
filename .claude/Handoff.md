@@ -1,111 +1,170 @@
 ### Pommora — Session Handoff
 
-#### Current State
+> **Read this first at session start.** Branch + state + tomorrow's resume here.
 
-**v0.1a Nexus Foundation shipped** on SwiftUI / macOS Tahoe (26.4) — sandboxed picker, security-scoped bookmark persistence, `.nexus/` initialization, App Support paths, ULID identity, FolderTree filtering. Implementation at [Pommora/Pommora/Nexus/](Pommora/Pommora/Nexus/) (8 files). 25 unit tests pass. Design + Findings at [.claude/Planning/v0.1-nexus-foundation-design.md](.claude/Planning/v0.1-nexus-foundation-design.md).
+#### Current State (end of 2026-05-17 session)
 
-**Sidebar visual scaffolding pass landed.** FolderTree-driven sidebar from v0.1a swapped for hardcoded placeholders (3 loose Items + Spaces × 3 + Collections × 3 × 3 Placeholders) to iterate selection chrome without real-data noise. `FolderTree.swift` / `SidebarNode.swift` / `SidebarRow.swift` stay in the target but dormant — re-wire next session.
+**`main` is at v0.2.3 completed**, all pushed to `origin/main`:
 
-**Selection language locked** — custom `SelectableRow` with tap-driven selection, `Color.gray.opacity(0.11)` rounded fill via `.listRowBackground`, accent foreground on icon + text, `Text.brightness(0.12)` to lift the accent over the fill. *Icon stays unbrightened* — that was the cross-context shading fix (SF Symbol `.brightness()` composites inconsistently across `Section` vs `DisclosureGroup` vs direct-`List`; `Text` is predictable). Fill rect inset 11pt horizontal + 2pt vertical (aligns with search field); row content padding 4pt leading / 0 trailing / 2pt vertical (4pt leading lines the icon up with where a chevron sits). `.symbolRenderingMode(.monochrome)` so foregroundStyle applies. Detail → [.claude/Features/Sidebar.md](.claude/Features/Sidebar.md). Trade-off: fill doesn't desaturate on window unfocus the way Finder/Mail do (no `NSVisualEffectView` + `.sourceList`).
+| SHA | Version | Description |
+|---|---|---|
+| `e3daedb` | v0.2.0 | Merge commit (paradigm-scaffolding + sidebar UX polish; 83 underlying commits preserved for bisect) |
+| `3bcf328` | v0.2.1 | Parallel-session sidebar UX tweaks + page selection wiring (16 Swift files; `case page(PageMeta)` + placeholder `PageDetailView`) |
+| `2e140ed` | v0.2.2 | CodeRabbit tightening (`ItemWindow` refetch recovery + 2 `ContentManagerTests` filesystem assertions) |
+| `56efd68` | v0.2.3 | CI baseline (`.github/workflows/ci.yml`: `xcodebuild build` + `xcodebuild test -only-testing:PommoraTests` on `runs-on: macos-26`, push to any branch + PR to main) |
+| pending | v0.2.x-docs | This Handoff + Framework restructure + Page-Editor-Plan softening + Paradigm-Decisions + History 5-17 entry. Committing at session close. |
 
-**Detail pane:** `EmptyPane` wrapper dropped; `detail:` is bare `Color.clear`. Inspector toggle reverted to pre-807057d placement (inside `.inspector { }.toolbar { }`); inspector-segment Liquid Glass accepted as a known v0.0 visual gap.
+Snapshot refs retained for archive: `paradigm-scaffolding` (`0bc4c8d`), `v0.2.2-coderabbit` (`e462681`), `v0.2.3-ci` (`b746481`), `v0.2.4-swift-format` (empty, `=b746481`).
 
----
+**Build state at end-of-5-17:** `xcodebuild build` → BUILD SUCCEEDED, 0 source warnings. `xcodebuild test -only-testing:PommoraTests` → **182/182 unit tests pass.** Sandbox entitlements present.
 
-#### Next Session — Discussion Items
+**App when launched today:** every CRUD flow lands real files. Sidebar shows four-section layout (Saved / Spaces / Topics / Vaults) with right-click context-menu CRUD; section disclosure chevrons + secondary-styled headers + hover-only `+` buttons; full-row click selection with grey rounded chrome. Pages disclosed under Vaults/Collections with `doc.text` icon. **Page selection IS wired** — clicking a Page opens a placeholder `PageDetailView` ("Page editor coming v0.2.7") in the detail pane. ItemWindow opens for Item editing. Detail pane shows hierarchical Tables for Vaults + Collections; vault-root content surfaces. Homepage + Agenda schema + tier-config + saved-config auto-seed.
 
-Two threads remain after the foundation, plus an adjacent symbol-registry decision parked from before.
-
-1. **Standard-symbol convention / registry.** Every sidebar row currently uses placeholder SF Symbols (`folder` / `doc.text` / `list.bullet.rectangle`) hardcoded in `SidebarRow.swift`. Nathan wants a stable registry — "for X type of entity, use Y SF Symbol" — so symbols become semantic without per-row specification. Open shape: JSON lookup file? Swift extensions (e.g., `Symbol.pageIcon`, `Symbol.collectionIcon`)? Markdown reference table? Decide format, populate mapping for Spaces / Collections / Items / Pages / loose entities, swap out the placeholders in `SidebarRow.swift`. React-side semantic-role pattern at `// ReactInfo// Symbols-guide.md` could inform the Swift shape.
-
-2. **Rewire FolderTree → SidebarView (de-scaffold).** The placeholder Sections need to come out and the real folder content needs to come back. Reattach `SidebarView` to `NexusManager.currentNexus` + `FolderTree.buildTree(at:)` + render via `SidebarRow` (or its successor — the symbol-registry decision below may want a new row view). Keep the locked selection language (`SelectableRow` modifier chain) — apply it to real rows.
-
-3. **v0.1b — Tab integration.** After de-scaffolding, clicking a `.md` row opens it as a tab in the top-bar tab strip; main pane shows raw markdown. Standard `+` / `×` / `⌘T` / `⌘W` / `⌘1..9` chrome per [Features/Navigation-Bar.md](Features/Navigation-Bar.md). Open tabs + active tab persist via `.nexus/state.json` inside the nexus (per the v0.1a state-file separation).
-
-4. **v0.1a UX polish (deferred per direction).** All UI copy is functional/minimal — no welcome states, no error alerts, no descriptive panel text. Design pass picks these up. Specifically: empty-nexus state in the sidebar; first-launch picker-canceled empty state; error display surface for `NexusManager.pendingError`.
-
-5. **Alternative directions surfaced end-of-session (no commitment).** Considered: (a) **Settings scene scaffold** — empty `Settings { TabView }` keyed to ⌘, that future features (Debug → Reset Nexus Bookmark, v0.12 accent/font) plug into; small commit, high optionality. (b) **File CRUD from sidebar UI** — add/rename/sort/delete; chunky, forces resolving filename-collision and sort-semantics underspecifications first. (c) **JSON schemas + Codable types** for the four entities (`PageFrontmatter`, `CollectionSchema`, `ItemFile`, `SpaceFile`) + atomic-write helpers + frontmatter parser (likely `apple/swift-markdown`); foundational, unblocks v0.2 indexer + CRUD writes + tab content rendering. **Recommended order if pivoting from Framework: schemas → settings → CRUD.** Tabs (Framework v0.1b) remains the locked default if no pivot.
+**CI status:** workflow file just landed. **First push to main triggers the first CI run** — verify on the GitHub Actions tab that the `runs-on: macos-26` runner label resolves. If not yet available, fix is a one-line patch swapping to `macos-latest` + explicit Xcode 26 path.
 
 ---
 
-#### Architectural Reconsideration — Vault Hierarchy (Pre-Decision)
+#### What we did 2026-05-17
 
-Captured for thinking during remote sessions before any commitment.
+A long session: Framework audit + semver conversion + Pages/Tabs reorder + three patches landed on main. Four phases:
 
-**Proposal**: shift from the locked 3-entity model (Pages / Collections / Spaces + Items) to a 4-entity Capacities-style model (Spaces / Vaults / Collections / Items). Vaults become databases (schema holders); Collections become structural sub-categories within a Vault (sharing the Vault's schema); Items still live in Collections; Pages and Spaces semantics unchanged.
+**Phase 1 — Framework audit + pressure test.** Dispatched 3 Explore agents in parallel to verify Yams 5.x / GRDB 7.5+ / EventKit / WebView / FSEventStream compatibility against macOS 26 / Swift 6. Surfaced Framework-level pressure points: SQLite/Watcher placement at v0.8 was too late; Vault views at v0.10 contradicted v0.9 Contexts editor's embedded-view block; Agenda UI dormant for 5 versions; v0.12 customization overscoped as its own version.
 
-Filesystem reshape: `/Tasks/_collection.json + /Tasks/Buy groceries.json` → `/Planner/_vault.json + /Planner/Tasks/Buy groceries.json + /Planner/Goals/Q1 goals.json`. Example layout:
+**Phase 2 — Semver conversion.** All version refs migrated to `major.minor.patch`. Minor (`v0.X.0`) = completed feature; patch (`v0.0.X`) = touch-up or addition; major (`vX.0.0`) reserved for `v1.0.0`. Internal phases like `v0.3a/b/c` retired.
 
-- **Planner** vault → Events / Tasks / To-do / Goals / Phases collections
-- **Materials** vault → Documents / Records / Prompts / Assignments collections
-- **Bookmarks** vault → its own collections
+**Phase 3 — End-of-session reorder (locked):** Pages + Tabs ship as v0.2.x patches, NOT as v0.3.0 / v0.4.0 minor versions. v0.3.0 becomes Properties (the next substantial feature after Pommora becomes writable). Agenda UI ships hand-in-hand with EventKit at v0.6.0 (not split). Tiptap demoted from "locked" to "leading candidate" — editor library choice reopens at v0.2.7 implementation start. See Framework.md "Roadmap reorders" + Paradigm-Decisions.md.
 
-**Why it's meaningful**: domain-model change, not refactor. Categorization moves from a property ("group by Type") to a structural fact (which Collection a member lives in) — matches how Nathan describes actually organizing.
+**Phase 4 — Patches to main.** Committed v0.2.1 (parallel-session Swift) + v0.2.2 (CodeRabbit) + v0.2.3 (CI baseline) + v0.2.x-docs to main. Verified combined state green (182/182 tests).
 
-**Why now is the cheapest moment**: only v0.1a foundation has shipped. No SQLite schema, property UI, view configurations, editor, or tabs depend on the 3-entity model yet. Cost rises sharply after v0.2 (SQLite schema) and v0.6 (property UI).
-
-**Open questions to resolve before docs revise:**
-1. Collection kind — Vault-level (whole Vault is Pages or Items) or Collection-level (mixed kinds inside a Vault allowed)?
-2. Property scope — Vault-wide (all Collections share schema) or per-Collection (each Collection overrides)?
-3. Loose entities — still allowed outside any Vault, or must everything live in a Vault?
-4. Sidebar shape — "Spaces / Saved / Vaults" with Collections nested? Or restructure further?
-5. Naming — "Vault" collides with Obsidian's name for the whole user folder (Pommora calls that a Nexus). Alternatives: Database, Catalog, Domain, Pool, Store. Or commit to "Vault" knowing the overlap.
-6. Vault semantics — does a Vault have a viewable face (saved views, schema editor) or is it invisible scaffolding?
-
-**Recommended decision approach (for the gym-planning session):**
-1. Pick a name first (docs need a word)
-2. Write 3–5 real scenarios (Planner / Materials / Calendar / your actual stuff) — concretely list Vault, Collections, properties per category. Validates the model against real usage before docs are touched.
-3. Resolve questions 1–6 against those scenarios
-4. Then revise docs: `Domain-Model.md` first (top of the architecture), cascade through `Collections.md`, `Items.md`, new `Vaults.md`, `Properties.md`, `Sidebar.md`, `PommoraPRD.md`, `Framework.md`
-
-**Claude's recommendation**: do it if the structural-categorical model genuinely matches how you organize (Capacities-style). The architectural cost only goes up from here. The "Vault" name collision is the one real friction worth deciding deliberately.
+**Mid-session incident:** While branching for v0.2.x patches I stashed the .claude/* doc accumulation before switching branches. Nathan saw docs revert to days-old state when his working view followed me to feature branches off `main` (which had the old doc state). Recovered cleanly via `git stash pop`. **Lesson logged in CLAUDE.md quirk #4:** `.claude/*` IS included in commits going forward.
 
 ---
 
-#### Pending Explorations
+#### Tomorrow's plan
 
-- **Audit findings to commit or defer** — Zod-equivalent validation + atomic writes + ULID per block, FTS5 `unicode61` mode, journal files for crash safety. Captured as findings, not committed. Decide once v0.2 (SQLite + watcher) implementation begins.
+**1. v0.2.4 — `swift-format` baseline** (first commit of next session)
 
-- **Optional spike before editor commit** — fork-Clearly assessment to size the native build gap (Option 1), or a WKWebView-host JS editor PoC (Option 2). Option 2 is well-documented via MarkEdit as the production reference; the `file://` ES-module block + `WKURLSchemeHandler` workaround is Apple-documented (see `// Features//Pages.md`). React-side reference at `// ReactInfo// Editor.md`.
+- Cut `v0.2.4-swift-format` off updated `main` (the existing branch ref at `b746481` is stale; latest main has v0.2.1 + v0.2.2 + v0.2.3 on top).
+- Create `.swift-format` config at repo root per `~/.claude/plans/read-all-the-handoff-glistening-moler.md` v0.2.4 section.
+- Run: `swift format format --in-place --recursive Pommora/Pommora Pommora/PommoraTests Pommora/PommoraUITests`. Expect a wide noop diff. No semantic changes.
+- Add a format-check step to `.github/workflows/ci.yml` after the "Show toolchain" step.
+- Verify locally: lint exits 0; `xcodebuild build` + `xcodebuild test` still green.
+- Commit message: `v0.2.4: swift-format baseline — config + formatter pass + CI format-check`
 
-- **Sidebar inline-chevron experiment (Finder pattern).** Spiked during v0.0 polish: dropping `DisclosureGroup` for Collections and hand-rolling chevron + member ForEach gives flush-left flat rows. Reverted to `DisclosureGroup` for the v0.0 baseline. The current scaffold keeps `DisclosureGroup` + a 4pt-tighter leading padding (6pt vs Apple's 10pt default) as a partial answer to the chevron-spacing concern. Revisit hand-roll if the gap still reads loose against real content. Detail → [.claude/Features/Sidebar.md](.claude/Features/Sidebar.md).
+**2. v0.2.5 — `.trash//` data foundation** (next after v0.2.4)
 
----
+- `Filesystem.moveToTrash(url: URL, in: nexus)` + `NexusPaths.trashDir(in:)` + timestamp-suffix collision resolution.
+- Swap all 10 manager `delete*` call sites from `Filesystem.deleteFolder/deleteFile` to `Filesystem.moveToTrash`.
+- New tests at `PommoraTests/AtomicIO/FilesystemTrashTests.swift` (~4 tests).
+- v0.2.5 will also update v0.2.2's `deletes` test assertions (files now at `.trash/...`).
+- In-app Trash window is a separate follow-up (v0.4.0 per current Framework).
+- Plan section in `~/.claude/plans/read-all-the-handoff-glistening-moler.md` v0.2.5.
 
-#### Known Spec Gaps
+**3. Continue toward Pages (v0.2.7) + Tabs (v0.2.8)**
 
-Real items needing resolution before they bite, organized by when they'll surface.
+After v0.2.4 + v0.2.5 land, the substrate is ready. Pre-v0.2.7 sub-steps:
 
-##### Implementation risk
+- **Editor library decision: reopen.** Candidates: Tiptap (leading), Milkdown, BlockNote, CodeMirror 6. Decide before bundle scaffold lands.
+- **v0.2.6 — Spec catch-up** (small commit): fix stale literal version strings in code; doc passes on Pages.md (remove Option 1 / Option 2 framing) + Sidebar.md (right-click table refresh).
+- **v0.2.7 = Pages editor.** Start with `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` (mirrors `updateItem` shape). Then bundle scaffold, `WKURLSchemeHandler`, `PageEditorBridge`, `PageEditorViewModel`, `PageEditorView`, theme bridge, bubble menu, detail-pane dispatch, `WindowGroup(for: PageRef.self)`.
+- **v0.2.8 = Tabs.** Multi-tab navigation toolbar; `+` / `×` / `⌘T` / `⌘W` chrome; persistence via `.nexus/state.json`. Order with v0.2.7 is interchangeable.
+- **v0.2.9 + v0.2.10** = directives + wikilinks (Pages-editor additions).
 
-- **Editor risk — substantially de-risked.** Two editor options documented in `// Features//Pages.md`: (1) native Swift editor — fork Clearly or build original on NSTextView/AppKit (source-with-decorations, fully native); (2) WKWebView hosting Tiptap, Milkdown, or BlockNote — likely direction; all three have solid Markdown translation; native SwiftUI shell wraps the editor canvas. A bounded spike (WKWebView-host JS editor PoC, or fork-Clearly assessment for the native path) would de-risk specifics before committing. React-side reference at `// ReactInfo// Editor.md`.
-
-- **`nexus.db` location** — *resolved in v0.1a.* SQLite index lives at `~//Library//Application Support//com.nathantaichman.Pommora//nexuses//<nexus-id>//nexus.db` per Apple Foundation + GRDB.swift recommendation. Per-nexus subdir keyed by ULID survives nexus rename/move; marked `isExcludedFromBackupKey` for iCloud-Backup quota hygiene. The nexus folder stays purely canonical content.
-
-##### Framework version ordering (surfaces v0.6–v0.8)
-
-- **v0.6 reads `_collection.json` before v0.8 introduces Collections.** Likely reorder: v0.6 (Collections: typed, schema, basic views) → v0.7 (Properties: simple) → v0.8 (Properties: rich) → v0.9 (more views).
-- **Sidebar shape changes mid-flight.** v0.1 mirrors folder structure; v0.8 shifts to the three-heading logical model. Either the logical sidebar lands earlier with stub Collection support, or the v0.1 sidebar is throwaway scaffolding.
-
-##### SQLite / indexing
-
-- **`links` table doesn't capture Space outlinks.** `from_kind` is currently `'page' | 'item'`; Spaces' widget blocks reference Collections / Pages / Items by ID without going into the index. Either expand `from_kind` to include `'space'` or document the limitation.
-- **Pages lack `created_at` in frontmatter** (Items have it). Filesystem `mtime` gets clobbered by iCloud / git sync. Pages should have `created_at` in frontmatter for parity.
-
-##### Underspecified UX edges
-
-- **Filename collisions on creation** — auto-suffix (`Notes 2.md`)? Reject? Prompt? Wikilink-resolution collisions have rules; creation-time collisions don't.
-- **Pommora-flavored Markdown is a dialect** — the `:::columns` and `:::callout` directives appear as inert notation in non-Pommora tools. Standard Markdown round-trips perfectly; the directives don't. Worth acknowledging this honestly in the docs rather than implying universal portability.
-- **First-launch with an existing folder** — *resolved in v0.1a.* `.nexus/` already present → load existing `nexus.json`, skip init. Empty folder → silent init. Non-empty folder without `.nexus/` → confirm dialog before init.
-- **`@view` language in Spaces is imprecise** — docs use "`@view` directive" but `.space.json` is structured JSON with `embedded-collection-view` blocks. Either formalize a directive grammar or change the language to "embedded-view blocks."
+End of v0.2.x: Pommora is writable + multi-instance + linkable. v0.3.0 = Properties begins.
 
 ---
 
-#### Branch Status
+#### Framework reorder locked 2026-05-17
 
-`main`. Working tree clean. Latest commit is this session's sidebar visual scaffolding pass — folds the in-session revert of 807057d (inspector toolbar experiment), the `SelectableRow` + locked selection chrome, the `EmptyPane` removal, and the doc sync into one commit.
+Cumulative changes — full detail in `// Framework.md` "Roadmap reorders":
 
-#### Open Questions
+| Decision | Old | New |
+|---|---|---|
+| Pages + Tabs placement | v0.3.0 / v0.4.0 | **v0.2.7 / v0.2.8 (patches; interchangeable order)** |
+| Editor library | Tiptap LOCKED | **Leading candidate; final pick at v0.2.7 prep** |
+| Properties | v0.5.0 | **v0.3.0** |
+| SQLite + Watcher | v0.8.0 | **v0.4.0** |
+| Vault views | v0.10.0 | **v0.5.0** |
+| EventKit + Agenda UI | scattered | **v0.6.0 — together (Nathan-locked: hand-in-hand)** |
+| Accessibility + perf + onboarding + Settings + accent customization | scattered / v0.12.0 | **v0.6.0 (consolidated polish + integration)** |
+| `.trash//` data layer | unscoped | **v0.2.5 (safety net)** |
+| `.trash//` UI window | unscoped | **v0.4.0 (with infrastructure layer)** |
 
-- **Brand accent value.** Xcode default stands in for v0.0; final accent hue picked at design lock (not v0.0-blocking).
-- **Editor option 1 vs option 2.** v0.3+ decision; doesn't affect v0.0.
+Net: 7 minor versions to v1.0.0 (v0.3.0 → v0.8.0 + v1.0.0). v0.2.x is the long "infrastructure + Pages + Tabs" patch family.
+
+---
+
+#### Page editor — editor stack STILL UNDER DECISION
+
+`// Planning//Page-Editor-Plan.md` previously read as "Tiptap LOCKED." Nathan corrected end-of-5-17: **Tiptap is the leading candidate, not solidified.** Open considerations for v0.2.7:
+
+- **Tiptap (ProseMirror, vanilla TS, MIT)** — leading. WYSIWYG, ~250 KB bundle.
+- **Milkdown (ProseMirror, remark-based, MIT)** — better Markdown round-trip than Tiptap. ~400 KB.
+- **BlockNote (React + multi-column GPL/commercial)** — blocks-first conflicts with prose-flow aesthetic; license issue.
+- **CodeMirror 6** — paradigm switch to source-with-decorations / Live Preview. Pages.md spec would need rewrite.
+
+`// Guidelines//Paradigm-Decisions.md` Decision #7 demoted from "locked" to "leading direction, awaiting v0.2.7 confirmation."
+
+**Architecture stays stack-agnostic** regardless: WKWebView + MarkEdit-pattern native shell + 7-message JSON bridge + `WKURLSchemeHandler` for `pommora-editor://` bundle. Swap effort: 1-2 days for sibling ProseMirror editors, 3-5 days for paradigm switch (CodeMirror).
+
+---
+
+#### Paradigm-solidifying decisions (registry → `.claude/Guidelines/Paradigm-Decisions.md`)
+
+1. `PropertyValue.relation` tagged `{"$rel": "<ULID>"}` (2026-05-16)
+2. Collections persist minimal `_collection.json` sidecar (2026-05-16)
+3. SymbolPicker via SPM dep wrapped behind `IconPickerSheet` (2026-05-16)
+4. Stub-and-progressively-replace execution strategy (2026-05-17)
+5. Sidebar UX: right-click context menus replace `+ New` buttons (2026-05-17)
+6. Sidebar selection chrome via `.listRowBackground` at row file level (2026-05-17)
+7. **Pages editor stack — LEADING DIRECTION (NOT LOCKED):** Tiptap in WKWebView + MarkEdit-pattern + vanilla TS (2026-05-17, downgraded end-of-session)
+8. Item creation surfacing deferred to v0.3.0 with Properties (2026-05-17)
+9. **Pages + Tabs as v0.2.x patches, NOT v0.3.0 / v0.4.0 minor versions** (2026-05-17 end-of-session)
+10. **Agenda UI ships hand-in-hand with EventKit at v0.6.0** (2026-05-17 end-of-session)
+
+---
+
+#### Project quirks (carry forward)
+
+1. **Test filter uses FILENAME, not @Suite name.** `-only-testing:PommoraTests/<FilenameWithTests>`.
+2. **Both targets use `PBXFileSystemSynchronizedRootGroup`** — new Swift files auto-include.
+3. **Prefer the `builder` subagent for xcodebuild calls.**
+4. **`.claude/*` IS included in commits** (corrected 2026-05-17). Prior rule prevents unilateral doc bundling into Swift commits, NOT explicit doc commits.
+5. **Trust `xcodebuild`, not SourceKit squiggles** — IDE diagnostics frequently stale.
+6. **Swift 6 strict concurrency + ExistentialAny ON.** `any Decoder`/`any Encoder`. Errors: `(any Error)?`.
+7. **Every commit must land** — verify `git log -1 --oneline`.
+8. **UI test flake** — `PommoraUITestsLaunchTests/testLaunch` occasionally times out. CI runs unit tests only.
+9. **Xcode auto-reorders SymbolPicker/Yams pbxproj entries on build** — incidental noop. Revert via `git restore Pommora/Pommora.xcodeproj/project.pbxproj` before commit.
+10. **`Pommora.Collection` qualification required** when `Collection` appears in field declarations / type signatures.
+11. **Section structure in SidebarView is load-bearing** — changes risk regressing the launch crash.
+12. **Sidebar selection chrome belongs at row file level via `.listRowBackground`**.
+13. **Push to feature branches by default; `main` only on explicit Nathan go-ahead.**
+
+---
+
+#### Document pointers
+
+- **Roadmap:** `.claude/Framework.md`
+- **Page editor plan:** `.claude/Planning/Page-Editor-Plan.md` — **Tiptap as leading candidate, NOT locked**
+- **Locked specs:** `.claude/Planning/Contexts-Vaults-spec.md`
+- **v0.2.x patch plan:** `~/.claude/plans/read-all-the-handoff-glistening-moler.md`
+- **Paradigm-decision registry:** `.claude/Guidelines/Paradigm-Decisions.md`
+- **CRUD patterns:** `.claude/Guidelines/CRUD-Patterns.md`
+- **Sidebar feature spec:** `.claude/Features/Sidebar.md`
+- **Session transcripts:** `.claude/Transcripts/`
+
+---
+
+#### Verbatim resume prompt for tomorrow
+
+> Open of session 2026-05-18. `main` is at v0.2.3 completed (`56efd68`). Today's focus: **v0.2.4 swift-format baseline** + **v0.2.5 `.trash//` data foundation**. Sequence: (1) cut `v0.2.4-swift-format` off latest `main` (NOT the stale `b746481` ref); (2) create `.swift-format` config per `~/.claude/plans/read-all-the-handoff-glistening-moler.md` v0.2.4 section; (3) run `swift format format --in-place --recursive Pommora/Pommora Pommora/PommoraTests Pommora/PommoraUITests`; (4) add CI format-check step; (5) verify build + tests green; (6) commit + push to feature branch. Then **v0.2.5 `.trash//`** per the plan's v0.2.5 section: `Filesystem.moveToTrash` + `NexusPaths.trashDir` + 10 manager call-site swaps + tests. Use `subagent-driven-development` skill. Push to feature branches only; `main` merges only on explicit Nathan go-ahead. **After v0.2.4 + v0.2.5:** prepare for v0.2.7 Pages editor — reopen editor-library decision first, then v0.2.6 spec catch-up commit, then `ContentManager.updatePage` lands as v0.2.7 opening commit.
+
+---
+
+#### Open questions
+
+- **Editor library final pick** — Tiptap leading, but reopen at v0.2.7 prep.
+- **CI `runs-on: macos-26` runner availability** — first push is the smoke test.
+- **When to delete snapshot branches** — Nathan's call. Not blocking.
+- **Brand accent value** — Xcode default stands in; final accent hue at design lock.
+- **External-edit detection on Page save** — relies on v0.4.0 file watcher.

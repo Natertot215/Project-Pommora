@@ -2,7 +2,13 @@
 
 #### Overview
 
-A simpler Notion that's also a more capable Obsidian. Three top-level entities — **Pages** (Markdown documents), **Collections** (folder + `_collection.json` schema sidecar), **Spaces** (Notion-page-style block-composed surfaces) — plus **Items** (`.json`, Collection-bound row-shaped; open in a popover-style **Item window** — title + properties + 250-char description, not a tab or full page). Collections are typed at creation (`kind: "pages" | "items"`). SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
+A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16):
+
+- **Organization layer — Contexts** (3 tiers): Spaces (1, broad life domains) / Topics (2, subject areas) / Sub-topics (3, specifics within a Topic). All three are composed-blocks surfaces. Per-tier labels user-configurable per Nexus.
+- **Operational layer — Vaults + Agenda**: Vaults (folder + `_vault.json` with shared schema) contain Collections (sub-folders sharing the Vault's schema in v1) which contain Pages (`.md`) and Items (`.json`). Agenda is a sibling of Vaults at `<nexus>/Agenda/` for calendar-anchored items with EventKit integration.
+- **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
+
+Items open in a popover-style **Item Window** (title + properties + 250-char description, not a tab or full page); Pages open in tabs. Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
 
 #### Working with Nathan
 
@@ -15,7 +21,7 @@ A simpler Notion that's also a more capable Obsidian. Three top-level entities �
 
 #### Stack
 
-Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote) is the likely direction for the Pages editor; Option 1 (native NSTextView via Clearly fork or original build) is the more ambitious alternative. React+Electron is preserved as the contingency path — translation methodology lives at `// ReactInfo//Contingency.md`; topic-based React reference at `// ReactInfo//` folder.
+Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote) is the likely direction for the Pages editor; Option 1 (native NSTextView + `swift-markdown` + TextKit 2; Clearly available as a fork-reference) is the more ambitious alternative. React+Electron is preserved as the contingency path — translation methodology lives at `// ReactInfo//Contingency.md`; topic-based React reference at `// ReactInfo//` folder.
 
 #### Core Principles
 
@@ -23,17 +29,19 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
-- **Files are canonical (≠ everything is Markdown).** Pages = `.md`. Collections = folder + `_collection.json` (carries the Collection's `kind`). Items = individual `.json` files (one per Item; filename = title); members live inside Items collections, loose Items live anywhere else. Spaces = `.space.json` block trees in `.nexus// spaces//`. Loose Pages and loose Items both exist; carry only built-in fields. SQLite is regeneratable index — no user data trapped in it.
+- **Files are canonical (≠ everything is Markdown).** Pages = `.md` (inside a Vault Collection sub-folder, or directly in a Vault). Items = `.json` (same locations as Pages). Vaults = folder + `_vault.json` with shared schema; Collections = sub-folders inside Vaults sharing the Vault's schema. Agenda items = `.agenda.json` at `<nexus>/Agenda/`. Contexts (Spaces / Topics / Sub-topics) = `.space.json` / `_topic.json` / `.subtopic.json` files under `.nexus/spaces/` and `.nexus/topics/`. Homepage = `.nexus/homepage.json` (singleton). SQLite is regeneratable index — no user data trapped in it.
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 
-- **Pages are Markdown, Spaces are blocks.** Pages are Markdown documents (one continuous Markdown stream) with two Pommora-specific rendering directives — `@Columns` (multi-column rendering of a section) and `:::callout` (outlined-box callout, distinct from blockquotes). Standard Markdown handles tables (GFM), blockquotes (standard `>` syntax, rendered with a filled background + left-side emphasis bar), dividers (`---`), and everything else. Headings are foldable by default (built-in UI, not a directive). **"Block-level features" as a project term belongs to Spaces only** — Spaces are the page-like canvases with drag-and-drop blocks.
+- **Pages are Markdown, Contexts are blocks.** Pages are Markdown documents (one continuous Markdown stream) with two Pommora-specific rendering directives — `@Columns` (multi-column rendering of a section) and `:::callout` (outlined-box callout, distinct from blockquotes). Standard Markdown handles tables (GFM), blockquotes (standard `>` syntax, rendered with a filled background + left-side emphasis bar), dividers (`---`), and everything else. Headings are foldable by default (built-in UI, not a directive). **"Block-level features" as a project term belongs to Contexts only** — Contexts (Spaces / Topics / Sub-topics) are the page-like canvases with drag-and-drop blocks.
 
 - **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips.
 
-- **Relations stored by ID, displayed by title.** Frontmatter relation properties hold the target's ID (rename-safe); the editor renders the target's current title as styled colored inline text.
+- **Relations stored by ID, displayed by title.** Frontmatter relation properties hold the target's ID (rename-safe); the editor renders the target's current title as styled colored inline text. Per-tier multi-relations (`tier1` / `tier2` / `tier3`) on Items / Pages / Agenda items follow the same pattern.
 
-- **Move-strip rule.** Moving a member across Collections (or in/out of loose state) strips properties not in the destination schema — Notion-style; no quarantine. The user gets a simple confirmation warning listing which properties will be stripped.
+- **Inline editing principle.** Every embedded view in a composed-blocks surface (Context, Homepage) is a live, fully-editable view of its source — never a read-only snapshot. Full inline editing of a referenced Page's body (Notion synced blocks) is post-v1.
+
+- **Move-strip rule.** Moving a Page or Item across Vaults strips properties not in the destination schema — Notion-style; no quarantine. The user gets a simple confirmation warning listing which properties will be stripped. Within the same Vault (between Collection sub-folders), no strip — schema is shared.
 
 - **Design system: SwiftUI primary + AppKit where needed + small Pommora-brand extensions.** Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView/TextKit 2 for Option 1 editor, NSSplitView for splitter polish). Pommora-specific brand values (accent purple, code block colors, callout treatments) live in `// UI-UX//Design//Assets.xcassets` and `// Design//Color+Pommora.swift`. The full ~118-token Figma-built design system is React-flavored and lives in `// ReactInfo//Styling-Tokens.md` — only the WKWebView editor canvas (Option 2) uses CSS custom properties as tokens proper. Detail → `// UI-UX//UI-UX.md`.
 
@@ -43,33 +51,41 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Document Map
 
-- `PommoraPRD.md` — high-level product requirements and architecture
+- `PommoraPRD.md` — high-level product requirements + architecture; storage model + SQLite schema
 - `Handoff.md` — current state and near-term priorities (read first at session start)
 - `History.md` — locked decisions, brief
-- `Framework.md` — phased roadmap to v1.0
+- `Framework.md` — phased roadmap to v1.0 (CRUD paired with paradigm at every phase)
 - `Resources.md` — external resources catalog (Swift-baseline; React-side at `// ReactInfo//Resources.md`)
 - `// Features//`
-  - `Domain-Model.md` — entity overview, linking, sidebar, resolved decisions
-  - `Pages.md` — on-disk shape, Markdown features + two rendering directives, editor surface, wikilinks
-  - `Collections.md` — typed-Collection semantics, `_collection.json` schema, view types, loose entities, embedded views
-  - `Items.md` — brief: row-shaped `.json` entries; on-disk, capabilities, Item window UI (popover, 250-char description), kind-picking guidance
-  - `Spaces.md` — `.space.json` schema, drag-and-drop canvas, block types, referential framing
-  - `Navigation-Bar.md` — single-row toolbar spec: layout, tab-strip behavior, hover-visibility modes, deferred features
-  - `Sidebar.md` — sidebar selection language (subtle gray fill + accent foreground), light/dark behavior, deferred hover and keyboard nav
-  - `Architecture.md` — what survives a stack rebuild (conceptual portability; Swift-locked, React as contingency)
-  - `Properties.md` — property type catalog (shared between Pages and Items)
-  - `Prospects.md` — post-v1 features and brainstormed ideas
+  - `Domain-Model.md` — 2-layer model overview, PARA mapping, linking model, sidebar shape
+  - `Contexts.md` — Spaces / Topics / Sub-topics tier system; per-tier rules, validation, tier-config (renamable labels)
+  - `Vaults.md` — Vaults + Collections + Content (Pages + Items); shared schema, view types, move-strip
+  - `Agenda.md` — Agenda entity, EventKit integration, sandbox permissions, time-field collapse UI
+  - `Homepage.md` — singleton composed-blocks dashboard
+  - `Pages.md` — on-disk shape, Markdown features + two rendering directives, editor surface, wikilinks, tier1/2/3
+  - `Items.md` — row-shaped `.json` entries; Item Window UI; tier1/2/3
+  - `Properties.md` — property type catalog (Vault-wide v1; shared across Pages, Items, Agenda)
+  - `Navigation-Bar.md` — single-row toolbar spec: layout, tab-strip behavior, hover-visibility modes
+  - `Sidebar.md` — four-section sidebar (Saved / Spaces / Topics / Vaults); selection language, indentation mechanisms
+  - `Architecture.md` — what survives a stack rebuild (conceptual portability)
+  - `Prospects.md` — post-v1 features (incl. synced blocks, collection-local schemas, graph view, Item ↔ Page promotion)
+  - `Spaces.md` — STUB: redirects to `Contexts.md` (Spaces are now tier-1 Contexts)
+  - `Collections.md` — STUB: redirects to `Vaults.md` (Collections are now sub-folders inside Vaults)
 - `// Guidelines//`
   - `UIX-Guide.md` — SwiftUI-native design philosophy, component conventions, AppKit interop
+  - `CRUD-Patterns.md` — SwiftUI patterns for per-entity CRUD UI, atomic-write discipline, manager pattern
 - `// Planning//`
-  - (currently empty — v0.0 builds from `Framework.md` + `PommoraPRD.md` + `UIX-Guide.md`; React-locked predecessor at `// ReactInfo//v0.0.md`)
+  - `Contexts-Vaults-spec.md` — complete implementation spec for the locked 2-layer model (file schemas, validation, CRUD scope, 11-phase plan, SwiftUI research, EventKit details, day-1 plan)
+  - `v0.1-nexus-foundation-design.md` — v0.1a implementation design + Findings (shipped)
 - `// ReactInfo//` — React+Electron contingency reference
   - `Contingency.md` — translation methodology and the update-obligation pattern
   - `ReactInfo.md` — folder index + preserved verified-findings appendix
   - `Editor.md`, `Spaces-DnD.md`, `Styling-Tokens.md`, `StateData.md`, `MacIntegration.md`, `Distribution.md` — topic files
   - `Symbols-guide.md` — React-side semantic-role icon indirection
   - `Resources.md` — React-side library catalog
-  - `v0.0.md` — preserved React+Electron-locked v0.0 spec
+  - `v0.0.md` — preserved React+Electron-locked v0.0.0 spec
+
+> **Note:** ReactInfo docs predate the RC-session domain-model revision and still describe the older 3-entity model. Sync to the new 2-layer model is deferred; the Swift-side docs are canonical. ReactInfo translation will catch up if the contingency path is ever activated.
 
 ##### Project root (outside `.claude//`)
 
@@ -77,4 +93,35 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 #### Active Version
 
-**v0.0 shipped.** Barebones three-pane shell (sidebar + main + hidden-by-default pop-out inspector) lives at [Pommora/Pommora/](Pommora/Pommora/). Build verified via `xcodebuild`. **Next: v0.1** — nexus reads + functional tab chrome. Per-version spec lives in `Framework.md`. The React+Electron-locked predecessor spec for v0.0 is preserved at `// ReactInfo//v0.0.md`.
+**v0.0.0 + v0.1a + v0.2.0 + v0.2.1 + v0.2.2 + v0.2.3 all shipped on `main`** (end of 2026-05-17 session). Implementation at [Pommora/Pommora/](Pommora/Pommora/). 182/182 unit tests pass on combined state; sandbox verified; 0 source warnings.
+
+| SHA | Version | Description |
+|---|---|---|
+| `e3daedb` | v0.2.0 | Paradigm scaffolding + sidebar UX polish (merge commit, 83 underlying preserved) |
+| `3bcf328` | v0.2.1 | Parallel-session Swift UX tweaks + page selection wiring |
+| `2e140ed` | v0.2.2 | CodeRabbit tightening (ItemWindow refetch + ContentManagerTests filesystem) |
+| `56efd68` | v0.2.3 | CI baseline (GitHub Actions workflow) |
+
+**Currently working toward v0.3.0** which = **Properties** (NOT Pages editor anymore — see Framework reorder below). The Pages editor + Tabs ship as v0.2.x patches before v0.3.0 begins.
+
+**Tomorrow's session opens with:** v0.2.4 swift-format baseline, then v0.2.5 `.trash//` data foundation, then v0.2.6 spec catch-up, then v0.2.7 Pages editor (after reopening editor-library decision). See `Handoff.md` "Tomorrow's plan."
+
+**Framework reorder locked end-of-2026-05-17** (see `Framework.md` "Roadmap reorders" + `Handoff.md` "Framework reorder"): Pages + Tabs ship as v0.2.7 + v0.2.8 patches (interchangeable order) — NOT as v0.3.0/v0.4.0 minors. Editor library NOT solidified — Tiptap leading candidate, final pick at v0.2.7 prep. Properties → v0.3.0. SQLite + Watcher → v0.4.0. Vault views → v0.5.0. EventKit + Agenda UI ship together at v0.6.0 (hand-in-hand). v0.6.0 consolidates a11y + perf + onboarding + Settings + accent customization. `.trash//` data layer → v0.2.5; UI window → v0.4.0.
+
+Read `Handoff.md` first at session start.
+
+The React+Electron-locked predecessor spec for v0.0.0 is preserved at `// ReactInfo//v0.0.md`.
+
+##### Active branch quirks (carry forward to every subagent dispatch)
+
+1. **Test filter form uses FILENAME, not @Suite name.** `-only-testing:PommoraTests/<FilenameWithTests>`. Suite-name form silently no-ops with `** TEST SUCCEEDED **`. Visually verify count.
+2. **Both targets use `PBXFileSystemSynchronizedRootGroup`** — new Swift files auto-include; pbxproj usually doesn't need editing.
+3. **Trust `xcodebuild`, not SourceKit squiggles** — IDE diagnostics frequently stale (especially `Cannot find type X` for same-module types, `Collection` shadow with `Swift.Collection`, `No such module 'SymbolPicker'` after SPM dep landed).
+4. **`.claude/*` IS included in commits** (corrected end-of-2026-05-17). The prior "DO NOT stage `.claude/*` unless explicitly asked" rule prevents unilateral doc bundling into Swift commits, but does NOT preclude explicit doc commits. Commit accumulated docs to the active branch so branch switches don't make them "disappear" from the working view. Still: don't auto-bundle docs into Swift commits without explicit ask.
+5. **Swift 6 strict concurrency + ExistentialAny ON.** Custom Codable: `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)`. Errors: `var foo: (any Error)?`. NexusContext closure tests: hoist `let id = ULID.generate()` before building entity to avoid `@Sendable` capture errors. `@MainActor @escaping () -> NexusContext` is the locked parameter pattern on TopicManager / ContentManager; snapshot-closure trick at `ContentView.constructManagers` is the in-body solution for capturing manager state into validator closures.
+6. **`Pommora.Collection` qualification** required in field declarations + type signatures involving `Collection` — bare name shadows with `Swift.Collection` protocol (fix at commit `2b54123`, repeated several times since).
+7. **Xcode auto-reorders SymbolPicker/Yams entries in pbxproj on every build** — incidental noop diff. Revert before commit to keep diffs limited to intended files.
+8. **Stub-and-progressively-replace is the locked execution strategy** for branch-spanning plans with forward task dependencies (paradigm decision #4 in `// Guidelines//Paradigm-Decisions.md`). Each task ships green standalone; later tasks replace earlier stubs in-place. Supersedes spec batch-commit-at-end approach.
+9. **Section structure in SidebarView is load-bearing.** Changes to `Section(isExpanded:) { } header: { SectionHeader(...) }` patterns or to the `SectionHeader`/`SelectableRow`/`SelectionChrome` shape risk regressing a launch crash (the in-content `.background` workaround tried during the polish series broke `OutlineListCoordinator.recursivelyDiffRows`). Verify via `xcodebuild test` (tests must actually bootstrap, not just compile).
+10. **Sidebar selection chrome lives at row file level via `.listRowBackground(SelectionChrome(...))`**, not in-content `.background`. Locked spec at `// Features//Sidebar.md` "Selection language" + paradigm decision #6. Row files derive `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. SelectableRow itself is pure content — no chrome.
+11. **Parallel-session caveat** — Nathan may have a separate session running small UI tweaks. Pommora/* working tree is NOT guaranteed clean between subagent dispatches. Never revert unattributed working-tree changes; surface in report rather than bundling or discarding.

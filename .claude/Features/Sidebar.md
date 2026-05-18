@@ -1,52 +1,164 @@
 ### Sidebar
 
-The leading-edge navigation pane in Pommora's three-pane shell. Three top-level headings (Spaces / Saved / Collections), disclosure-style expansion. Structural detail and entity-routing rules live in `Domain-Model.md`; this file captures the sidebar's **design direction** — pieces that are intended but not all built yet.
+Pommora's leading-edge navigation pane in the three-pane shell. Four top-level groups — a heading-less pinned (Saved) section at top, then Spaces, Topics, Vaults — replacing the earlier three-heading model. Locked selection language from v0.0 carries forward unchanged.
+
+This doc covers structural shape + selection chrome + creation affordances. Per-entity routing rules live in `Domain-Model.md`; full SwiftUI implementation patterns + per-entity CRUD UI live in `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
-#### Selection language
+#### Layout
 
-**Subtle gray fill + accent foreground, with a brightness boost.** Specifics:
+```
+[Sidebar]
+  Homepage
+  Calendar
+  Recents
+─ Spaces ───────────────────────
+  ◉ Personal       [color/symbol]
+  ◉ Academics
+  ◉ Work
+─ Topics ───────────────────────
+  ▾ Academics      [tagged: red]
+      CS 161
+      Linear Algebra
+  ▾ Productivity   [tagged: blue + green]   ← multi-Space topic
+      GTD method
+      Time-blocking
+  ▸ Side Projects  [tagged: blue]
+─ Vaults ───────────────────────
+  ▾ Documents
+      📄 README                    ← Page directly in vault root
+      ▾ Assignments
+          📄 History WS
+          📄 Math WS
+      ▾ Reports
+          📄 2026 H1
+─ ...
+```
 
-- Fill: `Color.gray.opacity(0.11)`, 6pt continuous corner radius, inset **11pt horizontal + 2pt vertical** from row edges (the 11pt aligns the fill's leading edge with the search field). Painted via `.listRowBackground(...)` so it spans the full row width.
-- Foreground: selected icon and text shift to `Color.accentColor`. **Text** gets `.brightness(0.12)` to lift the accent over the fill; **icon** gets no brightness modifier.
-- Row content padding: **4pt leading, 0 trailing, 2pt vertical**. The 4pt leading aligns the icon at roughly the same distance from the sidebar edge that a `DisclosureGroup` chevron would sit, so flat rows and disclosure rows visually line up.
+No always-visible "+ New" buttons anywhere — creation is **right-click only**. Discoverability lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
 
-**Why text-only brightness:** SF Symbols rendered through `.brightness()` composite differently inside `Section` vs `DisclosureGroup` vs direct-`List`, so the same icon brightness produced visibly different selected shades per context. `Text.brightness(_:)` composites predictably; removing the modifier from the icon eliminates the inconsistency.
+---
 
-Deliberately distinct from the **accent-fill** pattern (Settings.app, SwiftUI's default `List(selection:) + .sidebar`). That pattern is visually loud for a notes/database context with rapid selection churn; Pommora's reads understated — eye drawn to foreground tone, not a color block.
+#### Section-by-section
 
-**Implementation** ([Pommora/Pommora/Sidebar/SidebarView.swift](../../Pommora/Pommora/Sidebar/SidebarView.swift)): private `SelectableRow` with custom tap-driven selection (`@State var selection: String?` + `.onTapGesture`), not `List(selection:)`. Required because `.tint(_:)` doesn't recolor sidebar List selection on macOS Tahoe (`NSTableView` ignores SwiftUI tint for its `.sourceList` highlight), and the system's default keeps fill + foreground reciprocal (accent fill → white text), blocking the gray-fill + accent-fg combo we want.
+##### Pinned (top — no heading)
 
-The icon uses `.symbolRenderingMode(.monochrome)` so `.foregroundStyle(.accentColor)` actually applies — sidebar-context `Label` rendering can otherwise ignore foregroundStyle via its built-in icon tinting.
+Three fixed entries — `Homepage`, `Calendar`, `Recents` — render at the very top of the sidebar **without a heading**. The underlying `Section` wrapper persists structurally (for the future user-pinning feature; **"Saved" becomes the section identifier for pinned pages once that ships**) but no text label appears above the rows.
 
-Appearance-aware via `Color.accentColor` and `Color.primary`; no mode-specific overrides.
+Stored in `.nexus/saved-config.json`:
 
-**Trade-off:** fill doesn't desaturate on window unfocus the way Finder/Mail do via `NSVisualEffectView` + `.sourceList`. Acceptable for v0.0 chrome.
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    { "key": "homepage", "label": "Homepage" },
+    { "key": "calendar", "label": "Calendar" },
+    { "key": "recents",  "label": "Recents" }
+  ]
+}
+```
+
+Each item's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
+
+- `homepage` opens the Homepage singleton entity (see `Homepage.md`)
+- `calendar` opens a calendar view over Agenda items + EventKit-mirrored system events (see `Agenda.md`)
+- `recents` shows recently-opened tabs (lightweight v1 if tab state tracking is available, placeholder otherwise)
+
+**User-pinning of arbitrary entities to this section is the planned post-v1 enhancement** — at which point the section gets its "Saved" heading and a "+" affordance for pinning, and the three default entries become movable / removable.
+
+##### Spaces
+
+Flat rows — no chevron, no children disclosure. "Spaces are items, not folders" in the sidebar.
+
+Each Space carries a `color` (one of 9 Notion-palette colors) and optional `icon` (SF Symbol). The row shows the color and/or icon as a visual indicator. The visual mode is settable per Nexus via `tier-config.json.tagging_style`:
+
+- `"color"` — colored dot (default)
+- `"symbol"` — SF Symbol icon
+- `"both"` — both shown side by side
+
+Clicking a Space opens its composed-blocks page in the main pane.
+
+##### Topics
+
+Chevron-disclosure rows. Each Topic expands to show its file-nested Sub-topics as leaf rows.
+
+Topic rows carry **tagging indicators inherited from their parent Space(s)**. Multi-Space Topics show multiple indicators side by side (e.g. blue + green dots for a Topic that belongs to both Personal and Work). The tagging visual respects the `tagging_style` setting above.
+
+Clicking a Topic opens its composed-blocks page. Clicking a Sub-topic opens its composed-blocks page.
+
+##### Vaults
+
+Chevron-disclosure rows. **Each Vault discloses both Pages (directly in the vault root) AND Collection sub-folders** as children. Each Collection in turn discloses its Pages as children. Pages render with the `doc.text` icon; Collections render with the `folder` icon.
+
+Items, Agenda items, and Events do **NOT** appear in the sidebar — they live exclusively in the detail-pane Tables (`VaultDetailView` and `CollectionDetailView`). The sidebar tree shows the **structural / Page-shaped** view; the detail pane shows the **data view** with all content types.
+
+Vaults don't display tagging — they're operational, not categorical. Clicking a Vault opens its default detail view (hierarchical Table over its Collections + content). Clicking a Collection opens a view scoped to that Collection. Clicking a Page is a no-op until the Markdown editor lands (v0.6); structurally visible in the sidebar but not openable yet.
+
+---
+
+#### Creation affordance: right-click context menus, scoped by cursor location
+
+The canonical creation pattern across the sidebar. No always-visible "+ New" buttons; the user right-clicks the relevant heading / row / area and gets a context menu whose "New X" options auto-scope to that location's parent.
+
+| Right-click target | Scoped creation options | Other context menu items |
+|---|---|---|
+| Spaces section area (empty / on heading) | New Space | — |
+| Topics section area | New Topic | — |
+| Vaults section area | New Vault | — |
+| Space row | New Space | Rename / Change Color / Change Icon / Delete |
+| Topic row (when disclosed) | New Sub-topic *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
+| Sub-topic row | — | Rename / Change Icon / Delete |
+| Vault row | New Vault + New Collection + New Page *(scoped to THIS Vault)* | Rename / Change Icon / Delete |
+| Collection row | New Page *(in THIS Collection)* | Rename / Delete |
+| Page row | — | Rename / Delete (no editor until v0.6) |
+
+The location scoping is load-bearing UX — right-clicking on a specific Collection produces "New Page" that creates IN that Collection, not at the section level. This pattern matches macOS Finder (right-click in a folder → "New Folder" creates a sibling there) and Notion / Obsidian sidebar conventions.
+
+#### Discoverable creation: deferred to quick-capture
+
+The discoverable counterpart (hover-icon "+" on section headings, like the disclosure chevron pattern) was considered and **explicitly skipped** for v0.2. Right-click is sufficient until **quick-capture** lands (Cmd+Shift+N or menu-bar capture; before v1) — quick-capture is expected to absorb most CRUD entry traffic, displacing the need for a sidebar discoverability layer.
+
+If sidebar discoverability becomes a friction point pre-quick-capture, the hover-icon "+" pattern remains an open design slot — captured as a Prospect.
+
+---
+
+#### Selection language (locked from v0.0)
+
+- Fill: `Color.gray.opacity(0.10)`, 6pt continuous corner radius, inset **10.5pt horizontal + 2pt vertical** from row edges
+- Foreground: selected icon + text shift to `Color.accentColor`
+- **Text** gets `.brightness(0.10)` to lift the accent over the fill; **icon** gets no brightness modifier
+- Row content padding: **4pt leading, 0 trailing, 2pt vertical**
+- Icons use `.symbolRenderingMode(.monochrome)` so `.foregroundStyle(.accentColor)` applies
+- Implementation in `Pommora/Pommora/Sidebar/SidebarView.swift` — custom `SelectableRow` with `SelectionTag` enum binding (was `String?` in v0.0)
+
+Rationale and trade-offs (NSTableView ignoring SwiftUI tint, brightness-composition consistency across `Section` vs `DisclosureGroup` vs direct-`List`, fill-not-desaturating-on-window-unfocus) — preserved from the original Sidebar.md spec; see git history if relevant.
 
 ---
 
 #### Indentation mechanisms (working vocabulary)
 
-When adjusting sidebar geometry, the mechanism depends on what's being adjusted — these are NOT interchangeable:
+When adjusting sidebar geometry, the mechanism depends on what's being adjusted — NOT interchangeable:
 
-- **Row leading indent** — `.padding(.leading, N)` on the row, or `.listRowInsets(EdgeInsets(...))` modifier. Use for nesting/grouping (e.g., member rows inside a Collection).
-- **Chevron-to-icon gap on a custom disclosure row** — `HStack(spacing: N)` between the chevron view and the `Label`. Only applies when the chevron is hand-rolled (not when SwiftUI's `DisclosureGroup` renders it internally).
-- **Icon-to-text gap inside a row** — internal to `Label`, controlled by a custom `LabelStyle` or by writing the row as `HStack { Image; Text }` instead of `Label`. `HStack(spacing:)` on the outer row does NOT control this.
-- **Chevron-column reservation across flat rows** — implicit, triggered by `DisclosureGroup`'s presence in a `.listStyle(.sidebar)` List. Not directly user-controllable; only suppressible by dropping `DisclosureGroup` and hand-rolling expansion.
-
----
-
-#### Inline-chevron experiment (Flush-left Icons)
-
-Apple's default for `.listStyle(.sidebar) + DisclosureGroup` (Mail/Xcode pattern) reserves a chevron column on every row, so flat-row icons align horizontally with disclosure-row icons but sit indented from the sidebar leading edge. Finder uses a different pattern — flat rows sit flush-left, only "folder" rows show the inline chevron + slight indent.
-
-The Finder pattern is achievable by **dropping `DisclosureGroup`** for Collection rows and hand-rolling the expansion as `HStack(spacing: N) { chevronButton; Label(...) }` with `if collectionExpansion[c]` gating the member ForEach beneath. Verified working at v0.0.
-
-Captured intent (not committed): experiment with the chevron-to-icon gap value (currently `4` in the spike) — Nathan wants this **tighter than Apple's default**, with the rest of the sidebar matching the tighter visual. Resolution deferred until v0.1 content lands so spacing can be tuned against real data, not placeholders.
+- **Row leading indent** — `.padding(.leading, N)` on the row, or `.listRowInsets(EdgeInsets(...))`. Use for nesting/grouping (Page rows inside a Collection, Sub-topics inside a Topic disclosure)
+- **Chevron-to-icon gap on a custom disclosure row** — `HStack(spacing: N)` between the chevron view and the `Label`. Only applies when the chevron is hand-rolled (not when SwiftUI's `DisclosureGroup` renders it internally)
+- **Icon-to-text gap inside a row** — internal to `Label`, controlled by a custom `LabelStyle` or by writing the row as `HStack { Image; Text }` instead of `Label`. `HStack(spacing:)` on the outer row does NOT control this
+- **Chevron-column reservation across flat rows** — implicit, triggered by `DisclosureGroup`'s presence in a `.listStyle(.sidebar)` List. Not directly user-controllable; only suppressible by dropping `DisclosureGroup` and hand-rolling expansion
 
 ---
 
-#### Open until v0.1 lands content
+#### Section ordering
 
-Row density, hover treatment, keyboard navigation, focus-ring styling, and any timing/opacity specifics resolve once the v0.1 sidebar tree populates and Tahoe rendering can be observed. Captured intent (not commitment): a third hovered state, subtler than the selected fill.
+User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Vaults** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
+
+---
+
+#### Inline-chevron experiment (Finder pattern)
+
+Captured intent from v0.0 spike (not committed): hand-rolling chevron + member ForEach in Vault Collection rows (dropping `DisclosureGroup` for that section) gives Finder-style flush-left flat rows. Verified working in v0.0. Revisit after the v0.2 Pages-under-Vaults disclosure has been observed against real data — the deeper Vault → Collection → Page chain may want flush-left treatment to manage indentation density.
+
+---
+
+#### Open until content lands
+
+Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `tagging_style` default, and Page-row icon hover behavior — all resolve once real content is in the sidebar and Tahoe rendering can be observed. Captured intent (not commitment): a third hovered state subtler than the selected fill.

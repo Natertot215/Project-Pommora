@@ -17,7 +17,7 @@ Each prospect uses the format below. Easy to add new entries: copy the template,
 **Description:** Allow a Page's display title in the UI to differ from its filename on disk. v1 ties title strictly to filename — renaming the title in the UI renames the file. North-star feature for later; could be implemented as an opt-in alias layer in frontmatter without changing the file-as-source-of-truth principle.
 
 #### In-line view embeds (`@View`) inside Pages
-**Description:** Embed a Collection view directly inside a Page's prose via the `@View` directive — Notion-style. Embedded Collection views remain available *inside Spaces* (as widget blocks) for v1; this prospect is about extending them inline into Pages.
+**Description:** Embed a Collection view directly inside a Page's prose via the `@View` directive — Notion-style. Embedded Collection views remain available *inside Contexts and Homepage* (as widget blocks) for v1; this prospect is about extending them inline into Pages.
 
 On Option 1 (native editor), hosting a non-text view inline in the prose flow requires custom layout attachment work — materially harder than on a JS editor. On Option 2 (WKWebView + JS editor), the same node-component approach BlockNote and Tiptap support directly applies, making this feasible if Option 2 is the editor path.
 
@@ -27,7 +27,7 @@ On Option 1 (native editor), hosting a non-text view inline in the prose flow re
 **Description:** Allow a Page to declare properties not in its Collection's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Collection. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
 
 #### Cloud sync (Supabase or otherwise)
-**Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `collection_id` + `properties` JSONB; a parallel `items` table; each `_collection.json` schema → a row in a `collections` table; each Space → one row in a `spaces` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
+**Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `vault_id` + `properties` JSONB; a parallel `items` table; each `_vault.json` schema → a row in a `vaults` table; each Context (Space / Topic / Sub-topic) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
 
 #### Mobile companion (iOS / iPad)
 **Description:** Real long-term intent (not just "potential"). Read and edit access to the nexus from mobile devices. iPad and iOS are both on the table.
@@ -71,4 +71,18 @@ Slot this as a probable v1.x or v2.0 quality-of-life addition once the typed-Col
 
 #### Board view: drag-to-rewrite-frontmatter
 **Description:** Planned post-v1.0 feature. Board view (kanban) ships in v0.9 as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Slot for v1.x or v2.0 once foundations stabilize.
+
+#### Quick-capture (Cmd+Shift+N / menu-bar)
+**Description:** Global Cmd+Shift+N (or menu-bar capture popover) that creates a new Item / Page / Agenda entry from anywhere in the OS without navigating the sidebar. Aligns with the v0.2 sidebar UX direction (paradigm decision 2026-05-17) — right-click context menus are the canonical creation affordance, and quick-capture is the planned discoverable counterpart that absorbs most CRUD entry traffic. **Lands before v1** — sequencing TBD relative to the existing roadmap; likely v0.5 or v0.6 alongside the editor work since quick-capture for Pages needs at least a minimal editor to be useful.
+
+The shape borrows from Things 3, NotePlan, Drafts: tiny floating window, defaults to the user-configured "inbox" Vault, optional fields for Tier1/2/3 relations and a Vault override. Submits via Enter; Esc dismisses without saving.
+
+#### Hover-icon "+" affordance on sidebar section headings
+**Description:** Visible counterpart to the right-click creation menu — section headings (Spaces / Topics / Vaults) get a hover-revealed "+" icon at the trailing edge (same pattern as the disclosure chevron). Click triggers the section's default new sheet. **Explicitly skipped in v0.2** in favor of right-click-only; if sidebar discoverability becomes a friction point pre-quick-capture, this is the open slot. After quick-capture ships, this likely stays deferred indefinitely — quick-capture is the primary discoverable path.
+
+#### Pinned-page user pinning (the "Saved" section's real role)
+**Description:** v0.2 ships the Saved section structurally but as a heading-less group at the top of the sidebar holding three fixed entries (Homepage / Calendar / Recents). The planned post-v1 enhancement: users pin arbitrary pages / items / agenda items / context pages to that section, and it gains its "Saved" heading + a "+" affordance for pinning. The three default entries become movable / removable. The underlying `saved-config.json` already accommodates arbitrary `items[]` — the v0.2 implementation just doesn't expose pinning UI.
+
+#### Synced blocks (inline Page-body editing inside embeds)
+**Description:** Notion-style "synced blocks" — embedding a Page (or a section of one) inside another composed-page surface (Space / Topic / Sub-topic / Homepage) such that editing the Markdown body in the embed mirrors back to the source Page and vice versa. v1's inline editing covers properties, relations, Items, Agenda items, and Collection-view rows in place (per the locked spec at `// Planning//Contexts-Vaults-spec.md`), but **full inline editing of a referenced Page's body** is deferred. Implementation is substantially harder than property/row inline edits: requires per-block addressable IDs in Markdown source, transclusion-aware undo/redo, cursor coordination across surfaces, conflict resolution when the same range is edited in two places simultaneously, and a more complex serializer. Post-v1 — slots in once the v1 editor + watcher loop has been exercised against real usage and the trade-offs of body-level transclusion are concrete. Pommora's existing "Linked Pages widget" affordance (title + frontmatter inline; click to open Page tab for body editing) is the v1 stand-in.
 

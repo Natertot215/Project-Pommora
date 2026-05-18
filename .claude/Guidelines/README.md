@@ -5,6 +5,8 @@ Behavioral rules and constraints grouped by domain. Add new entries to prevent m
 #### Active
 
 - `UIX-Guide.md` — SwiftUI + AppKit design philosophy, component conventions, AppKit interop guidance.
+- `CRUD-Patterns.md` — SwiftUI patterns for per-entity CRUD UI, atomic-write discipline, manager pattern.
+- `Paradigm-Decisions.md` — Confirmation protocol for paradigm-solidifying code (on-disk schemas, wire encodings, defaults that lock once data exists) + registry of confirmed decisions.
 
 #### Domains
 

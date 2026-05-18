@@ -1,91 +1,158 @@
 ### Domain Model
 
-Pommora is composed of three top-level entity types — **Pages**, **Collections**, **Spaces** — plus one Collection-bound member type, **Items**. Top-level roles are intentionally distinct.
+Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Vaults + Agenda) holds the actual data. Entities in the operational layer relate to entities in the organization layer via per-tier multi-relation fields.
 
-**Collections are typed at creation.** A Collection is either a **Pages collection** (members are `.md` Pages — prose-bearing) or an **Items collection** (members are `.json` Items — row-shaped, no body). One kind per Collection, persistent. The kind decision happens at the Collection level, not the entry level — papers are a Pages collection, tasks are an Items collection. Personal use never genuinely mixes the two inside one category, so the data model doesn't either.
-
-This document is the brief overview. Per-entity detail (on-disk shapes, editor surfaces, capabilities, block types) lives in the dedicated feature docs.
+This is the post-RC-revision domain model. Per-entity detail lives in dedicated docs (Contexts.md, Vaults.md, Items.md, Pages.md, Agenda.md, Homepage.md). The complete on-disk schema + validation + CRUD spec lives at `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
-#### At a glance
+#### PARA mapping
 
-| Entity | Role | On disk | Editor surface |
+| PARA term | Pommora term | Layer |
+|---|---|---|
+| (workspace) | **Nexus** | Root |
+| Areas | **Spaces** (tier 1) | Organization |
+| Projects | **Topics** (tier 2) | Organization |
+| (sub-projects) | **Sub-topics** (tier 3) | Organization |
+| Resources | **Vaults + Collections + Content** | Operational |
+| (calendar) | **Agenda** | Operational |
+| (dashboard) | **Homepage** | Singleton |
+| Archive | `.trash/` | Singleton |
+
+---
+
+#### Organization layer — Contexts
+
+Three tiers — Spaces (1), Topics (2), Sub-topics (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
+
+| Tier | Default label | Role | Sidebar render |
 |---|---|---|---|
-| **Page** | A Markdown document — one continuous Markdown stream. Member of a Pages collection by folder location; otherwise loose. Not a block surface. | `.md` files anywhere in the nexus | Two SwiftUI options — native source-with-decorations text editor (Option 1) or WKWebView-hosted JS editor (Option 2, likely direction). Renders standard Markdown plus two Pommora-specific directives (`@Columns`, `:::callout`); foldable headings built-in; blockquotes and callouts are distinct constructs |
-| **Item** | A row-shaped entry. Member of an Items collection by folder location; otherwise loose. For database entries that don't warrant prose. | `.json` files anywhere in the nexus | Opens in an **Item window** — popover-style floating surface anchored to the trigger (Calendar-event-detail pattern). Title + property inputs + plain-text description (hard cap 250 chars). No tab, no full page, no inspector. |
-| **Collection** | A folder + a `_collection.json` schema sidecar with a `kind` (`"pages"` or `"items"`). Functions like a Notion database: property schema, saved views, members of one kind. No text editor. | A folder containing `_collection.json` plus the member files (all `.md` if Pages, all `.json` if Items) | Database UI: switch between saved views (table / board / list / cards / gallery) over the members |
-| **Space** | A Notion-page-style composition surface — text + widgets intermixed. Referential, not container: embeds Pages / Items / Collection views by widget. Independent of Collections. | `.space.json` files in `.nexus// spaces//`, holding the full block tree | Block-composition canvas: drag/drop blocks of any type into a layout |
+| 1 | Spaces | Broad life domains (Personal, Academics, Work) | Flat row with color/symbol; no chevron |
+| 2 | Topics | Subject areas inside Spaces (Productivity, Side Projects) | Chevron-disclosure expanding to Sub-topics |
+| 3 | Sub-topics | Specifics within one Topic (CS 161, Pommora) | Leaf row inside parent Topic |
 
-Loose entities (`.md` or `.json` files outside any Collection folder) hold identity and built-in fields but no schema-conforming properties. Moving a member out of a Collection (or between Collections) **strips properties not in the destination's schema** — Notion-style, no quarantine. The user gets a simple confirmation warning listing which properties will be stripped before the move proceeds.
+**Rules:**
+- Topics multi-parent across Spaces; Sub-topics single-parent at file (folder location = parent Topic)
+- Sub-topics carry additional `linked_relations` to other Topics/Spaces as a **typed multi-valued relation property** (NOT body wikilinks)
+- No same-tier file-structural links (Topic ↛ Topic; Space ↛ Space)
+- Tier-skip allowed: Sub-topic can parent directly to a Space
+- All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; can embed anything)
 
-**Picking the Collection kind:**
+Detail → `Contexts.md`.
 
-- **Pages collection** when entries warrant prose — journals, papers, project briefs, reading reports.
-- **Items collection** when entries are fundamentally rows — tasks, contacts, wishlist, events, citations. Properties and a 250-char plain-text description; no body; opens in an Item window (popover), not a tab.
+---
 
-Per-entity detail:
+#### Operational layer — Vaults / Collections / Content
 
-- **`Pages.md`** — on-disk shape, frontmatter, Markdown features (standard MD + two rendering directives: `@Columns`, `:::callout`; foldable headings built-in), editor surface (two SwiftUI options — native Option 1 or WKWebView Option 2), wikilinks.
-- **`Collections.md`** — `_collection.json` schema (including `kind`), view types, capabilities, embedded views in Spaces.
-- **`Items.md`** — brief: row-shaped `.json` entries; on-disk, capabilities, constraints.
-- **`Spaces.md`** — `.space.json` schema, drag-and-drop canvas, block types, referential framing.
+| Entity | Role | On disk |
+|---|---|---|
+| **Vault** | Folder with shared property schema | Folder + `_vault.json` |
+| **Collection** | Sub-folder inside a Vault; shares Vault schema (v1) | Folder inside a Vault; no own schema file |
+| **Content** | The data: Pages (`.md`) and Items (`.json`) | Files inside a Collection (or directly in the Vault) |
+
+**Rules:**
+- Vault schema applies to ALL Content inside (Pages + Items both)
+- Vaults are kind-agnostic — heterogeneous content (Pages + Items together) is allowed
+- Collections in v1 are pure folders (no metadata file, no own schema)
+- Collection-local schemas are a post-v1 Prospect
+- Move between Vaults strips properties not in destination schema (Notion-style, with confirm)
+
+Detail → `Vaults.md` + `Pages.md` + `Items.md`.
+
+---
+
+#### Operational layer — Agenda (separate from Vaults)
+
+Calendar-anchored items (events, tasks, to-dos, phases) live as **a third operational-layer entity** at `<nexus>/Agenda/`. Sibling of Vaults, not nested.
+
+**Why separate:**
+- macOS EventKit requires entities matching `EKEvent` and `EKReminder` shapes — fixed schemas that don't map cleanly to generic Vault Items
+- Quick-capture from system Calendar / Siri / Reminders / lock-screen widgets needs one known location, not a "what Vault?" decision
+- Pommora's Mac-first posture makes EventKit integration load-bearing, not polish
+
+**Shape:**
+- Single unified entity (no `kind` field at schema level)
+- User-facing type (Task / To-Do / Phase / Event / custom) is a **property** (`properties.type`), user-extensible like any other Select
+- EventKit mapping data-driven: `start_at` + `end_at` set → `EKEvent`; `due_at` only → `EKReminder`; neither → unscheduled `EKReminder`
+- Same Item Window UI as Items; same tier1/2/3 relations; same sort/filter
+
+Detail → `Agenda.md`.
+
+---
+
+#### Singleton — Homepage
+
+One per Nexus, fixed location (`.nexus/homepage.json`). Composed-blocks surface — same shape as a Context's `blocks` field, but no `id` / no `tier` / no `parents`. Designed as the user's general dashboard / landing surface. Seeded on first launch; not user-deletable.
+
+Detail → `Homepage.md`.
+
+---
+
+#### Cross-layer relations
+
+Operational-layer entities (Pages, Items, Agenda items) carry **per-tier multi-relation fields** pointing to Contexts:
+
+```yaml
+tier1: [<space-id>, ...]
+tier2: [<topic-id>, ...]
+tier3: [<subtopic-id>, ...]
+```
+
+Each tier filled independently. A Task can link to a Space, a Topic, and a Sub-topic independently — no requirement to fill all three. Editing in the property panel (Item Window, Page property panel) via type-to-search relation pickers.
 
 ---
 
 #### Linking model
 
-Pages and Items share the same relation semantics — both hold typed relation properties pointing at any other entity in the nexus.
-
 | Link | Stored as | Purpose |
 |---|---|---|
-| **Page → Page** (wikilink) | `[[Page Name]]` in body or in a relation property value | Inline reference in prose, or structured relation in frontmatter |
-| **Page → Collection** | Implicit by location: a `.md` inside a Pages collection's folder is a member; otherwise loose | Membership |
-| **Item → Collection** | Implicit by location: a `.json` inside an Items collection's folder is a member; otherwise loose | Membership |
-| **Item → Page / Item / Collection / Space** | Relation property values in the Item's `.json` file (by ID for rename safety) | Typed cross-entity links |
-| **Page → Space** | `spaces: [<space-id>, ...]` multi-relation in Page frontmatter | The Page appears on the linked Space's homepage |
-| **Item → Space** | `spaces` relation in the Item's `.json` file | The Item appears on the linked Space's homepage |
-| **Space → Page / Item / Collection** | Widget configuration in the Space's `.space.json` (embedded-view blocks, link lists) | The Space displays the linked entity (referential — Spaces don't contain their referents) |
-| **Collection → Page / Item** | Implicit reverse of Page/Item → Collection | The Collection's member set |
+| Page → Page (wikilink) | `[[Page Name]]` in body or relation property value | Inline reference or structured relation |
+| Page → Context (tier N) | `tierN: [<id>]` in frontmatter | Categorical assignment |
+| Item → Context (tier N) | `tierN: [<id>]` in `.json` | Categorical assignment |
+| Agenda → Context (tier N) | `tierN: [<id>]` in `.agenda.json` | Categorical assignment |
+| Context → Context | `parents` (file-structural) + `linked_relations` (property) | Hierarchy + cross-cutting relations |
+| Page → Vault / Collection | Implicit by file location | Membership |
+| Item → Vault / Collection | Implicit by file location | Membership |
+| Anything → Anything | Wikilinks in composed-page body / Markdown body | Free reference |
 
-**Reference convention:** relations are stored by ID (rename-safe) and displayed by the target's current title; body wikilinks reference by name and are rewritten on rename.
+Relations are stored by ID (rename-safe); body wikilinks reference by name and rewrite on rename.
 
-SQLite reflects all link kinds — four entity tables (`pages`, `items`, `collections`, `spaces`) plus a `links` table track the relationships for fast queries. The `collections` table carries a `kind` column.
+---
+
+#### Sidebar shape
+
+Four top-level groups (only three carry a heading label):
+
+- **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable in Settings. Structurally a `Section` wrapper to host future user-pinned pages; renders without a "Saved" header text today
+- **Spaces** — flat rows for tier-1 Contexts
+- **Topics** — chevron-disclosure for tier-2 Contexts with file-nested Sub-topics
+- **Vaults** — chevron-disclosure showing **Pages directly in the vault root + Collection sub-folders** as children; each Collection further discloses its own Pages. Pages render with the `doc.text` icon
+
+Items, Agenda items, and Events do **NOT** appear in the sidebar — they live exclusively in the detail-pane Tables (`VaultDetailView`, `CollectionDetailView`). The sidebar tree shows the Page-shaped / structural view; the detail pane shows the full data view.
+
+No always-visible "+ New" buttons — creation is **right-click context menus, scoped by cursor location** (right-click on a Vault → "New Collection / New Page" both scoped to THAT Vault; right-click on a Collection → "New Page" in THAT Collection; etc.). Hover-icon "+" affordance on section headings is deferred until quick-capture lands. Detail → `Sidebar.md`.
+
+---
+
+#### Inline editing principle
+
+Every embedded view inside a composed-blocks surface (Context page, Homepage) is **a live, fully-editable view of its source** — never a read-only snapshot. Editing flows through to the source file via the file watcher + atomic-write loop. Detail → `Architecture.md` + `// Planning//Contexts-Vaults-spec.md`.
+
+Full-body inline Page editing (Notion-style synced blocks) is post-v1 — see `Prospects.md`.
 
 ---
 
 #### Properties
 
-Property values for Pages live in YAML frontmatter; property values for Items live inside the Item's `.json` file under `properties`. Property *schemas* live inside each Collection's `_collection.json` and apply uniformly to that Collection's members.
-
-- Adding a property to a Collection updates its schema and propagates to all members.
-- **V1 catalog (8 types):** number, checkbox, date, datetime, select, multi-select, relation, URL.
-- **No free-form text type** — title is the filename; "text-shaped" values use Select / Multi-select with creatable options (Notion behavior).
-- **No dedicated `Status` type** — Status-like properties are Selects named "Status."
-- Items additionally carry a short `description` field (plain text) — part of the Item entity, not a user-defined property.
-- Loose entities have no schema and hold only built-in fields.
-
-Full type catalog and config shapes → `Properties.md`.
+Property schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `type` Select + user-extensible). Same property catalog applies to Pages, Items, and Agenda items. Full type catalog → `Properties.md`.
 
 ---
 
-#### Sidebar navigation
+#### What changed from the earlier 3-entity model
 
-The sidebar surfaces curated, app-relevant navigation, not filesystem layout. Three top-level collapsible disclosure groups, all default-collapsed. **The user can drag the headings to reorder them**; initial-boot order is Spaces / Saved / Collections.
-
-- **Spaces** — list of all Spaces. Each Space is a leaf label (no per-Space disclosure); clicking opens the Space.
-- **Saved** — placeholder heading only. Pinning is **out of v1 scope** and ships post-v1; the heading exists in the sidebar architecture so it doesn't need to be re-added later.
-- **Collections** — list of all Collections, kind-agnostic. Each Collection is itself a folder-style disclosure expanding to its members. A per-row kind indicator (Page-icon vs Item-icon) is a setting-toggleable Prospect.
-
-**Loose Pages and loose Items aren't a sidebar group.** Reach them via search or wikilinks. Cosmetic folders (no `_collection.json`) carry no semantic meaning. No raw filesystem view in v1.
-
-> "Collapsed-by-default disclosure" is the general default UI pattern for any hierarchical or grouped content elsewhere in the app.
-
----
-
-#### Main pane tabs
-
-The main pane is multi-tabbed (Obsidian / Notion pattern). Each tab represents one open view — a Page, a Collection (with active saved view), or a Space. Items don't get their own tabs in v1; selecting an Item opens an **Item window** (popover anchored to the trigger), not a tab. Open tabs and active tab persist across launches. Detail → `PommoraPRD.md` ("Top-Bar Tabs", "Item Window").
-
----
-
+- The earlier "Spaces" (composed-page entity holding `.space.json`) became **tier-1 Contexts** — same shape, different role (categorical anchor, not container)
+- The earlier "Collections" (folder + `_collection.json` typed at creation) became **Vaults** (folder + `_vault.json`) with **Collections** as sub-folders that share the Vault's schema
+- Typed-at-creation distinction (`kind: pages | items`) is dropped — Vaults are kind-agnostic
+- **Agenda** is new — a third operational-layer entity for calendar/task items with EventKit integration
+- **Homepage** is new — singleton dashboard at `.nexus/homepage.json`, separate from any Space
+- Per-tier multi-relations (`tier1` / `tier2` / `tier3`) replace the earlier `spaces` multi-relation
