@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		8475654BCB51D0B18213B9EB /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 5E2C4C707607B1D3CB1123E0 /* Yams */; };
 		A5002505C0E488056AD90FDF /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 0D02FB2735C4A696A974BAE7 /* SymbolPicker */; };
+		5A37B3C30C6D46CBAB19DA98 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = B73707EDAD7844A0A9970D8E /* MarkdownEditor */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 			files = (
 				8475654BCB51D0B18213B9EB /* Yams in Frameworks */,
 				A5002505C0E488056AD90FDF /* SymbolPicker in Frameworks */,
+				5A37B3C30C6D46CBAB19DA98 /* MarkdownEditor in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +123,7 @@
 			packageProductDependencies = (
 				5E2C4C707607B1D3CB1123E0 /* Yams */,
 				0D02FB2735C4A696A974BAE7 /* SymbolPicker */,
+				B73707EDAD7844A0A9970D8E /* MarkdownEditor */,
 			);
 			productName = Pommora;
 			productReference = 545485B12FB5555E0076D5F2 /* Pommora.app */;
@@ -207,6 +210,7 @@
 			packageReferences = (
 				4443A67854CD971CB2619256 /* XCRemoteSwiftPackageReference "Yams" */,
 				5B3B426775BAA8549370D768 /* XCRemoteSwiftPackageReference "SymbolPicker" */,
+				D31C071CCAFD48E0AA1F1693 /* XCRemoteSwiftPackageReference "PageEditorMD" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 545485B22FB5555E0076D5F2 /* Products */;
@@ -611,6 +615,14 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		D31C071CCAFD48E0AA1F1693 /* XCRemoteSwiftPackageReference "PageEditorMD" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Natertot215/PageEditorMD.git";
+			requirement = {
+				kind = branch;
+				branch = main;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -623,6 +635,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4443A67854CD971CB2619256 /* XCRemoteSwiftPackageReference "Yams" */;
 			productName = Yams;
+		};
+		B73707EDAD7844A0A9970D8E /* MarkdownEditor */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D31C071CCAFD48E0AA1F1693 /* XCRemoteSwiftPackageReference "PageEditorMD" */;
+			productName = MarkdownEditor;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
