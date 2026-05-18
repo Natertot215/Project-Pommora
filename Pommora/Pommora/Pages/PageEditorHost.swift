@@ -21,12 +21,13 @@ struct PageEditorHost: View {
 
     @State private var viewModel: PageEditorViewModel?
     @State private var resolvedVault: Vault?
+    @State private var resolvedCollection: Pommora.Collection?
     @State private var loadFailed = false
 
     var body: some View {
         Group {
             if let vm = viewModel, let vault = resolvedVault {
-                PageEditorView(viewModel: vm, vault: vault)
+                PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection)
             } else if loadFailed {
                 ContextDetailPlaceholder(
                     title: page.title,
@@ -51,9 +52,11 @@ struct PageEditorHost: View {
     }
 
     private func loadAndConstruct(for page: PageMeta) async {
-        guard let (vault, collection) = resolveParent(of: page) else {
+        guard let resolved = contentManager.resolveParent(for: page, vaultManager: vaultManager)
+        else {
             viewModel = nil
             resolvedVault = nil
+            resolvedCollection = nil
             loadFailed = true
             return
         }
@@ -66,36 +69,20 @@ struct PageEditorHost: View {
         guard let pageFile = try? PageFile.load(from: page.url) else {
             viewModel = nil
             resolvedVault = nil
+            resolvedCollection = nil
             loadFailed = true
             return
         }
 
         let saver = ContentManagerPageSaver(
             contentManager: contentManager,
-            vault: vault,
-            collection: collection
+            vault: resolved.vault,
+            collection: resolved.collection
         )
         let vm = PageEditorViewModel(page: page, body: pageFile.body, saver: saver)
         viewModel = vm
-        resolvedVault = vault
+        resolvedVault = resolved.vault
+        resolvedCollection = resolved.collection
         loadFailed = false
-    }
-
-    /// Brute-force walker: iterate every Vault, check its vault-root pages,
-    /// then iterate every Collection inside it. Precedent: `ItemWindow.vaultForItem`.
-    /// O(N+M) over vault + collection counts; fine at v1 scale; SQLite-backed
-    /// lookup arrives with v0.4.0.
-    private func resolveParent(of page: PageMeta) -> (Vault, Pommora.Collection?)? {
-        for vault in vaultManager.vaults {
-            if contentManager.pages(in: vault).contains(where: { $0.id == page.id }) {
-                return (vault, nil)
-            }
-            for collection in vaultManager.collections(in: vault) {
-                if contentManager.pages(in: collection).contains(where: { $0.id == page.id }) {
-                    return (vault, collection)
-                }
-            }
-        }
-        return nil
     }
 }

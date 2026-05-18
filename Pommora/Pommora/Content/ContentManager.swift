@@ -63,6 +63,30 @@ final class ContentManager {
         itemsByVaultRoot[vault.id] ?? []
     }
 
+    // MARK: - Resolvers
+
+    /// Find the Vault (and optionally Collection) that a `PageMeta` lives in.
+    /// Returns `nil` if the Page isn't in any loaded Vault. Used by the editor
+    /// (inspector + rename + saver construction) when only PageMeta is in hand.
+    /// Brute-force O(N+M) walker; SQLite-backed lookup arrives with v0.4.0.
+    func resolveParent(
+        for page: PageMeta, vaultManager: VaultManager
+    )
+        -> (vault: Vault, collection: Pommora.Collection?)?
+    {
+        for vault in vaultManager.vaults {
+            if pages(in: vault).contains(where: { $0.id == page.id }) {
+                return (vault, nil)
+            }
+            for collection in vaultManager.collections(in: vault) {
+                if pages(in: collection).contains(where: { $0.id == page.id }) {
+                    return (vault, collection)
+                }
+            }
+        }
+        return nil
+    }
+
     // MARK: - Path helpers (vault-root)
 
     /// Vault.folderURL isn't a stored property — it's always derived from the

@@ -1,64 +1,61 @@
 import MarkdownEditor
 import SwiftUI
 
-/// The Page editor surface: WKWebView (via MarkdownEditor SPM) + inspector
-/// side panel + lifecycle registration with AppGlobals for background-flush.
+/// The Page editor surface: editable title banner above WKWebView. The
+/// inspector + its toolbar toggle live in ContentView (not here) so the
+/// inspector renders at the window's trailing edge rather than inside this
+/// sub-view's space.
+///
+/// Title is editable in place: a TextField visually matched to macOS Notes'
+/// large title line. Committing the field (Enter / focus loss) calls
+/// `ContentManager.renamePage` which moves the on-disk `.md` file and
+/// updates the in-memory caches. The viewModel.page reference is refreshed
+/// with the post-rename PageMeta so subsequent saves hit the new URL.
 ///
 /// The body↔WebView binding is two-way per Pallepadehat's EditorWebView:
-/// every keystroke updates `viewModel.body` via the binding; that `didSet`
-/// fires `scheduleSave()` which debounces 300ms then writes to disk via
+/// every keystroke updates `viewModel.body` via the binding; `didSet` fires
+/// `scheduleSave()` which debounces 300ms then writes via
 /// `ContentManager.updatePage` → `PageFile.save` → atomic write. Frontmatter
 /// is preserved verbatim across every save.
 struct PageEditorView: View {
     @State var viewModel: PageEditorViewModel
     let vault: Vault
+    /// nil = vault-root Page (no Collection parent)
+    let collection: Pommora.Collection?
 
-    /// Per-pageID open flag, loaded from AppState on init and persisted on toggle.
-    @State private var inspectorOpen: Bool
+    @Environment(ContentManager.self) private var contentManager
 
-    init(viewModel: PageEditorViewModel, vault: Vault) {
+    /// In-flight title text. Initialized from page.title; on submit, renames
+    /// the file. On validation/IO failure, reverts to the post-rename title.
+    @State private var titleDraft: String
+
+    init(
+        viewModel: PageEditorViewModel,
+        vault: Vault,
+        collection: Pommora.Collection?
+    ) {
         self.viewModel = viewModel
         self.vault = vault
-        // Initial state from disk; if the file/key is missing we default closed.
-        self._inspectorOpen = State(
-            initialValue: AppState.pageInspectorOpen(pageID: viewModel.page.id)
-        )
+        self.collection = collection
+        self._titleDraft = State(initialValue: viewModel.page.title)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Title banner — read-only "filename = title" display, matching
-            // macOS Notes' large title line. Rename happens via sidebar
-            // right-click → Rename (already wired).
-            Text(viewModel.page.title)
+            // Title banner — editable; matches macOS Notes' large title line.
+            // Submitting renames the on-disk .md file via ContentManager.renamePage.
+            TextField("Untitled", text: $titleDraft)
+                .textFieldStyle(.plain)
                 .font(.system(size: 28, weight: .bold))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 4)
-                .textSelection(.enabled)
+                .onSubmit {
+                    Task { await commitRename() }
+                }
 
             EditorWebView(text: $viewModel.body, configuration: pommoraEditorConfig)
-        }
-        .inspector(isPresented: $inspectorOpen) {
-            FrontmatterInspector(page: viewModel.page, vault: vault)
-                .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    withAnimation(.smooth(duration: 0.25)) {
-                        inspectorOpen.toggle()
-                    }
-                } label: {
-                    Label("Toggle Inspector", systemImage: "sidebar.trailing")
-                }
-                .keyboardShortcut("0", modifiers: [.option, .command])
-                .help("Toggle Inspector (⌥⌘0)")
-            }
-        }
-        .onChange(of: inspectorOpen) { _, newValue in
-            AppState.setPageInspectorOpen(newValue, pageID: viewModel.page.id)
         }
         .onAppear {
             AppGlobals.register(viewModel)
@@ -68,6 +65,11 @@ struct PageEditorView: View {
             // Flush any pending debounced save before the view goes away.
             let vmRef = viewModel
             Task { await vmRef.close() }
+        }
+        .onChange(of: viewModel.page.id, initial: false) { _, _ in
+            // Defensive: if the host re-uses this view for a different Page,
+            // resync the draft title.
+            titleDraft = viewModel.page.title
         }
         .alert(
             "Save failed",
@@ -84,6 +86,48 @@ struct PageEditorView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.pendingError?.localizedDescription ?? "")
+        }
+    }
+
+    private func commitRename() async {
+        let oldTitle = viewModel.page.title
+        let newTitle = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // No-op on unchanged or empty input. Empty reverts to current title.
+        guard !newTitle.isEmpty else {
+            titleDraft = oldTitle
+            return
+        }
+        guard newTitle != oldTitle else { return }
+
+        do {
+            if let collection {
+                try await contentManager.renamePage(
+                    viewModel.page, to: newTitle, in: collection, vault: vault
+                )
+            } else {
+                try await contentManager.renamePage(
+                    viewModel.page, to: newTitle, inVaultRoot: vault
+                )
+            }
+            // Pick up the freshly-renamed PageMeta from the manager cache.
+            let updated: PageMeta?
+            if let collection {
+                updated = contentManager.pages(in: collection).first {
+                    $0.id == viewModel.page.id
+                }
+            } else {
+                updated = contentManager.pages(in: vault).first {
+                    $0.id == viewModel.page.id
+                }
+            }
+            if let updated {
+                viewModel.page = updated
+                titleDraft = updated.title
+            }
+        } catch {
+            viewModel.pendingError = error
+            titleDraft = oldTitle
         }
     }
 }

@@ -13,8 +13,11 @@ import Observation
 @Observable
 final class PageEditorViewModel {
     /// The Page being edited. Carries the URL the editor writes back to and
-    /// the frontmatter that gets preserved on every save.
-    let page: PageMeta
+    /// the frontmatter that gets preserved on every save. Mutable so the view
+    /// can update it after a successful rename (title + url both change; id
+    /// stays). Mutation should ONLY happen with a freshly-resolved PageMeta
+    /// from ContentManager — never with a hand-mutated copy.
+    var page: PageMeta
 
     /// Editable body. Every keystroke updates this; `didSet` schedules a
     /// debounced save 300ms from now. Multiple rapid edits coalesce.
@@ -22,9 +25,9 @@ final class PageEditorViewModel {
         didSet { scheduleSave() }
     }
 
-    /// Surfaces save failures to the UI. Cleared on the next successful save.
+    /// Surfaces save / rename failures to the UI. Cleared via `clearError()`.
     /// On failure, `body` (the user's draft) is NOT rolled back.
-    private(set) var pendingError: (any Error)?
+    var pendingError: (any Error)?
 
     private let saver: any PageSaver
     private var saveTask: Task<Void, Never>?

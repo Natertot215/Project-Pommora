@@ -11,6 +11,12 @@ struct ContentView: View {
     @State private var searchQuery = ""
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
+    /// Inspector toggle. Per-Page persistence: loaded from AppState on
+    /// selection change, persisted on every toggle. Lives at this level
+    /// (not inside PageEditorView) so the inspector renders at the window's
+    /// trailing edge via the NavigationSplitView, not as a nested side panel
+    /// inside the detail sub-view.
+    @State private var inspectorPresented = false
 
     // Task 64: full 8-manager environment. TopicManager + ContentManager receive
     // real contextProvider closures with live cross-manager lookups (replacing
@@ -35,9 +41,41 @@ struct ContentView: View {
         } detail: {
             detail
         }
-        // Inspector now lives per-Page inside PageEditorView (v0.2.7 onward).
-        // Non-Page detail views have no inspector content in v0.2.7; Properties
-        // v0.3.0 will re-introduce inspectors for Vault/Collection/Space if needed.
+        .inspector(isPresented: $inspectorPresented) {
+            inspectorContent
+                .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
+        }
+        .toolbar {
+            if case .page = sidebarSelection {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        withAnimation(.smooth(duration: 0.25)) {
+                            inspectorPresented.toggle()
+                        }
+                    } label: {
+                        Label("Toggle Inspector", systemImage: "sidebar.trailing")
+                    }
+                    .keyboardShortcut("0", modifiers: [.option, .command])
+                    .help("Toggle Inspector (⌥⌘0)")
+                }
+            }
+        }
+        .onChange(of: sidebarSelection) { _, newValue in
+            // Per-Page inspector state: when a Page becomes selected, restore
+            // its last open/closed flag; otherwise close.
+            if case .page(let p) = newValue {
+                inspectorPresented = AppState.pageInspectorOpen(pageID: p.id)
+            } else {
+                inspectorPresented = false
+            }
+        }
+        .onChange(of: inspectorPresented) { _, newValue in
+            // Persist whenever the user toggles, keyed by the currently
+            // selected Page (if any — non-Page toggles don't persist).
+            if case .page(let p) = sidebarSelection {
+                AppState.setPageInspectorOpen(newValue, pageID: p.id)
+            }
+        }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
         .task {
@@ -70,6 +108,26 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var inspectorContent: some View {
+        // FrontmatterInspector is the only inspector content in v0.2.7.
+        // Resolves vault for the selected Page via ContentManager's walker.
+        // Non-Page selections fall through to an empty view (inspector pane
+        // stays in the scene tree to avoid layout jumps when toggling).
+        if case .page(let p) = sidebarSelection,
+            let spaceMgr = spaceManager,
+            let vaultMgr = vaultManager,
+            let contentMgr = contentManager,
+            let resolved = contentMgr.resolveParent(for: p, vaultManager: vaultMgr)
+        {
+            FrontmatterInspector(page: p, vault: resolved.vault)
+                .environment(spaceMgr)
+                .environment(vaultMgr)
+        } else {
+            Color.clear
         }
     }
 
