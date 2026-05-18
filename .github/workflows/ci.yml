@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']        # all branches — feature branches get CI without needing a PR
+  pull_request:
+    branches: [main]        # only PRs targeting main run on PR-trigger
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Resolve SPM dependencies
+        working-directory: Pommora
+        run: xcodebuild -resolvePackageDependencies -scheme Pommora
+
+      - name: Build
+        working-directory: Pommora
+        run: xcodebuild build -scheme Pommora -destination 'platform=macOS'
+        env:
+          NSUnbufferedIO: YES
+
+      - name: Unit tests
+        working-directory: Pommora
+        run: xcodebuild test -scheme Pommora -destination 'platform=macOS' -only-testing:PommoraTests
+        env:
+          NSUnbufferedIO: YES
