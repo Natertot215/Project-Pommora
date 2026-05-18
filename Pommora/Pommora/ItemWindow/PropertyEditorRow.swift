@@ -30,7 +30,7 @@ struct PropertyEditorRow: View {
         case .multiSelect:
             multiSelectEditor
         case .relation:
-            Text("Relation editor coming v0.5").font(.caption).foregroundStyle(.tertiary)
+            Text("Relation editor coming v0.3.0").font(.caption).foregroundStyle(.tertiary)
         case .url:
             urlEditor
         }

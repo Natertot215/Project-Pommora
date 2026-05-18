@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Minimal placeholder shown for Space / Topic / Sub-topic selection until
-/// the composed-blocks editor lands v0.9.
+/// the composed-blocks editor lands v0.7.0.
 struct ContextDetailPlaceholder: View {
     let title: String
     let icon: String
@@ -20,7 +20,7 @@ struct ContextDetailPlaceholder: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Text("Composed view coming v0.9")
+            Text("Composed view coming v0.7.0")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }

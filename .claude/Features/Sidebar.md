@@ -36,7 +36,7 @@ This doc covers structural shape + selection chrome + creation affordances. Per-
 ─ ...
 ```
 
-No always-visible "+ New" buttons anywhere — creation is **right-click only**. Discoverability lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
+No always-visible "+ New" buttons — creation is **right-click first**, complemented by **hover-only `+` buttons** on section headings (visible on hover, hidden at rest). The fuller discoverability layer lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
 
 ---
 
@@ -93,13 +93,13 @@ Chevron-disclosure rows. **Each Vault discloses both Pages (directly in the vaul
 
 Items, Agenda items, and Events do **NOT** appear in the sidebar — they live exclusively in the detail-pane Tables (`VaultDetailView` and `CollectionDetailView`). The sidebar tree shows the **structural / Page-shaped** view; the detail pane shows the **data view** with all content types.
 
-Vaults don't display tagging — they're operational, not categorical. Clicking a Vault opens its default detail view (hierarchical Table over its Collections + content). Clicking a Collection opens a view scoped to that Collection. Clicking a Page is a no-op until the Markdown editor lands (v0.6); structurally visible in the sidebar but not openable yet.
+Vaults don't display tagging — they're operational, not categorical. Clicking a Vault opens its default detail view (hierarchical Table over its Collections + content). Clicking a Collection opens a view scoped to that Collection. Clicking a Page is a no-op until the Markdown editor lands (v0.2.7); structurally visible in the sidebar but not openable yet.
 
 ---
 
 #### Creation affordance: right-click context menus, scoped by cursor location
 
-The canonical creation pattern across the sidebar. No always-visible "+ New" buttons; the user right-clicks the relevant heading / row / area and gets a context menu whose "New X" options auto-scope to that location's parent.
+The canonical creation pattern across the sidebar. No always-visible "+ New" buttons; the user right-clicks the relevant heading / row / area and gets a context menu whose "New X" options auto-scope to that location's parent. Section headings also expose a hover-only `+` complement — see "Discoverable creation" below.
 
 | Right-click target | Scoped creation options | Other context menu items |
 |---|---|---|
@@ -111,15 +111,15 @@ The canonical creation pattern across the sidebar. No always-visible "+ New" but
 | Sub-topic row | — | Rename / Change Icon / Delete |
 | Vault row | New Vault + New Collection + New Page *(scoped to THIS Vault)* | Rename / Change Icon / Delete |
 | Collection row | New Page *(in THIS Collection)* | Rename / Delete |
-| Page row | — | Rename / Delete (no editor until v0.6) |
+| Page row | — | Rename / Delete (Page editor coming v0.2.7) |
 
 The location scoping is load-bearing UX — right-clicking on a specific Collection produces "New Page" that creates IN that Collection, not at the section level. This pattern matches macOS Finder (right-click in a folder → "New Folder" creates a sibling there) and Notion / Obsidian sidebar conventions.
 
-#### Discoverable creation: deferred to quick-capture
+#### Discoverable creation: hover-icon "+" + quick-capture
 
-The discoverable counterpart (hover-icon "+" on section headings, like the disclosure chevron pattern) was considered and **explicitly skipped** for v0.2. Right-click is sufficient until **quick-capture** lands (Cmd+Shift+N or menu-bar capture; before v1) — quick-capture is expected to absorb most CRUD entry traffic, displacing the need for a sidebar discoverability layer.
+Section headings expose a **hover-only `+` button** (visible on hover, hidden by default) as a discoverable complement to the right-click pattern. Clicking it opens the same creation flow as the section's primary right-click target ("+ on Spaces" → New Space; "+ on Topics" → New Topic; "+ on Vaults" → New Vault). The hover-only treatment keeps the sidebar visually quiet at rest while remaining discoverable for users unfamiliar with right-click conventions.
 
-If sidebar discoverability becomes a friction point pre-quick-capture, the hover-icon "+" pattern remains an open design slot — captured as a Prospect.
+The fuller global creation path lands later via **quick-capture** (Cmd+Shift+N or menu-bar capture; before v1) — quick-capture is expected to absorb most CRUD entry traffic across the app, not just sidebar entry.
 
 ---
 

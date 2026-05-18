@@ -115,7 +115,7 @@ struct ItemWindow: View {
             relationLine(label: "Tier 1 (Spaces)", ids: item.tier1)
             relationLine(label: "Tier 2 (Topics)", ids: item.tier2)
             relationLine(label: "Tier 3 (Sub-topics)", ids: item.tier3)
-            Text("Property-panel relation editor coming v0.5")
+            Text("Property panel coming v0.3.0")
                 .font(.caption2).foregroundStyle(.tertiary)
         }
     }

@@ -19,7 +19,7 @@ struct SidebarDetailView: View {
                     title: key.capitalized,
                     icon: iconForSavedKey(key),
                     accent: nil,
-                    supportingLine: "Saved view coming v0.5"
+                    supportingLine: "Saved view coming v0.6.0"
                 )
 
             case .space(let s):
@@ -74,7 +74,7 @@ struct SidebarDetailView: View {
                     title: p.title,
                     icon: "doc.text",
                     accent: nil,
-                    supportingLine: "Page editor coming v0.6"
+                    supportingLine: "Page editor coming v0.2.7"
                 )
             }
         }
