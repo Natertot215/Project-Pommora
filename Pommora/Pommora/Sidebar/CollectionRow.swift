@@ -30,8 +30,7 @@ struct CollectionRow: View {
         }
         .listRowBackground(
             SelectionChrome(
-                isSelected: SelectionTag.collection(collection.id).matches(selection),
-                style: .disclosure
+                isSelected: SelectionTag.collection(collection.id).matches(selection)
             )
         )
         // Same pattern as VaultRow: load on row appearance so Pages are

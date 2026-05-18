@@ -41,8 +41,7 @@ struct VaultRow: View {
         }
         .listRowBackground(
             SelectionChrome(
-                isSelected: SelectionTag.vault(vault.id).matches(selection),
-                style: .disclosure
+                isSelected: SelectionTag.vault(vault.id).matches(selection)
             )
         )
         // Load vault-root Pages/Items when the row appears, regardless of

@@ -32,8 +32,7 @@ struct TopicRow: View {
         }
         .listRowBackground(
             SelectionChrome(
-                isSelected: SelectionTag.topic(topic.id).matches(selection),
-                style: .disclosure
+                isSelected: SelectionTag.topic(topic.id).matches(selection)
             )
         )
     }
