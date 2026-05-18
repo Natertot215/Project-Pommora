@@ -18,15 +18,22 @@ import SwiftUI
 /// `ContentManager.updatePage` → `PageFile.save` → atomic write. Frontmatter
 /// is preserved verbatim across every save.
 struct PageEditorView: View {
-    @State var viewModel: PageEditorViewModel
+    // @Bindable (not @State) because the VM is owned by PageEditorHost; this
+    // view observes + binds to it without taking ownership. @State on a
+    // received-from-parent reference preserves the OLD reference across
+    // re-renders — the v0.2.7-c5 regression that broke sidebar page switching.
+    @Bindable var viewModel: PageEditorViewModel
     let vault: Vault
     /// nil = vault-root Page (no Collection parent)
     let collection: Pommora.Collection?
 
     @Environment(ContentManager.self) private var contentManager
 
-    /// In-flight title text. Initialized from page.title; on submit, renames
-    /// the file. On validation/IO failure, reverts to the post-rename title.
+    /// In-flight title text. Synced with `viewModel.page.title` on every
+    /// page-id change (the `.onChange(initial: true)` below) — but the host
+    /// also re-keys this view via `.id(viewModel.page.id)`, so the @State is
+    /// freshly init'd per page anyway. The onChange handler is the belt; the
+    /// .id() is the suspenders.
     @State private var titleDraft: String
 
     init(
@@ -66,9 +73,9 @@ struct PageEditorView: View {
             let vmRef = viewModel
             Task { await vmRef.close() }
         }
-        .onChange(of: viewModel.page.id, initial: false) { _, _ in
-            // Defensive: if the host re-uses this view for a different Page,
-            // resync the draft title.
+        .onChange(of: viewModel.page.id, initial: true) { _, _ in
+            // Belt: if the host re-uses this view for a different Page (e.g.,
+            // .id() doesn't trigger a full rebuild), resync the draft title.
             titleDraft = viewModel.page.title
         }
         .alert(

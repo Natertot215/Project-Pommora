@@ -28,6 +28,11 @@ struct PageEditorHost: View {
         Group {
             if let vm = viewModel, let vault = resolvedVault {
                 PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection)
+                    // Force a full teardown + rebuild of PageEditorView when
+                    // the loaded Page changes — guarantees @State (titleDraft)
+                    // resets cleanly per-page and that EditorWebView re-init's
+                    // its internal WKWebView state without carrying over body.
+                    .id(vm.page.id)
             } else if loadFailed {
                 ContextDetailPlaceholder(
                     title: page.title,
