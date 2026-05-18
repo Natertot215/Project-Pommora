@@ -47,11 +47,12 @@ struct SpaceRow: View {
     /// Mirrors SelectableRow's HStack shape (icon + text slot + trailing spacer)
     /// so the row doesn't visually jump when entering/exiting rename mode.
     private var renamingRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: space.icon ?? "circle.fill")
                 .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(space.color.swiftUIColor)
-                .frame(width: 16, alignment: .leading)
+                .frame(width: 16, height: 16, alignment: .center)
             TextField("", text: $draft)
                 .textFieldStyle(.plain)
                 .focused($renameFocused)
@@ -68,8 +69,9 @@ struct SpaceRow: View {
                 }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.leading, 2)
+        .padding(.trailing, 0)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

@@ -31,7 +31,10 @@ struct TopicRow: View {
             label
         }
         .listRowBackground(
-            SelectionChrome(isSelected: SelectionTag.topic(topic.id).matches(selection))
+            SelectionChrome(
+                isSelected: SelectionTag.topic(topic.id).matches(selection),
+                style: .disclosure
+            )
         )
     }
 
@@ -70,11 +73,12 @@ struct TopicRow: View {
     /// ParentSpaceTags dots stay visible for visual stability across rename
     /// mode. Only the text slot becomes a TextField.
     private var renamingRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: topic.icon ?? "folder")
                 .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.primary)
-                .frame(width: 16, alignment: .leading)
+                .frame(width: 16, height: 16, alignment: .center)
             TextField("", text: $draft)
                 .textFieldStyle(.plain)
                 .focused($renameFocused)
@@ -92,8 +96,9 @@ struct TopicRow: View {
             Spacer(minLength: 0)
             ParentSpaceTags(topic: topic, spaceManager: spaceManager)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.leading, 2)
+        .padding(.trailing, 0)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

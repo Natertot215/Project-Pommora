@@ -40,7 +40,10 @@ struct VaultRow: View {
             label
         }
         .listRowBackground(
-            SelectionChrome(isSelected: SelectionTag.vault(vault.id).matches(selection))
+            SelectionChrome(
+                isSelected: SelectionTag.vault(vault.id).matches(selection),
+                style: .disclosure
+            )
         )
         // Load vault-root Pages/Items when the row appears, regardless of
         // disclosure state. `.task` fires once on appearance; if it were
@@ -80,11 +83,12 @@ struct VaultRow: View {
     }
 
     private var renamingRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: vault.icon ?? "tray.2")
                 .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.primary)
-                .frame(width: 16, alignment: .leading)
+                .frame(width: 16, height: 16, alignment: .center)
             TextField("", text: $draft)
                 .textFieldStyle(.plain)
                 .focused($renameFocused)
@@ -101,8 +105,9 @@ struct VaultRow: View {
                 }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.leading, 2)
+        .padding(.trailing, 0)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

@@ -330,11 +330,12 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 10.5) {
+        HStack(spacing: 8) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
-                .frame(width: 12, alignment: .leading)
+                .frame(width: 16, height: 16, alignment: .center)
             Text(title)
                 .foregroundStyle(isSelected ? Color.accentColor : .primary)
                 .brightness(isSelected ? 0.12 : 0)
@@ -354,18 +355,29 @@ struct SelectableRow<Trailing: View>: View {
 /// Selection chrome painted via `.listRowBackground` at the row-file level so
 /// the fill covers the full List row (including any DisclosureGroup chevron
 /// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
-/// edges, 6pt continuous corner radius, `Color.gray.opacity(0.11)` fill.
-/// Returns `Color.clear` when not selected so the modifier always has a
-/// non-nil background.
+/// edges by default for flat rows. DisclosureGroup-wrapped rows pass
+/// `.disclosure` style to flush the leading edge so chrome covers the chevron.
 struct SelectionChrome: View {
+    enum Style {
+        case flat                  // 11pt symmetric horizontal inset
+        case disclosure            // 0pt leading, 11pt trailing — covers chevron
+
+        var insets: EdgeInsets {
+            switch self {
+            case .flat:       return EdgeInsets(top: 2, leading: 11, bottom: 2, trailing: 11)
+            case .disclosure: return EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 11)
+            }
+        }
+    }
+
     let isSelected: Bool
+    var style: Style = .flat
 
     var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(Color.gray.opacity(0.11))
-                .padding(.horizontal, 11)
-                .padding(.vertical, 2)
+                .padding(style.insets)
         } else {
             Color.clear
         }

@@ -36,14 +36,17 @@ struct PageRow: View {
     // MARK: - Subviews
 
     private var leafLabel: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "doc.text")
                 .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.primary)
+                .frame(width: 16, height: 16, alignment: .center)
             Text(page.title)
                 .foregroundStyle(.primary)
         }
-        .padding(.leading, 4)
+        .padding(.leading, 2)
+        .padding(.trailing, 0)
         .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
@@ -51,10 +54,12 @@ struct PageRow: View {
     /// Mirrors leafLabel's HStack shape (icon stays visible during rename),
     /// only the title slot becomes a TextField.
     private var renamingRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "doc.text")
                 .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.primary)
+                .frame(width: 16, height: 16, alignment: .center)
             TextField("", text: $draft)
                 .textFieldStyle(.plain)
                 .focused($nameFieldFocused)
@@ -71,7 +76,8 @@ struct PageRow: View {
                 }
             Spacer(minLength: 0)
         }
-        .padding(.leading, 4)
+        .padding(.leading, 2)
+        .padding(.trailing, 0)
         .padding(.vertical, 6)
     }
 
