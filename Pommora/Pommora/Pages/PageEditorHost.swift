@@ -1,0 +1,101 @@
+import SwiftUI
+
+/// Bridges sidebar selection (a `PageMeta`) to a live `PageEditorViewModel`.
+///
+/// Responsibilities:
+/// - Resolve the Page's parent Vault + Collection (so `ContentManagerPageSaver`
+///   can route to the right `updatePage` variant).
+/// - Load the Page's body from disk via `PageFile.load`.
+/// - On selection change to a different Page, flush the previous VM's pending
+///   debounce SYNCHRONOUSLY before constructing a new VM — prevents lost
+///   edits during fast sidebar navigation.
+///
+/// Uses `.task(id: page.id)` for the lifecycle: SwiftUI cancels and re-runs the
+/// task whenever the keyed id changes, giving us a clean spot to await the
+/// close() of the outgoing VM.
+struct PageEditorHost: View {
+    let page: PageMeta
+
+    @Environment(ContentManager.self) private var contentManager
+    @Environment(VaultManager.self) private var vaultManager
+
+    @State private var viewModel: PageEditorViewModel?
+    @State private var resolvedVault: Vault?
+    @State private var loadFailed = false
+
+    var body: some View {
+        Group {
+            if let vm = viewModel, let vault = resolvedVault {
+                PageEditorView(viewModel: vm, vault: vault)
+            } else if loadFailed {
+                ContextDetailPlaceholder(
+                    title: page.title,
+                    icon: "exclamationmark.triangle",
+                    accent: nil,
+                    supportingLine: "Couldn't load this Page from disk."
+                )
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task(id: page.id) {
+            // Selection changed to a different Page: flush the outgoing VM
+            // BEFORE constructing the new one. close() awaits flushNow() which
+            // cancels the debounce and writes the current body to disk.
+            if let outgoing = viewModel, outgoing.page.id != page.id {
+                await outgoing.close()
+            }
+            await loadAndConstruct(for: page)
+        }
+    }
+
+    private func loadAndConstruct(for page: PageMeta) async {
+        guard let (vault, collection) = resolveParent(of: page) else {
+            viewModel = nil
+            resolvedVault = nil
+            loadFailed = true
+            return
+        }
+
+        // PageFile.load is @MainActor — call directly. (File I/O on the main
+        // actor is fine at v1 prose sizes; if we later need to keep the main
+        // thread free, the right move is to make PageFile.load nonisolated
+        // rather than hop off via Task.detached, since the callee requires
+        // MainActor isolation.)
+        guard let pageFile = try? PageFile.load(from: page.url) else {
+            viewModel = nil
+            resolvedVault = nil
+            loadFailed = true
+            return
+        }
+
+        let saver = ContentManagerPageSaver(
+            contentManager: contentManager,
+            vault: vault,
+            collection: collection
+        )
+        let vm = PageEditorViewModel(page: page, body: pageFile.body, saver: saver)
+        viewModel = vm
+        resolvedVault = vault
+        loadFailed = false
+    }
+
+    /// Brute-force walker: iterate every Vault, check its vault-root pages,
+    /// then iterate every Collection inside it. Precedent: `ItemWindow.vaultForItem`.
+    /// O(N+M) over vault + collection counts; fine at v1 scale; SQLite-backed
+    /// lookup arrives with v0.4.0.
+    private func resolveParent(of page: PageMeta) -> (Vault, Pommora.Collection?)? {
+        for vault in vaultManager.vaults {
+            if contentManager.pages(in: vault).contains(where: { $0.id == page.id }) {
+                return (vault, nil)
+            }
+            for collection in vaultManager.collections(in: vault) {
+                if contentManager.pages(in: collection).contains(where: { $0.id == page.id }) {
+                    return (vault, collection)
+                }
+            }
+        }
+        return nil
+    }
+}

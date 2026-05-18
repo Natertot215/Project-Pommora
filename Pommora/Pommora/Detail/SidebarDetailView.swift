@@ -7,6 +7,7 @@ struct SidebarDetailView: View {
 
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(VaultManager.self) private var vaultManager
+    @Environment(ContentManager.self) private var contentManager
 
     var body: some View {
         Group {
@@ -70,12 +71,7 @@ struct SidebarDetailView: View {
                 }
 
             case .page(let p):
-                ContextDetailPlaceholder(
-                    title: p.title,
-                    icon: "doc.text",
-                    accent: nil,
-                    supportingLine: "Page editor coming v0.2.7"
-                )
+                PageEditorHost(page: p)
             }
         }
         .sheet(item: $presentedItem) { item in

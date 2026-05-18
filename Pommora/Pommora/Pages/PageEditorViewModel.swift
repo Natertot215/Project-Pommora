@@ -79,6 +79,12 @@ final class PageEditorViewModel {
     func close() async {
         await flushNow()
     }
+
+    /// Clears `pendingError`. Called when the alert dismisses; lets the
+    /// failure surface re-fire if a later save also fails.
+    func clearError() {
+        pendingError = nil
+    }
 }
 
 /// Indirection layer between PageEditorViewModel and ContentManager. Lets tests
