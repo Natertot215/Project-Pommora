@@ -8,7 +8,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(NexusManager.self) private var nexusManager
-    @State private var inspectorPresented = false
     @State private var searchQuery = ""
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
@@ -36,21 +35,9 @@ struct ContentView: View {
         } detail: {
             detail
         }
-        .inspector(isPresented: $inspectorPresented) {
-            Color.clear
-                .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            withAnimation(.smooth(duration: 0.30)) {
-                                inspectorPresented.toggle()
-                            }
-                        } label: {
-                            Label("Toggle Inspector", systemImage: "sidebar.trailing")
-                        }
-                    }
-                }
-        }
+        // Inspector now lives per-Page inside PageEditorView (v0.2.7 onward).
+        // Non-Page detail views have no inspector content in v0.2.7; Properties
+        // v0.3.0 will re-introduce inspectors for Vault/Collection/Space if needed.
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
         .task {

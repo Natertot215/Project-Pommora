@@ -26,52 +26,65 @@ struct PageEditorView: View {
     }
 
     var body: some View {
-        EditorWebView(text: $viewModel.body, configuration: pommoraEditorConfig)
-            .inspector(isPresented: $inspectorOpen) {
-                FrontmatterInspector(page: viewModel.page, vault: vault)
-                    .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
-            }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        withAnimation(.smooth(duration: 0.25)) {
-                            inspectorOpen.toggle()
-                        }
-                    } label: {
-                        Label("Toggle Inspector", systemImage: "sidebar.trailing")
+        VStack(spacing: 0) {
+            // Title banner — read-only "filename = title" display, matching
+            // macOS Notes' large title line. Rename happens via sidebar
+            // right-click → Rename (already wired).
+            Text(viewModel.page.title)
+                .font(.system(size: 28, weight: .bold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 4)
+                .textSelection(.enabled)
+
+            EditorWebView(text: $viewModel.body, configuration: pommoraEditorConfig)
+        }
+        .inspector(isPresented: $inspectorOpen) {
+            FrontmatterInspector(page: viewModel.page, vault: vault)
+                .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    withAnimation(.smooth(duration: 0.25)) {
+                        inspectorOpen.toggle()
                     }
-                    .keyboardShortcut("0", modifiers: [.option, .command])
-                    .help("Toggle Inspector (⌥⌘0)")
+                } label: {
+                    Label("Toggle Inspector", systemImage: "sidebar.trailing")
                 }
+                .keyboardShortcut("0", modifiers: [.option, .command])
+                .help("Toggle Inspector (⌥⌘0)")
             }
-            .onChange(of: inspectorOpen) { _, newValue in
-                AppState.setPageInspectorOpen(newValue, pageID: viewModel.page.id)
-            }
-            .onAppear {
-                AppGlobals.register(viewModel)
-            }
-            .onDisappear {
-                AppGlobals.unregister(viewModel)
-                // Flush any pending debounced save before the view goes away.
-                let vmRef = viewModel
-                Task { await vmRef.close() }
-            }
-            .alert(
-                "Save failed",
-                isPresented: Binding(
-                    get: { viewModel.pendingError != nil },
-                    set: { newValue in
-                        if !newValue { viewModel.clearError() }
-                    }
-                )
-            ) {
-                Button("Retry") {
-                    viewModel.explicitSave()
+        }
+        .onChange(of: inspectorOpen) { _, newValue in
+            AppState.setPageInspectorOpen(newValue, pageID: viewModel.page.id)
+        }
+        .onAppear {
+            AppGlobals.register(viewModel)
+        }
+        .onDisappear {
+            AppGlobals.unregister(viewModel)
+            // Flush any pending debounced save before the view goes away.
+            let vmRef = viewModel
+            Task { await vmRef.close() }
+        }
+        .alert(
+            "Save failed",
+            isPresented: Binding(
+                get: { viewModel.pendingError != nil },
+                set: { newValue in
+                    if !newValue { viewModel.clearError() }
                 }
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.pendingError?.localizedDescription ?? "")
+            )
+        ) {
+            Button("Retry") {
+                viewModel.explicitSave()
             }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.pendingError?.localizedDescription ?? "")
+        }
     }
 }
 
