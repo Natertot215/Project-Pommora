@@ -181,6 +181,13 @@ struct ContentView: View {
         self.tierConfigManager = tierMgr
         self.savedConfigManager = savedMgr
 
+        // Publish ContentManager + VaultManager refs so the standalone
+        // WindowGroup(for: PageRef.self) scene can resolve PageRefs to live
+        // PageMeta + Vault + Collection. See AppGlobals doc-comment for the
+        // rationale on this lightweight shared-state approach.
+        AppGlobals.contentManager = contentMgr
+        AppGlobals.vaultManager = vaultMgr
+
         // Initial load — fire all in parallel.
         // ContentManager loads per-collection lazily on detail-view appear.
         Task {

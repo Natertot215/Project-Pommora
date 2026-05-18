@@ -9,10 +9,43 @@ import Testing
 @testable import Pommora
 
 struct AppStateTests {
-    @Test func defaultInitializerSetsSchemaVersion1() {
+    @Test func defaultInitializerSetsSchemaVersion2() {
         let state = AppState()
-        #expect(state.schemaVersion == 1)
+        #expect(state.schemaVersion == 2)  // bumped v0.2.7 for pageInspectorOpen
         #expect(state.lastNexusBookmark == nil)
+        #expect(state.pageInspectorOpen.isEmpty)
+    }
+
+    @Test func roundTripPreservesPageInspectorOpen() throws {
+        let original = AppState(
+            schemaVersion: 2,
+            lastNexusBookmark: nil,
+            pageInspectorOpen: ["01HABC": true, "01HXYZ": false]
+        )
+        let url = uniqueTempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        try original.save(to: url)
+        let loaded = try AppState.load(from: url)
+
+        #expect(loaded == original)
+        #expect(loaded.pageInspectorOpen["01HABC"] == true)
+        #expect(loaded.pageInspectorOpen["01HXYZ"] == false)
+    }
+
+    @Test func decodesV1FileWithMissingPageInspectorOpenKey() throws {
+        // v1 schema only had schemaVersion + lastNexusBookmark. Decoding that
+        // shape should produce an AppState with empty pageInspectorOpen, not
+        // throw a missing-key error.
+        let v1JSON = """
+            {"schemaVersion": 1}
+            """
+        let data = Data(v1JSON.utf8)
+        let loaded = try JSONDecoder().decode(AppState.self, from: data)
+
+        #expect(loaded.schemaVersion == 1)
+        #expect(loaded.lastNexusBookmark == nil)
+        #expect(loaded.pageInspectorOpen.isEmpty)
     }
 
     @Test func roundTripWithNilBookmark() throws {

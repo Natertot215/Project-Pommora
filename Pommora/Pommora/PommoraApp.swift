@@ -9,6 +9,13 @@ import SwiftUI
 struct PommoraApp: App {
     @State private var nexusManager = NexusManager()
 
+    init() {
+        // Install NSApplication willResignActive + willTerminate observers
+        // that flush every registered PageEditorViewModel so pending
+        // debounced saves aren't lost on app background / quit.
+        AppGlobals.bootstrap()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

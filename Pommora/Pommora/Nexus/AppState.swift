@@ -10,20 +10,43 @@ import Foundation
 /// Persisted as a pretty-printed JSON file at:
 ///   `~/Library/Application Support/com.nathantaichman.Pommora/state.json`
 ///
-/// Holds a single value for v0.1: the security-scoped bookmark of the
-/// last-opened nexus. Future fields (recent nexuses, last window frame,
-/// etc.) extend this same shape.
+/// v0.2.7 added `pageInspectorOpen`: per-Page boolean for whether the editor's
+/// inspector panel was last visible. Keyed by PageMeta.id; missing key = use
+/// global default (closed). App-level rather than per-nexus to keep the shape
+/// flat — same nexus opened on two machines is fine to diverge inspector state.
 ///
 /// Vault-portable per-nexus state (open tabs, sidebar collapsed state)
-/// lives separately at `<nexus>/.nexus/state.json` and is the concern
-/// of a future v0.2+ type — not this one.
+/// would live separately at `<nexus>/.nexus/state.json` if we needed it;
+/// no per-nexus state file exists yet — extend this type for v0.2 needs.
 struct AppState: Codable, Equatable {
     var schemaVersion: Int
     var lastNexusBookmark: Data?
+    /// Pommora pageID → whether the inspector panel was visible last time
+    /// this Page was opened. Missing key = closed (the global default).
+    var pageInspectorOpen: [String: Bool]
 
-    init(schemaVersion: Int = 1, lastNexusBookmark: Data? = nil) {
+    init(
+        schemaVersion: Int = 2,
+        lastNexusBookmark: Data? = nil,
+        pageInspectorOpen: [String: Bool] = [:]
+    ) {
         self.schemaVersion = schemaVersion
         self.lastNexusBookmark = lastNexusBookmark
+        self.pageInspectorOpen = pageInspectorOpen
+    }
+
+    // Custom init(from:) keeps backwards-compat: an existing v1 state.json
+    // file (no `pageInspectorOpen` key) decodes cleanly with an empty map.
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, lastNexusBookmark, pageInspectorOpen
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        self.lastNexusBookmark = try c.decodeIfPresent(Data.self, forKey: .lastNexusBookmark)
+        self.pageInspectorOpen =
+            try c.decodeIfPresent([String: Bool].self, forKey: .pageInspectorOpen) ?? [:]
     }
 }
 
@@ -45,5 +68,29 @@ extension AppState {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(self)
         try data.write(to: url, options: [.atomic])
+    }
+
+    // MARK: - Inspector persistence (v0.2.7)
+
+    /// Look up the inspector-open flag for a Page. Returns false if the file
+    /// can't be read or the key is missing. Read-only convenience for views.
+    static func pageInspectorOpen(pageID: String) -> Bool {
+        guard let url = try? NexusStore.appStateURL(),
+            let state = try? AppState.load(from: url)
+        else { return false }
+        return state.pageInspectorOpen[pageID] ?? false
+    }
+
+    /// Persist a single Page's inspector-open flag. Load → mutate → save.
+    /// Silent on failure — inspector toggle persistence is not load-bearing.
+    static func setPageInspectorOpen(_ open: Bool, pageID: String) {
+        do {
+            let url = try NexusStore.appStateURL()
+            var state = (try? AppState.load(from: url)) ?? AppState()
+            state.pageInspectorOpen[pageID] = open
+            try state.save(to: url)
+        } catch {
+            // Best-effort — inspector preference is not critical state.
+        }
     }
 }
