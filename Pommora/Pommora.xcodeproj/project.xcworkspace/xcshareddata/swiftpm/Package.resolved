@@ -1,0 +1,24 @@
+{
+  "originHash" : "39c7254a63d734ac1e0d7953e851716f03bd207b95f3d42e427b4843ce6048f8",
+  "pins" : [
+    {
+      "identity" : "symbolpicker",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/xnth97/SymbolPicker.git",
+      "state" : {
+        "revision" : "8bb08c982235b8e601bc500a41e770d7e198759b",
+        "version" : "1.6.2"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "3d6871d5b4a5cd519adf233fbb576e0a2af71c17",
+        "version" : "5.4.0"
+      }
+    }
+  ],
+  "version" : 3
+}
