@@ -1,5 +1,19 @@
 import Foundation
 
+/// Errors thrown by `Filesystem` primitives.
+enum FilesystemError: LocalizedError {
+    /// Raised by `moveToTrash` when the source URL doesn't sit under the
+    /// nexus root — we refuse to relocate paths outside the user's nexus.
+    case sourceNotInNexus(source: URL, nexus: URL)
+
+    var errorDescription: String? {
+        switch self {
+        case .sourceNotInNexus(let source, let nexus):
+            return "Cannot move to trash: \(source.path) is not inside nexus root \(nexus.path)."
+        }
+    }
+}
+
 /// Folder + file primitives used by every entity manager.
 ///
 /// Discipline:
@@ -67,6 +81,60 @@ enum Filesystem {
         }
     }
 
+    // MARK: - Trash (recoverable deletes)
+
+    /// Move a file or folder to the nexus's `.trash//` directory, preserving
+    /// its relative path under the nexus root. If a previously-deleted entry
+    /// already exists at the same trash path, the new entry is suffixed with
+    /// a timestamp (e.g. `Notes.20260518-093215.md`) to avoid collision.
+    ///
+    /// Returns the URL the item was moved to (useful for tests + future
+    /// "Recover deleted" UI).
+    @discardableResult
+    static func moveToTrash(_ source: URL, in nexus: Nexus) throws -> URL {
+        let trashRoot = NexusPaths.trashDir(in: nexus)
+
+        // Compute the relative path under nexus root (preserves user's folder structure inside .trash).
+        guard let relativePath = source.path.removingPrefix(nexus.rootURL.path + "/") else {
+            throw FilesystemError.sourceNotInNexus(source: source, nexus: nexus.rootURL)
+        }
+        let proposedDest = trashRoot.appendingPathComponent(relativePath)
+
+        // Ensure parent directories exist in .trash
+        let proposedParent = proposedDest.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: proposedParent, withIntermediateDirectories: true)
+
+        // Collision resolution via timestamp suffix
+        let finalDest =
+            FileManager.default.fileExists(atPath: proposedDest.path)
+            ? suffixedWithTimestamp(proposedDest)
+            : proposedDest
+
+        try FileManager.default.moveItem(at: source, to: finalDest)
+        return finalDest
+    }
+
+    /// Inserts a `.YYYYMMDD-HHMMSS` timestamp before the file extension (or at
+    /// the end of the path component if there's no extension — for folders).
+    /// Example: `Notes.md` → `Notes.20260518-093215.md`;
+    ///          `Documents/` → `Documents.20260518-093215/`.
+    private static func suffixedWithTimestamp(_ url: URL) -> URL {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let stamp = formatter.string(from: Date())
+
+        let ext = url.pathExtension
+        let withoutExt = url.deletingPathExtension()
+        if ext.isEmpty {
+            return withoutExt.appendingPathExtension(stamp)
+        }
+        return
+            withoutExt
+            .appendingPathExtension(stamp)
+            .appendingPathExtension(ext)
+    }
+
     // MARK: - Directory enumeration
 
     /// Returns immediate children of `folderURL` matching `predicate` (typically by extension).
@@ -91,5 +159,14 @@ enum Filesystem {
             FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
             return isDir.boolValue
         }
+    }
+}
+
+extension String {
+    /// Returns the receiver with `prefix` stripped from the front, or `nil`
+    /// when `prefix` is not actually a prefix. Used by `Filesystem.moveToTrash`
+    /// to derive a path's component relative to the nexus root.
+    fileprivate func removingPrefix(_ prefix: String) -> String? {
+        hasPrefix(prefix) ? String(dropFirst(prefix.count)) : nil
     }
 }

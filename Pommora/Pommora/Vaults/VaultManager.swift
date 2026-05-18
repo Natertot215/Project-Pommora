@@ -163,7 +163,7 @@ final class VaultManager {
     func deleteVault(_ vault: Vault) async throws {
         do {
             let folder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
-            try Filesystem.deleteFolder(at: folder)
+            try Filesystem.moveToTrash(folder, in: nexus)
             vaults.removeAll { $0.id == vault.id }
             collectionsByVault.removeValue(forKey: vault.id)
         } catch {
@@ -257,7 +257,7 @@ final class VaultManager {
 
     func deleteCollection(_ collection: Collection) async throws {
         do {
-            try Filesystem.deleteFolder(at: collection.folderURL)
+            try Filesystem.moveToTrash(collection.folderURL, in: nexus)
             var arr = collectionsByVault[collection.vaultID] ?? []
             arr.removeAll { $0.id == collection.id }
             collectionsByVault[collection.vaultID] = arr

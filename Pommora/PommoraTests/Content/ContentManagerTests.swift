@@ -104,8 +104,15 @@ struct ContentManagerTests {
 
         #expect(manager.pages(in: coll).isEmpty)
         #expect(manager.items(in: coll).isEmpty)
+        // Files no longer at original location
         #expect(!FileManager.default.fileExists(atPath: pageURL.path))
         #expect(!FileManager.default.fileExists(atPath: itemURL.path))
+
+        // Files now in .trash, preserving relative path under nexus root
+        let trashPage = NexusPaths.trashDir(in: nexus).appendingPathComponent("V/C/P.md")
+        let trashItem = NexusPaths.trashDir(in: nexus).appendingPathComponent("V/C/I.json")
+        #expect(FileManager.default.fileExists(atPath: trashPage.path))
+        #expect(FileManager.default.fileExists(atPath: trashItem.path))
     }
 
     @Test("loadAll discovers existing .md + .json in a Collection")

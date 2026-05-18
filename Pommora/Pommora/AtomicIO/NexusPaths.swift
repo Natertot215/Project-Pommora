@@ -38,6 +38,16 @@ enum NexusPaths {
         nexus.rootURL.appendingPathComponent("Agenda", isDirectory: true)
     }
 
+    // MARK: - Trash (per-nexus recoverable deletes)
+
+    /// Per-nexus trash folder at `<nexus-root>/.trash/`.
+    /// Mirrors the structure of the user's content folders — a deleted Page at
+    /// `Materials/Notes.md` lands at `.trash/Materials/Notes.md`. Collisions
+    /// resolved via timestamp suffix in `Filesystem.moveToTrash`.
+    static func trashDir(in nexus: Nexus) -> URL {
+        nexus.rootURL.appendingPathComponent(".trash", isDirectory: true)
+    }
+
     static func agendaSchemaURL(in nexus: Nexus) -> URL {
         agendaDir(in: nexus).appendingPathComponent("_agenda.json", isDirectory: false)
     }

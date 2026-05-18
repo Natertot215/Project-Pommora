@@ -79,6 +79,10 @@ struct VaultManagerTests {
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.vaults.isEmpty)
+
+        // Folder now in .trash, preserving relative path under nexus root
+        let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Planner")
+        #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
     @Test("loadAll skips top-level folders without _vault.json (cosmetic dirs)")
@@ -131,5 +135,9 @@ struct VaultManagerTests {
         )
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.collections(in: vault).isEmpty)
+
+        // Folder now in .trash, preserving relative path under nexus root
+        let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Planner/Tasks")
+        #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 }

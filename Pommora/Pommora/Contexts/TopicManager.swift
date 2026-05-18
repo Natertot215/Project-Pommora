@@ -188,7 +188,7 @@ final class TopicManager {
             }
 
             let folder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
-            try Filesystem.deleteFolder(at: folder)
+            try Filesystem.moveToTrash(folder, in: nexus)
             topics.removeAll { $0.id == topic.id }
             subtopicsByParent.removeValue(forKey: topic.id)
         } catch {
@@ -377,7 +377,7 @@ final class TopicManager {
             let url = NexusPaths.subtopicFileURL(
                 forTitle: sub.title, inTopicTitled: parent.title, in: nexus
             )
-            try Filesystem.deleteFile(at: url)
+            try Filesystem.moveToTrash(url, in: nexus)
             var arr = subtopicsByParent[parent.id] ?? []
             arr.removeAll { $0.id == sub.id }
             subtopicsByParent[parent.id] = arr

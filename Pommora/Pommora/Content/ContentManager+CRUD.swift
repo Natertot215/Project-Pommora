@@ -90,7 +90,7 @@ extension ContentManager {
 
     func deletePage(_ page: PageMeta, in collection: Collection) async throws {
         do {
-            try Filesystem.deleteFile(at: page.url)
+            try Filesystem.moveToTrash(page.url, in: nexus)
             var arr = pagesByCollection[collection.id] ?? []
             arr.removeAll { $0.id == page.id }
             pagesByCollection[collection.id] = arr
@@ -178,7 +178,7 @@ extension ContentManager {
 
     func deletePage(_ page: PageMeta, inVaultRoot vault: Vault) async throws {
         do {
-            try Filesystem.deleteFile(at: page.url)
+            try Filesystem.moveToTrash(page.url, in: nexus)
             var arr = pagesByVaultRoot[vault.id] ?? []
             arr.removeAll { $0.id == page.id }
             pagesByVaultRoot[vault.id] = arr
@@ -299,7 +299,7 @@ extension ContentManager {
     func deleteItem(_ item: Item, in collection: Collection) async throws {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
-            try Filesystem.deleteFile(at: url)
+            try Filesystem.moveToTrash(url, in: nexus)
             var arr = itemsByCollection[collection.id] ?? []
             arr.removeAll { $0.id == item.id }
             itemsByCollection[collection.id] = arr
@@ -392,7 +392,7 @@ extension ContentManager {
     func deleteItem(_ item: Item, inVaultRoot vault: Vault) async throws {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: folderURL(for: vault))
-            try Filesystem.deleteFile(at: url)
+            try Filesystem.moveToTrash(url, in: nexus)
             var arr = itemsByVaultRoot[vault.id] ?? []
             arr.removeAll { $0.id == item.id }
             itemsByVaultRoot[vault.id] = arr

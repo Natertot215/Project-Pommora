@@ -130,7 +130,7 @@ final class SpaceManager {
     func delete(_ space: Space) async throws {
         do {
             let url = NexusPaths.spaceFileURL(forTitle: space.title, in: nexus)
-            try Filesystem.deleteFile(at: url)
+            try Filesystem.moveToTrash(url, in: nexus)
             spaces.removeAll { $0.id == space.id }
         } catch {
             self.pendingError = error

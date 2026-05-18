@@ -159,7 +159,7 @@ final class AgendaManager {
     func deleteItem(_ item: AgendaItem) async throws {
         do {
             let url = NexusPaths.agendaItemFileURL(forTitle: item.title, in: nexus)
-            try Filesystem.deleteFile(at: url)
+            try Filesystem.moveToTrash(url, in: nexus)
             items.removeAll { $0.id == item.id }
         } catch {
             self.pendingError = error
