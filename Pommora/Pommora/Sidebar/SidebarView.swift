@@ -187,6 +187,11 @@ struct SavedSection: View {
                     accent: nil,
                     onSelect: { selection = .savedKey(item.key) }
                 )
+                .listRowBackground(
+                    SelectionChrome(
+                        isSelected: SelectionTag.savedKey(item.key).matches(selection)
+                    )
+                )
             }
         }
     }
@@ -287,13 +292,12 @@ struct VaultsSection: View {
 
 // MARK: - SelectableRow (updated to use SelectionTag)
 
-/// Self-contained sidebar row with its own selection chrome. Uses an in-content
-/// `.background` (not `.listRowBackground`) so the selection fill paints
-/// correctly whether the row is a top-level List row (SpaceRow, SubtopicRow,
-/// Saved items) or nested inside a `DisclosureGroup` label slot (TopicRow,
-/// VaultRow, CollectionRow). `trailing` is an optional ViewBuilder slot for
-/// callers that need to render content at the right edge inside the selection
-/// chrome (e.g. TopicRow's ParentSpaceTags dots).
+/// Self-contained sidebar row content. Selection chrome is painted at the
+/// row-file level via `.listRowBackground(SelectionChrome(...))` so the fill
+/// covers the full List row including any DisclosureGroup chevron gutter — not
+/// just the label area. `trailing` is an optional ViewBuilder slot for callers
+/// that need to render content at the right edge of the row (e.g. TopicRow's
+/// ParentSpaceTags dots).
 struct SelectableRow<Trailing: View>: View {
     let title: String
     let symbol: String
@@ -326,28 +330,45 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 10.5) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
-                .frame(width: 16, alignment: .leading)
+                .frame(width: 12, alignment: .leading)
             Text(title)
                 .foregroundStyle(isSelected ? Color.accentColor : .primary)
                 .brightness(isSelected ? 0.12 : 0)
             Spacer(minLength: 0)
             trailing()
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.leading, 4)
+        .padding(.trailing, 0)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            isSelected
-                ? RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.gray.opacity(0.11))
-                : nil
-        )
         .contentShape(Rectangle())
         .onTapGesture { onSelect() }
+        .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
+    }
+}
+
+/// Selection chrome painted via `.listRowBackground` at the row-file level so
+/// the fill covers the full List row (including any DisclosureGroup chevron
+/// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
+/// edges, 6pt continuous corner radius, `Color.gray.opacity(0.11)` fill.
+/// Returns `Color.clear` when not selected so the modifier always has a
+/// non-nil background.
+struct SelectionChrome: View {
+    let isSelected: Bool
+
+    var body: some View {
+        if isSelected {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.gray.opacity(0.11))
+                .padding(.horizontal, 11)
+                .padding(.vertical, 2)
+        } else {
+            Color.clear
+        }
     }
 }
 

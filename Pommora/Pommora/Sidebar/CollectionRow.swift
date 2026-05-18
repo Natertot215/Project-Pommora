@@ -28,6 +28,9 @@ struct CollectionRow: View {
         } label: {
             label
         }
+        .listRowBackground(
+            SelectionChrome(isSelected: SelectionTag.collection(collection.id).matches(selection))
+        )
         // Same pattern as VaultRow: load on row appearance so Pages are
         // available even when the disclosure is collapsed (count badges,
         // future search, etc.).

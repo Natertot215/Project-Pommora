@@ -30,6 +30,9 @@ struct TopicRow: View {
         } label: {
             label
         }
+        .listRowBackground(
+            SelectionChrome(isSelected: SelectionTag.topic(topic.id).matches(selection))
+        )
     }
 
     @ViewBuilder

@@ -15,26 +15,31 @@ struct SubtopicRow: View {
     @FocusState private var renameFocused: Bool
 
     var body: some View {
-        if editingID == subtopic.id {
-            renamingRow
-        } else {
-            SelectableRow(
-                title: subtopic.title,
-                symbol: subtopic.icon ?? "doc.text",
-                tag: SelectionTag.subtopic(subtopic.id),
-                selection: $selection,
-                accent: nil,
-                onSelect: { selection = .subtopic(subtopic) }
-            )
-            .contextMenu {
-                Button("Rename") { editingID = subtopic.id }
-                Button("Change Icon") { presentedSheet = .editIcon(.subtopic(subtopic)) }
-                Divider()
-                Button("Delete", role: .destructive) {
-                    confirmingDelete = .deleteSubtopic(subtopic)
+        Group {
+            if editingID == subtopic.id {
+                renamingRow
+            } else {
+                SelectableRow(
+                    title: subtopic.title,
+                    symbol: subtopic.icon ?? "doc.text",
+                    tag: SelectionTag.subtopic(subtopic.id),
+                    selection: $selection,
+                    accent: nil,
+                    onSelect: { selection = .subtopic(subtopic) }
+                )
+                .contextMenu {
+                    Button("Rename") { editingID = subtopic.id }
+                    Button("Change Icon") { presentedSheet = .editIcon(.subtopic(subtopic)) }
+                    Divider()
+                    Button("Delete", role: .destructive) {
+                        confirmingDelete = .deleteSubtopic(subtopic)
+                    }
                 }
             }
         }
+        .listRowBackground(
+            SelectionChrome(isSelected: SelectionTag.subtopic(subtopic.id).matches(selection))
+        )
     }
 
     private var renamingRow: some View {

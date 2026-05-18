@@ -39,6 +39,9 @@ struct VaultRow: View {
         } label: {
             label
         }
+        .listRowBackground(
+            SelectionChrome(isSelected: SelectionTag.vault(vault.id).matches(selection))
+        )
         // Load vault-root Pages/Items when the row appears, regardless of
         // disclosure state. `.task` fires once on appearance; if it were
         // attached to the disclosure children it would only fire on expand.

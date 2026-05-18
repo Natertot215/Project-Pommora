@@ -44,7 +44,7 @@ struct PageRow: View {
                 .foregroundStyle(.primary)
         }
         .padding(.leading, 4)
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
 
@@ -72,7 +72,7 @@ struct PageRow: View {
             Spacer(minLength: 0)
         }
         .padding(.leading, 4)
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Actions

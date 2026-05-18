@@ -14,29 +14,34 @@ struct SpaceRow: View {
     @Environment(SpaceManager.self) private var spaceManager
 
     var body: some View {
-        if editingID == space.id {
-            renamingRow
-        } else {
-            SelectableRow(
-                title: space.title,
-                symbol: space.icon ?? "circle.fill",
-                tag: SelectionTag.space(space.id),
-                selection: $selection,
-                accent: space.color.swiftUIColor,
-                onSelect: { selection = .space(space) }
-            )
-            .contextMenu {
-                Button("New Space") { presentedSheet = .newSpace }
-                Divider()
-                Button("Rename") { startRename() }
-                Button("Change Color") { presentedSheet = .editColor(space) }
-                Button("Change Icon") { presentedSheet = .editIcon(.space(space)) }
-                Divider()
-                Button("Delete", role: .destructive) {
-                    confirmingDelete = .deleteSpace(space)
+        Group {
+            if editingID == space.id {
+                renamingRow
+            } else {
+                SelectableRow(
+                    title: space.title,
+                    symbol: space.icon ?? "circle.fill",
+                    tag: SelectionTag.space(space.id),
+                    selection: $selection,
+                    accent: space.color.swiftUIColor,
+                    onSelect: { selection = .space(space) }
+                )
+                .contextMenu {
+                    Button("New Space") { presentedSheet = .newSpace }
+                    Divider()
+                    Button("Rename") { startRename() }
+                    Button("Change Color") { presentedSheet = .editColor(space) }
+                    Button("Change Icon") { presentedSheet = .editIcon(.space(space)) }
+                    Divider()
+                    Button("Delete", role: .destructive) {
+                        confirmingDelete = .deleteSpace(space)
+                    }
                 }
             }
         }
+        .listRowBackground(
+            SelectionChrome(isSelected: SelectionTag.space(space.id).matches(selection))
+        )
     }
 
     /// Mirrors SelectableRow's HStack shape (icon + text slot + trailing spacer)
