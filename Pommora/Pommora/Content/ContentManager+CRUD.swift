@@ -100,6 +100,49 @@ extension ContentManager {
         }
     }
 
+    /// Re-write a Page's body to disk, preserving its frontmatter verbatim.
+    /// The editor binds to body only; frontmatter (id, icon, tier1/2/3,
+    /// properties, createdAt) round-trips faithfully via PageFile + Yams.
+    /// Atomic write happens inside `pageFile.save(to:)` via
+    /// `AtomicYAMLMarkdown.write` → `Data.write(.atomic)`.
+    ///
+    /// In-memory cache (pagesByCollection) is mutated AFTER the disk write
+    /// succeeds, so a failed write leaves the cache consistent with disk.
+    func updatePage(
+        _ page: PageMeta, body: String, in collection: Collection, vault: Vault
+    )
+        async throws
+    {
+        do {
+            let existing = pagesByCollection[collection.id] ?? []
+            try PageValidator.validate(
+                title: page.title,
+                tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2,
+                tier3: page.frontmatter.tier3,
+                properties: page.frontmatter.properties,
+                createdAt: page.frontmatter.createdAt,
+                vault: vault,
+                existingSiblings: existing,
+                context: contextProvider(),
+                excluding: page
+            )
+
+            let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)
+            try pageFile.save(to: page.url)
+
+            var arr = existing
+            if let i = arr.firstIndex(where: { $0.id == page.id }) {
+                // Frontmatter unchanged; body lives only on disk (PageMeta is
+                // lightweight tracking — body is loaded on demand via PageFile).
+                arr[i] = page
+            }
+            pagesByCollection[collection.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Page CRUD (vault-root)
 
     @discardableResult
@@ -181,6 +224,37 @@ extension ContentManager {
             try Filesystem.moveToTrash(page.url, in: nexus)
             var arr = pagesByVaultRoot[vault.id] ?? []
             arr.removeAll { $0.id == page.id }
+            pagesByVaultRoot[vault.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    /// Vault-root variant of `updatePage`. Same contract: body-only write,
+    /// frontmatter preserved, atomic, in-memory cache mutated after success.
+    func updatePage(_ page: PageMeta, body: String, inVaultRoot vault: Vault) async throws {
+        do {
+            let existing = pagesByVaultRoot[vault.id] ?? []
+            try PageValidator.validate(
+                title: page.title,
+                tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2,
+                tier3: page.frontmatter.tier3,
+                properties: page.frontmatter.properties,
+                createdAt: page.frontmatter.createdAt,
+                vault: vault,
+                existingSiblings: existing,
+                context: contextProvider(),
+                excluding: page
+            )
+
+            let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)
+            try pageFile.save(to: page.url)
+
+            var arr = existing
+            if let i = arr.firstIndex(where: { $0.id == page.id }) {
+                arr[i] = page
+            }
             pagesByVaultRoot[vault.id] = arr
         } catch {
             self.pendingError = error
