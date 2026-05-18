@@ -25,14 +25,13 @@ struct CollectionDetailView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "folder")
-                .font(.system(size: 28))
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading) {
-                Text(collection.title).font(.title2)
-                Text("Collection in \(vault.title)").font(.caption).foregroundStyle(.secondary)
+        HStack {
+            Label {
+                Text(collection.title)
+            } icon: {
+                Image(systemName: "folder")
             }
+            .font(.title2.bold())
             Spacer()
         }
         .padding()
@@ -47,6 +46,8 @@ struct CollectionDetailView: View {
                     Image(systemName: row.iconName)
                         .foregroundStyle(.secondary)
                 }
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { handleDoubleTap(row) }
             }
             TableColumn("Kind") { row in
                 Text(row.kindLabel).foregroundStyle(.secondary)
@@ -58,15 +59,13 @@ struct CollectionDetailView: View {
             }
             .width(min: 140, ideal: 180, max: 240)
         }
-        .onChange(of: tableSelection) { _, newSelection in
-            guard let firstID = newSelection.first,
-                  let row = rows.first(where: { $0.id == firstID })
-            else { return }
-            switch row.kind {
-            case .item(let i): presentedItem = i
-            case .page:        break
-            case .collection:  break
-            }
+    }
+
+    private func handleDoubleTap(_ row: DetailRow) {
+        switch row.kind {
+        case .item(let i): presentedItem = i
+        case .page(let p): selection = .page(p)
+        case .collection: break
         }
     }
 

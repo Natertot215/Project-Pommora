@@ -26,7 +26,7 @@ struct SidebarDetailView: View {
                 ContextDetailPlaceholder(
                     title: s.title,
                     icon: s.icon ?? "circle.fill",
-                    accent: s.color.swiftUIColor,
+                    accent: s.color?.swiftUIColor,
                     supportingLine: "Tier 1 — Space"
                 )
 
@@ -68,6 +68,14 @@ struct SidebarDetailView: View {
                     Text("Collection parent vault not found")
                         .foregroundStyle(.red)
                 }
+
+            case .page(let p):
+                ContextDetailPlaceholder(
+                    title: p.title,
+                    icon: "doc.text",
+                    accent: nil,
+                    supportingLine: "Page editor coming v0.6"
+                )
             }
         }
         .sheet(item: $presentedItem) { item in

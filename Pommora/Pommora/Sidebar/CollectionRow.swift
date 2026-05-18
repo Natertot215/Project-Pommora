@@ -22,6 +22,7 @@ struct CollectionRow: View {
                 PageRow(
                     page: page,
                     parent: .collection(collection, vault: parentVault),
+                    selection: $selection,
                     editingID: $editingID
                 )
             }

@@ -10,6 +10,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case subtopic(Subtopic)
     case vault(Vault)
     case collection(Pommora.Collection)
+    case page(PageMeta)
 }
 
 /// Used by SelectableRow to compare against the current SidebarSelection
@@ -21,6 +22,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case subtopic(String)
     case vault(String)
     case collection(String)
+    case page(String)
 
     func matches(_ selection: SidebarSelection) -> Bool {
         switch (self, selection) {
@@ -30,6 +32,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case (.subtopic(let id), .subtopic(let st)):     return id == st.id
         case (.vault(let id), .vault(let v)):            return id == v.id
         case (.collection(let id), .collection(let c)):  return id == c.id
+        case (.page(let id), .page(let p)):              return id == p.id
         default: return false
         }
     }

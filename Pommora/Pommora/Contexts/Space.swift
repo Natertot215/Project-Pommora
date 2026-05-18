@@ -6,7 +6,7 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String            // ULID
     var tier: Int             // always 1
     var title: String         // populated from filename on load
-    var color: SpaceColor
+    var color: SpaceColor?    // nil = no color picked (renders without tint)
     var icon: String?         // SF Symbol name
     var blocks: [ContextBlock]
     var modifiedAt: Date
@@ -14,7 +14,7 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
     init(
         id: String,
         title: String,
-        color: SpaceColor,
+        color: SpaceColor?,
         icon: String?,
         blocks: [ContextBlock],
         modifiedAt: Date
@@ -39,7 +39,7 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.id = try c.decode(String.self, forKey: .id)
         self.tier = try c.decodeIfPresent(Int.self, forKey: .tier) ?? 1
         self.title = ""  // caller (load(from:)) overwrites from filename
-        self.color = try c.decode(SpaceColor.self, forKey: .color)
+        self.color = try c.decodeIfPresent(SpaceColor.self, forKey: .color)
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.blocks = try c.decodeIfPresent([ContextBlock].self, forKey: .blocks) ?? []
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
@@ -49,7 +49,7 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
         try c.encode(1, forKey: .tier)
-        try c.encode(color, forKey: .color)
+        try c.encodeIfPresent(color, forKey: .color)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(blocks, forKey: .blocks)
         try c.encode(modifiedAt, forKey: .modifiedAt)

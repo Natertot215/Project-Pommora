@@ -1,15 +1,18 @@
 import SwiftUI
 
 /// Leaf sidebar row for a Page (`.md`) sitting either directly in a Vault's
-/// root or inside a Collection sub-folder. NOT a `SelectableRow` — Pages aren't
-/// selectable in v0.2 (the editor lands in v0.6); the row exists for visibility
-/// + rename / delete via the right-click context menu.
+/// root or inside a Collection sub-folder. Selectable; opens a placeholder
+/// detail surface until the editor lands in v0.6.
+///
+/// Owns its own `.listRowBackground` so it doesn't inherit SelectionChrome
+/// from the enclosing DisclosureGroup (VaultRow/CollectionRow).
 ///
 /// Parent routing (vault-root vs Collection) goes through `PageParent`, so the
 /// row itself stays unaware of which ContentManager overload is being called.
 struct PageRow: View {
     let page: PageMeta
     let parent: PageParent
+    @Binding var selection: SidebarSelection
     @Binding var editingID: String?
 
     @Environment(ContentManager.self) private var contentManager
@@ -19,10 +22,18 @@ struct PageRow: View {
     @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
-        if editingID == page.id {
-            renamingRow
-        } else {
-            leafLabel
+        Group {
+            if editingID == page.id {
+                renamingRow
+            } else {
+                SelectableRow(
+                    title: page.title,
+                    symbol: "doc.text",
+                    tag: SelectionTag.page(page.id),
+                    selection: $selection,
+                    accent: nil,
+                    onSelect: { selection = .page(page) }
+                )
                 .contextMenu {
                     Button("Rename") { editingID = page.id }
                     Divider()
@@ -30,28 +41,16 @@ struct PageRow: View {
                         Task { await delete() }
                     }
                 }
+            }
         }
+        .listRowBackground(
+            SelectionChrome(isSelected: SelectionTag.page(page.id).matches(selection))
+        )
     }
 
     // MARK: - Subviews
 
-    private var leafLabel: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "doc.text")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            Text(page.title)
-                .foregroundStyle(.primary)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
-    }
-
-    /// Mirrors leafLabel's HStack shape (icon stays visible during rename),
+    /// Mirrors SelectableRow's HStack shape (icon stays visible during rename),
     /// only the title slot becomes a TextField.
     private var renamingRow: some View {
         HStack(spacing: 8) {

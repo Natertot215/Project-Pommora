@@ -32,7 +32,7 @@ struct NewTopicSheet: View {
                             }
                         )) {
                             HStack {
-                                Circle().fill(space.color.swiftUIColor).frame(width: 8, height: 8)
+                                Circle().fill(space.color?.swiftUIColor ?? .secondary).frame(width: 8, height: 8)
                                 Text(space.title)
                             }
                         }

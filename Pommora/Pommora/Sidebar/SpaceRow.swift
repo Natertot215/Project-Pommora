@@ -23,7 +23,7 @@ struct SpaceRow: View {
                     symbol: space.icon ?? "circle.fill",
                     tag: SelectionTag.space(space.id),
                     selection: $selection,
-                    accent: space.color.swiftUIColor,
+                    accent: space.color?.swiftUIColor,
                     onSelect: { selection = .space(space) }
                 )
                 .contextMenu {
@@ -51,7 +51,7 @@ struct SpaceRow: View {
             Image(systemName: space.icon ?? "circle.fill")
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(space.color.swiftUIColor)
+                .foregroundStyle(space.color?.swiftUIColor ?? .primary)
                 .frame(width: 16, height: 16, alignment: .center)
             TextField("", text: $draft)
                 .textFieldStyle(.plain)

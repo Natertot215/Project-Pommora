@@ -130,7 +130,7 @@ struct ParentSpaceTags: View {
         HStack(spacing: 2) {
             ForEach(parentSpaces, id: \.id) { space in
                 Circle()
-                    .fill(space.color.swiftUIColor)
+                    .fill(space.color?.swiftUIColor ?? .secondary)
                     .frame(width: 6, height: 6)
             }
         }

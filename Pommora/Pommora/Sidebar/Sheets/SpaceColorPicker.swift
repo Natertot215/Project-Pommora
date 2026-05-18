@@ -4,7 +4,7 @@ import SwiftUI
 /// app accent rendered as a rainbow swatch. Laid out 5x2 (centered) since the
 /// option count is now a clean multiple.
 struct SpaceColorPicker: View {
-    @Binding var color: SpaceColor
+    @Binding var color: SpaceColor?
 
     private let columns = Array(repeating: GridItem(.fixed(32), spacing: 8), count: 5)
 
@@ -12,7 +12,7 @@ struct SpaceColorPicker: View {
         LazyVGrid(columns: columns, alignment: .center, spacing: 8) {
             ForEach(SpaceColor.allCases) { option in
                 Button {
-                    color = option
+                    color = (color == option) ? nil : option
                 } label: {
                     swatch(for: option)
                         .frame(width: 28, height: 28)

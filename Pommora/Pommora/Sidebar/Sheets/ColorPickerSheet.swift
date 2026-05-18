@@ -4,7 +4,7 @@ struct ColorPickerSheet: View {
     let space: Space
     @Environment(\.dismiss) private var dismiss
     @Environment(SpaceManager.self) private var spaceManager
-    @State private var draft: SpaceColor
+    @State private var draft: SpaceColor?
 
     init(space: Space) {
         self.space = space

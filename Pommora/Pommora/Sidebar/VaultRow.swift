@@ -23,6 +23,7 @@ struct VaultRow: View {
                 PageRow(
                     page: page,
                     parent: .vaultRoot(vault),
+                    selection: $selection,
                     editingID: $editingID
                 )
             }

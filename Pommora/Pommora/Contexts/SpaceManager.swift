@@ -29,7 +29,7 @@ final class SpaceManager {
         }
     }
 
-    func create(name: String, color: SpaceColor, icon: String?) async throws {
+    func create(name: String, color: SpaceColor?, icon: String?) async throws {
         do {
             try SpaceValidator.validate(title: name, existing: spaces)
 
@@ -95,7 +95,7 @@ final class SpaceManager {
         }
     }
 
-    func updateColor(_ space: Space, to color: SpaceColor) async throws {
+    func updateColor(_ space: Space, to color: SpaceColor?) async throws {
         do {
             var updated = space
             updated.color = color

@@ -5,7 +5,7 @@ struct NewSpaceSheet: View {
     @Environment(SpaceManager.self) private var spaceManager
 
     @State private var name: String = ""
-    @State private var color: SpaceColor = .blue
+    @State private var color: SpaceColor? = .blue
     @State private var icon: String? = "person.circle"
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool

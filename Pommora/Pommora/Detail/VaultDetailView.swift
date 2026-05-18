@@ -32,14 +32,13 @@ struct VaultDetailView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Image(systemName: vault.icon ?? "tray.2")
-                .font(.system(size: 28))
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading) {
-                Text(vault.title).font(.title2)
-                Text("Vault").font(.caption).foregroundStyle(.secondary)
+        HStack {
+            Label {
+                Text(vault.title)
+            } icon: {
+                Image(systemName: vault.icon ?? "tray.2")
             }
+            .font(.title2.bold())
             Spacer()
         }
         .padding()
@@ -68,11 +67,6 @@ struct VaultDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
-        }
-        .onChange(of: tableSelection) { _, newSelection in
-            guard let firstID = newSelection.first,
-                  let row = findRow(id: firstID, in: rows) else { return }
-            handleSingleSelect(row)
         }
     }
 
@@ -151,18 +145,14 @@ struct VaultDetailView: View {
 
     // MARK: - Interaction
 
-    private func handleSingleSelect(_ row: DetailRow) {
+    private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
         case .collection(let c):
             selection = .collection(c)
         case .item(let i):
             presentedItem = i
-        case .page:
-            break  // no opening surface yet
+        case .page(let p):
+            selection = .page(p)
         }
-    }
-
-    private func handleDoubleTap(_ row: DetailRow) {
-        handleSingleSelect(row)
     }
 }
