@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A37B3C30C6D46CBAB19DA98 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = B73707EDAD7844A0A9970D8E /* MarkdownEditor */; };
 		8475654BCB51D0B18213B9EB /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 5E2C4C707607B1D3CB1123E0 /* Yams */; };
 		A5002505C0E488056AD90FDF /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 0D02FB2735C4A696A974BAE7 /* SymbolPicker */; };
-		5A37B3C30C6D46CBAB19DA98 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = B73707EDAD7844A0A9970D8E /* MarkdownEditor */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -411,6 +411,7 @@
 				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Pommora/Pommora.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -444,6 +445,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Pommora/Pommora.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -619,8 +621,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Natertot215/PageEditorMD.git";
 			requirement = {
-				kind = branch;
 				branch = main;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
