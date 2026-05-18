@@ -15,7 +15,7 @@ struct PageValidatorTests {
             properties: [:],
             createdAt: Date(timeIntervalSince1970: 1716000000),
             vault: vault,
-            existingInCollection: [],
+            existingSiblings: [],
             context: .empty
         )
     }
@@ -31,7 +31,7 @@ struct PageValidatorTests {
                 properties: [:],
                 createdAt: Date(timeIntervalSince1970: 0),
                 vault: vault,
-                existingInCollection: [],
+                existingSiblings: [],
                 context: .empty
             )
         }
@@ -49,7 +49,7 @@ struct PageValidatorTests {
                 properties: [:],
                 createdAt: Date(timeIntervalSince1970: 1),
                 vault: vault,
-                existingInCollection: existing,
+                existingSiblings: existing,
                 context: .empty
             )
         }

@@ -19,7 +19,7 @@ enum ItemValidator {
         description: String = "",
         properties: [String: PropertyValue],
         vault: Vault,
-        existingInCollection: [Item],
+        existingSiblings: [Item],
         context: NexusContext,
         excluding: Item? = nil
     ) throws {
@@ -27,11 +27,11 @@ enum ItemValidator {
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
 
         let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard title.allSatisfy({ !invalidChars.contains($0) }) else {
+        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
             throw ValidationError.invalidTitleCharacters
         }
 
-        let conflict = existingInCollection.contains { i in
+        let conflict = existingSiblings.contains { i in
             i.id != excluding?.id &&
             i.title.lowercased() == trimmed.lowercased()
         }

@@ -188,10 +188,7 @@ struct ItemWindow: View {
         }
 
         var updated = item
-        updated.title = draftTitle
-        updated.icon = draftIcon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : draftIcon
-        updated.description = draftDescription
-        updated.properties = draftProperties
+        applyDraft(to: &updated)
 
         do {
             // If title changed, rename first
@@ -203,9 +200,7 @@ struct ItemWindow: View {
                     return
                 }
                 updated = refetched
-                updated.icon = draftIcon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : draftIcon
-                updated.description = draftDescription
-                updated.properties = draftProperties
+                applyDraft(to: &updated)
             }
             try await contentManager.updateItem(updated, in: coll, vault: vault)
             dismiss()
@@ -214,6 +209,16 @@ struct ItemWindow: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Apply the draft state into the given Item — used at both the pre-rename
+    /// site and the post-rename refetch site so the property-assignment block
+    /// doesn't drift between the two.
+    private func applyDraft(to item: inout Item) {
+        item.title = draftTitle
+        item.icon = draftIcon.trimmingCharacters(in: .whitespaces).isEmpty ? nil : draftIcon
+        item.description = draftDescription
+        item.properties = draftProperties
     }
 
     private func friendly(_ error: ItemValidator.ValidationError) -> String {

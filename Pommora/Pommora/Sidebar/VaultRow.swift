@@ -23,8 +23,7 @@ struct VaultRow: View {
                 PageRow(
                     page: page,
                     parent: .vaultRoot(vault),
-                    editingID: $editingID,
-                    confirmingDelete: $confirmingDelete
+                    editingID: $editingID
                 )
             }
             ForEach(vaultManager.collections(in: vault)) { coll in
@@ -113,7 +112,8 @@ struct VaultRow: View {
                 try await vaultManager.renameVault(vault, to: draft)
                 editingID = nil
             } catch {
-                // editingID stays set; user can retry
+                // pendingError set by manager; toast surfaces.
+                // editingID preserved on failure for retry.
             }
         }
     }

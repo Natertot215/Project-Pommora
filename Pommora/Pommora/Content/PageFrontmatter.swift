@@ -31,7 +31,10 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+        // `id` is load-bearing — missing id should throw rather than silently
+        // becoming "". Pages without an id were a 2026-05-15 transitional state
+        // that's now an error.
+        self.id = try c.decode(String.self, forKey: .id)
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.tier1 = try c.decodeIfPresent([String].self, forKey: .tier1) ?? []
         self.tier2 = try c.decodeIfPresent([String].self, forKey: .tier2) ?? []

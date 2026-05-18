@@ -11,7 +11,6 @@ struct PageRow: View {
     let page: PageMeta
     let parent: PageParent
     @Binding var editingID: String?
-    @Binding var confirmingDelete: SidebarConfirmation?
 
     @Environment(ContentManager.self) private var contentManager
 
@@ -92,7 +91,8 @@ struct PageRow: View {
                 }
                 editingID = nil
             } catch {
-                // editingID stays set; user can retry
+                // pendingError set by manager; toast surfaces.
+                // editingID preserved on failure for retry.
             }
         }
     }
@@ -110,7 +110,7 @@ struct PageRow: View {
                 try await contentManager.deletePage(page, inVaultRoot: vault)
             }
         } catch {
-            // Silent for now; pendingError handling is Commit 4 territory.
+            // pendingError set by manager; toast surfaces.
         }
     }
 }

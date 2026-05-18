@@ -17,7 +17,7 @@ enum PageValidator {
         properties: [String: PropertyValue],
         createdAt: Date,
         vault: Vault,
-        existingInCollection: [PageMeta],
+        existingSiblings: [PageMeta],
         context: NexusContext,
         excluding: PageMeta? = nil
     ) throws {
@@ -25,7 +25,7 @@ enum PageValidator {
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
 
         let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard title.allSatisfy({ !invalidChars.contains($0) }) else {
+        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
             throw ValidationError.invalidTitleCharacters
         }
 
@@ -34,7 +34,7 @@ enum PageValidator {
             throw ValidationError.missingCreatedAt
         }
 
-        let conflict = existingInCollection.contains { p in
+        let conflict = existingSiblings.contains { p in
             p.id != excluding?.id &&
             p.title.lowercased() == trimmed.lowercased()
         }

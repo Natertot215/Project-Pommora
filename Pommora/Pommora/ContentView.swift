@@ -56,7 +56,7 @@ struct ContentView: View {
         .task {
             await nexusManager.loadOnLaunch()
         }
-        .onChange(of: nexusManager.currentNexus) { _, nexus in
+        .onChange(of: nexusManager.currentNexus, initial: true) { _, nexus in
             constructManagers(for: nexus)
         }
     }
@@ -104,6 +104,15 @@ struct ContentView: View {
         }
     }
 
+    /// Build NexusContext provider closures for TopicManager and ContentManager validators.
+    ///
+    /// **Important — this snapshot-closure pattern is one-shot.** The returned NexusContext
+    /// captures manager arrays at construction time. Suitable for synchronous validator
+    /// runs invoked from within `@MainActor` contexts. **Do NOT store the returned
+    /// NexusContext or reuse it from a long-lived background closure** (e.g. a future
+    /// FSEventStream watcher or SQLite indexer) — by the time such a closure fires, the
+    /// captured snapshots are stale. Always rebuild the context inline at the call site,
+    /// on the @MainActor.
     private func constructManagers(for nexus: Nexus?) {
         guard let nexus else {
             spaceManager = nil

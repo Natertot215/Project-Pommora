@@ -81,7 +81,8 @@ struct SpaceRow: View {
                 try await spaceManager.rename(space, to: draft)
                 editingID = nil  // success: dismiss edit mode
             } catch {
-                // editingID stays set on failure so user can retry; pendingError will be set in Commit 4
+                // pendingError set by manager; toast surfaces.
+                // editingID preserved on failure for retry.
             }
         }
     }

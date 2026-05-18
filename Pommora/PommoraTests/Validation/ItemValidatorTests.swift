@@ -35,7 +35,7 @@ struct ItemValidatorTests {
             tier1: [spaceID], tier2: [topicID], tier3: [subtopicID],
             properties: ["status": .select("Active")],
             vault: vault,
-            existingInCollection: [],
+            existingSiblings: [],
             context: context
         )
     }
@@ -56,7 +56,7 @@ struct ItemValidatorTests {
             try ItemValidator.validate(
                 title: "X", tier1: [topicID], tier2: [], tier3: [],
                 properties: [:], vault: vault,
-                existingInCollection: [], context: context
+                existingSiblings: [], context: context
             )
         }
     }
@@ -71,7 +71,7 @@ struct ItemValidatorTests {
                 title: "X", tier1: [], tier2: [], tier3: [],
                 properties: ["count": .checkbox(true)],  // wrong type
                 vault: vault,
-                existingInCollection: [], context: .empty
+                existingSiblings: [], context: .empty
             )
         }
     }
@@ -84,7 +84,7 @@ struct ItemValidatorTests {
                 title: "X", tier1: [], tier2: [], tier3: [],
                 properties: ["phantom": .select("a")],
                 vault: vault,
-                existingInCollection: [], context: .empty
+                existingSiblings: [], context: .empty
             )
         }
     }

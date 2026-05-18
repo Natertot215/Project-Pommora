@@ -103,7 +103,8 @@ struct TopicRow: View {
                 try await topicManager.renameTopic(topic, to: draft)
                 editingID = nil
             } catch {
-                // editingID stays set; user can retry
+                // pendingError set by manager; toast surfaces.
+                // editingID preserved on failure for retry.
             }
         }
     }

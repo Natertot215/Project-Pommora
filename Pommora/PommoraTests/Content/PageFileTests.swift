@@ -33,17 +33,19 @@ struct PageFileTests {
         #expect(loaded.title == "Notes")
     }
 
-    @Test("body-only .md (no frontmatter envelope) decodes with empty frontmatter")
-    func bodyOnly() throws {
+    @Test("body-only .md (no frontmatter envelope) now throws — id is mandatory (Part 5.1)")
+    func bodyOnlyThrows() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let url = nexus.rootURL.appendingPathComponent("Plain.md")
         try FixtureFiles.write("# Plain\n\nJust body.\n", to: url)
 
-        let loaded = try PageFile.load(from: url)
-        #expect(loaded.frontmatter.id.isEmpty || loaded.frontmatter.id == "")  // either way: empty
-        #expect(loaded.body == "# Plain\n\nJust body.\n")
-        #expect(loaded.title == "Plain")
+        // Per Commit 4 / Part 5.1: PageFrontmatter.id must decode (not be
+        // defaulted to ""). A body-only .md decodes the frontmatter from "{}",
+        // which lacks the required `id`, so PageFile.load now throws.
+        #expect(throws: (any Error).self) {
+            _ = try PageFile.load(from: url)
+        }
     }
 
     @Test("frontmatter uses snake_case keys on disk")

@@ -16,7 +16,7 @@ enum VaultValidator {
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
 
         let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard title.allSatisfy({ !invalidChars.contains($0) }) else {
+        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
             throw ValidationError.invalidTitleCharacters
         }
 

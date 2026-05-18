@@ -66,77 +66,112 @@ final class TopicManager {
     // MARK: - Topic CRUD
 
     func createTopic(name: String, parents: [String], icon: String?) async throws {
-        try TopicValidator.validate(
-            title: name, parents: parents,
-            existing: topics, context: contextProvider()
-        )
+        do {
+            try TopicValidator.validate(
+                title: name, parents: parents,
+                existing: topics, context: contextProvider()
+            )
 
-        let topic = Topic(
-            id: ULID.generate(),
-            title: name,
-            parents: parents,
-            icon: icon,
-            blocks: [],
-            modifiedAt: Date()
-        )
-        let folder = NexusPaths.topicFolderURL(forTitle: name, in: nexus)
-        let meta = NexusPaths.topicMetadataURL(forTitle: name, in: nexus)
-        try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: topic)
+            let topic = Topic(
+                id: ULID.generate(),
+                title: name,
+                parents: parents,
+                icon: icon,
+                blocks: [],
+                modifiedAt: Date()
+            )
+            let folder = NexusPaths.topicFolderURL(forTitle: name, in: nexus)
+            let meta = NexusPaths.topicMetadataURL(forTitle: name, in: nexus)
+            try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: topic)
 
-        topics.append(topic)
-        subtopicsByParent[topic.id] = []
-        topics.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            topics.append(topic)
+            subtopicsByParent[topic.id] = []
+            topics.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 
     func renameTopic(_ topic: Topic, to newName: String) async throws {
-        try TopicValidator.validate(
-            title: newName, parents: topic.parents,
-            existing: topics, context: contextProvider(),
-            excluding: topic
-        )
+        do {
+            try TopicValidator.validate(
+                title: newName, parents: topic.parents,
+                existing: topics, context: contextProvider(),
+                excluding: topic
+            )
 
-        let oldFolder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
-        let newFolder = NexusPaths.topicFolderURL(forTitle: newName, in: nexus)
-        try Filesystem.renameFolder(from: oldFolder, to: newFolder)
+            let oldFolder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
+            let newFolder = NexusPaths.topicFolderURL(forTitle: newName, in: nexus)
+            try Filesystem.renameFolder(from: oldFolder, to: newFolder)
 
-        var updated = topic
-        updated.title = newName
-        updated.modifiedAt = Date()
-        let newMeta = NexusPaths.topicMetadataURL(forTitle: newName, in: nexus)
-        try updated.save(to: newMeta)
+            var updated = topic
+            updated.title = newName
+            updated.modifiedAt = Date()
+            let newMeta = NexusPaths.topicMetadataURL(forTitle: newName, in: nexus)
+            do {
+                try updated.save(to: newMeta)
+            } catch let saveError {
+                // Roll back the folder rename. If revert fails, on-disk state
+                // is inconsistent — surface with RenameAtomicityError.
+                do {
+                    try Filesystem.renameFolder(from: newFolder, to: oldFolder)
+                    throw saveError
+                } catch let revertError {
+                    let combined = RenameAtomicityError(saveError: saveError, revertError: revertError)
+                    self.pendingError = combined
+                    throw combined
+                }
+            }
 
-        if let i = topics.firstIndex(where: { $0.id == topic.id }) {
-            topics[i] = updated
-            topics.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            if let i = topics.firstIndex(where: { $0.id == topic.id }) {
+                topics[i] = updated
+                topics.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            }
+        } catch {
+            if !(error is RenameAtomicityError) {
+                self.pendingError = error
+            }
+            throw error
         }
     }
 
     func updateTopicParents(_ topic: Topic, to parents: [String]) async throws {
-        try TopicValidator.validate(
-            title: topic.title, parents: parents,
-            existing: topics, context: contextProvider(),
-            excluding: topic
-        )
+        do {
+            try TopicValidator.validate(
+                title: topic.title, parents: parents,
+                existing: topics, context: contextProvider(),
+                excluding: topic
+            )
 
-        var updated = topic
-        updated.parents = parents
-        updated.modifiedAt = Date()
-        let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
-        try updated.save(to: meta)
+            var updated = topic
+            updated.parents = parents
+            updated.modifiedAt = Date()
+            let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
+            try updated.save(to: meta)
 
-        if let i = topics.firstIndex(where: { $0.id == topic.id }) {
-            topics[i] = updated
+            if let i = topics.firstIndex(where: { $0.id == topic.id }) {
+                topics[i] = updated
+            }
+        } catch {
+            self.pendingError = error
+            throw error
         }
     }
 
     func updateTopicIcon(_ topic: Topic, to icon: String?) async throws {
-        var updated = topic
-        updated.icon = icon
-        updated.modifiedAt = Date()
-        let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
-        try updated.save(to: meta)
-        if let i = topics.firstIndex(where: { $0.id == topic.id }) {
-            topics[i] = updated
+        do {
+            var updated = topic
+            updated.icon = icon
+            updated.modifiedAt = Date()
+            let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
+            try updated.save(to: meta)
+            if let i = topics.firstIndex(where: { $0.id == topic.id }) {
+                topics[i] = updated
+            }
+        } catch {
+            self.pendingError = error
+            throw error
         }
     }
 
@@ -144,18 +179,23 @@ final class TopicManager {
     /// are converted to standalone Topics inheriting the deleted Topic's parents.
     /// On filename collision with an existing top-level Topic, auto-suffixes (2), (3), …
     func deleteTopic(_ topic: Topic, promotingSubtopics: Bool = true) async throws {
-        let subs = subtopicsByParent[topic.id] ?? []
+        do {
+            let subs = subtopicsByParent[topic.id] ?? []
 
-        if promotingSubtopics {
-            for sub in subs {
-                try await promoteSubtopicToTopic(sub, inheritedParents: topic.parents)
+            if promotingSubtopics {
+                for sub in subs {
+                    try await promoteSubtopicToTopic(sub, inheritedParents: topic.parents)
+                }
             }
-        }
 
-        let folder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
-        try Filesystem.deleteFolder(at: folder)
-        topics.removeAll { $0.id == topic.id }
-        subtopicsByParent.removeValue(forKey: topic.id)
+            let folder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
+            try Filesystem.deleteFolder(at: folder)
+            topics.removeAll { $0.id == topic.id }
+            subtopicsByParent.removeValue(forKey: topic.id)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 
     private func promoteSubtopicToTopic(_ sub: Subtopic, inheritedParents: [String]) async throws {
@@ -183,141 +223,192 @@ final class TopicManager {
     // MARK: - Subtopic CRUD
 
     func createSubtopic(name: String, inTopic parent: Topic, icon: String?) async throws {
-        let existing = subtopicsByParent[parent.id] ?? []
-        let context = NexusContext(
-            lookupSpace:    { _ in nil },
-            lookupTopic:    { [topics] id in topics.first { $0.id == id } },
-            lookupSubtopic: { _ in nil },
-            lookupVault:    { _ in nil }
-        )
-        try SubtopicValidator.validate(
-            title: name,
-            parents: [parent.id],
-            fileLocation: .init(parentFolderTitle: parent.title),
-            existing: existing,
-            context: context
-        )
+        do {
+            let existing = subtopicsByParent[parent.id] ?? []
+            let context = NexusContext(
+                lookupSpace:    { _ in nil },
+                lookupTopic:    { [topics] id in topics.first { $0.id == id } },
+                lookupSubtopic: { _ in nil },
+                lookupVault:    { _ in nil }
+            )
+            try SubtopicValidator.validate(
+                title: name,
+                parents: [parent.id],
+                fileLocation: .init(parentFolderTitle: parent.title),
+                existing: existing,
+                context: context
+            )
 
-        let sub = Subtopic(
-            id: ULID.generate(),
-            title: name,
-            parents: [parent.id],
-            linkedRelations: [],
-            icon: icon,
-            blocks: [],
-            modifiedAt: Date()
-        )
-        let url = NexusPaths.subtopicFileURL(
-            forTitle: name, inTopicTitled: parent.title, in: nexus
-        )
-        try sub.save(to: url)
+            let sub = Subtopic(
+                id: ULID.generate(),
+                title: name,
+                parents: [parent.id],
+                linkedRelations: [],
+                icon: icon,
+                blocks: [],
+                modifiedAt: Date()
+            )
+            let url = NexusPaths.subtopicFileURL(
+                forTitle: name, inTopicTitled: parent.title, in: nexus
+            )
+            try sub.save(to: url)
 
-        var arr = subtopicsByParent[parent.id] ?? []
-        arr.append(sub)
-        arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        subtopicsByParent[parent.id] = arr
+            var arr = subtopicsByParent[parent.id] ?? []
+            arr.append(sub)
+            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            subtopicsByParent[parent.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 
     func renameSubtopic(_ sub: Subtopic, to newName: String) async throws {
-        guard let parentID = sub.parents.first,
-              let parent = topics.first(where: { $0.id == parentID })
-        else { throw SubtopicValidator.ValidationError.missingParent }
+        do {
+            guard let parentID = sub.parents.first,
+                  let parent = topics.first(where: { $0.id == parentID })
+            else { throw SubtopicValidator.ValidationError.missingParent }
 
-        let existing = subtopicsByParent[parent.id] ?? []
-        let context = NexusContext(
-            lookupSpace:    { _ in nil },
-            lookupTopic:    { [topics] id in topics.first { $0.id == id } },
-            lookupSubtopic: { _ in nil },
-            lookupVault:    { _ in nil }
-        )
-        try SubtopicValidator.validate(
-            title: newName,
-            parents: [parent.id],
-            fileLocation: .init(parentFolderTitle: parent.title),
-            existing: existing,
-            context: context,
-            excluding: sub
-        )
+            let existing = subtopicsByParent[parent.id] ?? []
+            let context = NexusContext(
+                lookupSpace:    { _ in nil },
+                lookupTopic:    { [topics] id in topics.first { $0.id == id } },
+                lookupSubtopic: { _ in nil },
+                lookupVault:    { _ in nil }
+            )
+            try SubtopicValidator.validate(
+                title: newName,
+                parents: [parent.id],
+                fileLocation: .init(parentFolderTitle: parent.title),
+                existing: existing,
+                context: context,
+                excluding: sub
+            )
 
-        let oldURL = NexusPaths.subtopicFileURL(
-            forTitle: sub.title, inTopicTitled: parent.title, in: nexus
-        )
-        let newURL = NexusPaths.subtopicFileURL(
-            forTitle: newName, inTopicTitled: parent.title, in: nexus
-        )
-        var updated = sub
-        updated.title = newName
-        updated.modifiedAt = Date()
-        try Filesystem.renameFile(from: oldURL, to: newURL)
-        try updated.save(to: newURL)
+            let oldURL = NexusPaths.subtopicFileURL(
+                forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+            )
+            let newURL = NexusPaths.subtopicFileURL(
+                forTitle: newName, inTopicTitled: parent.title, in: nexus
+            )
+            var updated = sub
+            updated.title = newName
+            updated.modifiedAt = Date()
+            try Filesystem.renameFile(from: oldURL, to: newURL)
+            do {
+                try updated.save(to: newURL)
+            } catch let saveError {
+                do {
+                    try Filesystem.renameFile(from: newURL, to: oldURL)
+                    throw saveError
+                } catch let revertError {
+                    let combined = RenameAtomicityError(saveError: saveError, revertError: revertError)
+                    self.pendingError = combined
+                    throw combined
+                }
+            }
 
-        var arr = subtopicsByParent[parent.id] ?? []
-        if let i = arr.firstIndex(where: { $0.id == sub.id }) {
-            arr[i] = updated
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            var arr = subtopicsByParent[parent.id] ?? []
+            if let i = arr.firstIndex(where: { $0.id == sub.id }) {
+                arr[i] = updated
+                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            }
+            subtopicsByParent[parent.id] = arr
+        } catch {
+            if !(error is RenameAtomicityError) {
+                self.pendingError = error
+            }
+            throw error
         }
-        subtopicsByParent[parent.id] = arr
     }
 
     func moveSubtopic(_ sub: Subtopic, toTopic newParent: Topic) async throws {
-        guard let oldParentID = sub.parents.first,
-              let oldParent = topics.first(where: { $0.id == oldParentID })
-        else { throw SubtopicValidator.ValidationError.missingParent }
-        guard oldParent.id != newParent.id else { return }
+        do {
+            guard let oldParentID = sub.parents.first,
+                  let oldParent = topics.first(where: { $0.id == oldParentID })
+            else { throw SubtopicValidator.ValidationError.missingParent }
+            guard oldParent.id != newParent.id else { return }
 
-        let oldURL = NexusPaths.subtopicFileURL(
-            forTitle: sub.title, inTopicTitled: oldParent.title, in: nexus
-        )
-        let newURL = NexusPaths.subtopicFileURL(
-            forTitle: sub.title, inTopicTitled: newParent.title, in: nexus
-        )
+            let oldURL = NexusPaths.subtopicFileURL(
+                forTitle: sub.title, inTopicTitled: oldParent.title, in: nexus
+            )
+            let newURL = NexusPaths.subtopicFileURL(
+                forTitle: sub.title, inTopicTitled: newParent.title, in: nexus
+            )
 
-        var updated = sub
-        updated.parents = [newParent.id]
-        updated.modifiedAt = Date()
-        try Filesystem.renameFile(from: oldURL, to: newURL)
-        try updated.save(to: newURL)
+            var updated = sub
+            updated.parents = [newParent.id]
+            updated.modifiedAt = Date()
+            try Filesystem.renameFile(from: oldURL, to: newURL)
+            do {
+                try updated.save(to: newURL)
+            } catch let saveError {
+                do {
+                    try Filesystem.renameFile(from: newURL, to: oldURL)
+                    throw saveError
+                } catch let revertError {
+                    let combined = RenameAtomicityError(saveError: saveError, revertError: revertError)
+                    self.pendingError = combined
+                    throw combined
+                }
+            }
 
-        var oldArr = subtopicsByParent[oldParent.id] ?? []
-        oldArr.removeAll { $0.id == sub.id }
-        subtopicsByParent[oldParent.id] = oldArr
+            var oldArr = subtopicsByParent[oldParent.id] ?? []
+            oldArr.removeAll { $0.id == sub.id }
+            subtopicsByParent[oldParent.id] = oldArr
 
-        var newArr = subtopicsByParent[newParent.id] ?? []
-        newArr.append(updated)
-        newArr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        subtopicsByParent[newParent.id] = newArr
+            var newArr = subtopicsByParent[newParent.id] ?? []
+            newArr.append(updated)
+            newArr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            subtopicsByParent[newParent.id] = newArr
+        } catch {
+            if !(error is RenameAtomicityError) {
+                self.pendingError = error
+            }
+            throw error
+        }
     }
 
     func deleteSubtopic(_ sub: Subtopic) async throws {
-        guard let parentID = sub.parents.first,
-              let parent = topics.first(where: { $0.id == parentID })
-        else { throw SubtopicValidator.ValidationError.missingParent }
+        do {
+            guard let parentID = sub.parents.first,
+                  let parent = topics.first(where: { $0.id == parentID })
+            else { throw SubtopicValidator.ValidationError.missingParent }
 
-        let url = NexusPaths.subtopicFileURL(
-            forTitle: sub.title, inTopicTitled: parent.title, in: nexus
-        )
-        try Filesystem.deleteFile(at: url)
-        var arr = subtopicsByParent[parent.id] ?? []
-        arr.removeAll { $0.id == sub.id }
-        subtopicsByParent[parent.id] = arr
+            let url = NexusPaths.subtopicFileURL(
+                forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+            )
+            try Filesystem.deleteFile(at: url)
+            var arr = subtopicsByParent[parent.id] ?? []
+            arr.removeAll { $0.id == sub.id }
+            subtopicsByParent[parent.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 
     func updateSubtopicIcon(_ sub: Subtopic, to icon: String?) async throws {
-        guard let parentID = sub.parents.first,
-              let parent = topics.first(where: { $0.id == parentID })
-        else { throw SubtopicValidator.ValidationError.missingParent }
+        do {
+            guard let parentID = sub.parents.first,
+                  let parent = topics.first(where: { $0.id == parentID })
+            else { throw SubtopicValidator.ValidationError.missingParent }
 
-        var updated = sub
-        updated.icon = icon
-        updated.modifiedAt = Date()
-        let url = NexusPaths.subtopicFileURL(
-            forTitle: sub.title, inTopicTitled: parent.title, in: nexus
-        )
-        try updated.save(to: url)
-        var arr = subtopicsByParent[parent.id] ?? []
-        if let i = arr.firstIndex(where: { $0.id == sub.id }) {
-            arr[i] = updated
+            var updated = sub
+            updated.icon = icon
+            updated.modifiedAt = Date()
+            let url = NexusPaths.subtopicFileURL(
+                forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+            )
+            try updated.save(to: url)
+            var arr = subtopicsByParent[parent.id] ?? []
+            if let i = arr.firstIndex(where: { $0.id == sub.id }) {
+                arr[i] = updated
+            }
+            subtopicsByParent[parent.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
         }
-        subtopicsByParent[parent.id] = arr
     }
 }

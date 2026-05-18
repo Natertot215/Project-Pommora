@@ -56,11 +56,20 @@ struct IconPickerSheet: View {
     }
 
     private func save(newIcon: String?) async {
+        // pendingError is set by each manager on failure; SidebarToast surfaces it.
         switch target {
-        case .space(let s):    try? await spaceManager.updateIcon(s, to: newIcon)
-        case .topic(let t):    try? await topicManager.updateTopicIcon(t, to: newIcon)
-        case .subtopic(let s): try? await topicManager.updateSubtopicIcon(s, to: newIcon)
-        case .vault(let v):    try? await vaultManager.updateVaultIcon(v, to: newIcon)
+        case .space(let s):
+            do { try await spaceManager.updateIcon(s, to: newIcon) }
+            catch { /* pendingError set by manager; toast surfaces */ }
+        case .topic(let t):
+            do { try await topicManager.updateTopicIcon(t, to: newIcon) }
+            catch { /* pendingError set by manager; toast surfaces */ }
+        case .subtopic(let s):
+            do { try await topicManager.updateSubtopicIcon(s, to: newIcon) }
+            catch { /* pendingError set by manager; toast surfaces */ }
+        case .vault(let v):
+            do { try await vaultManager.updateVaultIcon(v, to: newIcon) }
+            catch { /* pendingError set by manager; toast surfaces */ }
         }
     }
 }

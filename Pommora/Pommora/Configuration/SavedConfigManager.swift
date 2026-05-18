@@ -30,7 +30,12 @@ final class SavedConfigManager {
     }
 
     func save() async throws {
-        let url = NexusPaths.savedConfigURL(in: nexus)
-        try AtomicJSON.write(config, to: url)
+        do {
+            let url = NexusPaths.savedConfigURL(in: nexus)
+            try AtomicJSON.write(config, to: url)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 }

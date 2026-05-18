@@ -30,7 +30,12 @@ final class TierConfigManager {
     }
 
     func save() async throws {
-        let url = NexusPaths.tierConfigURL(in: nexus)
-        try AtomicJSON.write(config, to: url)
+        do {
+            let url = NexusPaths.tierConfigURL(in: nexus)
+            try AtomicJSON.write(config, to: url)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 }

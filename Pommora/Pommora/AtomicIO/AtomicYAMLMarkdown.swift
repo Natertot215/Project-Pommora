@@ -17,6 +17,13 @@ import Yams
 /// - If the file does NOT start with `---\n`, treats the whole file as body and decodes
 ///   an empty frontmatter (caller's `T` must support init from `{}`).
 /// - If `---\n` opens but no closing `\n---\n` is found, throws `LoadError.malformedEnvelope`.
+enum AtomicYAMLMarkdownError: LocalizedError {
+    case utf8EncodingFailed
+    var errorDescription: String? {
+        "Failed to encode YAML frontmatter as UTF-8 — file not written."
+    }
+}
+
 enum AtomicYAMLMarkdown {
 
     enum LoadError: Error, Equatable {
@@ -39,7 +46,10 @@ enum AtomicYAMLMarkdown {
     static func write<T: Codable>(frontmatter: T, body: String, to url: URL) throws {
         let fmText = try YAMLEncoder().encode(frontmatter)
         let combined = "---\n\(fmText)---\n\n\(body)"
-        try combined.data(using: .utf8)!.write(to: url, options: [.atomic])
+        guard let data = combined.data(using: .utf8) else {
+            throw AtomicYAMLMarkdownError.utf8EncodingFailed
+        }
+        try data.write(to: url, options: [.atomic])
     }
 
     // MARK: - Internal split

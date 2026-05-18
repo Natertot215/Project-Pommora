@@ -30,8 +30,13 @@ final class HomepageManager {
     }
 
     func save() async throws {
-        homepage.modifiedAt = Date()
-        let url = NexusPaths.homepageURL(in: nexus)
-        try AtomicJSON.write(homepage, to: url)
+        do {
+            homepage.modifiedAt = Date()
+            let url = NexusPaths.homepageURL(in: nexus)
+            try AtomicJSON.write(homepage, to: url)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 }

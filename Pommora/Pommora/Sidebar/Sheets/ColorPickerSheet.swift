@@ -22,7 +22,8 @@ struct ColorPickerSheet: View {
                 Spacer()
                 Button("Save") {
                     Task {
-                        try? await spaceManager.updateColor(space, to: draft)
+                        do { try await spaceManager.updateColor(space, to: draft) }
+                        catch { /* pendingError set by manager; toast surfaces */ }
                         dismiss()
                     }
                 }

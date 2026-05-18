@@ -19,29 +19,35 @@ struct SidebarView: View {
     @State private var confirmingDelete: SidebarConfirmation? = nil
 
     var body: some View {
-        List {
-            SavedSection(selection: $selection)
-            SpacesSection(
-                selection: $selection,
-                editingID: $editingID,
-                presentedSheet: $presentedSheet,
-                confirmingDelete: $confirmingDelete
-            )
-            TopicsSection(
-                selection: $selection,
-                editingID: $editingID,
-                presentedSheet: $presentedSheet,
-                confirmingDelete: $confirmingDelete
-            )
-            VaultsSection(
-                selection: $selection,
-                editingID: $editingID,
-                presentedSheet: $presentedSheet,
-                confirmingDelete: $confirmingDelete
-            )
+        VStack(spacing: 0) {
+            // Toast surfaces CRUD failures via each manager's pendingError.
+            // Lives ABOVE the List so it doesn't touch the load-bearing
+            // Section / SectionHeader layout inside.
+            SidebarToast()
+            List {
+                SavedSection(selection: $selection)
+                SpacesSection(
+                    selection: $selection,
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
+                )
+                TopicsSection(
+                    selection: $selection,
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
+                )
+                VaultsSection(
+                    selection: $selection,
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
+                )
+            }
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
         }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .newSpace:                  NewSpaceSheet()
@@ -100,36 +106,64 @@ struct SidebarView: View {
         switch confirmation {
         case .deleteSpace(let s):
             Button("Delete", role: .destructive) {
-                Task { try? await spaceManager.delete(s); confirmingDelete = nil }
+                Task {
+                    do { try await spaceManager.delete(s) }
+                    catch { /* pendingError set by manager; toast surfaces */ }
+                    confirmingDelete = nil
+                }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         case .deleteTopic(let t, let count):
             if count > 0 {
                 Button("Delete & Promote Sub-topics", role: .destructive) {
-                    Task { try? await topicManager.deleteTopic(t, promotingSubtopics: true); confirmingDelete = nil }
+                    Task {
+                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) }
+                        catch { /* pendingError set by manager; toast surfaces */ }
+                        confirmingDelete = nil
+                    }
                 }
                 Button("Delete All", role: .destructive) {
-                    Task { try? await topicManager.deleteTopic(t, promotingSubtopics: false); confirmingDelete = nil }
+                    Task {
+                        do { try await topicManager.deleteTopic(t, promotingSubtopics: false) }
+                        catch { /* pendingError set by manager; toast surfaces */ }
+                        confirmingDelete = nil
+                    }
                 }
             } else {
                 Button("Delete", role: .destructive) {
-                    Task { try? await topicManager.deleteTopic(t, promotingSubtopics: true); confirmingDelete = nil }
+                    Task {
+                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) }
+                        catch { /* pendingError set by manager; toast surfaces */ }
+                        confirmingDelete = nil
+                    }
                 }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         case .deleteSubtopic(let s):
             Button("Delete", role: .destructive) {
-                Task { try? await topicManager.deleteSubtopic(s); confirmingDelete = nil }
+                Task {
+                    do { try await topicManager.deleteSubtopic(s) }
+                    catch { /* pendingError set by manager; toast surfaces */ }
+                    confirmingDelete = nil
+                }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         case .deleteVault(let v, _):
             Button("Delete", role: .destructive) {
-                Task { try? await vaultManager.deleteVault(v); confirmingDelete = nil }
+                Task {
+                    do { try await vaultManager.deleteVault(v) }
+                    catch { /* pendingError set by manager; toast surfaces */ }
+                    confirmingDelete = nil
+                }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         case .deleteCollection(let c):
             Button("Delete", role: .destructive) {
-                Task { try? await vaultManager.deleteCollection(c); confirmingDelete = nil }
+                Task {
+                    do { try await vaultManager.deleteCollection(c) }
+                    catch { /* pendingError set by manager; toast surfaces */ }
+                    confirmingDelete = nil
+                }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         }

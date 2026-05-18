@@ -22,8 +22,7 @@ struct CollectionRow: View {
                 PageRow(
                     page: page,
                     parent: .collection(collection, vault: parentVault),
-                    editingID: $editingID,
-                    confirmingDelete: $confirmingDelete
+                    editingID: $editingID
                 )
             }
         } label: {
@@ -100,7 +99,8 @@ struct CollectionRow: View {
                 try await vaultManager.renameCollection(collection, to: draft)
                 editingID = nil
             } catch {
-                // editingID stays set; user can retry
+                // pendingError set by manager; toast surfaces.
+                // editingID preserved on failure for retry.
             }
         }
     }

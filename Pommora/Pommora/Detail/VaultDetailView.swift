@@ -111,7 +111,7 @@ struct VaultDetailView: View {
                 title: coll.title,
                 kind: .collection(coll),
                 iconName: "folder",
-                modifiedAt: Date(),
+                modifiedAt: coll.modifiedAt,
                 children: kids
             )
         }
