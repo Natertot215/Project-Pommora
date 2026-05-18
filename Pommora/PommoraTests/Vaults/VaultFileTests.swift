@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("VaultFile")
@@ -23,10 +24,10 @@ struct VaultFileTests {
                     type: .select,
                     selectOptions: [
                         PropertyDefinition.SelectOption(value: "active", label: "Active", color: .green),
-                        PropertyDefinition.SelectOption(value: "done", label: "Done", color: .gray)
+                        PropertyDefinition.SelectOption(value: "done", label: "Done", color: .gray),
                     ]
                 ),
-                PropertyDefinition(name: "due", type: .date, dateIncludesTime: false)
+                PropertyDefinition(name: "due", type: .date, dateIncludesTime: false),
             ],
             views: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)

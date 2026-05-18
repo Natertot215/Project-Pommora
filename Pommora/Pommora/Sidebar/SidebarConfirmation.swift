@@ -10,11 +10,11 @@ enum SidebarConfirmation: Identifiable {
 
     var id: String {
         switch self {
-        case .deleteSpace(let s):       return "deleteSpace-\(s.id)"
-        case .deleteTopic(let t, _):    return "deleteTopic-\(t.id)"
-        case .deleteSubtopic(let s):    return "deleteSubtopic-\(s.id)"
-        case .deleteVault(let v, _):    return "deleteVault-\(v.id)"
-        case .deleteCollection(let c):  return "deleteCollection-\(c.id)"
+        case .deleteSpace(let s): return "deleteSpace-\(s.id)"
+        case .deleteTopic(let t, _): return "deleteTopic-\(t.id)"
+        case .deleteSubtopic(let s): return "deleteSubtopic-\(s.id)"
+        case .deleteVault(let v, _): return "deleteVault-\(v.id)"
+        case .deleteCollection(let c): return "deleteCollection-\(c.id)"
         }
     }
 }

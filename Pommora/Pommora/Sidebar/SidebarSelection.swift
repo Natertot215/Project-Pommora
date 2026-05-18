@@ -4,7 +4,7 @@ import Foundation
 /// ContentView. Detail pane switches on this to choose the right detail view.
 enum SidebarSelection: Equatable, Hashable, Sendable {
     case none
-    case savedKey(String)            // "homepage" | "calendar" | "recents"
+    case savedKey(String)  // "homepage" | "calendar" | "recents"
     case space(Space)
     case topic(Topic)
     case subtopic(Subtopic)
@@ -26,13 +26,13 @@ enum SelectionTag: Equatable, Hashable, Sendable {
 
     func matches(_ selection: SidebarSelection) -> Bool {
         switch (self, selection) {
-        case (.savedKey(let k), .savedKey(let s)):       return k == s
-        case (.space(let id), .space(let s)):            return id == s.id
-        case (.topic(let id), .topic(let t)):            return id == t.id
-        case (.subtopic(let id), .subtopic(let st)):     return id == st.id
-        case (.vault(let id), .vault(let v)):            return id == v.id
-        case (.collection(let id), .collection(let c)):  return id == c.id
-        case (.page(let id), .page(let p)):              return id == p.id
+        case (.savedKey(let k), .savedKey(let s)): return k == s
+        case (.space(let id), .space(let s)): return id == s.id
+        case (.topic(let id), .topic(let t)): return id == t.id
+        case (.subtopic(let id), .subtopic(let st)): return id == st.id
+        case (.vault(let id), .vault(let v)): return id == v.id
+        case (.collection(let id), .collection(let c)): return id == c.id
+        case (.page(let id), .page(let p)): return id == p.id
         default: return false
         }
     }

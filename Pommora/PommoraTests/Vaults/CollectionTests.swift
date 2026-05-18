@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("CollectionFile")
@@ -51,8 +52,8 @@ struct CollectionTests {
         #expect(raw.contains("\"vault_id\""))
         #expect(raw.contains("\"modified_at\""))
         #expect(!raw.contains("\"vaultID\""))
-        #expect(!raw.contains("\"title\""))     // title not persisted
-        #expect(!raw.contains("\"folderURL\"")) // folderURL not persisted
+        #expect(!raw.contains("\"title\""))  // title not persisted
+        #expect(!raw.contains("\"folderURL\""))  // folderURL not persisted
     }
 
     @Test("Collection title derives from parent folder name on load")

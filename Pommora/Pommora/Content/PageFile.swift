@@ -5,7 +5,7 @@ import Foundation
 struct PageFile: Equatable, Sendable {
     var frontmatter: PageFrontmatter
     var body: String
-    var title: String       // derived from filename on load; not persisted
+    var title: String  // derived from filename on load; not persisted
 
     init(frontmatter: PageFrontmatter, body: String, title: String = "") {
         self.frontmatter = frontmatter

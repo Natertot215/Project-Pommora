@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 /// Vault-root Content (Pages + Items sitting directly in a Vault folder, not
@@ -111,12 +112,14 @@ struct ContentManagerVaultRootTests {
         let page = manager.pages(in: vault).first!
 
         try await manager.renamePage(page, to: "Ideas", inVaultRoot: vault)
-        #expect(!FileManager.default.fileExists(
-            atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: folder).path
-        ))
-        #expect(FileManager.default.fileExists(
-            atPath: NexusPaths.pageFileURL(forTitle: "Ideas", in: folder).path
-        ))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: folder).path
+            ))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Ideas", in: folder).path
+            ))
         #expect(manager.pages(in: vault).first?.title == "Ideas")
     }
 
@@ -129,9 +132,10 @@ struct ContentManagerVaultRootTests {
         let page = manager.pages(in: vault).first!
 
         try await manager.deletePage(page, inVaultRoot: vault)
-        #expect(!FileManager.default.fileExists(
-            atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: folder).path
-        ))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: folder).path
+            ))
         #expect(manager.pages(in: vault).isEmpty)
     }
 
@@ -139,8 +143,9 @@ struct ContentManagerVaultRootTests {
 
     private func setup() async throws -> (Nexus, Vault, ContentManager) {
         let nexus = try TempNexus.make()
-        let vault = Vault(id: ULID.generate(), title: "V", icon: nil,
-                          properties: [], views: [], modifiedAt: Date())
+        let vault = Vault(
+            id: ULID.generate(), title: "V", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))

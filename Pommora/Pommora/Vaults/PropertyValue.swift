@@ -24,7 +24,7 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
     case datetime(Date)
     case select(String)
     case multiSelect([String])
-    case relation(String)        // ULID of target entity; encodes as {"$rel": id}
+    case relation(String)  // ULID of target entity; encodes as {"$rel": id}
     case url(URL)
     case null
 
@@ -37,40 +37,49 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
             return
         }
         if let b = try? c.decode(Bool.self) {
-            self = .checkbox(b); return
+            self = .checkbox(b)
+            return
         }
         if let n = try? c.decode(Double.self) {
-            self = .number(n); return
+            self = .number(n)
+            return
         }
         if let arr = try? c.decode([String].self) {
-            self = .multiSelect(arr); return
+            self = .multiSelect(arr)
+            return
         }
         // Tagged-object relation: {"$rel": "01H..."}
         if let obj = try? c.decode([String: String].self),
-           obj.count == 1,
-           let id = obj["$rel"] {
-            self = .relation(id); return
+            obj.count == 1,
+            let id = obj["$rel"]
+        {
+            self = .relation(id)
+            return
         }
         if let s = try? c.decode(String.self) {
             // Try URL
             if let url = URL(string: s), url.scheme != nil {
-                self = .url(url); return
+                self = .url(url)
+                return
             }
             // Try ISO-8601 datetime
             let isoDateTime = ISO8601DateFormatter()
             isoDateTime.formatOptions = [.withInternetDateTime]
             if let d = isoDateTime.date(from: s) {
-                self = .datetime(d); return
+                self = .datetime(d)
+                return
             }
             // Try yyyy-MM-dd
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             dateFormatter.timeZone = TimeZone(identifier: "UTC")
             if let d = dateFormatter.date(from: s) {
-                self = .date(d); return
+                self = .date(d)
+                return
             }
             // Fallthrough: plain string → treat as select value
-            self = .select(s); return
+            self = .select(s)
+            return
         }
         throw DecodingError.dataCorruptedError(
             in: c,
@@ -81,13 +90,13 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
     func encode(to encoder: any Encoder) throws {
         var c = encoder.singleValueContainer()
         switch self {
-        case .number(let n):       try c.encode(n)
-        case .checkbox(let b):     try c.encode(b)
-        case .select(let s):       try c.encode(s)
+        case .number(let n): try c.encode(n)
+        case .checkbox(let b): try c.encode(b)
+        case .select(let s): try c.encode(s)
         case .multiSelect(let xs): try c.encode(xs)
-        case .relation(let id):    try c.encode(["$rel": id])
-        case .url(let u):          try c.encode(u.absoluteString)
-        case .null:                try c.encodeNil()
+        case .relation(let id): try c.encode(["$rel": id])
+        case .url(let u): try c.encode(u.absoluteString)
+        case .null: try c.encodeNil()
         case .date(let d):
             let f = DateFormatter()
             f.dateFormat = "yyyy-MM-dd"

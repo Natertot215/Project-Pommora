@@ -35,7 +35,7 @@ final class VaultManager {
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent("_vault.json")
                 guard Filesystem.fileExists(at: metaURL),
-                      let vault = try? Vault.load(from: metaURL)
+                    let vault = try? Vault.load(from: metaURL)
                 else { continue }
                 loadedVaults.append(vault)
 

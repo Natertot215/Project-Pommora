@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @MainActor
@@ -69,9 +70,10 @@ struct TopicManagerTests {
 
         try await manager.deleteTopic(topic, promotingSubtopics: true)
         // Parent folder gone
-        #expect(!FileManager.default.fileExists(
-            atPath: NexusPaths.topicFolderURL(forTitle: "Productivity", in: nexus).path
-        ))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.topicFolderURL(forTitle: "Productivity", in: nexus).path
+            ))
         // Sub-topics promoted to top-level Topics with their own folders
         let gtdMeta = NexusPaths.topicMetadataURL(forTitle: "GTD", in: nexus)
         let tbMeta = NexusPaths.topicMetadataURL(forTitle: "Time blocking", in: nexus)
@@ -94,9 +96,10 @@ struct TopicManagerTests {
         try await manager.createSubtopic(name: "GTD", inTopic: topic, icon: nil)
 
         try await manager.deleteTopic(topic, promotingSubtopics: false)
-        #expect(!FileManager.default.fileExists(
-            atPath: NexusPaths.topicFolderURL(forTitle: "Productivity", in: nexus).path
-        ))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.topicFolderURL(forTitle: "Productivity", in: nexus).path
+            ))
         #expect(manager.topics.isEmpty)
     }
 
@@ -113,12 +116,14 @@ struct TopicManagerTests {
         let sub = manager.subtopics(in: a).first!
 
         try await manager.moveSubtopic(sub, toTopic: b)
-        #expect(!FileManager.default.fileExists(
-            atPath: NexusPaths.subtopicFileURL(forTitle: "X", inTopicTitled: "A", in: nexus).path
-        ))
-        #expect(FileManager.default.fileExists(
-            atPath: NexusPaths.subtopicFileURL(forTitle: "X", inTopicTitled: "B", in: nexus).path
-        ))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.subtopicFileURL(forTitle: "X", inTopicTitled: "A", in: nexus).path
+            ))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.subtopicFileURL(forTitle: "X", inTopicTitled: "B", in: nexus).path
+            ))
         #expect(manager.subtopics(in: a).isEmpty)
         #expect(manager.subtopics(in: b).count == 1)
     }

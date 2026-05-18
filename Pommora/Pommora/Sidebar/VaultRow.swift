@@ -93,7 +93,10 @@ struct VaultRow: View {
                 .textFieldStyle(.plain)
                 .focused($renameFocused)
                 .onSubmit { commit() }
-                .onKeyPress(.escape) { cancel(); return .handled }
+                .onKeyPress(.escape) {
+                    cancel()
+                    return .handled
+                }
                 .onChange(of: renameFocused) { _, focused in
                     if !focused && !isCommitting && editingID == vault.id {
                         cancel()
@@ -112,7 +115,10 @@ struct VaultRow: View {
     }
 
     private func commit() {
-        guard draft != vault.title else { editingID = nil; return }
+        guard draft != vault.title else {
+            editingID = nil
+            return
+        }
         isCommitting = true
         Task {
             defer { isCommitting = false }

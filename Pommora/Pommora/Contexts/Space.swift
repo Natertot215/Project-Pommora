@@ -3,11 +3,11 @@ import Foundation
 /// Tier-1 Context entity — broad life domain.
 /// On disk: `.nexus/spaces/<Title>.space.json` (filename = title; no `title` field on disk).
 struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String            // ULID
-    var tier: Int             // always 1
-    var title: String         // populated from filename on load
-    var color: SpaceColor?    // nil = no color picked (renders without tint)
-    var icon: String?         // SF Symbol name
+    var id: String  // ULID
+    var tier: Int  // always 1
+    var title: String  // populated from filename on load
+    var color: SpaceColor?  // nil = no color picked (renders without tint)
+    var icon: String?  // SF Symbol name
     var blocks: [ContextBlock]
     var modifiedAt: Date
 
@@ -31,7 +31,8 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
     // MARK: - Codable — omits `title` on disk; tier always written as 1
 
     enum CodingKeys: String, CodingKey {
-        case id, tier, color, icon, blocks, modifiedAt = "modified_at"
+        case id, tier, color, icon, blocks
+        case modifiedAt = "modified_at"
     }
 
     init(from decoder: any Decoder) throws {

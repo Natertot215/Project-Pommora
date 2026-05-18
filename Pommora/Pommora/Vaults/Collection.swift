@@ -4,10 +4,10 @@ import Foundation
 /// Title derives from folder name (filename-as-title rule).
 /// On disk: `<nexus>/<Vault>/<Collection>/_collection.json`.
 struct Collection: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String                   // ULID from _collection.json
-    var vaultID: String              // ULID of parent Vault
-    var title: String                // derived from folder name on load (not persisted)
-    var folderURL: URL               // runtime only (not persisted)
+    var id: String  // ULID from _collection.json
+    var vaultID: String  // ULID of parent Vault
+    var title: String  // derived from folder name on load (not persisted)
+    var folderURL: URL  // runtime only (not persisted)
     var modifiedAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -34,7 +34,7 @@ struct Collection: Codable, Equatable, Identifiable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(String.self, forKey: .id)
         self.vaultID = try c.decode(String.self, forKey: .vaultID)
-        self.title = ""              // caller (load(from:)) overwrites from folder name
+        self.title = ""  // caller (load(from:)) overwrites from folder name
         self.folderURL = URL(fileURLWithPath: "/")  // caller overwrites
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
     }

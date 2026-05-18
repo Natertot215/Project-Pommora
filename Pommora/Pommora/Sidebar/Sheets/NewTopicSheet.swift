@@ -24,13 +24,14 @@ struct NewTopicSheet: View {
                 }
                 Section("Parent Spaces (optional)") {
                     ForEach(spaceManager.spaces) { space in
-                        Toggle(isOn: Binding(
-                            get: { selectedParents.contains(space.id) },
-                            set: { v in
-                                if v { selectedParents.insert(space.id) }
-                                else { selectedParents.remove(space.id) }
-                            }
-                        )) {
+                        Toggle(
+                            isOn: Binding(
+                                get: { selectedParents.contains(space.id) },
+                                set: { v in
+                                    if v { selectedParents.insert(space.id) } else { selectedParents.remove(space.id) }
+                                }
+                            )
+                        ) {
                             HStack {
                                 Circle().fill(space.color?.swiftUIColor ?? .secondary).frame(width: 8, height: 8)
                                 Text(space.title)

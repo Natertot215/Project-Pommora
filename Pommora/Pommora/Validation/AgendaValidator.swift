@@ -36,7 +36,7 @@ enum AgendaValidator {
         if dueAllDay && dueAt == nil { throw ValidationError.dueAllDayWithoutDue }
 
         // type property required + value must be one of schema's type-Select options
-        guard case let .select(typeValue)? = properties["type"] else {
+        guard case .select(let typeValue)? = properties["type"] else {
             throw ValidationError.missingTypeProperty
         }
         guard let typeProp = schema.properties.first(where: { $0.name == "type" }) else {

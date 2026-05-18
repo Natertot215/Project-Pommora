@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @MainActor
@@ -87,9 +88,11 @@ struct SpaceManagerTests {
         defer { TempNexus.cleanup(nexus) }
         let dir = NexusPaths.spacesDir(in: nexus)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try Space(id: "01H", title: "Pre-existing", color: .green, icon: nil,
-                  blocks: [], modifiedAt: Date())
-            .save(to: NexusPaths.spaceFileURL(forTitle: "Pre-existing", in: nexus))
+        try Space(
+            id: "01H", title: "Pre-existing", color: .green, icon: nil,
+            blocks: [], modifiedAt: Date()
+        )
+        .save(to: NexusPaths.spaceFileURL(forTitle: "Pre-existing", in: nexus))
 
         let manager = SpaceManager(nexus: nexus)
         await manager.loadAll()

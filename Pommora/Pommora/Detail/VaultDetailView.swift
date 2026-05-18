@@ -4,13 +4,13 @@ struct VaultDetailView: View {
     let vault: Vault
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
-    @Binding var presentedItem: Item?           // drives Item Window popover
+    @Binding var presentedItem: Item?  // drives Item Window popover
 
     @Environment(VaultManager.self) private var vaultManager
     @Environment(ContentManager.self) private var contentManager
 
     @State private var tableSelection: Set<String> = []
-    @State private var expanded: Set<String> = []   // row IDs
+    @State private var expanded: Set<String> = []  // row IDs
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

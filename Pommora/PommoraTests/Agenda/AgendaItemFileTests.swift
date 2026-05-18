@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("AgendaItemFile")
@@ -22,7 +23,7 @@ struct AgendaItemFileTests {
             completed: false, completedAt: nil,
             location: "Conference room A",
             recurrence: nil,
-            alarmOffsets: [-900],   // 15 min before
+            alarmOffsets: [-900],  // 15 min before
             alarmAbsolute: [],
             syncTarget: nil, calendarID: nil, eventkitUUID: nil,
             description: "Daily standup",

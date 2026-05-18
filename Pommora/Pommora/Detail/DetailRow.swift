@@ -21,8 +21,8 @@ struct DetailRow: Identifiable, Hashable, Sendable {
     var kindLabel: String {
         switch kind {
         case .collection: return "Collection"
-        case .page:       return "Page"
-        case .item:       return "Item"
+        case .page: return "Page"
+        case .item: return "Item"
         }
     }
 }

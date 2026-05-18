@@ -5,15 +5,15 @@ import Foundation
 /// from this struct rather than mutating in place.
 struct Recurrence: Codable, Equatable, Hashable, Sendable {
     var frequency: Frequency
-    var interval: Int                       // every N units (≥ 1)
-    var firstDayOfWeek: Int                 // 1=Sun … 7=Sat; affects weekly semantics
+    var interval: Int  // every N units (≥ 1)
+    var firstDayOfWeek: Int  // 1=Sun … 7=Sat; affects weekly semantics
     var end: End?
     var daysOfWeek: [DayOfWeek]
-    var daysOfMonth: [Int]                  // e.g. [1, 15] = "1st and 15th"
+    var daysOfMonth: [Int]  // e.g. [1, 15] = "1st and 15th"
     var daysOfYear: [Int]
     var weeksOfYear: [Int]
     var monthsOfYear: [Int]
-    var setPositions: [Int]                 // e.g. [-1] = "last instance"
+    var setPositions: [Int]  // e.g. [-1] = "last instance"
 
     enum Frequency: String, Codable, CaseIterable, Hashable, Sendable {
         case daily, weekly, monthly, yearly
@@ -24,14 +24,17 @@ struct Recurrence: Codable, Equatable, Hashable, Sendable {
         case endDate(Date)
 
         private enum CodingKeys: String, CodingKey { case kind, value }
-        private enum Kind: String, Codable { case occurrenceCount = "occurrence_count", endDate = "end_date" }
+        private enum Kind: String, Codable {
+            case occurrenceCount = "occurrence_count"
+            case endDate = "end_date"
+        }
 
         init(from decoder: any Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             let kind = try c.decode(Kind.self, forKey: .kind)
             switch kind {
             case .occurrenceCount: self = .occurrenceCount(try c.decode(Int.self, forKey: .value))
-            case .endDate:         self = .endDate(try c.decode(Date.self, forKey: .value))
+            case .endDate: self = .endDate(try c.decode(Date.self, forKey: .value))
             }
         }
 
@@ -50,11 +53,16 @@ struct Recurrence: Codable, Equatable, Hashable, Sendable {
 
     struct DayOfWeek: Codable, Equatable, Hashable, Sendable {
         var day: Day
-        var weekNumber: Int?                // -5…-1 or 1…5; "last Friday" = .friday, -1
+        var weekNumber: Int?  // -5…-1 or 1…5; "last Friday" = .friday, -1
 
         enum Day: String, Codable, CaseIterable, Hashable, Sendable {
-            case sunday = "sun", monday = "mon", tuesday = "tue", wednesday = "wed"
-            case thursday = "thu", friday = "fri", saturday = "sat"
+            case sunday = "sun"
+            case monday = "mon"
+            case tuesday = "tue"
+            case wednesday = "wed"
+            case thursday = "thu"
+            case friday = "fri"
+            case saturday = "sat"
         }
 
         enum CodingKeys: String, CodingKey {

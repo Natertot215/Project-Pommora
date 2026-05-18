@@ -23,8 +23,11 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         properties: [String: PropertyValue],
         createdAt: Date
     ) {
-        self.id = id; self.icon = icon
-        self.tier1 = tier1; self.tier2 = tier2; self.tier3 = tier3
+        self.id = id
+        self.icon = icon
+        self.tier1 = tier1
+        self.tier2 = tier2
+        self.tier3 = tier3
         self.properties = properties
         self.createdAt = createdAt
     }

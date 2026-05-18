@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("Recurrence")
@@ -14,7 +15,7 @@ struct RecurrenceTests {
             end: .occurrenceCount(10),
             daysOfWeek: [
                 Recurrence.DayOfWeek(day: .monday, weekNumber: nil),
-                Recurrence.DayOfWeek(day: .friday, weekNumber: -1)
+                Recurrence.DayOfWeek(day: .friday, weekNumber: -1),
             ],
             daysOfMonth: [],
             daysOfYear: [],
@@ -51,7 +52,7 @@ struct RecurrenceTests {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(Recurrence.self, from: data)
-        if case let .endDate(d) = decoded.end {
+        if case .endDate(let d) = decoded.end {
             #expect(abs(d.timeIntervalSince1970 - until.timeIntervalSince1970) < 1)
         } else {
             Issue.record("expected .endDate case")

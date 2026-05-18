@@ -65,7 +65,7 @@ struct NewPageSheet: View {
         case .duplicateTitle:
             switch parent {
             case .collection: return "A Page with that name already exists in this Collection."
-            case .vaultRoot:  return "A Page with that name already exists in this Vault's root."
+            case .vaultRoot: return "A Page with that name already exists in this Vault's root."
             }
         case .missingCreatedAt: return "Internal: created_at not set."
         case .tierMismatch: return "Internal: tier reference invalid."

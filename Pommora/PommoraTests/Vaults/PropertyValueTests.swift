@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("PropertyValue")
@@ -9,7 +10,7 @@ struct PropertyValueTests {
     func roundTripDictionary() throws {
         // `.date` is calendar-day precision (yyyy-MM-dd, UTC) — seed at midnight UTC
         // so the truncating encoder round-trips equal. `.datetime` keeps full ISO-8601.
-        let midnightUTC = Date(timeIntervalSince1970: 1716422400) // 2024-05-23 00:00:00 UTC
+        let midnightUTC = Date(timeIntervalSince1970: 1716422400)  // 2024-05-23 00:00:00 UTC
         let original: [String: PropertyValue] = [
             "count": .number(42.5),
             "done": .checkbox(true),
@@ -19,7 +20,7 @@ struct PropertyValueTests {
             "tags": .multiSelect(["urgent", "review"]),
             "link": .url(URL(string: "https://example.com")!),
             "relatedItem": .relation("01HTARGET"),
-            "missing": .null
+            "missing": .null,
         ]
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode([String: PropertyValue].self, from: data)
@@ -66,7 +67,7 @@ struct PropertyValueTests {
         let original = PropertyValue.date(Date(timeIntervalSince1970: 1716422400))
         let data = try encoder.encode(original)
         let decoded = try decoder.decode(PropertyValue.self, from: data)
-        if case let .date(d) = decoded {
+        if case .date(let d) = decoded {
             #expect(abs(d.timeIntervalSince1970 - 1716422400) < 1)
         } else {
             Issue.record("expected .date case after decode, got \(decoded)")

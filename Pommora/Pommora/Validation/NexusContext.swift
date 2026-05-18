@@ -14,9 +14,9 @@ struct NexusContext: Sendable {
 
     /// Sentinel context with all lookups returning nil — for tests / standalone validation.
     static let empty = NexusContext(
-        lookupSpace:    { _ in nil },
-        lookupTopic:    { _ in nil },
+        lookupSpace: { _ in nil },
+        lookupTopic: { _ in nil },
         lookupSubtopic: { _ in nil },
-        lookupVault:    { _ in nil }
+        lookupVault: { _ in nil }
     )
 }

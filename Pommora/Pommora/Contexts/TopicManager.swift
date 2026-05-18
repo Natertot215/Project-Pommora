@@ -41,13 +41,12 @@ final class TopicManager {
                 loadedTopics.append(topic)
 
                 let subFiles = try Filesystem.children(of: folder) { url in
-                    url.pathExtension == "json" &&
-                    url.deletingPathExtension().pathExtension == "subtopic"
+                    url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "subtopic"
                 }
                 let subs = subFiles.compactMap { try? Subtopic.load(from: $0) }
                     .map { st -> Subtopic in
                         var copy = st
-                        copy.parents = [topic.id]   // file-location-derived parent
+                        copy.parents = [topic.id]  // file-location-derived parent
                         return copy
                     }
                 loadedSubs[topic.id] = subs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
@@ -206,7 +205,7 @@ final class TopicManager {
             suffix += 1
         }
         let topic = Topic(
-            id: ULID.generate(),   // new identity at tier-2; old Subtopic id is dropped
+            id: ULID.generate(),  // new identity at tier-2; old Subtopic id is dropped
             title: promotedName,
             parents: inheritedParents,
             icon: sub.icon,
@@ -226,10 +225,10 @@ final class TopicManager {
         do {
             let existing = subtopicsByParent[parent.id] ?? []
             let context = NexusContext(
-                lookupSpace:    { _ in nil },
-                lookupTopic:    { [topics] id in topics.first { $0.id == id } },
+                lookupSpace: { _ in nil },
+                lookupTopic: { [topics] id in topics.first { $0.id == id } },
                 lookupSubtopic: { _ in nil },
-                lookupVault:    { _ in nil }
+                lookupVault: { _ in nil }
             )
             try SubtopicValidator.validate(
                 title: name,
@@ -266,15 +265,15 @@ final class TopicManager {
     func renameSubtopic(_ sub: Subtopic, to newName: String) async throws {
         do {
             guard let parentID = sub.parents.first,
-                  let parent = topics.first(where: { $0.id == parentID })
+                let parent = topics.first(where: { $0.id == parentID })
             else { throw SubtopicValidator.ValidationError.missingParent }
 
             let existing = subtopicsByParent[parent.id] ?? []
             let context = NexusContext(
-                lookupSpace:    { _ in nil },
-                lookupTopic:    { [topics] id in topics.first { $0.id == id } },
+                lookupSpace: { _ in nil },
+                lookupTopic: { [topics] id in topics.first { $0.id == id } },
                 lookupSubtopic: { _ in nil },
-                lookupVault:    { _ in nil }
+                lookupVault: { _ in nil }
             )
             try SubtopicValidator.validate(
                 title: newName,
@@ -325,7 +324,7 @@ final class TopicManager {
     func moveSubtopic(_ sub: Subtopic, toTopic newParent: Topic) async throws {
         do {
             guard let oldParentID = sub.parents.first,
-                  let oldParent = topics.first(where: { $0.id == oldParentID })
+                let oldParent = topics.first(where: { $0.id == oldParentID })
             else { throw SubtopicValidator.ValidationError.missingParent }
             guard oldParent.id != newParent.id else { return }
 
@@ -372,7 +371,7 @@ final class TopicManager {
     func deleteSubtopic(_ sub: Subtopic) async throws {
         do {
             guard let parentID = sub.parents.first,
-                  let parent = topics.first(where: { $0.id == parentID })
+                let parent = topics.first(where: { $0.id == parentID })
             else { throw SubtopicValidator.ValidationError.missingParent }
 
             let url = NexusPaths.subtopicFileURL(
@@ -391,7 +390,7 @@ final class TopicManager {
     func updateSubtopicIcon(_ sub: Subtopic, to icon: String?) async throws {
         do {
             guard let parentID = sub.parents.first,
-                  let parent = topics.first(where: { $0.id == parentID })
+                let parent = topics.first(where: { $0.id == parentID })
             else { throw SubtopicValidator.ValidationError.missingParent }
 
             var updated = sub

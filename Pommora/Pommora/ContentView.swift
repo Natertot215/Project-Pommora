@@ -64,10 +64,10 @@ struct ContentView: View {
     @ViewBuilder
     private var sidebar: some View {
         if let spaceMgr = spaceManager,
-           let topicMgr = topicManager,
-           let vaultMgr = vaultManager,
-           let contentMgr = contentManager,
-           let savedMgr = savedConfigManager
+            let topicMgr = topicManager,
+            let vaultMgr = vaultManager,
+            let contentMgr = contentManager,
+            let savedMgr = savedConfigManager
         {
             SidebarView(selection: $sidebarSelection)
                 .environment(spaceMgr)
@@ -89,8 +89,8 @@ struct ContentView: View {
     @ViewBuilder
     private var detail: some View {
         if let spaceMgr = spaceManager,
-           let vaultMgr = vaultManager,
-           let contentMgr = contentManager
+            let vaultMgr = vaultManager,
+            let contentMgr = contentManager
         {
             SidebarDetailView(
                 selection: $sidebarSelection,
@@ -139,10 +139,10 @@ struct ContentView: View {
             let spaces = spaceMgr.spaces
             let vaults = vaultMgr.vaults
             return NexusContext(
-                lookupSpace:    { id in spaces.first { $0.id == id } },
-                lookupTopic:    { _ in nil },
+                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupTopic: { _ in nil },
                 lookupSubtopic: { _ in nil },
-                lookupVault:    { id in vaults.first { $0.id == id } }
+                lookupVault: { id in vaults.first { $0.id == id } }
             )
         }
 
@@ -155,15 +155,15 @@ struct ContentView: View {
             let topics = topicMgr.topics
             let subsByParent = topicMgr.subtopicsByParent
             return NexusContext(
-                lookupSpace:    { id in spaces.first { $0.id == id } },
-                lookupTopic:    { id in topics.first { $0.id == id } },
+                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupTopic: { id in topics.first { $0.id == id } },
                 lookupSubtopic: { id in
                     for arr in subsByParent.values {
                         if let s = arr.first(where: { $0.id == id }) { return s }
                     }
                     return nil
                 },
-                lookupVault:    { id in vaults.first { $0.id == id } }
+                lookupVault: { id in vaults.first { $0.id == id } }
             )
         }
 

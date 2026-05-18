@@ -4,7 +4,7 @@ import Foundation
 /// (per Vault schema), tier1/2/3 multi-relations to Contexts.
 struct Item: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String
-    var title: String                          // derived from filename on load
+    var title: String  // derived from filename on load
     var icon: String?
     var description: String
     var tier1: [String]
@@ -26,10 +26,16 @@ struct Item: Codable, Equatable, Identifiable, Hashable, Sendable {
         properties: [String: PropertyValue],
         createdAt: Date, modifiedAt: Date
     ) {
-        self.id = id; self.title = title; self.icon = icon; self.description = description
-        self.tier1 = tier1; self.tier2 = tier2; self.tier3 = tier3
+        self.id = id
+        self.title = title
+        self.icon = icon
+        self.description = description
+        self.tier1 = tier1
+        self.tier2 = tier2
+        self.tier3 = tier3
         self.properties = properties
-        self.createdAt = createdAt; self.modifiedAt = modifiedAt
+        self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
     }
 
     init(from decoder: any Decoder) throws {

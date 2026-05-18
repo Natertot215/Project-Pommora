@@ -53,7 +53,10 @@ struct SubtopicRow: View {
                 .textFieldStyle(.plain)
                 .focused($renameFocused)
                 .onSubmit { commit() }
-                .onKeyPress(.escape) { cancel(); return .handled }
+                .onKeyPress(.escape) {
+                    cancel()
+                    return .handled
+                }
                 .onChange(of: renameFocused) { _, focused in
                     if !focused && !isCommitting && editingID == subtopic.id {
                         cancel()
@@ -72,7 +75,10 @@ struct SubtopicRow: View {
     }
 
     private func commit() {
-        guard draft != subtopic.title else { editingID = nil; return }
+        guard draft != subtopic.title else {
+            editingID = nil
+            return
+        }
         isCommitting = true
         Task {
             defer { isCommitting = false }

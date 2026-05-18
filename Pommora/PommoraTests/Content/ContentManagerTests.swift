@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @MainActor
@@ -45,12 +46,14 @@ struct ContentManagerTests {
         let page = manager.pages(in: coll).first!
 
         try await manager.renamePage(page, to: "Ideas", in: coll, vault: vault)
-        #expect(!FileManager.default.fileExists(
-            atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL).path
-        ))
-        #expect(FileManager.default.fileExists(
-            atPath: NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL).path
-        ))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL).path
+            ))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL).path
+            ))
         #expect(manager.pages(in: coll).first?.title == "Ideas")
     }
 
@@ -127,8 +130,9 @@ struct ContentManagerTests {
 
     private func setup() async throws -> (Nexus, Vault, Collection, ContentManager) {
         let nexus = try TempNexus.make()
-        let vault = Vault(id: ULID.generate(), title: "V", icon: nil,
-                          properties: [], views: [], modifiedAt: Date())
+        let vault = Vault(
+            id: ULID.generate(), title: "V", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))

@@ -8,8 +8,8 @@ import Foundation
 /// Not Codable — purely in-memory; the file's frontmatter + filename are the
 /// on-disk truth.
 struct PageMeta: Equatable, Identifiable, Hashable, Sendable {
-    var id: String              // ULID
-    var title: String           // derived from filename (no extension)
-    var url: URL                // .md file location
+    var id: String  // ULID
+    var title: String  // derived from filename (no extension)
+    var url: URL  // .md file location
     var frontmatter: PageFrontmatter
 }

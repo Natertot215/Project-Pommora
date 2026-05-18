@@ -63,7 +63,10 @@ struct PageRow: View {
                 .textFieldStyle(.plain)
                 .focused($nameFieldFocused)
                 .onSubmit { commit() }
-                .onKeyPress(.escape) { cancel(); return .handled }
+                .onKeyPress(.escape) {
+                    cancel()
+                    return .handled
+                }
                 .onChange(of: nameFieldFocused) { _, focused in
                     if !focused && !isCommitting && editingID == page.id {
                         cancel()
@@ -83,7 +86,10 @@ struct PageRow: View {
     // MARK: - Actions
 
     private func commit() {
-        guard draft != page.title else { editingID = nil; return }
+        guard draft != page.title else {
+            editingID = nil
+            return
+        }
         isCommitting = true
         Task {
             defer { isCommitting = false }

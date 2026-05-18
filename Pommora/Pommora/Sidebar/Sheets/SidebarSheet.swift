@@ -25,23 +25,23 @@ enum SidebarSheet: Identifiable {
 
     var id: String {
         switch self {
-        case .newSpace:                       return "newSpace"
-        case .newTopic:                       return "newTopic"
-        case .newSubtopic(let t):             return "newSubtopic-\(t.id)"
-        case .newVault:                       return "newVault"
-        case .newCollection(let v):           return "newCollection-\(v.id)"
-        case .newPage(let c, _):              return "newPage-\(c.id)"
-        case .newPageInVault(let v):          return "newPageInVault-\(v.id)"
-        case .newItem(let c, _):              return "newItem-\(c.id)"
-        case .editTopicParents(let t):        return "editTopicParents-\(t.id)"
+        case .newSpace: return "newSpace"
+        case .newTopic: return "newTopic"
+        case .newSubtopic(let t): return "newSubtopic-\(t.id)"
+        case .newVault: return "newVault"
+        case .newCollection(let v): return "newCollection-\(v.id)"
+        case .newPage(let c, _): return "newPage-\(c.id)"
+        case .newPageInVault(let v): return "newPageInVault-\(v.id)"
+        case .newItem(let c, _): return "newItem-\(c.id)"
+        case .editTopicParents(let t): return "editTopicParents-\(t.id)"
         case .editIcon(let target):
             switch target {
-            case .space(let s):    return "editIcon-space-\(s.id)"
-            case .topic(let t):    return "editIcon-topic-\(t.id)"
+            case .space(let s): return "editIcon-space-\(s.id)"
+            case .topic(let t): return "editIcon-topic-\(t.id)"
             case .subtopic(let s): return "editIcon-subtopic-\(s.id)"
-            case .vault(let v):    return "editIcon-vault-\(v.id)"
+            case .vault(let v): return "editIcon-vault-\(v.id)"
             }
-        case .editColor(let s):               return "editColor-\(s.id)"
+        case .editColor(let s): return "editColor-\(s.id)"
         }
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("TierConfig")
@@ -33,7 +34,7 @@ struct TierConfigTests {
             tiers: [
                 TierConfig.Tier(level: 1, singular: "Area", plural: "Areas", exposed: true),
                 TierConfig.Tier(level: 2, singular: "Project", plural: "Projects", exposed: true),
-                TierConfig.Tier(level: 3, singular: "Sub-project", plural: "Sub-projects", exposed: false)
+                TierConfig.Tier(level: 3, singular: "Sub-project", plural: "Sub-projects", exposed: false),
             ],
             taggingStyle: .both
         )

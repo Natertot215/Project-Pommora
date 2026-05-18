@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("VaultValidator")
@@ -35,7 +36,8 @@ struct VaultValidatorTests {
     }
 
     private func makeVault(title: String) -> Vault {
-        Vault(id: ULID.generate(), title: title, icon: nil,
-              properties: [], views: [], modifiedAt: Date())
+        Vault(
+            id: ULID.generate(), title: title, icon: nil,
+            properties: [], views: [], modifiedAt: Date())
     }
 }

@@ -23,6 +23,14 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Check formatting
+        working-directory: .
+        run: |
+          swift format lint --recursive --strict \
+            Pommora/Pommora \
+            Pommora/PommoraTests \
+            Pommora/PommoraUITests
+
       - name: Resolve SPM dependencies
         working-directory: Pommora
         run: xcodebuild -resolvePackageDependencies -scheme Pommora

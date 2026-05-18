@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("SubtopicValidator")
@@ -8,13 +9,14 @@ struct SubtopicValidatorTests {
     @Test("happy path: exactly one parent resolving to a Topic + correct file location")
     func happyPath() throws {
         let topicID = ULID.generate()
-        let topic = Topic(id: topicID, title: "Productivity", parents: [],
-                          icon: nil, blocks: [], modifiedAt: Date())
+        let topic = Topic(
+            id: topicID, title: "Productivity", parents: [],
+            icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
-            lookupSpace:    { _ in nil },
-            lookupTopic:    { id in id == topicID ? topic : nil },
+            lookupSpace: { _ in nil },
+            lookupTopic: { id in id == topicID ? topic : nil },
             lookupSubtopic: { _ in nil },
-            lookupVault:    { _ in nil }
+            lookupVault: { _ in nil }
         )
         try SubtopicValidator.validate(
             title: "GTD method",
@@ -73,13 +75,14 @@ struct SubtopicValidatorTests {
     @Test("file location title not matching parent Topic title throws")
     func locationMismatch() {
         let topicID = ULID.generate()
-        let topic = Topic(id: topicID, title: "Productivity", parents: [],
-                          icon: nil, blocks: [], modifiedAt: Date())
+        let topic = Topic(
+            id: topicID, title: "Productivity", parents: [],
+            icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
-            lookupSpace:    { _ in nil },
-            lookupTopic:    { id in id == topicID ? topic : nil },
+            lookupSpace: { _ in nil },
+            lookupTopic: { id in id == topicID ? topic : nil },
             lookupSubtopic: { _ in nil },
-            lookupVault:    { _ in nil }
+            lookupVault: { _ in nil }
         )
         #expect(throws: SubtopicValidator.ValidationError.fileLocationMismatch) {
             try SubtopicValidator.validate(
@@ -93,13 +96,14 @@ struct SubtopicValidatorTests {
     @Test("duplicate title within same parent Topic throws")
     func duplicate() {
         let topicID = ULID.generate()
-        let topic = Topic(id: topicID, title: "P", parents: [],
-                          icon: nil, blocks: [], modifiedAt: Date())
+        let topic = Topic(
+            id: topicID, title: "P", parents: [],
+            icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
-            lookupSpace:    { _ in nil },
-            lookupTopic:    { id in id == topicID ? topic : nil },
+            lookupSpace: { _ in nil },
+            lookupTopic: { id in id == topicID ? topic : nil },
             lookupSubtopic: { _ in nil },
-            lookupVault:    { _ in nil }
+            lookupVault: { _ in nil }
         )
         let existing = [makeSubtopic(title: "GTD", parents: [topicID])]
         #expect(throws: SubtopicValidator.ValidationError.duplicateTitle) {
@@ -112,12 +116,14 @@ struct SubtopicValidatorTests {
     }
 
     private func makeTopic(title: String) -> Topic {
-        Topic(id: ULID.generate(), title: title, parents: [],
-              icon: nil, blocks: [], modifiedAt: Date())
+        Topic(
+            id: ULID.generate(), title: title, parents: [],
+            icon: nil, blocks: [], modifiedAt: Date())
     }
 
     private func makeSubtopic(title: String, parents: [String]) -> Subtopic {
-        Subtopic(id: ULID.generate(), title: title, parents: parents,
-                 linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
+        Subtopic(
+            id: ULID.generate(), title: title, parents: parents,
+            linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
     }
 }

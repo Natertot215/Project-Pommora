@@ -5,10 +5,10 @@ import Foundation
 /// File-structural parent (the enclosing Topic folder) IS the parent — single-valued.
 /// Additional Context relations live in `linkedRelations`.
 struct Subtopic: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String              // ULID
-    var tier: Int               // always 3
-    var title: String           // derived from filename on load
-    var parents: [String]       // exactly one Topic ID; enforced by validator
+    var id: String  // ULID
+    var tier: Int  // always 3
+    var title: String  // derived from filename on load
+    var parents: [String]  // exactly one Topic ID; enforced by validator
     var linkedRelations: [String]  // additional Topic/Space/Subtopic IDs (multi-tier)
     var icon: String?
     var blocks: [ContextBlock]

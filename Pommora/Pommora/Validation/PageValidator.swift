@@ -35,8 +35,7 @@ enum PageValidator {
         }
 
         let conflict = existingSiblings.contains { p in
-            p.id != excluding?.id &&
-            p.title.lowercased() == trimmed.lowercased()
+            p.id != excluding?.id && p.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
 
@@ -66,10 +65,10 @@ enum PageValidator {
     ) throws {
         switch (value, type) {
         case (.number, .number), (.checkbox, .checkbox),
-             (.date, .date), (.datetime, .datetime),
-             (.select, .select), (.multiSelect, .multiSelect),
-             (.relation, .relation), (.url, .url),
-             (.null, _):
+            (.date, .date), (.datetime, .datetime),
+            (.select, .select), (.multiSelect, .multiSelect),
+            (.relation, .relation), (.url, .url),
+            (.null, _):
             return
         default:
             throw ValidationError.propertyTypeMismatch(name: name)

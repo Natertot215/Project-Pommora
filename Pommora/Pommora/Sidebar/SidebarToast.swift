@@ -36,7 +36,9 @@ struct SidebarToast: View {
                         .foregroundStyle(.primary)
                         .lineLimit(3)
                     Spacer(minLength: 0)
-                    Button { dismiss() } label: {
+                    Button {
+                        dismiss()
+                    } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.tertiary)
                     }
@@ -74,12 +76,12 @@ struct SidebarToast: View {
 
     private func dismiss() {
         switch displayedSource {
-        case .space:       spaceManager.pendingError = nil
-        case .topic:       topicManager.pendingError = nil
-        case .vault:       vaultManager.pendingError = nil
-        case .content:     contentManager.pendingError = nil
+        case .space: spaceManager.pendingError = nil
+        case .topic: topicManager.pendingError = nil
+        case .vault: vaultManager.pendingError = nil
+        case .content: contentManager.pendingError = nil
         case .savedConfig: savedConfigManager.pendingError = nil
-        case .none:        break
+        case .none: break
         }
         displayedError = nil
         displayedSource = nil

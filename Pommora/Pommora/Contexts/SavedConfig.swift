@@ -7,8 +7,8 @@ struct SavedConfig: Codable, Equatable, Hashable, Sendable {
     var items: [Item]
 
     struct Item: Codable, Equatable, Hashable, Identifiable, Sendable {
-        var key: String       // "homepage" | "calendar" | "recents"
-        var label: String     // user-renamable
+        var key: String  // "homepage" | "calendar" | "recents"
+        var label: String  // user-renamable
         var id: String { key }
     }
 
@@ -18,7 +18,7 @@ struct SavedConfig: Codable, Equatable, Hashable, Sendable {
             items: [
                 Item(key: "homepage", label: "Homepage"),
                 Item(key: "calendar", label: "Calendar"),
-                Item(key: "recents",  label: "Recents")
+                Item(key: "recents", label: "Recents"),
             ]
         )
     }

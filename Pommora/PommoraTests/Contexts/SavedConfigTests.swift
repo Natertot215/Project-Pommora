@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("SavedConfig")
@@ -25,7 +26,7 @@ struct SavedConfigTests {
             items: [
                 SavedConfig.Item(key: "homepage", label: "Dashboard"),
                 SavedConfig.Item(key: "calendar", label: "Schedule"),
-                SavedConfig.Item(key: "recents", label: "Recent")
+                SavedConfig.Item(key: "recents", label: "Recent"),
             ]
         )
         try AtomicJSON.write(original, to: url)

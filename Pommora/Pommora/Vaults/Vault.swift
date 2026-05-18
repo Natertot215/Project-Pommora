@@ -5,11 +5,11 @@ import Foundation
 ///
 /// On disk: `<nexus>/<Title>/_vault.json` (folder name = title; no title on disk).
 struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String                          // ULID
-    var title: String                       // derived from folder name
-    var icon: String?                       // SF Symbol name
-    var properties: [PropertyDefinition]    // schema shared across Content
-    var views: [VaultView]                  // saved views (empty placeholder in v0.2)
+    var id: String  // ULID
+    var title: String  // derived from folder name
+    var icon: String?  // SF Symbol name
+    var properties: [PropertyDefinition]  // schema shared across Content
+    var views: [VaultView]  // saved views (empty placeholder in v0.2)
     var modifiedAt: Date
 
     enum CodingKeys: String, CodingKey {

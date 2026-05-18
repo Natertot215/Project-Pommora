@@ -3,11 +3,11 @@ import Foundation
 /// Tier-2 Context entity — subject area. Multi-parent across Spaces.
 /// On disk: `.nexus/topics/<Title>/_topic.json` (folder = title; no title on disk).
 struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String              // ULID
-    var tier: Int               // always 2
-    var title: String           // derived from parent folder name on load
-    var parents: [String]       // Space IDs (multi-valued; may be empty)
-    var icon: String?           // SF Symbol name
+    var id: String  // ULID
+    var tier: Int  // always 2
+    var title: String  // derived from parent folder name on load
+    var parents: [String]  // Space IDs (multi-valued; may be empty)
+    var icon: String?  // SF Symbol name
     var blocks: [ContextBlock]
     var modifiedAt: Date
 
@@ -29,7 +29,8 @@ struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, tier, parents, icon, blocks, modifiedAt = "modified_at"
+        case id, tier, parents, icon, blocks
+        case modifiedAt = "modified_at"
     }
 
     init(from decoder: any Decoder) throws {

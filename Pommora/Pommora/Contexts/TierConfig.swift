@@ -31,7 +31,7 @@ struct TierConfig: Codable, Equatable, Hashable, Sendable {
             tiers: [
                 Tier(level: 1, singular: "Space", plural: "Spaces", exposed: true),
                 Tier(level: 2, singular: "Topic", plural: "Topics", exposed: true),
-                Tier(level: 3, singular: "Sub-topic", plural: "Sub-topics", exposed: true)
+                Tier(level: 3, singular: "Sub-topic", plural: "Sub-topics", exposed: true),
             ],
             taggingStyle: .color
         )

@@ -83,17 +83,17 @@ struct SidebarDetailView: View {
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .newSpace:                  NewSpaceSheet()
-            case .newTopic:                  NewTopicSheet()
-            case .newSubtopic(let t):        NewSubtopicSheet(parent: t)
-            case .newVault:                  NewVaultSheet()
-            case .newCollection(let v):      NewCollectionSheet(vault: v)
-            case .newPage(let c, let v):     NewPageSheet(parent: .collection(c, vault: v))
-            case .newPageInVault(let v):     NewPageSheet(parent: .vaultRoot(v))
-            case .newItem(let c, let v):     NewItemSheet(collection: c, vault: v)
-            case .editTopicParents(let t):   EditTopicParentsSheet(topic: t)
-            case .editIcon(let target):      IconPickerSheet(target: target)
-            case .editColor(let s):          ColorPickerSheet(space: s)
+            case .newSpace: NewSpaceSheet()
+            case .newTopic: NewTopicSheet()
+            case .newSubtopic(let t): NewSubtopicSheet(parent: t)
+            case .newVault: NewVaultSheet()
+            case .newCollection(let v): NewCollectionSheet(vault: v)
+            case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
+            case .newPageInVault(let v): NewPageSheet(parent: .vaultRoot(v))
+            case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
+            case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
+            case .editIcon(let target): IconPickerSheet(target: target)
+            case .editColor(let s): ColorPickerSheet(space: s)
             }
         }
     }
@@ -118,7 +118,7 @@ struct SidebarDetailView: View {
         switch key {
         case "homepage": return "house"
         case "calendar": return "calendar"
-        case "recents":  return "clock"
+        case "recents": return "clock"
         default: return "questionmark.square"
         }
     }

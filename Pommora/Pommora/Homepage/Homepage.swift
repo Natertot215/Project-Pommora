@@ -5,7 +5,7 @@ import Foundation
 struct Homepage: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
-    var blocks: [ContextBlock]              // composed-blocks tree (editor lands v0.9)
+    var blocks: [ContextBlock]  // composed-blocks tree (editor lands v0.9)
     var modifiedAt: Date
 
     enum CodingKeys: String, CodingKey {

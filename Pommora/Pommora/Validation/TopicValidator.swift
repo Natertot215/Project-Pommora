@@ -24,8 +24,7 @@ enum TopicValidator {
         }
 
         let conflict = existing.contains { topic in
-            topic.id != excluding?.id &&
-            topic.title.lowercased() == trimmed.lowercased()
+            topic.id != excluding?.id && topic.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
 

@@ -5,10 +5,10 @@ import Foundation
 enum PropertyType: String, Codable, CaseIterable, Hashable, Sendable {
     case number
     case checkbox
-    case date              // calendar date only
-    case datetime          // date + time + timezone
-    case select            // single choice from options
+    case date  // calendar date only
+    case datetime  // date + time + timezone
+    case select  // single choice from options
     case multiSelect = "multi_select"
-    case relation          // points to another entity by ID
+    case relation  // points to another entity by ID
     case url
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("PageValidator")
@@ -7,8 +8,9 @@ struct PageValidatorTests {
 
     @Test("happy path passes")
     func happy() throws {
-        let vault = Vault(id: "01HV", title: "V", icon: nil,
-                          properties: [], views: [], modifiedAt: Date())
+        let vault = Vault(
+            id: "01HV", title: "V", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
         try PageValidator.validate(
             title: "Notes",
             tier1: [], tier2: [], tier3: [],
@@ -22,8 +24,9 @@ struct PageValidatorTests {
 
     @Test("created_at = zero-epoch is treated as missing")
     func missingCreatedAt() {
-        let vault = Vault(id: "01HV", title: "V", icon: nil,
-                          properties: [], views: [], modifiedAt: Date())
+        let vault = Vault(
+            id: "01HV", title: "V", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
         #expect(throws: PageValidator.ValidationError.missingCreatedAt) {
             try PageValidator.validate(
                 title: "X",
@@ -39,8 +42,9 @@ struct PageValidatorTests {
 
     @Test("duplicate title in same Collection throws")
     func duplicate() throws {
-        let vault = Vault(id: "01HV", title: "V", icon: nil,
-                          properties: [], views: [], modifiedAt: Date())
+        let vault = Vault(
+            id: "01HV", title: "V", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
         let existing = [makePageMeta(title: "Notes")]
         #expect(throws: PageValidator.ValidationError.duplicateTitle) {
             try PageValidator.validate(

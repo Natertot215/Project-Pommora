@@ -50,17 +50,17 @@ struct SidebarView: View {
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .newSpace:                  NewSpaceSheet()
-            case .newTopic:                  NewTopicSheet()
-            case .newSubtopic(let t):        NewSubtopicSheet(parent: t)
-            case .newVault:                  NewVaultSheet()
-            case .newCollection(let v):      NewCollectionSheet(vault: v)
-            case .newPage(let c, let v):     NewPageSheet(parent: .collection(c, vault: v))
-            case .newPageInVault(let v):     NewPageSheet(parent: .vaultRoot(v))
-            case .newItem(let c, let v):     NewItemSheet(collection: c, vault: v)
-            case .editTopicParents(let t):   EditTopicParentsSheet(topic: t)
-            case .editIcon(let target):      IconPickerSheet(target: target)
-            case .editColor(let s):          ColorPickerSheet(space: s)
+            case .newSpace: NewSpaceSheet()
+            case .newTopic: NewTopicSheet()
+            case .newSubtopic(let t): NewSubtopicSheet(parent: t)
+            case .newVault: NewVaultSheet()
+            case .newCollection(let v): NewCollectionSheet(vault: v)
+            case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
+            case .newPageInVault(let v): NewPageSheet(parent: .vaultRoot(v))
+            case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
+            case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
+            case .editIcon(let target): IconPickerSheet(target: target)
+            case .editColor(let s): ColorPickerSheet(space: s)
             }
         }
         .confirmationDialog(
@@ -80,10 +80,10 @@ struct SidebarView: View {
 
     private var confirmationTitle: String {
         switch confirmingDelete {
-        case .deleteSpace(let s)?:      return "Delete Space \"\(s.title)\"?"
-        case .deleteTopic(let t, _)?:   return "Delete Topic \"\(t.title)\"?"
-        case .deleteSubtopic(let s)?:   return "Delete Sub-topic \"\(s.title)\"?"
-        case .deleteVault(let v, _)?:   return "Delete Vault \"\(v.title)\"?"
+        case .deleteSpace(let s)?: return "Delete Space \"\(s.title)\"?"
+        case .deleteTopic(let t, _)?: return "Delete Topic \"\(t.title)\"?"
+        case .deleteSubtopic(let s)?: return "Delete Sub-topic \"\(s.title)\"?"
+        case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
         case nil: return ""
         }
@@ -92,9 +92,10 @@ struct SidebarView: View {
     private func confirmationMessage(for confirmation: SidebarConfirmation) -> String {
         switch confirmation {
         case .deleteSpace: return "This action cannot be undone."
-        case .deleteTopic(_, let count): return count > 0
-            ? "Contains \(count) Sub-topic(s). Promote them or delete all?"
-            : "This action cannot be undone."
+        case .deleteTopic(_, let count):
+            return count > 0
+                ? "Contains \(count) Sub-topic(s). Promote them or delete all?"
+                : "This action cannot be undone."
         case .deleteSubtopic: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
         case .deleteCollection: return "All Pages and Items inside will be deleted."
@@ -107,8 +108,7 @@ struct SidebarView: View {
         case .deleteSpace(let s):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await spaceManager.delete(s) }
-                    catch { /* pendingError set by manager; toast surfaces */ }
+                    do { try await spaceManager.delete(s) } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }
@@ -117,23 +117,23 @@ struct SidebarView: View {
             if count > 0 {
                 Button("Delete & Promote Sub-topics", role: .destructive) {
                     Task {
-                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) }
-                        catch { /* pendingError set by manager; toast surfaces */ }
+                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) } catch
+                        { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
                     }
                 }
                 Button("Delete All", role: .destructive) {
                     Task {
-                        do { try await topicManager.deleteTopic(t, promotingSubtopics: false) }
-                        catch { /* pendingError set by manager; toast surfaces */ }
+                        do { try await topicManager.deleteTopic(t, promotingSubtopics: false) } catch
+                        { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
                     }
                 }
             } else {
                 Button("Delete", role: .destructive) {
                     Task {
-                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) }
-                        catch { /* pendingError set by manager; toast surfaces */ }
+                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) } catch
+                        { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
                     }
                 }
@@ -142,8 +142,8 @@ struct SidebarView: View {
         case .deleteSubtopic(let s):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await topicManager.deleteSubtopic(s) }
-                    catch { /* pendingError set by manager; toast surfaces */ }
+                    do { try await topicManager.deleteSubtopic(s) } catch
+                    { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }
@@ -151,8 +151,8 @@ struct SidebarView: View {
         case .deleteVault(let v, _):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await vaultManager.deleteVault(v) }
-                    catch { /* pendingError set by manager; toast surfaces */ }
+                    do { try await vaultManager.deleteVault(v) } catch
+                    { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }
@@ -160,8 +160,8 @@ struct SidebarView: View {
         case .deleteCollection(let c):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await vaultManager.deleteCollection(c) }
-                    catch { /* pendingError set by manager; toast surfaces */ }
+                    do { try await vaultManager.deleteCollection(c) } catch
+                    { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }
@@ -200,7 +200,7 @@ struct SavedSection: View {
         switch key {
         case "homepage": return "house"
         case "calendar": return "calendar"
-        case "recents":  return "clock"
+        case "recents": return "clock"
         default: return "questionmark.square"
         }
     }
@@ -359,12 +359,12 @@ struct SelectableRow<Trailing: View>: View {
 /// `.disclosure` style to flush the leading edge so chrome covers the chevron.
 struct SelectionChrome: View {
     enum Style {
-        case flat                  // 11pt symmetric horizontal inset
-        case disclosure            // 0pt leading, 11pt trailing — covers chevron
+        case flat  // 11pt symmetric horizontal inset
+        case disclosure  // 0pt leading, 11pt trailing — covers chevron
 
         var insets: EdgeInsets {
             switch self {
-            case .flat:       return EdgeInsets(top: 2, leading: 11, bottom: 2, trailing: 11)
+            case .flat: return EdgeInsets(top: 2, leading: 11, bottom: 2, trailing: 11)
             case .disclosure: return EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 11)
             }
         }

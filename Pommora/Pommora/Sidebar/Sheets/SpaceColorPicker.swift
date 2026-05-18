@@ -35,7 +35,7 @@ struct SpaceColorPicker: View {
                     AngularGradient(
                         gradient: Gradient(colors: [
                             .red, .orange, .yellow, .green, .mint,
-                            .teal, .blue, .indigo, .purple, .pink, .red
+                            .teal, .blue, .indigo, .purple, .pink, .red,
                         ]),
                         center: .center
                     )

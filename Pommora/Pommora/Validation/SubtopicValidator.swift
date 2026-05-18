@@ -46,9 +46,7 @@ enum SubtopicValidator {
 
         // Duplicate title within same parent
         let conflict = existing.contains { st in
-            st.id != excluding?.id &&
-            st.parents == parents &&
-            st.title.lowercased() == trimmed.lowercased()
+            st.id != excluding?.id && st.parents == parents && st.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
     }

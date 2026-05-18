@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @MainActor
@@ -23,8 +24,9 @@ struct HomepageManagerTests {
         defer { TempNexus.cleanup(nexus) }
         let url = NexusPaths.homepageURL(in: nexus)
         try AtomicJSON.write(
-            Homepage(schemaVersion: 1, icon: "bookmark", blocks: [],
-                     modifiedAt: Date(timeIntervalSince1970: 1716480000)),
+            Homepage(
+                schemaVersion: 1, icon: "bookmark", blocks: [],
+                modifiedAt: Date(timeIntervalSince1970: 1716480000)),
             to: url
         )
         let manager = HomepageManager(nexus: nexus)

@@ -4,7 +4,7 @@ import Foundation
 /// determined by which time fields are populated — not by a kind discriminator.
 struct AgendaItem: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String
-    var title: String                  // derived from filename on load
+    var title: String  // derived from filename on load
     var icon: String?
 
     // Event-shaped (mirrors EKEvent)
@@ -14,8 +14,8 @@ struct AgendaItem: Codable, Equatable, Identifiable, Hashable, Sendable {
 
     // Reminder-shaped (mirrors EKReminder.dueDateComponents)
     var dueAt: Date?
-    var dueFloating: Bool              // true = nil timezone
-    var dueAllDay: Bool                // true = strip hour/minute/second
+    var dueFloating: Bool  // true = nil timezone
+    var dueAllDay: Bool  // true = strip hour/minute/second
 
     // Completion (mirrors EKReminder.isCompleted / .completionDate)
     var completed: Bool
@@ -24,7 +24,7 @@ struct AgendaItem: Codable, Equatable, Identifiable, Hashable, Sendable {
     // Shared optional fields
     var location: String?
     var recurrence: Recurrence?
-    var alarmOffsets: [TimeInterval]   // negative = before; matches EKAlarm.relativeOffset
+    var alarmOffsets: [TimeInterval]  // negative = before; matches EKAlarm.relativeOffset
     var alarmAbsolute: [Date]
 
     // EventKit sync state (populated only when mirrored)
@@ -77,16 +77,30 @@ struct AgendaItem: Codable, Equatable, Identifiable, Hashable, Sendable {
         createdAt: Date, modifiedAt: Date,
         properties: [String: PropertyValue]
     ) {
-        self.id = id; self.title = title; self.icon = icon
-        self.startAt = startAt; self.endAt = endAt; self.allDay = allDay
-        self.dueAt = dueAt; self.dueFloating = dueFloating; self.dueAllDay = dueAllDay
-        self.completed = completed; self.completedAt = completedAt
-        self.location = location; self.recurrence = recurrence
-        self.alarmOffsets = alarmOffsets; self.alarmAbsolute = alarmAbsolute
-        self.syncTarget = syncTarget; self.calendarID = calendarID; self.eventkitUUID = eventkitUUID
+        self.id = id
+        self.title = title
+        self.icon = icon
+        self.startAt = startAt
+        self.endAt = endAt
+        self.allDay = allDay
+        self.dueAt = dueAt
+        self.dueFloating = dueFloating
+        self.dueAllDay = dueAllDay
+        self.completed = completed
+        self.completedAt = completedAt
+        self.location = location
+        self.recurrence = recurrence
+        self.alarmOffsets = alarmOffsets
+        self.alarmAbsolute = alarmAbsolute
+        self.syncTarget = syncTarget
+        self.calendarID = calendarID
+        self.eventkitUUID = eventkitUUID
         self.description = description
-        self.tier1 = tier1; self.tier2 = tier2; self.tier3 = tier3
-        self.createdAt = createdAt; self.modifiedAt = modifiedAt
+        self.tier1 = tier1
+        self.tier2 = tier2
+        self.tier3 = tier3
+        self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
         self.properties = properties
     }
 

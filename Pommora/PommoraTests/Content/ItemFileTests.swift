@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("ItemFile")
@@ -21,7 +22,7 @@ struct ItemFileTests {
             tier3: [],
             properties: [
                 "status": .select("Active"),
-                "due": .date(Date(timeIntervalSince1970: 1716480000))
+                "due": .date(Date(timeIntervalSince1970: 1716480000)),
             ],
             createdAt: Date(timeIntervalSince1970: 1716000000),
             modifiedAt: Date(timeIntervalSince1970: 1716480000)

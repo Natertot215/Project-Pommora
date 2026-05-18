@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("TopicFile")
@@ -27,7 +28,7 @@ struct TopicFileTests {
 
         let loaded = try Topic.load(from: metaURL)
         #expect(loaded.id == "01HABC")
-        #expect(loaded.title == "Productivity") // from folder
+        #expect(loaded.title == "Productivity")  // from folder
         #expect(loaded.parents == ["01HSPACE-PERSONAL", "01HSPACE-WORK"])
         #expect(loaded.icon == "lightbulb")
         #expect(loaded.tier == 2)

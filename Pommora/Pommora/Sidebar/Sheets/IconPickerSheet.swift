@@ -48,10 +48,10 @@ struct IconPickerSheet: View {
 
     private var currentIcon: String? {
         switch target {
-        case .space(let s):    return s.icon
-        case .topic(let t):    return t.icon
+        case .space(let s): return s.icon
+        case .topic(let t): return t.icon
         case .subtopic(let s): return s.icon
-        case .vault(let v):    return v.icon
+        case .vault(let v): return v.icon
         }
     }
 
@@ -59,17 +59,17 @@ struct IconPickerSheet: View {
         // pendingError is set by each manager on failure; SidebarToast surfaces it.
         switch target {
         case .space(let s):
-            do { try await spaceManager.updateIcon(s, to: newIcon) }
-            catch { /* pendingError set by manager; toast surfaces */ }
+            do { try await spaceManager.updateIcon(s, to: newIcon) } catch
+            { /* pendingError set by manager; toast surfaces */  }
         case .topic(let t):
-            do { try await topicManager.updateTopicIcon(t, to: newIcon) }
-            catch { /* pendingError set by manager; toast surfaces */ }
+            do { try await topicManager.updateTopicIcon(t, to: newIcon) } catch
+            { /* pendingError set by manager; toast surfaces */  }
         case .subtopic(let s):
-            do { try await topicManager.updateSubtopicIcon(s, to: newIcon) }
-            catch { /* pendingError set by manager; toast surfaces */ }
+            do { try await topicManager.updateSubtopicIcon(s, to: newIcon) } catch
+            { /* pendingError set by manager; toast surfaces */  }
         case .vault(let v):
-            do { try await vaultManager.updateVaultIcon(v, to: newIcon) }
-            catch { /* pendingError set by manager; toast surfaces */ }
+            do { try await vaultManager.updateVaultIcon(v, to: newIcon) } catch
+            { /* pendingError set by manager; toast surfaces */  }
         }
     }
 }

@@ -6,7 +6,7 @@ struct AgendaSchema: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
     var properties: [Property]
-    var views: [VaultView]                // reuse Vault's placeholder
+    var views: [VaultView]  // reuse Vault's placeholder
     var modifiedAt: Date
 
     struct Property: Codable, Equatable, Hashable, Sendable {
@@ -36,10 +36,10 @@ struct AgendaSchema: Codable, Equatable, Hashable, Sendable {
                     name: "type",
                     type: .select,
                     options: [
-                        PropertyDefinition.SelectOption(value: "Task",   label: "Task",   color: .blue),
-                        PropertyDefinition.SelectOption(value: "To-Do",  label: "To-Do",  color: .yellow),
-                        PropertyDefinition.SelectOption(value: "Phase",  label: "Phase",  color: .purple),
-                        PropertyDefinition.SelectOption(value: "Event",  label: "Event",  color: .green)
+                        PropertyDefinition.SelectOption(value: "Task", label: "Task", color: .blue),
+                        PropertyDefinition.SelectOption(value: "To-Do", label: "To-Do", color: .yellow),
+                        PropertyDefinition.SelectOption(value: "Phase", label: "Phase", color: .purple),
+                        PropertyDefinition.SelectOption(value: "Event", label: "Event", color: .green),
                     ],
                     builtin: true,
                     defaultValue: "Task"

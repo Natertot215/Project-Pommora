@@ -11,15 +11,15 @@ enum SpaceColor: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
 
     var swiftUIColor: Color {
         switch self {
-        case .gray:   return Color.gray
-        case .brown:  return Color.brown
+        case .gray: return Color.gray
+        case .brown: return Color.brown
         case .orange: return Color.orange
         case .yellow: return Color.yellow
-        case .green:  return Color.green
-        case .blue:   return Color.blue
+        case .green: return Color.green
+        case .blue: return Color.blue
         case .purple: return Color.purple
-        case .pink:   return Color.pink
-        case .red:    return Color.red
+        case .pink: return Color.pink
+        case .red: return Color.red
         case .accent: return Color.accentColor
         }
     }

@@ -21,8 +21,7 @@ enum SpaceValidator {
         }
 
         let conflict = existing.contains { space in
-            space.id != excluding?.id &&
-            space.title.lowercased() == trimmed.lowercased()
+            space.id != excluding?.id && space.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
     }

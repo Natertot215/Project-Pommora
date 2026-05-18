@@ -21,8 +21,7 @@ enum VaultValidator {
         }
 
         let conflict = existing.contains { v in
-            v.id != excluding?.id &&
-            v.title.lowercased() == trimmed.lowercased()
+            v.id != excluding?.id && v.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
     }

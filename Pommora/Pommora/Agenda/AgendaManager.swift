@@ -20,7 +20,8 @@ final class AgendaManager {
         var errorDescription: String? {
             switch self {
             case .titleChangeRequiresRename:
-                return "An agenda item's title can only be changed via renameAgendaItem; updateItem refuses to do both at once."
+                return
+                    "An agenda item's title can only be changed via renameAgendaItem; updateItem refuses to do both at once."
             }
         }
     }
@@ -45,8 +46,7 @@ final class AgendaManager {
             }
 
             let itemFiles = try Filesystem.children(of: dir) { url in
-                url.pathExtension == "json" &&
-                url.deletingPathExtension().pathExtension == "agenda"
+                url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "agenda"
             }
             items = itemFiles.compactMap { try? AgendaItem.load(from: $0) }
                 .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }

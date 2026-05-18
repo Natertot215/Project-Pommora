@@ -71,7 +71,9 @@ struct ItemWindow: View {
                 Spacer()
                 Text("\(draftDescription.count) / 250")
                     .font(.caption)
-                    .foregroundStyle(draftDescription.count > 250 ? AnyShapeStyle(Color.red) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
+                    .foregroundStyle(
+                        draftDescription.count > 250
+                            ? AnyShapeStyle(Color.red) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
             }
             TextEditor(text: $draftDescription)
                 .frame(minHeight: 60, maxHeight: 120)
@@ -134,8 +136,10 @@ struct ItemWindow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Meta").font(.caption).foregroundStyle(.secondary)
             Text("ID: \(item.id)").font(.system(.caption, design: .monospaced)).foregroundStyle(.tertiary)
-            Text("Created: \(item.createdAt.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.tertiary)
-            Text("Modified: \(item.modifiedAt.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.tertiary)
+            Text("Created: \(item.createdAt.formatted(date: .abbreviated, time: .shortened))").font(.caption)
+                .foregroundStyle(.tertiary)
+            Text("Modified: \(item.modifiedAt.formatted(date: .abbreviated, time: .shortened))").font(.caption)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -180,9 +184,12 @@ struct ItemWindow: View {
             errorMessage = "Parent Vault not found."
             return
         }
-        guard let coll = (vaultManager.collections(in: vault).first {
-            contentManager.items(in: $0).contains(where: { $0.id == item.id })
-        }) else {
+        guard
+            let coll =
+                (vaultManager.collections(in: vault).first {
+                    contentManager.items(in: $0).contains(where: { $0.id == item.id })
+                })
+        else {
             errorMessage = "Parent Collection not found."
             return
         }
@@ -197,7 +204,8 @@ struct ItemWindow: View {
                 // Force reload from disk before refetch — guards against stale in-memory state
                 await contentManager.loadAll(for: coll)
                 guard let refetched = contentManager.items(in: coll).first(where: { $0.id == item.id }) else {
-                    errorMessage = "Rename succeeded on disk but in-memory refetch failed. Item state may be stale; please close + reopen."
+                    errorMessage =
+                        "Rename succeeded on disk but in-memory refetch failed. Item state may be stale; please close + reopen."
                     dismiss()
                     return
                 }

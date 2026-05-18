@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("ItemValidator")
@@ -10,23 +11,27 @@ struct ItemValidatorTests {
         let spaceID = ULID.generate()
         let topicID = ULID.generate()
         let subtopicID = ULID.generate()
-        let space = Space(id: spaceID, title: "S", color: .blue, icon: nil,
-                          blocks: [], modifiedAt: Date())
-        let topic = Topic(id: topicID, title: "T", parents: [],
-                          icon: nil, blocks: [], modifiedAt: Date())
-        let subtopic = Subtopic(id: subtopicID, title: "U", parents: ["01HX"],
-                                linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
+        let space = Space(
+            id: spaceID, title: "S", color: .blue, icon: nil,
+            blocks: [], modifiedAt: Date())
+        let topic = Topic(
+            id: topicID, title: "T", parents: [],
+            icon: nil, blocks: [], modifiedAt: Date())
+        let subtopic = Subtopic(
+            id: subtopicID, title: "U", parents: ["01HX"],
+            linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
-            lookupSpace:    { id in id == spaceID ? space : nil },
-            lookupTopic:    { id in id == topicID ? topic : nil },
+            lookupSpace: { id in id == spaceID ? space : nil },
+            lookupTopic: { id in id == topicID ? topic : nil },
             lookupSubtopic: { id in id == subtopicID ? subtopic : nil },
-            lookupVault:    { _ in nil }
+            lookupVault: { _ in nil }
         )
         let vault = Vault(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [
-                PropertyDefinition(name: "status", type: .select,
-                                   selectOptions: [PropertyDefinition.SelectOption(value: "Active", label: "Active", color: nil)])
+                PropertyDefinition(
+                    name: "status", type: .select,
+                    selectOptions: [PropertyDefinition.SelectOption(value: "Active", label: "Active", color: nil)])
             ],
             views: [], modifiedAt: Date()
         )
@@ -43,13 +48,14 @@ struct ItemValidatorTests {
     @Test("tier1 ID resolving to a Topic (wrong tier) throws")
     func tier1WrongTier() {
         let topicID = ULID.generate()
-        let topic = Topic(id: topicID, title: "T", parents: [],
-                          icon: nil, blocks: [], modifiedAt: Date())
+        let topic = Topic(
+            id: topicID, title: "T", parents: [],
+            icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
-            lookupSpace:    { _ in nil },
-            lookupTopic:    { id in id == topicID ? topic : nil },
+            lookupSpace: { _ in nil },
+            lookupTopic: { id in id == topicID ? topic : nil },
             lookupSubtopic: { _ in nil },
-            lookupVault:    { _ in nil }
+            lookupVault: { _ in nil }
         )
         let vault = makeVault(properties: [])
         #expect(throws: ItemValidator.ValidationError.tierMismatch(expectedTier: 1, id: topicID)) {
@@ -90,7 +96,8 @@ struct ItemValidatorTests {
     }
 
     private func makeVault(properties: [PropertyDefinition]) -> Vault {
-        Vault(id: ULID.generate(), title: "V", icon: nil,
-              properties: properties, views: [], modifiedAt: Date())
+        Vault(
+            id: ULID.generate(), title: "V", icon: nil,
+            properties: properties, views: [], modifiedAt: Date())
     }
 }
