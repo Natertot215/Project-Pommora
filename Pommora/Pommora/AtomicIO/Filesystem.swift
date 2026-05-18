@@ -114,15 +114,25 @@ enum Filesystem {
         return finalDest
     }
 
-    /// Inserts a `.YYYYMMDD-HHMMSS` timestamp before the file extension (or at
+    /// Inserts a `.YYYYMMDD-HHMMSS-XXXX` stamp before the file extension (or at
     /// the end of the path component if there's no extension — for folders).
-    /// Example: `Notes.md` → `Notes.20260518-093215.md`;
-    ///          `Documents/` → `Documents.20260518-093215/`.
+    ///
+    /// The timestamp is in UTC for cross-timezone determinism (trash filenames
+    /// sort consistently regardless of which timezone the user was in at delete
+    /// time). The 4-char hex discriminator (UUID prefix) guarantees uniqueness
+    /// for multiple deletes of the same path within the same wall-clock second
+    /// — safe today (managers serialize via `@MainActor`) and safe for any
+    /// future batch-delete scenarios.
+    ///
+    /// Example: `Notes.md` → `Notes.20260518-093215-A3F2.md`;
+    ///          `Documents/` → `Documents.20260518-093215-A3F2/`.
     private static func suffixedWithTimestamp(_ url: URL) -> URL {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        let stamp = formatter.string(from: Date())
+        let timestamp = formatter.string(from: Date())
+        let discriminator = String(UUID().uuidString.prefix(4))
+        let stamp = "\(timestamp)-\(discriminator)"
 
         let ext = url.pathExtension
         let withoutExt = url.deletingPathExtension()

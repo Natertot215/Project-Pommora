@@ -68,8 +68,11 @@ struct FilesystemTrashTests {
         try "data".write(to: outside, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: outside) }
 
-        #expect(throws: FilesystemError.self) {
+        #expect {
             _ = try Filesystem.moveToTrash(outside, in: nexus)
+        } throws: { error in
+            guard case FilesystemError.sourceNotInNexus = error else { return false }
+            return true
         }
     }
 }
