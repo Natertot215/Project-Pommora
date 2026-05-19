@@ -93,6 +93,22 @@ struct ContentView: View {
         .onChange(of: nexusManager.currentNexus, initial: true) { _, nexus in
             constructManagers(for: nexus)
         }
+        .onChange(of: mainWindowRouter?.bringToFrontTick) { _, _ in
+            guard let router = mainWindowRouter, let sel = router.pendingSelection else { return }
+            // Suppress double-recording during the programmatic selection.
+            AppGlobals.recentsManager?.isNavigatingHistory = true
+            sidebarSelection = sel
+            DispatchQueue.main.async {
+                AppGlobals.recentsManager?.isNavigatingHistory = false
+                // Record the expand as a fresh main-frame land.
+                if let ref = EntityStateRef(sidebarSelection: sel) {
+                    AppGlobals.recentsManager?.record(ref)
+                }
+                router.pendingSelection = nil
+            }
+            // Raise the main NSWindow.
+            NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })?.makeKeyAndOrderFront(nil)
+        }
     }
 
     @ViewBuilder

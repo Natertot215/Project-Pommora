@@ -17,7 +17,7 @@ struct PommoraApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .environment(nexusManager)
         }
@@ -42,5 +42,17 @@ struct PommoraApp: App {
 
             InspectorCommands()
         }
+
+        WindowGroup(id: "entity", for: EntityRef.self) { $ref in
+            if let ref {
+                EntityWindowHost(ref: ref)
+            } else {
+                Text("No entity").foregroundStyle(.secondary)
+            }
+        }
+        .defaultSize(width: 720, height: 820)
+        .defaultPosition(.center)
+        .windowToolbarStyle(.unified(showsTitle: false))
+        .windowResizability(.contentMinSize)
     }
 }

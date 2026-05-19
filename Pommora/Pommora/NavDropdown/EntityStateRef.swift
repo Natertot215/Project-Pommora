@@ -35,3 +35,18 @@ struct EntityStateRef: Codable, Hashable, Sendable {
         hasher.combine(id)
     }
 }
+
+extension EntityStateRef {
+    @MainActor
+    init?(sidebarSelection sel: SidebarSelection) {
+        switch sel {
+        case .none, .savedKey: return nil
+        case .page(let p): self.init(kind: .page, id: p.id, title: p.title)
+        case .vault(let v): self.init(kind: .vault, id: v.id, title: v.title)
+        case .space(let s): self.init(kind: .space, id: s.id, title: s.title)
+        case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
+        case .subtopic(let st): self.init(kind: .subtopic, id: st.id, title: st.title)
+        case .collection(let c): self.init(kind: .collection, id: c.id, title: c.title)
+        }
+    }
+}

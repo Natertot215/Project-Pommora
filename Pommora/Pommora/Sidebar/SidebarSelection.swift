@@ -13,6 +13,45 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case page(PageMeta)
 }
 
+extension SidebarSelection {
+    /// Bridge EntityRef → SidebarSelection by resolving via AppGlobals.
+    /// Returns nil if the underlying entity has been deleted on disk.
+    @MainActor
+    init?(entityRef: EntityRef) {
+        switch entityRef {
+        case .page(let pageID, let vaultID, let collectionID):
+            guard let cm = AppGlobals.contentManager,
+                let vm = AppGlobals.vaultManager,
+                let resolved = PageRef(pageID: pageID, vaultID: vaultID, collectionID: collectionID)
+                    .resolve(vaultManager: vm, contentManager: cm)
+            else { return nil }
+            self = .page(resolved.page)
+        case .vault(let vaultID):
+            guard let vm = AppGlobals.vaultManager,
+                let v = vm.vaults.first(where: { $0.id == vaultID })
+            else { return nil }
+            self = .vault(v)
+        case .space(let spaceID):
+            guard let sm = AppGlobals.spaceManager,
+                let s = sm.spaces.first(where: { $0.id == spaceID })
+            else { return nil }
+            self = .space(s)
+        case .topic(let topicID):
+            guard let tm = AppGlobals.topicManager,
+                let t = tm.topics.first(where: { $0.id == topicID })
+            else { return nil }
+            self = .topic(t)
+        case .subtopic(let subtopicID, let parentTopicID):
+            guard let tm = AppGlobals.topicManager,
+                let st = tm.subtopicsByParent[parentTopicID]?.first(where: { $0.id == subtopicID })
+            else { return nil }
+            self = .subtopic(st)
+        case .collection:
+            return nil  // not wired in v0.2.7.2
+        }
+    }
+}
+
 /// Used by SelectableRow to compare against the current SidebarSelection
 /// for highlight state. Each case carries the entity's ULID.
 enum SelectionTag: Equatable, Hashable, Sendable {
