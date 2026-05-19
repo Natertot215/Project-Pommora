@@ -6,9 +6,9 @@
 
 **v0.2.7 Page editor ships native TextKit 2.** Pommora now uses the vendored swift-markdown-engine (local Swift Package at [`External/MarkdownEngine/`](../External/MarkdownEngine/)) as its body editor. The Pallepadehat fork is stripped from the codebase. Apple swift-markdown 0.8.0 is pinned as an engine dep — currently unused; ready for Phase 3's AST-walking tokenizer/styler rewrite (deferred to v0.2.7.1).
 
-**`main` is at `b7a2535`** (v0.2.7-h.4: character-pair auto-pair). **197/197 unit tests pass** (prior "198" doc references were off-by-one; current XCTest count verified via diverse-suite spot-check). `xcodebuild build` green. `swift format lint --strict --recursive` exit 0. Engine builds standalone via `cd External/MarkdownEngine && swift build`. Not yet pushed — Nathan pushes manually.
+**`main` is at `9756f68`** (v0.2.7-h.5: docs ship-out). **197/197 unit tests pass** (prior "198" doc references were off-by-one; current XCTest count verified via diverse-suite spot-check). `xcodebuild build` green. `swift format lint --strict --recursive` exit 0. Engine builds standalone via `cd External/MarkdownEngine && swift build`. Not yet pushed — Nathan pushes manually.
 
-##### Session 9 execution path (5 commits on `main`)
+##### Session 9 execution path (6 commits on `main`)
 
 | SHA | Tag | What |
 |---|---|---|
@@ -17,6 +17,7 @@
 | `ad2b879` | v0.2.7-h.2 | Vendored swift-markdown-engine @ `e683a62` as local SPM at `External/MarkdownEngine/` (Apache 2.0, 46 .swift files); added swift-markdown 0.8.0 SPM dep to Pommora target; minimal `@MainActor` patches to engine sources for Swift 6 compatibility (see NOTICE.md) |
 | `4fafed0` | v0.2.7-h.3 | Wired PageEditorView body to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; added swift-markdown 0.8.0 as engine-side dep (groundwork for deferred Phase 3) |
 | `b7a2535` | v0.2.7-h.4 | Character-pair auto-pair `**`/`__`/`[[`/`` `` `` added to engine's `MarkdownInputHandler.handleCharacterPairAutoPair(...)`; wired into NSTextViewDelegate's `shouldChangeTextIn` chain; suppressed inside code blocks and when next char is already the close marker |
+| `9756f68` | v0.2.7-h.5 | Final doc ship-out — Handoff/Framework/History/CLAUDE rewritten to reflect v0.2.7 LIVE state + plan deviations enumerated + v0.2.7.1 verbatim resume prompt; test count corrected 198 → 197 |
 
 ##### Plan deviations from `// Planning//v0.2.7-engine-swap.md`
 
@@ -52,13 +53,13 @@ The plan was a 6-phase comprehensive rewrite. Session 9 shipped Phases 0, 1, 2, 
 | `2226fbe` | v0.2.7-g | Phase G fork polish #1 (Apple typography overhaul + auto-pair + transparent bg) |
 | `1989fac` | v0.2.7-g.2 | Fork bump to `addaa23` + Pommora-side `.background(Color.clear)` defensive layer |
 | `152609c` | docs Session 7 | Milkdown decision documentation (superseded) |
-| `1c6e270` → `b7a2535` | v0.2.7-h.0 → h.4 | Session-9 engine swap execution (see table above) |
+| `1c6e270` → `9756f68` | v0.2.7-h.0 → h.5 | Session-9 engine swap execution (see table above) |
 
 ---
 
 #### Verbatim resume prompt for v0.2.7.1 patch session
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. `main` is at `b7a2535` (v0.2.7-h.4: character-pair auto-pair shipped). v0.2.7 native TextKit-2 editor is live — Pages open + edit + persist via the vendored MarkdownEngine local SPM at `External/MarkdownEngine/`. 197/197 tests pass; build green; swift format lint exit 0. **Next: v0.2.7.1 patch landing the deferred Phase 3 work** — replace `External/MarkdownEngine/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift`'s regex body with an Apple-AST walk emitting `[MarkdownToken]` shims (Apple swift-markdown 0.8.0 already wired as engine dep in Package.swift). Same surgery on `MarkdownStyler.styleAttributes` + delete `MarkdownTokenizer+Emphasis.swift` and the 6 `MarkdownStyler+*` extensions. Adds Table / BlockQuote / ThematicBreak / Strikethrough. Also: ship Phase-4.5 selection-wrap + auto-exit-on-space polish + the 11-test auto-pair test suite. Plan reference: `// Planning//v0.2.7-engine-swap.md` Phases 3 + 4.5 polish. Branch policy: all commits on `main` directly (Nathan-locked). Every dispatched agent uses Opus 4.7."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. `main` is at `9756f68` (v0.2.7-h.5: docs ship-out; v0.2.7 fully shipped). v0.2.7 native TextKit-2 editor is live — Pages open + edit + persist via the vendored MarkdownEngine local SPM at `External/MarkdownEngine/`. 197/197 tests pass; build green; swift format lint exit 0. **Next: v0.2.7.1 patch landing the deferred Phase 3 work** — replace `External/MarkdownEngine/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift`'s regex body with an Apple-AST walk emitting `[MarkdownToken]` shims (Apple swift-markdown 0.8.0 already wired as engine dep in Package.swift). Same surgery on `MarkdownStyler.styleAttributes` + delete `MarkdownTokenizer+Emphasis.swift` and the 6 `MarkdownStyler+*` extensions. Adds Table / BlockQuote / ThematicBreak / Strikethrough. Also: ship Phase-4.5 selection-wrap + auto-exit-on-space polish + the 11-test auto-pair test suite. Plan reference: `// Planning//v0.2.7-engine-swap.md` Phases 3 + 4.5 polish. Branch policy: all commits on `main` directly (Nathan-locked). Every dispatched agent uses Opus 4.7."
 
 ---
 

@@ -33,14 +33,15 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**End of 2026-05-18 (Session 9 — v0.2.7 shipped, Phase 3 deferred):** The native TextKit-2 Page editor is **LIVE on `main` at `b7a2535`**. Pommora now uses the vendored `swift-markdown-engine` (local Swift Package at `External/MarkdownEngine/`) as its body editor. Build green, **197/197 tests pass**, lint exit 0. Apple `swift-markdown 0.8.0` SPM dep wired as engine groundwork (currently unused; powers the deferred Phase 3 AST rewrite).
+**End of 2026-05-18 (Session 9 — v0.2.7 shipped, Phase 3 deferred):** The native TextKit-2 Page editor is **LIVE on `main` at `9756f68`**. Pommora now uses the vendored `swift-markdown-engine` (local Swift Package at `External/MarkdownEngine/`) as its body editor. Build green, **197/197 tests pass**, lint exit 0. Apple `swift-markdown 0.8.0` SPM dep wired as engine groundwork (currently unused; powers the deferred Phase 3 AST rewrite).
 
-**Shipped this session (5 commits, `1c6e270` → `b7a2535`):**
+**Shipped this session (6 commits, `1c6e270` → `9756f68`):**
 - ✅ **Phase 0** (`h.0`) — docs repair reconciling Session-8 engine-swap decision
 - ✅ **Phase 1** (`h.1`) — Pallepadehat fork stripped (6 pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone)
 - ✅ **Phase 2** (`h.2`) — engine vendored as local SPM at `External/MarkdownEngine/` (Apache 2.0, 46 files, Swift 5.9 mode); Apple swift-markdown 0.8.0 added as Pommora SPM dep
 - ✅ **Phase 4** (`h.3`) — `PageEditorView` body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; swift-markdown 0.8.0 also added as engine-side dep
 - ✅ **Phase 4.5 basic** (`h.4`) — character-pair auto-pair `**`/`__`/`[[`/`` `` `` with caret-between; suppressed inside code blocks + when next char is close marker
+- ✅ **Phase 5 docs** (`h.5`) — Handoff/Framework/History/CLAUDE rewritten to reflect v0.2.7 LIVE; test count corrected 198 → 197; v0.2.7.1 verbatim resume prompt added
 
 **Deferred to v0.2.7.1 patch:**
 - **Phase 3 substantive** — rewrite engine's `MarkdownTokenizer.parseTokens(in:)` body to walk `Document(parsing: text)` AST + emit `[MarkdownToken]` shims; same for `MarkdownStyler.styleAttributes`; delete `MarkdownTokenizer+Emphasis.swift` + 6 `MarkdownStyler+*` extensions. Adds Table / BlockQuote / ThematicBreak / Strikethrough support.

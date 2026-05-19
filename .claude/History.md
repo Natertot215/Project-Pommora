@@ -2,9 +2,9 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
-#### Session 9 — 2026-05-18 (continued — v0.2.7 engine swap SHIPPED in 5 commits)
+#### Session 9 — 2026-05-18 (continued — v0.2.7 engine swap SHIPPED in 6 commits)
 
-Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on `main` at `b7a2535`. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198/198" doc references were off-by-one — current XCTest count verified by diverse-suite spot-check.)
+Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on `main` at `9756f68`. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198/198" doc references were off-by-one — current XCTest count verified by diverse-suite spot-check.)
 
 **Commits (all on `main`):**
 - `1c6e270` v0.2.7-h.0 — docs repair reconciling Session-8 engine-swap decision (Handoff/Framework/History/CLAUDE/Planning)
@@ -12,6 +12,7 @@ Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on
 - `ad2b879` v0.2.7-h.2 — swift-markdown-engine vendored as local Swift Package at `External/MarkdownEngine/` (Apache 2.0, 46 .swift files); Apple swift-markdown 0.8.0 exact added as Pommora SPM dep; minimal Swift-6 patches to engine sources (`@MainActor` on MarkdownInputHandler / MarkdownLists / MarkdownStyler / TextStylingService structs + MarkdownTextLayoutFragment overrides as `nonisolated` with `MainActor.assumeIsolated` bodies + selector-based notification observers in NativeTextViewCoordinator)
 - `4fafed0` v0.2.7-h.3 — PageEditorView body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; Apple swift-markdown 0.8.0 also added as engine-side dep (groundwork for deferred Phase 3)
 - `b7a2535` v0.2.7-h.4 — character-pair auto-pair (`**`/`__`/`[[`/`` `` ``) added to engine's `MarkdownInputHandler.handleCharacterPairAutoPair(...)`; wired into NSTextViewDelegate's `shouldChangeTextIn` chain after image-embed auto-wrap, before list insertion; suppressed inside code blocks + when next char is close marker
+- `9756f68` v0.2.7-h.5 — final doc ship-out across Handoff/Framework/History/CLAUDE reflecting v0.2.7 LIVE state + 197/197 test-count correction + v0.2.7.1 verbatim resume prompt
 
 **Plan deviations from `// Planning//v0.2.7-engine-swap.md`:**
 
