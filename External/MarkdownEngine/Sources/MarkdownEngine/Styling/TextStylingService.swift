@@ -67,7 +67,7 @@ struct TextStylingService {
             return
         }
 
-        let styledRanges = MarkdownStyler.styleAttributes(
+        let primaryStyledRanges = MarkdownStyler.styleAttributes(
             text: textView.string,
             fontName: baseFont.fontName,
             fontSize: baseFont.pointSize,
@@ -79,6 +79,19 @@ struct TextStylingService {
             scopedRanges: paragraphs,
             configuration: configuration
         )
+
+        // Supplemental pass: walk Apple swift-markdown's AST for GFM-and-
+        // extended block types the regex tokenizer doesn't cover (BlockQuote,
+        // Strikethrough, Table, ThematicBreak). Composes additively on top
+        // of the primary styler — primary handles emphasis/links/code/lists/
+        // headings; this fills the gaps.
+        let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
+            text: textView.string,
+            baseFont: baseFont,
+            theme: configuration.theme
+        )
+
+        let styledRanges = primaryStyledRanges + supplementalRanges
 
         let spellingDisabledRanges = styledRanges.compactMap { (range, attrs) -> NSRange? in
             attrs[.spellingState] as? Int == 0 ? range : nil

@@ -19,20 +19,29 @@ extension NativeTextViewWrapper.Coordinator {
 
         if let fontIndex = customMenu.items.firstIndex(where: { $0.title == "Font" }) {
             customMenu.removeItem(at: fontIndex)
+
+            // Format submenu — inline marks
             let formatItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
             let formatSubmenu = NSMenu(title: "Format")
-            let boldItem = NSMenuItem(title: "Bold", action: #selector(didMarkdownBold(_:)), keyEquivalent: "")
-            boldItem.target = self
-            formatSubmenu.addItem(boldItem)
-            let italicItem = NSMenuItem(title: "Italic", action: #selector(didMarkdownItalic(_:)), keyEquivalent: "")
-            italicItem.target = self
-            formatSubmenu.addItem(italicItem)
+            let formatSpecs: [(String, Selector)] = [
+                ("Bold", #selector(didMarkdownBold(_:))),
+                ("Italic", #selector(didMarkdownItalic(_:))),
+                ("Strikethrough", #selector(didMarkdownStrikethrough(_:))),
+                ("Inline Code", #selector(didMarkdownInlineCode(_:))),
+                ("Link", #selector(didMarkdownLink(_:)))
+            ]
+            for (title, selector) in formatSpecs {
+                let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+                item.target = self
+                formatSubmenu.addItem(item)
+            }
             formatItem.submenu = formatSubmenu
             customMenu.insertItem(formatItem, at: fontIndex)
 
+            // Heading submenu — H1 through H6
             let headingItem = NSMenuItem(title: "Heading", action: nil, keyEquivalent: "")
             let headingSubmenu = NSMenu(title: "Heading")
-            for level in 1...3 {
+            for level in 1...6 {
                 let item = NSMenuItem(title: "H\(level)", action: #selector(didMarkdownHeading(_:)), keyEquivalent: "")
                 item.target = self
                 item.tag = level
@@ -41,6 +50,7 @@ extension NativeTextViewWrapper.Coordinator {
             headingItem.submenu = headingSubmenu
             customMenu.insertItem(headingItem, at: fontIndex + 1)
 
+            // Lists submenu — Bullet, Numbered
             let listItem = NSMenuItem(title: "Lists", action: nil, keyEquivalent: "")
             let listSubmenu = NSMenu(title: "Lists")
             let unorderedItem = NSMenuItem(title: "Bullet", action: #selector(didMarkdownUnorderedList(_:)), keyEquivalent: "")
@@ -51,10 +61,176 @@ extension NativeTextViewWrapper.Coordinator {
             listSubmenu.addItem(orderedItem)
             listItem.submenu = listSubmenu
             customMenu.insertItem(listItem, at: fontIndex + 2)
-            customMenu.insertItem(NSMenuItem.separator(), at: fontIndex + 3)
+
+            // Block submenu — block-level inserts (Blockquote, Code Block,
+            // Table, Horizontal Rule). Distinct from Format (inline marks)
+            // because these all create or transform full blocks.
+            let blockItem = NSMenuItem(title: "Block", action: nil, keyEquivalent: "")
+            let blockSubmenu = NSMenu(title: "Block")
+            let blockSpecs: [(String, Selector)] = [
+                ("Blockquote", #selector(didMarkdownBlockquote(_:))),
+                ("Code Block", #selector(didMarkdownCodeBlock(_:))),
+                ("Table", #selector(didMarkdownTable(_:))),
+                ("Horizontal Rule", #selector(didMarkdownHorizontalRule(_:)))
+            ]
+            for (title, selector) in blockSpecs {
+                let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+                item.target = self
+                blockSubmenu.addItem(item)
+            }
+            blockItem.submenu = blockSubmenu
+            customMenu.insertItem(blockItem, at: fontIndex + 3)
+
+            customMenu.insertItem(NSMenuItem.separator(), at: fontIndex + 4)
         }
 
         return customMenu
+    }
+
+    // MARK: - Inline format handlers (Pommora additions)
+
+    @objc func didMarkdownStrikethrough(_ sender: Any?) {
+        guard let tv = textView else { return }
+        if tv.selectedRange().length == 0 {
+            insertEmptyMarkers("~~")
+        } else {
+            wrapSelection(with: "~~")
+        }
+    }
+
+    @objc func didMarkdownInlineCode(_ sender: Any?) {
+        guard let tv = textView else { return }
+        if tv.selectedRange().length == 0 {
+            insertEmptyMarkers("`")
+        } else {
+            wrapSelection(with: "`")
+        }
+    }
+
+    /// Wraps selection (or inserts at caret) as `[text](url)`. If selection
+    /// is empty, places caret in the `text` slot. If non-empty, treats the
+    /// selection as link text and places caret in the URL slot.
+    @objc func didMarkdownLink(_ sender: Any?) {
+        guard let tv = textView else { return }
+        let range = tv.selectedRange()
+        let nsText = tv.string as NSString
+        let insertion: String
+        let cursorOffset: Int
+        let cursorLen: Int
+        if range.length == 0 {
+            insertion = "[](url)"
+            cursorOffset = 1  // between `[` and `]`
+            cursorLen = 0
+        } else {
+            let selectedText = nsText.substring(with: range)
+            insertion = "[\(selectedText)](url)"
+            // Caret lands on the "url" placeholder, selected.
+            cursorOffset = 1 + selectedText.utf16.count + 2  // skip `[text](`
+            cursorLen = 3  // select "url"
+        }
+        if tv.shouldChangeText(in: range, replacementString: insertion) {
+            tv.replaceCharacters(in: range, with: insertion)
+            tv.didChangeText()
+            tv.setSelectedRange(NSRange(location: range.location + cursorOffset, length: cursorLen))
+            DispatchQueue.main.async { self.text = tv.string }
+        }
+    }
+
+    // MARK: - Block format handlers (Pommora additions)
+
+    /// Prefixes each line in the selection (or the current line if none) with
+    /// `> ` to make a blockquote.
+    @objc func didMarkdownBlockquote(_ sender: Any?) {
+        guard let tv = textView else { return }
+        let nsText = tv.string as NSString
+        let selRange = tv.selectedRange()
+        // Expand to full line(s) so prefixing applies cleanly.
+        let blockRange = nsText.lineRange(for: selRange)
+        let original = nsText.substring(with: blockRange)
+        // Split + prefix each line. Trailing empty after final \n preserved.
+        let lines = original.components(separatedBy: "\n")
+        let prefixed = lines.enumerated().map { idx, line -> String in
+            // Last element is "" when original ends with \n; don't prefix that.
+            if idx == lines.count - 1 && line.isEmpty { return line }
+            return "> " + line
+        }
+        let replacement = prefixed.joined(separator: "\n")
+        if tv.shouldChangeText(in: blockRange, replacementString: replacement) {
+            tv.replaceCharacters(in: blockRange, with: replacement)
+            tv.didChangeText()
+            tv.setSelectedRange(NSRange(location: blockRange.location, length: replacement.utf16.count))
+            DispatchQueue.main.async { self.text = tv.string }
+        }
+    }
+
+    /// Wraps selection (or inserts at caret) in a fenced code block.
+    @objc func didMarkdownCodeBlock(_ sender: Any?) {
+        guard let tv = textView else { return }
+        let nsText = tv.string as NSString
+        let range = tv.selectedRange()
+        let selectedText = range.length == 0 ? "" : nsText.substring(with: range)
+        let prefix = needsLeadingNewline(at: range.location, in: nsText) ? "\n```\n" : "```\n"
+        let suffix = "\n```"
+        let insertion = prefix + selectedText + suffix
+        if tv.shouldChangeText(in: range, replacementString: insertion) {
+            tv.replaceCharacters(in: range, with: insertion)
+            tv.didChangeText()
+            // Caret lands inside the fenced block on the content line.
+            let caret = range.location + prefix.utf16.count + selectedText.utf16.count
+            tv.setSelectedRange(NSRange(location: caret, length: 0))
+            DispatchQueue.main.async { self.text = tv.string }
+        }
+    }
+
+    /// Inserts a 3-column × 2-row table scaffold at the cursor (the header
+    /// row plus the alignment row plus a single data row). User fills cells.
+    @objc func didMarkdownTable(_ sender: Any?) {
+        guard let tv = textView else { return }
+        let nsText = tv.string as NSString
+        let range = tv.selectedRange()
+        let leadingNewline = needsLeadingNewline(at: range.location, in: nsText) ? "\n" : ""
+        let scaffold = """
+        | Header 1 | Header 2 | Header 3 |
+        |----------|----------|----------|
+        | Cell     | Cell     | Cell     |
+        """
+        let insertion = leadingNewline + scaffold + "\n"
+        if tv.shouldChangeText(in: range, replacementString: insertion) {
+            tv.replaceCharacters(in: range, with: insertion)
+            tv.didChangeText()
+            // Caret lands at start of "Header 1" so the user can immediately
+            // type to overwrite the first header. Offset = leading newline +
+            // "| " (2 chars).
+            let caret = range.location + leadingNewline.utf16.count + 2
+            tv.setSelectedRange(NSRange(location: caret, length: 8))  // selects "Header 1"
+            DispatchQueue.main.async { self.text = tv.string }
+        }
+    }
+
+    /// Inserts `\n---\n` (ThematicBreak) on its own line at the cursor.
+    @objc func didMarkdownHorizontalRule(_ sender: Any?) {
+        guard let tv = textView else { return }
+        let nsText = tv.string as NSString
+        let range = tv.selectedRange()
+        let leadingNewline = needsLeadingNewline(at: range.location, in: nsText) ? "\n" : ""
+        let insertion = leadingNewline + "---\n"
+        if tv.shouldChangeText(in: range, replacementString: insertion) {
+            tv.replaceCharacters(in: range, with: insertion)
+            tv.didChangeText()
+            let caret = range.location + insertion.utf16.count
+            tv.setSelectedRange(NSRange(location: caret, length: 0))
+            DispatchQueue.main.async { self.text = tv.string }
+        }
+    }
+
+    /// True when inserting at `location` would NOT start on a fresh line.
+    /// Used by block-level inserts (Code Block, Table, HR) so they always
+    /// land on their own line rather than appended to whatever the caret
+    /// was sitting in the middle of.
+    private func needsLeadingNewline(at location: Int, in nsText: NSString) -> Bool {
+        guard location > 0 else { return false }
+        let prevChar = nsText.character(at: location - 1)
+        return prevChar != 0x0A  // not a newline
     }
 
     /// Returns the smallest bold or boldItalic token that fully contains the selection, or nil when the selection isn't enclosed by emphasis with a bold trait.

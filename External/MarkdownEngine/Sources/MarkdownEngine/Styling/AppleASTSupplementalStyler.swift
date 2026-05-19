@@ -1,0 +1,179 @@
+//
+//  AppleASTSupplementalStyler.swift
+//  MarkdownEngine
+//
+//  Walks Apple swift-markdown's Document AST to apply styling for
+//  Markdown constructs the engine's regex tokenizer doesn't cover:
+//  BlockQuote, Strikethrough, Table, ThematicBreak. Runs AFTER the
+//  primary MarkdownStyler pass so it composes additively — primary
+//  styler handles emphasis/links/code/lists/headings, this pass adds
+//  the GFM-and-extended block types Pommora needs.
+//
+//  Pommora-owned addition to the vendored engine (Session 9 follow-up).
+//
+
+import AppKit
+import Foundation
+import Markdown
+
+@MainActor
+enum AppleASTSupplementalStyler {
+
+    /// Walk Apple's AST and emit attributes for BlockQuote / Strikethrough
+    /// / Table / ThematicBreak. Returns ranges to apply on top of the
+    /// primary styler's output.
+    static func styleAttributes(
+        text: String,
+        baseFont: NSFont,
+        theme: MarkdownEditorTheme
+    ) -> [StyledRange] {
+        let document = Document(parsing: text)
+        let nsText = text as NSString
+        let lineIndex = LineOffsetIndex(text: text)
+        var visitor = Visitor(
+            nsText: nsText,
+            lineIndex: lineIndex,
+            baseFont: baseFont,
+            theme: theme
+        )
+        visitor.visit(document)
+        return visitor.styledRanges
+    }
+
+    private struct Visitor: MarkupVisitor {
+        typealias Result = Void
+
+        let nsText: NSString
+        let lineIndex: LineOffsetIndex
+        let baseFont: NSFont
+        let theme: MarkdownEditorTheme
+        var styledRanges: [StyledRange] = []
+
+        mutating func defaultVisit(_ markup: any Markup) -> Void {
+            for child in markup.children {
+                visit(child)
+            }
+        }
+
+        mutating func visitBlockQuote(_ blockQuote: BlockQuote) -> Void {
+            if let range = SourceRangeConverter.nsRange(from: blockQuote.range, in: nsText, lineIndex: lineIndex) {
+                let paragraph = NSMutableParagraphStyle()
+                paragraph.headIndent = 20
+                paragraph.firstLineHeadIndent = 20
+                styledRanges.append((range, [
+                    .foregroundColor: theme.bodyText.withAlphaComponent(0.75),
+                    .backgroundColor: theme.bodyText.withAlphaComponent(0.06),
+                    .paragraphStyle: paragraph
+                ]))
+            }
+            // Continue walking children so nested strikethrough etc. still fire.
+            for child in blockQuote.children {
+                visit(child)
+            }
+        }
+
+        mutating func visitStrikethrough(_ strikethrough: Strikethrough) -> Void {
+            if let range = SourceRangeConverter.nsRange(from: strikethrough.range, in: nsText, lineIndex: lineIndex) {
+                styledRanges.append((range, [
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                    .strikethroughColor: theme.bodyText
+                ]))
+            }
+            for child in strikethrough.children {
+                visit(child)
+            }
+        }
+
+        mutating func visitTable(_ table: Table) -> Void {
+            if let range = SourceRangeConverter.nsRange(from: table.range, in: nsText, lineIndex: lineIndex) {
+                let monoFont = NSFont.monospacedSystemFont(ofSize: baseFont.pointSize, weight: .regular)
+                styledRanges.append((range, [
+                    .font: monoFont,
+                    .backgroundColor: theme.bodyText.withAlphaComponent(0.04)
+                ]))
+            }
+            for child in table.children {
+                visit(child)
+            }
+        }
+
+        mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) -> Void {
+            if let range = SourceRangeConverter.nsRange(from: thematicBreak.range, in: nsText, lineIndex: lineIndex) {
+                styledRanges.append((range, [
+                    .foregroundColor: theme.bodyText.withAlphaComponent(0.5)
+                ]))
+            }
+        }
+    }
+}
+
+// MARK: - SourceRange → NSRange conversion
+
+/// Apple swift-markdown reports `SourceRange` as (line: 1-based, column: 1-based).
+/// Converts those to NSRange (utf16 offset) for NSAttributedString consumption.
+/// Builds a per-parse line-offset index so multi-line ranges convert in O(log n).
+enum SourceRangeConverter {
+    static func nsRange(from sourceRange: SourceRange?, in nsText: NSString, lineIndex: LineOffsetIndex) -> NSRange? {
+        guard let sourceRange else { return nil }
+        let startLine = sourceRange.lowerBound.line
+        let startCol = sourceRange.lowerBound.column
+        let endLine = sourceRange.upperBound.line
+        let endCol = sourceRange.upperBound.column
+
+        guard let startOffset = lineIndex.utf16Offset(line: startLine, column: startCol) else { return nil }
+        guard let endOffset = lineIndex.utf16Offset(line: endLine, column: endCol) else { return nil }
+
+        let clampedEnd = min(endOffset, nsText.length)
+        let clampedStart = min(startOffset, clampedEnd)
+        return NSRange(location: clampedStart, length: clampedEnd - clampedStart)
+    }
+}
+
+/// Per-parse line-offset cache. `lineStarts[i]` is the utf16 offset of the
+/// start of line `i+1` (lines are 1-based in swift-markdown's SourceRange).
+struct LineOffsetIndex {
+    private let lineStarts: [Int]
+    private let totalLength: Int
+
+    init(text: String) {
+        let nsText = text as NSString
+        var starts: [Int] = [0]
+        starts.reserveCapacity(64)
+        var i = 0
+        let length = nsText.length
+        while i < length {
+            let ch = nsText.character(at: i)
+            // \n, or \r not followed by \n, or \r\n — each starts a new line.
+            if ch == 0x0A {  // \n
+                starts.append(i + 1)
+                i += 1
+            } else if ch == 0x0D {  // \r
+                if i + 1 < length, nsText.character(at: i + 1) == 0x0A {
+                    starts.append(i + 2)
+                    i += 2
+                } else {
+                    starts.append(i + 1)
+                    i += 1
+                }
+            } else {
+                i += 1
+            }
+        }
+        self.lineStarts = starts
+        self.totalLength = length
+    }
+
+    /// Convert (line: 1-based, column: 1-based) → utf16 offset.
+    /// Returns nil for out-of-range line numbers.
+    func utf16Offset(line: Int, column: Int) -> Int? {
+        let lineIdx = line - 1
+        guard lineIdx >= 0, lineIdx < lineStarts.count else {
+            // Past last line: clamp to end of text.
+            if lineIdx == lineStarts.count { return totalLength }
+            return nil
+        }
+        let lineStart = lineStarts[lineIdx]
+        let columnOffset = column - 1
+        return min(lineStart + columnOffset, totalLength)
+    }
+}
