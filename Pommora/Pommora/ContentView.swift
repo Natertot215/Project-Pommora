@@ -48,11 +48,15 @@ struct ContentView: View {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
                 .toolbar {
-                    // Attached to the inspector's content closure so the
-                    // toggle Button renders at the inspector column's trailing
-                    // edge (which is the window's trailing edge). Putting this
-                    // outside the .inspector content closure routes the item
-                    // to the leading detail toolbar — the bug fixed in C.5.1.
+                    // Attached to the inspector's content closure so both items
+                    // render at the inspector column's trailing edge (the window's
+                    // trailing edge). Declaration order = visual order left→right:
+                    // NavDropdown first, inspector toggle second.
+                    ToolbarItem(placement: .primaryAction) {
+                        if recentsManager != nil, favoritesManager != nil {
+                            NavDropdownButton()
+                        }
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             withAnimation(.smooth(duration: 0.25)) {
@@ -86,15 +90,6 @@ struct ContentView: View {
             // selected Page (if any — non-Page toggles don't persist).
             if case .page(let p) = sidebarSelection {
                 AppState.setPageInspectorOpen(newValue, pageID: p.id)
-            }
-        }
-        .toolbar {
-            // NavDropdown trigger — ⌘T opens the Favorites/Recents popover.
-            // Guard on manager availability mirrors the sidebar guard pattern.
-            ToolbarItem(placement: .primaryAction) {
-                if recentsManager != nil, favoritesManager != nil {
-                    NavDropdownButton()
-                }
             }
         }
         .navigationSplitViewStyle(.balanced)
