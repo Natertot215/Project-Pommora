@@ -88,6 +88,15 @@ struct ContentView: View {
                 AppState.setPageInspectorOpen(newValue, pageID: p.id)
             }
         }
+        .toolbar {
+            // NavDropdown trigger — ⌘T opens the Favorites/Recents popover.
+            // Guard on manager availability mirrors the sidebar guard pattern.
+            ToolbarItem(placement: .primaryAction) {
+                if recentsManager != nil, favoritesManager != nil {
+                    NavDropdownButton()
+                }
+            }
+        }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
         .environment(recentsManager)
