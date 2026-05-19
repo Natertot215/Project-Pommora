@@ -2,6 +2,42 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 9 — 2026-05-18 (continued — v0.2.7 engine swap SHIPPED in 5 commits)
+
+Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on `main` at `b7a2535`. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198/198" doc references were off-by-one — current XCTest count verified by diverse-suite spot-check.)
+
+**Commits (all on `main`):**
+- `1c6e270` v0.2.7-h.0 — docs repair reconciling Session-8 engine-swap decision (Handoff/Framework/History/CLAUDE/Planning)
+- `3d23f52` v0.2.7-h.1 — Pallepadehat fork stripped (6 pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone removed); body editor replaced with Phase-4 placeholder Text
+- `ad2b879` v0.2.7-h.2 — swift-markdown-engine vendored as local Swift Package at `External/MarkdownEngine/` (Apache 2.0, 46 .swift files); Apple swift-markdown 0.8.0 exact added as Pommora SPM dep; minimal Swift-6 patches to engine sources (`@MainActor` on MarkdownInputHandler / MarkdownLists / MarkdownStyler / TextStylingService structs + MarkdownTextLayoutFragment overrides as `nonisolated` with `MainActor.assumeIsolated` bodies + selector-based notification observers in NativeTextViewCoordinator)
+- `4fafed0` v0.2.7-h.3 — PageEditorView body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; Apple swift-markdown 0.8.0 also added as engine-side dep (groundwork for deferred Phase 3)
+- `b7a2535` v0.2.7-h.4 — character-pair auto-pair (`**`/`__`/`[[`/`` `` ``) added to engine's `MarkdownInputHandler.handleCharacterPairAutoPair(...)`; wired into NSTextViewDelegate's `shouldChangeTextIn` chain after image-embed auto-wrap, before list insertion; suppressed inside code blocks + when next char is close marker
+
+**Plan deviations from `// Planning//v0.2.7-engine-swap.md`:**
+
+1. **Engine location** — plan said `Pommora/Pommora/PageEditor/Engine/` (raw source vendoring); shipped at `External/MarkdownEngine/` (local Swift Package). Pommora's Swift 6 strict-concurrency + ExistentialAny clashed with engine's Swift 5.9 idioms — the package boundary isolates the engine's concurrency contract, avoiding cascading `@MainActor` annotations across 46 files. Engine is still fully editable (we own the vendored copy in External/).
+
+2. **Phase 3 deferred to v0.2.7.1** — plan's `MarkdownTokenizer.parseTokens(in:)` body swap to walk `Document(parsing: text)` AST + emit `[MarkdownToken]` shims (+ same surgery on `MarkdownStyler.styleAttributes` + delete `MarkdownTokenizer+Emphasis.swift` and 6 `MarkdownStyler+*` extensions) deferred. The Pommora-side files (`PommoraMarkdownStyler` / `PommoraInlineScanner` / `SourceRangeToNSRange` / `MarkersShrinker`) the plan called for at `Pommora/Pommora/PageEditor/Styler/` morph into in-engine rewrites at v0.2.7.1 time. Apple swift-markdown 0.8.0 dep already wired in `External/MarkdownEngine/Package.swift` as groundwork. Engine ships v0.2.7 with its existing regex-based tokenizer + styler — table / blockquote / strikethrough / ThematicBreak support arrives with Phase 3 fill-in.
+
+3. **Phase 4.5 trimmed** — basic character-pair auto-pair ships (insertion only). Selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-whitespace (typing space at fresh-pair boundary jumps past close marker) defer to v0.2.7.1. The 11-test auto-pair test suite also defers.
+
+**Time-cost driver of the deviations:** Swift 6 strict-concurrency cascades on the vendored engine source. ~30% of session time spent diagnosing `MarkdownTextLayoutFragment` NSTextLayoutFragment-override isolation mismatches + `NativeTextViewCoordinator` notification-observer Sendable failures before pivoting to the local-SPM Swift-5.9-package strategy. The local-SPM pivot resolved the cascade — engine then needed only ~5 minimal `@MainActor` annotations on Input/Styling struct types to build clean.
+
+**Architectural assurances intact:**
+- ✅ Files-are-canonical contract: editor still writes `.md` files via `viewModel.body` → 300ms debounced save → `ContentManager.updatePage` → `PageFile.save` → `AtomicYAMLMarkdown.write` (atomic temp-file + rename)
+- ✅ Frontmatter preservation rule: editor binds only to body (YAML stripped by AtomicYAMLMarkdown.load before reaching editor); frontmatter held in `viewModel.page.frontmatter` and re-serialized on save from typed struct
+- ✅ Page-switch flush: PageEditorHost `.task(id:)` awaits `old.close()` before loading new Page
+- ✅ Window-close / app-quit flush: existing AppGlobals lifecycle observers untouched
+- ✅ Editable title TextField at `PageEditorView.swift:53-63` preserved exactly per plan
+- ✅ All 197 v0.2.7 tests pass (none touched MarkdownEditor types — domain layer is editor-library-agnostic)
+
+**Carried forward to v0.2.7.1:**
+- Phase 3 substantive (AST tokenizer/styler rewrite)
+- Phase 4.5 polish (selection-wrap + auto-exit + 11-test suite)
+- Phase 6 (split `.claude/Features/Pages.md` editor-UX content into new `Features/PageEditor.md`)
+- `PommoraWikiLinkResolver` Pommora-side conformance to engine's `WikiLinkResolver` service protocol (v0.2.10 wikilink autocomplete + rename cascade depends on this)
+- Pre-existing engine actor-isolation warning at `NativeTextViewWrapper.swift:213` — fix in same Phase 3 pass
+
 #### Session 7 — 2026-05-18 (second long session) — v0.2.7 Phase A-G ship + Milkdown pivot
 
 A single sprawling session covering: SPM dep on Pallepadehat fork → full domain layer + 10 tests → editor wires end-to-end → 5 polish iterations after smoke test → 2 fork-side polish iterations (Phase G #1 + #2) → Nathan-driven decision to swap to Milkdown + Crepe.

@@ -33,21 +33,23 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**End of 2026-05-18 (Session 8 — architecture pivot, plan-only):** Phase A-G of v0.2.7 remains shipped on `main` (latest commit `152609c`, Session-7 docs). Session 8 reconsidered the Milkdown decision after demoing `nodes-app/swift-markdown-engine` on Nathan's Mac. **New architecture locked:** Apple `swift-markdown` (parser + rendering source-of-truth) + selectively-vendored `swift-markdown-engine` (live-preview chassis). Native TextKit 2; no WKWebView. Build state unchanged: green, **198/198 tests pass**, lint clean.
+**End of 2026-05-18 (Session 9 — v0.2.7 shipped, Phase 3 deferred):** The native TextKit-2 Page editor is **LIVE on `main` at `b7a2535`**. Pommora now uses the vendored `swift-markdown-engine` (local Swift Package at `External/MarkdownEngine/`) as its body editor. Build green, **197/197 tests pass**, lint exit 0. Apple `swift-markdown 0.8.0` SPM dep wired as engine groundwork (currently unused; powers the deferred Phase 3 AST rewrite).
 
-**Architecture-layer split:**
-- **Parser:** Apple `swift-markdown` — full GFM AST including Table, BlockQuote, ThematicBreak, Strikethrough, Strong, Emphasis, Heading, lists, code, links, images, line/soft breaks, HTMLBlock, BlockDirective. SPM dep on `swiftlang/swift-markdown`.
-- **Renderer:** Apple `NSAttributedString` + `NSTextView` + `NSTextLayoutManager` — font, color, paragraph styling, link rendering, selection, find, native context menu, Writing Tools (15.1+), spell-check, autocorrect, IME.
-- **Live-preview chassis:** `swift-markdown-engine` (Apache 2.0, ~4500 LOC after planned deletions) — vendored at `Pommora/Pommora/PageEditor/Engine/`. Contributes the two load-bearing features Apple's bare NSTextView doesn't ship: **dynamic syntax** (markers shrink when caret leaves AST node, expand when entered — Bear/Notion pattern) + **Markdown-aware typing helpers** (list continuation + block auto-wrap from engine; character-pair auto-pair `**`/`__`/`[[`/`` ` `` with auto-exit-on-space added Pommora-side in Phase 4.5).
-- **Domain wiring:** PageRef, PageFile, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, inspector + sidebar wiring, lifecycle observers, atomic-write contract, frontmatter preservation rule, all 198 tests — **survive unchanged from Phase A-G**.
+**Shipped this session (5 commits, `1c6e270` → `b7a2535`):**
+- ✅ **Phase 0** (`h.0`) — docs repair reconciling Session-8 engine-swap decision
+- ✅ **Phase 1** (`h.1`) — Pallepadehat fork stripped (6 pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone)
+- ✅ **Phase 2** (`h.2`) — engine vendored as local SPM at `External/MarkdownEngine/` (Apache 2.0, 46 files, Swift 5.9 mode); Apple swift-markdown 0.8.0 added as Pommora SPM dep
+- ✅ **Phase 4** (`h.3`) — `PageEditorView` body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; swift-markdown 0.8.0 also added as engine-side dep
+- ✅ **Phase 4.5 basic** (`h.4`) — character-pair auto-pair `**`/`__`/`[[`/`` `` `` with caret-between; suppressed inside code blocks + when next char is close marker
 
-**Critical scoping discovery:** engine's `MarkdownToken` type is load-bearing — 11 non-styling files (coordinator extensions, ContextMenu, SpellingPolicy, Input handlers) reach through it. Plan **preserves type-API** of `MarkdownToken`/`MarkdownTokenizer`/`MarkdownDetection` and **rewrites internals** to back onto Apple AST. Only `MarkdownStyler` gets a wholesale body swap.
+**Deferred to v0.2.7.1 patch:**
+- **Phase 3 substantive** — rewrite engine's `MarkdownTokenizer.parseTokens(in:)` body to walk `Document(parsing: text)` AST + emit `[MarkdownToken]` shims; same for `MarkdownStyler.styleAttributes`; delete `MarkdownTokenizer+Emphasis.swift` + 6 `MarkdownStyler+*` extensions. Adds Table / BlockQuote / ThematicBreak / Strikethrough support.
+- **Phase 4.5 polish** — selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-whitespace + the 11-test auto-pair test suite.
+- **Phase 6** — `.claude/Features/Pages.md` split into new `Features/PageEditor.md` covering editor-UX content.
 
-**Strip surface:** Pallepadehat SPM dep (6 pbxproj entries + Package.resolved) + `import MarkdownEditor` + `pommoraEditorConfig` + `EditorWebView` call + `com.apple.security.network.client` entitlement + `External/PageEditorMD/` clone. Fork stays in git history.
+**Plan deviation: engine location.** Plan specified `Pommora/Pommora/PageEditor/Engine/` (raw source vendoring). Shipped at `External/MarkdownEngine/` (local Swift Package). Rationale: Pommora's Swift 6 strict-concurrency + ExistentialAny clashed with the engine's Swift 5.9 idioms — the package boundary isolates the engine's concurrency contract, avoiding cascading `@MainActor` annotations across 46 files. Engine remains fully editable (we own the vendored copy in External/).
 
-**Implementation plan:** [`// Planning//v0.2.7-engine-swap.md`](Planning/v0.2.7-engine-swap.md) — comprehensive single-session plan, Phases 0-5 ship in one go post-compact; Phase 6 (docs split into PageEditor.md) defers to v0.2.7.1 patch. Plan accepted end-of-Session-8.
-
-**Next session opens** with the verbatim resume prompt at the top of `Handoff.md` — Nathan compacts, then session executes the plan in one go. After v0.2.7: **v0.2.8 Tabs**, then v0.2.9 directives (`:::callout`/`@Columns` via Apple `BlockDirective`) + v0.2.10 wikilinks (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). v0.3.0 (Properties) follows the v0.2.x writable-Pommora milestone.
+**Next session priorities** (verbatim resume prompt at top of `Handoff.md`): land v0.2.7.1 patch with the deferred Phase 3 + Phase 4.5 polish work. After v0.2.7.1: **v0.2.8 Tabs**, then v0.2.9 directives (`:::callout`/`@Columns` via Apple `BlockDirective`) + v0.2.10 wikilinks (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). v0.3.0 (Properties) follows the v0.2.x writable-Pommora milestone.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX polish (shipped on `paradigm-scaffolding`; merged to `main` 2026-05-18)
 
