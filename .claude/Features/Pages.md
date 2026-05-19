@@ -57,7 +57,9 @@ The earlier-proposed `@View` (in-line database view embed) is **deferred** to v2
 
 #### Editor surface
 
-Pages on disk are a continuous Markdown stream; in the editor, that stream renders as **WYSIWYG prose** — no markdown syntax markers visible. Typing `**bold**` immediately becomes **bold**; typing `# H1 ` immediately becomes a heading; etc. The raw Markdown source is only visible if you open the file in an external editor (`vim`, `cat`, Obsidian source mode).
+> **Full editor implementation spec — see [`PageEditor.md`](PageEditor.md).** Library choice (Apple `swift-markdown` + vendored `swift-markdown-engine`), shipped features as of v0.2.7.0, deferred v0.2.7.x patch scope, save pipeline, and hot-swap surface all live there. The sections below cover the *user-facing* editing model — what the WYSIWYG experience promises — agnostic of the underlying library.
+
+Pages on disk are a continuous Markdown stream; in the editor, that stream renders as **WYSIWYG prose** — markers shrink to near-invisible when the caret leaves an AST node (Bear/Notion/iA Writer pattern). Typing `**bold**` immediately becomes **bold**; typing `# H1 ` immediately becomes a heading; etc. The raw Markdown source is only visible if you open the file in an external editor (`vim`, `cat`, Obsidian source mode).
 
 **Markdown input shortcuts.** Notion / Bear pattern — typing common Markdown syntax triggers immediate formatting via the editor's input-rule system:
 
@@ -103,15 +105,15 @@ Per-option setup details, swap costs (in Claude sessions), and reference impleme
 
 #### Opening behavior
 
-**v0.3 default — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the `CollectionDetailView` / `VaultDetailView` / `ContextDetailPlaceholder` for that selection. Only one Page is open at a time in the current window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop). This is the v0.3 mode — Tabs haven't shipped yet.
+**Default — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the `CollectionDetailView` / `VaultDetailView` / `ContextDetailPlaceholder` for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop). Shipped at v0.2.7.
 
-**v0.4+ default — new tab in the current window.** Once Tabs land at v0.4, clicking a Page row opens it as a new tab in the current Pommora window. If the Page is already open in a tab, focus existing rather than duplicate. The tab strip hosts Pages alongside Vault and Collection detail views and supports `+` / `×` / `⌘T` / `⌘W` / drag-to-reorder, with persistence to `.nexus/state.json`.
+**From the NavDropdown — preview-then-expand.** Once `NavDropdown.md` ships at v0.2.8, clicking a Page row in the dropdown's Recents or Favorites list opens the Page in a **standalone window** (preview gate). The user then either commits via the window's **Expand** button — which loads the Page into the main detail pane and dismisses the standalone window — or dismisses the window without committing. Only the commit path records the Page in Recents. Full mechanics live in `NavDropdown.md`.
 
-**Optional — new window (available from v0.3 onward).** Right-click a Page row → "Open in New Window", or `⌥⌘O` with a Page row selected (or with a Page focused, which opens the current Page in a new window), or drag a Page row out of the sidebar onto another part of the screen. The standalone window opens via SwiftUI's value-typed `WindowGroup(for: PageRef.self)` scene + `@Environment(\.openWindow)` action, where `PageRef` carries `{ pageID, vaultID, collectionID? }` and resolves through the existing managers. Standalone windows have their own minimal toolbar (no sidebar, no tab strip) and respect macOS native window tabbing — users who want to combine standalone Pages into a tab group use the OS-provided `⌥⌘T` Merge All Windows.
+**Optional — standalone new window (available from v0.2.7 onward).** Right-click a Page row → "Open in New Window", or `⌥⌘O` with a Page row selected (or with a Page focused, which opens the current Page in a new window). The standalone window opens via SwiftUI's value-typed `WindowGroup(for: PageRef.self)` scene + `@Environment(\.openWindow)` action, where `PageRef` carries `{ pageID, vaultID, collectionID? }` and resolves through the existing managers. At v0.2.8, `PageRef` generalizes into `EntityRef` so the same scene serves all full-frame-eligible kinds (see `NavDropdown.md`). Standalone windows have their own minimal toolbar (no sidebar) and respect macOS native window tabbing — users who want to combine standalone Pages into a tab group use the OS-provided `⌥⌘T` Merge All Windows.
 
-Why this sequencing: v0.3 ships the editor in isolation to prove the WYSIWYG canvas works end-to-end before adding multi-instance complexity. v0.4 then has a clean job — take the working editor and host N of them in tabs — without simultaneously debugging the editor itself. The standalone-window path is available the whole time because it's a separate `WindowGroup` scene, not dependent on the tab strip.
+Why this sequencing: v0.2.7 ships the editor in isolation to prove the WYSIWYG canvas works end-to-end before adding multi-instance complexity. v0.2.8 then has a clean job — wire the navigation surface on top of the working editor — without simultaneously debugging the editor itself. The standalone-window path is available the whole time because it's a separate `WindowGroup` scene.
 
-Items use a different model — they open in the **Item Window popover** (Calendar-event-detail pattern), never in a tab or standalone window. See `Items.md`.
+Items use a different model — they open in the **Item Window popover** (Calendar-event-detail pattern), never in a standalone window. See `Items.md`.
 
 ---
 
@@ -128,10 +130,10 @@ Pages appear **in the sidebar** as leaf rows under their parent Vault (root) or 
 - Vault row → discloses Pages directly in the vault root + Collection sub-folders
 - Collection row → discloses its Pages
 - Page row → leaf (no further disclosure; v1 has no sub-pages)
-- **Click on a Page row is a no-op until v0.3** when the WYSIWYG editor lands; the row is structurally visible / selectable but doesn't open anything yet
-- From v0.3 onward, click opens the Page in the detail pane (single Page at a time); from v0.4 onward, click opens the Page as a tab in the current window (see "Opening behavior" above)
+- **Click on a Page row is a no-op until v0.2.7** when the WYSIWYG editor lands; the row is structurally visible / selectable but doesn't open anything yet
+- From v0.2.7 onward, click opens the Page in the detail pane (single Page at a time); v0.2.8 adds the NavDropdown preview-then-expand route and the right-click "Open in New Window" affordance (see "Opening behavior" above)
 
-Right-click on a Page row gives Rename / Delete until v0.3; from v0.3 onward it also adds **Open in New Window** (`⌥⌘O`). From v0.4 onward, the right-click menu also adds **Open in New Tab** alongside the now-default tab-opening click behavior. For full sidebar layout + creation affordances → `Sidebar.md`.
+Right-click on a Page row gives Rename / Delete until v0.2.7; from v0.2.7 onward it also adds **Open in New Window** (`⌥⌘O`). For full sidebar layout + creation affordances → `Sidebar.md`.
 
 ---
 

@@ -33,24 +33,22 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**End of 2026-05-18 (Session 9 — v0.2.7 shipped, Phase 3 deferred):** The native TextKit-2 Page editor is **LIVE on `main` at `9756f68`**. Pommora now uses the vendored `swift-markdown-engine` (local Swift Package at `External/MarkdownEngine/`) as its body editor. Build green, **197/197 tests pass**, lint exit 0. Apple `swift-markdown 0.8.0` SPM dep wired as engine groundwork (currently unused; powers the deferred Phase 3 AST rewrite).
+**End of 2026-05-18 (Session 9 close — v0.2.7.0 SHIPPED + PUSHED):** The native TextKit-2 Page editor is **LIVE on `origin/main` at `9a0b383`**, **tagged `v0.2.7.0`**. Pommora uses Apple `swift-markdown 0.8.0` + a locally vendored `swift-markdown-engine` package (`External/MarkdownEngine/`, Apache 2.0). After an initial bad attempt with the Pallepadehat WKWebView fork that didn't deliver the Notion/Obsidian-native feel, the TextKit-2 pivot sealed it — Apple-native Writing Tools, Look Up / Translate, spell-check, IME, dynamic colors all show up free. Build green, **197/197 tests pass**, lint exit 0, engine builds standalone.
 
-**Shipped this session (6 commits, `1c6e270` → `9756f68`):**
-- ✅ **Phase 0** (`h.0`) — docs repair reconciling Session-8 engine-swap decision
-- ✅ **Phase 1** (`h.1`) — Pallepadehat fork stripped (6 pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone)
-- ✅ **Phase 2** (`h.2`) — engine vendored as local SPM at `External/MarkdownEngine/` (Apache 2.0, 46 files, Swift 5.9 mode); Apple swift-markdown 0.8.0 added as Pommora SPM dep
-- ✅ **Phase 4** (`h.3`) — `PageEditorView` body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; swift-markdown 0.8.0 also added as engine-side dep
-- ✅ **Phase 4.5 basic** (`h.4`) — character-pair auto-pair `**`/`__`/`[[`/`` `` `` with caret-between; suppressed inside code blocks + when next char is close marker
-- ✅ **Phase 5 docs** (`h.5`) — Handoff/Framework/History/CLAUDE rewritten to reflect v0.2.7 LIVE; test count corrected 198 → 197; v0.2.7.1 verbatim resume prompt added
+**Shipped this session (10 commits, `1c6e270` → `9a0b383`):** Full commit table at the top of `Handoff.md`. Highlights: Pallepadehat fork stripped (`h.1`); engine vendored as local SPM + Apple swift-markdown 0.8.0 added (`h.2`); `PageEditorView` wired to `NativeTextViewWrapper` (`h.3`); character-pair auto-pair (`h.4`); UX polish — title-body padding + body 24pt textInsets + auto-unpair-on-backspace (`h.7`); Apple-AST supplemental styler for BlockQuote/Strikethrough/Table/ThematicBreak + expanded right-click menu Format/Heading/Lists/Block (`h.8`); HR-as-real-line via custom NSTextLayoutFragment drawing + table pipes/separator-row hidden + Enter→body focus shift (`h.9`); HR draw-detection fix + title @FocusState + H5/H6 removed (`h.10`).
 
-**Deferred to v0.2.7.1 patch:**
-- **Phase 3 substantive** — rewrite engine's `MarkdownTokenizer.parseTokens(in:)` body to walk `Document(parsing: text)` AST + emit `[MarkdownToken]` shims; same for `MarkdownStyler.styleAttributes`; delete `MarkdownTokenizer+Emphasis.swift` + 6 `MarkdownStyler+*` extensions. Adds Table / BlockQuote / ThematicBreak / Strikethrough support.
-- **Phase 4.5 polish** — selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-whitespace + the 11-test auto-pair test suite.
-- **Phase 6** — `.claude/Features/Pages.md` split into new `Features/PageEditor.md` covering editor-UX content.
+**Plan deviation that paid off:** the original plan called for raw source vendoring at `Pommora/Pommora/PageEditor/Engine/`. We pivoted to a local Swift Package at `External/MarkdownEngine/` because Pommora's Swift 6 strict-concurrency + ExistentialAny clashed with the engine's Swift 5.9 idioms. The package boundary isolated the engine's concurrency contract, avoiding cascading `@MainActor` annotations across 46 files. Engine remains fully Pommora-editable.
 
-**Plan deviation: engine location.** Plan specified `Pommora/Pommora/PageEditor/Engine/` (raw source vendoring). Shipped at `External/MarkdownEngine/` (local Swift Package). Rationale: Pommora's Swift 6 strict-concurrency + ExistentialAny clashed with the engine's Swift 5.9 idioms — the package boundary isolates the engine's concurrency contract, avoiding cascading `@MainActor` annotations across 46 files. Engine remains fully editable (we own the vendored copy in External/).
+##### Roadmap reorders locked Session 9 close
 
-**Next session priorities** (verbatim resume prompt at top of `Handoff.md`): land v0.2.7.1 patch with the deferred Phase 3 + Phase 4.5 polish work. After v0.2.7.1: **v0.2.8 NavDropdown**, then v0.2.9 directives (`:::callout`/`@Columns` via Apple `BlockDirective`) + v0.2.10 wikilinks (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). v0.3.0 (Properties) follows the v0.2.x writable-Pommora milestone.
+**v0.2.7.x patch sequence** (Nathan's stated ordering — see `Handoff.md` for resume-prompt detail):
+
+- **v0.2.7.1** (NEXT) — **Page editor touch-ups**. Blockquote (`>`) needs Apple-Notes-style rendering (vertical accent bar + heavier bg via `MarkdownTextLayoutFragment.drawBlockquote`); HR (`---`) needs three fixes (auto-transform lock on typing, inset visual width to body-text width, color confirm).
+- **v0.2.7.2** — **NavDropdown** (Liquid Glass dropdown nav). Full spec at `// Features//NavDropdown.md`. (Doc reconciliation note: NavDropdown.md / PRD currently say v0.2.8 minor; Nathan's session-9 sequencing puts it at v0.2.7.2 patch — pick one when NavDropdown work begins.)
+- **v0.2.7.3** — **Tables custom (Apple-Notes-style grid)**. Real per-cell borders + click-to-edit. Custom NSTextLayoutFragment subclass that detects Apple-AST Table source ranges + replaces drawing with a true grid.
+- **v0.2.7.4** — **Sidebar re-ordering + drag**. Drag Pages between Collections; reorder Spaces/Topics/Sub-topics; persist order via new `_order: [<id>]` overlay on parent JSON sidecars.
+
+After v0.2.7.x: **v0.2.9 directives** (`:::callout` / `@Columns` via Apple `BlockDirective`) + **v0.2.10 wikilinks** (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). **v0.3.0 (Properties)** follows the v0.2.x writable-Pommora milestone.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX polish (shipped on `paradigm-scaffolding`; merged to `main` 2026-05-18)
 

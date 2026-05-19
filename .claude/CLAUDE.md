@@ -8,7 +8,7 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 - **Operational layer — Vaults + Agenda**: Vaults (folder + `_vault.json` with shared schema) contain Collections (sub-folders sharing the Vault's schema in v1) which contain Pages (`.md`) and Items (`.json`). Agenda is a sibling of Vaults at `<nexus>/Agenda/` for calendar-anchored items with EventKit integration.
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
 
-Items open in a popover-style **Item Window** (title + properties + 250-char description, not a tab or full page); Pages open in tabs. Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
+Items open in a popover-style **Item Window** (title + properties + 250-char description, not a full-frame surface); Pages open in the main detail pane (or in a standalone window via NavDropdown's preview gate or `⌥⌘O`). Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
 
 #### Working with Nathan
 
@@ -62,10 +62,11 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
   - `Vaults.md` — Vaults + Collections + Content (Pages + Items); shared schema, view types, move-strip
   - `Agenda.md` — Agenda entity, EventKit integration, sandbox permissions, time-field collapse UI
   - `Homepage.md` — singleton composed-blocks dashboard
-  - `Pages.md` — on-disk shape, Markdown features + two rendering directives, editor surface, wikilinks, tier1/2/3
+  - `Pages.md` — on-disk shape, Markdown features + two rendering directives, opening behavior, wikilinks, tier1/2/3
+  - `PageEditor.md` — editor implementation spec: library (swift-markdown + vendored swift-markdown-engine), shipped v0.2.7.0 features, v0.2.7.x deferred patches, save pipeline, hot-swap surface
   - `Items.md` — row-shaped `.json` entries; Item Window UI; tier1/2/3
   - `Properties.md` — property type catalog (Vault-wide v1; shared across Pages, Items, Agenda)
-  - `Navigation-Bar.md` — single-row toolbar spec: layout, tab-strip behavior, hover-visibility modes
+  - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Recents + Favorites); v0.2.8 — supersedes the old `Navigation-Bar.md` tab-strip model
   - `Sidebar.md` — four-section sidebar (Saved / Spaces / Topics / Vaults); selection language, indentation mechanisms
   - `Architecture.md` — what survives a stack rebuild (conceptual portability)
   - `Prospects.md` — post-v1 features (incl. synced blocks, collection-local schemas, graph view, Item ↔ Page promotion)
@@ -107,9 +108,9 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 | `7b17d1d` | v0.2.6 | Spec catch-up (5 stale version strings + Pages.md + Sidebar.md doc passes) |
 | `ca33210` → `1989fac` | v0.2.7-a → v0.2.7-g.2 | Phase A-G of v0.2.7 (Pallepadehat fork CodeMirror editor + Apple typography polish). 198/198 tests pass. **Superseded by Session-9 engine swap.** See Handoff for full commit table. |
 | `152609c` | docs Session 7 | Milkdown decision documentation (superseded by Session-8 engine-swap decision; commit stays in history) |
-| `1c6e270` → `9756f68` | v0.2.7-h.0 → v0.2.7-h.5 | Session-9 engine swap **SHIPPED** (6 commits): docs repair → Pallepadehat strip → vendor swift-markdown-engine as local SPM at `External/MarkdownEngine/` + Apple swift-markdown 0.8.0 SPM dep → wire `PageEditorView` to `NativeTextViewWrapper` → character-pair auto-pair (`**`/`__`/`[[`/`` `` ``) → docs ship-out. **197/197 tests pass** (prior 198 count was off-by-one). Phase 3 (AST tokenizer/styler rewrite) + Phase-4.5 polish (selection-wrap + auto-exit) deferred to v0.2.7.1. |
+| `1c6e270` → `9a0b383` | v0.2.7-h.0 → v0.2.7-h.10 | Session-9 engine swap **SHIPPED + PUSHED + TAGGED `v0.2.7.0`** on origin (10 commits): docs repair → Pallepadehat strip → vendor swift-markdown-engine as local SPM at `External/MarkdownEngine/` + Apple swift-markdown 0.8.0 SPM dep → wire `PageEditorView` to `NativeTextViewWrapper` → character-pair auto-pair (`**`/`__`/`[[`/`` `` ``) → docs ship-out → UX polish (title-body padding + 24pt body textInsets + auto-unpair on backspace) → Apple-AST supplemental styler (BlockQuote/Strikethrough/Table/ThematicBreak) + expanded right-click menu → HR-as-real-line via custom NSTextLayoutFragment draw + table pipes/separator-row hidden + Enter→body focus shift → HR draw-detection fix (enumerateAttribute scan) + title @FocusState + H5/H6 removed. **197/197 tests pass.** Full editor spec at `// Features//PageEditor.md`. v0.2.7.x patch sequence next: `.1` blockquote+HR Apple-Notes polish, `.2` NavDropdown, `.3` Tables custom grid, `.4` sidebar reorder+drag. |
 
-**Currently working toward v0.3.0** which = **Properties** (NOT Pages editor anymore — see Framework reorder). The Pages editor + Tabs ship as v0.2.x patches before v0.3.0 begins. Four remaining v0.2.x patches before v0.3.0: v0.2.7 (Pages) + v0.2.8 (Tabs) + v0.2.9 (directives + heading fold + slash menu) + v0.2.10 (wikilinks + rename cascade). v0.2.7 ↔ v0.2.8 order is interchangeable.
+**Currently working toward v0.3.0** which = **Properties** (NOT Pages editor anymore — see Framework reorder). The Pages editor + NavDropdown ship as v0.2.x patches before v0.3.0 begins. Four remaining v0.2.x patches before v0.3.0: v0.2.7 (Pages) + v0.2.8 (NavDropdown) + v0.2.9 (directives + heading fold + slash menu) + v0.2.10 (wikilinks + rename cascade). v0.2.7 ↔ v0.2.8 order is interchangeable.
 
 **Editor library — SHIPPED Session 9 (end-of-2026-05-18): vendored `swift-markdown-engine` as local Swift Package at `External/MarkdownEngine/` (Apache 2.0, 46 files, Swift 5.9 mode).** Native TextKit 2 via `NativeTextViewWrapper` — gives Pommora Writing Tools (15.1+), Look Up / Translate / spell-check, IME, dynamic system colors, drag-select natively. Apple `swift-markdown 0.8.0` is wired as an engine SPM dep (currently unused; powers the deferred Phase 3 AST tokenizer/styler rewrite). Pallepadehat fork at `Natertot215/PageEditorMD@addaa23` removed from build; stays in fork history for archaeological reference.
 
@@ -124,7 +125,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 **Next session opens with the v0.2.7.1 verbatim resume prompt** at the top of `Handoff.md` — lands deferred Phase 3 (AST rewrite) + Phase 4.5 polish + docs split.
 
-**Framework reorder locked end-of-2026-05-17** (see `Framework.md` "Roadmap reorders" + `Handoff.md` "Framework reorder"): Pages + Tabs ship as v0.2.7 + v0.2.8 patches (interchangeable order) — NOT as v0.3.0/v0.4.0 minors. Editor library NOT solidified — Tiptap leading candidate, final pick at v0.2.7 prep. Properties → v0.3.0. SQLite + Watcher → v0.4.0. Vault views → v0.5.0. EventKit + Agenda UI ship together at v0.6.0 (hand-in-hand). v0.6.0 consolidates a11y + perf + onboarding + Settings + accent customization. `.trash//` data layer → v0.2.5; UI window → v0.4.0.
+**Framework reorder locked end-of-2026-05-17** (see `Framework.md` "Roadmap reorders" + `Handoff.md` "Framework reorder"): Pages + NavDropdown ship as v0.2.7 + v0.2.8 patches (interchangeable order) — NOT as v0.3.0/v0.4.0 minors. (NavDropdown supersedes the original v0.2.8 'Tabs' scope — pivot locked 2026-05-18; see `NavDropdown.md`.) Editor library NOT solidified — Tiptap leading candidate, final pick at v0.2.7 prep. Properties → v0.3.0. SQLite + Watcher → v0.4.0. Vault views → v0.5.0. EventKit + Agenda UI ship together at v0.6.0 (hand-in-hand). v0.6.0 consolidates a11y + perf + onboarding + Settings + accent customization. `.trash//` data layer → v0.2.5; UI window → v0.4.0.
 
 Read `Handoff.md` first at session start.
 

@@ -382,27 +382,31 @@ The sidebar surfaces curated, app-relevant navigation, not filesystem layout. Fo
 
 Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes are drag-resizable via splitters from v0.0 onward; resized widths persist across launches. Default window size 1200×800; minimum 960×560 (keeps both side panes legible). The inspector's **default view is the property panel** for the active Page in v1; an **AI chat interface** is a planned future addition to the inspector (post-v1; a frontend to Nathan's existing local CLI — not an API integration; see `// Features//Prospects.md`). (Items don't use the inspector — they open in an Item window. See "Item Window" below.)
 
-**Window chrome — macOS unified title bar.** No separate Pommora title bar. The macOS traffic-light buttons render in the top-left at runtime (OS-rendered, not custom) within the sidebar pane's column. The top-bar tab row sits in the same horizontal band as the traffic lights, starting from the right edge of the sidebar column and spanning across the main pane. Pattern: Obsidian / Notion / Linear on macOS.
+**Window chrome — macOS unified title bar.** No separate Pommora title bar. The macOS traffic-light buttons render in the top-left at runtime (OS-rendered, not custom) within the sidebar pane's column. A single horizontal band — the unified toolbar (`.windowToolbarStyle(.unified(showsTitle: false))`) — holds the sidebar toggle, back/forward arrows, the NavDropdown trigger button, and the inspector toggle, all in the same row as the traffic lights. No second toolbar row. Pattern: Mail / Notes / Finder on macOS.
 
 Below-heading and page-bottom property-panel placements are post-v1 Prospects.
 
 Built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with the inspector pane attached to the detail column via the `.inspector(isPresented:)` modifier (macOS 14+). This is Apple's idiomatic pattern for main-pane + supplementary side panel — used by Mail, Notes, and Pages. Inspector width is set via `.inspectorColumnWidth(min:ideal:max:)`; the toolbar toggle integrates automatically via `InspectorCommands`. The third-column variant of `NavigationSplitView` was considered and rejected — that column is designed for selected-item drill-down (Mail's list → message-list → message), not for a contextual supplementary panel.
 
-##### Top-Bar Tabs
+##### Nav Dropdown
 
-The main pane is **multi-tabbed.** A row of tabs sits at the top of the main pane; each tab represents one open view — a Page, a Collection (with its active saved view), or a Space. One tab is active; clicking another switches the main pane to that view. Pattern reference: Obsidian's tab UI, Notion's tab navigation.
+The main pane is **single-pane.** Navigation history lives in a **Liquid Glass dropdown button** (SF Symbol `square.on.square`) in the toolbar — opening a popover with two toggleable lists: **Favorites** (user-curated via hover-star) and **Recents** (auto-tracked LRU). Replaces the original v0.2.8 "Top-Bar Tabs" model — pivot locked 2026-05-18. Pattern reference: Things 3 Quick Find, Notes.app Move-To popover.
 
-- **New tab** — `+` button at the end of the tab row, or `Cmd+T` (opens an empty new-tab state with a quick-open / recents palette).
-- **Close tab** — per-tab `×`, or `Cmd+W`.
-- **Reorder** — drag tabs left / right.
-- **Cycle** — `Cmd+1..9` jumps to that-numbered tab; `Ctrl+Tab` / `Ctrl+Shift+Tab` cycle next / previous.
-- **Multiple tabs** — open at once; each preserves internal state (scroll position, selection where reasonable) when switching away and back.
+Clicking a row in the dropdown opens the entity in a **standalone macOS window** (`WindowGroup(for: EntityRef.self)` within the same Pommora process — draggable, resizable, not a separate app instance). The window carries a minimal toolbar with an **Expand** button that promotes the entity into the main detail pane and dismisses the standalone window. Recents records ONLY on commit-to-main-frame — dismissing the standalone window without expanding does NOT update Recents.
 
-Tab labels show the entity's title (= filename) and a small icon (entity-kind icon: page / collection / space). The active tab is visually continuous with the main pane it heads; inactive tabs sit recessed. Implementation uses SwiftUI `Material` for the tab-row backdrop with the active tab distinguished via opacity / brightness on top — no custom color extensions for tab states.
+- **Open the dropdown** — `⌘T` or click the toolbar button.
+- **Walk Recents** — back / forward arrows in the toolbar, or `⌘[` / `⌘]`.
+- **Favorite an entry** — hover a row, click the star. Hover-star is the only entry point.
+- **Recents cap** — 500 in the underlying store; dropdown displays top 100; sidebar full-frame Recents view (v0.6.0+) shows the full 500 with sort + filter.
+- **Favorites** — uncapped, separate Codable array, insertion-ordered.
 
-**State persistence:** open tabs and the active tab persist across launches. Stored in app settings.
+Entity roster: Pages, Vaults, Spaces, Topics, Sub-topics, Items (popover-only, `ItemWindow`), Agenda items (v0.6.0+, chip label "Task"). Collections excluded for v0.2.8 simplicity. Homepage never appears.
 
-**Items don't get their own tabs in v1** — selecting an Item opens an **Item window** (popover anchored to the trigger), not a tab. Tabs are reserved for full-pane views (Pages, Collections, Spaces).
+**State persistence:** Recents + Favorites + back/forward cursor persist across launches. Stored in `<nexus>/.nexus/state.json` (per-nexus, vault-portable).
+
+**Items don't get standalone windows** — selecting an Item from the dropdown opens its `ItemWindow` popover directly (the popover IS the opening surface, so Recents records immediately).
+
+Full implementation spec at `// Features//NavDropdown.md`.
 
 ##### Item Window
 

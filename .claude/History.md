@@ -2,9 +2,11 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
-#### Session 9 — 2026-05-18 (continued — v0.2.7 engine swap SHIPPED in 6 commits)
+#### Session 9 — 2026-05-18 (continued — **v0.2.7.0 SHIPPED + PUSHED to origin in 10 commits**)
 
-Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on `main` at `9756f68`. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198/198" doc references were off-by-one — current XCTest count verified by diverse-suite spot-check.)
+Executed the Session-8 plan, then a live-feedback iteration loop with Nathan after first launch. Native TextKit-2 Page editor **LIVE on `origin/main` at `9a0b383`, tagged `v0.2.7.0`**. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198" doc references were off-by-one — current XCTest count verified by diverse-suite spot-check.)
+
+**The pivot that mattered:** Phase A-G of v0.2.7 shipped on the Pallepadehat WKWebView fork (`Natertot215/PageEditorMD`). Phase G's clean-build smoke test failed Nathan's visual baseline despite extensive Apple-typography work + transparent-bg defensive layers. Two pivots followed: first a brief Milkdown + Crepe candidate (also WKWebView), then a demo of `nodes-app/swift-markdown-engine`'s native TextKit-2 editor sealed it. Session 9 stripped the fork, vendored the engine, wired Pommora's editable title + body-binding chain to it, and added a series of UX polish passes driven by Nathan's first-look feedback. **Nathan: stoked and honestly surprised at how good it looks** — the approach is the right one.
 
 **Commits (all on `main`):**
 - `1c6e270` v0.2.7-h.0 — docs repair reconciling Session-8 engine-swap decision (Handoff/Framework/History/CLAUDE/Planning)
@@ -12,7 +14,12 @@ Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on
 - `ad2b879` v0.2.7-h.2 — swift-markdown-engine vendored as local Swift Package at `External/MarkdownEngine/` (Apache 2.0, 46 .swift files); Apple swift-markdown 0.8.0 exact added as Pommora SPM dep; minimal Swift-6 patches to engine sources (`@MainActor` on MarkdownInputHandler / MarkdownLists / MarkdownStyler / TextStylingService structs + MarkdownTextLayoutFragment overrides as `nonisolated` with `MainActor.assumeIsolated` bodies + selector-based notification observers in NativeTextViewCoordinator)
 - `4fafed0` v0.2.7-h.3 — PageEditorView body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; Apple swift-markdown 0.8.0 also added as engine-side dep (groundwork for deferred Phase 3)
 - `b7a2535` v0.2.7-h.4 — character-pair auto-pair (`**`/`__`/`[[`/`` `` ``) added to engine's `MarkdownInputHandler.handleCharacterPairAutoPair(...)`; wired into NSTextViewDelegate's `shouldChangeTextIn` chain after image-embed auto-wrap, before list insertion; suppressed inside code blocks + when next char is close marker
-- `9756f68` v0.2.7-h.5 — final doc ship-out across Handoff/Framework/History/CLAUDE reflecting v0.2.7 LIVE state + 197/197 test-count correction + v0.2.7.1 verbatim resume prompt
+- `9756f68` v0.2.7-h.5 — initial Session-9 doc ship-out across Handoff/Framework/History/CLAUDE reflecting v0.2.7 LIVE state
+- `9b97393` v0.2.7-h.6 — doc self-correction: commit count + main SHA references in the h.5 doc tables (h.5 itself shifted main, its own SHA wasn't in the table it authored)
+- `9e13c95` v0.2.7-h.7 — UX fixes batch: title-body padding 4 → 20pt; body editor `textInsets(horizontal: 24)` so body aligns under title; **auto-unpair on backspace** (`*|*` / `**|**` / `[[|]]` / `` `|` `` backspace deletes both halves, single undo step)
+- `54d1ddd` v0.2.7-h.8 — **Apple-AST supplemental styler**: walks `Document(parsing:)` AST for BlockQuote/Strikethrough/Table/ThematicBreak (the GFM block types the engine's regex tokenizer doesn't cover). Composes additively on top of primary `MarkdownStyler`. Plus **expanded right-click menu**: Format (Bold/Italic/Strikethrough/Inline Code/Link) + Heading (H1-H6) + Lists (Bullet/Numbered) + new Block submenu (Blockquote/Code Block/Table/Horizontal Rule). 9 new `@objc` insert handlers
+- `6719e11` v0.2.7-h.9 — **HR-as-real-line**: `---` renders as a 1pt full-width horizontal line via custom `MarkdownTextLayoutFragment.drawThematicBreak`. Dashes hidden via font-0.1 + clear foreground; range tagged with new `.pommoraThematicBreak` attribute. **Table source markup hidden**: all `|` pipes + the `|---|---|` separator row invisible (cell content stays styled). **Enter on title → body focus**: `focusBodyEditor()` walks `NSApp.keyWindow.contentView` for first NSTextView and makes it firstResponder
+- `9a0b383` v0.2.7-h.10 — **HR draw-detection fixed**: `drawThematicBreak` now scans the whole fragment range via `enumerateAttribute` instead of only checking the first char (root cause: fragment range often starts at leading newline that doesn't carry the attribute). **Title focus via `@FocusState`**: `titleFocused = false` on submit before `focusBodyEditor()` so TextField cleanly relinquishes focus (was: stayed focused + auto-selected). **H5/H6 removed** from Heading submenu (render smaller than body text at Pommora's typical scales)
 
 **Plan deviations from `// Planning//v0.2.7-engine-swap.md`:**
 
@@ -21,6 +28,17 @@ Executed the Session-8 plan in one session. Native TextKit-2 Page editor LIVE on
 2. **Phase 3 deferred to v0.2.7.1** — plan's `MarkdownTokenizer.parseTokens(in:)` body swap to walk `Document(parsing: text)` AST + emit `[MarkdownToken]` shims (+ same surgery on `MarkdownStyler.styleAttributes` + delete `MarkdownTokenizer+Emphasis.swift` and 6 `MarkdownStyler+*` extensions) deferred. The Pommora-side files (`PommoraMarkdownStyler` / `PommoraInlineScanner` / `SourceRangeToNSRange` / `MarkersShrinker`) the plan called for at `Pommora/Pommora/PageEditor/Styler/` morph into in-engine rewrites at v0.2.7.1 time. Apple swift-markdown 0.8.0 dep already wired in `External/MarkdownEngine/Package.swift` as groundwork. Engine ships v0.2.7 with its existing regex-based tokenizer + styler — table / blockquote / strikethrough / ThematicBreak support arrives with Phase 3 fill-in.
 
 3. **Phase 4.5 trimmed** — basic character-pair auto-pair ships (insertion only). Selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-whitespace (typing space at fresh-pair boundary jumps past close marker) defer to v0.2.7.1. The 11-test auto-pair test suite also defers.
+
+**Session-9 close & v0.2.7.0 release:**
+- Tagged `main@9a0b383` as `v0.2.7.0` and pushed both `main` and the tag to `origin/main`. First push to origin since v0.2.0 series; CI runner `runs-on: macos-26` resolution is the open question.
+- Roadmap reorder locked: NavDropdown (originally v0.2.8) renumbered to v0.2.7.2; Tables custom = v0.2.7.3; Sidebar reordering + drag = v0.2.7.4 (new addition). Doc reconciliation note: `NavDropdown.md` and `PommoraPRD.md` still reference NavDropdown as v0.2.8 — Nathan's other session reconciles.
+- Live-feedback iteration loop took ~5 commits (h.7 → h.10) and was the highest-value part of the session: tight Nathan-feedback / Claude-implement / Nathan-verify cycles. Pattern worth preserving for future polish phases.
+
+**What's still broken (v0.2.7.1 scope):**
+- **Blockquote (`>`)** — current rendering is dimmed-text + bg tint + 20pt indent via attribute composition (h.8 supplemental styler). Apple-Notes-style needs a vertical accent bar on the leading edge + heavier bg shading. Replicable via the existing `MarkdownTextLayoutFragment.draw` pattern — add `drawBlockquote(at:in:)` analogous to `drawCodeBlockBackground`; tag ranges with new `.pommoraBlockquote: true` attribute. Should be a small lift.
+- **HR (`---`)** — three small fixes outstanding: auto-transform lock on typing (further `-` after `---` should not extend the dash run); inset visual width by `textInsets.horizontal` so the line stops at body-text width not full container; color confirm. Same pattern as the existing draw hook.
+
+Both blockquote and HR are replicable from what Apple Notes / TextEdit ship natively — they aren't research-grade. Scoped to v0.2.7.1.
 
 **Time-cost driver of the deviations:** Swift 6 strict-concurrency cascades on the vendored engine source. ~30% of session time spent diagnosing `MarkdownTextLayoutFragment` NSTextLayoutFragment-override isolation mismatches + `NativeTextViewCoordinator` notification-observer Sendable failures before pivoting to the local-SPM Swift-5.9-package strategy. The local-SPM pivot resolved the cascade — engine then needed only ~5 minimal `@MainActor` annotations on Input/Styling struct types to build clean.
 

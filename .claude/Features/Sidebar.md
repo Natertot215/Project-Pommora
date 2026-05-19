@@ -63,7 +63,7 @@ Each item's `key` is fixed in code; `label` is user-renamable via Settings → S
 
 - `homepage` opens the Homepage singleton entity (see `Homepage.md`)
 - `calendar` opens a calendar view over Agenda items + EventKit-mirrored system events (see `Agenda.md`)
-- `recents` shows recently-opened tabs (lightweight v1 if tab state tracking is available, placeholder otherwise)
+- `recents` shows the NavDropdown's Recents store as a full-frame view (lightweight v1 if `RecentsManager` is wired, placeholder otherwise); ships at v0.6.0 per `NavDropdown.md`
 
 **User-pinning of arbitrary entities to this section is the planned post-v1 enhancement** — at which point the section gets its "Saved" heading and a "+" affordance for pinning, and the three default entries become movable / removable.
 
