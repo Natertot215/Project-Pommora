@@ -47,27 +47,167 @@ Content sitting directly in a Vault (not in a Collection) is allowed — the Col
 
 ```json
 {
-  "id": "01H...",
+  "id": "01HVAULTID...",
   "icon": "folder",
   "properties": [
     {
       "name": "status",
-      "type": "select",
-      "options": [
-        { "value": "Active", "color": "blue" },
-        { "value": "Done",   "color": "green" }
+      "type": "status",
+      "status_groups": [
+        {
+          "id": "upcoming",
+          "label": "Upcoming",
+          "color": "gray",
+          "options": [
+            { "value": "not_started", "label": "Not started", "group_id": "upcoming" }
+          ]
+        },
+        {
+          "id": "in_progress",
+          "label": "In Progress",
+          "color": "blue",
+          "options": [
+            { "value": "in_progress", "label": "In progress", "color": "blue", "group_id": "in_progress" }
+          ]
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "color": "green",
+          "options": [
+            { "value": "done", "label": "Done", "color": "green", "group_id": "done" }
+          ]
+        }
       ]
     },
-    { "name": "due", "type": "date" }
+    {
+      "name": "tags",
+      "type": "multi_select",
+      "select_options": [
+        { "value": "research",  "label": "Research",  "color": "purple" },
+        { "value": "frontend",  "label": "Frontend",  "color": "blue" },
+        { "value": "backend",   "label": "Backend",   "color": "orange" }
+      ]
+    },
+    { "name": "due", "type": "date" },
+    { "name": "priority", "type": "number", "number_format": "integer" },
+    {
+      "name": "sources",
+      "icon": "doc.text.magnifyingglass",
+      "type": "relation",
+      "relation_scope": {
+        "kind": "vault",
+        "vault_id": "01HMATERIALSVAULT..."
+      },
+      "allows_multiple": true,
+      "dual_property": {
+        "synced_property_name": "Cited By",
+        "synced_property_defined_on_vault_id": "01HMATERIALSVAULT..."
+      }
+    },
+    {
+      "name": "related topics",
+      "type": "relation",
+      "relation_scope": { "kind": "context_tier", "tier": 2 },
+      "allows_multiple": true
+    }
   ],
+  "default_sort": { "property": "last_edited_time", "direction": "descending" },
+  "hidden_properties": [],                  /* per-Vault: properties hidden as columns in the Vault Table view */
   "views": [
-    /* saved view configurations (table / board / list / cards / gallery) */
+    /* per-view saved configurations (table / board / list / cards / gallery) — ships v0.6.0 */
   ],
-  "modified_at": 1716480000
+  "modified_at": "2026-05-19T14:30:00Z"
 }
 ```
 
-The Vault's title comes from the folder name. Property schema applies to **all** Content inside (every Page's frontmatter and every Item's `properties` block must conform). Saved views can scope to specific Collections or span the whole Vault.
+The Vault's title comes from the folder name. Property schema applies to **all** Content inside (every Page's frontmatter and every Item's `properties` block must conform). `default_sort` is the per-Vault default sort applied to the Vault Table view (v0.3.0); the full per-view sort + filter + group ships at v0.6.0 alongside saved views. `hidden_properties` controls **Vault Table column** visibility — Vault-wide; distinct from per-entity inspector panel visibility (`<entity>.panel_hidden_properties`) which is its own field on Pages / Items / Agenda items (see `// Features//Properties.md` "Per-entity property panel visibility").
+
+**Paired relation properties** — the `sources` Relation property above (`relation_scope.kind: "vault"` + `dual_property` filled) is one half of a paired relation. The target Vault (`01HMATERIALSVAULT...`) carries the corresponding reverse property `"Cited By"` in its own `_vault.json`:
+
+```json
+{
+  "name": "Cited By",
+  "type": "relation",
+  "relation_scope": {
+    "kind": "vault",
+    "vault_id": "01HTHISVAULT..."           /* points back at this Vault */
+  },
+  "allows_multiple": true,
+  "dual_property": {
+    "synced_property_name": "sources",      /* mirror of the source side */
+    "synced_property_defined_on_vault_id": "01HTHISVAULT..."
+  }
+}
+```
+
+The two properties are created in a single atomic transaction (SchemaTransaction two-phase commit). Setting a value on either side mirrors the reverse value automatically. Renaming or deleting either side cascades to the other. See "Dual relations" in `// Features//Properties.md` for full lifecycle.
+
+#### Vault Settings sheet
+
+The central edit surface for everything about a Vault — schema, sort, filter, group-by, layout, property visibility. v0.3.0 ships the sheet with six sections; three are functional at v0.3.0 and three are placeholder shells that fill in at v0.6.0 alongside Vault Views.
+
+##### Reaching Vault Settings
+
+- **VaultDetailView toolbar** — gear button (`gearshape`) at the top-right of the detail pane
+- **Vault row right-click** in sidebar — "Vault Settings…" menu entry
+- **"+" column header** in Vault Table view — opens to Edit Properties section + "Add property" active
+- **Column header right-click** in Vault Table — "Edit property…" jumps to the relevant Property row
+
+##### Six sections
+
+| Section | v0.3.0 status | Editable settings |
+|---|---|---|
+| **Edit Properties** | Fully functional | Add / rename / delete / reorder properties; per-property icon (`IconPickerField`); per-type config (options, scope, dual reverse name, status groups, etc.) |
+| **Sort** | Functional (single criterion) | Pick property + direction; persists to `_vault.json.default_sort`. Multi-criterion sort arrives v0.6.0 with saved views. |
+| **Property Visibility** | Functional (per-Vault) | Show/hide per property in the Vault Table view. Persists to `_vault.json.hidden_properties: [String]`. Per-saved-view visibility ships v0.6.0. Distinct from per-entity `panel_hidden_properties` (inspector panel scope). |
+| **Filter** | Placeholder — "Coming v0.6.0 with Vault Views" | WHERE-style criteria over property values |
+| **Group By** | Placeholder — "Coming v0.6.0" | Groups rows in the Table view by a chosen property value — **renders as folder-like sections inside the Table**, each section headed by the variant's name + color, with rows clustering beneath. Same data backing as Board view's kanban columns; different render. **Restricted to single-value property types** at v0.6.0 launch (Number, Select, Status, Date / Date & Time, Checkbox, Relation, Last Edited Time) — **Multi-select is NOT supported initially** (ambiguous which group a row with multiple values belongs to; deferred to a later patch). Group order within the view is **view-specific** (drag-reorder section headers in the view editor; persists to `_vault.json.views[i].group_by.order: [String]`). This is distinct from schema-level option order (Edit Properties → drag-reorder options), which affects the property itself across all views. Full spec → `// Features//Properties.md` "Schema-level option order vs view-level group order". |
+| **Layout** | Placeholder — "Current: Table view. Five-type picker arrives v0.6.0" | View type — Table / Board / List / Cards / Gallery |
+| **Templates** | Placeholder — "Coming post-v1" | Content templates (Page templates, Item templates) that pre-fill body + properties at content creation time. Lives in Vault Settings (this section) so templates are scoped to their Vault. Reserved storage at `<nexus>/.nexus/templates/`. |
+
+##### Properties section detail
+
+The Properties section is the schema editor. Each row in the list shows:
+- The property's icon (if set) + name
+- Type badge (small label)
+- Per-property menu: Rename / Change Type / Edit Options or Groups / Delete / Move Up-Down
+
+The "+ Add property" button at the bottom opens the type picker → per-type config sub-view. Relation property creation triggers the multi-step `RelationPropertyWizard` (scope kind → target → property name in this Vault → reverse name in target → allow multiple).
+
+Per-property config is editable inline within the property's expandable row (drag-to-reorder list for Select/Multi-select options; 3-group editor for Status; etc.).
+
+##### Settings JSON shape
+
+Vault Settings reads/writes these `_vault.json` fields:
+
+```json
+{
+  "properties": [ ... ],                  /* edited by Properties section */
+  "default_sort": {                       /* edited by Sort section */
+    "property": "last_edited_time",
+    "direction": "descending"
+  },
+  "hidden_properties": [],                /* edited by Property Visibility */
+  "filter": null,                         /* placeholder — populated v0.6.0 */
+  "group_by": null,                       /* placeholder — populated v0.6.0 */
+  "layout": "table"                       /* placeholder — only "table" until v0.6.0 */
+}
+```
+
+`filter` / `group_by` / `layout` are written as `null` / `"table"` defaults in v0.3.0; v0.6.0 expands their shapes when the placeholder sections fill in.
+
+---
+
+#### No Vault templates (RC-2026-05-19)
+
+Vault creation does NOT seed default properties. `NewVaultSheet` stays as v0.2.0 shipped — name + icon, no template toggles. Users who want Status (or any other property) on a Vault add it manually via Vault Settings → Edit Properties → "+ Add property".
+
+**Status is built-in only on Agenda** (where EventKit needs it). On user-created Vaults, Status is a normal property type the user opts into.
+
+Future **content-level templates** (Page templates, Item templates — Notion-style, pre-fill body + properties at creation time) are reserved for post-v1. v0.3.0 keeps the data scaffold compatible without shipping a template surface. See `// Planning//v0.3.0-Properties-implementation.md` "Content templates (post-v1 reservation)" for the reserved storage location + Codable sketch + API signature reservation.
+
+Property type catalog, scope shapes, Status groups, and dual-relation semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 

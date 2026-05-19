@@ -109,7 +109,7 @@ The canonical creation pattern across the sidebar. No always-visible "+ New" but
 | Space row | New Space | Rename / Change Color / Change Icon / Delete |
 | Topic row (when disclosed) | New Sub-topic *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
 | Sub-topic row | — | Rename / Change Icon / Delete |
-| Vault row | New Vault + New Collection + New Page *(scoped to THIS Vault)* | Rename / Change Icon / Delete |
+| Vault row | New Vault + New Collection + New Page *(scoped to THIS Vault)* | **Vault Settings…** (v0.3.0; opens VaultSettingsSheet — schema editor + sort + property visibility) / Rename / Change Icon / Delete |
 | Collection row | New Page *(in THIS Collection)* | Rename / Delete |
 | Page row | — | Rename / Delete (Page editor coming v0.2.7) |
 

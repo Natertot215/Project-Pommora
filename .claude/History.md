@@ -2,6 +2,53 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### RC Session — 2026-05-19 (v0.3.0 Properties brainstorm + spec + tighten)
+
+**No code commits.** Pure docs + planning session conducted via Claude.ai mobile (remote chat). All edits authored in `// The Nexus//Pommora//` mirror first for phone visibility; deployed to `// The Studio//Projects//Project Pommora//.claude//` end of session.
+
+**What shipped (docs only):**
+
+1. **`Planning//v0.3.0-Properties-implementation.md`** (NEW, ~5000 words) — implementation-grade spec for v0.3.0 Properties grounded in actual Pommora Swift code (file:line citations to existing PropertyType / PropertyDefinition / PropertyValue / Vault / PropertyEditorRow / FrontmatterInspector / AgendaSchema). Four phases (model → manager → UI → validation/tests). 14 locked decisions. v0.3.x sub-sequence: .0 Properties / .1 Items pane / .2 Page-wikilinks / .3 SQLite. Effort estimate 7-10 Claude sessions.
+
+2. **`Planning//v0.3.0-Properties-uncertainty-log.md`** (NEW) — top 5 blockers ranked (PropertyValue Status-vs-Select decode collision; RelationScope migration; multi-file atomic-write recovery; Sendable on new types; missing test coverage); SwiftUI patterns confirmed via Context7 (`TableColumnForEach`, `TableColumnCustomization`, `KeyPathComparator`, drag-between-Sections); 7 open design questions for Nathan; edge cases by feature area; 16 new files + 15 file modifications + 3 reserved files; v0.2 → v0.3.0 migration checklist.
+
+3. **`Planning//Roadmap-Reorder-Tier-Model.md`** (NEW) — RC-2026-05-19 tier model framing (Tier A polish v0.2.7.x → Tier B foundation v0.3.x-v0.7.0 → Tier C interaction v0.8.0+). Same total work as previous Framework; cleaner naming.
+
+4. **`Features//Properties.md`** (heavily revised) — 10-type catalog (added Status + Last Edited Time); Status property type section with EventKit-aligned 3 groups (Upcoming / In Progress / Done); Relation scope rework (Vault/Collection/ContextTier, no anywhere); mandatory dual relations for Vault/Collection scopes; option-move-between-groups data semantics; no-inline-option-creation rule; property icons; Vault Settings sheet as the central edit surface.
+
+5. **`Features//Vaults.md`** (revised) — `_vault.json` example updated with new RelationScope shape + dual config + Status property + default_sort; new Vault Settings sheet section with 6-section table (Edit Properties + Sort + Filter + Group By + Layout + Property Visibility); Vault templates concept removed; content templates reservation pointer.
+
+6. **`Features//Items.md`** (revised) — all v0.5 references → v0.3.0 / v0.3.1; Item Window redesign retargeted to v0.3.1; Item creation surfacing lands v0.3.0 alongside Properties.
+
+7. **`Features//Agenda.md`** (revised) — new "Built-in `status` property" section with EventKit-aligned groups + sync mapping table; schema JSON example updated; migration shim documented.
+
+8. **`Framework.md`** (revised) — v0.3.x sub-sequence locked; v0.4.0 slimmed to Trash UI + cascade refinements (SQLite + move-strip pulled into v0.3.x); roadmap reorders cumulative history extended with 2026-05-19 entry.
+
+9. **`PommoraPRD.md`** (revised) — Property Model section rewritten (10 types, Status first-class, paired relations mandatory, no inline option creation, schema editor centralized).
+
+10. **`Sidebar.md`** + **`Domain-Model.md`** (minor) — Vault Settings entry point added; Properties section updated with v0.3.0 catalog.
+
+**RC-session locked decisions** (14 in implementation spec — full list there):
+
+- 10-type property catalog (number / checkbox / date / datetime / select / multi-select / URL / relation / **status** / **last edited time**)
+- Status: 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done); group labels renamable, slots structural
+- Relation scope: Vault / Collection / Context-tier; mandatory dual for Vault/Collection
+- No inline option creation — schema editor + right-click "Edit options…" + "Manage options…" link only
+- Property icons (SF Symbol per property)
+- Vault Settings sheet: 6 sections, 3 functional v0.3.0 + 3 placeholders v0.6.0
+- Collection picker UX: 2-step Vault→Collection at schema time; Collection-grouped at value time
+- Vault templates REJECTED in favor of post-v1 content templates (storage location + Codable sketch reserved)
+- Property names remain key (rename-cascade via SchemaTransaction two-phase commit)
+- No `.anywhere` relation scope (removed)
+- Move-strip pulled v0.4.0 → v0.3.0 (tightly coupled to schema)
+- AgendaSchema migration shim for built-in Status injection on legacy schemas
+- MultiSelectChips: signature changes to `[SelectOption]` for color rendering; `allowsAddingOptions` flag removed
+- SchemaEditorRouter `@Observable` for shortcut routing to Vault Settings at specific property
+
+**Tooling used:** Context7 MCP (Notion API + Apple SwiftUI docs); Explore agent inventory of Pommora Swift code; cross-reference against existing Pommora docs.
+
+---
+
 #### Session 9 — 2026-05-18 (continued — **v0.2.7.0 SHIPPED + PUSHED to origin in 10 commits**)
 
 Executed the Session-8 plan, then a live-feedback iteration loop with Nathan after first launch. Native TextKit-2 Page editor **LIVE on `origin/main` at `9a0b383`, tagged `v0.2.7.0`**. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198" doc references were off-by-one — current XCTest count verified by diverse-suite spot-check.)

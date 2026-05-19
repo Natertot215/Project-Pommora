@@ -144,7 +144,7 @@ Full-body inline Page editing (Notion-style synced blocks) is post-v1 — see `P
 
 #### Properties
 
-Property schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `type` Select + user-extensible). Same property catalog applies to Pages, Items, and Agenda items. Full type catalog → `Properties.md`.
+Property schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `type` Select + built-in `status` Status + user-extensible). Same property catalog applies to Pages, Items, and Agenda items. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is a first-class type with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** containing user-editable options. **Vault- and Collection-scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the Vault Settings sheet (`// Features//Vaults.md`). Full type catalog + scope/dual semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 

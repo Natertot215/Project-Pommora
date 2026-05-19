@@ -68,6 +68,7 @@ This means: users don't have to know "is this an event or a reminder?" up front.
 
   "properties": {
     "type":     "Task",                    /* Built-in Select; defaults [Task, To-Do, Phase, Event] */
+    "status":   "not_started",             /* Built-in Status; EventKit-aligned 3 groups (Upcoming/In Progress/Done) */
     "priority": null,                      /* If 0/1/5/9 numeric, maps to EKReminder.priority */
     /* other user properties */
   }
@@ -80,9 +81,35 @@ Full field-by-field details, recurrence shape, and validation rules live in `// 
 
 #### Built-in `type` property
 
-The Agenda layer's `_agenda.json` schema includes one built-in property — `type` — as a Select with defaults `[Task, To-Do, Phase, Event]`. It's marked `builtin: true` (cannot be deleted), but the options are user-editable: rename existing, add custom (Habit, Block, Reminder, etc.), recolor.
+The Agenda layer's `_agenda.json` schema includes one built-in `type` property — a Select with defaults `[Task, To-Do, Phase, Event]`. Marked `builtin: true` (cannot be deleted), but the options are user-editable: rename existing, add custom (Habit, Block, Reminder, etc.), recolor.
 
-All other Agenda properties are user-defined the same way Vault properties are. The Agenda layer reuses Pommora's Vault property/view editor UI — no special property panel.
+All other user-added Agenda properties are user-defined the same way Vault properties are. The Agenda layer reuses Pommora's Vault property/view editor UI — no special property panel.
+
+---
+
+#### Built-in `status` property (v0.3.0)
+
+The Agenda layer includes a built-in `status` property — Pommora's Status type with **3 EventKit-aligned fixed groups: Upcoming / In Progress / Done**. The group IDs (`upcoming` / `in_progress` / `done`) are chosen specifically to map cleanly onto EventKit's reminder + event semantics — the v0.7.0 sync layer doesn't need translation logic.
+
+Marked `builtin: true` — Status cannot be deleted from the Agenda schema. Within the property, group **labels** are user-renamable (rename "Upcoming" → "Queued" if you prefer) and **options** are user-editable (add "Blocked", "Waiting on someone", etc. to any group). Default seed:
+
+```
+Upcoming        → [Not started]
+In Progress     → [In progress]
+Done            → [Done]
+```
+
+EventKit mapping when v0.7.0 sync ships:
+
+| Pommora StatusGroupID | `EKEvent.status` | `EKReminder.isCompleted` |
+|---|---|---|
+| `upcoming` | `.tentative` (future-dated) | `false` |
+| `in_progress` | `.confirmed` (currently happening) | `false` |
+| `done` | `.confirmed` (past) | `true` |
+
+**The 3-slot structure is structural — not user-configurable.** Adding a 4th group would break EventKit compatibility at v0.7.0 (no clean mapping target). User customization of workflow happens by adding options within groups, not by inventing new groups.
+
+Existing nexuses with `_agenda.json` predating v0.3.0 get Status auto-injected on first load via `AgendaSchema.migrate(_:)`. Full Status property spec at `// Features//Properties.md`.
 
 ---
 

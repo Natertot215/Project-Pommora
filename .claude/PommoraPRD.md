@@ -327,14 +327,17 @@ WHERE completed = 0
 
 ##### Property Model
 
-- **Property values** in Page frontmatter (`.md`) or Item `properties` key (`.json`).
-- **Property schemas** live inside each Collection's `_collection.json`.
-- **Properties are scoped per Collection** and created on-demand, Notion-style.
-- **Members must conform to the Collection's schema.** Ad-hoc page-local properties are out of v1 scope (Prospect). Loose entities have no schema and hold only built-in fields.
-- **V1 catalog (8 types):** number, checkbox, date, date & time, select, multi-select, relation, URL. **No free-form text type** — title is the filename; "text-shaped" values use Select / Multi-select with creatable options. **No dedicated Status type** — Status-like properties are Selects named "Status."
-- **Move-strip rule (Notion-style):** moving a member across Collections (or in/out of loose state) strips properties not in the destination's schema. No quarantine, no backup. The user gets a **simple confirmation warning** listing which properties will be stripped before the move proceeds.
+- **Property values** in Page YAML frontmatter (`.md`), Item `properties` key (`.json`), or Agenda item `properties` key (`.agenda.json`).
+- **Property schemas** live inside each Vault's `_vault.json` (Vault-wide in v1; Collection-local schemas are a post-v1 Prospect). Agenda items use a parallel `_agenda.json` with **two built-in properties** (`type` Select + `status` Status) plus user-extensible additions.
+- **Properties are scoped per Vault** and created via the Vault Settings sheet (Notion-style — see `// Features//Vaults.md` "Vault Settings sheet" section).
+- **Members must conform to the Vault's schema.** Ad-hoc page-local properties are out of v1 scope (Prospect).
+- **V1 catalog (10 types):** number, checkbox, date, date & time, select, multi-select, URL, relation, **status**, and **last edited time** (auto-property). **No free-form text type** — title is the filename; "text-shaped" values use Select / Multi-select with creatable options. **Status is a first-class type** with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done), each containing user-editable options. Group LABELS are user-renamable; the 3 structural slots are fixed to preserve EventKit compatibility at v0.7.0.
+- **Every property can carry an icon.** SF Symbol via `IconPickerField` — shown next to property name in schema editor, property panel, column headers.
+- **Relations are paired by default.** Vault- and Collection-scoped Relation properties REQUIRE dual configuration — creating one atomically creates a paired reverse property on the target Vault. Context-tier-scoped relations stay one-way (Contexts have no `properties[]` schema).
+- **Inline option creation forbidden.** Options for Select / Multi-select / Status are added only via the schema editor (Vault Settings → Edit Properties), reachable via right-click "Edit options…" on any property value or "Manage options…" link at the bottom of every value picker. Value pickers consume options; they don't produce them.
+- **Move-strip rule (Notion-style):** moving a Page or Item across Vaults strips properties not in the destination Vault's schema. No quarantine, no backup. The user gets a **simple confirmation warning** listing which properties will be stripped before the move proceeds. v0.3.0 implements this (pulled forward from v0.4.0 since it's tightly coupled to property schema).
 
-Full type catalog, config shapes, schema-mutation rules → `// Features//Properties.md`.
+Full type catalog, config shapes, schema-mutation rules → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ##### View Directives
 
@@ -418,7 +421,7 @@ The window contains:
 - **Icon** — optional SF Symbol via TextField (curated SymbolPicker UI deferred to polish).
 - **Properties** — typed inputs for each property in the parent **Vault's schema** (via `PropertyEditorRow` dispatching per `PropertyType`). Items always belong to exactly one Vault — no "loose" Item state.
 - **Description** — plain-text field, **hard cap 250 characters**. Sized so the field fits within the window without scrolling; keeps the JSON file small and cloud-sync-friendly.
-- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2; full relation picker UI lands v0.5.
+- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2; full relation picker UI lands v0.3.0 (shared `ContextTierPicker` component, parent-grouped — tier-2 by parent Space, tier-3 by parent Topic).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ContentManager.updateItem` (with a `renameItem` pre-step if the title changed).
@@ -499,7 +502,7 @@ Areas where SwiftUI is first-party (no companion bundles needed):
 - **Items** — `.json` files. Filename = title; conform to parent Vault's schema; `id`, `icon`, `description` (250-char cap), `tier1/2/3` multi-relations, timestamps. Open in an Item Window (popover), not a tab.
 - **Agenda** — `.agenda.json` files at `<nexus>/Agenda/`. Unified entity (no kind discriminator); `properties.type` Select for user-facing categorization. EventKit-bridgeable based on which time fields are populated. EventKit sync opt-in.
 - **Homepage** — singleton composed-blocks dashboard at `.nexus/homepage.json`. Seeded on first launch.
-- Property panel UI driven by Vault and Agenda schemas, all v1 property types (8).
+- Property panel UI driven by Vault and Agenda schemas, all v1 property types (10) including Status with EventKit-aligned groups; Vault Settings sheet centralizes schema editing + sort + property visibility (filter/group/layout placeholders fill in at v0.6.0).
 - Wikilinks (styled colored inline text).
 - Automatic file rename with cross-nexus wikilink rewrite.
 - File watcher keeping SQLite synced.

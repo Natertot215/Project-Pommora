@@ -41,6 +41,20 @@ The full editor feature spec lives at [`// Features//PageEditor.md`](Features/Pa
 
 ---
 
+#### v0.3.0 spec ready (RC-2026-05-19)
+
+**v0.3.0 Properties has a complete implementation spec** ready for execution after v0.2.7.x patches ship. Full spec at [`// Planning//v0.3.0-Properties-implementation.md`](Planning/v0.3.0-Properties-implementation.md) (14 locked decisions, 4 phases, file:line precision, ~5000 words). Companion uncertainty log at [`// Planning//v0.3.0-Properties-uncertainty-log.md`](Planning/v0.3.0-Properties-uncertainty-log.md) — top 5 blockers, SwiftUI patterns confirmed (`TableColumnForEach`, `TableColumnCustomization`, `KeyPathComparator`, drag-between-Sections), 7 open design questions for user, edge case enumeration, 16 new files + 15 file modifications inventoried.
+
+**v0.3.x sub-sequence locked:**
+- v0.3.0 — Properties (this spec)
+- v0.3.1 — Items pane (Item Window redesign per WIP sketch)
+- v0.3.2 — Page-wikilinks (autocomplete + click + rename cascade; backlinks-as-derived-property)
+- v0.3.3 — SQLite + querying (six-table index; FTS5 schema wired; transparent picker/sort backend swap)
+
+**Roadmap reorder spec:** [`// Planning//Roadmap-Reorder-Tier-Model.md`](Planning/Roadmap-Reorder-Tier-Model.md) — RC-2026-05-19 tier model framing (polish → foundation → interaction).
+
+The v0.3.0 verbatim resume prompt lives at the bottom of the implementation spec — fire that into a fresh session after v0.2.7.x patches ship.
+
 #### Next session priorities — v0.2.7.x patch sequence
 
 Nathan's stated ordering. Numbering matches Nathan's explicit instruction; if `NavDropdown.md` still references v0.2.8 internally, that's a doc reconciliation his other session can pick up.

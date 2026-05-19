@@ -48,7 +48,7 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 - **v0.2.7.3** — **Tables custom (Apple-Notes-style grid)**. Real per-cell borders + click-to-edit. Custom NSTextLayoutFragment subclass that detects Apple-AST Table source ranges + replaces drawing with a true grid.
 - **v0.2.7.4** — **Sidebar re-ordering + drag**. Drag Pages between Collections; reorder Spaces/Topics/Sub-topics; persist order via new `_order: [<id>]` overlay on parent JSON sidecars.
 
-After v0.2.7.x: **v0.2.9 directives** (`:::callout` / `@Columns` via Apple `BlockDirective`) + **v0.2.10 wikilinks** (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). **v0.3.0 (Properties)** follows the v0.2.x writable-Pommora milestone.
+After v0.2.7.x: **v0.3.0 (Properties)** begins the data-layer chapter (v0.3.x sub-sequence locked RC-2026-05-19; see "Roadmap reorders" below). **Wikilinks moved from v0.2.10 → v0.3.2** (couples with SQLite at v0.3.3, indexed from day one). **Directives + heading fold + slash menu** (formerly v0.2.9) are unscheduled — page editor is functional without them; they re-home to a future v0.2.x or post-v0.3.x patch as decided.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX polish (shipped on `paradigm-scaffolding`; merged to `main` 2026-05-18)
 
@@ -103,37 +103,76 @@ Each patch ships green standalone. The infrastructure patches (.1 – .5) should
 
 - **v0.2.7 — Pages editor (prose + standard Markdown).** Editor library decision narrowed to **three options** at end-of-5-18, fully documented at `// Planning//Page-Editor-Plan.md`: (1) Native Swift (`swift-markdown` + TextKit 2; optionally wrapping `nodes-app/swift-markdown-engine`); (2) JS editor library + macOS shell we build (Tiptap / Milkdown / BlockNote); (3) Fork `Pallepadehat/MarkdownEditor` (CodeMirror 6 + WKWebView, ours after fork). Nathan picks one at session start; implementation immediate. Recommendation: Option 3. Common to all options — `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` lands first (mirrors `updateItem` shape; atomicity rollback + `pendingError` CRUD pattern from v0.2.0). Detail-pane dispatch routes `.page(PageMeta)` selection to `PageEditorView` (replaces v0.2.1/v0.2.6 placeholder). Standalone window via `WindowGroup(for: PageRef.self)` + `⌥⌘O`. Scope: prose editing (paragraphs, headings H1–H5, lists, code blocks, blockquotes, hr, links, inline marks). GFM tables parsed in all options; visually grid-rendered in Option 2 only at v0.2.7 (Options 1 + 3 show as source until later widget work). Bubble menu on selection. Markdown round-trips edge-to-edge.
 - **v0.2.8 — NavDropdown.** Liquid Glass dropdown button in the toolbar (SF Symbol `square.on.square`) opening a popover panel with `[Favorites | Recents]` segmented Picker + scrollable list. Replaces the original v0.2.8 'Tabs' scope (pivot locked 2026-05-18 — see `// Features//NavDropdown.md`). Generalizes `PageRef` → `EntityRef` and wires `WindowGroup(for: EntityRef.self)` so any full-frame-eligible entity (Pages / Vaults / Spaces / Topics / Sub-topics) opens in a standalone preview window with an Expand button that commits to the main detail pane. Recents 500-store / 100-display, LRU; Favorites uncapped, hover-star toggle. Back/Forward arrows + `⌘[`/`⌘]` walk Recents. `⌘T` opens the dropdown. Persistence via `<nexus>/.nexus/state.json` (per-nexus state file lands here for the first time). **Order with v0.2.7 is interchangeable** — whichever ships first is `.7`, the other `.8`.
-- **v0.2.9 — Directives + heading fold + slash menu** (Pages-editor addition). `:::callout` node (outlined box), `@Columns` / `:::columns` node (CSS Grid), heading-fold chevrons, slash menu (`/`) for inserting directives + block types.
-- **v0.2.10 — Wikilinks + rename cascade** (Pages-editor addition). `[[Title]]` autocomplete via popover (queries Swift via the `query` bridge), `Wikilink` inline node rendered as styled colored inline text, click routing (Page → opens in new tab / Context → detail pane / Item → ItemWindow popover), body-scan rename rewrite across all Pages containing `[[<oldTitle>]]`. (If v0.4.0 SQLite has landed by the time v0.2.10 ships, use the indexed lookup directly.)
+- **v0.2.9 — Directives + heading fold + slash menu (UNSCHEDULED, re-homing TBD)** — `:::callout` / `@Columns` directives, heading-fold chevrons, `/` slash menu. Removed from the active v0.2.x patch sequence at RC-2026-05-19; page editor is functional without them. Re-homes to a later v0.2.x patch, or post-v0.3.x, when Nathan decides.
+- **v0.2.10 — Wikilinks** — **moved to v0.3.2** (RC-2026-05-19). Couples with SQLite at v0.3.3 so the autocomplete + rename cascade ship indexed from day one. Full scope under v0.3.2 in the v0.3.x sub-sequence below.
 
 End of v0.2.x: `main` has CI + formatter + trash + a fully usable Pages editor with NavDropdown navigation history (Recents + Favorites), directives, and wikilinks. **"Pommora is writable + multi-instance" milestone is complete** — long-form notes, standalone-window previews of any entity, wikilink-driven navigation, fenced callout + multi-column directives, foldable headings. v0.3.0 begins the data-model side (Properties).
 
-##### v0.3.0 — Properties + Item creation surfacing + Item Window redesign
+##### v0.3.x — Properties + Items pane + Wikilinks + SQLite (data-layer chapter)
 
-The other half of the data model — until now, Pages and Items load + save their property frontmatter but have no UI for editing it. v0.5.0 lands all of that, plus the Item story finally surfaces cohesively (deferred from v0.2.0 since Items without Properties are paradigm-hollow):
+The other half of the data model — until v0.3.0, Pages and Items load + save their property frontmatter but have no UI for editing it. The four-patch sub-sequence at v0.3.x closes the data layer entirely, ending at indexed cross-document linking + queryable storage. **Sub-sequence locked RC-2026-05-19**:
 
-- **Property panel UI** — separate SwiftUI surface (in the inspector pane) showing each property in the parent Vault's schema, dispatched to per-type controls (TextField / Toggle / DatePicker / Picker / `MultiSelectChips` — most of these already exist from v0.2.0's `PropertyEditorRow`). Active for Pages and Items. Agenda items use the same panel once v0.8.0 ships Agenda UI.
-- **`tier1` / `tier2` / `tier3` multi-select chip relation editor** — type-to-search relation pickers backed by Space / Topic / Sub-topic managers.
-- **Vault property-schema editor** — `+ Add property` button → name + type picker → per-type config (options for Select, scope for Relation, etc.). Edits `_vault.json.properties[]` atomically. Currently empty in v0.2.0; this is where the schema actually fills up.
-- **Schema mutations** — rename / type-change (lossless only) / delete; cross-member rewrite for renames using the same atomic-transaction pattern as wikilink renames.
-- **Item creation surfacing** — Item creation paths expand from "only `CollectionDetailView` footer" to: `VaultDetailView` footer `+ New Item`, Collection row right-click → `New Item (in This Collection)`, Vault row right-click → `New Item`. Sidebar.md right-click menu table updated. `.newItem(...)` sheet routing already wired from v0.2.
-- **Item Window redesign per Nathan's WIP sketch** — modal `WindowGroup(for: ItemRef.self)`, two-column body (description left, properties right), Delete/Save footer. Full spec at `// Features//Items.md` "Item window — design evolution".
+```
+v0.3.0 — Properties
+v0.3.1 — Items pane (Item Window redesign)
+v0.3.2 — Page-wikilinks
+v0.3.3 — SQLite + querying
+```
 
-End of v0.5.0: Pages + Items are structurally complete — body content + properties + Context relations all editable in-app, and the Item paradigm has a discoverable creation story. Agenda layer still dormant in-UI until v0.8.0 ships its UI hand-in-hand with EventKit.
+Full implementation spec → `// Planning//v0.3.0-Properties-implementation.md`.
 
-##### v0.4.0 — SQLite + Watcher + cross-Vault move-strip + .trash UI
+###### v0.3.0 — Properties
 
-Infrastructure version. SQLite + watcher pulled forward (was v0.8.0 in the original plan) so the index is live for v0.3.0 Properties relation search and v0.5.0 Vault views from day one rather than building each against naive filesystem scans then rewriting:
+- **Property panel UI** — separate SwiftUI surface (in the Pages inspector pane + Item Window) showing each property in the parent Vault's schema, dispatched to per-type controls (TextField / Toggle / DatePicker / Picker / `MultiSelectChips` — most already wired from v0.2.0's `PropertyEditorRow`). 7 of 8 property types already wired; v0.3.0 adds the Relation editor (currently stubbed at `PropertyEditorRow.swift:33`) + scope-aware pickers (Vault / Collection / Context-tier).
+- **Last Edited Time property type** — promoted from collapsed `modified_at` footer to first-class sortable property; v0.3.0 default sort on Vault Table views is descending.
+- **`tier1` / `tier2` / `tier3` multi-select chip relation editor** — type-to-search relation pickers backed by Space / Topic / Sub-topic managers (shared `ContextTierPicker` component).
+- **Vault property-schema editor** — `NewPropertySheet` opened from the Vault Table view's rightmost "+ Property" column header (Notion pattern) + Vault row right-click → "Edit Schema…". Name + type picker → per-type config (options for Select, scope for Relation, dual toggle for Relation, etc.). Edits `_vault.json.properties[]` atomically via `SchemaTransaction` (new two-phase commit infrastructure in `AtomicIO//`).
+- **Schema mutations** — add / rename / type-change (lossless only) / delete / reorder; cross-member rewrite for renames using `SchemaTransaction`.
+- **Dual relations** — Notion-parity: setting a dual Relation on Vault A pointing at Vault B auto-creates a reverse property on B; values mirror automatically. Context-tier scopes are inherently one-way (Contexts don't have a per-tier `properties[]`); UI grays out the dual toggle for those.
+- **Cross-Vault move-strip** — pulled forward from v0.4.0; tightly coupled to property schema. Move dialog lists props that'll be stripped before commit.
+- **Item creation surfacing** — Item creation paths expand from "only `CollectionDetailView` footer" to: `VaultDetailView` footer `+ New Item`, Collection row right-click → `New Item (in This Collection)`, Vault row right-click → `New Item`. `Sidebar.md` right-click menu table updated.
+- **Sort by property** in Vault Table views — type-aware comparators (Select option-order, Date chronological, Last Edited Time descending default, etc.). Per-Vault default-sort persists in `_vault.json.default_sort` (new field). Full per-view sort + saved configurations land at v0.6.0.
 
-- **SQLite indexer (GRDB.swift v7.5+)** — rebuilt from files on launch; six-table schema from PRD (`pages` / `items` / `agenda` / `vaults` / `tiers` / `links`). Per-nexus DB at `~/Library/Application Support/Pommora/nexuses/<nexus-id>/nexus.db` (kept outside the nexus to avoid iCloud-sync locking pathologies).
-- **File watcher (FSEventStream)** — external changes update SQLite + sidebar live; atomic-write detection (debounce + outbound mtime tracking to ignore Pommora's own writes).
-- **Wikilink rename cascade upgrade** — v0.2.10's naive body-scan rewrite gets replaced with SQLite-indexed lookup.
-- **Cross-Vault move-strip rule** — Notion-style; moving a Page/Item across Vaults strips properties not in destination schema with confirm dialog listing affected props.
-- **Cascade-delete reporting refinements** — exact counts in confirmation dialogs (Vault → N Collections + M Pages + K Items).
-- **External-edit detection on Page save** — when v0.2.7 Pages editor saves a Page whose mtime has drifted since editor mount, prompt before overwriting.
+End of v0.3.0: Items paradigm closes. Pages + Items both have body + properties + tier relations editable in-app.
+
+###### v0.3.1 — Items pane (Item Window redesign)
+
+Reshape the Item Window around the now-filled property panel per Nathan's WIP sketch (`// Features//Items.md` "Item window — design evolution"):
+- Modal `WindowGroup(for: ItemRef.self)` — standalone window, side-by-side editing possible
+- Two-column body: description left (60%), properties right (40%)
+- Delete (red, edit-mode-only) + Save footer
+- Same view doubles as create + edit by passing mode
+
+###### v0.3.2 — Page-wikilinks
+
+Body-text wikilinks (`[[Title]]`) with autocomplete + click routing + rename cascade:
+- **Autocomplete popover** triggered by typing `[[`, queries Pages/Items/Contexts via managers (naive scan until v0.3.3)
+- **Click routing** — Page → opens in detail pane; Context → detail pane; Item → ItemWindow popover
+- **Rename cascade** — renaming a target Page rewrites all `[[oldTitle]]` references via naive body scan
+- **Derived `wikilinks: [<id>, ...]` frontmatter mirror** — auto-maintained from body scan on save; queryable via index at v0.3.3
+- **NOT a creatable property type** — schema editor doesn't offer Wikilink
+
+###### v0.3.3 — SQLite + querying
+
+Indexed lookup swaps in transparently behind the existing manager APIs:
+- **SQLite indexer (GRDB.swift v7.5+)** — rebuilt from files on launch; six-table schema from PRD (`pages` / `items` / `agenda` / `vaults` / `tiers` / `links`). Per-nexus DB at `~/Library/Application Support/Pommora/nexuses/<nexus-id>/nexus.db`.
+- **File watcher (FSEventStream)** — external changes update SQLite + sidebar live
+- **Wikilink rename cascade upgrade** — v0.3.2's naive body-scan rewrite gets replaced with indexed lookup
+- **Relation picker performance** — naive manager scan replaced with indexed query
+- **External-edit detection on Page save** — prompt before overwriting drifted mtime
+- **FTS5 tables wired** — schema only, no UI; ⌘K palette ships at v0.8.0
+
+End of v0.3.x: data layer is complete. Pages editable + Items paradigm closed + cross-document linking live + storage indexed.
+
+##### v0.4.0 — Trash UI + cascade-delete refinements
+
+Smaller version — SQLite + Watcher absorbed into v0.3.3; cross-Vault move-strip absorbed into v0.3.0.
+
 - **In-app Trash window** — `.trash//` data layer already shipped at v0.2.5; v0.4.0 adds the SwiftUI surface listing entries with restore + permanent-delete + Empty Trash actions.
+- **Cascade-delete reporting refinements** — exact counts in confirmation dialogs (Vault → N Collections + M Pages + K Items).
+- **External-edit detection on Item / Agenda save** — extends v0.3.3's Page-save detection to other entity types as needed.
 
-End of v0.4.0: live sync between disk and SQLite, external edits reflected in-app, deletes recoverable via UI, cross-Vault moves predictable. The "infrastructure" base layer is complete.
+End of v0.4.0: deletes recoverable via UI. The "infrastructure" base layer is complete.
 
 ##### v0.5.0 — Vault view types (table / board / list / cards / gallery)
 
@@ -193,3 +232,5 @@ No specific phase commitments yet. Catalog at `// Features//Prospects.md` — ad
 7. **`.trash//` data foundation at v0.2.5**, in-app Trash window at v0.4.0. Originally unscoped; pulled forward because deletes need to be recoverable before Pages have months of content.
 
 **Net result:** 7 minor versions remaining to v1.0.0 (v0.3.0 through v0.8.0 + v1.0.0). v0.11/v0.12 dissolved. v0.2.x is the long "infrastructure + Pages + NavDropdown" patch family.
+
+**2026-05-19 RC-session (v0.3.x sub-sequence locked):** The v0.3.x patch family was explicit at: `v0.3.0 = Properties` / `v0.3.1 = Items pane` / `v0.3.2 = Page-wikilinks` / `v0.3.3 = SQLite + querying`. SQLite + Watcher absorbed from v0.4.0 → v0.3.3 (data-layer chapter completes in one minor). Cross-Vault move-strip absorbed from v0.4.0 → v0.3.0 (tightly coupled to property schema). Wikilinks moved from v0.2.10 → v0.3.2 (depends on derived `wikilinks: []` frontmatter mirror which is naturally part of the data-layer chapter). v0.4.0 reduced to Trash UI + cascade-delete refinements. Full v0.3.0 implementation spec at `// Planning//v0.3.0-Properties-implementation.md`.

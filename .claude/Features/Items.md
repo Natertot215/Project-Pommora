@@ -73,18 +73,18 @@ The window contains:
 
 - **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
 - **Icon** — optional SF Symbol, editable via TextField (curated SymbolPicker UI deferred to a polish pass; current sheet supports manual entry).
-- **Properties** — typed inputs for each property in the parent Vault's schema (via `PropertyEditorRow` dispatching to per-type controls: TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select; relation editor deferred to v0.5).
+- **Properties** — typed inputs for each property in the parent Vault's schema (via `PropertyEditorRow` dispatching to per-type controls: TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select; relation editor + tier1/2/3 chip pickers land v0.3.0).
 - **Description** — plain-text field, **hard cap 250 characters**. Sized to fit the window without scrolling; keeps the JSON file small and cloud-sync-friendly.
-- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2 (full relation picker UI deferred to v0.5).
+- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2; full relation picker UI lands v0.3.0 (shared `ContextTierPicker` component with Pages inspector).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ContentManager.updateItem` (with a `renameItem` pre-step if the title changed). No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
 
 ---
 
-#### Item window — design evolution (WIP, v0.5 design intent)
+#### Item window — design evolution (v0.3.1 design intent)
 
-Nathan-sketched 2026-05-17. The current v0.2 ItemWindow is functional but Spartan — the design direction below supersedes it once Properties land in v0.5.
+Nathan-sketched 2026-05-17. The current v0.2 ItemWindow is functional but Spartan — the design direction below supersedes it at v0.3.1, immediately after v0.3.0 Properties lands. v0.3.0 ships properties into the existing popover; v0.3.1 reshapes the surface around them.
 
 **Layout:** modal window (not popover) with a `New Item` / item-title header, two-column body, footer with Delete + Save.
 
@@ -115,21 +115,21 @@ Nathan-sketched 2026-05-17. The current v0.2 ItemWindow is functional but Sparta
 - **Footer left — Delete (red, secondary destructive)** — visible only in edit mode (hidden during create flow). Confirms via `SidebarConfirmation` dialog before destruction.
 - **Footer right — Save (blue, primary)** — commits via `ContentManager.updateItem` (or `createItem` on the create flow). Disabled until title is non-empty + validates against the parent Vault schema.
 
-**Why this evolution waits for v0.5:** the design assumes the full property panel UI (Properties is v0.5). Shipping the new shell before properties exist would leave the right column empty. v0.2's current ItemWindow popover suffices for now (title + icon + description + meta).
+**Why this evolution waits for v0.3.1:** the design assumes the full property panel UI from v0.3.0. Shipping the new shell before properties exist would leave the right column empty. v0.2's current ItemWindow popover suffices through v0.3.0 (title + icon + description + meta + properties). The shell redesign at v0.3.1 reshapes around the now-filled property column.
 
-**v0.5 implementation notes** (forward-looking):
-- The window becomes a true `WindowGroup(for: ItemRef.self)` rather than a sheet — clicking an Item row opens a separate macOS window (matching the standalone-Page pattern from v0.3a's `WindowGroup(for: PageRef.self)`). Side-by-side editing of two Items becomes possible.
+**v0.3.1 implementation notes** (forward-looking):
+- The window becomes a true `WindowGroup(for: ItemRef.self)` rather than a sheet — clicking an Item row opens a separate macOS window (matching the standalone-Page pattern from `WindowGroup(for: PageRef.self)`, generalized to `EntityRef` at v0.2.8 NavDropdown). Side-by-side editing of two Items becomes possible.
 - The same view doubles as create + edit by passing `mode: .create | .edit(Item)`. Create flow hides Delete; edit flow shows it.
 - The two-column layout uses `HStack` with proportional widths — body 60% / properties 40% (revisit ratios at implementation).
 - The existing `ItemWindow.swift` popover stays as the "compact" / inspector view if we want both modes.
 
 ---
 
-#### Item creation surfacing — deferred to v0.5 (decided 2026-05-17)
+#### Item creation surfacing — lands at v0.3.0 (decided 2026-05-17; re-confirmed RC-2026-05-19)
 
-Item creation affordances stay narrow in v0.2/v0.3/v0.4 — only `CollectionDetailView`'s footer "+ New Item" exists. Broader surfacing (Vault detail footer button + sidebar context menu entries on Vault + Collection rows) **ships with Properties in v0.5** because an Item without typed properties is just title + icon + 250-char description, which doesn't yet justify the Item paradigm. Teaching users to "create Items" before Properties land would seat a mental model that changes meaning under them when v0.5 arrives.
+Item creation affordances stay narrow through v0.2.x — only `CollectionDetailView`'s footer "+ New Item" exists. Broader surfacing (Vault detail footer button + sidebar context menu entries on Vault + Collection rows) **ships with Properties at v0.3.0** because an Item without typed properties is just title + icon + 250-char description, which doesn't yet justify the Item paradigm. Teaching users to "create Items" before Properties exist would seat a mental model that changes meaning under them when v0.3.0 arrives.
 
-The `.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDetailView` from v0.2; v0.5 just hangs the visible entry points off existing routes. Bundled with the v0.5 Item Window redesign above so the whole Item story ships cohesively. Full v0.5 scope + the 3 surfacing additions catalogued in `.claude/Handoff.md` "Known UX gap — Item creation surfacing".
+The `.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDetailView` from v0.2; v0.3.0 hangs the visible entry points off existing routes. The Item Window redesign (Nathan sketch above) then ships at v0.3.1 so the full Item story completes in v0.3.0 → v0.3.1 across two minor versions. Full scope + the 3 surfacing additions catalogued at `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 
