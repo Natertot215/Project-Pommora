@@ -75,6 +75,12 @@ struct ContentView: View {
                 inspectorPresented = false
             }
         }
+        .onChange(of: sidebarSelection) { _, newSelection in
+            guard let recents = AppGlobals.recentsManager else { return }
+            guard !recents.isNavigatingHistory else { return }
+            guard let ref = EntityStateRef(sidebarSelection: newSelection) else { return }
+            recents.record(ref)
+        }
         .onChange(of: inspectorPresented) { _, newValue in
             // Persist whenever the user toggles, keyed by the currently
             // selected Page (if any — non-Page toggles don't persist).
