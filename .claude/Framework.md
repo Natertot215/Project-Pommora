@@ -33,21 +33,21 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**End of 2026-05-18 (Session 7 — long session):** Phase A through Phase G of v0.2.7 shipped on the **Pallepadehat fork** path (CodeMirror 6 + WKWebView). 11 commits on `main` (`1df93a6` → `1989fac`); 3 commits on the fork (`Natertot215/PageEditorMD@addaa23`). Build green; **198/198 unit tests pass**; lint clean; bundled `editor.html` verified to contain Phase G content. Full commit list in `Handoff.md`.
+**End of 2026-05-18 (Session 8 — architecture pivot, plan-only):** Phase A-G of v0.2.7 remains shipped on `main` (latest commit `152609c`, Session-7 docs). Session 8 reconsidered the Milkdown decision after demoing `nodes-app/swift-markdown-engine` on Nathan's Mac. **New architecture locked:** Apple `swift-markdown` (parser + rendering source-of-truth) + selectively-vendored `swift-markdown-engine` (live-preview chassis). Native TextKit 2; no WKWebView. Build state unchanged: green, **198/198 tests pass**, lint clean.
 
-**Smoke-test pivot:** Nathan smoke-tested Phase G post-clean-build and decided visual baseline still didn't ship Notion-like polish despite the comprehensive Apple typography overhaul + Markdown auto-pair + transparent-bg triple-clear (WKWebView KVC + CSS `!important` + SwiftUI `.background(Color.clear)`). **Decision: swap to Milkdown + Crepe** for v0.2.7 final shape. Pallepadehat work preserved in git history; SPM dep gets stripped.
+**Architecture-layer split:**
+- **Parser:** Apple `swift-markdown` — full GFM AST including Table, BlockQuote, ThematicBreak, Strikethrough, Strong, Emphasis, Heading, lists, code, links, images, line/soft breaks, HTMLBlock, BlockDirective. SPM dep on `swiftlang/swift-markdown`.
+- **Renderer:** Apple `NSAttributedString` + `NSTextView` + `NSTextLayoutManager` — font, color, paragraph styling, link rendering, selection, find, native context menu, Writing Tools (15.1+), spell-check, autocorrect, IME.
+- **Live-preview chassis:** `swift-markdown-engine` (Apache 2.0, ~4500 LOC after planned deletions) — vendored at `Pommora/Pommora/PageEditor/Engine/`. Contributes the two load-bearing features Apple's bare NSTextView doesn't ship: **dynamic syntax** (markers shrink when caret leaves AST node, expand when entered — Bear/Notion pattern) + **Markdown-aware typing helpers** (list continuation + block auto-wrap from engine; character-pair auto-pair `**`/`__`/`[[`/`` ` `` with auto-exit-on-space added Pommora-side in Phase 4.5).
+- **Domain wiring:** PageRef, PageFile, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, inspector + sidebar wiring, lifecycle observers, atomic-write contract, frontmatter preservation rule, all 198 tests — **survive unchanged from Phase A-G**.
 
-**Locked decisions for the swap:**
-- **Vendor** the wrapper as source files inside Pommora (probable `Pommora/Pommora/PageEditor/` + `Pommora/Pommora/PageEditor/web/`), NOT as SPM dep — Nathan wants every line visible.
-- **Crepe's `frame` theme** (most macOS-native of the three) as default baseline. Pommora-brand styling AFTER baseline ships.
-- **Defer Pommora extensions:** `:::callout` + `@Columns` → v0.2.9 (via `remark-directive`). `[[wikilinks]]` → v0.2.10 (5-component plugin pattern).
-- **Round-trip trade-off accepted:** body becomes stylistically-normalized canonical (list marker / fence / heading style normalized by ProseMirror serializer). External-editor users get consistent style; Pommora itself is unaffected.
+**Critical scoping discovery:** engine's `MarkdownToken` type is load-bearing — 11 non-styling files (coordinator extensions, ContextMenu, SpellingPolicy, Input handlers) reach through it. Plan **preserves type-API** of `MarkdownToken`/`MarkdownTokenizer`/`MarkdownDetection` and **rewrites internals** to back onto Apple AST. Only `MarkdownStyler` gets a wholesale body swap.
 
-**Survives the swap unchanged:** all Pommora domain code (PageRef, PageFile, PageMeta, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen), the title-banner + `.inspector` SwiftUI structure in PageEditorView, Pommora.entitlements, all 198 tests.
+**Strip surface:** Pallepadehat SPM dep (6 pbxproj entries + Package.resolved) + `import MarkdownEditor` + `pommoraEditorConfig` + `EditorWebView` call + `com.apple.security.network.client` entitlement + `External/PageEditorMD/` clone. Fork stays in git history.
 
-**Sub-plan for next session:** `// Planning//v0.2.7-milkdown-swap.md` with three research areas for plan mode — **Strip** (Pallepadehat removal), **Milkdown setup** (vendored Vite+Crepe wrapper), **Construct styling** (frame default + transparent bg + Pommora-brand layer). Effort estimate: ~2.5–3 Claude sessions.
+**Implementation plan:** [`// Planning//v0.2.7-engine-swap.md`](Planning/v0.2.7-engine-swap.md) — comprehensive single-session plan, Phases 0-5 ship in one go post-compact; Phase 6 (docs split into PageEditor.md) defers to v0.2.7.1 patch. Plan accepted end-of-Session-8.
 
-**Next session opens in plan mode** per Nathan's instruction. Plan mode produces concrete implementation plan covering the three research areas, then implements. Then **v0.2.8 Tabs**, then v0.2.9 directives + v0.2.10 wikilinks. v0.3.0 (Properties) follows after the v0.2.x writable-Pommora milestone. See `Handoff.md` for verbatim resume prompt.
+**Next session opens** with the verbatim resume prompt at the top of `Handoff.md` — Nathan compacts, then session executes the plan in one go. After v0.2.7: **v0.2.8 Tabs**, then v0.2.9 directives (`:::callout`/`@Columns` via Apple `BlockDirective`) + v0.2.10 wikilinks (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). v0.3.0 (Properties) follows the v0.2.x writable-Pommora milestone.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX polish (shipped on `paradigm-scaffolding`; merged to `main` 2026-05-18)
 

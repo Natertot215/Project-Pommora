@@ -384,3 +384,54 @@ Research session after the v0.2.4 → v0.2.6 patch sequence shipped. Nathan reop
 **Paradigm-Decisions registry impact:** Decision #7 (Tiptap leading direction) is superseded by the three-option inventory. Sync at v0.2.7 implementation start once Nathan's pick lands — no point updating it speculatively now.
 
 **Next session opens with:** push v0.2.4 → v0.2.6 to origin if Nathan signals → confirm Nathan's pick among the three editor options (recommendation Option 3) → implement v0.2.7 immediately. Opening commit (common to all options): `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` mirroring `updateItem`. Session-1 deliverable spec for Option 3 lives in `Handoff.md`.
+
+---
+
+#### Session 7 — 2026-05-18 (continued — Phase A-G of v0.2.7 + Milkdown decision)
+
+Long execution session. Nathan picked Option 3 (fork Pallepadehat); shipped Phase A through Phase G of v0.2.7 across 11 commits on `main` + 3 commits on the fork at `Natertot215/PageEditorMD`. End-of-session smoke test failed Nathan's visual baseline despite extensive Apple typography overhaul; decision to swap to Milkdown + Crepe (later superseded by Session 8). Doc commit at `152609c`; no swap code.
+
+**Code shipped (11 commits, `1df93a6` → `1989fac`):**
+
+- **Phase A** — SPM dep on Pallepadehat fork
+- **Phase B** — Domain layer: `PageRef` (Codable+Hashable ID-based identifier for `WindowGroup(for:)` scene values), `ContentManager.updatePage(_:body:in:vault:)` + vault-root variant (body-only writes, frontmatter preserved verbatim via `PageFile(frontmatter:body:title:).save(to:)` → `AtomicYAMLMarkdown.write` → atomic temp+rename), `PageEditorViewModel` (300ms debounce, `flushNow`/`close`/`explicitSave`/`clearError`, `PageSaver` protocol + `ContentManagerPageSaver`), 10 new tests + Nathan's icon migration bundled
+- **Phase C1-C5.2** — Inspector wiring + sandbox entitlements (4 keys including `network.client` for WKWebView), `AppGlobals` (NSHashTable<PageEditorViewModel> registry + lifecycle observers for willResignActive + willTerminate), `AppState.pageInspectorOpen` per-Page persistence (v1→v2 backward-compat decoder), `FrontmatterInspector` (read-only Form), `PageEditorView` + `PageEditorHost` (.task(id:) page-switch flush + .id() re-keying), editable title `TextField` (28pt bold, plain style, commit → `ContentManager.renamePage`), inspector at NavigationSplitView level with toolbar `ToolbarItem(placement: .primaryAction)` INSIDE `.inspector(...)` content closure (fixed left-side placement bug), sidebar page-switching regression fix (`@State var viewModel` → `@Bindable` + `.id(vm.page.id)`)
+- **Phase G** — Fork polish: drop active-line, custom fold chevron, `markdown-autopair.ts` for `**`/`__`/`[[`/`` ` ``, Apple typography overhaul (SF Pro Text body + SF Pro Display headings + SF Mono code; 28/22/17/15/13/13pt scale), triple-clear transparent-bg (`drawsBackground=false` KVC + `underPageBackgroundColor=.clear` + NSView layer bg + CSS `!important`), Pommora-side `.background(Color.clear)` defensive layer
+
+**Build state end-of-session:** `xcodebuild build` SUCCEEDED. `xcodebuild test -only-testing:PommoraTests` → **198/198 pass**. `swift format lint --strict --recursive` → exit 0.
+
+**Smoke test verdict (Nathan):** Phase G's overhaul still didn't produce Notion-like polish. Decision to swap editor library to Milkdown + Crepe. Plan written at `// Planning//v0.2.7-milkdown-swap.md`. Compact at session close.
+
+**Project quirk added (#13 in `CLAUDE.md`):** SPM branch-pinned forks need full cache nuke to bump (gentle `xcodebuild -resolvePackageDependencies` respects pins). Nuke `Package.resolved` + `DerivedData/.../SourcePackages` + `~/Library/Caches/org.swift.swiftpm/repositories/<DepName>-*`.
+
+---
+
+#### Session 8 — 2026-05-18 (continued — architecture pivot to Apple swift-markdown + swift-markdown-engine, plan-only)
+
+Plan-only session. Nathan reconsidered the Milkdown direction after demoing `nodes-app/swift-markdown-engine` (Apache 2.0, native TextKit 2, ~7411 LOC). The demo (built + launched manually by Nathan in Terminal — auto-mode classifier blocked the builder agent from /tmp paths) made the native-Mac feel undeniable. Session produced a comprehensive single-session implementation plan at `// Planning//v0.2.7-engine-swap.md` and Nathan accepted it. No code committed. Compact at session close to execute the plan in one go next session.
+
+**Architecture locked:**
+
+- **Parser:** Apple `swift-markdown` (full GFM AST + `BlockDirective` for v0.2.9 directives + source-range tracking). SPM dep on `swiftlang/swift-markdown`.
+- **Renderer:** Apple `NSAttributedString` + `NSTextView` + `NSTextLayoutManager`. Writing Tools (15.1+), Look Up / Translate / spell-check, IME, dynamic system colors, drag-select all free.
+- **Live-preview chassis:** `swift-markdown-engine` (selectively vendored at `Pommora/Pommora/PageEditor/Engine/`, ~4500 LOC after planned deletions). Two load-bearing engine contributions: **dynamic syntax** (markers shrink when caret leaves AST node — Bear/Notion pattern) + **Markdown-aware typing helpers** (list continuation + block auto-wrap shipped; character-pair auto-pair `**`/`__`/`[[`/`` ` `` with auto-exit-on-space added Pommora-side in Phase 4.5). Engine's `Services/WikiLinkService.swift` two-form `[[Name|<id>]]` ↔ `[[Name]]` storage transform also kept as reference for v0.2.10 wikilink work.
+- **Domain wiring:** PageRef, PageFile, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, inspector + sidebar wiring, lifecycle observers, atomic-write contract, frontmatter preservation rule, editable title TextField, all 198 tests — **survive unchanged from Phase A-G**.
+
+**Critical scoping discovery:** engine's `MarkdownToken` type is load-bearing — 11 non-styling files (coordinator extensions, ContextMenu, SpellingPolicy, Input handlers) reach through it. Plan **preserves type-API** of `MarkdownToken`/`MarkdownTokenizer.parseTokens(in:)`/`MarkdownDetection.isInside…` and **rewrites internals** to back onto Apple AST. Only `MarkdownStyler` gets a full body swap (replaced by `PommoraMarkdownStyler`).
+
+**Plan structure (single session, Phases 0-5; Phase 6 docs split defers to v0.2.7.1):**
+
+- **Phase 0** — Documentation repair (~30 min) — verify Handoff/History/Framework/CLAUDE reflect reality post-compact
+- **Phase 1** — Strip Pallepadehat fork (~30 min) — 6 pbxproj entries + Package.resolved + `import MarkdownEditor` + `pommoraEditorConfig` + `EditorWebView` call + `network.client` entitlement + `External/PageEditorMD/` clone
+- **Phase 2** — Vendor engine + Apple swift-markdown SPM dep (~45 min) — drop `MarkdownEngine.docc/`; copy engine; pin Apple swift-markdown
+- **Phase 3** — Replace parser internals + styler (~2 hours, the heart) — reimplement `MarkdownTokenizer.parseTokens(in:)` as Apple-AST walker emitting `MarkdownToken` shims; reimplement `MarkdownDetection` helpers; write `PommoraMarkdownStyler` covering all GFM block types; write `PommoraInlineScanner` for wikilink/image-embed overlay; write `SourceRangeToNSRange` converter + tests
+- **Phase 4** — Wire PageEditorView (~20 min) — replace `EditorWebView` with `NativeTextViewWrapper`; swap config; title TextField untouched
+- **Phase 4.5** — Auto-pair + auto-exit-on-space (~30 min core + 20 min stretch) — extend `MarkdownInputHandler`
+- **Phase 5** — Smoke-test verification (~15 min) — type prose / table / blockquote / hr / strikethrough / wikilink; switch Pages; verify on disk
+- **Phase 6** — Docs split → defer to v0.2.7.1
+
+**Locked execution rules:** all commits on `main` directly (override of quirk #13); every dispatched agent uses `claude-opus-4-7` (Opus 4.7); `builder` subagent for `xcodebuild`; FILENAME form for `-only-testing` (quirk #1); `swift format lint --strict` exit 0 before every commit; Nathan pushes manually.
+
+**End-of-session state:** code state unchanged at `152609c`; build green; 198/198 tests pass; lint clean. Planning folder: `v0.2.7-engine-swap.md` active; `v0.2.7-milkdown-swap.md` deleted by Nathan as no-longer-needed; Pallepadehat-era `v0.2.7-editor-polish.md` already marked SUPERSEDED.
+
+**Next session opens with:** post-compact, execute the engine-swap plan Phases 0-5 in one go per the verbatim resume prompt at the top of `Handoff.md`.
