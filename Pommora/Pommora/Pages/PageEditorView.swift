@@ -1,3 +1,4 @@
+import AppKit
 import MarkdownEngine
 import SwiftUI
 
@@ -61,7 +62,10 @@ struct PageEditorView: View {
                 .padding(.bottom, 20)
                 .background(Color.clear)
                 .onSubmit {
-                    Task { await commitRename() }
+                    Task {
+                        await commitRename()
+                        focusBodyEditor()
+                    }
                 }
 
             // Body editor — TextKit-2 native via vendored MarkdownEngine.
@@ -123,6 +127,29 @@ struct PageEditorView: View {
         config.textInsets = TextInsets(horizontal: 24, vertical: 0)
         return config
     }()
+
+    /// Move focus from the title TextField to the body NSTextView. Walks
+    /// the key window's view tree to find the first NSTextView (which is
+    /// the body editor — the sidebar uses NSTextField, not NSTextView)
+    /// and makes it firstResponder. Dispatched async so the title's
+    /// onSubmit rename round-trip completes first.
+    private func focusBodyEditor() {
+        DispatchQueue.main.async {
+            guard let window = NSApp.keyWindow,
+                let contentView = window.contentView,
+                let bodyEditor = Self.findFirstTextView(in: contentView)
+            else { return }
+            window.makeFirstResponder(bodyEditor)
+        }
+    }
+
+    private static func findFirstTextView(in view: NSView) -> NSTextView? {
+        if let tv = view as? NSTextView { return tv }
+        for subview in view.subviews {
+            if let found = findFirstTextView(in: subview) { return found }
+        }
+        return nil
+    }
 
     private func commitRename() async {
         let oldTitle = viewModel.page.title

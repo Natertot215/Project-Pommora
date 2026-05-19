@@ -17,6 +17,10 @@ extension NSAttributedString.Key {
     nonisolated static let latexBounds = NSAttributedString.Key("LatexImageBounds")
     nonisolated static let latexIsBlock = NSAttributedString.Key("LatexIsBlock")
     nonisolated static let latexBlockOffsetY = NSAttributedString.Key("LatexBlockOffsetY")
+    /// Marks a `---` paragraph (Apple-AST ThematicBreak). Fragment-side
+    /// drawing replaces the visible dashes with a horizontal line —
+    /// Apple-Notes-style separator.
+    nonisolated static let pommoraThematicBreak = NSAttributedString.Key("PommoraThematicBreak")
 }
 
 // Pommora vendoring: NSTextLayoutFragment's overridden members are nonisolated
@@ -40,6 +44,40 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
+    }
+
+    // MARK: - ThematicBreak (Pommora addition)
+
+    /// Draws a full-width horizontal line centered vertically in the
+    /// fragment, in place of `---` source text whose chars have been
+    /// hidden via font-size-0.1 + clear-foreground.
+    private func drawThematicBreak(at point: CGPoint, in context: CGContext) {
+        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+        // Detect: does this fragment carry the .pommoraThematicBreak attribute?
+        let marker = ts.attribute(.pommoraThematicBreak, at: range.location, effectiveRange: nil) as? Bool
+        guard marker == true else { return }
+
+        // Full-width line. Use the same width math as drawCodeBlockBackground.
+        let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
+        let lineColor = NSColor.separatorColor.withAlphaComponent(0.8)
+
+        // Vertical center of the fragment's drawing region.
+        let centerY = point.y + (layoutFragmentFrame.height / 2)
+        let lineThickness: CGFloat = 1.0
+        let lineRect = CGRect(
+            x: point.x - layoutFragmentFrame.origin.x,
+            y: centerY - (lineThickness / 2),
+            width: containerWidth,
+            height: lineThickness
+        )
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.current = nsContext
+
+        lineColor.setFill()
+        NSBezierPath(rect: lineRect).fill()
     }
 
     // MARK: - FB15131180

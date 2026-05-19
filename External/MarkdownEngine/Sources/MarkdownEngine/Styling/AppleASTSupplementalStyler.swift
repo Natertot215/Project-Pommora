@@ -85,24 +85,72 @@ enum AppleASTSupplementalStyler {
         }
 
         mutating func visitTable(_ table: Table) -> Void {
-            if let range = SourceRangeConverter.nsRange(from: table.range, in: nsText, lineIndex: lineIndex) {
-                let monoFont = NSFont.monospacedSystemFont(ofSize: baseFont.pointSize, weight: .regular)
-                styledRanges.append((range, [
-                    .font: monoFont,
-                    .backgroundColor: theme.bodyText.withAlphaComponent(0.04)
-                ]))
+            guard let tableRange = SourceRangeConverter.nsRange(from: table.range, in: nsText, lineIndex: lineIndex) else {
+                return
             }
+            // Cell content uses monospace + faint bg tint so columns align.
+            let monoFont = NSFont.monospacedSystemFont(ofSize: baseFont.pointSize, weight: .regular)
+            styledRanges.append((tableRange, [
+                .font: monoFont,
+                .backgroundColor: theme.bodyText.withAlphaComponent(0.04)
+            ]))
+
+            // Hide all `|` cell separators across the table's range — they
+            // become invisible while staying in source for canonical-md
+            // preservation.
+            let hiddenFont = NSFont.systemFont(ofSize: 0.1)
+            let tableText = nsText.substring(with: tableRange)
+            var searchStart = tableText.startIndex
+            while let pipeRange = tableText.range(of: "|", range: searchStart..<tableText.endIndex) {
+                let utf16Offset = tableText.utf16.distance(from: tableText.startIndex, to: pipeRange.lowerBound)
+                let absoluteLocation = tableRange.location + utf16Offset
+                styledRanges.append((NSRange(location: absoluteLocation, length: 1), [
+                    .font: hiddenFont,
+                    .foregroundColor: NSColor.clear
+                ]))
+                searchStart = pipeRange.upperBound
+            }
+
+            // Hide the separator row (the `|---|---|---|` line between
+            // Table.Head and the first Table.Row in Table.Body). swift-
+            // markdown doesn't expose this row as a node, but its source
+            // range sits between Head.upperBound and Body.first.lowerBound.
+            if let head = table.head.range,
+               let firstBodyRow = table.body.children.compactMap({ ($0 as? Table.Row)?.range }).first {
+                let separatorStartLine = head.upperBound.line + 1
+                let separatorEndLine = firstBodyRow.lowerBound.line - 1
+                if separatorStartLine <= separatorEndLine,
+                   let startOffset = lineIndex.utf16Offset(line: separatorStartLine, column: 1),
+                   let endOffset = lineIndex.utf16Offset(line: separatorEndLine + 1, column: 1) {
+                    let clampedEnd = min(endOffset, nsText.length)
+                    if clampedEnd > startOffset {
+                        let sepRange = NSRange(location: startOffset, length: clampedEnd - startOffset)
+                        styledRanges.append((sepRange, [
+                            .font: hiddenFont,
+                            .foregroundColor: NSColor.clear
+                        ]))
+                    }
+                }
+            }
+
             for child in table.children {
                 visit(child)
             }
         }
 
         mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) -> Void {
-            if let range = SourceRangeConverter.nsRange(from: thematicBreak.range, in: nsText, lineIndex: lineIndex) {
-                styledRanges.append((range, [
-                    .foregroundColor: theme.bodyText.withAlphaComponent(0.5)
-                ]))
+            guard let range = SourceRangeConverter.nsRange(from: thematicBreak.range, in: nsText, lineIndex: lineIndex) else {
+                return
             }
+            // Hide the dashes (font 0.1 + clear color), then mark the range
+            // so MarkdownTextLayoutFragment.drawThematicBreak draws an
+            // actual horizontal line in their place — Apple-Notes-style.
+            let hiddenFont = NSFont.systemFont(ofSize: 0.1)
+            styledRanges.append((range, [
+                .font: hiddenFont,
+                .foregroundColor: NSColor.clear,
+                .pommoraThematicBreak: true
+            ]))
         }
     }
 }
