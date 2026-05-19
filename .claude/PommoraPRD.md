@@ -403,7 +403,7 @@ Clicking a row in the dropdown opens the entity in a **standalone macOS window**
 - **Recents cap** — 500 in the underlying store; dropdown displays top 100; sidebar full-frame Recents view (v0.6.0+) shows the full 500 with sort + filter.
 - **Favorites** — uncapped, separate Codable array, insertion-ordered.
 
-Entity roster: Pages, Vaults, Spaces, Topics, Sub-topics, Items (popover-only, `ItemWindow`), Agenda items (v0.6.0+, chip label "Task"). Collections excluded for v0.2.8 simplicity. Homepage never appears.
+Entity roster: Pages, Vaults, Spaces, Topics, Sub-topics, Items (popover-only, `ItemWindow`), Agenda items (v0.6.0+, chip label "Task"). Collections excluded for v0.2.7.2 simplicity. Homepage never appears.
 
 **State persistence:** Recents + Favorites + back/forward cursor persist across launches. Stored in `<nexus>/.nexus/state.json` (per-nexus, vault-portable).
 

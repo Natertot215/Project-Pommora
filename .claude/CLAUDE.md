@@ -66,7 +66,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
   - `PageEditor.md` — editor implementation spec: library (swift-markdown + vendored swift-markdown-engine), shipped v0.2.7.0 features, v0.2.7.x deferred patches, save pipeline, hot-swap surface
   - `Items.md` — row-shaped `.json` entries; Item Window UI; tier1/2/3
   - `Properties.md` — property type catalog (Vault-wide v1; shared across Pages, Items, Agenda)
-  - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Recents + Favorites); v0.2.8 — supersedes the old `Navigation-Bar.md` tab-strip model
+  - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Recents + Favorites); v0.2.7.2 — supersedes the old `Navigation-Bar.md` tab-strip model
   - `Sidebar.md` — four-section sidebar (Saved / Spaces / Topics / Vaults); selection language, indentation mechanisms
   - `Architecture.md` — what survives a stack rebuild (conceptual portability)
   - `Prospects.md` — post-v1 features (incl. synced blocks, collection-local schemas, graph view, Item ↔ Page promotion)
@@ -125,7 +125,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 **Next session opens with the v0.2.7.1 verbatim resume prompt** at the top of `Handoff.md` — lands deferred Phase 3 (AST rewrite) + Phase 4.5 polish + docs split.
 
-**Framework reorder locked end-of-2026-05-17** (see `Framework.md` "Roadmap reorders" + `Handoff.md` "Framework reorder"): Pages + NavDropdown ship as v0.2.7 + v0.2.8 patches (interchangeable order) — NOT as v0.3.0/v0.4.0 minors. (NavDropdown supersedes the original v0.2.8 'Tabs' scope — pivot locked 2026-05-18; see `NavDropdown.md`.) Editor library NOT solidified — Tiptap leading candidate, final pick at v0.2.7 prep. Properties → v0.3.0. SQLite + Watcher → v0.4.0. Vault views → v0.5.0. EventKit + Agenda UI ship together at v0.6.0 (hand-in-hand). v0.6.0 consolidates a11y + perf + onboarding + Settings + accent customization. `.trash//` data layer → v0.2.5; UI window → v0.4.0.
+**Framework reorder locked end-of-2026-05-17** (see `Framework.md` "Roadmap reorders" + `Handoff.md` "Framework reorder"): Pages + NavDropdown ship as v0.2.7 + v0.2.7.2 patches — NOT as v0.3.0/v0.4.0 minors. (NavDropdown supersedes the original v0.2.8 'Tabs' scope — pivot locked 2026-05-18; resequenced to v0.2.7.2 at Session-9 close; see `NavDropdown.md`.) Editor library NOT solidified — Tiptap leading candidate, final pick at v0.2.7 prep. Properties → v0.3.0. SQLite + Watcher → v0.4.0. Vault views → v0.5.0. EventKit + Agenda UI ship together at v0.6.0 (hand-in-hand). v0.6.0 consolidates a11y + perf + onboarding + Settings + accent customization. `.trash//` data layer → v0.2.5; UI window → v0.4.0.
 
 Read `Handoff.md` first at session start.
 
