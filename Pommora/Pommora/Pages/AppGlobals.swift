@@ -21,6 +21,11 @@ enum AppGlobals {
 
     static var contentManager: ContentManager?
     static var vaultManager: VaultManager?
+    static var spaceManager: SpaceManager?
+    static var topicManager: TopicManager?
+    static var recentsManager: RecentsManager?
+    static var favoritesManager: FavoritesManager?
+    static var mainWindowRouter: MainWindowRouter?
 
     // MARK: - Editor VM registry
 
