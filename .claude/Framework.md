@@ -33,11 +33,21 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**End of 2026-05-18 session:** v0.2.0 → v0.2.6 all shipped on `main` (locally committed; not yet pushed). Build green, **186/186 unit tests pass**, `swift format lint --strict` exit 0, sandbox verified. Pommora now has CI + formatter + `.trash//` data layer + spec docs synced.
+**End of 2026-05-18 (Session 7 — long session):** Phase A through Phase G of v0.2.7 shipped on the **Pallepadehat fork** path (CodeMirror 6 + WKWebView). 11 commits on `main` (`1df93a6` → `1989fac`); 3 commits on the fork (`Natertot215/PageEditorMD@addaa23`). Build green; **198/198 unit tests pass**; lint clean; bundled `editor.html` verified to contain Phase G content. Full commit list in `Handoff.md`.
 
-Second half of the session: editor library decision research (no code). Three options narrowed and inventoried at `// Planning//Page-Editor-Plan.md`: (1) Native Swift via `swift-markdown` + TextKit 2 (optionally wrapping `nodes-app/swift-markdown-engine`); (2) JS editor library inside a macOS shell we build (Tiptap / Milkdown / BlockNote); (3) Fork `Pallepadehat/MarkdownEditor` (CodeMirror 6 + WKWebView, ours after fork). Chat-only recommendation: Option 3 first (cheapest experiment, surfaces WKWebView-feel question fastest, high reversibility). Decision settled at the start of next session.
+**Smoke-test pivot:** Nathan smoke-tested Phase G post-clean-build and decided visual baseline still didn't ship Notion-like polish despite the comprehensive Apple typography overhaul + Markdown auto-pair + transparent-bg triple-clear (WKWebView KVC + CSS `!important` + SwiftUI `.background(Color.clear)`). **Decision: swap to Milkdown + Crepe** for v0.2.7 final shape. Pallepadehat work preserved in git history; SPM dep gets stripped.
 
-Next session opens with: confirm Nathan's pick → implement v0.2.7 immediately. Opening commit (common to all options) is `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` mirroring `updateItem`. Then **v0.2.8 Tabs**, then v0.2.9 directives + v0.2.10 wikilinks. v0.3.0 (Properties) follows after the v0.2.x writable-Pommora milestone is complete. See `Handoff.md` for the end-of-5-18 state + verbatim resume prompt + session-1 deliverable spec.
+**Locked decisions for the swap:**
+- **Vendor** the wrapper as source files inside Pommora (probable `Pommora/Pommora/PageEditor/` + `Pommora/Pommora/PageEditor/web/`), NOT as SPM dep — Nathan wants every line visible.
+- **Crepe's `frame` theme** (most macOS-native of the three) as default baseline. Pommora-brand styling AFTER baseline ships.
+- **Defer Pommora extensions:** `:::callout` + `@Columns` → v0.2.9 (via `remark-directive`). `[[wikilinks]]` → v0.2.10 (5-component plugin pattern).
+- **Round-trip trade-off accepted:** body becomes stylistically-normalized canonical (list marker / fence / heading style normalized by ProseMirror serializer). External-editor users get consistent style; Pommora itself is unaffected.
+
+**Survives the swap unchanged:** all Pommora domain code (PageRef, PageFile, PageMeta, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen), the title-banner + `.inspector` SwiftUI structure in PageEditorView, Pommora.entitlements, all 198 tests.
+
+**Sub-plan for next session:** `// Planning//v0.2.7-milkdown-swap.md` with three research areas for plan mode — **Strip** (Pallepadehat removal), **Milkdown setup** (vendored Vite+Crepe wrapper), **Construct styling** (frame default + transparent bg + Pommora-brand layer). Effort estimate: ~2.5–3 Claude sessions.
+
+**Next session opens in plan mode** per Nathan's instruction. Plan mode produces concrete implementation plan covering the three research areas, then implements. Then **v0.2.8 Tabs**, then v0.2.9 directives + v0.2.10 wikilinks. v0.3.0 (Properties) follows after the v0.2.x writable-Pommora milestone. See `Handoff.md` for verbatim resume prompt.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX polish (shipped on `paradigm-scaffolding`; merged to `main` 2026-05-18)
 

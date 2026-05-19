@@ -2,7 +2,64 @@
 
 > **Read this first at session start.** Branch + state + next session's resume here.
 
-#### Current State (end of 2026-05-18 session)
+#### Current State (end of 2026-05-18 — second long session, Phase A-G of v0.2.7 + Milkdown pivot decision)
+
+**`main` is at `1989fac`** — Phase A through Phase G.2 of v0.2.7 shipped on top of the Pallepadehat fork. Then Nathan smoke-tested + decided to **swap to Milkdown + Crepe** instead. The Pallepadehat work is preserved in git history but will be stripped by the next session.
+
+| SHA | Tag | What |
+|---|---|---|
+| `1df93a6` | v0.2.7-a | SPM dep on `Natertot215/PageEditorMD` (branch=main) — the Pallepadehat fork |
+| `ca33210` | v0.2.7-b | Domain layer: PageRef + ContentManager.updatePage (collection + vault-root variants, body-only + frontmatter-preserve atomic write) + PageEditorViewModel (300ms debounce + flushOnContextLoss + PageSaver protocol) + 10 new tests + Nathan's icon migration bundled |
+| `74d1ea9` | v0.2.7-c1 | Pommora.entitlements + CODE_SIGN_ENTITLEMENTS wiring (4 sandbox keys: app-sandbox / user-selected.read-write / bookmarks.app-scope / network.client — last new for WKWebView) |
+| `14e1c8a` | v0.2.7-c2 | AppGlobals (lifecycle VM registry + lifecycle flush) + AppState.pageInspectorOpen + PommoraApp.init bootstrap |
+| `62f4b7b` | v0.2.7-c3 | Editor end-to-end: FrontmatterInspector + PageEditorView (wrapping Pallepadehat EditorWebView) + PageEditorHost (page-switch flush via `.task(id:)`) + sidebar wire |
+| `599ee2f` | v0.2.7-c4 | Inspector dedupe (removed legacy ContentView inspector) + title banner (read-only) |
+| `454d153` | v0.2.7-c5 | Editable title (TextField → ContentManager.renamePage → in-place file rename) + inspector restructured to NavigationSplitView level |
+| `dcb1ab0` | v0.2.7-c5.1 | Inspector toggle moved INSIDE `.inspector(...)` content closure (fixes left-side placement bug) |
+| `6882ea9` | v0.2.7-c5.2 | Sidebar page-switching regression fix: `@State var viewModel` → `@Bindable` + `.id(vm.page.id)` on PageEditorView (the @State was preserving stale VM reference across page changes) |
+| `2226fbe` | v0.2.7-g | Package.resolved bump to fork `4fd91d6` — Phase G #1 (active-line drop + Notes-style fold chevron + markdown auto-pair + tighter heading spacing + Apple typography + transparent bg) |
+| `1989fac` | v0.2.7-g.2 | Package.resolved bump to fork `addaa23` + Pommora-side `.background(Color.clear)` defensive layer on TextField + EditorWebView + VStack |
+
+**Fork** at `https://github.com/Natertot215/PageEditorMD` (local clone at `External/PageEditorMD/`, untracked per `.gitignore`):
+- `4fd91d6` — Phase G #1: drop active-line, custom fold chevron, markdown-autopair.ts, Apple typography overhaul, transparent bg CSS
+- `a146a28` — Swift triple-clear (drawsBackground KVC + underPageBackgroundColor + NSView layer bg)
+- `addaa23` — `!important` on transparent bg rules to win over xcodeLight/xcodeDark
+
+**Smoke test verdict (Nathan, after clean build):** Phase G's Apple typography + WKWebView bg work didn't ship the Notion-like polish Pommora needs. Decision to swap editor lib.
+
+**Build state at end-of-session:** `xcodebuild build` SUCCEEDED. `xcodebuild test -only-testing:PommoraTests` → **198/198 pass** (was 186 + 12 new across Phase B). `swift format lint --strict --recursive` → exit 0. Bundled `editor.html` verified to contain Phase G content (6 occurrences of `transparent !important`).
+
+---
+
+#### Decision: Swap editor library → Milkdown + Crepe (locked end-of-session)
+
+After Phase G shipped with comprehensive Apple typography CSS + auto-pair + transparent-bg triple-layer + clean rebuild verification, the visual baseline still didn't satisfy. Decision to swap to **Milkdown + Crepe**.
+
+**Locked choices:**
+
+1. **Vendored, not SPM-dep'd.** Wrapper as **source files inside Pommora's own tree** (probable: `Pommora/Pommora/PageEditor/` for Swift + `Pommora/Pommora/PageEditor/web/` for the JS bundle source). Nathan wants every line visible in Pommora's repo for inspection + iteration.
+2. **Crepe with default macOS `frame` theme as baseline.** Custom Pommora styling layers AFTER baseline lands.
+3. **Stay with WYSIWYG / Live Preview editing model** — Crepe defaults.
+4. **Defer Pommora extensions:** `:::callout` + `@Columns` → v0.2.9 (via `remark-directive`). `[[wikilinks]]` → v0.2.10 (5-component plugin pattern).
+5. **Round-trip trade-off accepted:** ProseMirror serializer normalizes list-marker / fence / heading style. Body on save is stylistically-normalized canonical, not byte-perfect.
+
+**Full sub-plan + research areas at `// Planning//v0.2.7-milkdown-swap.md`.** Three research areas for plan mode to cover: **Strip** (Pallepadehat removal), **Milkdown setup** (vendored Vite+Crepe wrapper), **Construct styling** (frame default + transparent bg + Pommora-brand layer).
+
+**What survives the swap:** all Pommora domain code (PageRef, PageFile, PageMeta, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen). All 198 tests. The Pommora.entitlements (still need network.client for WKWebView).
+
+**What gets stripped:** the 6 pbxproj SPM entries for `MarkdownEditor`, Package.resolved entry for PageEditorMD, `import MarkdownEditor` references, `pommoraEditorConfig` constant, Pallepadehat-specific `EditorWebView(...)` call. `External/PageEditorMD/` working clone stays (untracked) as reference.
+
+**Effort estimate (Claude-time):** ~2.5–3 sessions (Strip ~30 min + Milkdown setup ~1 session + Construct styling ~1 session + verify round-trip ~30 min + full re-verify ~30 min).
+
+---
+
+#### Verbatim resume prompt for post-compact session
+
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. `main` is at `1989fac` with Phase A-G of v0.2.7 shipped on the Pallepadehat fork (`Natertot215/PageEditorMD@addaa23`). Nathan smoke-tested Phase G and decided to swap to **Milkdown + Crepe** for a better default UI. Decisions locked at `.claude/Planning/v0.2.7-milkdown-swap.md`: vendor the wrapper as source files inside Pommora (not SPM dep, not fork); use Crepe's `frame` theme as default macOS-native baseline; custom styling AFTER baseline ships; defer `:::callout`/`@Columns`/`[[wikilinks]]` to v0.2.9-v0.2.10. **Enter plan mode** and produce an implementation plan covering the three research areas in that document: **Strip** (remove Pallepadehat), **Milkdown setup** (vendored wrapper + Vite + Crepe), **Construct styling** (frame default + transparent bg + Pommora-brand layer). The 198 existing tests + Pommora domain layer survive the swap unchanged. The fork at Natertot215/PageEditorMD is preserved in git history but the SPM dep gets removed in the Strip phase."
+
+---
+
+#### Legacy state — pre-v0.2.7 (preserved for context)
 
 **`main` is at v0.2.6 completed**, all committed locally (NOT pushed — Nathan reviews + pushes):
 

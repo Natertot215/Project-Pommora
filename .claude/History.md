@@ -2,6 +2,48 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 7 — 2026-05-18 (second long session) — v0.2.7 Phase A-G ship + Milkdown pivot
+
+A single sprawling session covering: SPM dep on Pallepadehat fork → full domain layer + 10 tests → editor wires end-to-end → 5 polish iterations after smoke test → 2 fork-side polish iterations (Phase G #1 + #2) → Nathan-driven decision to swap to Milkdown + Crepe.
+
+**Commits on `main` (8 of them, all on `main`, none pushed):**
+- `1df93a6` v0.2.7-a — SPM dep on `Natertot215/PageEditorMD` (branch=main, the Pallepadehat fork)
+- `ca33210` v0.2.7-b — Domain layer (PageRef + updatePage + PageEditorViewModel + 10 tests) + icon migration
+- `74d1ea9` v0.2.7-c1 — Pommora.entitlements + CODE_SIGN_ENTITLEMENTS (4 keys: app-sandbox / user-selected.read-write / bookmarks.app-scope / network.client)
+- `14e1c8a` v0.2.7-c2 — AppGlobals (weak VM registry + lifecycle flush observer) + AppState.pageInspectorOpen + PommoraApp.init bootstrap
+- `62f4b7b` v0.2.7-c3 — Editor end-to-end: FrontmatterInspector + PageEditorView + PageEditorHost (page-switch flush via `.task(id:)`) + sidebar wire
+- `599ee2f` v0.2.7-c4 — Inspector dedupe + title banner (read-only)
+- `454d153` v0.2.7-c5 — Editable title (TextField → renamePage → file rename) + inspector at NavigationSplitView level
+- `dcb1ab0` v0.2.7-c5.1 — Inspector toggle INSIDE `.inspector(...)` closure (fixes left-side placement)
+- `6882ea9` v0.2.7-c5.2 — Sidebar page-switching regression fix (`@State var viewModel` → `@Bindable` + `.id(vm.page.id)`)
+- `2226fbe` v0.2.7-g — Package.resolved bump to fork `4fd91d6` (Phase G #1)
+- `1989fac` v0.2.7-g.2 — Package.resolved bump to fork `addaa23` + SwiftUI `.background(Color.clear)` defensive layer
+
+**Fork commits at `Natertot215/PageEditorMD` (Pallepadehat fork, all pushed to origin/main):**
+- `4fd91d6` — Phase G #1: drop active-line highlighting + Notes-style fold chevron + markdown-autopair.ts + tighter heading→body spacing + Apple typography overhaul (SF Pro Text body, SF Pro Display headings, SF Mono code, Notes-aligned scale 28/22/17/15/13/13pt) + transparent bg CSS
+- `a146a28` — Swift WKWebView triple-clear (drawsBackground KVC + underPageBackgroundColor + NSView layer bg)
+- `addaa23` — `!important` on transparent bg rules to win over xcode theme
+
+**Tests:** 186/186 → 198/198 (+12 across Phase B). Lint clean throughout. Build green throughout.
+
+**Smoke-test verdict + Milkdown decision:** Nathan smoke-tested Phase G post-clean-build and decided visual baseline still didn't ship Notion-like polish. Context7 research on Milkdown + Crepe confirmed: Crepe (`@milkdown/crepe`) is the polished out-of-box wrapper with `frame` / `crepe` / `nord` themes (each light + dark); `remark-directive` plugin handles `:::callout` natively; custom inline nodes follow standardized 5-component pattern. Round-trip risk = body stylistic normalization (list marker / fence / heading style), accepted for Pommora's primary single-source-of-truth use case.
+
+**Locked decisions for the swap (Session 8 will implement):**
+- **Vendor the wrapper as source files inside Pommora's own tree** (probable `Pommora/Pommora/PageEditor/` + `Pommora/Pommora/PageEditor/web/`), NOT as SPM dep, NOT as fork. Nathan needs to see every line.
+- **Use Crepe's `frame` theme (most macOS-native) as default**. Pommora-brand styling layer comes AFTER baseline ships.
+- **Defer Pommora extensions:** `:::callout` + `@Columns` → v0.2.9 (remark-directive). `[[wikilinks]]` → v0.2.10 (5-component plugin).
+- **Stay WYSIWYG / Live Preview editing model** (Crepe defaults).
+
+**What survives the swap:** PageRef, PageFile, PageMeta, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, Pommora.entitlements, all 198 tests, the title-banner VStack + `.inspector` pattern in PageEditorView.
+
+**What gets stripped:** the 6 pbxproj SPM entries for `MarkdownEditor`, Package.resolved entry for PageEditorMD, `import MarkdownEditor` references, `pommoraEditorConfig`, the Pallepadehat-specific `EditorWebView(...)` call. The fork repo at `Natertot215/PageEditorMD` stays in git history as a parked branch — not deleted, but not consumed.
+
+**Sub-plan for Session 8 plan mode:** `.claude/Planning/v0.2.7-milkdown-swap.md` with three explicit research areas (**Strip / Setup / Construct styling**) + verbatim resume prompt.
+
+**Effort estimate for Session 8:** ~2.5–3 Claude sessions to ship feature-equivalent + better UI baseline.
+
+**Active branch quirk added this session:** branch-pinned SPM forks don't bump via gentle `xcodebuild -resolvePackageDependencies` — need full nuke of `Package.resolved` + `DerivedData/.../SourcePackages` + `~/Library/Caches/org.swift.swiftpm/repositories/<DepName>-*` to force a fresh resolve. Documented in the `v0.2.7-g` commit message.
+
 #### Decisions
 
 ##### Stack — SwiftUI
