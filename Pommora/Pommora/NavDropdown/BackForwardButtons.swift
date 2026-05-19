@@ -17,25 +17,50 @@ struct BackForwardButtons: View {
     @Environment(RecentsManager.self) private var recents
 
     var body: some View {
-        HStack(spacing: 4) {
-            Button {
-                stepBack()
-            } label: {
-                Image(systemName: "chevron.left")
-            }
+        HStack(spacing: 0) {
+            segmentButton(
+                systemImage: "chevron.left",
+                action: stepBack,
+                disabled: !recents.canStepBack,
+                help: "Back (⌘[)"
+            )
             .keyboardShortcut("[", modifiers: [.command])
-            .disabled(!recents.canStepBack)
-            .help("Back (⌘[)")
 
-            Button {
-                stepForward()
-            } label: {
-                Image(systemName: "chevron.right")
-            }
+            Rectangle()
+                .fill(Color.white.opacity(0.15))
+                .frame(width: 1, height: 14)
+
+            segmentButton(
+                systemImage: "chevron.right",
+                action: stepForward,
+                disabled: !recents.canStepForward,
+                help: "Forward (⌘])"
+            )
             .keyboardShortcut("]", modifiers: [.command])
-            .disabled(!recents.canStepForward)
-            .help("Forward (⌘])")
         }
+        .background(.thinMaterial, in: .capsule)
+        .overlay(
+            Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+
+    @ViewBuilder
+    private func segmentButton(
+        systemImage: String,
+        action: @escaping () -> Void,
+        disabled: Bool,
+        help: String
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 28, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .help(help)
+        .foregroundStyle(disabled ? Color.secondary.opacity(0.5) : .primary)
     }
 
     private func stepBack() {

@@ -9,6 +9,15 @@ enum PanelMode: String, CaseIterable, Identifiable {
 
 @MainActor
 struct NavDropdownButton: View {
+    /// When `true`, the trigger button renders as a plain segment (no outer
+    /// glass chrome) for embedding inside a shared Liquid Glass pill.
+    /// When `false` (default), renders as a standalone Liquid Glass capsule.
+    let asSegment: Bool
+
+    init(asSegment: Bool = false) {
+        self.asSegment = asSegment
+    }
+
     @Environment(RecentsManager.self) private var recents
     @Environment(FavoritesManager.self) private var favorites
     @Environment(\.openWindow) private var openWindow
@@ -18,17 +27,37 @@ struct NavDropdownButton: View {
     @State private var selection: EntityStateRef?
 
     var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            Image(systemName: "square.on.square")
-        }
-        .buttonStyle(.glass)
-        .keyboardShortcut("t", modifiers: [.command])
-        .help("Navigation (⌘T)")
-        .popover(isPresented: $isPresented, arrowEdge: .top) {
-            panel
-                .frame(width: 320)
+        triggerButton
+            .keyboardShortcut("t", modifiers: [.command])
+            .help("Navigation (⌘T)")
+            .popover(isPresented: $isPresented, arrowEdge: .top) {
+                panel
+                    .frame(width: 320)
+            }
+    }
+
+    @ViewBuilder
+    private var triggerButton: some View {
+        if asSegment {
+            // Segment style — used inside the toolbar segmented pill.
+            // No outer glass chrome; the parent pill provides the background.
+            Button {
+                isPresented.toggle()
+            } label: {
+                Image(systemName: "square.on.square")
+                    .font(.system(size: 13, weight: .regular))
+                    .frame(width: 30, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            // Standalone style — Liquid Glass capsule.
+            Button {
+                isPresented.toggle()
+            } label: {
+                Image(systemName: "square.on.square")
+            }
+            .buttonStyle(.glass)
         }
     }
 

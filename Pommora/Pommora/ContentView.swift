@@ -54,25 +54,41 @@ struct ContentView: View {
                             BackForwardButtons()
                         }
                     }
-                    // Attached to the inspector's content closure so both items
-                    // render at the inspector column's trailing edge (the window's
-                    // trailing edge). Declaration order = visual order left→right:
-                    // NavDropdown first, inspector toggle second.
+                    // Single Liquid Glass segmented pill: NavDropdown (left) +
+                    // Inspector toggle (right). One ToolbarItem avoids the
+                    // "two overlapping buttons" look that back-to-back
+                    // .buttonStyle(.glass) items produce.
                     ToolbarItem(placement: .primaryAction) {
                         if recentsManager != nil, favoritesManager != nil {
-                            NavDropdownButton()
-                        }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            withAnimation(.smooth(duration: 0.25)) {
-                                inspectorPresented.toggle()
+                            HStack(spacing: 0) {
+                                // NavDropdown segment — asSegment strips its own
+                                // glass chrome so the shared pill owns the background.
+                                NavDropdownButton(asSegment: true)
+
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.15))
+                                    .frame(width: 1, height: 14)
+
+                                // Inspector toggle segment
+                                Button {
+                                    withAnimation(.smooth(duration: 0.25)) {
+                                        inspectorPresented.toggle()
+                                    }
+                                } label: {
+                                    Image(systemName: "sidebar.trailing")
+                                        .font(.system(size: 13, weight: .regular))
+                                        .frame(width: 30, height: 22)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .keyboardShortcut("0", modifiers: [.option, .command])
+                                .help("Toggle Inspector (⌥⌘0)")
                             }
-                        } label: {
-                            Label("Toggle Inspector", systemImage: "sidebar.trailing")
+                            .background(.thinMaterial, in: .capsule)
+                            .overlay(
+                                Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                            )
                         }
-                        .keyboardShortcut("0", modifiers: [.option, .command])
-                        .help("Toggle Inspector (⌥⌘0)")
                     }
                 }
         }
