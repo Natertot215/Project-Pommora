@@ -18,9 +18,14 @@ struct NavDropdownButton: View {
         self.asSegment = asSegment
     }
 
-    @Environment(RecentsManager.self) private var recents
-    @Environment(FavoritesManager.self) private var favorites
     @Environment(\.openWindow) private var openWindow
+
+    // Read managers from AppGlobals statics rather than @Environment so the
+    // popover's view tree (a separate host in macOS) always sees the live
+    // instances. @Observable tracking fires correctly when properties are
+    // accessed inside body, regardless of how the reference was obtained.
+    private var recents: RecentsManager? { AppGlobals.recentsManager }
+    private var favorites: FavoritesManager? { AppGlobals.favoritesManager }
 
     @State private var isPresented = false
     @State private var mode: PanelMode = .favorites
@@ -91,10 +96,7 @@ struct NavDropdownButton: View {
                 .frame(width: 1, height: 18)
             modeButton(.recents)
         }
-        .background(.thinMaterial, in: .capsule)
-        .overlay(
-            Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-        )
+        .glassEffect(.regular, in: .capsule)
     }
 
     @ViewBuilder
@@ -126,42 +128,54 @@ struct NavDropdownButton: View {
 
     @ViewBuilder
     private var favoritesList: some View {
-        List(selection: $selection) {
-            ForEach(favorites.entries, id: \.self) { ref in
-                EntityRow(ref: ref, isFavorite: true, favoriteAction: { favorites.toggle(ref) })
-                    .tag(Optional(ref))
-                    .listRowSeparator(.visible)
-                    .listRowBackground(Color.clear)
+        if let favorites {
+            List(selection: $selection) {
+                ForEach(favorites.entries, id: \.self) { ref in
+                    EntityRow(ref: ref, isFavorite: true, favoriteAction: { favorites.toggle(ref) })
+                        .tag(Optional(ref))
+                        .listRowSeparator(.visible)
+                        .listRowBackground(Color.clear)
+                }
+                .onMove { src, dst in favorites.move(fromOffsets: src, toOffset: dst) }
             }
-            .onMove { src, dst in favorites.move(fromOffsets: src, toOffset: dst) }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .onChange(of: selection) { _, new in
-            guard let ref = new else { return }
-            handleOpen(ref)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .onChange(of: selection) { _, new in
+                guard let ref = new else { return }
+                handleOpen(ref)
+            }
+        } else {
+            Text("Favorites unavailable")
+                .foregroundStyle(.secondary)
+                .padding()
         }
     }
 
     @ViewBuilder
     private var recentsList: some View {
-        List(selection: $selection) {
-            ForEach(recents.dropdownTop, id: \.self) { ref in
-                EntityRow(
-                    ref: ref,
-                    isFavorite: favorites.contains(ref),
-                    favoriteAction: { favorites.toggle(ref) }
-                )
-                .tag(Optional(ref))
-                .listRowSeparator(.visible)
-                .listRowBackground(Color.clear)
+        if let recents, let favorites {
+            List(selection: $selection) {
+                ForEach(recents.dropdownTop, id: \.self) { ref in
+                    EntityRow(
+                        ref: ref,
+                        isFavorite: favorites.contains(ref),
+                        favoriteAction: { favorites.toggle(ref) }
+                    )
+                    .tag(Optional(ref))
+                    .listRowSeparator(.visible)
+                    .listRowBackground(Color.clear)
+                }
             }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .onChange(of: selection) { _, new in
-            guard let ref = new else { return }
-            handleOpen(ref)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .onChange(of: selection) { _, new in
+                guard let ref = new else { return }
+                handleOpen(ref)
+            }
+        } else {
+            Text("Recents unavailable")
+                .foregroundStyle(.secondary)
+                .padding()
         }
     }
 

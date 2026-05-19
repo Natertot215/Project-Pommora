@@ -14,14 +14,17 @@ import SwiftUI
 ///    selection observer in ContentView while the mutation propagates.
 @MainActor
 struct BackForwardButtons: View {
-    @Environment(RecentsManager.self) private var recents
+    // Read directly from AppGlobals so the toolbar (a separate view host in
+    // macOS) always sees the live instance. @Observable tracking fires for
+    // canStepBack / canStepForward because the accesses happen inside body.
+    private var recents: RecentsManager? { AppGlobals.recentsManager }
 
     var body: some View {
         HStack(spacing: 0) {
             segmentButton(
                 systemImage: "chevron.left",
                 action: stepBack,
-                disabled: !recents.canStepBack,
+                disabled: !(recents?.canStepBack ?? false),
                 help: "Back (⌘[)"
             )
             .keyboardShortcut("[", modifiers: [.command])
@@ -33,15 +36,12 @@ struct BackForwardButtons: View {
             segmentButton(
                 systemImage: "chevron.right",
                 action: stepForward,
-                disabled: !recents.canStepForward,
+                disabled: !(recents?.canStepForward ?? false),
                 help: "Forward (⌘])"
             )
             .keyboardShortcut("]", modifiers: [.command])
         }
-        .background(.thinMaterial, in: .capsule)
-        .overlay(
-            Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-        )
+        .glassEffect(.regular, in: .capsule)
     }
 
     @ViewBuilder
@@ -64,11 +64,11 @@ struct BackForwardButtons: View {
     }
 
     private func stepBack() {
-        applyStep(recents.stepBack())
+        applyStep(recents?.stepBack())
     }
 
     private func stepForward() {
-        applyStep(recents.stepForward())
+        applyStep(recents?.stepForward())
     }
 
     private func applyStep(_ ref: EntityStateRef?) {

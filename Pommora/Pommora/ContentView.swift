@@ -84,10 +84,7 @@ struct ContentView: View {
                                 .keyboardShortcut("0", modifiers: [.option, .command])
                                 .help("Toggle Inspector (⌥⌘0)")
                             }
-                            .background(.thinMaterial, in: .capsule)
-                            .overlay(
-                                Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-                            )
+                            .glassEffect(.regular, in: .capsule)
                         }
                     }
                 }
