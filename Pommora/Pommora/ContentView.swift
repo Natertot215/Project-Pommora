@@ -47,19 +47,16 @@ struct ContentView: View {
         .inspector(isPresented: $inspectorPresented) {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
-                // Two separate .toolbar blocks — both attached to the inspector's
-                // content closure so both items render at the window's trailing edge.
-                // Separate modifier calls = separate toolbar groups = semantically
-                // independent buttons while preserving visual adjacency (left→right:
-                // NavDropdown then inspector toggle).
                 .toolbar {
+                    // Attached to the inspector's content closure so both items
+                    // render at the inspector column's trailing edge (the window's
+                    // trailing edge). Declaration order = visual order left→right:
+                    // NavDropdown first, inspector toggle second.
                     ToolbarItem(placement: .primaryAction) {
                         if recentsManager != nil, favoritesManager != nil {
                             NavDropdownButton()
                         }
                     }
-                }
-                .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             withAnimation(.smooth(duration: 0.25)) {
