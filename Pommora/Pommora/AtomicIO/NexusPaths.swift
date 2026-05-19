@@ -28,6 +28,12 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("saved-config.json", isDirectory: false)
     }
 
+    /// `<nexus>/.nexus/state.json` — per-nexus app state (NavDropdown
+    /// Recents/Favorites for v0.2.7.2; future per-nexus state lands here).
+    static func nexusStateURL(in nexus: Nexus) -> URL {
+        nexusConfigDir(in: nexus).appendingPathComponent("state.json", isDirectory: false)
+    }
+
     static func homepageURL(in nexus: Nexus) -> URL {
         nexusConfigDir(in: nexus).appendingPathComponent("homepage.json", isDirectory: false)
     }
