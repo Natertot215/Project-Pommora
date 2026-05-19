@@ -38,10 +38,11 @@ extension NativeTextViewWrapper.Coordinator {
             formatItem.submenu = formatSubmenu
             customMenu.insertItem(formatItem, at: fontIndex)
 
-            // Heading submenu — H1 through H6
+            // Heading submenu — H1 through H4. H5/H6 omitted because they
+            // render smaller than body text at typical Pommora font scales.
             let headingItem = NSMenuItem(title: "Heading", action: nil, keyEquivalent: "")
             let headingSubmenu = NSMenu(title: "Heading")
-            for level in 1...6 {
+            for level in 1...4 {
                 let item = NSMenuItem(title: "H\(level)", action: #selector(didMarkdownHeading(_:)), keyEquivalent: "")
                 item.target = self
                 item.tag = level

@@ -17,7 +17,7 @@ Mac-first for v1, always open-source. Full domain spec → `// Features//Domain-
 #### Phases
 
 Versions use **`major.minor.patch` semver format**:
-- **Minor (`v0.X.0`)** = a completed feature / capability cluster (Pages editor, Tabs, Properties, …).
+- **Minor (`v0.X.0`)** = a completed feature / capability cluster (Pages editor, NavDropdown, Properties, …).
 - **Patch (`v0.X.y`)** = a touch-up or addition on top of an already-shipped feature (polish commit, infrastructure baseline, paradigm-doc hygiene, a small additive extension).
 - **Major (`vX.0.0`)** reserved for `v1.0.0` (stabilization milestone) and onward.
 
@@ -50,7 +50,7 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 **Plan deviation: engine location.** Plan specified `Pommora/Pommora/PageEditor/Engine/` (raw source vendoring). Shipped at `External/MarkdownEngine/` (local Swift Package). Rationale: Pommora's Swift 6 strict-concurrency + ExistentialAny clashed with the engine's Swift 5.9 idioms — the package boundary isolates the engine's concurrency contract, avoiding cascading `@MainActor` annotations across 46 files. Engine remains fully editable (we own the vendored copy in External/).
 
-**Next session priorities** (verbatim resume prompt at top of `Handoff.md`): land v0.2.7.1 patch with the deferred Phase 3 + Phase 4.5 polish work. After v0.2.7.1: **v0.2.8 Tabs**, then v0.2.9 directives (`:::callout`/`@Columns` via Apple `BlockDirective`) + v0.2.10 wikilinks (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). v0.3.0 (Properties) follows the v0.2.x writable-Pommora milestone.
+**Next session priorities** (verbatim resume prompt at top of `Handoff.md`): land v0.2.7.1 patch with the deferred Phase 3 + Phase 4.5 polish work. After v0.2.7.1: **v0.2.8 NavDropdown**, then v0.2.9 directives (`:::callout`/`@Columns` via Apple `BlockDirective`) + v0.2.10 wikilinks (autocomplete + click routing + rename cascade; extends engine's `WikiLinkService` two-form storage transform). v0.3.0 (Properties) follows the v0.2.x writable-Pommora milestone.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX polish (shipped on `paradigm-scaffolding`; merged to `main` 2026-05-18)
 
@@ -87,9 +87,9 @@ Single-branch effort that scaffolds the entire locked paradigm in one pass — P
 
 **End of v0.2.0:** every entity in the locked paradigm is CRUD-able end-to-end via sidebar + sheets + detail pane + Item Window. Sidebar shows real Spaces / Topics / Vaults sections (plus heading-less Saved at top); Pages appear under Vaults/Collections; Items/Agenda live only in detail-pane Tables. No editor yet (that's v0.3.0). No tabs yet (that's v0.4.0). No property panel yet (that's v0.5.0).
 
-##### v0.2.x — Path from v0.2.0 to v0.3.0 (touch-ups + infrastructure + Pages + Tabs)
+##### v0.2.x — Path from v0.2.0 to v0.3.0 (touch-ups + infrastructure + Pages + NavDropdown)
 
-Each patch ships green standalone. The infrastructure patches (.1 – .5) should land before the writable-Pommora patches (Pages + Tabs + their additions). **Order between Pages and Tabs is interchangeable** (Nathan locked 2026-05-17: "Pages or Tabs could land in any patch; just have to get done before v0.3.0 is started"). Directives + wikilinks are Pages-editor additions and naturally come after Pages itself.
+Each patch ships green standalone. The infrastructure patches (.1 – .5) should land before the writable-Pommora patches (Pages + NavDropdown + their additions). **Order between Pages and NavDropdown is interchangeable** (Nathan locked 2026-05-17: "Pages or Tabs could land in any patch; just have to get done before v0.3.0 is started" — quote pre-dates the 2026-05-18 Tabs → NavDropdown pivot but the ordering principle holds). Directives + wikilinks are Pages-editor additions and naturally come after Pages itself.
 
 **Shipped on `main` (end of 2026-05-18):**
 
@@ -104,11 +104,11 @@ Each patch ships green standalone. The infrastructure patches (.1 – .5) should
 **Planned (next sessions):**
 
 - **v0.2.7 — Pages editor (prose + standard Markdown).** Editor library decision narrowed to **three options** at end-of-5-18, fully documented at `// Planning//Page-Editor-Plan.md`: (1) Native Swift (`swift-markdown` + TextKit 2; optionally wrapping `nodes-app/swift-markdown-engine`); (2) JS editor library + macOS shell we build (Tiptap / Milkdown / BlockNote); (3) Fork `Pallepadehat/MarkdownEditor` (CodeMirror 6 + WKWebView, ours after fork). Nathan picks one at session start; implementation immediate. Recommendation: Option 3. Common to all options — `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` lands first (mirrors `updateItem` shape; atomicity rollback + `pendingError` CRUD pattern from v0.2.0). Detail-pane dispatch routes `.page(PageMeta)` selection to `PageEditorView` (replaces v0.2.1/v0.2.6 placeholder). Standalone window via `WindowGroup(for: PageRef.self)` + `⌥⌘O`. Scope: prose editing (paragraphs, headings H1–H5, lists, code blocks, blockquotes, hr, links, inline marks). GFM tables parsed in all options; visually grid-rendered in Option 2 only at v0.2.7 (Options 1 + 3 show as source until later widget work). Bubble menu on selection. Markdown round-trips edge-to-edge.
-- **v0.2.8 — Tabs.** Multi-tab interface in the navigation toolbar. Clicking a sidebar entry opens it as a tab; multiple Pages open simultaneously. Standard `+` / `×` / `⌘T` / `⌘W` chrome + `⌃Tab` / `⌃Shift+Tab` cycle. Vault + Collection detail views also tab-able (not just Pages). Persistence via `.nexus/state.json` (open tabs + active tab survive quit/relaunch). Standalone-window path from v0.2.7 continues to work in parallel. **Order with v0.2.7 is interchangeable** — whichever ships first is `.7`, the other `.8`.
+- **v0.2.8 — NavDropdown.** Liquid Glass dropdown button in the toolbar (SF Symbol `square.on.square`) opening a popover panel with `[Favorites | Recents]` segmented Picker + scrollable list. Replaces the original v0.2.8 'Tabs' scope (pivot locked 2026-05-18 — see `// Features//NavDropdown.md`). Generalizes `PageRef` → `EntityRef` and wires `WindowGroup(for: EntityRef.self)` so any full-frame-eligible entity (Pages / Vaults / Spaces / Topics / Sub-topics) opens in a standalone preview window with an Expand button that commits to the main detail pane. Recents 500-store / 100-display, LRU; Favorites uncapped, hover-star toggle. Back/Forward arrows + `⌘[`/`⌘]` walk Recents. `⌘T` opens the dropdown. Persistence via `<nexus>/.nexus/state.json` (per-nexus state file lands here for the first time). **Order with v0.2.7 is interchangeable** — whichever ships first is `.7`, the other `.8`.
 - **v0.2.9 — Directives + heading fold + slash menu** (Pages-editor addition). `:::callout` node (outlined box), `@Columns` / `:::columns` node (CSS Grid), heading-fold chevrons, slash menu (`/`) for inserting directives + block types.
 - **v0.2.10 — Wikilinks + rename cascade** (Pages-editor addition). `[[Title]]` autocomplete via popover (queries Swift via the `query` bridge), `Wikilink` inline node rendered as styled colored inline text, click routing (Page → opens in new tab / Context → detail pane / Item → ItemWindow popover), body-scan rename rewrite across all Pages containing `[[<oldTitle>]]`. (If v0.4.0 SQLite has landed by the time v0.2.10 ships, use the indexed lookup directly.)
 
-End of v0.2.x: `main` has CI + formatter + trash + a fully usable Pages editor with tabs, directives, and wikilinks. **"Pommora is writable + multi-instance" milestone is complete** — long-form notes, multiple Pages open at once, wikilink-driven navigation, fenced callout + multi-column directives, foldable headings. v0.3.0 begins the data-model side (Properties).
+End of v0.2.x: `main` has CI + formatter + trash + a fully usable Pages editor with NavDropdown navigation history (Recents + Favorites), directives, and wikilinks. **"Pommora is writable + multi-instance" milestone is complete** — long-form notes, standalone-window previews of any entity, wikilink-driven navigation, fenced callout + multi-column directives, foldable headings. v0.3.0 begins the data-model side (Properties).
 
 ##### v0.3.0 — Properties + Item creation surfacing + Item Window redesign
 
@@ -155,7 +155,7 @@ The "polish + integration" version. Agenda's full UI ships **hand-in-hand with E
 - **Accessibility checkpoint** — VoiceOver labels + focus order + Dynamic Type respect verified across all v0.2.0-v0.5.0 surfaces.
 - **Performance budgets verified** — "open a Page in <X ms," "render N-row sidebar without jank," "Vault view with 1000 rows scrolls smoothly." Sets a baseline before v0.7.0 stacks more on top.
 - **First-launch UX** — empty-state copy across sidebar sections + detail pane; nexus-picker flow polish; menu-bar `+ New` Quick Capture entry as the discoverable counterpart to right-click-only creation.
-- **Saved section content fills in** — Recents (with tabs from v0.2.8 hooked up); Calendar (with EventKit mirror visible if opt-in).
+- **Saved section content fills in** — Recents (full-frame view backed by NavDropdown's `RecentsManager`, sharing the v0.2.8 store); Calendar (with EventKit mirror visible if opt-in).
 - ✅ **Pending-error toast surface** — already shipped in v0.2.0 (`2d707a0`). v0.6.0 extends observation to AgendaManager / HomepageManager / TierConfigManager if user-driven CRUD lands for those.
 
 End of v0.6.0: Pommora is integration-complete with system Calendar/Reminders, accessible, performant, and onboards new users without surprises.
@@ -186,7 +186,7 @@ No specific phase commitments yet. Catalog at `// Features//Prospects.md` — ad
 
 **2026-05-17 end-of-session (final structural locks):**
 
-1. **Pages + Tabs ship as v0.2.x patches before v0.3.0.** Initially structured as v0.3.0 = Pages, v0.4.0 = Tabs. Locked to: both ship as patches inside v0.2.x (specifically v0.2.7 Pages + v0.2.8 Tabs in either order, plus v0.2.9 directives + v0.2.10 wikilinks). v0.3.0 becomes Properties — the next substantial feature after Pommora becomes writable.
+1. **Pages + NavDropdown ship as v0.2.x patches before v0.3.0.** Initially structured as v0.3.0 = Pages, v0.4.0 = Tabs. Locked to: both ship as patches inside v0.2.x (specifically v0.2.7 Pages + v0.2.8 NavDropdown in either order, plus v0.2.9 directives + v0.2.10 wikilinks). v0.3.0 becomes Properties — the next substantial feature after Pommora becomes writable. (NavDropdown originally scoped as 'Tabs'; pivot to a Liquid Glass dropdown locked 2026-05-18 — see `// Features//NavDropdown.md`.)
 2. **Editor library narrowed to three options (end-of-5-18).** Tiptap was previously locked, then demoted to "leading candidate." End-of-5-18 research replaced the candidate list with three honest options inventoried at `// Planning//Page-Editor-Plan.md`: (1) Native Swift (`swift-markdown` + TextKit 2; optional `nodes-app/swift-markdown-engine` wrapper), (2) JS editor library + macOS shell we build (Tiptap / Milkdown / BlockNote), (3) Fork `Pallepadehat/MarkdownEditor` (CodeMirror 6 + WKWebView; ours after fork). `.md` file format is the firewall — user data portable across all three. Nathan picks at v0.2.7 start; recommendation is Option 3 for cheapest first experiment with high reversibility.
 3. **Agenda UI ships hand-in-hand with EventKit at v0.6.0.** Previously considered as a v0.5.0 split-from-EventKit. Locked end of 5-17: they go together. Calendar view in Saved section also ships at v0.6.0.
 4. **SQLite + Watcher at v0.4.0** (was v0.8.0 in original plan). Earlier indexing pays back across Properties (v0.3.0), Vault views (v0.5.0), and Contexts embedded views (v0.7.0).
@@ -194,4 +194,4 @@ No specific phase commitments yet. Catalog at `// Features//Prospects.md` — ad
 6. **v0.6.0 consolidates accessibility + performance + onboarding + Settings + EventKit + Agenda UI** as the "polish + integration" pass. v0.12 customization folded into Settings scaffold.
 7. **`.trash//` data foundation at v0.2.5**, in-app Trash window at v0.4.0. Originally unscoped; pulled forward because deletes need to be recoverable before Pages have months of content.
 
-**Net result:** 7 minor versions remaining to v1.0.0 (v0.3.0 through v0.8.0 + v1.0.0). v0.11/v0.12 dissolved. v0.2.x is the long "infrastructure + Pages + Tabs" patch family.
+**Net result:** 7 minor versions remaining to v1.0.0 (v0.3.0 through v0.8.0 + v1.0.0). v0.11/v0.12 dissolved. v0.2.x is the long "infrastructure + Pages + NavDropdown" patch family.

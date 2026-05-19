@@ -53,9 +53,20 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// hidden via font-size-0.1 + clear-foreground.
     private func drawThematicBreak(at point: CGPoint, in context: CGContext) {
         guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
-        // Detect: does this fragment carry the .pommoraThematicBreak attribute?
-        let marker = ts.attribute(.pommoraThematicBreak, at: range.location, effectiveRange: nil) as? Bool
-        guard marker == true else { return }
+        // Detect: does ANY character in this fragment carry the
+        // .pommoraThematicBreak attribute? The fragment range may start at
+        // a leading newline or whitespace that the attribute doesn't
+        // cover (ThematicBreak's SourceRange is just the `---` chars),
+        // so checking only `range.location` misses it. Scan the whole
+        // fragment range instead.
+        var hasThematicBreak = false
+        ts.enumerateAttribute(.pommoraThematicBreak, in: range, options: []) { value, _, stop in
+            if (value as? Bool) == true {
+                hasThematicBreak = true
+                stop.pointee = true
+            }
+        }
+        guard hasThematicBreak else { return }
 
         // Full-width line. Use the same width math as drawCodeBlockBackground.
         let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width

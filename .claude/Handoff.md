@@ -65,8 +65,10 @@ The plan was a 6-phase comprehensive rewrite. Session 9 shipped Phases 0, 1, 2, 
 
 #### Known follow-up debt (not blocking)
 
-- **Phase 3 work (above)** — Apple-AST tokenizer/styler rewrite for table/blockquote/strikethrough support.
-- **Phase 4.5 polish (above)** — selection-wrap + auto-exit-on-space + auto-pair tests.
+- **Apple-Notes-style table grid** — Session-9 follow-up (h.8/h.9) shipped pipe-hidden + monospace-aligned table cells, but cells still render as plain text columns, not as a real grid with editable borders. Apple-Notes-quality requires a custom `NSTextLayoutFragment` subclass that detects Table source ranges and replaces cell drawing with a true grid (cell rects + 1pt borders + per-cell click-to-edit). Substantial TextKit-2 work; queued for v0.2.7.1+.
+- **HR auto-transform on typing `---`** — currently the dashes auto-render as a horizontal line via fragment-side drawing, but typing more `-` chars after `---` just extends the dash run rather than locking the line and rejecting further dashes. Want: when user types `---` on its own line + Enter (or moves caret away), the line becomes "locked" — further `-` input is rejected (or appended to a new line). Hooks into `MarkdownInputHandler.shouldChangeTextIn` chain.
+- **Phase 3 work** — Apple-AST tokenizer/styler full rewrite (the supplemental styler from h.8 covers BlockQuote/Strikethrough/Table/ThematicBreak rendering as a starter, but `MarkdownTokenizer.parseTokens(in:)` and `MarkdownStyler.styleAttributes` still use regex internally; full body swap would unify the parser).
+- **Phase 4.5 polish** — selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-space + the 11-test auto-pair test suite.
 - **PommoraWikiLinkResolver** — Pommora-side conforming to engine's `WikiLinkResolver`; v0.2.10 wikilink work depends on this.
 - **`do { try await … } catch { … }` rewrap in SidebarView.swift + IconPickerSheet.swift** — ~12 single-line patterns; cosmetic.
 - **In-app Trash window** — `.trash//` data layer shipped v0.2.5; UI surface v0.4.0.

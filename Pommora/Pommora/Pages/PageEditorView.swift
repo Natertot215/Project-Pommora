@@ -37,6 +37,11 @@ struct PageEditorView: View {
     /// freshly init'd per page anyway. The onChange handler is the belt; the
     /// .id() is the suspenders.
     @State private var titleDraft: String
+    /// SwiftUI-side focus state for the title TextField. Pressing Enter
+    /// flips this off, which deselects the title and lets us hand focus
+    /// over to the body NSTextView (which doesn't participate in SwiftUI's
+    /// FocusState graph — we makeFirstResponder it directly).
+    @FocusState private var titleFocused: Bool
 
     init(
         viewModel: PageEditorViewModel,
@@ -61,11 +66,16 @@ struct PageEditorView: View {
                 .padding(.top, 24)
                 .padding(.bottom, 20)
                 .background(Color.clear)
+                .focused($titleFocused)
                 .onSubmit {
-                    Task {
-                        await commitRename()
-                        focusBodyEditor()
-                    }
+                    // Drop SwiftUI focus FIRST so the title field deselects
+                    // (otherwise macOS NSTextField's default Enter behavior
+                    // is to select-all). Then move AppKit firstResponder to
+                    // the body editor. Rename runs in parallel — doesn't
+                    // need to block focus shift.
+                    titleFocused = false
+                    focusBodyEditor()
+                    Task { await commitRename() }
                 }
 
             // Body editor — TextKit-2 native via vendored MarkdownEngine.
