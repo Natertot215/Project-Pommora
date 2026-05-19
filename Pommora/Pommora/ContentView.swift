@@ -48,6 +48,12 @@ struct ContentView: View {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
                 .toolbar {
+                    // Back/Forward navigation arrows in the leading toolbar area.
+                    ToolbarItemGroup(placement: .navigation) {
+                        if recentsManager != nil {
+                            BackForwardButtons()
+                        }
+                    }
                     // Attached to the inspector's content closure so both items
                     // render at the inspector column's trailing edge (the window's
                     // trailing edge). Declaration order = visual order left→right:
@@ -105,14 +111,18 @@ struct ContentView: View {
         }
         .onChange(of: mainWindowRouter?.bringToFrontTick) { _, _ in
             guard let router = mainWindowRouter, let sel = router.pendingSelection else { return }
-            // Suppress double-recording during the programmatic selection.
+            // Suppress double-recording in the sidebar-selection observer
+            // while the programmatic selection mutation propagates.
             AppGlobals.recentsManager?.isNavigatingHistory = true
             sidebarSelection = sel
             DispatchQueue.main.async {
                 AppGlobals.recentsManager?.isNavigatingHistory = false
-                // Record the expand as a fresh main-frame land.
-                if let ref = EntityStateRef(sidebarSelection: sel) {
-                    AppGlobals.recentsManager?.record(ref)
+                // Only record for expandFromWindow — stepHistory moves the
+                // cursor without resetting LRU order.
+                if router.pendingIntent == .expandFromWindow {
+                    if let ref = EntityStateRef(sidebarSelection: sel) {
+                        AppGlobals.recentsManager?.record(ref)
+                    }
                 }
                 router.pendingSelection = nil
             }
