@@ -48,6 +48,15 @@ struct ContentView: View {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
                 .toolbar {
+                    // Attached to the inspector's content closure so both items
+                    // render at the inspector column's trailing edge (the window's
+                    // trailing edge). Declaration order = visual order left→right:
+                    // NavDropdown first, inspector toggle second.
+                    ToolbarItem(placement: .primaryAction) {
+                        if recentsManager != nil, favoritesManager != nil {
+                            NavDropdownButton()
+                        }
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             withAnimation(.smooth(duration: 0.25)) {
@@ -60,17 +69,6 @@ struct ContentView: View {
                         .help("Toggle Inspector (⌥⌘0)")
                     }
                 }
-        }
-        .toolbar {
-            // Separate declaration so NavDropdown renders as a distinct control
-            // from the inspector toggle. Both use .primaryAction so they anchor
-            // adjacent in the trailing-right of the unified toolbar, with
-            // NavDropdown visually left of the inspector toggle.
-            ToolbarItem(placement: .primaryAction) {
-                if recentsManager != nil, favoritesManager != nil {
-                    NavDropdownButton()
-                }
-            }
         }
         .onChange(of: sidebarSelection) { _, newValue in
             // Per-Page inspector state: when a Page becomes selected, restore
