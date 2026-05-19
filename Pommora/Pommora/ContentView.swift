@@ -29,6 +29,9 @@ struct ContentView: View {
     @State private var homepageManager: HomepageManager?
     @State private var tierConfigManager: TierConfigManager?
     @State private var savedConfigManager: SavedConfigManager?
+    @State private var recentsManager: RecentsManager?
+    @State private var favoritesManager: FavoritesManager?
+    @State private var mainWindowRouter: MainWindowRouter?
 
     var body: some View {
         NavigationSplitView {
@@ -81,6 +84,9 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
+        .environment(recentsManager)
+        .environment(favoritesManager)
+        .environment(mainWindowRouter)
         .task {
             await nexusManager.loadOnLaunch()
         }
@@ -219,6 +225,9 @@ struct ContentView: View {
         let homepageMgr = HomepageManager(nexus: nexus)
         let tierMgr = TierConfigManager(nexus: nexus)
         let savedMgr = SavedConfigManager(nexus: nexus)
+        let recentsMgr = RecentsManager(nexus: nexus)
+        let favoritesMgr = FavoritesManager(nexus: nexus)
+        let router = MainWindowRouter()
 
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
@@ -228,13 +237,19 @@ struct ContentView: View {
         self.homepageManager = homepageMgr
         self.tierConfigManager = tierMgr
         self.savedConfigManager = savedMgr
+        self.recentsManager = recentsMgr
+        self.favoritesManager = favoritesMgr
+        self.mainWindowRouter = router
 
-        // Publish ContentManager + VaultManager refs so the standalone
-        // WindowGroup(for: PageRef.self) scene can resolve PageRefs to live
-        // PageMeta + Vault + Collection. See AppGlobals doc-comment for the
-        // rationale on this lightweight shared-state approach.
+        // Publish manager refs so standalone WindowGroup scenes can reach
+        // them without restructuring the ContentView dependency graph.
         AppGlobals.contentManager = contentMgr
         AppGlobals.vaultManager = vaultMgr
+        AppGlobals.spaceManager = spaceMgr
+        AppGlobals.topicManager = topicMgr
+        AppGlobals.recentsManager = recentsMgr
+        AppGlobals.favoritesManager = favoritesMgr
+        AppGlobals.mainWindowRouter = router
 
         // Initial load — fire all in parallel.
         // ContentManager loads per-collection lazily on detail-view appear.
@@ -246,6 +261,8 @@ struct ContentView: View {
             async let _ = homepageMgr.load()
             async let _ = tierMgr.load()
             async let _ = savedMgr.load()
+            await recentsMgr.load()
+            await favoritesMgr.load()
         }
     }
 }
