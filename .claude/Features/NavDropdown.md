@@ -226,7 +226,7 @@ These are **distinct classifications**, not redundant:
 | Concept | Surface | Data | Trigger |
 |---|---|---|---|
 | **Saved** (sidebar) | `Saved` section in sidebar — fixed-three pins | `SavedConfig` (existing, `.nexus/saved-config.json`) | System-defined (Homepage / Calendar / Recents) |
-| **Favorites** (dropdown) | Favorites tab in dropdown panel | `FavoritesManager` (new, in `.nexus/state.json`) | User hover-stars rows in dropdown |
+| **Favorites** (dropdown) | Favorites tab in dropdown panel | `FavoritesManager` (new, in `.nexus/state.json`) | User hover-hearts rows in dropdown |
 | **Recents** (dropdown) | Recents tab in dropdown panel | `RecentsManager` (new, in `.nexus/state.json`) | Auto — main-frame land or popover open |
 | **Recents** (sidebar full-frame view) | Saved-section `Recents` pin → full-frame view at v0.6.0 | Same data as dropdown Recents | n/a — read-only view of the same store |
 
