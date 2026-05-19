@@ -345,6 +345,17 @@ extension NativeTextViewCoordinator {
             return false
         }
 
+        // Character-pair auto-pair (Pommora addition): `**` / `__` / `[[` / `` `` ``
+        // → insert close marker with caret between.
+        if MarkdownInputHandler.handleCharacterPairAutoPair(
+            textView: textView,
+            affectedCharRange: affectedCharRange,
+            replacementString: replacementString,
+            codeTokens: parsed.codeTokens
+        ) {
+            return false
+        }
+
         return MarkdownInputHandler.handleListInsertion(textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
     }
 

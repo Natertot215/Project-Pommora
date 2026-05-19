@@ -16,6 +16,94 @@ enum MarkdownInputHandler {
         return MarkdownLists.handleInsertion(textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
     }
 
+    // MARK: - Character-Pair Auto-Pair (Pommora addition)
+    //
+    // Mirrors Bear/Notion/Obsidian behavior: typing `**`/`__`/`[[`/`` `` ``
+    // automatically inserts the matching close marker with the caret between.
+    // Triggers on the SECOND character of the pair (so the user has already
+    // typed the first one and we react to the second). Suppressed inside
+    // fenced code blocks / inline code so literal markers aren't molested.
+    //
+    // v0.2.7 ships the basic insertion behavior. Selection-wrap (typing `*`
+    // with text selected wraps the selection in `*text*`) and auto-exit-on-
+    // whitespace (typing space at a fresh-pair boundary jumps past the close
+    // marker) defer to v0.2.7.1 polish.
+
+    /// Inserts the matching close marker when the user types the second
+    /// character of a Markdown pair (`**`, `__`, `[[`, `` `` ``).
+    /// Returns true if the insertion was handled — caller should return
+    /// false from `shouldChangeTextIn` to suppress the default behavior.
+    static func handleCharacterPairAutoPair(
+        textView: NSTextView,
+        affectedCharRange: NSRange,
+        replacementString: String?,
+        codeTokens: [MarkdownToken]? = nil
+    ) -> Bool {
+        guard let typed = replacementString,
+              typed.utf16.count == 1,
+              affectedCharRange.length == 0,
+              affectedCharRange.location > 0
+        else { return false }
+
+        // Map typed char → close marker. Empty closeMarker means not a pair char.
+        let closeMarker: String
+        switch typed {
+        case "*":  closeMarker = "**"
+        case "_":  closeMarker = "__"
+        case "[":  closeMarker = "]]"
+        case "`":  closeMarker = "``"
+        default:   return false
+        }
+
+        let nsText = textView.string as NSString
+        let precedingCharRange = NSRange(location: affectedCharRange.location - 1, length: 1)
+        guard precedingCharRange.location + precedingCharRange.length <= nsText.length else { return false }
+        let precedingChar = nsText.substring(with: precedingCharRange)
+
+        // Trigger only if preceding char matches the typed char — i.e. user
+        // is completing a `**`/`__`/`[[`/`` `` `` sequence.
+        guard precedingChar == typed else { return false }
+
+        // Suppress inside code blocks / inline code so literal markers in
+        // code samples aren't paired. Lazily compute code tokens if caller
+        // didn't pass them in.
+        let resolvedCodeTokens: [MarkdownToken]
+        if let codeTokens {
+            resolvedCodeTokens = codeTokens
+        } else {
+            resolvedCodeTokens = MarkdownTokenizer.parseTokens(in: textView.string)
+                .filter { $0.kind == .codeBlock || $0.kind == .inlineCode }
+        }
+        if MarkdownDetection.isInsideCodeBlock(
+            range: affectedCharRange,
+            codeTokens: resolvedCodeTokens
+        ) {
+            return false
+        }
+
+        // Also suppress if the NEXT character is already the close marker —
+        // user is typing into an existing pair; double-insert would corrupt.
+        let nextCharLocation = affectedCharRange.location
+        if nextCharLocation < nsText.length {
+            let nextChar = nsText.substring(with: NSRange(location: nextCharLocation, length: 1))
+            // For brackets the close char is `]`; otherwise close char is the typed char.
+            let closeFirstChar = (typed == "[") ? "]" : typed
+            if nextChar == closeFirstChar { return false }
+        }
+
+        // Insert: typed char + close marker. Caret lands right after the
+        // typed char, before the close marker — `**|**`, `[[|]]`, etc.
+        let inserted = typed + closeMarker
+        let cursorAfter = affectedCharRange.location + typed.utf16.count
+        insertTextProgrammatically(
+            textView,
+            text: inserted,
+            at: affectedCharRange,
+            cursorAfter: cursorAfter
+        )
+        return true
+    }
+
     // MARK: - Block LaTeX Auto-Wrap
 
     private static func insertTextProgrammatically(_ textView: NSTextView, text: String, at range: NSRange, cursorAfter: Int) {
