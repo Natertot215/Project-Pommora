@@ -34,7 +34,12 @@ struct ItemWindow: View {
             footer
         }
         .frame(width: 480, height: 580)
-        .onAppear { hydrate() }
+        .onAppear {
+            hydrate()
+            guard let recents = AppGlobals.recentsManager else { return }
+            let ref = EntityStateRef(kind: .item, id: item.id, title: item.title)
+            recents.record(ref)
+        }
     }
 
     private var header: some View {
