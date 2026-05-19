@@ -356,6 +356,16 @@ extension NativeTextViewCoordinator {
             return false
         }
 
+        // Character-pair auto-delete: backspace inside `*|*` / `**|**` /
+        // `[[|]]` / `` `|` `` removes both halves.
+        if MarkdownInputHandler.handleCharacterPairAutoDelete(
+            textView: textView,
+            affectedCharRange: affectedCharRange,
+            replacementString: replacementString
+        ) {
+            return false
+        }
+
         return MarkdownInputHandler.handleListInsertion(textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
     }
 

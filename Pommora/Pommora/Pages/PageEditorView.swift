@@ -58,7 +58,7 @@ struct PageEditorView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
-                .padding(.bottom, 4)
+                .padding(.bottom, 20)
                 .background(Color.clear)
                 .onSubmit {
                     Task { await commitRename() }
@@ -69,9 +69,14 @@ struct PageEditorView: View {
             // flows through the VM's 300ms debounced save pipeline.
             // documentId scoped per-Page so undo history + per-document
             // editor state stay isolated when the user switches Pages.
+            //
+            // TextInsets(horizontal: 24) aligns body text with the title's
+            // .padding(.horizontal, 24). Applied INSIDE the NSTextView
+            // (textContainerInset) rather than as SwiftUI padding so the
+            // scrollbar stays at the outer edge.
             NativeTextViewWrapper(
                 text: $viewModel.body,
-                configuration: .default,
+                configuration: Self.pommoraEditorConfiguration,
                 fontName: "SF Pro Text",
                 fontSize: 15,
                 documentId: viewModel.page.id
@@ -109,6 +114,15 @@ struct PageEditorView: View {
             Text(viewModel.pendingError?.localizedDescription ?? "")
         }
     }
+
+    /// Pommora's editor configuration. Text insets match the title's 24pt
+    /// horizontal padding so body content aligns under the title rather
+    /// than butting against the sidebar divider.
+    private static let pommoraEditorConfiguration: MarkdownEditorConfiguration = {
+        var config = MarkdownEditorConfiguration.default
+        config.textInsets = TextInsets(horizontal: 24, vertical: 0)
+        return config
+    }()
 
     private func commitRename() async {
         let oldTitle = viewModel.page.title

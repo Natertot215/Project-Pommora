@@ -104,6 +104,63 @@ enum MarkdownInputHandler {
         return true
     }
 
+    /// Companion to `handleCharacterPairAutoPair`: when the user presses
+    /// backspace inside an empty pair (`*|*`, `**|**`, `[[|]]`, `` `|` ``,
+    /// `` ``|`` ``), delete BOTH halves so backing out of a freshly-paired
+    /// region behaves symmetrically with typing into it. Standard Notion/
+    /// Obsidian/Bear behavior.
+    ///
+    /// Triggers when:
+    /// - deletion of a single character (replacementString empty, length 1)
+    /// - char being deleted is one of `* _ [ ``
+    /// - char immediately after the deletion point is the matching close
+    ///   (same char for `* _ ` ``; `]` for `[`)
+    ///
+    /// Returns true if the unpair was handled — caller should return false
+    /// from `shouldChangeTextIn` to suppress the default behavior.
+    static func handleCharacterPairAutoDelete(
+        textView: NSTextView,
+        affectedCharRange: NSRange,
+        replacementString: String?
+    ) -> Bool {
+        // Only backspace-style deletions: empty replacement on a single-char
+        // range. Larger selections / multi-char deletes / inserts skip this.
+        guard let replacement = replacementString, replacement.isEmpty,
+              affectedCharRange.length == 1
+        else { return false }
+
+        let nsText = textView.string as NSString
+        let deleteStart = affectedCharRange.location
+        let deleteEnd = deleteStart + 1
+        guard deleteEnd < nsText.length else { return false }
+
+        let deletedChar = nsText.substring(with: NSRange(location: deleteStart, length: 1))
+        let nextChar = nsText.substring(with: NSRange(location: deleteEnd, length: 1))
+
+        // Match deleted-char → expected matching-close-char.
+        let expectedCloseChar: String
+        switch deletedChar {
+        case "*":  expectedCloseChar = "*"
+        case "_":  expectedCloseChar = "_"
+        case "[":  expectedCloseChar = "]"
+        case "`":  expectedCloseChar = "`"
+        default:   return false
+        }
+        guard nextChar == expectedCloseChar else { return false }
+
+        // Extend deletion to swallow the close char too. Both standard
+        // delete (deleteStart) AND the matching close (deleteEnd) go away
+        // in a single edit so undo treats it as one step.
+        let combinedRange = NSRange(location: deleteStart, length: 2)
+        insertTextProgrammatically(
+            textView,
+            text: "",
+            at: combinedRange,
+            cursorAfter: deleteStart
+        )
+        return true
+    }
+
     // MARK: - Block LaTeX Auto-Wrap
 
     private static func insertTextProgrammatically(_ textView: NSTextView, text: String, at range: NSRange, cursorAfter: Int) {
