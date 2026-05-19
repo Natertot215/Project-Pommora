@@ -54,7 +54,7 @@ struct NavDropdownButton: View {
                     .frame(width: 30, height: 22)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
         } else {
             // Standalone style — Liquid Glass capsule.
             Button {

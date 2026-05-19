@@ -30,7 +30,7 @@ struct BackForwardButtons: View {
             .keyboardShortcut("[", modifiers: [.command])
 
             Rectangle()
-                .fill(Color.white.opacity(0.15))
+
                 .frame(width: 1, height: 14)
 
             segmentButton(
@@ -41,7 +41,7 @@ struct BackForwardButtons: View {
             )
             .keyboardShortcut("]", modifiers: [.command])
         }
-        .glassEffect(.regular, in: .capsule)
+        .glassEffect()
     }
 
     @ViewBuilder
@@ -54,13 +54,13 @@ struct BackForwardButtons: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 28, height: 22)
+                .frame(width: 22, height: 16)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .disabled(disabled)
         .help(help)
-        .foregroundStyle(disabled ? Color.secondary.opacity(0.5) : .primary)
+        .foregroundStyle(disabled ? Color.secondary.opacity(0.0) : .primary)
     }
 
     private func stepBack() {

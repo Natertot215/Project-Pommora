@@ -80,11 +80,11 @@ struct ContentView: View {
                                         .frame(width: 30, height: 22)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.borderless)
                                 .keyboardShortcut("0", modifiers: [.option, .command])
                                 .help("Toggle Inspector (⌥⌘0)")
                             }
-                            .glassEffect(.regular, in: .capsule)
+                            .glassEffect()
                         }
                     }
                 }
