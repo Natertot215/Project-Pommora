@@ -1,3 +1,4 @@
+import MarkdownEngine
 import SwiftUI
 
 /// The Page editor surface: editable title banner above the body editor.
@@ -11,11 +12,12 @@ import SwiftUI
 /// updates the in-memory caches. The viewModel.page reference is refreshed
 /// with the post-rename PageMeta so subsequent saves hit the new URL.
 ///
-/// The body editor is wired in Phase 4 (Apple swift-markdown + vendored
-/// swift-markdown-engine substrate). Every keystroke updates `viewModel.body`
-/// via a Binding; `didSet` fires `scheduleSave()` which debounces 300ms then
-/// writes via `ContentManager.updatePage` → `PageFile.save` → atomic write.
-/// Frontmatter is preserved verbatim across every save.
+/// The body editor is `NativeTextViewWrapper` from the locally-vendored
+/// `MarkdownEngine` package (External/MarkdownEngine/). Every keystroke
+/// updates `viewModel.body` via Binding; `didSet` fires `scheduleSave()`
+/// which debounces 300ms then writes via `ContentManager.updatePage` →
+/// `PageFile.save` → atomic write. Frontmatter is preserved verbatim across
+/// every save.
 struct PageEditorView: View {
     // @Bindable (not @State) because the VM is owned by PageEditorHost; this
     // view observes + binds to it without taking ownership. @State on a
@@ -62,13 +64,19 @@ struct PageEditorView: View {
                     Task { await commitRename() }
                 }
 
-            // Body editor — wired in Phase 4 to NativeTextViewWrapper backed
-            // by Apple swift-markdown + vendored swift-markdown-engine.
-            Text("Editor wiring — Phase 4")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
+            // Body editor — TextKit-2 native via vendored MarkdownEngine.
+            // The wrapper binds two-way to viewModel.body; every keystroke
+            // flows through the VM's 300ms debounced save pipeline.
+            // documentId scoped per-Page so undo history + per-document
+            // editor state stay isolated when the user switches Pages.
+            NativeTextViewWrapper(
+                text: $viewModel.body,
+                configuration: .default,
+                fontName: "SF Pro Text",
+                fontSize: 15,
+                documentId: viewModel.page.id
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {
             AppGlobals.register(viewModel)

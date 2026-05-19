@@ -26,7 +26,18 @@ let package = Package(
     products: [
         .library(name: "MarkdownEngine", targets: ["MarkdownEngine"])
     ],
+    dependencies: [
+        // Apple's swift-markdown supplies the GFM AST that drives the new
+        // Pommora-side tokenizer + styler implementations. Pinned to 0.8.0
+        // exact to match Pommora's Package.resolved.
+        .package(url: "https://github.com/swiftlang/swift-markdown", exact: "0.8.0")
+    ],
     targets: [
-        .target(name: "MarkdownEngine")
+        .target(
+            name: "MarkdownEngine",
+            dependencies: [
+                .product(name: "Markdown", package: "swift-markdown")
+            ]
+        )
     ]
 )
