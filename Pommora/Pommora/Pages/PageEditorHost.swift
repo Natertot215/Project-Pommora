@@ -30,8 +30,8 @@ struct PageEditorHost: View {
                 PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection)
                     // Force a full teardown + rebuild of PageEditorView when
                     // the loaded Page changes — guarantees @State (titleDraft)
-                    // resets cleanly per-page and that EditorWebView re-init's
-                    // its internal WKWebView state without carrying over body.
+                    // resets cleanly per-page and that the body editor
+                    // re-init's its internal state without carrying over body.
                     .id(vm.page.id)
             } else if loadFailed {
                 ContextDetailPlaceholder(

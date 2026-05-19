@@ -1,8 +1,7 @@
-import MarkdownEditor
 import SwiftUI
 
-/// The Page editor surface: editable title banner above WKWebView. The
-/// inspector + its toolbar toggle live in ContentView (not here) so the
+/// The Page editor surface: editable title banner above the body editor.
+/// The inspector + its toolbar toggle live in ContentView (not here) so the
 /// inspector renders at the window's trailing edge rather than inside this
 /// sub-view's space.
 ///
@@ -12,11 +11,11 @@ import SwiftUI
 /// updates the in-memory caches. The viewModel.page reference is refreshed
 /// with the post-rename PageMeta so subsequent saves hit the new URL.
 ///
-/// The body↔WebView binding is two-way per Pallepadehat's EditorWebView:
-/// every keystroke updates `viewModel.body` via the binding; `didSet` fires
-/// `scheduleSave()` which debounces 300ms then writes via
-/// `ContentManager.updatePage` → `PageFile.save` → atomic write. Frontmatter
-/// is preserved verbatim across every save.
+/// The body editor is wired in Phase 4 (Apple swift-markdown + vendored
+/// swift-markdown-engine substrate). Every keystroke updates `viewModel.body`
+/// via a Binding; `didSet` fires `scheduleSave()` which debounces 300ms then
+/// writes via `ContentManager.updatePage` → `PageFile.save` → atomic write.
+/// Frontmatter is preserved verbatim across every save.
 struct PageEditorView: View {
     // @Bindable (not @State) because the VM is owned by PageEditorHost; this
     // view observes + binds to it without taking ownership. @State on a
@@ -63,15 +62,14 @@ struct PageEditorView: View {
                     Task { await commitRename() }
                 }
 
-            // Defensive: SwiftUI's NSViewRepresentable wrapper around WKWebView
-            // can paint a system bg over the transparent WebKit content if we
-            // don't explicitly clear it on the SwiftUI side. Together with the
-            // fork's drawsBackground=false + underPageBackgroundColor=.clear,
-            // this lets the parent window color show through.
-            EditorWebView(text: $viewModel.body, configuration: pommoraEditorConfig)
-                .background(Color.clear)
+            // Body editor — wired in Phase 4 to NativeTextViewWrapper backed
+            // by Apple swift-markdown + vendored swift-markdown-engine.
+            Text("Editor wiring — Phase 4")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
         }
-        .background(Color.clear)
         .onAppear {
             AppGlobals.register(viewModel)
         }
@@ -146,17 +144,3 @@ struct PageEditorView: View {
         }
     }
 }
-
-/// Pommora's editor configuration. Live Preview (`hideSyntax: true`), prose
-/// font instead of monospace, line numbers off (Pages are prose, not code).
-private let pommoraEditorConfig = EditorConfiguration(
-    fontSize: 15,
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif",
-    lineHeight: 1.55,
-    showLineNumbers: false,
-    wrapLines: true,
-    renderMermaid: true,
-    renderMath: true,
-    renderImages: true,
-    hideSyntax: true
-)

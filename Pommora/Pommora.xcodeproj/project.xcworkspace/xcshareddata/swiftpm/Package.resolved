@@ -1,15 +1,6 @@
 {
-  "originHash" : "0a57922c46b6e79b0b4f002858ab591a5552049c9ed8218dd23c47bad188a896",
+  "originHash" : "39c7254a63d734ac1e0d7953e851716f03bd207b95f3d42e427b4843ce6048f8",
   "pins" : [
-    {
-      "identity" : "pageeditormd",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Natertot215/PageEditorMD.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "addaa235412c252494fa0d38b90b4599b2d1b9ce"
-      }
-    },
     {
       "identity" : "symbolpicker",
       "kind" : "remoteSourceControl",
