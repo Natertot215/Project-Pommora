@@ -158,8 +158,21 @@ struct NavDropdownButton: View {
     }
 
     private func openItemWindow(_ ref: EntityStateRef) {
-        // TODO: Task 4.2 — wire via AppGlobals.presentItemAction bridge.
-        // Items in the dropdown silently no-op until then.
-        _ = ref
+        guard let cm = AppGlobals.contentManager,
+            let vm = AppGlobals.vaultManager
+        else { return }
+        // Brute-force O(N) search across all vaults + collections (SQLite in v0.4.0).
+        for vault in vm.vaults {
+            if let item = cm.items(in: vault).first(where: { $0.id == ref.id }) {
+                AppGlobals.presentItemAction?(item)
+                return
+            }
+            for collection in vm.collections(in: vault) {
+                if let item = cm.items(in: collection).first(where: { $0.id == ref.id }) {
+                    AppGlobals.presentItemAction?(item)
+                    return
+                }
+            }
+        }
     }
 }

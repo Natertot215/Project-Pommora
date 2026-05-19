@@ -27,6 +27,12 @@ enum AppGlobals {
     static var favoritesManager: FavoritesManager?
     static var mainWindowRouter: MainWindowRouter?
 
+    // MARK: - Item Window bridge
+
+    /// Registered by `SidebarDetailView` on appear. Calling this closure
+    /// flips `SidebarDetailView.presentedItem`, which drives the ItemWindow sheet.
+    static var presentItemAction: ((Item) -> Void)?
+
     // MARK: - Editor VM registry
 
     private static let editorVMs = NSHashTable<PageEditorViewModel>.weakObjects()

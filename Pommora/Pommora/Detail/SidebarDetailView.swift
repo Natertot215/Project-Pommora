@@ -77,6 +77,11 @@ struct SidebarDetailView: View {
         .sheet(item: $presentedItem) { item in
             ItemWindow(item: item)
         }
+        .onAppear {
+            AppGlobals.presentItemAction = { item in
+                presentedItem = item
+            }
+        }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .newSpace: NewSpaceSheet()
