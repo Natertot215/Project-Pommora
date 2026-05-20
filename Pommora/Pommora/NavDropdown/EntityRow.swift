@@ -4,8 +4,8 @@ import SwiftUI
 @MainActor
 struct EntityRow: View {
     let ref: EntityStateRef
-    let isFavorite: Bool
-    let favoriteAction: () -> Void
+    let isPinned: Bool
+    let pinAction: () -> Void
     @State private var hovering = false
 
     var body: some View {
@@ -24,29 +24,19 @@ struct EntityRow: View {
             Text(chipText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-
-            heartIcon
         }
         .padding(.vertical, 4)
+        .padding(.horizontal, 6)
         .contentShape(Rectangle())
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(hovering ? Color.primary.opacity(0.06) : Color.clear)
+        )
         .onHover { hovering = $0 }
-    }
-
-    @ViewBuilder
-    private var heartIcon: some View {
-        if isFavorite || hovering {
-            Button {
-                favoriteAction()
-            } label: {
-                Image(systemName: isFavorite ? "heart.fill" : "heart")
-                    .font(.system(size: 12))
-                    .foregroundStyle(isFavorite ? Color.pink : .secondary)
+        .contextMenu {
+            Button(isPinned ? "Unpin \(chipText)" : "Pin \(chipText)") {
+                pinAction()
             }
-            .buttonStyle(.plain)
-            .help(isFavorite ? "Remove from Favorites" : "Add to Favorites")
-            .frame(width: 16)
-        } else {
-            Color.clear.frame(width: 16)  // reserves space; row width stable
         }
     }
 
@@ -72,7 +62,7 @@ struct EntityRow: View {
         case .topic: return "Topic"
         case .subtopic: return "Sub-topic"
         case .item: return "Item"
-        case .agenda: return "Task"  // chip label override per spec
+        case .agenda: return "Task"
         case .collection: return "Collection"
         case nil: return ref.kind
         }

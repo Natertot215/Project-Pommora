@@ -145,8 +145,8 @@ struct NavDropdownButton: View {
                 ForEach(pinnedSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
-                        isFavorite: true,
-                        favoriteAction: {
+                        isPinned: true,
+                        pinAction: {
                             AppGlobals.pinnedManager?.toggle(ref)
                             refreshSnapshots()
                         }
@@ -184,8 +184,8 @@ struct NavDropdownButton: View {
                 ForEach(recentsSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
-                        isFavorite: pinnedSnapshot.contains(ref),
-                        favoriteAction: {
+                        isPinned: pinnedSnapshot.contains(ref),
+                        pinAction: {
                             AppGlobals.pinnedManager?.toggle(ref)
                             refreshSnapshots()
                         }
