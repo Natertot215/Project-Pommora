@@ -11,6 +11,9 @@ struct CollectionDetailView: View {
 
     @State private var tableSelection: Set<String> = []
 
+    @State private var renameTarget: DetailRow?
+    @State private var renameDraft: String = ""
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -21,6 +24,15 @@ struct CollectionDetailView: View {
         }
         .task(id: collection.id) {
             await contentManager.loadAll(for: collection)
+        }
+        .alert("Rename", isPresented: renameAlertBinding) {
+            TextField("Name", text: $renameDraft)
+            Button("Rename") { commitRename() }
+            Button("Cancel", role: .cancel) { renameTarget = nil }
+        } message: {
+            if let row = renameTarget {
+                Text("Rename \(row.kindLabel.lowercased()) “\(row.title)”")
+            }
         }
     }
 
@@ -48,6 +60,7 @@ struct CollectionDetailView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { handleDoubleTap(row) }
+                .contextMenu { menuItems(for: row) }
             }
             TableColumn("Kind") { row in
                 Text(row.kindLabel).foregroundStyle(.secondary)
@@ -109,6 +122,97 @@ struct CollectionDetailView: View {
         switch ci {
         case .page(let p): return .page(p)
         case .item(let i): return .item(i)
+        }
+    }
+
+    // MARK: - Context menu
+
+    @ViewBuilder
+    private func menuItems(for row: DetailRow) -> some View {
+        switch row.kind {
+        case .page, .item:
+            Button("Rename") { beginRename(row) }
+            Button(isPinned(row) ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
+                togglePin(row)
+            }
+            Divider()
+            Button("Delete", role: .destructive) {
+                Task { await delete(row) }
+            }
+        case .collection:
+            EmptyView()
+        }
+    }
+
+    // MARK: - Pin
+
+    private func stateRef(for row: DetailRow) -> EntityStateRef? {
+        switch row.kind {
+        case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
+        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
+        case .collection: return nil
+        }
+    }
+
+    private func isPinned(_ row: DetailRow) -> Bool {
+        guard let ref = stateRef(for: row) else { return false }
+        return AppGlobals.pinnedManager?.contains(ref) ?? false
+    }
+
+    private func togglePin(_ row: DetailRow) {
+        guard let ref = stateRef(for: row) else { return }
+        AppGlobals.pinnedManager?.toggle(ref)
+    }
+
+    // MARK: - Rename
+
+    private var renameAlertBinding: Binding<Bool> {
+        Binding(
+            get: { renameTarget != nil },
+            set: { if !$0 { renameTarget = nil } }
+        )
+    }
+
+    private func beginRename(_ row: DetailRow) {
+        renameDraft = row.title
+        renameTarget = row
+    }
+
+    private func commitRename() {
+        guard let row = renameTarget else { return }
+        let newName = renameDraft
+        renameTarget = nil
+        guard !newName.isEmpty, newName != row.title else { return }
+        Task {
+            do {
+                switch row.kind {
+                case .page(let p):
+                    try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
+                case .item(let i):
+                    try await contentManager.renameItem(i, to: newName, in: collection, vault: vault)
+                case .collection:
+                    break
+                }
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    // MARK: - Delete
+
+    private func delete(_ row: DetailRow) async {
+        do {
+            switch row.kind {
+            case .page(let p):
+                try await contentManager.deletePage(p, in: collection)
+            case .item(let i):
+                try await contentManager.deleteItem(i, in: collection)
+            case .collection:
+                break
+            }
+        } catch {
+            // pendingError set by manager; toast surfaces.
         }
     }
 }
