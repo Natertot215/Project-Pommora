@@ -54,33 +54,29 @@ struct ContentView: View {
                             BackForwardButtons()
                         }
                     }
-                    // Single Liquid Glass segmented pill: NavDropdown (left) +
-                    // Inspector toggle (right). One ToolbarItem avoids the
-                    // "two overlapping buttons" look that back-to-back
-                    // .buttonStyle(.glass) items produce.
+                    // Segmented pair: NavDropdown (left) + Inspector toggle
+                    // (right). One .glassEffect on the outer HStack — the
+                    // segment buttons inside are plain so the background
+                    // glass isn't doubled by per-button glass.
                     ToolbarItem(placement: .primaryAction) {
                         if recentsManager != nil, favoritesManager != nil {
                             HStack(spacing: 0) {
-                                // NavDropdown segment — asSegment strips its own
-                                // glass chrome so the shared pill owns the background.
                                 NavDropdownButton(asSegment: true)
 
                                 Rectangle()
-                                    .fill(Color.white.opacity(0.15))
+                                    .fill(.secondary)
                                     .frame(width: 1, height: 14)
 
-                                // Inspector toggle segment
                                 Button {
                                     withAnimation(.smooth(duration: 0.25)) {
                                         inspectorPresented.toggle()
                                     }
                                 } label: {
                                     Image(systemName: "sidebar.trailing")
-                                        .font(.system(size: 13, weight: .regular))
-                                        .frame(width: 30, height: 22)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .frame(width: 22, height: 16)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.borderless)
                                 .keyboardShortcut("0", modifiers: [.option, .command])
                                 .help("Toggle Inspector (⌥⌘0)")
                             }

@@ -44,17 +44,16 @@ struct NavDropdownButton: View {
     @ViewBuilder
     private var triggerButton: some View {
         if asSegment {
-            // Segment style — used inside the toolbar segmented pill.
-            // No outer glass chrome; the parent pill provides the background.
+            // Segment style — no .buttonStyle here; the parent pill's
+            // .glassEffect carries the background. Avoids doubling.
             Button {
                 isPresented.toggle()
             } label: {
                 Image(systemName: "square.on.square")
-                    .font(.system(size: 13, weight: .regular))
-                    .frame(width: 30, height: 22)
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 22, height: 16)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.borderless)
         } else {
             // Standalone style — Liquid Glass capsule.
             Button {

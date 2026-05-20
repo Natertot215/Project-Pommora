@@ -30,7 +30,7 @@ struct BackForwardButtons: View {
             .keyboardShortcut("[", modifiers: [.command])
 
             Rectangle()
-
+                .fill(.secondary)
                 .frame(width: 1, height: 14)
 
             segmentButton(
@@ -57,7 +57,6 @@ struct BackForwardButtons: View {
                 .frame(width: 22, height: 16)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
         .disabled(disabled)
         .help(help)
         .foregroundStyle(disabled ? Color.secondary.opacity(0.0) : .primary)
