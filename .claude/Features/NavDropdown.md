@@ -1,12 +1,25 @@
 ### Nav Dropdown
 
-Pommora's primary navigation-history surface — a **Liquid Glass dropdown button** in the trailing edge of the toolbar that opens a **popover panel** containing two toggleable lists: **Favorites** (user-curated) and **Recents** (auto-tracked). Replaces the horizontal tab strip from the v0.0–v0.2.6 era and consolidates navigation chrome into a single always-visible control.
+Pommora's primary navigation-history surface — a **Liquid Glass dropdown button** in the trailing edge of the toolbar that opens a **popover panel** containing two toggleable lists: **Pinned** (user-curated, right-click to pin) and **Recents** (auto-tracked). Replaces the horizontal tab strip from the v0.0–v0.2.6 era and consolidates navigation chrome into a single always-visible control.
 
 ![NavDropdown visual reference](assets/NavDropdown-mockup.png)
 
-**Status: SHIPPED at v0.2.7.2 (end of 2026-05-19, Session 10).** Functional layer is complete and tested (227 unit tests pass: data layer + cursor + persistence + drag-reorder + back/forward + standalone-window preview). Visual chrome (toolbar segmented controls, popover panel fill, standalone-window styling, system sidebar toggle) is **functional but not at Nathan's final preferred polish** — open items deferred to a follow-up pass; see `Handoff.md → Next session priorities → v0.2.7.2 UIX polish`.
+**Status: SHIPPED at v0.2.7.1 (end of 2026-05-19).** Functional layer + click model + context-menu Pin + detail-view context menus all working. 226 unit tests pass; build green; lint exit 0.
+
+> **Version note:** v0.2.7.2 was the first NavDropdown ship attempt (Session 10 first half of 2026-05-19) — it landed with a standalone-window preview surface + hover-heart favorites + 22 commits of UIX iteration Nathan was unhappy with. The v0.2.7.1 simplification (Session 10 second half) supersedes it: standalone windows removed (deferred to a real PreviewWindow primitive), hover-heart replaced with right-click Pin context menu, Favorites renamed Pinned throughout, single = select / double = open semantics, plus detail-view context menus on Page + Item rows. The v0.2.7.2 tag stays in git history; v0.2.7.1 is the canonical shipped NavDropdown.
 
 Locked at v0.2.7.2 brainstorm (2026-05-18). Pivots away from `Navigation-Bar.md`'s tab-strip model. The two-toolbar-row problem and `.unified` chrome conflict that pushed the pivot are resolved by collapsing tabs + the `+` button into one dropdown.
+
+---
+
+#### Future implementation (deferred from v0.2.7.1)
+
+Captured at ship time; the functional layer is done but these refinements are explicit follow-ups:
+
+1. **Open-in-preview wiring** — when the cross-feature PreviewWindow primitive is built for Pages, Vaults, Collections, Spaces, Topics, Sub-topics, Items, and Agenda items, light up the dropdown's preview-on-click affordance. **Until that primitive exists, no "open in standalone window" UI ships here** — single/double-click both route to the main detail pane (and Items route to the existing ItemWindow). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` for the project-wide rule.
+2. **Drag-to-reorder Pinned** — currently doesn't work end-to-end (the `.onMove` wiring is in place but the drag doesn't initiate properly inside the popover's List). Needs investigation. Likely a SwiftUI List + popover view-host interaction issue.
+3. **Remove type chip** — drop the trailing "Page / Vault / Topic" chip text and rely on the leading icon (kind-specific symbol per the project's planned symbol table) for type identification. Cleaner rows; fewer redundant labels.
+4. **Segmented Pinned/Recents UI polish** — slight opacity / contrast pass on the picker pill. Not blocking; visual nit.
 
 ---
 

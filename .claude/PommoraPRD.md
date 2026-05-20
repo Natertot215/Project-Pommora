@@ -399,13 +399,14 @@ Clicking a row in the dropdown opens the entity in a **standalone macOS window**
 
 - **Open the dropdown** — `⌘T` or click the toolbar button.
 - **Walk Recents** — back / forward arrows in the toolbar, or `⌘[` / `⌘]`.
-- **Favorite an entry** — hover a row, click the star. Hover-star is the only entry point.
+- **Pin an entry** — right-click any row, select "Pin {kind}". Right-click on a pinned row to "Unpin {kind}". Single entry point; lives inside the dropdown (and now mirrored in `VaultDetailView` + `CollectionDetailView` context menus on Page + Item rows).
+- **Open an entry** — single-click highlights, double-click opens in the main detail pane (overrides current content). Items use the existing `ItemWindow` popover. No standalone preview windows until the PreviewWindow primitive ships (see `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`).
 - **Recents cap** — 500 in the underlying store; dropdown displays top 100; sidebar full-frame Recents view (v0.6.0+) shows the full 500 with sort + filter.
-- **Favorites** — uncapped, separate Codable array, insertion-ordered.
+- **Pinned** — uncapped, separate Codable array, insertion-ordered. (Renamed from "Favorites" at v0.2.7.1; legacy state.json files with the `favorites` JSON key still decode cleanly via backward-compat fallback.)
 
-Entity roster: Pages, Vaults, Spaces, Topics, Sub-topics, Items (popover-only, `ItemWindow`), Agenda items (v0.6.0+, chip label "Task"). Collections excluded for v0.2.7.2 simplicity. Homepage never appears.
+Entity roster: Pages, Vaults, Collections, Spaces, Topics, Sub-topics, Items (popover-only, `ItemWindow`), Agenda items (v0.6.0+, chip label "Task"). Homepage never appears.
 
-**State persistence:** Recents + Favorites + back/forward cursor persist across launches. Stored in `<nexus>/.nexus/state.json` (per-nexus, vault-portable).
+**State persistence:** Recents + Pinned + back/forward cursor persist across launches. Stored in `<nexus>/.nexus/state.json` (per-nexus, vault-portable).
 
 **Items don't get standalone windows** — selecting an Item from the dropdown opens its `ItemWindow` popover directly (the popover IS the opening surface, so Recents records immediately).
 

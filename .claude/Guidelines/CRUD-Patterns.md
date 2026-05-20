@@ -6,6 +6,22 @@ This is a Guideline — patterns to follow, not enforcement. Full per-entity CRU
 
 ---
 
+#### Preview-window prerequisite (locked v0.2.7.1)
+
+Pommora exposes "open in preview" as a generic affordance — the dropdown's preview-on-click, future `⌥⌘O`, future Cmd-click-from-anywhere. The preview surface is a **shared primitive** (PreviewWindow), not a per-feature one.
+
+**Rule:** for any entity kind (Page, Vault, Collection, Space, Topic, Sub-topic, Item, Agenda item), the PreviewWindow for that kind ships **before** any "open in preview" UI is wired for that kind. CRUD on an entity may land independently, but the affordance that says "open this in a separate window" must wait until the PreviewWindow actually has wiring for that kind.
+
+Why: features that shipped half-wired (the v0.2.7.2 NavDropdown EntityWindowHost, since removed) accreted feature-specific window plumbing that immediately rotted when the requirements shifted. The PreviewWindow is one project-wide primitive; bolt new feature surfaces onto it, not bespoke windows per feature.
+
+Practical implication for future work:
+- New entity CRUD lands without standalone-window affordances by default.
+- When PreviewWindow gains support for a kind, "open in preview" affordances may be enabled for that kind in NavDropdown, sidebar, detail views, etc.
+- Until then, double-click and Cmd-click-from-sidebar both route to the main detail pane (or, for Items, to ItemWindow which is already shipped).
+- Items are the exception that proves the rule: ItemWindow is the canonical "popover-style detail surface" and predates this rule, so Item rows route to ItemWindow today. When the PreviewWindow primitive lands, Items may move to it or stay on ItemWindow per the spec at that time.
+
+---
+
 #### Manager pattern — per entity, `@MainActor @Observable`
 
 Every new entity (Space, Topic, Sub-topic, Vault, Item, Page, Agenda item, Homepage, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity managers (not one unified store) — keeps state-driven updates narrowly scoped so changing a Topic doesn't re-evaluate the Spaces section.

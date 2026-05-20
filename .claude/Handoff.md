@@ -2,167 +2,128 @@
 
 > **Read this first at session start.** Branch + state + next session's priorities here.
 
-#### Current State (end of 2026-05-19 — Session 10 close: **v0.2.7.2 NavDropdown SHIPPED**)
+#### Current State (end of 2026-05-19 — **v0.2.7.1 NavDropdown SHIPPED**, simplified and cleaned)
 
-**NavDropdown is implemented and functional — Nathan is satisfied with the feature, not fully happy with the UIX yet.** v0.2.7.2 ships the full Liquid Glass dropdown navigation surface (Recents + Favorites tabs, drag-to-reorder, persistent state.json, back/forward arrows, standalone-window preview gate). Build green, **227 unit tests pass** (198 baseline + 29 new for the data layer), `swift format lint --strict --recursive` exit 0. Editor work from v0.2.7.0 (Session 9) remains intact.
+**NavDropdown is implemented, simplified, and functional — Nathan signed off.** v0.2.7.1 ships the Liquid Glass dropdown navigation surface (Pinned + Recents tabs, single-click select / double-click open in main detail pane, right-click Pin/Unpin context menu, back/forward arrows, persistent state.json). Build green, **226 unit tests pass** (227 baseline minus 3 deleted EntityRefTests plus 2 new NexusStateTests for backward-compat decode), `swift format lint --strict --recursive` exit 0.
 
-**`main` is at `b13f9a5`** (v0.2.7.2 final NavDropdown UI polish). v0.2.7.0 still tagged on origin at `9a0b383`. **v0.2.7.2 to be tagged + pushed end-of-this-session.**
+**Versioning quirk:** `v0.2.7.2` is in git history as the first NavDropdown ship attempt (Session 10 first half, end of 2026-05-19). It landed with a standalone preview-window scene + hover-heart favorites + 22 commits of UIX iteration Nathan was unhappy with. The v0.2.7.1 simplification supersedes it. The v0.2.7.2 tag remains in history for archaeological reference; v0.2.7.1 is the canonical NavDropdown ship. The originally-planned v0.2.7.1 Page-editor-touch-ups slot shifts to a later patch number.
 
-##### What shipped in v0.2.7.2
+**`main` is at the v0.2.7.1 docs commit** (to be tagged + pushed at session close). GitHub CI removed in the same commit (Nathan: failure emails were noise).
 
-The full feature spec lives at [`// Features//NavDropdown.md`](Features/NavDropdown.md). One-line summary per shipped capability:
+##### What shipped in v0.2.7.1 (the simplification + cleanup)
 
-- **Data layer** — `EntityStateRef` (flat wire-record), `NexusState` (top-level `state.json` shape), `RecentsManager` (LRU @500-store / 100-dropdown cap + cursor for back/forward), `FavoritesManager` (toggle + drag-reorder + atomic persist). 29 unit tests cover the layer; all green.
-- **`<nexus>/.nexus/state.json` per-nexus persistence** — first per-nexus state file in Pommora's history. Atomic-write via `AtomicJSON`. Read-modify-write protects cross-manager (Recents + Favorites share the file).
-- **`EntityRef` enum + `WindowGroup(id: "entity", for: EntityRef.self)` scene** — standalone-window preview surface for Pages/Vaults/Spaces/Topics/Subtopics. `EntityWindowHost` resolves the ref via AppGlobals managers and renders the matching detail view.
-- **`AppGlobals` extension + `MainWindowRouter` @Observable** — cross-scene bridge so standalone-window Expand action can push selection back to the main window (NotificationCenter-free, Swift 6 clean).
-- **NavDropdown trigger button** in the toolbar (`square.on.square` icon), `⌘T` keyboard shortcut, popover panel containing the segmented Favorites/Recents picker + entity list.
-- **EntityRow component** — icon + title + type chip + hover-heart for favoriting. Heart is heart-filled on Favorites tab, hover-revealed outline-heart on Recents tab.
-- **Drag-to-reorder favorites** via SwiftUI `.onMove(perform:)`.
-- **Back/Forward arrows in toolbar** (`‹` / `›` + `⌘[` / `⌘]`) — walk through Recents history without breaking LRU order (layered protection via `MainWindowRouter.pendingIntent` enum + `RecentsManager.isNavigatingHistory` flag).
-- **Recents recording triggers**: sidebar selection change (`ContentView.onChange(of: sidebarSelection)`), ItemWindow `.onAppear`, Expand from standalone window.
-- **Snapshot pattern for dropdown lists** — `recentsSnapshot` / `favoritesSnapshot` @State refreshed on popover open + after favorites mutations. Bypasses an `@Observable`-through-popover-host edge case where source-side mutations weren't reaching the popover view tree.
-- **Empty-state copy** for both Favorites and Recents tabs so empty isn't ambiguous.
+The full feature spec lives at [`// Features//NavDropdown.md`](Features/NavDropdown.md). Headline changes from v0.2.7.2:
 
-##### UIX deferrals (Nathan-flagged for follow-up)
+- **Standalone preview window machinery removed entirely.** `EntityRef.swift`, `EntityWindowHost.swift`, `EntityRefTests.swift`, and the `WindowGroup(id: "entity", for: EntityRef.self)` scene all deleted. Double-click in the dropdown now routes to the main detail pane via a direct closure from ContentView. A real cross-feature PreviewWindow primitive is a future job (see `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`).
+- **Favorites → Pinned, top-to-bottom rename.** Class `FavoritesManager` → `PinnedManager` (file renamed via `git mv`), JSON key `favorites` → `pinned` with backward-compat decode (reads legacy `favorites` as fallback; writes only `pinned`), tab label "Pinned", AppGlobals + ContentView + NavDropdownButton all updated. Two new `NexusStateTests` cover the legacy-key decode and the encoder-doesn't-emit-favorites contract.
+- **Hover-heart replaced with right-click Pin/Unpin context menu.** `EntityRow` loses the `isFavorite` / `favoriteAction` params and the entire hover-heart Button. New `isPinned` / `pinAction` params drive a `.contextMenu { Button("Pin Page" | "Unpin Page") { pinAction() } }`. Hover state still tracked, but repurposed to drive a subtle row-background tint (`Color.primary.opacity(0.06)` in a 6pt rounded rect) instead of revealing chrome.
+- **Click model: single = select, double = open.** Single-click updates List's native selection chrome (no action). Double-click triggers `.simultaneousGesture(TapGesture(count: 2)) { handleOpen(ref) }` which closes the popover and sets `sidebarSelection`. The `.simultaneousGesture` form is the macOS workaround for SwiftUI List rows where `.onTapGesture(count: 2)` is intercepted by the underlying NSTableView selection handler.
+- **Collections wired into `SidebarSelection.init?(stateRef:)`** — leftover `case .collection: return nil` from the v0.2.7.2 "collections not wired" decision is now a real resolver that iterates `vaultManager.vaults.collections(in:)`. `SidebarDetailView` was already routing `.collection` → `CollectionDetailView`, so this single addition makes collection rows openable from the dropdown end-to-end.
+- **Routing bypasses `MainWindowRouter` for the dropdown's open path.** `NavDropdownButton` gains an `onOpen: (SidebarSelection) -> Void` closure. `ContentView` constructs it with `{ sel in sidebarSelection = sel }`. The closure writes through SwiftUI's normal @State binding mechanism, which works reliably across view-host boundaries — same root cause as the empty-Recents bug that the snapshot pattern fixes. `MainWindowRouter` stays in place for the back/forward path (different code path, works fine via `bringToFrontTick` observation in ContentView's main view host).
+- **Lazy-load fallback for unloaded collections.** When `SidebarSelection(stateRef:)` returns nil for a page (because the host collection hasn't been visited this session — ContentManager loads per-collection lazily per the design), `handleOpen` kicks off a `Task` that walks `vaultManager.vaults` calling `contentMgr.loadAll(for: vault)` + each collection, retrying SidebarSelection construction at each step. SQLite in v0.4.0 makes this O(1) and removes the walk.
 
-Nathan iterated extensively on toolbar chrome + popover visual styling during this session. Multiple approaches were tried (per-button glass, segmented-pill glass, plain/borderless variants, hide+replace system sidebar toggle). Final state is functional but not fully where Nathan wants it. Known items deferred:
+##### What shipped in v0.2.7.1 (the additive scope)
 
-1. **Standalone EntityRef window chrome** — reverted to default `WindowGroup` chrome. Nathan iterated on traffic-light removal (`.windowStyle(.plain)`) + custom X close button + Expand button positioning, then asked to revert. The window currently has system traffic lights + title; the toolbar's Expand button was stripped pending a clearer design direction.
-2. **System sidebar toggle styling** — on macOS 26, `NavigationSplitView`'s sidebar-collapsed re-open button uses Liquid Glass chrome that can't be restyled directly. The hide+replace path (`.toolbar(removing: .sidebarToggle)` + custom borderless button) was added but Nathan wants a path that adjusts the existing system toggle rather than replacing — no SwiftUI API exists for that. Left as-is.
-3. **Toolbar segmented controls (back/fwd, NavDropdown+Inspector)** — multiple iterations between glass-on-background vs per-button glass vs flat. Final state: glass on outer HStack for both pairs, borderless inner buttons. Not Nathan's preferred final look but functional.
-4. **NavDropdown popover panel chrome** — outer background fill iterated (Color.clear vs Color.black.opacity(0.25-0.3)). Final state per Nathan's manual edits: minHeight 300 / maxHeight 400, Color.clear background. Empty-state Texts center via `.frame(maxWidth: .infinity, maxHeight: .infinity)`.
+- **Page + Item context menus inside Vault and Collection detail views.** Right-click on a Page or Item row in `VaultDetailView` or `CollectionDetailView` opens a menu with **Rename** (alert + TextField, routes to `ContentManager.renamePage` / `renameItem` based on vault-root vs collection parent), **Pin / Unpin {kind}** (toggles `AppGlobals.pinnedManager`), **Delete** (mirrors sidebar's no-confirmation pattern; routes to the right `deletePage` / `deleteItem` overload). `VaultDetailView` uses a `parent(for:)` helper that scans vault-root content first then iterates collections; `CollectionDetailView`'s parent is always the current collection. Collection rows in VaultDetailView intentionally have no context menu — the sidebar's CollectionRow is the canonical surface for collection rename/delete.
+- **GitHub CI removed.** `.github/workflows/ci.yml` deleted. Nathan: the workflow doesn't work and just sends failure emails.
+- **`Guidelines/CRUD-Patterns.md → Preview-window prerequisite` rule added.** Project-wide constraint: PreviewWindow primitive ships per kind before any "open in preview" UI for that kind is wired. CRUD lands independently. Locks in the lesson from the deleted EntityWindowHost.
 
-These are all stylistic refinements. The functional layer (data + persistence + triggers + drag-reorder + back/forward) is shipped and working.
+##### Future implementation deferred for the dropdown (Nathan-flagged at ship time)
 
-##### Session 10 commit log (NavDropdown v0.2.7.2 — 22 commits)
+Documented in `Features/NavDropdown.md → Future implementation`. Four items, in order:
 
-| Phase | Commits |
+1. **Open-in-preview wiring** when the cross-feature PreviewWindow primitive is built for Pages, Vaults, Collections, Spaces, Topics, Sub-topics, Items, and Agenda items.
+2. **Fix drag-to-reorder Pinned** — `.onMove` wiring is in place but drag-initiate inside the popover's List doesn't fire end-to-end. Needs investigation; likely a List + popover view-host interaction quirk.
+3. **Remove type chip** — drop the trailing "Page / Vault / Topic" text and rely on the leading icon (kind-specific symbol per the project's planned symbol table).
+4. **Segmented Pinned/Recents UI polish** — slight opacity / contrast pass on the picker pill.
+
+##### Session 10 commit log (NavDropdown v0.2.7.1 — 8 commits)
+
+| SHA | What |
 |---|---|
-| Phase 0 (docs) | `fa51430` (NavDropdown.md heart+drag+v0.2.7.2), `5c8863b` (hover-stars miss), `98d2263` (PRD + cross-doc sweep) |
-| Phase 1 (data layer) | `600b302` (EntityStateRef), `37f3e0e` (NexusPaths helper), `35d3416` (NexusState), `84d0d49` (RecentsManager), `cdfc285` (FavoritesManager) |
-| Phase 2 (Entity+Window) | `4f16ddc` (EntityRef enum), `e4f2b1a` (AppGlobals + MainWindowRouter), `1a00124` (ContentView managers), `a52f636` (WindowGroup + EntityWindowHost) |
-| Phase 3 (triggers) | `cdda396` (sidebar→Recents), `46ff1e7` (ItemWindow→Recents) |
-| Phase 4 (UI) | `2508598` (NavDropdownButton + EntityRow + popover), `4ff9eba` (placement fix d.1.1), `c8e55ac` + `b794a07` revert (d.1.2), `94dfc7d` + `6593bd2` revert (d.1.3), `61f8861` (Item bridge d.2), `3f44d2f` (segmented controls d.3) |
-| Phase 6 (Back/Forward) | `109611c` (back/fwd + cursor + Intent enum) |
-| Polish | `20c4312` (d.4), `9721a6e` (d.5), `8ffa404` (d.6), `de8e933` (d.7 debug), `dd679fc` (d.8 sidebar), `2e8a3ad` (d.8 Recents snapshot), `b13f9a5` (v0.2.7.2 final polish) |
+| `4def823` | v0.2.7.2.1-a.1 — Strip NavDropdown standalone-window machinery (406 lines deleted) |
+| `406e585` | v0.2.7.2.1-a.2 — Rename Favorites → Pinned (class, file, JSON key with backward-compat decode) |
+| `d524b09` | v0.2.7.2.1-a.3 — EntityRow hover-accent + right-click Pin/Unpin |
+| `9c96405` | v0.2.7.2.1-a.4 — Click model: single = select, double = open |
+| `3f768cb` | v0.2.7.2.1-b.1 — Page + Item context menus in Vault/Collection detail views |
+| `68d497e` | v0.2.7.2.1-a.5 — Fix double-click open: `.simultaneousGesture` + lazy-load fallback |
+| `4ad9156` | v0.2.7.2.1-a.6 — Wire collections + bypass MainWindowRouter via direct closure |
+| (next) | v0.2.7.1 ship: docs + GitHub CI removal + CRUD preview-window rule |
+
+(The intra-commit version label `v0.2.7.2.1` was used during execution before the final tag decision; the canonical ship tag is **v0.2.7.1**.)
 
 ##### What shipped in v0.2.7.0 (Session 9 — prior)
 
-The full editor feature spec lives at [`// Features//PageEditor.md`](Features/PageEditor.md). One-line summary per shipped capability:
-
-- **Native body editor** — `NativeTextViewWrapper(text: $viewModel.body, configuration: .pommora, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)` wired into `PageEditorView`.
-- **Editable title TextField** — 28pt bold; Enter commits rename via `ContentManager.renamePage` AND shifts focus to the body via `@FocusState + makeFirstResponder` walk.
-- **Body indent** — 24pt textInsets matches title's `.padding(.horizontal, 24)` so body text aligns under the title (scrollbar stays at outer edge).
-- **300ms debounced save** — keystroke → `viewModel.body` → `scheduleSave()` → `ContentManager.updatePage` → `PageFile.save` → `AtomicYAMLMarkdown.write` (atomic temp + rename). Page-switch flush, window-close flush, `⌘S`, `NSApplication.willTerminate` all wired.
-- **Frontmatter preservation** — editor binds ONLY to body; YAML never visible; re-serialized from the typed struct on save.
-- **Character-pair auto-pair** — `**`/`__`/`[[`/`` `` `` insert close marker with caret-between; suppressed inside code blocks and when next char is already the close.
-- **Auto-unpair on backspace** — backspace inside `*|*` / `**|**` / `[[|]]` / `` `|` `` deletes BOTH halves (single undo step).
-- **Apple-AST supplemental rendering** — BlockQuote / Strikethrough / Table / ThematicBreak walked from Apple's `Document(parsing:)` AST and styled on top of the engine's primary regex tokenizer/styler. BlockQuote gets dimmed-text + bg tint + 20pt indent; Strikethrough gets `NSAttributedString.Key.strikethroughStyle`; Table gets monospace font + hidden `|` pipes + hidden separator row; ThematicBreak (`---`) renders as a real 1pt horizontal line via custom NSTextLayoutFragment drawing (`NSColor.separatorColor` at 80% alpha).
-- **Expanded right-click menu** — Format submenu (Bold / Italic / Strikethrough / Inline Code / Link) + Heading submenu (H1–H4; H5/H6 omitted as smaller than body) + Lists submenu + new Block submenu (Blockquote / Code Block / Table / Horizontal Rule).
-- **All 197 existing tests pass** — domain wiring (PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, inspector + sidebar lifecycle) untouched.
-
-##### Session 9 commit log (7 commits, `1c6e270` → `9a0b383`, all on `main`)
-
-| SHA | Tag | What |
-|---|---|---|
-| `1c6e270` | v0.2.7-h.0 | Docs repair reconciling Session-8 engine-swap decision; pruned obsolete plans |
-| `3d23f52` | v0.2.7-h.1 | Stripped Pallepadehat fork (6 pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone) |
-| `ad2b879` | v0.2.7-h.2 | Vendored swift-markdown-engine @ `e683a62` as local SPM at `External/MarkdownEngine/` (46 .swift files); Apple swift-markdown 0.8.0 SPM dep added |
-| `4fafed0` | v0.2.7-h.3 | PageEditorView body swapped to `NativeTextViewWrapper`; editable title preserved exactly |
-| `b7a2535` | v0.2.7-h.4 | Character-pair auto-pair |
-| `9756f68` | v0.2.7-h.5 | Initial Session-9 docs ship-out |
-| `9b97393` | v0.2.7-h.6 | Docs self-correction (commit count + main SHA) |
-| `9e13c95` | v0.2.7-h.7 | UX fixes: title-body padding (4→20pt), body 24pt textInsets, auto-unpair on backspace |
-| `54d1ddd` | v0.2.7-h.8 | Apple-AST supplemental styler (BlockQuote/Strikethrough/Table/ThematicBreak) + expanded right-click menu |
-| `6719e11` | v0.2.7-h.9 | HR-as-real-line via custom NSTextLayoutFragment draw; table pipes/separator hidden; Enter→body focus shift |
-| `9a0b383` | v0.2.7-h.10 | HR draw-detection fixed (enumerateAttribute scan); title focus via @FocusState; H5/H6 removed |
+The full editor feature spec lives at [`// Features//PageEditor.md`](Features/PageEditor.md). Headline: native TextKit-2 editor via vendored `swift-markdown-engine` at `External/MarkdownEngine/`, editable title TextField, 300ms debounced save, character-pair auto-pair, auto-unpair on backspace, Apple-AST supplemental styler for BlockQuote / Strikethrough / Table / ThematicBreak, expanded right-click menu, HR-as-real-line. 197/197 tests passed at that ship.
 
 ---
 
-#### v0.3.0 spec ready (RC-2026-05-19)
+#### Next session priorities
 
-**v0.3.0 Properties has a complete implementation spec** ready for execution after v0.2.7.x patches ship. Full spec at [`// Planning//v0.3.0-Properties-implementation.md`](Planning/v0.3.0-Properties-implementation.md) (14 locked decisions, 4 phases, file:line precision, ~5000 words). Companion uncertainty log at [`// Planning//v0.3.0-Properties-uncertainty-log.md`](Planning/v0.3.0-Properties-uncertainty-log.md) — top 5 blockers, SwiftUI patterns confirmed (`TableColumnForEach`, `TableColumnCustomization`, `KeyPathComparator`, drag-between-Sections), 7 open design questions for user, edge case enumeration, 16 new files + 15 file modifications inventoried.
+Plural, no order decided. Pick based on appetite:
 
-**v0.3.x sub-sequence locked:**
-- v0.3.0 — Properties (this spec)
-- v0.3.1 — Items pane (Item Window redesign per WIP sketch)
-- v0.3.2 — Page-wikilinks (autocomplete + click + rename cascade; backlinks-as-derived-property)
-- v0.3.3 — SQLite + querying (six-table index; FTS5 schema wired; transparent picker/sort backend swap)
+##### (a) Page editor touch-ups *(small, well-scoped)*
 
-**Roadmap reorder spec:** [`// Planning//Roadmap-Reorder-Tier-Model.md`](Planning/Roadmap-Reorder-Tier-Model.md) — RC-2026-05-19 tier model framing (polish → foundation → interaction).
+Small, well-scoped polish on the shipped editor. Both items are replicable from what Apple Notes / Apple TextEdit ship natively.
 
-The v0.3.0 verbatim resume prompt lives at the bottom of the implementation spec — fire that into a fresh session after v0.2.7.x patches ship.
-
-#### Next session priorities — remaining v0.2.7.x patches + UIX polish
-
-##### v0.2.7.2 UIX polish (deferred from Session 10)
-
-Nathan iterated extensively on the NavDropdown chrome during shipping and ended in a functional-but-not-final state. Open items for a future polish pass:
-
-- **Standalone EntityRef window** — currently default `WindowGroup` chrome (system traffic lights + title). Nathan tried `.windowStyle(.plain)` with custom X (top-left) + Expand (top-right) and reverted. Re-approach: probably the right answer is `WindowGroup` with `.windowToolbarStyle(.unified)` showing the entity title, plus a single `ToolbarItem(.primaryAction)` X close button (or Expand, depending on which action is primary). Open question: keep the standalone-window Expand-to-main-pane functionality, or simplify to "popup is preview, click on main sidebar to commit"?
-- **NavDropdown popover panel** — outer fill (`Color.clear` vs `Color.black.opacity(0.x)` vs glass), modePicker chrome, list trough styling. Nathan kept iterating, settled mid-state. Worth a clean restart with the Figma mockup at `.claude/Features/assets/NavDropdown-mockup.png` (still needs to be saved manually) as reference.
-- **Toolbar segmented controls** — back/fwd + NavDropdown+Inspector pairs. Currently `.glassEffect()` on outer HStack, borderless inner buttons. Nathan considered abandoning the segmented pattern entirely in favor of independent per-button glass; deferred.
-- **System sidebar toggle non-glass** — on macOS 26, NavigationSplitView's collapsed-sidebar re-open button uses Liquid Glass chrome. Nathan wants it flat. The only path is hide+replace (`.toolbar(removing: .sidebarToggle)` + custom borderless replacement); Nathan rejected that approach but no other SwiftUI API exists to restyle the system one in place.
-
-##### v0.2.7.1 — Page editor touch-ups *(still queued)*
-
-Small, well-scoped polish on the shipped editor. Both items are replicable from what Apple Notes / Apple TextEdit ship natively, so neither is research-grade — just careful TextKit-2 work.
-
-- **Blockquote (`>`) rendering** — currently rendered with dimmed text + bg tint + indent via attribute composition (h.8 supplemental styler), but it doesn't *look* like Apple Notes' blockquote. Apple Notes draws a vertical accent bar on the leading edge of the quoted block + heavier bg shading. Implement via the existing `MarkdownTextLayoutFragment.draw` path (add `drawBlockquote(at:in:)` analogous to `drawCodeBlockBackground`). Mark blockquote ranges with a new `.pommoraBlockquote: true` attribute from the supplemental styler.
+- **Blockquote (`>`) rendering** — currently rendered with dimmed text + bg tint + indent via attribute composition (h.8 supplemental styler), but doesn't *look* like Apple Notes. Apple Notes draws a vertical accent bar on the leading edge + heavier bg shading. Implement via the existing `MarkdownTextLayoutFragment.draw` path (add `drawBlockquote(at:in:)` analogous to `drawCodeBlockBackground`). Mark blockquote ranges with a new `.pommoraBlockquote: true` attribute from the supplemental styler.
 - **Divider (HR / `---`) rendering** — the line draws but a few rough edges remain:
-   - **HR auto-transform on typing**: when user types `---` on its own line, the line should "lock" as an HR — further `-` keystrokes should be rejected (or routed to a new line). Currently typing extra dashes just extends the source string.
-   - **Visual width / inset**: HR currently spans the full text container width including the textInsets. Apple Notes insets the HR to roughly the body text width (not full container). Trim by `textInsets.horizontal` in `drawThematicBreak`.
-   - **Color**: currently `NSColor.separatorColor` at 80% alpha. Confirm with Nathan whether to keep or swap (already the macOS-recommended divider color).
+   - HR auto-transform on typing: typing `---` on its own line should "lock" as an HR; further `-` keystrokes rejected.
+   - Visual width / inset: HR currently spans the full text container width. Apple Notes insets to roughly the body text width. Trim by `textInsets.horizontal` in `drawThematicBreak`.
+   - Color: confirm `NSColor.separatorColor` at 80% alpha vs swap.
+- **Phase 4.5 polish (auto-pair)** — selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-whitespace + the 11-test auto-pair test suite still deferred.
+- **Phase 3 substantive (engine AST rewrite)** — wholesale-rewrite engine's `MarkdownTokenizer.parseTokens(in:)` body to walk Apple AST + emit `[MarkdownToken]` shims; same for `MarkdownStyler.styleAttributes`; delete `MarkdownTokenizer+Emphasis.swift` + 6 `MarkdownStyler+*` extensions.
 
-##### v0.2.7.3 — Tables custom (Apple-Notes-style grid)
+##### (b) Sidebar + Vault/Collection drag-to-reorder
 
-Real per-cell grid rendering with click-to-edit cells. Currently table source is hidden (pipes + separator row invisible) and cells use monospace + tinted bg so columns align — clean but not a true grid. Requires substantial TextKit-2 work: custom `NSTextLayoutFragment` subclass that detects Apple-AST `Table` source ranges and replaces cell drawing with a true grid (cell rects + 1pt borders + per-cell click hit-testing). Substantial — own its own patch.
+Drag Pages between Vault Collections; reorder Spaces / Topics / Sub-topics within their parents; reorder Vaults at the root; reorder Pinned in the NavDropdown (the open follow-up #2 from this session). Uses SwiftUI's `.draggable(_:)` + `.dropDestination(for:)` with custom `Transferable` types per entity kind. Persists order via a new `_order: [<id>]` field on the parent's JSON sidecar (Vault's `_vault.json`, Collection's `_collection.json`, Tier-1 Spaces config). Filesystem reads remain authoritative; the order field is an overlay.
 
-##### v0.2.7.4 — Sidebar re-ordering + drag
+##### (c) v0.3.0 Properties
 
-Drag Pages between Vault Collections; reorder Spaces / Topics / Sub-topics within their parents; reorder Vaults at the root. Uses SwiftUI's `.draggable(_:)` + `.dropDestination(for:)` modifiers with custom `Transferable` types for each entity kind. Persists order via a new `_order: [<id>]` field on the parent's JSON sidecar (Vault's `_vault.json`, Collection's `_collection.json`, Tier-1 `Spaces` config, etc.). Filesystem reads remain authoritative; the order field is an overlay.
+Full implementation spec at [`// Planning//v0.3.0-Properties-implementation.md`](Planning/v0.3.0-Properties-implementation.md) (14 locked decisions, 4 phases, file:line precision, ~5000 words). Companion uncertainty log at [`// Planning//v0.3.0-Properties-uncertainty-log.md`](Planning/v0.3.0-Properties-uncertainty-log.md). **v0.3.x sub-sequence locked RC-2026-05-19:** .0 Properties / .1 Items pane / .2 Page-wikilinks / .3 SQLite + querying. The v0.3.0 verbatim resume prompt lives at the bottom of the implementation spec — fire that into a fresh session when ready.
+
+##### (d) PreviewWindow primitive
+
+Build the cross-feature standalone-window surface for Pages / Vaults / Collections / Spaces / Topics / Sub-topics / Items / Agenda items. Once any kind has a wired PreviewWindow, the NavDropdown's open-in-preview affordance can be selectively lit up per kind. See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` for the contract.
 
 ---
 
 #### Known follow-up debt (not blocking)
 
-- **Phase 3 substantive** — wholesale-rewrite engine's `MarkdownTokenizer.parseTokens(in:)` body to walk Apple AST + emit `[MarkdownToken]` shims; same for `MarkdownStyler.styleAttributes`; delete `MarkdownTokenizer+Emphasis.swift` + 6 `MarkdownStyler+*` extensions. The h.8 supplemental styler covers BlockQuote/Strikethrough/Table/ThematicBreak rendering as a starter; the full body swap would unify everything onto Apple AST. Lower-priority since v0.2.7.0 ships without it.
-- **Phase 4.5 polish** — selection-wrap (typing `*` with selected text → `*text*`) + auto-exit-on-whitespace + the 11-test auto-pair test suite. Bundle into v0.2.7.1 if scope allows.
-- **PommoraWikiLinkResolver** — Pommora-side conforming to engine's `WikiLinkResolver`; v0.2.10 wikilink work depends on this.
-- **`do { try await … } catch { … }` rewrap in SidebarView.swift + IconPickerSheet.swift** — ~12 single-line patterns; cosmetic.
-- **In-app Trash window** — `.trash//` data layer shipped v0.2.5; UI surface v0.4.0.
-- **`// Planning//Page-Editor-Plan.md` Tiptap-locked language** — outdated since v0.2.7 shipped on the swift-markdown path; sync with PageEditor.md or `git rm`.
-- **`working-directory: .` on CI format-check step** — redundant; harmless.
+- **NavDropdown Pinned drag-to-reorder** — listed under Future implementation #2 above
+- **NavDropdown type chip removal** — listed under Future implementation #3 above
+- **NavDropdown segmented picker polish** — listed under Future implementation #4 above
+- **In-app Trash window** — `.trash//` data layer shipped v0.2.5; UI surface v0.4.0
+- **`// Planning//Page-Editor-Plan.md` Tiptap-locked language** — outdated since v0.2.7 shipped on the swift-markdown path; sync with PageEditor.md or `git rm`
+- **`do { try await … } catch { … }` rewrap in SidebarView.swift + IconPickerSheet.swift** — ~12 single-line patterns; cosmetic
+- **PommoraWikiLinkResolver** — Pommora-side conforming to engine's `WikiLinkResolver`; v0.3.2 wikilink work depends on this
 
 ---
 
 #### Document pointers
 
-- **Editor feature spec**: `.claude/Features/PageEditor.md` — what shipped + how it's wired + what's deferred
+- **NavDropdown feature spec**: `.claude/Features/NavDropdown.md` — what shipped at v0.2.7.1 + future implementation
+- **Editor feature spec**: `.claude/Features/PageEditor.md` — what shipped at v0.2.7.0 + what's deferred
 - **Roadmap**: `.claude/Framework.md`
-- **Session history**: `.claude/History.md` — full Session 1-9 narratives
-- **Engine vendor docs**: `External/MarkdownEngine/NOTICE.md` — upstream SHA + per-file modification log
-- **Pages data model**: `.claude/Features/Pages.md` — on-disk shape, frontmatter, opening behavior
-- **NavDropdown spec**: `.claude/Features/NavDropdown.md` — full implementation spec for v0.2.7.2
+- **Session history**: `.claude/History.md`
+- **Engine vendor docs**: `External/MarkdownEngine/NOTICE.md`
+- **Pages data model**: `.claude/Features/Pages.md`
 - **Sidebar feature spec**: `.claude/Features/Sidebar.md`
 - **Locked specs**: `.claude/Planning/Contexts-Vaults-spec.md`
 - **Paradigm-decision registry**: `.claude/Guidelines/Paradigm-Decisions.md`
-- **CRUD patterns**: `.claude/Guidelines/CRUD-Patterns.md`
+- **CRUD patterns** (incl. new Preview-window prerequisite): `.claude/Guidelines/CRUD-Patterns.md`
 - **Session transcripts**: `.claude/Transcripts/`
 
 ---
 
 #### Verbatim resume prompt for next session
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. `main` is at `b13f9a5`, **`v0.2.7.2` tagged + pushed to origin (NavDropdown SHIPPED)**. 227 unit tests pass; build green; lint exit 0. **NavDropdown is functional but UIX polish was deferred** — see Handoff `Next session priorities → v0.2.7.2 UIX polish` for the open items (standalone EntityRef window chrome, popover panel chrome, toolbar segmented-control finalization, system sidebar toggle). **Possible next priorities**: (a) v0.2.7.1 Page editor touch-ups (blockquote real chrome + HR auto-lock — see Handoff for spec); (b) v0.2.7.2 UIX polish pass on NavDropdown chrome; (c) v0.3.0 Properties (full spec at `.claude/Planning/v0.3.0-Properties-implementation.md` — fire its verbatim resume prompt). Branch policy: all commits on `main` directly (Nathan-locked). Every dispatched agent uses Opus 4.7."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. `main` is at the v0.2.7.1 commit, **`v0.2.7.1` tagged + pushed to origin (NavDropdown SHIPPED, simplified + cleaned)**. 226 unit tests pass; build green; lint exit 0. NavDropdown is functional and signed-off; four follow-up items are tracked in `Features/NavDropdown.md → Future implementation` (preview-window wiring once the primitive exists, drag-to-reorder Pinned fix, type-chip removal, segmented-picker polish). GitHub CI removed. New project-wide rule locked at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`: PreviewWindow primitive ships per kind before any 'open in preview' UI for that kind is wired. **Possible next priorities** (no order decided): (a) v0.2.7.x Page editor touch-ups — blockquote real chrome + HR auto-lock + divider polish + Phase 4.5 auto-pair polish + Phase 3 engine AST rewrite (see Handoff for spec); (b) Sidebar + Vault/Collection drag-to-reorder (uses SwiftUI .draggable + .dropDestination + per-parent `_order` sidecar field); (c) v0.3.0 Properties (full spec at `.claude/Planning/v0.3.0-Properties-implementation.md` — fire its verbatim resume prompt); (d) PreviewWindow primitive build (unblocks NavDropdown follow-up #1). Branch policy: all commits on `main` directly (Nathan-locked). Every dispatched agent uses Opus 4.7."
 
 ---
 
 #### Open questions
 
-- **NavDropdown version number** — RESOLVED end-of-Session-10 (Phase 0 sweep): NavDropdown.md, PRD, Framework, CLAUDE.md all reconciled to v0.2.7.2.
-- **CI `runs-on: macos-26` runner availability** — first push happened end-of-Session-9; verify on GitHub Actions tab whether the macos-26 label resolves. If not, one-line fix to `macos-latest` + explicit Xcode 26 path.
-- **When to delete snapshot branches** (`paradigm-scaffolding`, `v0.2.2-coderabbit`, `v0.2.3-ci`) — Nathan's call.
-- **Brand accent value** — Xcode default stands in; final accent hue at design lock. Engine theme currently uses SwiftUI semantic colors.
+- **Brand accent value** — Xcode default stands in; final accent hue at design lock.
 - **HighlighterSwift + SwiftMath bridges** — deferred per plan; opt-in later if code-block syntax highlighting + LaTeX rendering become priorities.
+- **PreviewWindow design** — what's the shared chrome look? Reuses main toolbar shape, or its own minimal one? Decision deferred until the primitive is built.

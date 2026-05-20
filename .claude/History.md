@@ -2,6 +2,43 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 10 (continued) — 2026-05-19 (v0.2.7.1 NavDropdown SHIPPED — simplified + cleaned)
+
+Session 10's second half. Nathan opened: "this session produced lots of data layers, and code with lots of back-and-forth touch-ups that I'm still unhappy with." The v0.2.7.2 NavDropdown shipped earlier in the day was functional but bloated — 22 commits of UIX iteration on standalone-window chrome + hover-heart favorites that didn't land where Nathan wanted.
+
+**Scope cuts Nathan called for:**
+1. Remove the standalone preview-window machinery entirely. Feature-specific window plumbing rots when requirements shift; the real PreviewWindow is a cross-feature primitive — build it once, light it up per kind.
+2. Replace hover-heart favorites with a right-click "Pin" context menu. Rename Favorites → Pinned across class, file, JSON key, UI.
+3. Mid-session add: detail-view context menus on Page + Item rows inside Vault and Collection views currently don't work — fix them in the same patch.
+
+**Commits (8, all on `main`):**
+
+- `4def823` v0.2.7.2.1-a.1 — Strip standalone-window machinery: deleted `EntityRef.swift`, `EntityWindowHost.swift`, `EntityRefTests.swift`, the `WindowGroup(for: EntityRef.self)` scene; replaced `SidebarSelection.init?(entityRef:)` with `init?(stateRef:)`; updated `BackForwardButtons` + `NavDropdownButton` to use the new init; renamed `MainWindowRouter.Intent.expandFromWindow` → `.directNavigation` (`requestExpand` → `requestOpen`); deleted `ContentManager.findPage(byID:vaultManager:)` (dead code). **406 lines deleted, 58 added.**
+- `406e585` v0.2.7.2.1-a.2 — Favorites → Pinned rename top-to-bottom: `FavoritesManager` → `PinnedManager` (file + class), JSON key `favorites` → `pinned` with backward-compat decode (`favoritesLegacy = "favorites"` CodingKey as fallback), `AppGlobals.favoritesManager` → `AppGlobals.pinnedManager`, `ContentView.favoritesManager` state var + construction + environment, `NavDropdownButton.PanelMode.favorites` → `.pinned` + `pinnedSnapshot` + `pinnedList` + empty-state copy "Right-click to pin". Two new `NexusStateTests` cover legacy-key decode + encoder-doesn't-emit-favorites.
+- `d524b09` v0.2.7.2.1-a.3 — `EntityRow` rewrite: removed hover-heart Button + `isFavorite` / `favoriteAction` params; added `isPinned` / `pinAction` params; repurposed `@State hovering` to drive a subtle row-background tint (`Color.primary.opacity(0.06)` in 6pt rounded rect); added `.contextMenu { Button("Pin {chip}" | "Unpin {chip}") { pinAction() } }`. NavDropdownButton call sites updated.
+- `9c96405` v0.2.7.2.1-a.4 — Click model rewire: removed both `.onChange(of: selection) { handleOpen }` handlers (single-click was firing open — wrong UX). Single-click now only updates List's selection binding (native row highlight). Double-click on each row fires `.onTapGesture(count: 2) { handleOpen(ref) }`.
+- `3f768cb` v0.2.7.2.1-b.1 — Detail-view context menus: `VaultDetailView` + `CollectionDetailView` rewritten to add `.contextMenu` on Page + Item rows with Rename (alert + TextField, routed to `ContentManager.renamePage` / `renameItem` based on vault-root vs collection parent), Pin / Unpin {kind} (toggles `AppGlobals.pinnedManager`), Delete (mirrors sidebar no-confirmation pattern). `VaultDetailView` uses a `parent(for:)` helper that scans vault-root then iterates collections. **+274 / -10 lines.**
+- `68d497e` v0.2.7.2.1-a.5 — Bugfix double-click open: `.onTapGesture(count: 2)` inside SwiftUI List on macOS gets intercepted by NSTableView's selection handler. Switched to `.simultaneousGesture(TapGesture(count: 2))` so the gesture coexists with List's row-click handling. Also added a Task-based lazy-load fallback in `handleOpen` — when `SidebarSelection(stateRef:)` returns nil for a page (host collection not loaded this session), walk `vaultManager.vaults` + `contentMgr.loadAll(for:)` retrying SidebarSelection construction at each step.
+- `4ad9156` v0.2.7.2.1-a.6 — Bugfix collections + routing: (1) wired `.collection` case in `SidebarSelection.init?(stateRef:)` — leftover `return nil` from v0.2.7.2's "collections not wired" decision blocked collection rows from opening. SidebarDetailView already routes `.collection` → CollectionDetailView, so this single addition makes them openable end-to-end. (2) Bypassed `AppGlobals.mainWindowRouter` @Observable hop for the dropdown — wasn't propagating reliably from the popover view host (same root cause as the empty-Recents bug fixed by snapshot pattern). NavDropdownButton gains `onOpen: (SidebarSelection) -> Void` closure; ContentView passes `{ sel in sidebarSelection = sel }`. Direct @State binding write, reliable across view-host boundaries. MainWindowRouter stays for back/forward.
+- (final commit) — v0.2.7.1 ship: doc updates (Handoff / NavDropdown.md / CLAUDE.md Active Version / History entry / session transcript), GitHub CI removed (`.github/workflows/ci.yml` — Nathan: failure emails), new architectural rule at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` (PreviewWindow primitive ships per kind before any "open in preview" UI for that kind is wired).
+
+**Version note:** committed and tagged as `v0.2.7.1` despite chronologically following `v0.2.7.2`. `v0.2.7.2` stays in git history as "first NavDropdown attempt (functional but UIX-deferred)"; v0.2.7.1 is the canonical shipped NavDropdown. The originally-planned v0.2.7.1 Page-editor-touch-ups slot shifts to a later patch number.
+
+**Tests:** 226 pass (v0.2.7.2 baseline 227 - 3 deleted EntityRefTests + 2 new NexusStateTests).
+
+**Doc / arch deltas:**
+
+- `Guidelines/CRUD-Patterns.md` — new "Preview-window prerequisite" section locks the rule: for any entity kind, the PreviewWindow primitive ships before any "open in preview" UI for that kind. CRUD on entities may land independently. The deleted EntityWindowHost is the cautionary tale.
+- `Features/NavDropdown.md` — Status banner updated to v0.2.7.1; version-supersedes note; "Future implementation" section with 4 deferred items (preview-window wiring once primitive exists, drag-to-reorder Pinned fix, type-chip removal, segmented-picker polish).
+- `Handoff.md` — full rewrite for v0.2.7.1 close + next-session priorities (page editor touch-ups / sidebar drag-reorder / v0.3.0 Properties / PreviewWindow primitive).
+- `.github/workflows/ci.yml` — deleted.
+
+**Files renamed:** `FavoritesManager.swift` → `PinnedManager.swift`, `FavoritesManagerTests.swift` → `PinnedManagerTests.swift`.
+
+**Files deleted:** `EntityRef.swift`, `EntityWindowHost.swift`, `EntityRefTests.swift`, `ContentManager.findPage(byID:vaultManager:)` (method), `.github/workflows/ci.yml`.
+
+---
+
 #### RC Session — 2026-05-19 (v0.3.0 Properties brainstorm + spec + tighten)
 
 **No code commits.** Pure docs + planning session conducted via Claude.ai mobile (remote chat). All edits authored in `// The Nexus//Pommora//` mirror first for phone visibility; deployed to `// The Studio//Projects//Project Pommora//.claude//` end of session.

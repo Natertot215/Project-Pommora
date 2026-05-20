@@ -41,12 +41,15 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Roadmap reorders locked Session 9 close
 
-**v0.2.7.x patch sequence** (Nathan's stated ordering — see `Handoff.md` for resume-prompt detail):
+**v0.2.7.x patch sequence** (post-NavDropdown ship; ordering not pinned to specific patch numbers — pick what's next at session time):
 
-- **v0.2.7.1** (NEXT) — **Page editor touch-ups**. Blockquote (`>`) needs Apple-Notes-style rendering (vertical accent bar + heavier bg via `MarkdownTextLayoutFragment.drawBlockquote`); HR (`---`) needs three fixes (auto-transform lock on typing, inset visual width to body-text width, color confirm).
-- **v0.2.7.2** — **NavDropdown** (Liquid Glass dropdown nav). Full spec at `// Features//NavDropdown.md`.
-- **v0.2.7.3** — **Tables custom (Apple-Notes-style grid)**. Real per-cell borders + click-to-edit. Custom NSTextLayoutFragment subclass that detects Apple-AST Table source ranges + replaces drawing with a true grid.
-- **v0.2.7.4** — **Sidebar re-ordering + drag**. Drag Pages between Collections; reorder Spaces/Topics/Sub-topics; persist order via new `_order: [<id>]` overlay on parent JSON sidecars.
+- ✅ **v0.2.7.0** — Page editor (native TextKit-2 via vendored swift-markdown-engine; SHIPPED Session 9)
+- ✅ **v0.2.7.2** — NavDropdown first attempt (functional + standalone preview window + hover-heart favorites; TAGGED but **superseded by v0.2.7.1**)
+- ✅ **v0.2.7.1** — NavDropdown simplification (standalone window removed, Favorites → Pinned + right-click context menu, single-click select / double-click open, detail-view context menus on Page + Item rows; SHIPPED end of 2026-05-19) — canonical NavDropdown
+- **Page editor touch-ups** (queued) — Blockquote (`>`) Apple-Notes-style rendering (vertical accent bar + heavier bg via `MarkdownTextLayoutFragment.drawBlockquote`); HR (`---`) auto-lock + inset + color tuning; Phase 4.5 auto-pair polish (selection-wrap + auto-exit-on-whitespace + 11-test suite); Phase 3 engine AST rewrite (substantive)
+- **Tables custom (Apple-Notes-style grid)** (queued) — real per-cell borders + click-to-edit. Custom NSTextLayoutFragment subclass that detects Apple-AST Table source ranges + replaces drawing with a true grid.
+- **Sidebar + Vault/Collection drag-to-reorder** (queued) — drag Pages between Collections; reorder Spaces/Topics/Sub-topics; reorder Pinned in NavDropdown (covers the v0.2.7.1 follow-up #2); persist order via new `_order: [<id>]` overlay on parent JSON sidecars.
+- **PreviewWindow primitive** (queued) — cross-feature standalone-window surface for Pages / Vaults / Collections / Spaces / Topics / Sub-topics / Items / Agenda items. Once any kind has a wired PreviewWindow, NavDropdown's open-in-preview can be lit up per kind (covers v0.2.7.1 follow-up #1). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` for the project-wide contract.
 
 After v0.2.7.x: **v0.3.0 (Properties)** begins the data-layer chapter (v0.3.x sub-sequence locked RC-2026-05-19; see "Roadmap reorders" below). **Wikilinks moved from v0.2.10 → v0.3.2** (couples with SQLite at v0.3.3, indexed from day one). **Directives + heading fold + slash menu** (formerly v0.2.9) are unscheduled — page editor is functional without them; they re-home to a future v0.2.x or post-v0.3.x patch as decided.
 
@@ -192,7 +195,7 @@ The "polish + integration" version. Agenda's full UI ships **hand-in-hand with E
 - **Accessibility checkpoint** — VoiceOver labels + focus order + Dynamic Type respect verified across all v0.2.0-v0.5.0 surfaces.
 - **Performance budgets verified** — "open a Page in <X ms," "render N-row sidebar without jank," "Vault view with 1000 rows scrolls smoothly." Sets a baseline before v0.7.0 stacks more on top.
 - **First-launch UX** — empty-state copy across sidebar sections + detail pane; nexus-picker flow polish; menu-bar `+ New` Quick Capture entry as the discoverable counterpart to right-click-only creation.
-- **Saved section content fills in** — Recents (full-frame view backed by NavDropdown's `RecentsManager`, sharing the v0.2.7.2 store); Calendar (with EventKit mirror visible if opt-in).
+- **Saved section content fills in** — Recents (full-frame view backed by NavDropdown's `RecentsManager`, sharing the v0.2.7.1 store); Calendar (with EventKit mirror visible if opt-in).
 - ✅ **Pending-error toast surface** — already shipped in v0.2.0 (`2d707a0`). v0.6.0 extends observation to AgendaManager / HomepageManager / TierConfigManager if user-driven CRUD lands for those.
 
 End of v0.6.0: Pommora is integration-complete with system Calendar/Reminders, accessible, performant, and onboards new users without surprises.
