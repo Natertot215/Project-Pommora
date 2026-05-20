@@ -129,9 +129,9 @@ struct ContentView: View {
             sidebarSelection = sel
             DispatchQueue.main.async {
                 AppGlobals.recentsManager?.isNavigatingHistory = false
-                // Only record for expandFromWindow — stepHistory moves the
+                // Only record for directNavigation — stepHistory moves the
                 // cursor without resetting LRU order.
-                if router.pendingIntent == .expandFromWindow {
+                if router.pendingIntent == .directNavigation {
                     if let ref = EntityStateRef(sidebarSelection: sel) {
                         AppGlobals.recentsManager?.record(ref)
                     }

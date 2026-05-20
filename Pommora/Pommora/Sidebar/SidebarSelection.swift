@@ -14,40 +14,54 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
 }
 
 extension SidebarSelection {
-    /// Bridge EntityRef → SidebarSelection by resolving via AppGlobals.
-    /// Returns nil if the underlying entity has been deleted on disk.
+    /// Bridge EntityStateRef → SidebarSelection by resolving via AppGlobals.
+    /// Used by NavDropdown's double-click open and BackForwardButtons stepping.
+    /// Returns nil for kinds that aren't main-detail-pane targets (item, agenda,
+    /// collection) and for entities that no longer exist on disk.
     @MainActor
-    init?(entityRef: EntityRef) {
-        switch entityRef {
-        case .page(let pageID, let vaultID, let collectionID):
-            guard let cm = AppGlobals.contentManager,
-                let vm = AppGlobals.vaultManager,
-                let resolved = PageRef(pageID: pageID, vaultID: vaultID, collectionID: collectionID)
-                    .resolve(vaultManager: vm, contentManager: cm)
-            else { return nil }
-            self = .page(resolved.page)
-        case .vault(let vaultID):
+    init?(stateRef: EntityStateRef) {
+        switch stateRef.typedKind {
+        case .page:
+            guard let cm = AppGlobals.contentManager else { return nil }
+            for pages in cm.pagesByCollection.values {
+                if let page = pages.first(where: { $0.id == stateRef.id }) {
+                    self = .page(page)
+                    return
+                }
+            }
+            for pages in cm.pagesByVaultRoot.values {
+                if let page = pages.first(where: { $0.id == stateRef.id }) {
+                    self = .page(page)
+                    return
+                }
+            }
+            return nil
+        case .vault:
             guard let vm = AppGlobals.vaultManager,
-                let v = vm.vaults.first(where: { $0.id == vaultID })
+                let v = vm.vaults.first(where: { $0.id == stateRef.id })
             else { return nil }
             self = .vault(v)
-        case .space(let spaceID):
+        case .space:
             guard let sm = AppGlobals.spaceManager,
-                let s = sm.spaces.first(where: { $0.id == spaceID })
+                let s = sm.spaces.first(where: { $0.id == stateRef.id })
             else { return nil }
             self = .space(s)
-        case .topic(let topicID):
+        case .topic:
             guard let tm = AppGlobals.topicManager,
-                let t = tm.topics.first(where: { $0.id == topicID })
+                let t = tm.topics.first(where: { $0.id == stateRef.id })
             else { return nil }
             self = .topic(t)
-        case .subtopic(let subtopicID, let parentTopicID):
-            guard let tm = AppGlobals.topicManager,
-                let st = tm.subtopicsByParent[parentTopicID]?.first(where: { $0.id == subtopicID })
-            else { return nil }
-            self = .subtopic(st)
-        case .collection:
-            return nil  // not wired in v0.2.7.2
+        case .subtopic:
+            guard let tm = AppGlobals.topicManager else { return nil }
+            for subs in tm.subtopicsByParent.values {
+                if let st = subs.first(where: { $0.id == stateRef.id }) {
+                    self = .subtopic(st)
+                    return
+                }
+            }
+            return nil
+        case .collection, .item, .agenda, .none:
+            return nil
         }
     }
 }

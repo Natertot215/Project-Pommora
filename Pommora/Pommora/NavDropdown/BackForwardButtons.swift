@@ -86,9 +86,7 @@ struct BackForwardButtons: View {
             break
         }
 
-        guard let entityRef = EntityRef(stateRef: ref),
-            let sel = SidebarSelection(entityRef: entityRef)
-        else { return }
+        guard let sel = SidebarSelection(stateRef: ref) else { return }
 
         // requestStep sets pendingIntent = .stepHistory so ContentView's
         // onChange handler skips the record() call.

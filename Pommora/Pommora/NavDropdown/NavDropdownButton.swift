@@ -18,8 +18,6 @@ struct NavDropdownButton: View {
         self.asSegment = asSegment
     }
 
-    @Environment(\.openWindow) private var openWindow
-
     @State private var isPresented = false
     @State private var mode: PanelMode = .favorites
     @State private var selection: EntityStateRef?
@@ -213,18 +211,12 @@ struct NavDropdownButton: View {
         switch ref.typedKind {
         case .item:
             openItemWindow(ref)
-        case .agenda:
-            return  // v0.6.0+
-        case .none:
-            return  // unknown kind — skip
+        case .agenda, .none:
+            return
         case .page, .vault, .space, .topic, .subtopic, .collection:
-            openStandaloneWindow(for: ref)
+            guard let sel = SidebarSelection(stateRef: ref) else { return }
+            AppGlobals.mainWindowRouter?.requestOpen(to: sel)
         }
-    }
-
-    private func openStandaloneWindow(for stateRef: EntityStateRef) {
-        guard let entityRef = EntityRef(stateRef: stateRef) else { return }
-        openWindow(id: "entity", value: entityRef)
     }
 
     private func openItemWindow(_ ref: EntityStateRef) {
