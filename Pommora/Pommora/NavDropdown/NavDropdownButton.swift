@@ -14,8 +14,15 @@ struct NavDropdownButton: View {
     /// When `false` (default), renders as a standalone Liquid Glass capsule.
     let asSegment: Bool
 
-    init(asSegment: Bool = false) {
+    /// Called when a row is double-clicked. ContentView wires this to set
+    /// its `sidebarSelection` @State directly — avoids the @Observable hop
+    /// through MainWindowRouter, which doesn't propagate reliably from the
+    /// popover view host.
+    let onOpen: (SidebarSelection) -> Void
+
+    init(asSegment: Bool = false, onOpen: @escaping (SidebarSelection) -> Void) {
         self.asSegment = asSegment
+        self.onOpen = onOpen
     }
 
     @State private var isPresented = false
@@ -213,13 +220,13 @@ struct NavDropdownButton: View {
             return
         case .page, .vault, .space, .topic, .subtopic, .collection:
             if let sel = SidebarSelection(stateRef: ref) {
-                AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+                onOpen(sel)
                 return
             }
-            // Lazy-load fallback: pages in collections the user hasn't visited
-            // this session aren't in ContentManager's dicts yet. Walk every
-            // vault + collection until the lookup succeeds. (SQLite in v0.4.0
-            // makes this O(1) and removes the need for the walk entirely.)
+            // Lazy-load fallback: pages/collections in vaults the user hasn't
+            // visited this session aren't in ContentManager's dicts yet. Walk
+            // every vault + collection until the lookup succeeds. (SQLite in
+            // v0.4.0 makes this O(1) and removes the walk entirely.)
             Task { @MainActor in
                 guard let cm = AppGlobals.contentManager,
                     let vm = AppGlobals.vaultManager
@@ -227,13 +234,13 @@ struct NavDropdownButton: View {
                 for vault in vm.vaults {
                     await cm.loadAll(for: vault)
                     if let sel = SidebarSelection(stateRef: ref) {
-                        AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+                        onOpen(sel)
                         return
                     }
                     for col in vm.collections(in: vault) {
                         await cm.loadAll(for: col)
                         if let sel = SidebarSelection(stateRef: ref) {
-                            AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+                            onOpen(sel)
                             return
                         }
                     }

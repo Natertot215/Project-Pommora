@@ -62,7 +62,9 @@ struct ContentView: View {
                     ToolbarItem(placement: .primaryAction) {
                         if recentsManager != nil, pinnedManager != nil {
                             HStack(spacing: 0) {
-                                NavDropdownButton(asSegment: true)
+                                NavDropdownButton(asSegment: true) { sel in
+                                    sidebarSelection = sel
+                                }
 
                                 Rectangle()
                                     .fill(.secondary)

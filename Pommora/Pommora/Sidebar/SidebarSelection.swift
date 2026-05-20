@@ -60,7 +60,16 @@ extension SidebarSelection {
                 }
             }
             return nil
-        case .collection, .item, .agenda, .none:
+        case .collection:
+            guard let vm = AppGlobals.vaultManager else { return nil }
+            for vault in vm.vaults {
+                if let c = vm.collections(in: vault).first(where: { $0.id == stateRef.id }) {
+                    self = .collection(c)
+                    return
+                }
+            }
+            return nil
+        case .item, .agenda, .none:
             return nil
         }
     }
