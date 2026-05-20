@@ -152,6 +152,11 @@ struct NavDropdownButton: View {
 
     @ViewBuilder
     private var recentsList: some View {
+        let _ = print(
+            "[NavDD] recentsList body eval — manager:",
+            AppGlobals.recentsManager.map { "\(ObjectIdentifier($0))" } ?? "nil",
+            "entries.count:", AppGlobals.recentsManager?.entries.count ?? -1
+        )
         if let recents, let favorites {
             List(selection: $selection) {
                 ForEach(recents.dropdownTop, id: \.self) { ref in

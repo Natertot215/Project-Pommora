@@ -95,9 +95,18 @@ struct ContentView: View {
             }
         }
         .onChange(of: sidebarSelection) { _, newSelection in
-            guard let recents = AppGlobals.recentsManager else { return }
-            guard !recents.isNavigatingHistory else { return }
-            guard let ref = EntityStateRef(sidebarSelection: newSelection) else { return }
+            print("[NavDD] sidebarSelection changed to:", newSelection)
+            guard let recents = AppGlobals.recentsManager else {
+                print("[NavDD] AppGlobals.recentsManager is nil — skipping record")
+                return
+            }
+            guard !recents.isNavigatingHistory else {
+                print("[NavDD] isNavigatingHistory=true — skipping record")
+                return
+            }
+            let ref = EntityStateRef(sidebarSelection: newSelection)
+            print("[NavDD] ref =", ref as Any)
+            guard let ref else { return }
             recents.record(ref)
         }
         .onChange(of: inspectorPresented) { _, newValue in
