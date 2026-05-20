@@ -46,7 +46,6 @@ final class RecentsManager {
     }
 
     func record(_ ref: EntityStateRef) {
-        print("[NavDD] record called with:", ref, "entries.count before:", entries.count)
         entries.removeAll { $0 == ref }
         entries.insert(ref, at: 0)
         if entries.count > Self.storeCap {

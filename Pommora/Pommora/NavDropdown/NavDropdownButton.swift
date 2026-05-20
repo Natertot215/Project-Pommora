@@ -20,16 +20,15 @@ struct NavDropdownButton: View {
 
     @Environment(\.openWindow) private var openWindow
 
-    // Read managers from AppGlobals statics rather than @Environment so the
-    // popover's view tree (a separate host in macOS) always sees the live
-    // instances. @Observable tracking fires correctly when properties are
-    // accessed inside body, regardless of how the reference was obtained.
-    private var recents: RecentsManager? { AppGlobals.recentsManager }
-    private var favorites: FavoritesManager? { AppGlobals.favoritesManager }
-
     @State private var isPresented = false
     @State private var mode: PanelMode = .favorites
     @State private var selection: EntityStateRef?
+
+    // Snapshots refreshed on popover open. Bypasses an @Observable-
+    // through-popover-host edge case where mutations on the source
+    // manager don't reliably propagate into the popover's view tree.
+    @State private var recentsSnapshot: [EntityStateRef] = []
+    @State private var favoritesSnapshot: [EntityStateRef] = []
 
     var body: some View {
         triggerButton
@@ -39,6 +38,14 @@ struct NavDropdownButton: View {
                 panel
                     .frame(width: 320)
             }
+            .onChange(of: isPresented) { _, newValue in
+                if newValue { refreshSnapshots() }
+            }
+    }
+
+    private func refreshSnapshots() {
+        recentsSnapshot = AppGlobals.recentsManager?.dropdownTop ?? []
+        favoritesSnapshot = AppGlobals.favoritesManager?.entries ?? []
     }
 
     @ViewBuilder
@@ -61,7 +68,7 @@ struct NavDropdownButton: View {
             } label: {
                 Image(systemName: "square.on.square")
             }
-            .buttonStyle(.glass)
+
         }
     }
 
@@ -79,7 +86,6 @@ struct NavDropdownButton: View {
                 .padding(.bottom, 6)
         }
         .frame(maxHeight: 420)
-        .glassEffect(.regular, in: .rect(cornerRadius: 24))
         .clipShape(.rect(cornerRadius: 24))
     }
 
@@ -91,11 +97,11 @@ struct NavDropdownButton: View {
         HStack(spacing: 0) {
             modeButton(.favorites)
             Rectangle()
-                .fill(Color.white.opacity(0.15))
+                .fill(Color.white.opacity(0.0))
                 .frame(width: 1, height: 18)
             modeButton(.recents)
         }
-        .glassEffect(.regular, in: .capsule)
+
     }
 
     @ViewBuilder
@@ -127,15 +133,31 @@ struct NavDropdownButton: View {
 
     @ViewBuilder
     private var favoritesList: some View {
-        if let favorites {
+        if favoritesSnapshot.isEmpty {
+            Text("No favorites yet. Hover a Recents row and click the heart to favorite.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding()
+        } else {
             List(selection: $selection) {
-                ForEach(favorites.entries, id: \.self) { ref in
-                    EntityRow(ref: ref, isFavorite: true, favoriteAction: { favorites.toggle(ref) })
-                        .tag(Optional(ref))
-                        .listRowSeparator(.visible)
-                        .listRowBackground(Color.clear)
+                ForEach(favoritesSnapshot, id: \.self) { ref in
+                    EntityRow(
+                        ref: ref,
+                        isFavorite: true,
+                        favoriteAction: {
+                            AppGlobals.favoritesManager?.toggle(ref)
+                            refreshSnapshots()
+                        }
+                    )
+                    .tag(Optional(ref))
+                    .listRowSeparator(.visible)
+                    .listRowBackground(Color.clear)
                 }
-                .onMove { src, dst in favorites.move(fromOffsets: src, toOffset: dst) }
+                .onMove { src, dst in
+                    AppGlobals.favoritesManager?.move(fromOffsets: src, toOffset: dst)
+                    refreshSnapshots()
+                }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -143,27 +165,27 @@ struct NavDropdownButton: View {
                 guard let ref = new else { return }
                 handleOpen(ref)
             }
-        } else {
-            Text("Favorites unavailable")
-                .foregroundStyle(.secondary)
-                .padding()
         }
     }
 
     @ViewBuilder
     private var recentsList: some View {
-        let _ = print(
-            "[NavDD] recentsList body eval — manager:",
-            AppGlobals.recentsManager.map { "\(ObjectIdentifier($0))" } ?? "nil",
-            "entries.count:", AppGlobals.recentsManager?.entries.count ?? -1
-        )
-        if let recents, let favorites {
+        if recentsSnapshot.isEmpty {
+            Text("Click pages, vaults, or other entities in the sidebar to populate Recents.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding()
+        } else {
             List(selection: $selection) {
-                ForEach(recents.dropdownTop, id: \.self) { ref in
+                ForEach(recentsSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
-                        isFavorite: favorites.contains(ref),
-                        favoriteAction: { favorites.toggle(ref) }
+                        isFavorite: favoritesSnapshot.contains(ref),
+                        favoriteAction: {
+                            AppGlobals.favoritesManager?.toggle(ref)
+                            refreshSnapshots()
+                        }
                     )
                     .tag(Optional(ref))
                     .listRowSeparator(.visible)
@@ -176,10 +198,6 @@ struct NavDropdownButton: View {
                 guard let ref = new else { return }
                 handleOpen(ref)
             }
-        } else {
-            Text("Recents unavailable")
-                .foregroundStyle(.secondary)
-                .padding()
         }
     }
 

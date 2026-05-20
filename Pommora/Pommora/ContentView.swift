@@ -17,7 +17,6 @@ struct ContentView: View {
     /// trailing edge via the NavigationSplitView, not as a nested side panel
     /// inside the detail sub-view.
     @State private var inspectorPresented = false
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     // Task 64: full 8-manager environment. TopicManager + ContentManager receive
     // real contextProvider closures with live cross-manager lookups (replacing
@@ -35,7 +34,7 @@ struct ContentView: View {
     @State private var mainWindowRouter: MainWindowRouter?
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView {
             sidebar
                 .safeAreaInset(edge: .top, spacing: 8) {
                     SidebarSearchField(text: $searchQuery)
@@ -48,6 +47,7 @@ struct ContentView: View {
         .inspector(isPresented: $inspectorPresented) {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
+
                 .toolbar {
                     // Back/Forward navigation arrows in the leading toolbar area.
                     ToolbarItemGroup(placement: .navigation) {
@@ -93,21 +93,14 @@ struct ContentView: View {
                 inspectorPresented = AppState.pageInspectorOpen(pageID: p.id)
             } else {
                 inspectorPresented = false
+
             }
+
         }
         .onChange(of: sidebarSelection) { _, newSelection in
-            print("[NavDD] sidebarSelection changed to:", newSelection)
-            guard let recents = AppGlobals.recentsManager else {
-                print("[NavDD] AppGlobals.recentsManager is nil — skipping record")
-                return
-            }
-            guard !recents.isNavigatingHistory else {
-                print("[NavDD] isNavigatingHistory=true — skipping record")
-                return
-            }
-            let ref = EntityStateRef(sidebarSelection: newSelection)
-            print("[NavDD] ref =", ref as Any)
-            guard let ref else { return }
+            guard let recents = AppGlobals.recentsManager else { return }
+            guard !recents.isNavigatingHistory else { return }
+            guard let ref = EntityStateRef(sidebarSelection: newSelection) else { return }
             recents.record(ref)
         }
         .onChange(of: inspectorPresented) { _, newValue in
@@ -119,23 +112,6 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
-        .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    withAnimation(.smooth(duration: 0.2)) {
-                        columnVisibility = (columnVisibility == .detailOnly) ? .all : .detailOnly
-                    }
-                } label: {
-                    Image(systemName: "sidebar.leading")
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 22, height: 16)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-                .help("Toggle Sidebar")
-            }
-        }
         .environment(recentsManager)
         .environment(favoritesManager)
         .environment(mainWindowRouter)
