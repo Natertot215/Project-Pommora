@@ -36,11 +36,13 @@ struct EntityWindowHost: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    expand()
+                    dismissWindow()
                 } label: {
-                    Label("Expand", systemImage: "arrow.up.left.and.arrow.down.right")
+                    Image(systemName: "xmark")
                 }
-                .help("Open in main window (commits to Recents)")
+                .buttonStyle(.glass)
+                .keyboardShortcut("w", modifiers: [.command])
+                .help("Close")
             }
         }
         .frame(minWidth: 480, minHeight: 600)
@@ -53,13 +55,35 @@ struct EntityWindowHost: View {
         if let contentMgr = AppGlobals.contentManager,
             let vaultMgr = AppGlobals.vaultManager
         {
-            let pageRef = PageRef(pageID: pageID, vaultID: vaultID, collectionID: collectionID)
-            if let resolved = pageRef.resolve(vaultManager: vaultMgr, contentManager: contentMgr) {
-                PageEditorHost(page: resolved.page)
-                    .environment(contentMgr)
-                    .environment(vaultMgr)
+            // Fast path: vaultID known — use PageRef.resolve directly.
+            if !vaultID.isEmpty {
+                let pageRef = PageRef(pageID: pageID, vaultID: vaultID, collectionID: collectionID)
+                if let resolved = pageRef.resolve(vaultManager: vaultMgr, contentManager: contentMgr) {
+                    PageEditorHost(page: resolved.page)
+                        .environment(contentMgr)
+                        .environment(vaultMgr)
+                } else {
+                    placeholderBody("Page unavailable.")
+                }
             } else {
-                placeholderBody("Page unavailable.")
+                // Slow path (permissive fallback): vaultID wasn't resolved at
+                // openWindow time — brute-force scan all vaults + collections.
+                let scanned = contentMgr.findPage(byID: pageID, vaultManager: vaultMgr)
+                if let (page, vault, collection) = scanned {
+                    let pageRef =
+                        collection != nil
+                        ? PageRef(page: page, in: collection!, vault: vault)
+                        : PageRef(page: page, inVaultRoot: vault)
+                    if let resolved = pageRef.resolve(vaultManager: vaultMgr, contentManager: contentMgr) {
+                        PageEditorHost(page: resolved.page)
+                            .environment(contentMgr)
+                            .environment(vaultMgr)
+                    } else {
+                        placeholderBody("Page unavailable.")
+                    }
+                } else {
+                    placeholderBody("Page unavailable.")
+                }
             }
         } else {
             placeholderBody("Page unavailable.")

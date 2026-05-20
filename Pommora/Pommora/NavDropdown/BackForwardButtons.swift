@@ -59,7 +59,6 @@ struct BackForwardButtons: View {
         }
         .disabled(disabled)
         .help(help)
-        .foregroundStyle(disabled ? Color.secondary.opacity(0.0) : .primary)
     }
 
     private func stepBack() {

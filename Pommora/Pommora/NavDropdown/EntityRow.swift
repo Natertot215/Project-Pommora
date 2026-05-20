@@ -27,6 +27,7 @@ struct EntityRow: View {
 
             heartIcon
         }
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
     }

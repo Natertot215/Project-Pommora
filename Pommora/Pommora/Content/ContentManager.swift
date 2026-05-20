@@ -87,6 +87,27 @@ final class ContentManager {
         return nil
     }
 
+    /// Brute-force scan for a Page by ID across all loaded Vaults and
+    /// Collections. Used by EntityWindowHost's permissive fallback when a
+    /// Recents entry carries only a pageID (vaultID couldn't be resolved at
+    /// openWindow time). Returns nil if the page isn't in any loaded Vault.
+    func findPage(
+        byID pageID: String,
+        vaultManager: VaultManager
+    ) -> (page: PageMeta, vault: Vault, collection: Pommora.Collection?)? {
+        for vault in vaultManager.vaults {
+            if let page = pages(in: vault).first(where: { $0.id == pageID }) {
+                return (page, vault, nil)
+            }
+            for collection in vaultManager.collections(in: vault) {
+                if let page = pages(in: collection).first(where: { $0.id == pageID }) {
+                    return (page, vault, collection)
+                }
+            }
+        }
+        return nil
+    }
+
     // MARK: - Path helpers (vault-root)
 
     /// Vault.folderURL isn't a stored property — it's always derived from the

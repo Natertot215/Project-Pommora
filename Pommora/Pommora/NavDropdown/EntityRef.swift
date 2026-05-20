@@ -22,38 +22,44 @@ extension EntityRef {
     init?(stateRef: EntityStateRef) {
         switch stateRef.typedKind {
         case .page:
-            // PageMeta has no vaultID/collectionID fields — resolve by scanning
-            // ContentManager's keyed dicts. Check collection-hosted pages first,
-            // then vault-root pages (collectionID = nil).
-            guard let cm = AppGlobals.contentManager else { return nil }
-
-            // Scan pagesByCollection: collectionID → [PageMeta]
-            for (collectionID, pages) in cm.pagesByCollection {
-                if pages.contains(where: { $0.id == stateRef.id }) {
-                    // Look up vaultID via VaultManager's collectionsByVault reverse scan.
-                    guard let vm = AppGlobals.vaultManager else { return nil }
-                    var vaultID: String?
-                    outer: for (vid, collections) in vm.collectionsByVault {
-                        for col in collections where col.id == collectionID {
-                            vaultID = vid
-                            break outer
+            // Best-effort: scan ContentManager's in-memory dicts to resolve
+            // vaultID + collectionID. If the lookup succeeds EntityWindowHost
+            // can resolve the page precisely; if it fails (vault not yet loaded,
+            // page from a previous session) fall through to the permissive
+            // fallback so openWindow still fires — EntityWindowHost does its
+            // own brute-force scan at render time.
+            if let cm = AppGlobals.contentManager {
+                // Check collection-hosted pages first.
+                for (collectionID, pages) in cm.pagesByCollection {
+                    if pages.contains(where: { $0.id == stateRef.id }) {
+                        if let vm = AppGlobals.vaultManager {
+                            outer: for (vid, collections) in vm.collectionsByVault {
+                                for col in collections where col.id == collectionID {
+                                    self = .page(
+                                        pageID: stateRef.id,
+                                        vaultID: vid,
+                                        collectionID: collectionID
+                                    )
+                                    return
+                                }
+                            }
                         }
+                        break
                     }
-                    guard let resolvedVaultID = vaultID else { return nil }
-                    self = .page(pageID: stateRef.id, vaultID: resolvedVaultID, collectionID: collectionID)
-                    return
+                }
+
+                // Check vault-root pages (no collection).
+                for (vaultID, pages) in cm.pagesByVaultRoot {
+                    if pages.contains(where: { $0.id == stateRef.id }) {
+                        self = .page(pageID: stateRef.id, vaultID: vaultID, collectionID: nil)
+                        return
+                    }
                 }
             }
 
-            // Scan pagesByVaultRoot: vaultID → [PageMeta] (no collection)
-            for (vaultID, pages) in cm.pagesByVaultRoot {
-                if pages.contains(where: { $0.id == stateRef.id }) {
-                    self = .page(pageID: stateRef.id, vaultID: vaultID, collectionID: nil)
-                    return
-                }
-            }
-
-            return nil
+            // Permissive fallback: IDs not resolvable yet — open with pageID
+            // only. EntityWindowHost will scan all vaults at render time.
+            self = .page(pageID: stateRef.id, vaultID: "", collectionID: nil)
 
         case .vault:
             self = .vault(vaultID: stateRef.id)

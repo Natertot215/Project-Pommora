@@ -74,7 +74,7 @@ struct NavDropdownButton: View {
 
     @ViewBuilder
     private var panel: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 3) {
             modePicker
                 .padding(.horizontal, 10)
                 .padding(.top, 10)
@@ -84,8 +84,10 @@ struct NavDropdownButton: View {
             listContainer
                 .padding(.horizontal, 6)
                 .padding(.bottom, 6)
+                .frame(maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxHeight: 420)
+        .frame(minHeight: 300, maxHeight: 400)
+
         .clipShape(.rect(cornerRadius: 24))
     }
 
@@ -94,7 +96,7 @@ struct NavDropdownButton: View {
     /// `.segmented` chrome doesn't read as glass.
     @ViewBuilder
     private var modePicker: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 1) {
             modeButton(.favorites)
             Rectangle()
                 .fill(Color.white.opacity(0.0))
@@ -115,7 +117,7 @@ struct NavDropdownButton: View {
                 .padding(.vertical, 6)
                 .foregroundStyle(mode == m ? Color.primary : Color.secondary)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .contentShape(.capsule)
     }
 
@@ -127,7 +129,7 @@ struct NavDropdownButton: View {
             case .recents: recentsList
             }
         }
-        .background(Color.black.opacity(0.18))  // recessed-trough tint
+        .background(Color.clear)
         .clipShape(.rect(cornerRadius: 18))
     }
 
@@ -139,6 +141,7 @@ struct NavDropdownButton: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $selection) {
                 ForEach(favoritesSnapshot, id: \.self) { ref in
@@ -176,6 +179,8 @@ struct NavDropdownButton: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         } else {
             List(selection: $selection) {
                 ForEach(recentsSnapshot, id: \.self) { ref in
