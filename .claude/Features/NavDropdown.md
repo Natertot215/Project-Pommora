@@ -4,6 +4,8 @@ Pommora's primary navigation-history surface — a **Liquid Glass dropdown butto
 
 ![NavDropdown visual reference](assets/NavDropdown-mockup.png)
 
+**Status: SHIPPED at v0.2.7.2 (end of 2026-05-19, Session 10).** Functional layer is complete and tested (227 unit tests pass: data layer + cursor + persistence + drag-reorder + back/forward + standalone-window preview). Visual chrome (toolbar segmented controls, popover panel fill, standalone-window styling, system sidebar toggle) is **functional but not at Nathan's final preferred polish** — open items deferred to a follow-up pass; see `Handoff.md → Next session priorities → v0.2.7.2 UIX polish`.
+
 Locked at v0.2.7.2 brainstorm (2026-05-18). Pivots away from `Navigation-Bar.md`'s tab-strip model. The two-toolbar-row problem and `.unified` chrome conflict that pushed the pivot are resolved by collapsing tabs + the `+` button into one dropdown.
 
 ---
