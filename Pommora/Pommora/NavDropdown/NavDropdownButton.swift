@@ -154,7 +154,9 @@ struct NavDropdownButton: View {
                     .tag(Optional(ref))
                     .listRowSeparator(.visible)
                     .listRowBackground(Color.clear)
-                    .onTapGesture(count: 2) { handleOpen(ref) }
+                    .simultaneousGesture(
+                        TapGesture(count: 2).onEnded { handleOpen(ref) }
+                    )
                 }
                 .onMove { src, dst in
                     AppGlobals.pinnedManager?.move(fromOffsets: src, toOffset: dst)
@@ -190,7 +192,9 @@ struct NavDropdownButton: View {
                     .tag(Optional(ref))
                     .listRowSeparator(.visible)
                     .listRowBackground(Color.clear)
-                    .onTapGesture(count: 2) { handleOpen(ref) }
+                    .simultaneousGesture(
+                        TapGesture(count: 2).onEnded { handleOpen(ref) }
+                    )
                 }
             }
             .listStyle(.plain)
@@ -208,8 +212,33 @@ struct NavDropdownButton: View {
         case .agenda, .none:
             return
         case .page, .vault, .space, .topic, .subtopic, .collection:
-            guard let sel = SidebarSelection(stateRef: ref) else { return }
-            AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+            if let sel = SidebarSelection(stateRef: ref) {
+                AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+                return
+            }
+            // Lazy-load fallback: pages in collections the user hasn't visited
+            // this session aren't in ContentManager's dicts yet. Walk every
+            // vault + collection until the lookup succeeds. (SQLite in v0.4.0
+            // makes this O(1) and removes the need for the walk entirely.)
+            Task { @MainActor in
+                guard let cm = AppGlobals.contentManager,
+                    let vm = AppGlobals.vaultManager
+                else { return }
+                for vault in vm.vaults {
+                    await cm.loadAll(for: vault)
+                    if let sel = SidebarSelection(stateRef: ref) {
+                        AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+                        return
+                    }
+                    for col in vm.collections(in: vault) {
+                        await cm.loadAll(for: col)
+                        if let sel = SidebarSelection(stateRef: ref) {
+                            AppGlobals.mainWindowRouter?.requestOpen(to: sel)
+                            return
+                        }
+                    }
+                }
+            }
         }
     }
 
