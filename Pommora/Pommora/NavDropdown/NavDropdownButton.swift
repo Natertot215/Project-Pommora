@@ -154,6 +154,7 @@ struct NavDropdownButton: View {
                     .tag(Optional(ref))
                     .listRowSeparator(.visible)
                     .listRowBackground(Color.clear)
+                    .onTapGesture(count: 2) { handleOpen(ref) }
                 }
                 .onMove { src, dst in
                     AppGlobals.pinnedManager?.move(fromOffsets: src, toOffset: dst)
@@ -162,10 +163,6 @@ struct NavDropdownButton: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .onChange(of: selection) { _, new in
-                guard let ref = new else { return }
-                handleOpen(ref)
-            }
         }
     }
 
@@ -193,14 +190,11 @@ struct NavDropdownButton: View {
                     .tag(Optional(ref))
                     .listRowSeparator(.visible)
                     .listRowBackground(Color.clear)
+                    .onTapGesture(count: 2) { handleOpen(ref) }
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .onChange(of: selection) { _, new in
-                guard let ref = new else { return }
-                handleOpen(ref)
-            }
         }
     }
 
