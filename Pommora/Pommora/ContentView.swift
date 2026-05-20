@@ -17,6 +17,7 @@ struct ContentView: View {
     /// trailing edge via the NavigationSplitView, not as a nested side panel
     /// inside the detail sub-view.
     @State private var inspectorPresented = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     // Task 64: full 8-manager environment. TopicManager + ContentManager receive
     // real contextProvider closures with live cross-manager lookups (replacing
@@ -34,7 +35,7 @@ struct ContentView: View {
     @State private var mainWindowRouter: MainWindowRouter?
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebar
                 .safeAreaInset(edge: .top, spacing: 8) {
                     SidebarSearchField(text: $searchQuery)
@@ -118,6 +119,23 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
+        .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    withAnimation(.smooth(duration: 0.2)) {
+                        columnVisibility = (columnVisibility == .detailOnly) ? .all : .detailOnly
+                    }
+                } label: {
+                    Image(systemName: "sidebar.leading")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 22, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .help("Toggle Sidebar")
+            }
+        }
         .environment(recentsManager)
         .environment(favoritesManager)
         .environment(mainWindowRouter)
