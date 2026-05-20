@@ -24,7 +24,7 @@ enum AppGlobals {
     static var spaceManager: SpaceManager?
     static var topicManager: TopicManager?
     static var recentsManager: RecentsManager?
-    static var favoritesManager: FavoritesManager?
+    static var pinnedManager: PinnedManager?
     static var mainWindowRouter: MainWindowRouter?
 
     // MARK: - Item Window bridge

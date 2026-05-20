@@ -1,6 +1,6 @@
 import Foundation
 
-/// Flat wire-record for state.json entries (Recents + Favorites).
+/// Flat wire-record for state.json entries (Recents + Pinned).
 /// The `kind` is a raw String, not an enum, so old builds can decode
 /// state.json containing unknown future kinds (forward-compat).
 /// Equality + hash are by `(kind, id)` so a renamed entity stays the

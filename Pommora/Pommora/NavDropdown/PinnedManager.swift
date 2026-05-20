@@ -1,11 +1,14 @@
-// FavoritesManager.swift
+// PinnedManager.swift
 import Foundation
 import Observation
 import SwiftUI
 
+/// User-pinned entities surfaced in NavDropdown's Pinned tab. Insertion-order
+/// (drag-to-reorder via `move(fromOffsets:toOffset:)`); deduped by (kind, id).
+/// Persists to the shared `<nexus>/.nexus/state.json` alongside Recents.
 @MainActor
 @Observable
-final class FavoritesManager {
+final class PinnedManager {
     private(set) var entries: [EntityStateRef] = []
     var pendingError: (any Error)?
 
@@ -20,7 +23,7 @@ final class FavoritesManager {
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         do {
             let state = try AtomicJSON.decode(NexusState.self, from: url)
-            self.entries = state.favorites
+            self.entries = state.pinned
         } catch {
             self.pendingError = error
         }
@@ -58,7 +61,7 @@ final class FavoritesManager {
         } else {
             state = NexusState()
         }
-        state.favorites = entries
+        state.pinned = entries
         do {
             try AtomicJSON.write(state, to: url)
         } catch {

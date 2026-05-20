@@ -1,17 +1,17 @@
-// FavoritesManagerTests.swift
+// PinnedManagerTests.swift
 import Foundation
 import Testing
 
 @testable import Pommora
 
 @MainActor
-@Suite("FavoritesManager")
-struct FavoritesManagerTests {
+@Suite("PinnedManager")
+struct PinnedManagerTests {
     @Test("toggle adds missing entry")
     func toggleAdds() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let m = FavoritesManager(nexus: nexus)
+        let m = PinnedManager(nexus: nexus)
         await m.load()
         m.toggle(EntityStateRef(kind: .page, id: "A", title: "Page A"))
         #expect(m.entries.count == 1)
@@ -22,7 +22,7 @@ struct FavoritesManagerTests {
     func toggleRemoves() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let m = FavoritesManager(nexus: nexus)
+        let m = PinnedManager(nexus: nexus)
         await m.load()
         let ref = EntityStateRef(kind: .page, id: "A", title: "Page A")
         m.toggle(ref)
@@ -34,7 +34,7 @@ struct FavoritesManagerTests {
     func toggleAppendsEnd() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let m = FavoritesManager(nexus: nexus)
+        let m = PinnedManager(nexus: nexus)
         await m.load()
         m.toggle(EntityStateRef(kind: .page, id: "A", title: "Page A"))
         m.toggle(EntityStateRef(kind: .page, id: "B", title: "Page B"))
@@ -46,7 +46,7 @@ struct FavoritesManagerTests {
     func moveReorders() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let m = FavoritesManager(nexus: nexus)
+        let m = PinnedManager(nexus: nexus)
         await m.load()
         m.toggle(EntityStateRef(kind: .page, id: "A", title: "A"))
         m.toggle(EntityStateRef(kind: .page, id: "B", title: "B"))
@@ -66,27 +66,27 @@ struct FavoritesManagerTests {
             at: NexusPaths.nexusConfigDir(in: nexus), withIntermediateDirectories: true)
         try AtomicJSON.write(seed, to: NexusPaths.nexusStateURL(in: nexus))
 
-        let m = FavoritesManager(nexus: nexus)
+        let m = PinnedManager(nexus: nexus)
         await m.load()
-        m.toggle(EntityStateRef(kind: .page, id: "F1", title: "Favorite 1"))
+        m.toggle(EntityStateRef(kind: .page, id: "P1", title: "Pinned 1"))
         try await m.save()
 
         let decoded = try AtomicJSON.decode(NexusState.self, from: NexusPaths.nexusStateURL(in: nexus))
-        #expect(decoded.favorites.first?.id == "F1")
+        #expect(decoded.pinned.first?.id == "P1")
         #expect(decoded.recents.first?.id == "R1")  // recents preserved
     }
 
-    @Test("load reads existing favorites")
+    @Test("load reads existing pinned entries")
     func loadReadsExisting() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         var seed = NexusState()
-        seed.favorites = [EntityStateRef(kind: .page, id: "F1", title: "Pinned")]
+        seed.pinned = [EntityStateRef(kind: .page, id: "P1", title: "Pinned")]
         try FileManager.default.createDirectory(
             at: NexusPaths.nexusConfigDir(in: nexus), withIntermediateDirectories: true)
         try AtomicJSON.write(seed, to: NexusPaths.nexusStateURL(in: nexus))
-        let m = FavoritesManager(nexus: nexus)
+        let m = PinnedManager(nexus: nexus)
         await m.load()
-        #expect(m.entries.first?.id == "F1")
+        #expect(m.entries.first?.id == "P1")
     }
 }

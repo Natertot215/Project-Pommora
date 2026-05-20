@@ -30,7 +30,7 @@ struct ContentView: View {
     @State private var tierConfigManager: TierConfigManager?
     @State private var savedConfigManager: SavedConfigManager?
     @State private var recentsManager: RecentsManager?
-    @State private var favoritesManager: FavoritesManager?
+    @State private var pinnedManager: PinnedManager?
     @State private var mainWindowRouter: MainWindowRouter?
 
     var body: some View {
@@ -60,7 +60,7 @@ struct ContentView: View {
                     // segment buttons inside are plain so the background
                     // glass isn't doubled by per-button glass.
                     ToolbarItem(placement: .primaryAction) {
-                        if recentsManager != nil, favoritesManager != nil {
+                        if recentsManager != nil, pinnedManager != nil {
                             HStack(spacing: 0) {
                                 NavDropdownButton(asSegment: true)
 
@@ -113,7 +113,7 @@ struct ContentView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
         .environment(recentsManager)
-        .environment(favoritesManager)
+        .environment(pinnedManager)
         .environment(mainWindowRouter)
         .task {
             await nexusManager.loadOnLaunch()
@@ -274,7 +274,7 @@ struct ContentView: View {
         let tierMgr = TierConfigManager(nexus: nexus)
         let savedMgr = SavedConfigManager(nexus: nexus)
         let recentsMgr = RecentsManager(nexus: nexus)
-        let favoritesMgr = FavoritesManager(nexus: nexus)
+        let pinnedMgr = PinnedManager(nexus: nexus)
         let router = MainWindowRouter()
 
         self.spaceManager = spaceMgr
@@ -286,7 +286,7 @@ struct ContentView: View {
         self.tierConfigManager = tierMgr
         self.savedConfigManager = savedMgr
         self.recentsManager = recentsMgr
-        self.favoritesManager = favoritesMgr
+        self.pinnedManager = pinnedMgr
         self.mainWindowRouter = router
 
         // Publish manager refs so standalone WindowGroup scenes can reach
@@ -296,7 +296,7 @@ struct ContentView: View {
         AppGlobals.spaceManager = spaceMgr
         AppGlobals.topicManager = topicMgr
         AppGlobals.recentsManager = recentsMgr
-        AppGlobals.favoritesManager = favoritesMgr
+        AppGlobals.pinnedManager = pinnedMgr
         AppGlobals.mainWindowRouter = router
 
         // Initial load — fire all in parallel.
@@ -310,7 +310,7 @@ struct ContentView: View {
             async let _ = tierMgr.load()
             async let _ = savedMgr.load()
             await recentsMgr.load()
-            await favoritesMgr.load()
+            await pinnedMgr.load()
         }
     }
 }

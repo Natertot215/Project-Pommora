@@ -2,9 +2,9 @@
 import SwiftUI
 
 enum PanelMode: String, CaseIterable, Identifiable {
-    case favorites, recents
+    case pinned, recents
     var id: String { rawValue }
-    var label: String { self == .favorites ? "Favorites" : "Recents" }
+    var label: String { self == .pinned ? "Pinned" : "Recents" }
 }
 
 @MainActor
@@ -19,14 +19,14 @@ struct NavDropdownButton: View {
     }
 
     @State private var isPresented = false
-    @State private var mode: PanelMode = .favorites
+    @State private var mode: PanelMode = .pinned
     @State private var selection: EntityStateRef?
 
     // Snapshots refreshed on popover open. Bypasses an @Observable-
     // through-popover-host edge case where mutations on the source
     // manager don't reliably propagate into the popover's view tree.
     @State private var recentsSnapshot: [EntityStateRef] = []
-    @State private var favoritesSnapshot: [EntityStateRef] = []
+    @State private var pinnedSnapshot: [EntityStateRef] = []
 
     var body: some View {
         triggerButton
@@ -43,7 +43,7 @@ struct NavDropdownButton: View {
 
     private func refreshSnapshots() {
         recentsSnapshot = AppGlobals.recentsManager?.dropdownTop ?? []
-        favoritesSnapshot = AppGlobals.favoritesManager?.entries ?? []
+        pinnedSnapshot = AppGlobals.pinnedManager?.entries ?? []
     }
 
     @ViewBuilder
@@ -95,7 +95,7 @@ struct NavDropdownButton: View {
     @ViewBuilder
     private var modePicker: some View {
         HStack(spacing: 1) {
-            modeButton(.favorites)
+            modeButton(.pinned)
             Rectangle()
                 .fill(Color.white.opacity(0.0))
                 .frame(width: 1, height: 18)
@@ -123,7 +123,7 @@ struct NavDropdownButton: View {
     private var listContainer: some View {
         Group {
             switch mode {
-            case .favorites: favoritesList
+            case .pinned: pinnedList
             case .recents: recentsList
             }
         }
@@ -132,9 +132,9 @@ struct NavDropdownButton: View {
     }
 
     @ViewBuilder
-    private var favoritesList: some View {
-        if favoritesSnapshot.isEmpty {
-            Text("No favorites yet. Hover a Recents row and click the heart to favorite.")
+    private var pinnedList: some View {
+        if pinnedSnapshot.isEmpty {
+            Text("Nothing pinned yet. Right-click a row to pin it.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -142,12 +142,12 @@ struct NavDropdownButton: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $selection) {
-                ForEach(favoritesSnapshot, id: \.self) { ref in
+                ForEach(pinnedSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
                         isFavorite: true,
                         favoriteAction: {
-                            AppGlobals.favoritesManager?.toggle(ref)
+                            AppGlobals.pinnedManager?.toggle(ref)
                             refreshSnapshots()
                         }
                     )
@@ -156,7 +156,7 @@ struct NavDropdownButton: View {
                     .listRowBackground(Color.clear)
                 }
                 .onMove { src, dst in
-                    AppGlobals.favoritesManager?.move(fromOffsets: src, toOffset: dst)
+                    AppGlobals.pinnedManager?.move(fromOffsets: src, toOffset: dst)
                     refreshSnapshots()
                 }
             }
@@ -184,9 +184,9 @@ struct NavDropdownButton: View {
                 ForEach(recentsSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
-                        isFavorite: favoritesSnapshot.contains(ref),
+                        isFavorite: pinnedSnapshot.contains(ref),
                         favoriteAction: {
-                            AppGlobals.favoritesManager?.toggle(ref)
+                            AppGlobals.pinnedManager?.toggle(ref)
                             refreshSnapshots()
                         }
                     )

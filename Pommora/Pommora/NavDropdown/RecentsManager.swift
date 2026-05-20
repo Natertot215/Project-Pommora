@@ -77,7 +77,7 @@ final class RecentsManager {
             at: NexusPaths.nexusConfigDir(in: nexus),
             withIntermediateDirectories: true
         )
-        // Read-modify-write the shared file (favorites managed separately).
+        // Read-modify-write the shared file (pinned entries managed separately).
         var state: NexusState
         if FileManager.default.fileExists(atPath: url.path) {
             state = (try? AtomicJSON.decode(NexusState.self, from: url)) ?? NexusState()
