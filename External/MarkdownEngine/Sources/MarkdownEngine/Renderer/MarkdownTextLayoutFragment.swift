@@ -9,6 +9,7 @@
 //  via NSTextLayoutFragment instead of NSLayoutManager glyph overrides.
 
 @preconcurrency import AppKit
+import Markdown
 
 // MARK: - Custom attribute keys for rendering overlays
 
@@ -17,9 +18,11 @@ extension NSAttributedString.Key {
     nonisolated static let latexBounds = NSAttributedString.Key("LatexImageBounds")
     nonisolated static let latexIsBlock = NSAttributedString.Key("LatexIsBlock")
     nonisolated static let latexBlockOffsetY = NSAttributedString.Key("LatexBlockOffsetY")
-    /// Marks a `---` paragraph (Apple-AST ThematicBreak). Fragment-side
-    /// drawing replaces the visible dashes with a horizontal line —
-    /// Apple-Notes-style separator.
+    /// Legacy attribute key from the prior HR implementation. No code path
+    /// emits or reads this anymore — HR detection is now AST-backed via
+    /// `MarkdownTextLayoutFragment.hasThematicBreak`. Kept for binary
+    /// compatibility with any stored attributes from older builds; can be
+    /// removed in a future cleanup sweep.
     nonisolated static let pommoraThematicBreak = NSAttributedString.Key("PommoraThematicBreak")
 }
 
@@ -48,36 +51,90 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     // MARK: - ThematicBreak (Pommora addition)
 
-    /// Draws a full-width horizontal line centered vertically in the
-    /// fragment, in place of `---` source text whose chars have been
-    /// hidden via font-size-0.1 + clear-foreground.
+    /// True when this fragment's text parses to a Markdown ThematicBreak node
+    /// at document position. Two-stage check:
+    ///   - Stage 0: code-block guard (`---` inside a fenced code block parses
+    ///     as ThematicBreak in isolation but visually belongs to the code).
+    ///   - Stage 1: cheap string prefilter (nanoseconds) — bails on prose.
+    ///   - Stage 2: per-fragment swift-markdown AST parse — canonical answer.
+    /// Independent of any custom NSAttributedString attribute (which is what
+    /// caused the prior plan's `.pommoraThematicBreak` leak via inheritance).
+    ///
+    /// **No setext-underline guard.** Per Pommora's design (`CLAUDE.md`:
+    /// "Pommora removed Setext H2 support so no markdown-feature conflict"),
+    /// `---` ALWAYS renders as HR regardless of what's on the line above —
+    /// matching Obsidian/Typora behavior. The per-fragment AST parse correctly
+    /// returns ThematicBreak for `---\n` in isolation, so dropping the guard
+    /// is structurally correct: AST already gives the desired answer.
+    private var hasThematicBreak: Bool {
+        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
+
+        // Stage 0 — code-block guard. Reuses the existing fragment property.
+        if hasCodeBlockBackground { return false }
+
+        let fragmentString = ts.attributedSubstring(from: range).string
+
+        // Stage 1 — prefilter. ~99% of fragments early-exit here.
+        let trimmed = fragmentString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 3,
+            let first = trimmed.first,
+            first == "-" || first == "*" || first == "_"
+        else { return false }
+
+        // Stage 2 — AST parse confirms.
+        let document = Markdown.Document(parsing: fragmentString)
+        return document.children.contains { $0 is ThematicBreak }
+    }
+
+    /// True when the caret rests inside the paragraph that owns this fragment.
+    /// Uses paragraph-start identity to match `syncHRVisibility`'s detection in
+    /// the coordinator — no drift possible. The earlier range-intersection +
+    /// edge-clause version drifted after Enter (renderer said "still in" while
+    /// service said "in next").
+    private var caretIsInFragment: Bool {
+        guard let textView = nearestTextView(),
+            let ts = textStorage,
+            let range = fragmentNSRange
+        else { return false }
+        let nsText = ts.string as NSString
+        let caretLocation = min(textView.selectedRange().location, ts.length)
+        let caretParagraph = nsText.lineRange(for: NSRange(location: caretLocation, length: 0))
+        return caretParagraph.location == range.location
+    }
+
+    /// Reaches the NSTextView from the layout fragment via the standard
+    /// TextKit 2 chain. If this ever returns nil in practice, fall back to a
+    /// weak NSTextView reference set during fragment construction.
+    private func nearestTextView() -> NSTextView? {
+        textLayoutManager?.textContainer?.textView
+    }
+
+    /// Draws a horizontal line in place of the HR's hidden dashes — but only
+    /// when the caret is NOT in this fragment (Obsidian-style dynamic syntax).
+    /// When the caret is on the line, the service in the coordinator restores
+    /// the dashes' visibility and removes paragraphSpacing, so the user sees
+    /// the literal `---` text without the line.
     private func drawThematicBreak(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
-        // Detect: does ANY character in this fragment carry the
-        // .pommoraThematicBreak attribute? The fragment range may start at
-        // a leading newline or whitespace that the attribute doesn't
-        // cover (ThematicBreak's SourceRange is just the `---` chars),
-        // so checking only `range.location` misses it. Scan the whole
-        // fragment range instead.
-        var hasThematicBreak = false
-        ts.enumerateAttribute(.pommoraThematicBreak, in: range, options: []) { value, _, stop in
-            if (value as? Bool) == true {
-                hasThematicBreak = true
-                stop.pointee = true
-            }
-        }
         guard hasThematicBreak else { return }
+        guard !caretIsInFragment else { return }
 
-        // Full-width line. Use the same width math as drawCodeBlockBackground.
-        let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
-        let lineColor = NSColor.separatorColor.withAlphaComponent(0.8)
+        guard let textContainer = textLayoutManager?.textContainer else { return }
+        // Y anchor: first line fragment's typographic midY. Stable across
+        // neighbor-induced layout changes — layoutFragmentFrame.height includes
+        // (or excludes) extra-line metrics + paragraphSpacing depending on
+        // surrounding content. Same expression used in renderingSurfaceBounds.
+        guard let firstLine = textLineFragments.first else { return }
+        let lineMidY = point.y + firstLine.typographicBounds.midY
 
-        // Vertical center of the fragment's drawing region.
-        let centerY = point.y + (layoutFragmentFrame.height / 2)
-        let lineThickness: CGFloat = 1.0
+        // Body-text width: container minus the two lineFragmentPadding insets.
+        let containerWidth = textContainer.size.width - (textContainer.lineFragmentPadding * 2)
+
+        let lineColor = NSColor.separatorColor  // Apple pre-attenuates; no .withAlphaComponent
+        let lineThickness: CGFloat = 1.5
+
         let lineRect = CGRect(
-            x: point.x - layoutFragmentFrame.origin.x,
-            y: centerY - (lineThickness / 2),
+            x: point.x - layoutFragmentFrame.origin.x + textContainer.lineFragmentPadding,
+            y: lineMidY - (lineThickness / 2),
             width: containerWidth,
             height: lineThickness
         )
@@ -115,6 +172,21 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             for rect in blockImageRects(at: .zero) {
                 bounds = bounds.union(rect)
             }
+            // Extend bounds for the HR overlay line. Uses the SAME y anchor as
+            // drawThematicBreak so the invalidation rect always tracks where the
+            // line will draw. Tight (~8pt total) — keeps invalidation cheap.
+            if hasThematicBreak {
+                let containerWidth = textLayoutManager?.textContainer?.size.width ?? bounds.width
+                bounds.origin.x = -layoutFragmentFrame.origin.x
+                bounds.size.width = containerWidth
+                let lineMidY =
+                    textLineFragments.first?.typographicBounds.midY
+                    ?? (layoutFragmentFrame.height / 2)
+                let padding: CGFloat = 3.5
+                let lineThickness: CGFloat = 2
+                bounds.origin.y = lineMidY - padding - lineThickness / 2
+                bounds.size.height = lineThickness + (padding * 2)
+            }
             return bounds
         }
     }
@@ -132,7 +204,12 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             // 3. Normal text
             super.draw(at: point, in: context)
 
-            // 4. Task checkboxes (on top of hidden [ ]/[x] markers)
+            // 4. ThematicBreak horizontal line (covers hidden `---` dashes
+            //    when caret is not on the line — see hasThematicBreak +
+            //    caretIsInFragment guards)
+            drawThematicBreak(at: point, in: context)
+
+            // 5. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
         }
     }
@@ -154,7 +231,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     /// Returns the drawing position for a character at `docIndex` (document-level NSRange location).
     /// `point` is the draw origin passed to `draw(at:in:)`.
-    private func drawPosition(forDocumentCharAt docIndex: Int, point: CGPoint) -> (x: CGFloat, baselineY: CGFloat, lineHeight: CGFloat)? {
+    private func drawPosition(
+        forDocumentCharAt docIndex: Int, point: CGPoint
+    ) -> (x: CGFloat, baselineY: CGFloat, lineHeight: CGFloat)? {
         guard let fragRange = fragmentNSRange else { return nil }
         let localIndex = docIndex - fragRange.location
         guard localIndex >= 0 else { return nil }
@@ -184,10 +263,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let lr = lineFragment.characterRange
             if localIndex >= lr.location && localIndex < lr.location + lr.length {
                 let tb = lineFragment.typographicBounds
-                return CGRect(x: point.x + lineFragment.glyphOrigin.x + tb.origin.x,
-                              y: point.y + tb.origin.y,
-                              width: tb.width,
-                              height: tb.height)
+                return CGRect(
+                    x: point.x + lineFragment.glyphOrigin.x + tb.origin.x,
+                    y: point.y + tb.origin.y,
+                    width: tb.width,
+                    height: tb.height)
             }
         }
         return nil
@@ -207,18 +287,21 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
         // Only fenced code-block fragments get the full-width fill (first char must carry the code background).
         guard let color = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor,
-              isCodeBlockBackgroundColor(color) else { return }
+            isCodeBlockBackgroundColor(color)
+        else { return }
 
         let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
 
         var effectiveHeight = layoutFragmentFrame.height
         if textLineFragments.count > 1,
-           let lastLF = textLineFragments.last,
-           lastLF.characterRange.length == 0 {
+            let lastLF = textLineFragments.last,
+            lastLF.characterRange.length == 0
+        {
             effectiveHeight -= lastLF.typographicBounds.height
         }
 
-        let scale = textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+        let scale =
+            textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
             ?? NSScreen.main?.backingScaleFactor ?? 2.0
         let rawY = point.y
         let rawMaxY = point.y + effectiveHeight
@@ -239,7 +322,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             height: snappedMaxY - snappedY
         )
 
-        let selectionRects = selectionRectsInDrawCoordinates(drawPoint: point, snappedY: snappedY, snappedMaxY: snappedMaxY)
+        let selectionRects = selectionRectsInDrawCoordinates(
+            drawPoint: point, snappedY: snappedY, snappedMaxY: snappedMaxY)
         color.setFill()
         if selectionRects.isEmpty {
             NSBezierPath(rect: bgRect).fill()
@@ -256,7 +340,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     /// Returns active text-selection rectangles intersecting this fragment, in
     /// the same draw-relative coordinate system used by `drawCodeBlockBackground`.
-    private func selectionRectsInDrawCoordinates(drawPoint: CGPoint, snappedY: CGFloat, snappedMaxY: CGFloat) -> [CGRect] {
+    private func selectionRectsInDrawCoordinates(
+        drawPoint: CGPoint, snappedY: CGFloat, snappedMaxY: CGFloat
+    ) -> [CGRect] {
         guard let tlm = textLayoutManager else { return [] }
         var rects: [CGRect] = []
 
@@ -265,12 +351,15 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
         for selection in tlm.textSelections {
             for textRange in selection.textRanges {
-                let interStart = textRange.location.compare(myRange.location) == .orderedAscending
+                let interStart =
+                    textRange.location.compare(myRange.location) == .orderedAscending
                     ? myRange.location : textRange.location
-                let interEnd = textRange.endLocation.compare(myRange.endLocation) == .orderedDescending
+                let interEnd =
+                    textRange.endLocation.compare(myRange.endLocation) == .orderedDescending
                     ? myRange.endLocation : textRange.endLocation
                 guard interStart.compare(interEnd) == .orderedAscending,
-                      let intersection = NSTextRange(location: interStart, end: interEnd) else { continue }
+                    let intersection = NSTextRange(location: interStart, end: interEnd)
+                else { continue }
 
                 tlm.enumerateTextSegments(in: intersection, type: .selection, options: []) { _, segFrame, _, _ in
                     // Expand vertically to match the bgRect's snapped span so the
@@ -290,16 +379,18 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     }
 
     private func isCodeBlockBackgroundColor(_ color: NSColor) -> Bool {
-        let highlighter = (textLayoutManager?.textContainer?.textView as? NativeTextView)?
+        let highlighter =
+            (textLayoutManager?.textContainer?.textView as? NativeTextView)?
             .configuration.services.syntaxHighlighter
             ?? PlainTextSyntaxHighlighter()
         let currentBg = highlighter.backgroundColor()
         guard let colorRGB = color.usingColorSpace(.deviceRGB),
-              let currentBgRGB = currentBg.usingColorSpace(.deviceRGB) else { return false }
+            let currentBgRGB = currentBg.usingColorSpace(.deviceRGB)
+        else { return false }
         let tolerance: CGFloat = 0.03
-        return abs(colorRGB.redComponent - currentBgRGB.redComponent) < tolerance &&
-               abs(colorRGB.greenComponent - currentBgRGB.greenComponent) < tolerance &&
-               abs(colorRGB.blueComponent - currentBgRGB.blueComponent) < tolerance
+        return abs(colorRGB.redComponent - currentBgRGB.redComponent) < tolerance
+            && abs(colorRGB.greenComponent - currentBgRGB.greenComponent) < tolerance
+            && abs(colorRGB.blueComponent - currentBgRGB.blueComponent) < tolerance
     }
 
     // MARK: - LaTeX / Block Image Helpers
@@ -325,8 +416,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         } else {
             yPosition = lineMinY + (lineHeight - imageBounds.height) / 2
         }
-        return CGRect(x: pos.x, y: yPosition,
-                       width: imageBounds.width, height: imageBounds.height)
+        return CGRect(
+            x: pos.x, y: yPosition,
+            width: imageBounds.width, height: imageBounds.height)
     }
 
     /// Returns the rects of all block images in this fragment, relative to
@@ -342,7 +434,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let boundsVal = ts.attribute(.latexBounds, at: attrRange.location, effectiveRange: nil) as? NSValue
             let imageBounds = boundsVal?.rectValue ?? .zero
             let blockOffsetY = ts.attribute(.latexBlockOffsetY, at: attrRange.location, effectiveRange: nil) as? CGFloat
-            if let rect = blockImageDrawRect(attrRange: attrRange, imageBounds: imageBounds, blockOffsetY: blockOffsetY, point: point) {
+            if let rect = blockImageDrawRect(
+                attrRange: attrRange, imageBounds: imageBounds, blockOffsetY: blockOffsetY, point: point)
+            {
                 rects.append(rect)
             }
         }
@@ -371,13 +465,17 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
             let drawRect: CGRect
             if isBlock {
-                guard let rect = blockImageDrawRect(attrRange: attrRange, imageBounds: imageBounds, blockOffsetY: blockOffsetY, point: point) else { return }
+                guard
+                    let rect = blockImageDrawRect(
+                        attrRange: attrRange, imageBounds: imageBounds, blockOffsetY: blockOffsetY, point: point)
+                else { return }
                 drawRect = rect
             } else {
                 let descent = imageBounds.origin.y
-                drawRect = CGRect(x: pos.x,
-                                  y: pos.baselineY + descent - imageBounds.height,
-                                  width: imageBounds.width, height: imageBounds.height)
+                drawRect = CGRect(
+                    x: pos.x,
+                    y: pos.baselineY + descent - imageBounds.height,
+                    width: imageBounds.width, height: imageBounds.height)
             }
             image.draw(in: drawRect)
         }
@@ -404,7 +502,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let isChecked = (value as? Bool) ?? false
             guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
 
-            let font = (ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont)
+            let font =
+                (ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont)
                 ?? (textLayoutManager?.textContainer?.textView?.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
             let ascent = max(0, font.ascender)
             let descent = max(0, -font.descender)
@@ -415,7 +514,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let centerY = pos.baselineY + (descent - ascent) / 2
             let boxY = centerY - size / 2
 
-            let scale = textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+            let scale =
+                textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
                 ?? NSScreen.main?.backingScaleFactor ?? 2.0
             func alignToPixel(_ value: CGFloat) -> CGFloat {
                 (value * scale).rounded(.toNearestOrAwayFromZero) / scale
@@ -428,7 +528,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let symbolName = isChecked ? "checkmark.square.fill" : "square"
             if let baseSymbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
                 let sizeConfig = NSImage.SymbolConfiguration(pointSize: iconRect.height, weight: .regular)
-                let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration.theme ?? .default
+                let theme =
+                    (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration.theme ?? .default
                 let tint = isChecked ? theme.bodyText : theme.mutedText
                 let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: tint)
                 let symbolConfig = sizeConfig.applying(colorConfig)
@@ -459,7 +560,7 @@ final class MarkdownLayoutManagerDelegate: NSObject, NSTextLayoutManagerDelegate
             fragment.stExtraLineFragmentAttributes = NSDictionary(dictionary: [
                 NSAttributedString.Key.font: baseFont,
                 NSAttributedString.Key.foregroundColor: textView.configuration.theme.bodyText,
-                NSAttributedString.Key.paragraphStyle: para
+                NSAttributedString.Key.paragraphStyle: para,
             ])
         }
         return fragment

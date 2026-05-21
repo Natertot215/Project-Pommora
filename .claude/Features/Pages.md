@@ -107,11 +107,9 @@ Per-option setup details, swap costs (in Claude sessions), and reference impleme
 
 **Default — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the `CollectionDetailView` / `VaultDetailView` / `ContextDetailPlaceholder` for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop). Shipped at v0.2.7.
 
-**From the NavDropdown — preview-then-expand.** Once `NavDropdown.md` ships at v0.2.7.2, clicking a Page row in the dropdown's Recents or Favorites list opens the Page in a **standalone window** (preview gate). The user then either commits via the window's **Expand** button — which loads the Page into the main detail pane and dismisses the standalone window — or dismisses the window without committing. Only the commit path records the Page in Recents. Full mechanics live in `NavDropdown.md`.
+**From the NavDropdown — single-click select / double-click open** (as shipped at v0.2.7.1). Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action). Double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure (no preview gate, no standalone window). Full mechanics live in `NavDropdown.md`. The preview-then-expand mechanic (an earlier v0.2.7.2 attempt) was reverted in favor of the cross-feature **PreviewWindow primitive** project-wide rule at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`: the PreviewWindow primitive ships per kind before any "open in preview" UI for that kind is wired. NavDropdown's open-in-preview affordance will light up per kind once the primitive lands.
 
-**Optional — standalone new window (available from v0.2.7 onward).** Right-click a Page row → "Open in New Window", or `⌥⌘O` with a Page row selected (or with a Page focused, which opens the current Page in a new window). The standalone window opens via SwiftUI's value-typed `WindowGroup(for: PageRef.self)` scene + `@Environment(\.openWindow)` action, where `PageRef` carries `{ pageID, vaultID, collectionID? }` and resolves through the existing managers. At v0.2.7.2, `PageRef` generalizes into `EntityRef` so the same scene serves all full-frame-eligible kinds (see `NavDropdown.md`). Standalone windows have their own minimal toolbar (no sidebar) and respect macOS native window tabbing — users who want to combine standalone Pages into a tab group use the OS-provided `⌥⌘T` Merge All Windows.
-
-Why this sequencing: v0.2.7 ships the editor in isolation to prove the WYSIWYG canvas works end-to-end before adding multi-instance complexity. v0.2.7.2 then has a clean job — wire the navigation surface on top of the working editor — without simultaneously debugging the editor itself. The standalone-window path is available the whole time because it's a separate `WindowGroup` scene.
+**Standalone-window path: deferred.** The shipped v0.2.7.1 NavDropdown does NOT include a standalone-window scene for Pages — the `WindowGroup(for: EntityRef.self)` machinery from the failed first attempt was deleted entirely (`EntityRef` + `EntityWindowHost` + 406 lines stripped). Standalone Page previews / multi-instance windows ship later via the PreviewWindow primitive (queued).
 
 Items use a different model — they open in the **Item Window popover** (Calendar-event-detail pattern), never in a standalone window. See `Items.md`.
 
@@ -130,10 +128,11 @@ Pages appear **in the sidebar** as leaf rows under their parent Vault (root) or 
 - Vault row → discloses Pages directly in the vault root + Collection sub-folders
 - Collection row → discloses its Pages
 - Page row → leaf (no further disclosure; v1 has no sub-pages)
-- **Click on a Page row is a no-op until v0.2.7** when the WYSIWYG editor lands; the row is structurally visible / selectable but doesn't open anything yet
-- From v0.2.7 onward, click opens the Page in the detail pane (single Page at a time); v0.2.7.2 adds the NavDropdown preview-then-expand route and the right-click "Open in New Window" affordance (see "Opening behavior" above)
+- Click on a Page row opens the Page in the detail pane (single Page at a time; shipped v0.2.7.0 + selection wiring from v0.2.1)
+- From the NavDropdown (Pinned / Recents), double-click on a Page row opens it in the main detail pane (shipped v0.2.7.1)
+- Right-click "Open in New Window" / `⌥⌘O` affordance is queued for the PreviewWindow primitive ship — not yet wired
 
-Right-click on a Page row gives Rename / Delete until v0.2.7; from v0.2.7 onward it also adds **Open in New Window** (`⌥⌘O`). For full sidebar layout + creation affordances → `Sidebar.md`.
+Right-click on a Page row in the sidebar gives Rename / Delete. Right-click in `VaultDetailView` or `CollectionDetailView` gives Rename / Pin (or Unpin) / Delete (shipped v0.2.7.1 additive scope). For full sidebar layout + creation affordances → `Sidebar.md`.
 
 ---
 

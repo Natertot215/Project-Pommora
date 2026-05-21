@@ -2,6 +2,93 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 12 — 2026-05-20 (v0.2.7.2 HR / divider SHIPPED via Obsidian-style dynamic syntax; Blockquote + Tables deferred)
+
+**HR (horizontal rule) shipped** under the v0.2.7.2 plan via a substantially-different architecture than the locked spec. The original plan attempted the locked design first (custom `.pommoraThematicBreak` attribute + always-hidden dashes + cursor-out push + smart-backspace handlers); after four cascading bugs across two execution rounds, the code was fully reverted to v0.2.7.1 baseline and replanned from scratch. The replanned design uses **Obsidian/Typora-style dynamic syntax** — caret on the line shows `---` text, caret off the line hides dashes and draws the horizontal line. Established architecture for paragraph-level dynamic-syntax constructs going forward. Full architecture + 8 lessons documented in `Features/PageEditor.md → Dynamic-syntax pattern`.
+
+**Three engine files changed + one new file:**
+- `MarkdownTextLayoutFragment.swift` — added `import Markdown`, AST-backed `hasThematicBreak` (Stage 0 code-block guard + Stage 1 prefilter + Stage 2 AST parse), `caretIsInFragment` (paragraph-start identity), rewrote `drawThematicBreak` with raw `separatorColor` + container-minus-padding width + stable `textLineFragments.first.typographicBounds.midY` Y anchor, wired into `draw(at:in:)`, extended `renderingSurfaceBounds` tightly (±3.5pt).
+- `AppleASTSupplementalStyler.swift` — `visitThematicBreak` reduced to a no-op (zero emission; service is the sole writer of HR-specific attributes).
+- `NativeTextViewCoordinator.swift` — added `isSyncingHRVisibility` reentry flag on the main class.
+- `NativeTextViewCoordinator+HRVisibility.swift` (NEW) — caret-awareness service: walks document on every selection-change + post-restyle, applies `font 0.1 + clear color + paragraphSpacing 16/16` when caret is OUT of HR paragraph, restores body styling when caret is IN. Wired into `textViewDidChangeSelection` (TextDelegate) + `restyleTextView` + `rebuildTextStorageAndStyle` (Restyling).
+- `MarkdownInputHandler.swift` — preserved Nathan's parallel `()` auto-pair additions; no HR-related additions (auto-transform DROPPED from scope).
+- `MarkdownListHandler.swift` — legacy HR expansion (replaced `---` with 100-dash visible-width string on Enter) removed; incompatible with the new overlay approach.
+
+**Pivots from the locked plan during execution:**
+- Original 6-change plan reduced to 3 changes — `caretIsInFragment` + dynamic-syntax mechanism eliminated the need for cursor-out push, smart-backspace handler, and caret-policy workaround in `NativeTextView+CaretWorkarounds`.
+- Auto-transform on 3rd dash + 4th-dash swallow DROPPED. Per Nathan: Enter is the natural trigger via dynamic syntax + CommonMark parsing of `---\n`. No special handler.
+- paragraphSpacing 16/16 (vs original plan's 24/24) per Nathan's call.
+- Setext-underline guard added during plan review, then removed during execution per Nathan's discovery that it directly contradicted CLAUDE.md's `"Pommora removed Setext H2 support"`. The `B\n---` case must always render as HR (Obsidian/Typora behavior), not as setext H2.
+- `.pommoraThematicBreak` attribute key declaration kept in source as dead code (zero cost, no path emits or reads it); removal is an optional v0.2.7.x cleanup sweep.
+
+**Four hotfixes shipped during the execution session:**
+1. Removed the legacy `MarkdownListHandler` HR expansion (lines 245-267).
+2. Fixed renderer/service disagreement on detection — moved the setext + code-block guards into a shared three-stage check in the service.
+3. Dropped the setext guards from BOTH detectors per Nathan's design clarification.
+4. Attempted `.rounded()` pixel-snap for first-HR-dimness issue; tested + did NOT resolve; reverted (lesson #8: when speculative fixes don't help, revert; don't pile on).
+
+**Known caveat (acceptable for ship):** The first HR in a document renders slightly dimmer than subsequent HRs — likely sub-pixel anti-aliasing from the first paragraph's fractional Y position. Pixel-snap with `.rounded()` didn't resolve. Documented in PageEditor.md as a known caveat; if it bothers in practice, next investigation should test `NSScreen.backingScaleFactor`-aware half-pixel snap or explicit anti-aliasing disable on the line draw.
+
+**Deferred from this session:**
+- **Blockquote** (was Phase 1) → next session, will reuse the new dynamic-syntax architecture; original Apple-Calendar-event-card visual target preserved.
+- **Tables** (was Phase 3) → "ASAP but not immediate" per Nathan. Realistic estimate revised upward to 10-15h after divider's 4h actual vs planned 45min.
+- **Right-click "Insert HR"** menu item → out of scope; future patch.
+
+**Open follow-ups Nathan flagged for separate plans:**
+1. **Lists improvements** — Enter on bare `-`/`*`/`1.` line should commit as list item (currently only space triggers); Shift+Space inserts new list item below at same nesting.
+2. **Blockquote** — see above; reuses dynamic-syntax pattern.
+
+Plan files now stale (locked spec doesn't reflect what shipped); Page-Editor-Plan.md's HR portion was scrubbed pre-execution and the post-ship architecture is in PageEditor.md `Dynamic-syntax pattern` section, NOT in the plan file. Next session can either delete the plan's Phase 2 references entirely or rewrite as "what shipped."
+
+#### Session 11 — 2026-05-20 (v0.2.7.2 page editor fixes plan LOCKED — Round 5 + Round 6 refinement)
+
+**No code commits.** Planning-only session conducted via Claude.ai mobile (remote chat — RC). The v0.2.7.x page editor fixes plan was sharpened across two refinement rounds. v0.2.7.1 NavDropdown stands unchanged on `main` (tagged + pushed). Plan files updated in 3-way sync: canonical at `~//.claude//plans//frolicking-enchanting-perlis.md`, Studio mirror at `.claude//Planning//Page-Editor-Plan.md`, Nexus mirror at `//The Nexus//Pommora//Planning//Page-Editor-Plan.md` (Obsidian-syncable to phone).
+
+**Round 5 — research-driven sharpening:**
+
+1. **NSTextTable rejected as a viable Apple-native alternative for table rendering.** Tested via Context7 + targeted research agents. Findings: `NSTextTable` / `NSTextBlock` / `NSTextTableBlock` exist since OS X 10.3 but were never promoted to TextKit 2. Apple's own TextEdit silently downgrades to TextKit 1 the moment a table is inserted (Marcin Krzyzanowski, "TextKit 2: The Promised Land," Aug 2025 — referenced via Michael Tsai's quote-extract). Apple Notes uses a custom protobuf document model with bespoke rendering, NOT NSTextTable. Adopting NSTextTable in Pommora would forfeit the TextKit-2-native Writing Tools (15.1+), Look Up / Translate, spell-check, IME, and dynamic system colors that Session 9 just shipped. **Core Graphics overlay drawn in `MarkdownTextLayoutFragment.draw` IS the 2026 Apple-native pattern.** Rationale embedded in the plan's Architecture decisions table.
+
+2. **HR cursor-atom behavior added (Fix 2d).** The `---` source line stays in storage (needed for swift-markdown's ThematicBreak parse) but the caret must never plant inside it. `textViewDidChangeSelection` push-out (direction-aware nudge mirrors NSTextAttachment caret-skip behavior); arrow keys skip past; smart-backspace from the line below deletes the whole `---\n` in one keystroke. Both interceptors guard against `isProgrammaticEdit == true` so Stage 3.C table-cell splices don't trip them. Apple Notes parity. Phase 2 estimate ~30min → ~45min.
+
+3. **Stage 3.D — structural context menu added** per Nathan's "add column / add row should be on the context menu and shouldn't open the popup." Right-click inside a `.pommoraTable` range surfaces "Add Row Above / Below" + "Add Column Left / Right" → in-place AST splice via new `TableStructureRewriter` (Apple `MarkupRewriter`) + `Markup.format()` canonical GFM emission + splice wrapped in `performEditingTransaction`. Does NOT open the popover (structural edits aren't in-cell edits — matches Apple Numbers/Pages/Notes). Row insert preserves widths (columnCount unchanged → `pommora_table_widths` fingerprint hits); column insert resets to auto (columnCount changes → fingerprint misses). Remove row/column deferred to a later patch.
+
+**Round 6 — visual + UX corrections:**
+
+4. **Popover cell styling spec corrected against Apple docs.** Gemini-suggested 4-point recipe verified via Context7 (developer.apple.com SwiftUI docs) + the `swiftui-expert-skill` reference set. **2 of 4 points needed correction, 4 pieces were missing.** Locked spec for each `cellField` in the popover Grid:
+   - `.textFieldStyle(.plain) + .focusEffectDisabled()` — Gemini claimed `.plain` strips the focus ring; corrected: `.plain` strips bg + border but NOT the focus ring (separate AppKit concern). Need `.focusEffectDisabled()` explicitly.
+   - `.padding (inner) → .frame (outer)` — Gemini said "BEFORE padding"; corrected: SwiftUI modifier order applies outer-in, so padding-then-frame puts padding INSIDE the cell-sized frame (correct).
+   - `.contentShape(Rectangle())` added — without it, taps on the transparent expanded-frame area don't register (SwiftUI hit-tests intrinsic content, not the explicit frame).
+   - `.onTapGesture { focusedCell = ... }` on the wrapper added — the expanded hit area catches the tap but doesn't auto-route focus to the embedded TextField; wrapper-level routing is safe (the redundant-`@FocusState`-write anti-pattern only fires when a `.focusable()` view's own gesture re-sets its own focus).
+   - `TextField(..., axis: .vertical)` with `.onKeyPress(.return) { return .handled }` (macOS 14+) — `.onSubmit` doesn't fire for `axis: .vertical` (newline-on-Return is by-design). `onKeyPress` is the canonical macOS-14+ pattern.
+   - Beyond Gemini's recipe: per-column `.multilineTextAlignment` from GFM `table.columnAlignments`; `lineLimit(1...10)` soft cap; 1pt accent `.overlay` focus border (replaces the suppressed default ring); `NSCursor.iBeam` push/pop on hover (affordance that signals "click to edit" without visible chrome).
+
+5. **Blockquote target swapped: "Apple Notes minimal bar" → Apple Calendar event-card chrome.** Nathan supplied a screenshot of Apple Calendar's Today widget event card. Grey rounded-rect card (6pt corner radius, `Color.primary.opacity(0.06)` fill — resolved as `NSColor.labelColor.withAlphaComponent(0.06)`) + 3pt `NSColor.separatorColor` bar INSIDE the card at ~4pt inset from leading edge. Multi-line blockquotes use per-fragment corner-rounding (`.only` = all 4 rounded; `.first` = top 2 rounded + bottom 2 square; `.middle` = all square; `.last` = bottom 2 rounded + top 2 square) to render as ONE visually contiguous card. `BlockquoteMetadata { let sourceRange: NSRange }` struct attribute payload (upgraded from `Bool`) lets each fragment determine its position without re-scanning storage. Mirrors `drawCodeBlockBackground`'s CGPath + bg-fill pattern (NOT `drawThematicBreak` anymore). `paragraphStyle.headIndent = 20` (4pt card-edge → 3pt bar → 13pt clear → text). **This change aligns the plan with what `Features/Pages.md` already documented** — Pages.md described the blockquote as "Calendar.app event-card pattern" all along; the plan had drifted to a Notes-minimal target. Phase 1 estimate ~25min → ~45min.
+
+6. **Version bumped: v0.2.7.1 → v0.2.7.2 for this plan.** NavDropdown took v0.2.7.1. Sequence now reads cleanly: `v0.2.7.0` engine swap (Session 9) → `v0.2.7.1` NavDropdown (Session 10) → `v0.2.7.2` page editor fixes (next session). Tables custom grid (previously projected as a separate v0.2.7.3 patch) absorbs into v0.2.7.2 Phase 3.
+
+**Plan-only meta:**
+
+- 24 parallel edits applied across the 3-way plan file sync for the blockquote re-spec; ~36 total plan-file edits across all of Round 5 + Round 6. All three plan files byte-identical (modulo Nexus mirror's supersession header).
+- Total estimate: ~7.5h across 3 phases / 4 stages (Phase 1 ~45min + Phase 2 ~45min + Phase 3 ~6h).
+- 9 new test suites scoped: `BlockquoteTests`, `HRAutoTransformTests`, `HRCursorAtomTests`, `TableRenderingTests`, `TableColumnWidthTests`, `TablePopoverEditTests`, `TablePopoverCellInteractionTests`, `TableStructureEditTests`, extended `PageFrontmatterTests`.
+- Phase commit cadence locked: Phase 1 → Phase 2 → Stage 3.A → 3.B → 3.C → 3.D. Each green standalone.
+
+**Doc deltas (this session, no code):**
+
+- `// Planning//Page-Editor-Plan.md` (Studio) — Round 5 + Round 6 updates
+- `~//.claude//plans//frolicking-enchanting-perlis.md` (canonical) — same
+- `//The Nexus//Pommora//Planning//Page-Editor-Plan.md` (Obsidian mirror) — same
+- `Handoff.md` — new "Current State (end of 2026-05-20)" section + v0.2.7.2 priority + updated verbatim resume prompt
+- `Framework.md` — patch list reflects v0.2.7.2 plan-locked; Planned section rewritten; cumulative history entry added
+- `Features//PageEditor.md` — deferred patches table rewritten; v0.2.10 → v0.3.2 wikilinks references; v0.2.9 marked unscheduled
+- `Features//Pages.md` — stale v0.2.7.2 NavDropdown references corrected to v0.2.7.1 (NavDropdown shipped without the preview-then-expand mechanic that the original v0.2.7.2 attempt failed at)
+- `PommoraPRD.md` — Editor row stack language updated (Option 2 hypothetical → Option 1 native TextKit-2 SHIPPED at v0.2.7.0)
+- `CLAUDE.md` Active Version section — v0.2.7.2 plan-locked status added
+
+**Tooling used:** Context7 MCP (Apple SwiftUI docs for TextField axis / textFieldStyle / onKeyPress / NSPopover); `swiftui-expert-skill` (text-patterns / focus-patterns / macos-views / latest-apis references); targeted research agents for NSTextTable verdict (Krzyzanowski blog + Apple Forums); plan-file 3-way sync via parallel Edit calls.
+
+---
+
 #### Session 10 (continued) — 2026-05-19 (v0.2.7.1 NavDropdown SHIPPED — simplified + cleaned)
 
 Session 10's second half. Nathan opened: "this session produced lots of data layers, and code with lots of back-and-forth touch-ups that I'm still unhappy with." The v0.2.7.2 NavDropdown shipped earlier in the day was functional but bloated — 22 commits of UIX iteration on standalone-window chrome + hover-heart favorites that didn't land where Nathan wanted.

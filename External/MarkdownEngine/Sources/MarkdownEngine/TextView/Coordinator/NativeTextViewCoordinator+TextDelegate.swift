@@ -51,7 +51,6 @@ extension NativeTextViewCoordinator {
         }
         if wtActive && wtDetectedMode == .proofread { return }
 
-
         let rawSelRange = tv.selectedRange()
         let fullLength = (tv.string as NSString).length
         guard !tv.hasMarkedText() else { return }
@@ -77,10 +76,12 @@ extension NativeTextViewCoordinator {
         let paragraphRange = fullText.paragraphRange(for: safeSelRange)
         let documentLength = fullText.length
         let nextLocation = min(documentLength, NSMaxRange(paragraphRange))
-        let previousParagraph = paragraphRange.location > 0
+        let previousParagraph =
+            paragraphRange.location > 0
             ? fullText.paragraphRange(for: NSRange(location: max(0, paragraphRange.location - 1), length: 0))
             : NSRange(location: NSNotFound, length: 0)
-        let nextParagraph = nextLocation < documentLength
+        let nextParagraph =
+            nextLocation < documentLength
             ? fullText.paragraphRange(for: NSRange(location: nextLocation, length: 0))
             : NSRange(location: NSNotFound, length: 0)
         let editedRange = pendingEditedRange ?? tv.textStorage?.editedRange ?? safeSelRange
@@ -97,11 +98,12 @@ extension NativeTextViewCoordinator {
             return editedRange.location == NSNotFound ? safeSelRange : editedRange
         }()
         let editedParagraphs = paragraphRanges(in: fullText, intersecting: safeEditedRange)
-        let paragraphCandidates: [NSRange] = [
-            previousParagraph,
-            paragraphRange,
-            nextParagraph
-        ] + editedParagraphs
+        let paragraphCandidates: [NSRange] =
+            [
+                previousParagraph,
+                paragraphRange,
+                nextParagraph,
+            ] + editedParagraphs
 
         let backtickCount = tv.string.components(separatedBy: "```").count - 1
         let codeBlockStructureChanged = backtickCount != previousBacktickCount
@@ -134,14 +136,17 @@ extension NativeTextViewCoordinator {
             effectiveParagraphCandidates = [NSRange(location: 0, length: fullText.length)]
         }
         // Always restyle paragraphs containing latex/imageEmbed tokens to avoid stale raw text.
-        let latexParagraphs = (latexTokens + blockLatexTokens + parsed.imageEmbedTokens).map { fullText.paragraphRange(for: $0.range) }
+        let latexParagraphs = (latexTokens + blockLatexTokens + parsed.imageEmbedTokens).map {
+            fullText.paragraphRange(for: $0.range)
+        }
         effectiveParagraphCandidates.append(contentsOf: latexParagraphs)
-        effectiveParagraphCandidates.append(contentsOf: tokenRestyleParagraphs(
-            in: fullText,
-            tokens: tokens,
-            currentActiveTokenIndices: activeTokenIndices,
-            previousActiveTokenIndices: preEditActiveTokenIndices
-        ))
+        effectiveParagraphCandidates.append(
+            contentsOf: tokenRestyleParagraphs(
+                in: fullText,
+                tokens: tokens,
+                currentActiveTokenIndices: activeTokenIndices,
+                previousActiveTokenIndices: preEditActiveTokenIndices
+            ))
 
         restyleTextView(tv, paragraphCandidates: effectiveParagraphCandidates, tokens: tokens)
         updateCodeBlockSelection(textView: tv, tokens: tokens)
@@ -150,7 +155,8 @@ extension NativeTextViewCoordinator {
             return
         }
         if let bottomTextView = tv as? NativeTextView,
-           let scrollView = tv.enclosingScrollView {
+            let scrollView = tv.enclosingScrollView
+        {
             bottomTextView.recalcOverscroll(for: scrollView, debugTag: "textDidChange")
             (scrollView as? ClampedScrollView)?.clampToInsets()
         }
@@ -164,8 +170,9 @@ extension NativeTextViewCoordinator {
         let currentEventType = NSApp.currentEvent?.type
         // Mouse-/Wake-Fokus auf Link: kein Preview, erst Navigation. Gilt für alle Nicht-Key-Events.
         if currentEventType != .keyDown,
-           selRange.location < (tv.string as NSString).length,
-           tv.textStorage?.attribute(.link, at: selRange.location, effectiveRange: nil) != nil {
+            selRange.location < (tv.string as NSString).length,
+            tv.textStorage?.attribute(.link, at: selRange.location, effectiveRange: nil) != nil
+        {
             isImageEmbedActive = false
             isWikiLinkActive = false
             onInlineSelectionChange?(nil)
@@ -182,7 +189,8 @@ extension NativeTextViewCoordinator {
         let nsText = tv.string as NSString
 
         let prevActive = activeTokenIndices
-        activeTokenIndices = MarkdownDetection.computeActiveTokenIndices(selectionRange: selRange, tokens: tokens, in: nsText)
+        activeTokenIndices = MarkdownDetection.computeActiveTokenIndices(
+            selectionRange: selRange, tokens: tokens, in: nsText)
         filterImageEmbedActiveTokens(parsed: parsed, text: nsText, selectionLocation: selRange.location)
         updateAutocorrectSettings(
             tv,
@@ -204,14 +212,17 @@ extension NativeTextViewCoordinator {
             paragraphCandidates.append(prevPara)
         }
         // Also restyle paragraphs containing latex/imageEmbed tokens to refresh rendering.
-        let latexParagraphs = (latexTokens + blockLatexTokens + parsed.imageEmbedTokens).map { nsText.paragraphRange(for: $0.range) }
+        let latexParagraphs = (latexTokens + blockLatexTokens + parsed.imageEmbedTokens).map {
+            nsText.paragraphRange(for: $0.range)
+        }
         paragraphCandidates.append(contentsOf: latexParagraphs)
-        paragraphCandidates.append(contentsOf: tokenRestyleParagraphs(
-            in: nsText,
-            tokens: tokens,
-            currentActiveTokenIndices: activeTokenIndices,
-            previousActiveTokenIndices: previousActiveTokenIndices
-        ))
+        paragraphCandidates.append(
+            contentsOf: tokenRestyleParagraphs(
+                in: nsText,
+                tokens: tokens,
+                currentActiveTokenIndices: activeTokenIndices,
+                previousActiveTokenIndices: previousActiveTokenIndices
+            ))
 
         let shouldSkipSelectionRestyle = pendingEditedRange != nil
         let tokensChanged = activeTokenIndices != prevActive
@@ -223,14 +234,17 @@ extension NativeTextViewCoordinator {
 
         // Auto-select content when clicking (mouse) into a rendered (previously inactive) latex or image embed
         if selRange.length == 0,
-           let eventType = currentEventType,
-           eventType == .leftMouseUp || eventType == .leftMouseDown {
+            let eventType = currentEventType,
+            eventType == .leftMouseUp || eventType == .leftMouseDown
+        {
             let newlyActive = activeTokenIndices.subtracting(previousActiveTokenIndices)
             for idx in newlyActive {
                 let token = tokens[idx]
-                guard token.kind == .inlineLatex
-                    || token.kind == .blockLatex
-                    || token.kind == .imageEmbed else {
+                guard
+                    token.kind == .inlineLatex
+                        || token.kind == .blockLatex
+                        || token.kind == .imageEmbed
+                else {
                     continue
                 }
                 let selectRange = token.contentRange
@@ -268,10 +282,12 @@ extension NativeTextViewCoordinator {
             let openingMarkerLength = inlineContext.selectionKind == .imageEmbed ? 3 : 2
             let displayRange = selectionDisplayRange(for: inlineContext.token, openingMarkerLength: openingMarkerLength)
             let placeholder = nsString.substring(with: displayRange)
-            let storageRange = inlineContext.selectionKind == .wikiLink
+            let storageRange =
+                inlineContext.selectionKind == .wikiLink
                 ? storageRange(containingDisplayLocation: selLocation) ?? storageRange(forDisplayRange: displayRange)
                 : nil
-            let previewRect = tv.viewRect(forCharacterRange: displayRange, using: layoutBridge)
+            let previewRect =
+                tv.viewRect(forCharacterRange: displayRange, using: layoutBridge)
                 ?? tv.viewRect(forCharacterRange: tv.selectedRange(), using: layoutBridge)
 
             let shouldShowInlinePreview =
@@ -303,9 +319,19 @@ extension NativeTextViewCoordinator {
         if !shouldSkipSelectionRestyle {
             updateCodeBlockSelection(textView: tv, tokens: tokens)
         }
+
+        // Pommora: re-sync HR dynamic-syntax visibility on every caret move.
+        // The service hides dashes + applies 16/16 paragraphSpacing when the
+        // caret leaves an HR paragraph, and restores body styling when caret
+        // enters. Reentry-guarded to prevent recursion via restyle.
+        if let ts = tv.textStorage {
+            syncHRVisibility(in: ts, textView: tv)
+        }
     }
 
-    public func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+    public func textView(
+        _ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?
+    ) -> Bool {
         if isProgrammaticEdit { return true }
         if isWritingToolsActive { return true }
         pendingEditedRange = NSRange(location: affectedCharRange.location, length: replacementString?.utf16.count ?? 0)
@@ -366,7 +392,8 @@ extension NativeTextViewCoordinator {
             return false
         }
 
-        return MarkdownInputHandler.handleListInsertion(textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
+        return MarkdownInputHandler.handleListInsertion(
+            textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
     }
 
     public func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
@@ -416,7 +443,8 @@ extension NativeTextViewCoordinator {
         let pattern = #"^([\t ]*)((\d+)\.|-|•)\s"#
         let regex = try? NSRegularExpression(pattern: pattern)
         if let regex = regex,
-           let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)) {
+            let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count))
+        {
             let wsRangeLocal = match.range(at: 1)
             let wsString = (line as NSString).substring(with: wsRangeLocal)
             let wsDocStart = lineRange.location + wsRangeLocal.location
@@ -436,7 +464,8 @@ extension NativeTextViewCoordinator {
                         if ch == " " && removeCount < 2 { removeCount += 1 } else { break }
                     }
                     if removeCount == 0 { removeCount = min(2, wsRangeLocal.length) }
-                    MarkdownLists.performEdit(textView, replace: NSRange(location: wsDocStart, length: removeCount), with: "")
+                    MarkdownLists.performEdit(
+                        textView, replace: NSRange(location: wsDocStart, length: removeCount), with: "")
                     textView.setSelectedRange(NSRange(location: max(0, caretLoc - removeCount), length: 0))
                     return true
                 }

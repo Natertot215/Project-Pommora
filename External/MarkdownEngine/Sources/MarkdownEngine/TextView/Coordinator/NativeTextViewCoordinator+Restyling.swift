@@ -39,7 +39,7 @@ extension NativeTextViewCoordinator {
         let baseAttrs: [NSAttributedString.Key: Any] = [
             .font: baseFont,
             .foregroundColor: configuration.theme.bodyText,
-            .paragraphStyle: paragraph
+            .paragraphStyle: paragraph,
         ]
         textView.textStorage?.beginEditing()
         textView.textStorage?.removeAttribute(.link, range: fullRange)
@@ -82,6 +82,13 @@ extension NativeTextViewCoordinator {
             }
             tlm.ensureLayout(for: tlm.documentRange)
         }
+
+        // Pommora: initial-load / full-rebuild HR visibility sync. Same as the
+        // per-edit hook in restyleTextView — service is the sole owner of HR
+        // styling and must run after any pass that resets base attributes.
+        if let ts = textView.textStorage {
+            syncHRVisibility(in: ts, textView: textView)
+        }
     }
 
     func restyleTextView(
@@ -110,6 +117,15 @@ extension NativeTextViewCoordinator {
             precomputedTokens: tokens,
             configuration: configuration
         )
+
+        // Pommora: re-sync HR dynamic-syntax visibility after every restyle.
+        // The styler emits nothing for ThematicBreak (Change 1 of the HR
+        // dynamic-syntax plan), so the service must re-apply hidden/revealed
+        // attributes whenever a restyle could have cleared them. Reentry-
+        // guarded to prevent recursion.
+        if let ts = textView.textStorage {
+            syncHRVisibility(in: ts, textView: textView)
+        }
     }
 
     func parsedDocument(for text: String) -> ParsedDocument {
@@ -228,7 +244,8 @@ extension NativeTextViewCoordinator {
         let currentText = textView.string as NSString
         let range = request.selection.displayRange
         guard range.location != NSNotFound,
-              range.location + range.length <= currentText.length else {
+            range.location + range.length <= currentText.length
+        else {
             return
         }
 

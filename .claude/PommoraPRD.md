@@ -46,14 +46,14 @@ Full definitions, on-disk shapes, capabilities, linking model → `// Features//
 
 ##### Stack
 
-Pommora's stack is SwiftUI. Option 2 (WKWebView hosting a JS editor) is the likely direction for the Pages editor.
+Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on Option 1 — native NSTextView + Apple `swift-markdown` 0.8.0 + TextKit 2 + vendored `swift-markdown-engine`** (Apache 2.0, at `External/MarkdownEngine/`). After a Pallepadehat WKWebView fork attempt didn't deliver the macOS-native feel, the native TextKit-2 pivot gave Pommora Writing Tools (15.1+), Look Up / Translate, spell-check, IME, and dynamic system colors for free. Full editor spec → `// Features//PageEditor.md`.
 
 | Layer | SwiftUI |
 |---|---|
 | Desktop shell | SwiftUI on macOS Tahoe (26+) |
 | UI framework | SwiftUI primary + AppKit interop where SwiftUI falls short (NSTextView/TextKit 2, NSSplitView, NSItemProvider for some drag/drop) |
 | Styling | SwiftUI native semantic colors / Materials / Font scale + small Pommora-brand `Color` / `Font` extensions for accent + code + callout values |
-| Editor (Pages) | Option 2 (likely): WKWebView hosting Tiptap, Milkdown, or BlockNote — all translate cleanly to Markdown. Option 1 (more ambitious): native NSTextView + `swift-markdown` + TextKit 2 (Clearly as fork-reference). |
+| Editor (Pages) | **Shipped v0.2.7.0**: native NSTextView + Apple `swift-markdown` 0.8.0 + TextKit 2 + vendored `swift-markdown-engine` (Apache 2.0, at `External/MarkdownEngine/`). Pommora-side `AppleASTSupplementalStyler` adds BlockQuote / Strikethrough / Table / ThematicBreak rendering on top of the engine's regex tokenizer. `MarkdownTextLayoutFragment.draw` overrides ship for HR (real horizontal line, Phase 1) and are the architectural extension point for the locked v0.2.7.2 Blockquote (Apple Calendar event-card chrome) + Tables (Core Graphics grid overlay) work. |
 | Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `Codable` block enum; candidate vertical-reorder and split-pane component libraries (e.g. `visfitness/reorderable`, `stevengharris/SplitView`) evaluated at build time |
 | Backend layer | Pure Swift |
 | Database | SQLite via GRDB.swift v7.5+ (FTS5 + `ValueObservation`) |

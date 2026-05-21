@@ -49,22 +49,26 @@ enum AppleASTSupplementalStyler {
         let theme: MarkdownEditorTheme
         var styledRanges: [StyledRange] = []
 
-        mutating func defaultVisit(_ markup: any Markup) -> Void {
+        mutating func defaultVisit(_ markup: any Markup) {
             for child in markup.children {
                 visit(child)
             }
         }
 
-        mutating func visitBlockQuote(_ blockQuote: BlockQuote) -> Void {
+        mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
             if let range = SourceRangeConverter.nsRange(from: blockQuote.range, in: nsText, lineIndex: lineIndex) {
                 let paragraph = NSMutableParagraphStyle()
                 paragraph.headIndent = 20
                 paragraph.firstLineHeadIndent = 20
-                styledRanges.append((range, [
-                    .foregroundColor: theme.bodyText.withAlphaComponent(0.75),
-                    .backgroundColor: theme.bodyText.withAlphaComponent(0.06),
-                    .paragraphStyle: paragraph
-                ]))
+                styledRanges.append(
+                    (
+                        range,
+                        [
+                            .foregroundColor: theme.bodyText.withAlphaComponent(0.75),
+                            .backgroundColor: theme.bodyText.withAlphaComponent(0.06),
+                            .paragraphStyle: paragraph,
+                        ]
+                    ))
             }
             // Continue walking children so nested strikethrough etc. still fire.
             for child in blockQuote.children {
@@ -72,28 +76,37 @@ enum AppleASTSupplementalStyler {
             }
         }
 
-        mutating func visitStrikethrough(_ strikethrough: Strikethrough) -> Void {
+        mutating func visitStrikethrough(_ strikethrough: Strikethrough) {
             if let range = SourceRangeConverter.nsRange(from: strikethrough.range, in: nsText, lineIndex: lineIndex) {
-                styledRanges.append((range, [
-                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
-                    .strikethroughColor: theme.bodyText
-                ]))
+                styledRanges.append(
+                    (
+                        range,
+                        [
+                            .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                            .strikethroughColor: theme.bodyText,
+                        ]
+                    ))
             }
             for child in strikethrough.children {
                 visit(child)
             }
         }
 
-        mutating func visitTable(_ table: Table) -> Void {
-            guard let tableRange = SourceRangeConverter.nsRange(from: table.range, in: nsText, lineIndex: lineIndex) else {
+        mutating func visitTable(_ table: Table) {
+            guard let tableRange = SourceRangeConverter.nsRange(from: table.range, in: nsText, lineIndex: lineIndex)
+            else {
                 return
             }
             // Cell content uses monospace + faint bg tint so columns align.
             let monoFont = NSFont.monospacedSystemFont(ofSize: baseFont.pointSize, weight: .regular)
-            styledRanges.append((tableRange, [
-                .font: monoFont,
-                .backgroundColor: theme.bodyText.withAlphaComponent(0.04)
-            ]))
+            styledRanges.append(
+                (
+                    tableRange,
+                    [
+                        .font: monoFont,
+                        .backgroundColor: theme.bodyText.withAlphaComponent(0.04),
+                    ]
+                ))
 
             // Hide all `|` cell separators across the table's range — they
             // become invisible while staying in source for canonical-md
@@ -104,10 +117,14 @@ enum AppleASTSupplementalStyler {
             while let pipeRange = tableText.range(of: "|", range: searchStart..<tableText.endIndex) {
                 let utf16Offset = tableText.utf16.distance(from: tableText.startIndex, to: pipeRange.lowerBound)
                 let absoluteLocation = tableRange.location + utf16Offset
-                styledRanges.append((NSRange(location: absoluteLocation, length: 1), [
-                    .font: hiddenFont,
-                    .foregroundColor: NSColor.clear
-                ]))
+                styledRanges.append(
+                    (
+                        NSRange(location: absoluteLocation, length: 1),
+                        [
+                            .font: hiddenFont,
+                            .foregroundColor: NSColor.clear,
+                        ]
+                    ))
                 searchStart = pipeRange.upperBound
             }
 
@@ -116,19 +133,25 @@ enum AppleASTSupplementalStyler {
             // markdown doesn't expose this row as a node, but its source
             // range sits between Head.upperBound and Body.first.lowerBound.
             if let head = table.head.range,
-               let firstBodyRow = table.body.children.compactMap({ ($0 as? Table.Row)?.range }).first {
+                let firstBodyRow = table.body.children.compactMap({ ($0 as? Table.Row)?.range }).first
+            {
                 let separatorStartLine = head.upperBound.line + 1
                 let separatorEndLine = firstBodyRow.lowerBound.line - 1
                 if separatorStartLine <= separatorEndLine,
-                   let startOffset = lineIndex.utf16Offset(line: separatorStartLine, column: 1),
-                   let endOffset = lineIndex.utf16Offset(line: separatorEndLine + 1, column: 1) {
+                    let startOffset = lineIndex.utf16Offset(line: separatorStartLine, column: 1),
+                    let endOffset = lineIndex.utf16Offset(line: separatorEndLine + 1, column: 1)
+                {
                     let clampedEnd = min(endOffset, nsText.length)
                     if clampedEnd > startOffset {
                         let sepRange = NSRange(location: startOffset, length: clampedEnd - startOffset)
-                        styledRanges.append((sepRange, [
-                            .font: hiddenFont,
-                            .foregroundColor: NSColor.clear
-                        ]))
+                        styledRanges.append(
+                            (
+                                sepRange,
+                                [
+                                    .font: hiddenFont,
+                                    .foregroundColor: NSColor.clear,
+                                ]
+                            ))
                     }
                 }
             }
@@ -138,19 +161,20 @@ enum AppleASTSupplementalStyler {
             }
         }
 
-        mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) -> Void {
-            guard let range = SourceRangeConverter.nsRange(from: thematicBreak.range, in: nsText, lineIndex: lineIndex) else {
-                return
-            }
-            // Hide the dashes (font 0.1 + clear color), then mark the range
-            // so MarkdownTextLayoutFragment.drawThematicBreak draws an
-            // actual horizontal line in their place — Apple-Notes-style.
-            let hiddenFont = NSFont.systemFont(ofSize: 0.1)
-            styledRanges.append((range, [
-                .font: hiddenFont,
-                .foregroundColor: NSColor.clear,
-                .pommoraThematicBreak: true
-            ]))
+        mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) {
+            // Pommora: ThematicBreak visual styling (font/color/paragraphStyle)
+            // is owned entirely by the caret-awareness service in
+            // NativeTextViewCoordinator (see syncHRVisibility). The service
+            // applies all three attributes ONLY when the caret has left the HR
+            // paragraph, so the visual "commit" (dashes hide + line appears +
+            // 16/16 paragraphSpacing appears) happens on caret-leave (typically
+            // Enter) — not at parser-detection time. Emitting any HR-specific
+            // attribute here would fire on every keystroke (since the parser
+            // detects `---` immediately on the 3rd dash), breaking the
+            // "Enter is the trigger" UX promise.
+            //
+            // ThematicBreak has no children worth walking; nothing to do.
+            _ = thematicBreak
         }
     }
 }

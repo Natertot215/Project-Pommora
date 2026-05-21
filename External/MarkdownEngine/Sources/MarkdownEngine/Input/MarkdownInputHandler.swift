@@ -12,8 +12,11 @@ import AppKit
 @MainActor
 enum MarkdownInputHandler {
 
-    static func handleListInsertion(textView: NSTextView, affectedCharRange: NSRange, replacementString: String?) -> Bool {
-        return MarkdownLists.handleInsertion(textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
+    static func handleListInsertion(
+        textView: NSTextView, affectedCharRange: NSRange, replacementString: String?
+    ) -> Bool {
+        return MarkdownLists.handleInsertion(
+            textView: textView, affectedCharRange: affectedCharRange, replacementString: replacementString)
     }
 
     // MARK: - Character-Pair Auto-Pair (Pommora addition)
@@ -40,19 +43,20 @@ enum MarkdownInputHandler {
         codeTokens: [MarkdownToken]? = nil
     ) -> Bool {
         guard let typed = replacementString,
-              typed.utf16.count == 1,
-              affectedCharRange.length == 0,
-              affectedCharRange.location > 0
+            typed.utf16.count == 1,
+            affectedCharRange.length == 0,
+            affectedCharRange.location > 0
         else { return false }
 
         // Map typed char → close marker. Empty closeMarker means not a pair char.
         let closeMarker: String
         switch typed {
-        case "*":  closeMarker = "**"
-        case "_":  closeMarker = "__"
-        case "[":  closeMarker = "]]"
-        case "`":  closeMarker = "``"
-        default:   return false
+        case "*": closeMarker = "**"
+        case "_": closeMarker = "__"
+        case "[": closeMarker = "]]"
+        case "(": closeMarker = "))"
+        case "`": closeMarker = "``"
+        default: return false
         }
 
         let nsText = textView.string as NSString
@@ -126,7 +130,7 @@ enum MarkdownInputHandler {
         // Only backspace-style deletions: empty replacement on a single-char
         // range. Larger selections / multi-char deletes / inserts skip this.
         guard let replacement = replacementString, replacement.isEmpty,
-              affectedCharRange.length == 1
+            affectedCharRange.length == 1
         else { return false }
 
         let nsText = textView.string as NSString
@@ -140,11 +144,12 @@ enum MarkdownInputHandler {
         // Match deleted-char → expected matching-close-char.
         let expectedCloseChar: String
         switch deletedChar {
-        case "*":  expectedCloseChar = "*"
-        case "_":  expectedCloseChar = "_"
-        case "[":  expectedCloseChar = "]"
-        case "`":  expectedCloseChar = "`"
-        default:   return false
+        case "*": expectedCloseChar = "*"
+        case "_": expectedCloseChar = "_"
+        case "[": expectedCloseChar = "]"
+        case "(": expectedCloseChar = ")"
+        case "`": expectedCloseChar = "`"
+        default: return false
         }
         guard nextChar == expectedCloseChar else { return false }
 
@@ -163,7 +168,9 @@ enum MarkdownInputHandler {
 
     // MARK: - Block LaTeX Auto-Wrap
 
-    private static func insertTextProgrammatically(_ textView: NSTextView, text: String, at range: NSRange, cursorAfter: Int) {
+    private static func insertTextProgrammatically(
+        _ textView: NSTextView, text: String, at range: NSRange, cursorAfter: Int
+    ) {
         if let coord = textView.delegate as? NativeTextViewWrapper.Coordinator {
             coord.isProgrammaticEdit = true
         }
@@ -189,8 +196,9 @@ enum MarkdownInputHandler {
         } else {
             resolvedTokens = MarkdownTokenizer.parseTokens(in: textView.string).filter { $0.kind == .blockLatex }
         }
-        return handleBlockAutoWrap(textView: textView, affectedCharRange: affectedCharRange,
-                                   replacementString: replacementString, tokens: resolvedTokens)
+        return handleBlockAutoWrap(
+            textView: textView, affectedCharRange: affectedCharRange,
+            replacementString: replacementString, tokens: resolvedTokens)
     }
 
     /// Ensures image embeds (![[...]]) stay on their own line by automatically inserting newlines.
@@ -206,8 +214,9 @@ enum MarkdownInputHandler {
         } else {
             resolvedTokens = MarkdownTokenizer.parseTokens(in: textView.string).filter { $0.kind == .imageEmbed }
         }
-        return handleBlockAutoWrap(textView: textView, affectedCharRange: affectedCharRange,
-                                   replacementString: replacementString, tokens: resolvedTokens)
+        return handleBlockAutoWrap(
+            textView: textView, affectedCharRange: affectedCharRange,
+            replacementString: replacementString, tokens: resolvedTokens)
     }
 
     /// Shared auto-wrap logic: ensures a block-level token stays on its own line.
@@ -218,8 +227,9 @@ enum MarkdownInputHandler {
         tokens: [MarkdownToken]
     ) -> Bool {
         guard let replacement = replacementString,
-              !replacement.isEmpty,
-              replacement != "\n" else { return false }
+            !replacement.isEmpty,
+            replacement != "\n"
+        else { return false }
 
         let text = textView.string as NSString
         let newlineChar = UInt16(("\n" as Character).asciiValue!)
@@ -230,13 +240,15 @@ enum MarkdownInputHandler {
             // Typing right after closing marker
             if affectedCharRange.location == tokenEnd {
                 if tokenEnd < text.length && text.character(at: tokenEnd) == newlineChar {
-                    insertTextProgrammatically(textView, text: replacement,
-                                               at: NSRange(location: tokenEnd + 1, length: 0),
-                                               cursorAfter: tokenEnd + 1 + replacement.utf16.count)
+                    insertTextProgrammatically(
+                        textView, text: replacement,
+                        at: NSRange(location: tokenEnd + 1, length: 0),
+                        cursorAfter: tokenEnd + 1 + replacement.utf16.count)
                 } else {
-                    insertTextProgrammatically(textView, text: "\n" + replacement,
-                                               at: affectedCharRange,
-                                               cursorAfter: affectedCharRange.location + 1 + replacement.utf16.count)
+                    insertTextProgrammatically(
+                        textView, text: "\n" + replacement,
+                        at: affectedCharRange,
+                        cursorAfter: affectedCharRange.location + 1 + replacement.utf16.count)
                 }
                 return true
             }
@@ -244,13 +256,15 @@ enum MarkdownInputHandler {
             // Typing right before opening marker
             if affectedCharRange.location == token.range.location {
                 if token.range.location > 0 && text.character(at: token.range.location - 1) == newlineChar {
-                    insertTextProgrammatically(textView, text: replacement,
-                                               at: NSRange(location: token.range.location - 1, length: 0),
-                                               cursorAfter: token.range.location - 1 + replacement.utf16.count)
+                    insertTextProgrammatically(
+                        textView, text: replacement,
+                        at: NSRange(location: token.range.location - 1, length: 0),
+                        cursorAfter: token.range.location - 1 + replacement.utf16.count)
                 } else {
-                    insertTextProgrammatically(textView, text: replacement + "\n",
-                                               at: affectedCharRange,
-                                               cursorAfter: affectedCharRange.location + replacement.utf16.count)
+                    insertTextProgrammatically(
+                        textView, text: replacement + "\n",
+                        at: affectedCharRange,
+                        cursorAfter: affectedCharRange.location + replacement.utf16.count)
                 }
                 return true
             }

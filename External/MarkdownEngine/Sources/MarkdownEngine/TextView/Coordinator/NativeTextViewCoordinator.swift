@@ -67,6 +67,11 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var pendingEditedRange: NSRange? = nil
     var pendingPreEditActiveTokenIndices: Set<Int>? = nil
     var previousCaretLocation: Int? = nil
+    /// Reentry guard for `syncHRVisibility`. The service writes attributes
+    /// inside beginEditing/endEditing; if those writes trigger restyle (which
+    /// our post-restyle hook would re-enter), we'd recurse. Set on entry,
+    /// cleared in defer, early-return if already set.
+    var isSyncingHRVisibility: Bool = false
 
     var cachedCodeBlockTokens: [(index: Int, token: MarkdownToken)] = []
     var cachedParsedText: String?
@@ -109,12 +114,14 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     // Inline selection geometry, image-embed activation, and inline-token
     // detection live in `NativeTextViewCoordinator+InlineSelection.swift`.
 
-    init(text: Binding<String>,
-         fontName: String,
-         fontSize: CGFloat,
-         isWikiLinkActive: Binding<Bool>,
-         onLinkClick: ((String) -> Void)?,
-         onInlineSelectionChange: ((InlineSelectionState?) -> Void)?) {
+    init(
+        text: Binding<String>,
+        fontName: String,
+        fontSize: CGFloat,
+        isWikiLinkActive: Binding<Bool>,
+        onLinkClick: ((String) -> Void)?,
+        onInlineSelectionChange: ((InlineSelectionState?) -> Void)?
+    ) {
         _text = text
         self.fontName = fontName
         self.fontSize = fontSize
@@ -247,8 +254,9 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
 extension NSTextView {
     func viewRect(forCharacterRange range: NSRange, using bridge: LayoutBridge?) -> CGRect? {
         guard range.location != NSNotFound,
-              let bridge = bridge,
-              let textContainer = textContainer else { return nil }
+            let bridge = bridge,
+            let textContainer = textContainer
+        else { return nil }
         var boundingRect = bridge.boundingRect(forCharacterRange: range, in: textContainer)
         let containerOrigin = textContainerOrigin
         boundingRect.origin.x += containerOrigin.x
@@ -261,4 +269,3 @@ extension NSTextView {
         return boundingRect
     }
 }
-
