@@ -138,6 +138,43 @@ struct RecentsManagerTests {
         #expect(m.stepForward() == nil)
     }
 
+    @Test("record ignores organizational kinds (Spaces / Topics / Vaults / Collections)")
+    func recordFiltersNonContentKinds() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let m = RecentsManager(nexus: nexus)
+        await m.load()
+        m.record(EntityStateRef(kind: .space, id: "S", title: "Space"))
+        m.record(EntityStateRef(kind: .topic, id: "T", title: "Topic"))
+        m.record(EntityStateRef(kind: .subtopic, id: "ST", title: "Sub"))
+        m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
+        m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
+        #expect(m.entries.isEmpty)
+        m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
+        m.record(EntityStateRef(kind: .item, id: "I", title: "Item"))
+        #expect(m.entries.count == 2)
+    }
+
+    @Test("load strips legacy non-content entries from state.json")
+    func loadStripsLegacyKinds() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        var seed = NexusState()
+        seed.recents = [
+            EntityStateRef(kind: .page, id: "keep", title: "Keep"),
+            EntityStateRef(kind: .vault, id: "drop1", title: "V"),
+            EntityStateRef(kind: .topic, id: "drop2", title: "T"),
+            EntityStateRef(kind: .item, id: "alsoKeep", title: "I"),
+        ]
+        try FileManager.default.createDirectory(
+            at: NexusPaths.nexusConfigDir(in: nexus), withIntermediateDirectories: true)
+        try AtomicJSON.write(seed, to: NexusPaths.nexusStateURL(in: nexus))
+        let m = RecentsManager(nexus: nexus)
+        await m.load()
+        #expect(m.entries.count == 2)
+        #expect(m.entries.map(\.id) == ["keep", "alsoKeep"])
+    }
+
     @Test("dropdownTop returns first 100 entries")
     func dropdownTopCap() async throws {
         let nexus = try TempNexus.make()

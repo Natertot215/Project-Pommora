@@ -38,14 +38,31 @@ final class RecentsManager {
         }
         do {
             let state = try AtomicJSON.decode(NexusState.self, from: url)
-            self.entries = state.recents
-            self.cursor = min(state.cursor, max(0, state.recents.count - 1))
+            // Drop any entries from prior versions that recorded organizational
+            // surfaces (Spaces / Topics / Sub-topics / Vaults / Collections);
+            // those no longer belong in Recents.
+            let filtered = state.recents.filter { ref in
+                guard let kind = ref.typedKind else { return false }
+                return Self.recordableKinds.contains(kind)
+            }
+            self.entries = filtered
+            self.cursor = min(state.cursor, max(0, filtered.count - 1))
+            if filtered.count != state.recents.count {
+                Task { try? await save() }
+            }
         } catch {
             self.pendingError = error
         }
     }
 
+    /// Only Pages, Items, and Agenda entries belong in Recents. Contexts
+    /// (Spaces / Topics / Sub-topics) and Vault containers (Vaults /
+    /// Collections) are organizational surfaces — they can still be Pinned,
+    /// but selecting them never enters the Recents history.
+    static let recordableKinds: Set<EntityStateRef.Kind> = [.page, .item, .agenda]
+
     func record(_ ref: EntityStateRef) {
+        guard let kind = ref.typedKind, Self.recordableKinds.contains(kind) else { return }
         entries.removeAll { $0 == ref }
         entries.insert(ref, at: 0)
         if entries.count > Self.storeCap {

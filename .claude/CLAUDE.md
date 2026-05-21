@@ -33,7 +33,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 
-- **Pages are Markdown, Contexts are blocks.** Pages are Markdown documents (one continuous Markdown stream) with two Pommora-specific rendering directives — `@Columns` (multi-column rendering of a section) and `:::callout` (outlined-box callout, distinct from blockquotes). Standard Markdown handles tables (GFM), blockquotes (standard `>` syntax, rendered with a filled background + left-side emphasis bar), dividers (`---`), and everything else. Headings are foldable by default (built-in UI, not a directive). **"Block-level features" as a project term belongs to Contexts only** — Contexts (Spaces / Topics / Sub-topics) are the page-like canvases with drag-and-drop blocks.
+- **Pages are Markdown, Contexts are blocks.** Pages are Markdown documents (one continuous Markdown stream) with two Pommora-specific rendering directives — `@Columns` (multi-column rendering of a section) and `:::callout` (outlined-box callout, distinct from blockquotes).
 
 - **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips.
 
@@ -43,7 +43,8 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 
 - **Move-strip rule.** Moving a Page or Item across Vaults strips properties not in the destination schema — Notion-style; no quarantine. The user gets a simple confirmation warning listing which properties will be stripped. Within the same Vault (between Collection sub-folders), no strip — schema is shared.
 
-- **Design system: SwiftUI primary + AppKit where needed + small Pommora-brand extensions.** Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView/TextKit 2 for Option 1 editor, NSSplitView for splitter polish). 
+- **Design system: SwiftUI primary + AppKit where needed**
+ Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView/TextKit 2 for Option 1 editor, NSSplitView for splitter polish). 
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 
