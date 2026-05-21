@@ -9,7 +9,6 @@
 //  via NSTextLayoutFragment instead of NSLayoutManager glyph overrides.
 
 @preconcurrency import AppKit
-import Markdown
 
 // MARK: - Custom attribute keys for rendering overlays
 
@@ -18,12 +17,14 @@ extension NSAttributedString.Key {
     nonisolated static let latexBounds = NSAttributedString.Key("LatexImageBounds")
     nonisolated static let latexIsBlock = NSAttributedString.Key("LatexIsBlock")
     nonisolated static let latexBlockOffsetY = NSAttributedString.Key("LatexBlockOffsetY")
-    /// Legacy attribute key from the prior HR implementation. No code path
-    /// emits or reads this anymore — HR detection is now AST-backed via
-    /// `MarkdownTextLayoutFragment.hasThematicBreak`. Kept for binary
-    /// compatibility with any stored attributes from older builds; can be
-    /// removed in a future cleanup sweep.
-    nonisolated static let pommoraThematicBreak = NSAttributedString.Key("PommoraThematicBreak")
+    // Historical note: do NOT add a custom NSAttributedString.Key here for any
+    // paragraph-level construct (HR, blockquote, etc.). AppKit's attribute
+    // inheritance leaks custom flags onto newly-typed chars in ways
+    // `shouldChangeTypingAttributes` cannot prevent — the prior HR
+    // implementation's `.pommoraThematicBreak` key caused "duplicate HR on
+    // every Enter" bugs. Use AST-backed detection at draw time + a
+    // caret-awareness service for visibility state. See
+    // `.claude/Guidelines/Markdown.md` §6.1.
 }
 
 // Pommora vendoring: NSTextLayoutFragment's overridden members are nonisolated
@@ -68,22 +69,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// is structurally correct: AST already gives the desired answer.
     private var hasThematicBreak: Bool {
         guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-
-        // Stage 0 — code-block guard. Reuses the existing fragment property.
-        if hasCodeBlockBackground { return false }
-
         let fragmentString = ts.attributedSubstring(from: range).string
-
-        // Stage 1 — prefilter. ~99% of fragments early-exit here.
-        let trimmed = fragmentString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 3,
-            let first = trimmed.first,
-            first == "-" || first == "*" || first == "_"
-        else { return false }
-
-        // Stage 2 — AST parse confirms.
-        let document = Markdown.Document(parsing: fragmentString)
-        return document.children.contains { $0 is ThematicBreak }
+        return MarkdownDetection.isThematicBreakLine(
+            fragmentString,
+            isInsideCodeBlock: hasCodeBlockBackground
+        )
     }
 
     /// True when the caret rests inside the paragraph that owns this fragment.

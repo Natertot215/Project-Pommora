@@ -8,13 +8,13 @@
 // Applies the Markdown look (bold, links, code, headings, etc.) based on
 // the current text and cursor position.
 //
-// Token-class–specific styling lives in extension files:
+// Token-class–specific styling lives partly in this file (fenced/inline
+// code, task list checkboxes, horizontal rules — historical) and partly
+// in sibling extension files:
 //   - MarkdownStyler+TextStyling.swift   (headings, emphasis)
 //   - MarkdownStyler+Links.swift         (auto / markdown / wiki links)
-//   - MarkdownStyler+Code.swift          (fenced + inline code)
 //   - MarkdownStyler+Latex.swift         (block + inline LaTeX)
 //   - MarkdownStyler+Images.swift        (image embeds)
-//   - MarkdownStyler+TaskCheckboxes.swift
 import AppKit
 import Foundation
 
@@ -30,7 +30,7 @@ extension MarkdownStyler {
         "\\[[^\\]\\r\\n]*$",
         "\\[[^\\]\\r\\n]+\\](?!\\()",
         "\\[[^\\]\\r\\n]+\\]\\([^)\\r\\n]*$",
-        "\\[[^\\]\\r\\n]+\\]\\(\\)"
+        "\\[[^\\]\\r\\n]+\\]\\(\\)",
     ].map { try! NSRegularExpression(pattern: $0) }
     static let taskListRegex: NSRegularExpression = try! NSRegularExpression(
         pattern: #"^([ \t]*)([-•]|\d+\.)([ \t]+)(\[[ xX]\])(?=[ \t])"#,
@@ -95,14 +95,15 @@ enum MarkdownStyler {
         let baseFont = NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
         let baseDefaultLineHeight = ceil(
             layoutBridge?.defaultLineHeight(for: baseFont)
-            ?? (baseFont.ascender - baseFont.descender + baseFont.leading)
+                ?? (baseFont.ascender - baseFont.descender + baseFont.leading)
         )
         let baseParagraphSpacing = ceil(baseDefaultLineHeight * configuration.paragraph.spacingFactor)
 
         let codeFontSize = round(fontSize * configuration.codeBlock.fontSizeScale)
         let codeFont = configuration.services.syntaxHighlighter.codeFont(size: codeFontSize)
         let codeBackgroundColor = configuration.services.syntaxHighlighter.backgroundColor()
-        let codeLineHeight: CGFloat = layoutBridge?.defaultLineHeight(for: codeFont)
+        let codeLineHeight: CGFloat =
+            layoutBridge?.defaultLineHeight(for: codeFont)
             ?? (codeFont.ascender - codeFont.descender + codeFont.leading)
         let codeParagraphStyle: NSParagraphStyle = {
             let style = NSMutableParagraphStyle()
@@ -168,7 +169,10 @@ enum MarkdownStyler {
         result += styleInlineCode(ctx)
         result += styleBlockLatex(ctx)
         result += styleInlineLatex(ctx)
-        result += styleHorizontalRules(ctx)
+        // Horizontal rules are styled exclusively by the HRVisibility caret-
+        // awareness service (the dynamic-syntax pattern's "service is sole
+        // writer" rule). The styler emits NOTHING for ThematicBreak. See
+        // `.claude/Guidelines/Markdown.md` §3.2 + L3.
         result += styleIncompleteLinkBrackets(ctx)
         result += styleTaskCheckboxes(ctx)
         result += shrinkInactiveMarkers(ctx)
@@ -246,45 +250,62 @@ extension MarkdownStyler {
             if leadingWhitespaceUnits > 0 {
                 let leadingRange = NSRange(location: token.contentRange.location, length: leadingWhitespaceUnits)
                 let leadingText = ctx.nsText.substring(with: leadingRange)
-                attrs.append((leadingRange, [
-                    .foregroundColor: NSColor.clear,
-                    .font: ctx.latexMarkerFont,
-                    .kern: -HeadingHelpers.textWidth(leadingText, font: ctx.latexMarkerFont)
-                ]))
+                attrs.append(
+                    (
+                        leadingRange,
+                        [
+                            .foregroundColor: NSColor.clear,
+                            .font: ctx.latexMarkerFont,
+                            .kern: -HeadingHelpers.textWidth(leadingText, font: ctx.latexMarkerFont),
+                        ]
+                    ))
             }
 
             let anchorRange = NSRange(location: anchorLocation, length: 1)
             let anchorChar = ctx.nsText.substring(with: anchorRange)
-            attrs.append((anchorRange, [
-                .latexImage: image,
-                .latexBounds: NSValue(rect: imageBounds),
-                .latexIsBlock: true,
-                .foregroundColor: NSColor.clear,
-                .font: ctx.latexMarkerFont,
-                .kern: imageBounds.width - HeadingHelpers.textWidth(anchorChar, font: ctx.latexMarkerFont)
-            ]))
+            attrs.append(
+                (
+                    anchorRange,
+                    [
+                        .latexImage: image,
+                        .latexBounds: NSValue(rect: imageBounds),
+                        .latexIsBlock: true,
+                        .foregroundColor: NSColor.clear,
+                        .font: ctx.latexMarkerFont,
+                        .kern: imageBounds.width - HeadingHelpers.textWidth(anchorChar, font: ctx.latexMarkerFont),
+                    ]
+                ))
 
             let trailingStart = anchorLocation + 1
             let trailingLength = contentEnd - trailingStart
             if trailingLength > 0 {
                 let trailingRange = NSRange(location: trailingStart, length: trailingLength)
                 let trailingText = ctx.nsText.substring(with: trailingRange)
-                attrs.append((trailingRange, [
-                    .foregroundColor: NSColor.clear,
-                    .font: ctx.latexMarkerFont,
-                    .kern: -HeadingHelpers.textWidth(trailingText, font: ctx.latexMarkerFont)
-                ]))
+                attrs.append(
+                    (
+                        trailingRange,
+                        [
+                            .foregroundColor: NSColor.clear,
+                            .font: ctx.latexMarkerFont,
+                            .kern: -HeadingHelpers.textWidth(trailingText, font: ctx.latexMarkerFont),
+                        ]
+                    ))
             }
 
             for (index, markerRange) in token.markerRanges.enumerated() {
-                let markerText = markerTexts.indices.contains(index)
+                let markerText =
+                    markerTexts.indices.contains(index)
                     ? markerTexts[index]
                     : ctx.nsText.substring(with: markerRange)
-                attrs.append((markerRange, [
-                    .foregroundColor: NSColor.clear,
-                    .font: ctx.latexMarkerFont,
-                    .kern: -HeadingHelpers.textWidth(markerText, font: ctx.latexMarkerFont)
-                ]))
+                attrs.append(
+                    (
+                        markerRange,
+                        [
+                            .foregroundColor: NSColor.clear,
+                            .font: ctx.latexMarkerFont,
+                            .kern: -HeadingHelpers.textWidth(markerText, font: ctx.latexMarkerFont),
+                        ]
+                    ))
             }
 
             // Hide whitespace between paragraph start and token start
@@ -293,11 +314,15 @@ extension MarkdownStyler {
             if preTokenLength > 0 {
                 let preTokenRange = NSRange(location: paraRange.location, length: preTokenLength)
                 let preTokenText = ctx.nsText.substring(with: preTokenRange)
-                attrs.append((preTokenRange, [
-                    .foregroundColor: NSColor.clear,
-                    .font: ctx.latexMarkerFont,
-                    .kern: -HeadingHelpers.textWidth(preTokenText, font: ctx.latexMarkerFont)
-                ]))
+                attrs.append(
+                    (
+                        preTokenRange,
+                        [
+                            .foregroundColor: NSColor.clear,
+                            .font: ctx.latexMarkerFont,
+                            .kern: -HeadingHelpers.textWidth(preTokenText, font: ctx.latexMarkerFont),
+                        ]
+                    ))
             }
 
         case .visibleSource(let imageGap):
@@ -306,12 +331,16 @@ extension MarkdownStyler {
             para.paragraphSpacing = max(para.paragraphSpacing, imageBounds.height + imageGap + paragraphSpacing)
 
             attrs.append((paraRange, [.paragraphStyle: para]))
-            attrs.append((token.range, [
-                .latexImage: image,
-                .latexBounds: NSValue(rect: imageBounds),
-                .latexIsBlock: true,
-                .latexBlockOffsetY: baseLineHeight + imageGap
-            ]))
+            attrs.append(
+                (
+                    token.range,
+                    [
+                        .latexImage: image,
+                        .latexBounds: NSValue(rect: imageBounds),
+                        .latexIsBlock: true,
+                        .latexBlockOffsetY: baseLineHeight + imageGap,
+                    ]
+                ))
             appendSecondaryMarkers(for: token, to: &attrs, theme: ctx.configuration.theme)
         }
 
@@ -322,25 +351,6 @@ extension MarkdownStyler {
 // MARK: - Whole-document & inline-only styling kept inline (small helpers)
 
 extension MarkdownStyler {
-
-    // MARK: Horizontal Rules ---
-
-    static func styleHorizontalRules(_ ctx: StylingContext) -> [StyledRange] {
-        var attrs: [StyledRange] = []
-        let hrPattern = "^[ \\t]*-{3,}[ \\t]*$"
-        if let hrRegex = try? NSRegularExpression(pattern: hrPattern, options: [.anchorsMatchLines]) {
-            for hrMatch in hrRegex.matches(in: ctx.text, range: ctx.fullRange) {
-                attrs.append((hrMatch.range, [.foregroundColor: NSColor.clear]))
-                attrs.append((hrMatch.range, [
-                    .strikethroughStyle: NSUnderlineStyle.thick.rawValue,
-                    .strikethroughColor: ctx.configuration.theme.strikethroughColor
-                ]))
-                let rulePara = NSMutableParagraphStyle()
-                attrs.append((hrMatch.range, [.paragraphStyle: rulePara]))
-            }
-        }
-        return attrs
-    }
 
     // MARK: Incomplete Link Brackets
 
@@ -358,7 +368,14 @@ extension MarkdownStyler {
                         attrs.append((markerRange, [.foregroundColor: ctx.configuration.theme.mutedText]))
                     } else {
                         let contentRange = NSRange(location: location, length: 1)
-                        attrs.append((contentRange, [.foregroundColor: ctx.configuration.theme.incompleteLink.withAlphaComponent(ctx.configuration.link.incompleteLinkAlpha)]))
+                        attrs.append(
+                            (
+                                contentRange,
+                                [
+                                    .foregroundColor: ctx.configuration.theme.incompleteLink.withAlphaComponent(
+                                        ctx.configuration.link.incompleteLinkAlpha)
+                                ]
+                            ))
                     }
                 }
             }
@@ -371,7 +388,9 @@ extension MarkdownStyler {
     static func shrinkInactiveMarkers(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
         for (i, token) in ctx.tokens.enumerated() where !ctx.activeTokenIndices.contains(i) {
-            if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex || token.kind == .imageEmbed {
+            if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex
+                || token.kind == .imageEmbed
+            {
                 continue
             }
             if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) {
@@ -386,17 +405,188 @@ extension MarkdownStyler {
                     location: openParen.location,
                     length: (closeParen.location + closeParen.length) - openParen.location
                 )
-                attrs.append((hideRange, [
-                    .font: smallFont,
-                    .foregroundColor: NSColor.clear
-                ]))
+                attrs.append(
+                    (
+                        hideRange,
+                        [
+                            .font: smallFont,
+                            .foregroundColor: NSColor.clear,
+                        ]
+                    ))
             }
             for m in token.markerRanges {
-                attrs.append((m, [
-                    .font: smallFont,
-                    .kern: -smallFont.pointSize
-                ]))
+                attrs.append(
+                    (
+                        m,
+                        [
+                            .font: smallFont,
+                            .kern: -smallFont.pointSize,
+                        ]
+                    ))
             }
+        }
+        return attrs
+    }
+}
+
+// MARK: - Fenced code blocks + inline code
+
+extension MarkdownStyler {
+
+    // MARK: Fenced Code Blocks
+
+    static func styleCodeBlocks(_ ctx: StylingContext) -> [StyledRange] {
+        var attrs: [StyledRange] = []
+        for (idx, token) in ctx.tokens.enumerated() where token.kind == .codeBlock {
+            let codeContent = ctx.nsText.substring(with: token.contentRange)
+            let isActive = ctx.activeTokenIndices.contains(idx)
+            let language = MarkdownTokenizer.extractLanguage(from: token, in: ctx.text)
+            attrs.append(
+                (
+                    token.range,
+                    [
+                        .font: ctx.codeFont,
+                        .backgroundColor: ctx.codeBackgroundColor,
+                        .paragraphStyle: ctx.codeParagraphStyle,
+                    ]
+                ))
+
+            if !codeContent.isEmpty,
+                let highlighted = ctx.services.syntaxHighlighter.highlight(code: codeContent, language: language)
+            {
+                highlighted.enumerateAttributes(in: NSRange(location: 0, length: highlighted.length)) {
+                    highlightAttrs, range, _ in
+                    guard let foregroundColor = highlightAttrs[.foregroundColor] else { return }
+                    let absoluteRange = NSRange(
+                        location: token.contentRange.location + range.location, length: range.length)
+                    attrs.append((absoluteRange, [.foregroundColor: foregroundColor]))
+                }
+            }
+            let markerAttributes: [NSAttributedString.Key: Any] =
+                isActive
+                ? [.foregroundColor: ctx.configuration.theme.mutedText, .font: ctx.codeFont]
+                : [.foregroundColor: NSColor.clear, .font: ctx.hiddenMarkerFont]
+            token.markerRanges.forEach { attrs.append(($0, markerAttributes)) }
+        }
+        return attrs
+    }
+
+    // MARK: Inline Code
+
+    static func styleInlineCode(_ ctx: StylingContext) -> [StyledRange] {
+        var attrs: [StyledRange] = []
+        for (idx, token) in ctx.tokens.enumerated() where token.kind == .inlineCode {
+            let isActive = ctx.activeTokenIndices.contains(idx)
+            attrs.append(
+                (
+                    token.contentRange,
+                    [
+                        .font: ctx.codeFont,
+                        .backgroundColor: ctx.codeBackgroundColor,
+                    ]
+                ))
+            let inlineMarkerAttributes: [NSAttributedString.Key: Any] =
+                isActive
+                ? [
+                    .foregroundColor: ctx.configuration.theme.mutedText,
+                    .font: ctx.codeFont,
+                ]
+                : [
+                    .foregroundColor: ctx.configuration.theme.mutedText.withAlphaComponent(
+                        ctx.configuration.markers.inlineCodeMarkerAlpha),
+                    .font: ctx.inlineMarkerFont,
+                ]
+            token.markerRanges.forEach { attrs.append(($0, inlineMarkerAttributes)) }
+        }
+        return attrs
+    }
+}
+
+// MARK: - GitHub-style task list checkboxes (`- [ ] / - [x]`)
+
+extension MarkdownStyler {
+
+    static func styleTaskCheckboxes(_ ctx: StylingContext) -> [StyledRange] {
+        var attrs: [StyledRange] = []
+        let taskMatches = MarkdownStyler.taskListRegex.matches(in: ctx.text, options: [], range: ctx.fullRange)
+        for match in taskMatches {
+            let markerRange = match.range(at: 2)
+            let spacerRange = match.range(at: 3)
+            let checkboxRange = match.range(at: 4)
+            if checkboxRange.location == NSNotFound { continue }
+            if MarkdownDetection.isInsideCodeBlock(range: checkboxRange, codeTokens: ctx.codeTokens) { continue }
+            let checkboxText = ctx.nsText.substring(with: checkboxRange)
+            let isChecked = checkboxText.range(of: "[x]", options: [.caseInsensitive]) != nil
+            if markerRange.location != NSNotFound {
+                let syntaxStart = markerRange.location
+                let syntaxEnd = checkboxRange.location + checkboxRange.length
+                let syntaxRange = NSRange(location: syntaxStart, length: max(0, syntaxEnd - syntaxStart))
+                var isActiveSyntax = NSLocationInRange(ctx.caretLocation, syntaxRange)
+                if !isActiveSyntax && ctx.caretLocation == syntaxEnd {
+                    let lastIndex = syntaxEnd - 1
+                    if lastIndex >= syntaxStart && lastIndex < ctx.nsText.length {
+                        let lastChar = ctx.nsText.substring(with: NSRange(location: lastIndex, length: 1))
+                        if lastChar != "\n" { isActiveSyntax = true }
+                    }
+                }
+                if isChecked {
+                    let lineRange = ctx.nsText.lineRange(for: checkboxRange)
+                    var lineEnd = lineRange.location + lineRange.length
+                    if lineEnd > lineRange.location {
+                        let lastCharRange = NSRange(location: lineEnd - 1, length: 1)
+                        if ctx.nsText.substring(with: lastCharRange) == "\n" {
+                            lineEnd -= 1
+                        }
+                    }
+                    var contentStart = checkboxRange.location + checkboxRange.length
+                    while contentStart < lineEnd {
+                        let charRange = NSRange(location: contentStart, length: 1)
+                        let char = ctx.nsText.substring(with: charRange)
+                        if char == " " || char == "\t" {
+                            contentStart += 1
+                            continue
+                        }
+                        break
+                    }
+                    if contentStart < lineEnd {
+                        attrs.append(
+                            (
+                                NSRange(location: contentStart, length: lineEnd - contentStart),
+                                [
+                                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                                    .strikethroughColor: ctx.configuration.theme.strikethroughColor,
+                                ]
+                            ))
+                    }
+                }
+                if isActiveSyntax { continue }
+                let afterCheckboxIndex = checkboxRange.location + checkboxRange.length
+                if afterCheckboxIndex < ctx.nsText.length {
+                    let spaceRange = NSRange(location: afterCheckboxIndex, length: 1)
+                    let spaceChar = ctx.nsText.substring(with: spaceRange)
+                    if spaceChar == " " && !isChecked {
+                        let extraSpacing = HeadingHelpers.checkboxExtraSpacing(
+                            font: ctx.baseFont,
+                            configuration: ctx.configuration.checkbox
+                        )
+                        attrs.append((spaceRange, [.kern: extraSpacing]))
+                    }
+                }
+            }
+            if markerRange.location != NSNotFound {
+                attrs.append((markerRange, [.foregroundColor: NSColor.clear]))
+            }
+            if spacerRange.location != NSNotFound {
+                attrs.append((spacerRange, [.foregroundColor: NSColor.clear]))
+            }
+            attrs.append(
+                (
+                    checkboxRange,
+                    [
+                        .taskCheckbox: isChecked,
+                        .foregroundColor: NSColor.clear,
+                    ]
+                ))
         }
         return attrs
     }

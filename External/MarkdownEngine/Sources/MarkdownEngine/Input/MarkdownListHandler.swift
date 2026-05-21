@@ -34,6 +34,10 @@ struct MarkdownLists {
     )
     static let dashNoSpaceRegex = try! NSRegularExpression(pattern: #"^\s*-(?!\s)"#)
     static let leadingWhitespaceRegex = try! NSRegularExpression(pattern: #"^\s*"#)
+    /// Matches lines containing ONLY a bare list marker (`-`, `*`, `+`, or
+    /// `\d+\.`) with optional whitespace — i.e. the user typed the marker but
+    /// no content yet. Used by `detectListContext` to trigger Case 1: Enter
+    /// on a bare marker completes the marker + opens a new list item below.
     static let bareMarkerRegex = try! NSRegularExpression(pattern: #"^\s*([-*+]|\d+\.)\s*$"#)
 
     static func indentLevel(from leadingWhitespace: String) -> Int {

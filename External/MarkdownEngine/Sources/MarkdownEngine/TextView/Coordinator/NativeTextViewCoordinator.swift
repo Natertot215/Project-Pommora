@@ -62,7 +62,12 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var activeTokenIndices: Set<Int> = []
     var previousActiveTokenIndices: Set<Int> = []
     var wikiLinkMetadata: [WikiLinkService.RangeKey: WikiLinkService.LinkMetadata] = [:]
-    var previousBacktickCount: Int = 0
+    // Previous count of fenced/inline code tokens — used to detect code-block
+    // structure changes and trigger a full-document restyle. The earlier
+    // "count `` ``` `` substrings in the raw string" heuristic tripped on
+    // edge cases (spaces inside triple-backticks, escaped backticks); the
+    // token-count comparison is robust for any case the tokenizer can parse.
+    var previousCodeBlockTokenCount: Int = 0
 
     var pendingEditedRange: NSRange? = nil
     var pendingPreEditActiveTokenIndices: Set<Int>? = nil
@@ -76,8 +81,10 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var cachedCodeBlockTokens: [(index: Int, token: MarkdownToken)] = []
     var cachedParsedText: String?
     var cachedParsedDocument: ParsedDocument?
-    // Skip spellcheck property setters when the state wouldn't change.
-    var cachedSpellingDisabled: Bool?
+    // Skip spellcheck property setters when the state wouldn't change. Not a
+    // cache — there is no invalidation; this is "previous value, re-checked
+    // on every textDidChange + textViewDidChangeSelection."
+    var previousSpellingDisabled: Bool?
 
     struct ParsedDocument {
         let tokens: [MarkdownToken]

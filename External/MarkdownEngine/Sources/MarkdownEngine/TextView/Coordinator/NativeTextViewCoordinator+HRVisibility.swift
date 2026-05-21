@@ -23,7 +23,6 @@
 //
 
 import AppKit
-import Markdown
 
 extension NativeTextViewCoordinator {
 
@@ -76,34 +75,21 @@ extension NativeTextViewCoordinator {
         }
     }
 
-    /// Same two-stage check as the renderer's `hasThematicBreak` — MUST
-    /// agree exactly. If the service detects something as HR but the renderer
-    /// rejects it (or vice versa), the user sees "dashes hidden but no line
-    /// drawn" or "line drawn over visible text".
-    ///
-    /// **No setext-underline guard.** Per Pommora's design (`CLAUDE.md`:
-    /// "Pommora removed Setext H2 support"), `---` ALWAYS renders as HR
-    /// regardless of what's on the line above — matching Obsidian/Typora.
+    /// Forwards to the shared `MarkdownDetection.isThematicBreakLine` helper
+    /// (one of three pieces of the dynamic-syntax pattern — renderer + service
+    /// MUST share their detection per `.claude/Guidelines/Markdown.md` L2).
+    /// This wrapper only resolves the service-side Stage 0 result, then hands
+    /// the work to the shared detector.
     private func isThematicBreakParagraph(
         _ paragraphString: String,
         in ts: NSTextStorage,
         paragraphRange: NSRange
     ) -> Bool {
-        // Stage 0 — code-block guard.
-        if isInsideCodeBlockParagraph(in: ts, paragraphRange: paragraphRange) {
-            return false
-        }
-
-        // Stage 1 — prefilter.
-        let trimmed = paragraphString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 3,
-            let first = trimmed.first,
-            first == "-" || first == "*" || first == "_"
-        else { return false }
-
-        // Stage 2 — AST parse.
-        let document = Markdown.Document(parsing: paragraphString)
-        return document.children.contains { $0 is ThematicBreak }
+        let insideCodeBlock = isInsideCodeBlockParagraph(in: ts, paragraphRange: paragraphRange)
+        return MarkdownDetection.isThematicBreakLine(
+            paragraphString,
+            isInsideCodeBlock: insideCodeBlock
+        )
     }
 
     /// True when the paragraph's first char carries a backgroundColor matching

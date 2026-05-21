@@ -203,40 +203,66 @@ enum SourceRangeConverter {
 
 /// Per-parse line-offset cache. `lineStarts[i]` is the utf16 offset of the
 /// start of line `i+1` (lines are 1-based in swift-markdown's SourceRange).
+///
+/// Also holds each line's text content so `utf16Offset(line:column:)` can
+/// convert cmark-gfm's UTF-8 byte-offset columns into NSString-compatible
+/// UTF-16 code-unit offsets. ASCII content collapses to a direct addition;
+/// multi-byte content (emoji, accented chars, non-Latin scripts) requires
+/// the per-codepoint walk.
 struct LineOffsetIndex {
     private let lineStarts: [Int]
+    private let lineTexts: [String]
     private let totalLength: Int
 
     init(text: String) {
         let nsText = text as NSString
         var starts: [Int] = [0]
+        var texts: [String] = []
         starts.reserveCapacity(64)
+        texts.reserveCapacity(64)
+        var lineStartIdx = 0
         var i = 0
         let length = nsText.length
         while i < length {
             let ch = nsText.character(at: i)
             // \n, or \r not followed by \n, or \r\n — each starts a new line.
             if ch == 0x0A {  // \n
+                let lineRange = NSRange(location: lineStartIdx, length: i - lineStartIdx)
+                texts.append(nsText.substring(with: lineRange))
                 starts.append(i + 1)
+                lineStartIdx = i + 1
                 i += 1
             } else if ch == 0x0D {  // \r
+                let lineRange = NSRange(location: lineStartIdx, length: i - lineStartIdx)
+                texts.append(nsText.substring(with: lineRange))
                 if i + 1 < length, nsText.character(at: i + 1) == 0x0A {
                     starts.append(i + 2)
+                    lineStartIdx = i + 2
                     i += 2
                 } else {
                     starts.append(i + 1)
+                    lineStartIdx = i + 1
                     i += 1
                 }
             } else {
                 i += 1
             }
         }
+        // Capture the final line (if the text doesn't end in a newline).
+        if lineStartIdx <= length {
+            let lineRange = NSRange(location: lineStartIdx, length: length - lineStartIdx)
+            texts.append(nsText.substring(with: lineRange))
+        }
         self.lineStarts = starts
+        self.lineTexts = texts
         self.totalLength = length
     }
 
-    /// Convert (line: 1-based, column: 1-based) → utf16 offset.
-    /// Returns nil for out-of-range line numbers.
+    /// Convert (line: 1-based, column: 1-based UTF-8 byte offset) → utf16
+    /// code-unit offset from the start of the text. cmark-gfm / swift-markdown
+    /// report `column` as UTF-8 bytes per the CommonMark spec; this converts
+    /// to NSString-compatible UTF-16 code units for NSAttributedString range
+    /// consumption. Returns nil for out-of-range line numbers.
     func utf16Offset(line: Int, column: Int) -> Int? {
         let lineIdx = line - 1
         guard lineIdx >= 0, lineIdx < lineStarts.count else {
@@ -245,7 +271,24 @@ struct LineOffsetIndex {
             return nil
         }
         let lineStart = lineStarts[lineIdx]
-        let columnOffset = column - 1
-        return min(lineStart + columnOffset, totalLength)
+        let targetByteOffset = column - 1
+        guard targetByteOffset > 0 else { return lineStart }
+
+        // Walk the line's text scalar-by-scalar, tracking UTF-8 bytes
+        // consumed and UTF-16 code units accumulated. For ASCII this is
+        // a no-op (1 byte = 1 code unit); for multi-byte content the two
+        // counts diverge.
+        guard lineIdx < lineTexts.count else {
+            return min(lineStart + targetByteOffset, totalLength)
+        }
+        let lineText = lineTexts[lineIdx]
+        var bytesConsumed = 0
+        var utf16Consumed = 0
+        for scalar in lineText.unicodeScalars {
+            if bytesConsumed >= targetByteOffset { break }
+            bytesConsumed += scalar.utf8.count
+            utf16Consumed += scalar.utf16.count
+        }
+        return min(lineStart + utf16Consumed, totalLength)
     }
 }

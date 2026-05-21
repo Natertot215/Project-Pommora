@@ -8,8 +8,46 @@
 // Helper checks for questions like "is the cursor inside code or LaTeX?"
 // and "which Markdown part is currently active?".
 import Foundation
+import Markdown
 
 enum MarkdownDetection {
+
+    // MARK: - Thematic Break (HR) detection
+
+    /// Three-stage detection for whether a single-paragraph string is a
+    /// Markdown ThematicBreak (`---`, `***`, `___`). Used by both the
+    /// renderer (per-fragment) and the HRVisibility service (per-paragraph).
+    /// Both callers MUST share this logic — drift produces "dashes hidden
+    /// but no line drawn" or "line drawn over visible text" half-applied
+    /// states (`.claude/Guidelines/Markdown.md` L2).
+    ///
+    /// No setext-underline guard. Per Pommora's locked design, `---` ALWAYS
+    /// renders as HR regardless of what's on the line above; the AST already
+    /// gives the desired answer for `---\n` in isolation.
+    ///
+    /// - Parameters:
+    ///   - paragraphString: The line(s) to test, including any trailing newline.
+    ///   - isInsideCodeBlock: Stage 0 result from the caller's context — the
+    ///     renderer reads its fragment's `.backgroundColor`; the service reads
+    ///     the same attribute from storage. Either way the answer flows in here.
+    static func isThematicBreakLine(
+        _ paragraphString: String,
+        isInsideCodeBlock: Bool
+    ) -> Bool {
+        // Stage 0 — code-block guard.
+        if isInsideCodeBlock { return false }
+
+        // Stage 1 — cheap prefilter. ~99% of paragraphs early-exit here.
+        let trimmed = paragraphString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 3,
+            let first = trimmed.first,
+            first == "-" || first == "*" || first == "_"
+        else { return false }
+
+        // Stage 2 — AST parse confirms.
+        let document = Markdown.Document(parsing: paragraphString)
+        return document.children.contains { $0 is ThematicBreak }
+    }
 
     // MARK: - Active Token Indices
 
@@ -23,7 +61,9 @@ enum MarkdownDetection {
         for (index, token) in tokens.enumerated() {
             let start = token.range.location
             let end = NSMaxRange(token.range)
-            if selectionRange.length > 0 && (token.kind == .inlineLatex || token.kind == .blockLatex) && NSIntersectionRange(selectionRange, token.range).length > 0 {
+            if selectionRange.length > 0 && (token.kind == .inlineLatex || token.kind == .blockLatex)
+                && NSIntersectionRange(selectionRange, token.range).length > 0
+            {
                 indices.insert(index)
                 continue
             }
@@ -48,7 +88,9 @@ enum MarkdownDetection {
 
     /// Slow: parses tokens each call
     static func isInsideCodeBlock(range: NSRange, in text: String) -> Bool {
-        let codeTokens = MarkdownTokenizer.parseTokens(in: text).filter { $0.kind == .codeBlock || $0.kind == .inlineCode }
+        let codeTokens = MarkdownTokenizer.parseTokens(in: text).filter {
+            $0.kind == .codeBlock || $0.kind == .inlineCode
+        }
         return isInsideCodeBlock(range: range, codeTokens: codeTokens)
     }
 

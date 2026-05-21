@@ -105,15 +105,14 @@ extension NativeTextViewCoordinator {
                 nextParagraph,
             ] + editedParagraphs
 
-        let backtickCount = tv.string.components(separatedBy: "```").count - 1
-        let codeBlockStructureChanged = backtickCount != previousBacktickCount
-        previousBacktickCount = backtickCount
-
         let parsed = parsedDocument(for: tv.string)
         let tokens = parsed.tokens
         let codeTokens = parsed.codeTokens
         let latexTokens = parsed.latexTokens
         let blockLatexTokens = parsed.blockLatexTokens
+
+        let codeBlockStructureChanged = codeTokens.count != previousCodeBlockTokenCount
+        previousCodeBlockTokenCount = codeTokens.count
         let preEditActiveTokenIndices = pendingPreEditActiveTokenIndices ?? previousActiveTokenIndices
         pendingPreEditActiveTokenIndices = nil
 
