@@ -8,6 +8,7 @@
 // Makes list editing feel natural by continuing items, handling indentation,
 // and applying spacing/alignment that keeps lists easy to read.
 import AppKit
+import Markdown
 
 @MainActor
 struct MarkdownLists {
@@ -32,13 +33,162 @@ struct MarkdownLists {
         pattern: #"^\s*((?:(\d+)\.|[-•])(?:\s+\[[ xX]\])?\s+)"#
     )
     static let dashNoSpaceRegex = try! NSRegularExpression(pattern: #"^\s*-(?!\s)"#)
-    static let numberRegex = try! NSRegularExpression(pattern: #"^\s*(\d+)\.$"#)
     static let leadingWhitespaceRegex = try! NSRegularExpression(pattern: #"^\s*"#)
+    static let bareMarkerRegex = try! NSRegularExpression(pattern: #"^\s*([-*+]|\d+\.)\s*$"#)
 
     static func indentLevel(from leadingWhitespace: String) -> Int {
         let tabCount = leadingWhitespace.filter { $0 == "\t" }.count
         let spaceCount = leadingWhitespace.filter { $0 == " " }.count
         return tabCount + (spaceCount / 2)
+    }
+
+    // MARK: - List Context Detection
+
+    /// Captures everything the Enter handler needs to know about the list item
+    /// at the caret. Returned by `detectListContext`. See that function for the
+    /// detection algorithm.
+    struct ListContext {
+        enum MarkerKind {
+            case unordered(char: Character)  // '-', '*', '+' (or '•' from legacy files)
+            case ordered(number: Int)  // current number for n+1 calc
+        }
+        var kind: MarkerKind
+        var leadingWhitespace: String  // e.g. "  ", "\t", ""
+        var hasCheckbox: Bool  // true for `- [ ]` / `- [x]`
+        var contentStartOffsetInLine: Int  // position of first content char relative to line start
+        var lineRange: NSRange  // full line range in document text
+        var contentIsEmpty: Bool  // marker present, no content
+        var isBareStartTrigger: Bool  // line is literally "-" or "1." (no trailing space)
+        var caretIsAtLineEnd: Bool  // caret at/after last non-newline char
+    }
+
+    /// Three-stage detection: code-block guard → regex prefilter → AST confirmation.
+    /// Returns nil when caret is not in a list item (or is in a code block, or the
+    /// line parses as an HR / non-list paragraph).
+    ///
+    /// AST disambiguation: `---` parses as `ThematicBreak`, not `UnorderedList` — so
+    /// HR lines naturally return nil here without special-case code. (Pommora removed
+    /// Setext H2 support; `---` is always HR regardless of context.)
+    ///
+    /// Bare-marker trigger: when the line is literally `-` or `1.` (no trailing space),
+    /// the AST parses it as a `Paragraph` (CommonMark requires a space after the marker
+    /// to form a list). We recognize this case via `bareMarkerRegex` and set
+    /// `isBareStartTrigger = true` — the Enter handler's Case 1 then completes the
+    /// marker and inserts a new bullet.
+    static func detectListContext(
+        in textView: NSTextView,
+        caretLocation: Int,
+        isInCodeBlock: Bool
+    ) -> ListContext? {
+        if isInCodeBlock { return nil }
+
+        let nsText = textView.string as NSString
+        let safeLocation = min(caretLocation, nsText.length)
+        let lineRange = nsText.lineRange(for: NSRange(location: safeLocation, length: 0))
+        let fullLine = nsText.substring(with: lineRange)
+        let fullLineUTF16 = fullLine.utf16.count
+
+        // Stage 1: regex prefilter.
+        let bareMarkerMatch = bareMarkerRegex.firstMatch(
+            in: fullLine, range: NSRange(location: 0, length: fullLineUTF16))
+        let listMatch = listRegex.firstMatch(
+            in: fullLine, range: NSRange(location: 0, length: fullLineUTF16))
+        guard bareMarkerMatch != nil || listMatch != nil else { return nil }
+
+        // Stage 2: AST confirmation. Pre-trim leading whitespace so indented lists
+        // (e.g. `\t- item` for nesting) parse correctly — leading tabs/spaces in
+        // isolation would otherwise look like a code block to CommonMark. Also map
+        // legacy Pommora `•` bullets to `-` for parsing only, so files written by
+        // the pre-v0.2.7.3 `-` → `\t• ` space-trigger rewrite still detect as lists.
+        let trimmedLine =
+            fullLine
+            .trimmingCharacters(in: .newlines)
+            .replacingOccurrences(of: #"^\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^•"#, with: "-", options: .regularExpression)
+        let document = Markdown.Document(parsing: trimmedLine)
+        let isAstList = document.children.contains {
+            $0 is Markdown.UnorderedList || $0 is Markdown.OrderedList
+        }
+
+        let isBareStartTrigger: Bool
+        if isAstList {
+            isBareStartTrigger = false
+        } else if bareMarkerMatch != nil {
+            isBareStartTrigger = true
+        } else {
+            return nil  // listRegex matched but AST rejected (HR / paragraph / etc.)
+        }
+
+        // Extract leading whitespace — preserved as indent prefix for new items.
+        let leadingWhitespace: String
+        if let wsMatch = leadingWhitespaceRegex.firstMatch(
+            in: fullLine, range: NSRange(location: 0, length: fullLineUTF16))
+        {
+            leadingWhitespace = (fullLine as NSString).substring(with: wsMatch.range)
+        } else {
+            leadingWhitespace = ""
+        }
+
+        // Extract marker kind, content-start offset, checkbox flag, content emptiness.
+        let kind: ListContext.MarkerKind
+        let contentStartOffset: Int
+        let hasCheckbox: Bool
+        let contentIsEmpty: Bool
+
+        if isBareStartTrigger, let match = bareMarkerMatch {
+            let markerCapture = (fullLine as NSString).substring(with: match.range(at: 1))
+            if markerCapture.hasSuffix(".") {
+                let numStr = String(markerCapture.dropLast())
+                kind = .ordered(number: Int(numStr) ?? 1)
+            } else {
+                kind = .unordered(char: markerCapture.first ?? Character("-"))
+            }
+            contentStartOffset = match.range.location + match.range.length
+            hasCheckbox = false
+            contentIsEmpty = true
+        } else if let match = listMatch {
+            let digitRange = match.range(at: 2)
+            if digitRange.location != NSNotFound,
+                let num = Int((fullLine as NSString).substring(with: digitRange))
+            {
+                kind = .ordered(number: num)
+            } else {
+                // First non-whitespace char is the bullet (preserves '-', '*', '+', '•').
+                let bulletChar = fullLine.first(where: { !$0.isWhitespace }) ?? Character("-")
+                kind = .unordered(char: bulletChar)
+            }
+            contentStartOffset = match.range.location + match.range.length
+            let markerOuter = (fullLine as NSString).substring(with: match.range(at: 1))
+            hasCheckbox = markerOuter.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil
+            let contentLength = max(0, fullLineUTF16 - contentStartOffset)
+            let contentPart =
+                (fullLine as NSString)
+                .substring(with: NSRange(location: contentStartOffset, length: contentLength))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            contentIsEmpty = contentPart.isEmpty
+        } else {
+            return nil  // unreachable: guarded above
+        }
+
+        // Caret position relative to line.
+        let caretOffsetInLine = safeLocation - lineRange.location
+        let lineEnd = lineRange.length
+        let hasTrailingNewline =
+            lineEnd > 0
+            && (fullLine as NSString).character(at: lineEnd - 1) == 10  // '\n'
+        let lineContentLen = hasTrailingNewline ? lineEnd - 1 : lineEnd
+        let caretIsAtLineEnd = caretOffsetInLine >= lineContentLen
+
+        return ListContext(
+            kind: kind,
+            leadingWhitespace: leadingWhitespace,
+            hasCheckbox: hasCheckbox,
+            contentStartOffsetInLine: contentStartOffset,
+            lineRange: lineRange,
+            contentIsEmpty: contentIsEmpty,
+            isBareStartTrigger: isBareStartTrigger,
+            caretIsAtLineEnd: caretIsAtLineEnd
+        )
     }
 
     // MARK: - Paragraph Attributes for List Styling
@@ -86,8 +236,13 @@ struct MarkdownLists {
 
                 ps.tabStops = []
                 ps.defaultTabInterval = indentPerLevel
-                ps.firstLineHeadIndent = 0
-                ps.headIndent = depthIndent + markerWidth + extraSpacing
+                // Default visual indent (one tab-stop from page margin) on top
+                // of any source-level nesting captured in depthIndent. Restores
+                // the visual breathing room the pre-v0.2.7.3 `\t• ` rewrite
+                // provided automatically — without putting `\t` chars in the
+                // canonical source.
+                ps.firstLineHeadIndent = indentPerLevel + depthIndent
+                ps.headIndent = indentPerLevel + depthIndent + markerWidth + extraSpacing
 
                 attributesList.append((match.range(at: 0), [.paragraphStyle: ps]))
             }
@@ -99,8 +254,8 @@ struct MarkdownLists {
             applyListMatches(orderedListRegex.matches(in: text, options: [], range: fullRange))
         }
 
-        // Bullet lists
-        let bulletListPattern = #"^([ \t]*)([-•](?:[ \t]+\[[ xX]\])?[ \t]+)(.*)$"#
+        // Bullet lists. Accepts `-`, `*`, `+` (CommonMark) and `•` (legacy Pommora).
+        let bulletListPattern = #"^([ \t]*)([-*+•](?:[ \t]+\[[ xX]\])?[ \t]+)(.*)$"#
         if let bulletListRegex = try? NSRegularExpression(pattern: bulletListPattern, options: [.anchorsMatchLines]) {
             applyListMatches(bulletListRegex.matches(in: text, options: [], range: fullRange))
         }
@@ -227,39 +382,6 @@ struct MarkdownLists {
             return true
         }
 
-        // SPACE: convert "-" or "1." to proper markers (skip in code blocks)
-        if replacementString == " " && !isInCodeBlock {
-            guard listsEnabled else { return true }
-            let insertionLocation = affectedCharRange.location
-            if insertionLocation > 0 {
-                let nsText = textView.string as NSString
-                let prevCharRange = NSRange(location: insertionLocation - 1, length: 1)
-                let prevChar = nsText.substring(with: prevCharRange)
-                let currentLineRange = nsText.lineRange(for: NSRange(location: insertionLocation - 1, length: 0))
-                let currentLine = nsText.substring(with: currentLineRange)
-                if let match = MarkdownLists.numberRegex.firstMatch(
-                    in: currentLine, range: NSRange(location: 0, length: currentLine.utf16.count))
-                {
-                    let numberRange = match.range(at: 1)
-                    let numberString = (currentLine as NSString).substring(with: numberRange)
-                    let markerRange = NSRange(
-                        location: currentLineRange.location + match.range.location, length: match.range.length)
-                    MarkdownLists.performEdit(textView, replace: markerRange, with: "\t\(numberString). ")
-                    return false
-                }
-                if prevChar == "-" {
-                    let beforePrevIndex = insertionLocation - 2
-                    let isAtLineStart: Bool =
-                        (beforePrevIndex < 0)
-                        || nsText.substring(with: NSRange(location: beforePrevIndex, length: 1)) == "\n"
-                    if isAtLineStart {
-                        MarkdownLists.performEdit(textView, replace: prevCharRange, with: "\t• ")
-                        return false
-                    }
-                }
-            }
-        }
-
         // ENTER: list continuation/outdent + code-block completion.
         //
         // Legacy HR expansion removed (Pommora HR dynamic-syntax plan,
@@ -274,6 +396,21 @@ struct MarkdownLists {
         // producing the "auto-adds physical dashes" + "line-to-line HRs
         // render invisible" bugs Nathan observed.
         if replacementString == "\n" {
+            // Shift+Enter intercept. macOS's default key binding maps both
+            // plain Return and Shift+Return to `insertNewline:` (the `doCommandBy`
+            // `insertLineBreak:` selector only fires on Ctrl+\). We distinguish
+            // here via the current keyboard event's modifier flags. Shift held
+            // → plain `\n` (hard exit / consistent soft newline), skip all list
+            // logic. Shift released → fall through to the list handler below.
+            if let event = NSApp.currentEvent,
+                event.type == .keyDown,
+                event.modifierFlags.contains(.shift)
+            {
+                MarkdownLists.performEdit(textView, replace: affectedCharRange, with: "\n")
+                textView.setSelectedRange(NSRange(location: affectedCharRange.location + 1, length: 0))
+                return false
+            }
+
             let nsText = textView.string as NSString
             let safeLocENTER = min(affectedCharRange.location, nsText.length)
             let currentLineRange = nsText.lineRange(for: NSRange(location: safeLocENTER, length: 0))
@@ -299,63 +436,66 @@ struct MarkdownLists {
                 }
             }
 
-            // Skip list continuation in code blocks
+            // Skip list logic in code blocks + when text is selected.
             guard listsEnabled && !isInCodeBlock else { return true }
-            let listLine = nsText.substring(with: currentLineRange)
-            if let match = MarkdownLists.listRegex.firstMatch(
-                in: listLine, range: NSRange(location: 0, length: listLine.utf16.count))
-            {
-                let contentStart = match.range.location + match.range.length
-                let contentLength = listLine.utf16.count - contentStart
-                let contentRangeLocal = NSRange(location: contentStart, length: contentLength)
-                let contentText = (listLine as NSString).substring(with: contentRangeLocal).trimmingCharacters(
-                    in: .whitespacesAndNewlines)
-                if contentText.isEmpty {
-                    let removalLengthRaw = match.range.location + match.range.length
-                    let lineEnd = currentLineRange.location + currentLineRange.length
-                    let hasNewline =
-                        currentLineRange.length > 0
-                        && (textView.string as NSString).substring(with: NSRange(location: lineEnd - 1, length: 1))
-                            == "\n"
-                    let maxBodyLen = hasNewline ? currentLineRange.length - 1 : currentLineRange.length
-                    let removalLength = min(removalLengthRaw, maxBodyLen)
-                    let removalRange = NSRange(location: currentLineRange.location, length: removalLength)
-                    MarkdownLists.performEdit(textView, replace: removalRange, with: "")
-                    textView.setSelectedRange(NSRange(location: currentLineRange.location, length: 0))
-                    return false
+            guard affectedCharRange.length == 0 else { return true }
+
+            guard
+                let ctx = MarkdownLists.detectListContext(
+                    in: textView,
+                    caretLocation: affectedCharRange.location,
+                    isInCodeBlock: isInCodeBlock
+                )
+            else { return true }
+
+            // Edge guard: caret in marker zone or BEFORE the marker (line offset
+            // below content-start). Let AppKit insert plain `\n`. Fixes the
+            // "voids the line at caret-line-start" regression — pressing Enter
+            // at line start now inserts `\n` above and pushes the list item down.
+            let caretOffsetInLine = affectedCharRange.location - ctx.lineRange.location
+            guard caretOffsetInLine >= ctx.contentStartOffsetInLine else { return true }
+
+            // ── Case 1: List-start trigger (bare "-" or "1." + Enter) ─────────
+            // The user typed a bare marker and pressed Enter. Complete the
+            // marker on the current line (append " ") and insert the next bullet
+            // on a new line below. CommonMark parses `- \n- ` as a 2-item list.
+            if ctx.isBareStartTrigger {
+                let markerOnNewLine: String
+                switch ctx.kind {
+                case .unordered(let ch):
+                    markerOnNewLine = "\(ch) "
+                case .ordered(let n):
+                    markerOnNewLine = "\(n + 1). "
                 }
-                let leadingWhitespace: String
-                if let wsMatch = MarkdownLists.leadingWhitespaceRegex.firstMatch(
-                    in: listLine, range: NSRange(location: 0, length: listLine.utf16.count))
-                {
-                    leadingWhitespace = (listLine as NSString).substring(with: wsMatch.range)
-                } else {
-                    leadingWhitespace = ""
-                }
-                let markerRaw = (listLine as NSString).substring(with: match.range(at: 1))
-                let marker = markerRaw.trimmingCharacters(in: .whitespaces)
-                let hasCheckbox = marker.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil
-                let newListItem: String
-                if match.range(at: 2).location != NSNotFound,
-                    let number = Int((listLine as NSString).substring(with: match.range(at: 2)))
-                {
-                    if hasCheckbox {
-                        newListItem = "\n" + leadingWhitespace + "\(number + 1). [ ] "
-                    } else {
-                        newListItem = "\n" + leadingWhitespace + "\(number + 1). "
-                    }
-                } else {
-                    let prefixIndent = leadingWhitespace.isEmpty ? "  " : leadingWhitespace
-                    if hasCheckbox {
-                        let bulletChar = marker.contains("•") ? "•" : "-"
-                        newListItem = "\n" + prefixIndent + "\(bulletChar) [ ] "
-                    } else {
-                        newListItem = "\n" + prefixIndent + marker + " "
-                    }
-                }
-                MarkdownLists.performEdit(textView, replace: affectedCharRange, with: newListItem)
+                let suffix = " \n\(ctx.leadingWhitespace)\(markerOnNewLine)"
+                MarkdownLists.performEdit(textView, replace: affectedCharRange, with: suffix)
+                let cursorPos = affectedCharRange.location + suffix.utf16.count
+                textView.setSelectedRange(NSRange(location: cursorPos, length: 0))
                 return false
             }
+
+            // ── Case 2: Enter (end-of-line OR mid-line OR empty) → next list item ─
+            // Single behavior for all in-list Enter cases: insert a new list
+            // item with the matching marker. For mid-line, text after the caret
+            // naturally splits to the new item. For empty `- ` items, this
+            // creates another empty `- ` below — exit is via Shift+Enter only.
+            let newItem: String
+            switch ctx.kind {
+            case .unordered(let ch):
+                newItem =
+                    ctx.hasCheckbox
+                    ? "\n\(ctx.leadingWhitespace)\(ch) [ ] "
+                    : "\n\(ctx.leadingWhitespace)\(ch) "
+            case .ordered(let n):
+                newItem =
+                    ctx.hasCheckbox
+                    ? "\n\(ctx.leadingWhitespace)\(n + 1). [ ] "
+                    : "\n\(ctx.leadingWhitespace)\(n + 1). "
+            }
+            MarkdownLists.performEdit(textView, replace: affectedCharRange, with: newItem)
+            let cursorPos = affectedCharRange.location + newItem.utf16.count
+            textView.setSelectedRange(NSRange(location: cursorPos, length: 0))
+            return false
         }
 
         return true

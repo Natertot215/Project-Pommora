@@ -2,7 +2,73 @@
 
 > **Read this first at session start.** Branch + state + next session's priorities here.
 
-#### Current State (end of 2026-05-20 — **v0.2.7.2 DIVIDER SHIPPED (locally); Blockquote + Tables deferred**)
+#### Current State (end of 2026-05-20 Session 13 — **v0.2.7.2 LISTS + HR shipped; bullet glyph + blockquote + tables deferred**)
+
+**v0.2.7.2 ships HR (carried over from Session 12) + the list-input rewrite (this session).** Two local commits on `main` pending push: Session 12's HR work (`a2fa85c`) + this session's list rewrite (about to commit). Lint exit 0, build clean.
+
+##### What shipped in lists (this session)
+
+- **Space-creates / Enter-continues / Shift+Enter-exits model.** Nathan-locked after iteration. Typing `- ` or `1. ` (dash/digit + space) styles the line as a list immediately via the styler — same as before. Enter on a list line inserts a new list item (Case 4 in [`MarkdownListHandler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift)) with the matching marker (`-`/`*`/`+`/`n+1.`) + preserved indent + checkbox transfer (`[ ]` carried forward unchecked). Mid-line Enter naturally splits content into two items via the same Case 4 path. Shift+Enter inserts a plain `\n` (hard exit) — detected via `NSApp.currentEvent.modifierFlags.contains(.shift)` inside `shouldChangeText`'s `\n` branch (the `doCommandBy` `insertLineBreak:` selector only fires on Ctrl+\, NOT on Shift+Return per macOS's default key bindings).
+
+- **Bare-marker trigger (Case 1) for "Enter to initialize a list".** Type `-` or `1.` on a blank line, press Enter → engine completes the marker (appends space) and inserts the next bullet below. Source becomes `- \n- ` / `1. \n2. `. Mirrors HR's "Enter is the trigger" pattern.
+
+- **Edge guard fixes "voids the line at caret-line-start" bug.** Caret in the marker zone OR before the marker (offset < contentStart) → returns true, AppKit handles plain `\n`. Pre-fix, pressing Enter at line position 0 of `- text` voided the line entirely. Post-fix, plain `\n` inserts above and the list item moves down.
+
+- **Portable CommonMark source.** Source on disk is `- item` / `* item` / `+ item` (NOT the pre-v0.2.7.2 `\t• ` engine-only syntax). Files now open correctly in GitHub / Obsidian / Bear / pandoc / iA Writer — pre-fix they rendered as code blocks in those tools (literal `\t` = code-block indent in CommonMark).
+
+- **Visual indent restored without breaking portability.** `paragraphAttributes` sets `firstLineHeadIndent = indentPerLevel + depthIndent` on every list line. Compensates for the source no longer carrying a leading `\t`. Both ordered + bullet lists get the same indent treatment.
+
+- **`bulletListPattern` styler regex now accepts `*` and `+`** (was `[-•]`, now `[-*+•]`). Without this, items typed as `* foo` or `+ foo` rendered un-styled.
+
+- **Context-menu "Insert bullet list" updated to write `- `** instead of legacy `\t• ` (in [`ContextMenu.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/ContextMenu.swift)). `isSelectionList` detection broadened to recognize CommonMark `- ` / `* ` / `+ ` markers + legacy `\t• ` for backward compat. `applyList` toggle strips any known list prefix before re-adding the new one (prevents `- \t• item` double-prefix on legacy files).
+
+- **Backward compat with old `\t• ` files.** `listRegex` still accepts `•`; the bullet styler still accepts `•`; legacy files continue to render as lists. New content writes portable `- ` / `* ` / `+ `.
+
+- **Pre-existing typo fix.** `hcaierarchicalColor:` → `hierarchicalColor:` at [`MarkdownTextLayoutFragment.swift:534`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L534). Nathan-authorized; was blocking the first clean build.
+
+##### What didn't ship (deferred — non-blocking)
+
+- **Bullet glyph substitution (`-` → `•` visually).** Attempted via styler-hide + custom-layout-fragment overlay (`drawListBullets`). Reverted by Nathan after the overlay positioning + fragment-walk produced invisible bullets in practice. Underlying approach is sound (it's the HR pattern applied to lists) but needs more careful position math — `pos.baselineY - bulletFont.ascender` likely needs adjustment for the actual font metrics, and walking paragraphs inside a fragment via `nsText.lineRange(for:)` was probably wrong (one fragment doesn't necessarily map to one paragraph in TextKit 2). Documented as a known caveat; defer to a later patch.
+
+##### Lessons learned (this session — append to PageEditor.md)
+
+1. **Strip-and-revert beats hotfix-on-hotfix.** Lesson #8 from Session 12 surfaced again. When the bullet overlay didn't render, Nathan reverted rather than iterating on positioning. Reverts are cheap; cumulative speculative fixes compound.
+2. **Removing a "stale" engine behavior may also be removing a load-bearing visual cue.** The Session 12 removal of the `-` → `\t• ` space-trigger DID fix portability. It ALSO removed the visual indent + bullet glyph that users relied on. Restoring the indent via paragraphStyle was easy. Restoring the bullet glyph turned out to be the harder follow-on. Future engine-behavior strips should explicitly call out every effect being removed, not just the one being targeted.
+3. **macOS's default key bindings collapse Shift+Return → `insertNewline:` (same as plain Return).** The `insertLineBreak:` selector that AppKit exposes is bound to Ctrl+\, not Shift+Return. Detecting Shift+Enter requires checking `NSApp.currentEvent.modifierFlags` inside `shouldChangeText`'s `\n` branch — NOT a `doCommandBy` hook on `insertLineBreak:`.
+4. **`shouldChangeTypingAttributes` resets font/paragraphStyle/color to base values.** Inheriting tiny/clear styles from hidden chars to user-typed text is NOT an issue in this engine — typing attributes get re-baselined every keystroke per [`NativeTextViewCoordinator+TextDelegate.swift:22-38`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38). Good to know for future hide-via-attribute patterns.
+
+##### Known bugs noted this session (not yet investigated)
+
+- **Arrow auto-format inconsistency.** Typing `->` correctly transforms to `→`. Typing `<-` does NOT transform to `←`. Typing `<->` does NOT transform to `↔`. But pasting `←` or `↔` from elsewhere renders correctly. Suggests the autoformat handler covers `->` only; `<-` and `<->` cases are missing or broken. Cheap fix expected — small bug for tomorrow.
+
+##### Remaining page editor fixes (queue for the next session)
+
+The plan was originally Blockquote + HR + Tables + auto-pair polish. HR shipped Session 12. Lists shipped Session 13. Remaining:
+
+- [ ] **List formatting — bullet rendering** (non-issue, defer cleanly). The `-` shows as literal `-`. Aesthetic, not functional.
+- [ ] **Code & Quote `Enter}` auto-completion.** Typing `}` mid-context (or pressing Enter after `}`) should auto-complete something. Spec needs nail-down.
+- [ ] **Code block → red text bug.** Text inside code blocks renders red — investigate why.
+- [ ] **Auto-format `←` and `↔`** (the `->` → `→` works fine, but `<-` → `←` and `<->` → `↔` don't fire on typed input — only on paste from elsewhere). Probably a one-line addition to the arrow transform handler.
+- [ ] **Blockquote rendering.** The Apple Calendar event-card-chrome design from the Session 11 plan is still pending. Carry-over.
+
+After these, focus shifts to **v0.3.0+**:
+- Properties (spec already locked at `.claude//Planning//v0.3.0-Properties-implementation.md`)
+- Sidebar + Vault/Collection drag-to-reorder
+- PreviewWindow primitive (unblocks NavDropdown's open-in-preview follow-up)
+
+##### Files changed this session (about to commit)
+
+- [`External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift) — `import Markdown` + `bareMarkerRegex` + `ListContext` struct + `detectListContext`; deleted space-trigger block + `numberRegex`; rewrote `\n` branch list logic with Case 1 (bare-marker trigger) + Case 4 (Enter continuation for all in-list cases) + edge guard + Shift+Enter modifier check; updated `bulletListPattern` to accept `*`/`+`; `firstLineHeadIndent = indentPerLevel + depthIndent` for visual indent.
+- [`External/MarkdownEngine/Sources/MarkdownEngine/TextView/ContextMenu.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/ContextMenu.swift) — `isSelectionList` accepts CommonMark + legacy markers; `applyList` strips any known prefix before re-adding; `didMarkdownUnorderedList` writes `- ` instead of `\t• `.
+- [`External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) — typo fix only (`hcaierarchicalColor:` → `hierarchicalColor:` at line 534). Bullet overlay reverted.
+
+##### Parallel-session files surfaced (Nathan handles separately per quirk #11)
+
+- `Pommora/Pommora/NavDropdown/RecentsManager.swift` + `Pommora/PommoraTests/NavDropdown/RecentsManagerTests.swift` — unattributed working-tree changes from a parallel session. NOT bundled into this session's commit per quirk #11.
+
+---
+
+#### Prior state (end of 2026-05-20 Session 12 — **v0.2.7.2 DIVIDER SHIPPED (locally); Blockquote + Tables deferred**)
 
 **Implementation session.** The HR (horizontal divider) portion of the v0.2.7.2 plan SHIPPED with Obsidian-style dynamic syntax. Blockquote (was Phase 1) and Tables (were Phase 3) are deferred per Nathan's call mid-execution — divider took ~4h instead of the planned ~45min once real-world bugs surfaced. Tables in particular flagged as a likely nightmare given the depth of the divider iteration; marked ASAP-but-not-immediate.
 

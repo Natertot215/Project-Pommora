@@ -11,10 +11,12 @@ import Cocoa
 import SwiftUI
 
 extension NativeTextViewWrapper.Coordinator {
-    public func textView(_ textView: NSTextView,
-                  menu: NSMenu,
-                  for event: NSEvent,
-                  at charIndex: Int) -> NSMenu? {
+    public func textView(
+        _ textView: NSTextView,
+        menu: NSMenu,
+        for event: NSEvent,
+        at charIndex: Int
+    ) -> NSMenu? {
         let customMenu = menu.copy() as? NSMenu ?? NSMenu()
 
         if let fontIndex = customMenu.items.firstIndex(where: { $0.title == "Font" }) {
@@ -28,7 +30,7 @@ extension NativeTextViewWrapper.Coordinator {
                 ("Italic", #selector(didMarkdownItalic(_:))),
                 ("Strikethrough", #selector(didMarkdownStrikethrough(_:))),
                 ("Inline Code", #selector(didMarkdownInlineCode(_:))),
-                ("Link", #selector(didMarkdownLink(_:)))
+                ("Link", #selector(didMarkdownLink(_:))),
             ]
             for (title, selector) in formatSpecs {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
@@ -54,10 +56,12 @@ extension NativeTextViewWrapper.Coordinator {
             // Lists submenu — Bullet, Numbered
             let listItem = NSMenuItem(title: "Lists", action: nil, keyEquivalent: "")
             let listSubmenu = NSMenu(title: "Lists")
-            let unorderedItem = NSMenuItem(title: "Bullet", action: #selector(didMarkdownUnorderedList(_:)), keyEquivalent: "")
+            let unorderedItem = NSMenuItem(
+                title: "Bullet", action: #selector(didMarkdownUnorderedList(_:)), keyEquivalent: "")
             unorderedItem.target = self
             listSubmenu.addItem(unorderedItem)
-            let orderedItem = NSMenuItem(title: "Numbered", action: #selector(didMarkdownOrderedList(_:)), keyEquivalent: "")
+            let orderedItem = NSMenuItem(
+                title: "Numbered", action: #selector(didMarkdownOrderedList(_:)), keyEquivalent: "")
             orderedItem.target = self
             listSubmenu.addItem(orderedItem)
             listItem.submenu = listSubmenu
@@ -72,7 +76,7 @@ extension NativeTextViewWrapper.Coordinator {
                 ("Blockquote", #selector(didMarkdownBlockquote(_:))),
                 ("Code Block", #selector(didMarkdownCodeBlock(_:))),
                 ("Table", #selector(didMarkdownTable(_:))),
-                ("Horizontal Rule", #selector(didMarkdownHorizontalRule(_:)))
+                ("Horizontal Rule", #selector(didMarkdownHorizontalRule(_:))),
             ]
             for (title, selector) in blockSpecs {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
@@ -191,10 +195,10 @@ extension NativeTextViewWrapper.Coordinator {
         let range = tv.selectedRange()
         let leadingNewline = needsLeadingNewline(at: range.location, in: nsText) ? "\n" : ""
         let scaffold = """
-        | Header 1 | Header 2 | Header 3 |
-        |----------|----------|----------|
-        | Cell     | Cell     | Cell     |
-        """
+            | Header 1 | Header 2 | Header 3 |
+            |----------|----------|----------|
+            | Cell     | Cell     | Cell     |
+            """
         let insertion = leadingNewline + scaffold + "\n"
         if tv.shouldChangeText(in: range, replacementString: insertion) {
             tv.replaceCharacters(in: range, with: insertion)
@@ -288,7 +292,10 @@ extension NativeTextViewWrapper.Coordinator {
     func isSelectionList(in nsText: NSString, range: NSRange) -> Bool {
         let lineRange = nsText.lineRange(for: range)
         let line = nsText.substring(with: lineRange)
-        return line.hasPrefix("\t• ") || line.hasPrefix("1. ")
+        // CommonMark bullets, legacy `\t• `, or any ordered marker.
+        return line.hasPrefix("- ") || line.hasPrefix("* ") || line.hasPrefix("+ ")
+            || line.hasPrefix("\t• ")
+            || line.range(of: #"^\d+\.\s"#, options: .regularExpression) != nil
     }
 
     private func applyHeading(level: Int) {
@@ -323,8 +330,16 @@ extension NativeTextViewWrapper.Coordinator {
         let originalLine = nsText.substring(with: startLine)
         let lineText = originalLine.trimmingCharacters(in: .newlines)
         var content = lineText
-        if content.hasPrefix(prefix) {
-            content = String(content.dropFirst(prefix.count))
+        // Strip any existing list-marker prefix before adding the new one —
+        // covers legacy `\t• ` and CommonMark variants so toggling between
+        // unordered/ordered doesn't double-prefix.
+        let knownPrefixes = ["\t• ", "- ", "* ", "+ "]
+        for p in knownPrefixes where content.hasPrefix(p) {
+            content = String(content.dropFirst(p.count))
+            break
+        }
+        if let match = content.range(of: #"^\d+\.\s+"#, options: .regularExpression) {
+            content = String(content[match.upperBound...])
         }
         let newLine = prefix + content
         let suffix = originalLine.hasSuffix("\n") ? "\n" : ""
@@ -339,7 +354,7 @@ extension NativeTextViewWrapper.Coordinator {
     }
 
     @objc func didMarkdownUnorderedList(_ sender: Any?) {
-        applyList(prefix: "\t• ")
+        applyList(prefix: "- ")
     }
 
     @objc func didMarkdownOrderedList(_ sender: Any?) {
@@ -435,7 +450,7 @@ extension NativeTextViewWrapper.Coordinator: NSMenuItemValidation {
         case #selector(didMarkdownHeading(_:)):
             return !isSelectionHeading(level: menuItem.tag, in: nsText, range: range)
         case #selector(didMarkdownUnorderedList(_:)),
-             #selector(didMarkdownOrderedList(_:)):
+            #selector(didMarkdownOrderedList(_:)):
             return !isSelectionList(in: nsText, range: range)
         default:
             return true

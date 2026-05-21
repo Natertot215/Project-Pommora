@@ -2,6 +2,40 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 13 — 2026-05-20 (v0.2.7.2 LISTS shipped — Enter continuation + Shift+Enter exit + portable CommonMark source + visual indent; bullet glyph deferred)
+
+**The list-input handler was rewritten to drop the pre-v0.2.7.2 `\t• ` engine-only syntax and produce portable CommonMark source (`- item` / `* item` / `+ item` / `1. item`).** Iteration converged on the model: space styles immediately (styler-driven, no source mutation), Enter continues a list with the next marker, Shift+Enter exits the list with a plain `\n`. Bullet glyph substitution (`-` → `•` visually) was attempted via styler-hide + custom layout fragment overlay (`drawListBullets`); reverted by Nathan after the overlay produced invisible bullets in practice. Deferred to a later patch as a non-blocking cosmetic issue. v0.2.7.2 now ships HR (Session 12) + Lists (this session) as a single patch.
+
+**Three engine files changed:**
+- `MarkdownListHandler.swift` — `import Markdown`; added `bareMarkerRegex` + `ListContext` struct + `detectListContext` (Stage 0 code-block guard → Stage 1 regex prefilter for `listRegex` OR `bareMarkerRegex` → Stage 2 swift-markdown AST confirmation with leading-WS strip + `•` → `-` legacy-bullet swap for parsing only); deleted the SPACE-trigger block (lines 230-261) + `numberRegex`; rewrote the `\n` branch with Case 1 (bare-marker trigger → `\n- ` next item) + Case 4 (Enter continuation for end-of-line, mid-line split, and empty items) + edge guard for caret in marker zone; added Shift+Enter modifier-flag check at top of `\n` block (`NSApp.currentEvent.modifierFlags.contains(.shift)` → plain `\n`); `bulletListPattern` styler regex broadened from `[-•]` to `[-*+•]`; `firstLineHeadIndent = indentPerLevel + depthIndent` on every list line (visual indent restored without source `\t`).
+- `ContextMenu.swift` — `isSelectionList` accepts CommonMark `- ` / `* ` / `+ ` + legacy `\t• ` + any `N. `; `applyList` strips ANY known list prefix before re-adding the new one (prevents `- \t• item` double-prefix on legacy files); `didMarkdownUnorderedList` writes `- ` instead of `\t• `.
+- `MarkdownTextLayoutFragment.swift` — typo fix only (`hcaierarchicalColor:` → `hierarchicalColor:` line 534). Bullet overlay attempt (`drawListBullets`) reverted.
+
+**Pivots from the locked plan during execution:**
+- Case 2 (empty-item exit on Enter) REMOVED per Nathan. Empty `- ` + Enter now creates another `- ` (not exits). Exit gesture is Shift+Enter only.
+- Case 3 (mid-line continuation indent) REMOVED per Nathan. Mid-line Enter now splits into two items via Case 4 (rather than wrapping to a continuation line of the same item). Simpler model.
+- Shift+Enter rewiring: the doCommandBy `insertLineBreak:` hook proved ineffective for Shift+Return (it only fires on Ctrl+\). Replaced with a modifier-flag check at the top of `shouldChangeText`'s `\n` branch.
+- Bullet glyph substitution: planned approach was to hide `-` via styler attributes + draw `•` via custom layout fragment. Position math + fragment-walk produced invisible bullets in testing. Reverted. Deferred.
+
+**Lessons appended to PageEditor.md → Dynamic-syntax pattern:**
+1. Strip-and-revert beats hotfix-on-hotfix (Session 12's lesson #8 surfaced again).
+2. Removing a "stale" engine behavior may also be removing a load-bearing visual cue — the `-` → `\t• ` strip fixed portability but also removed the indent + bullet glyph users relied on.
+3. macOS's default key bindings collapse Shift+Return → `insertNewline:` (Ctrl+\ is what triggers `insertLineBreak:`). Detect Shift+Enter via `NSApp.currentEvent.modifierFlags` in `shouldChangeText`, NOT a `doCommandBy` hook.
+4. `shouldChangeTypingAttributes` already resets font/paragraphStyle/color to base values per [coord+TextDelegate.swift:22-38](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38) — typing-attribute inheritance from hidden chars is NOT a leak vector in this engine.
+
+**Bug noted (not investigated):** Typed `->` correctly transforms to `→`. Typed `<-` does NOT transform to `←`. Typed `<->` does NOT transform to `↔`. But pasted `←` / `↔` render correctly. Cheap fix expected — small bug for the next session.
+
+**Backward compat with old `\t• ` files preserved.** `listRegex` + `bulletListPattern` still accept `•`; legacy files continue rendering as lists. New content writes portable `- ` / `* ` / `+ `.
+
+**Deferred from this session:**
+- Bullet glyph substitution (`-` → `•` visually) — non-blocking cosmetic; defer cleanly.
+- Code & Quote `Enter}` auto-completion.
+- Code block → red text bug.
+- Auto-format `←` and `↔` (the typed-vs-pasted inconsistency above).
+- Blockquote rendering (was Session 12's Phase 1; carries over).
+
+**Next focus after the remaining page-editor fixes:** v0.3.0 Properties (spec already locked at `.claude//Planning//v0.3.0-Properties-implementation.md`), sidebar + Vault/Collection drag-to-reorder, PreviewWindow primitive.
+
 #### Session 12 — 2026-05-20 (v0.2.7.2 HR / divider SHIPPED via Obsidian-style dynamic syntax; Blockquote + Tables deferred)
 
 **HR (horizontal rule) shipped** under the v0.2.7.2 plan via a substantially-different architecture than the locked spec. The original plan attempted the locked design first (custom `.pommoraThematicBreak` attribute + always-hidden dashes + cursor-out push + smart-backspace handlers); after four cascading bugs across two execution rounds, the code was fully reverted to v0.2.7.1 baseline and replanned from scratch. The replanned design uses **Obsidian/Typora-style dynamic syntax** — caret on the line shows `---` text, caret off the line hides dashes and draws the horizontal line. Established architecture for paragraph-level dynamic-syntax constructs going forward. Full architecture + 8 lessons documented in `Features/PageEditor.md → Dynamic-syntax pattern`.
