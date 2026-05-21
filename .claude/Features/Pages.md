@@ -81,23 +81,17 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 **Slash menu (`/`) for directive insertion.** Typing `/` at line start opens a popover listing the two Pommora directives (Callout, Columns) alongside other block insertions (code block, table, heading levels, divider). SF Symbol icons; filterable by typing.
 
-**Editor implementation — three options inventoried at `// Planning//Page-Editor-Plan.md`** (end-of-5-18 research). The plan is the canonical decision document for which engine/stack to use; Nathan picks at v0.2.7 implementation start. The three options at a glance:
+**Editor implementation — shipped at v0.2.7.0 on native TextKit 2.** Pommora uses Apple `swift-markdown` 0.8.0 + vendored `swift-markdown-engine` (at `External/MarkdownEngine/`, Apache 2.0) + a Pommora-side `AppleASTSupplementalStyler` layered on top. Full implementation spec lives at `PageEditor.md`. The three-options inventory used during v0.2.7 prep (Native Swift / JS-editor in WKWebView / Pallepadehat fork) has been resolved — historical context preserved in git history.
 
-1. **Native Swift** — `swift-markdown` + TextKit 2 + `NSTextView`. Optionally wrap `nodes-app/swift-markdown-engine` (Apache 2.0, 455★) which ships wikilinks-with-ID-round-trip matching Pommora's spec.
-2. **JS editor library + macOS shell we build** — Tiptap / Milkdown / BlockNote inside a WKWebView shell we author.
-3. **Fork `Pallepadehat/MarkdownEditor`** — CodeMirror 6 + WKWebView wrapped as a Swift Package; ours after fork.
+**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` is the Swift-side write path, mirroring the existing `updateItem` shape.
 
-**`.md` file format is the architectural firewall** — Pages on disk are identical across all three options, so the engine choice is reversible without user data migration. `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` is the Swift-side write path used by all three; mirrors the existing `updateItem` shape.
-
-**Pommora-specific surface behavior** (regardless of which engine implements it):
+**Pommora-specific surface behavior:**
 
 - Markdown round-trip on disk — body is what's saved; frontmatter handled separately in Swift.
-- Live Preview marker hiding (Obsidian/Bear pattern) OR pure WYSIWYG (Notion/Tiptap pattern) — both acceptable to Nathan; the page should look like a page, not a file, in the default view.
-- Apple-native styling in the canvas — system font stack (`-apple-system, BlinkMacSystemFont, "SF Mono", Menlo`), system caret, accent-derived selection color; brand values from `Color+Pommora.swift` bridged to the editor (CSS custom properties for WKWebView paths, direct attributes for native).
-- Standalone window via `WindowGroup(for: PageRef.self)` + `⌥⌘O` works the same regardless of engine.
+- Dynamic syntax — markers shrink to near-invisible when caret leaves an AST node (Bear / iA Writer pattern). Locked architecture rules + anti-patterns + lessons live at [`// Guidelines//Markdown.md`](../Guidelines/Markdown.md); the feature spec for what the editor currently ships lives at [`PageEditor.md`](PageEditor.md).
+- Apple-native styling in the canvas — system font stack, system caret, accent-derived selection color; brand values via direct `NSAttributedString` attributes.
 - Frontmatter never reaches the editor canvas; property panel is a separate SwiftUI surface (v0.3.0 Properties).
-
-Per-option setup details, swap costs (in Claude sessions), and reference implementations live in `// Planning//Page-Editor-Plan.md`. A fresh implementation chat should read both this Pages.md spec and Page-Editor-Plan.md as the complete implementation brief.
+- Standalone-window previews are queued behind the cross-feature **PreviewWindow primitive** (see `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`); `⌥⌘O` is reserved for that ship and not currently bound.
 
 > If pivoting to React, see `// ReactInfo//Editor.md` for the React-side approach (Tiptap directly, no WKWebView wrapper).
 

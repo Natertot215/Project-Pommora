@@ -2,7 +2,7 @@
 
 Tailwind CSS v4 + CSS custom properties exported from Figma Variables. Dual-export naming discipline (`surface// primary// bg` ↔ `--surface-primary-bg`) and the Figma → React translation findings.
 
-> **Status:** Reference. Swift consumes tokens from `// UI-UX//Design//Tokens.swift` (canonical for Swift) per `// Guidelines//UIX-Guide.md`. This file documents the Figma-tool workflow and React-side translation path.
+> **Status:** Reference. Swift consumes brand values from `Color+Pommora.swift` + `Font+Pommora.swift` + `Assets.xcassets` per `// Guidelines//Design.md` (SF Symbol assignments live in `// Guidelines//Symbols.md`). This file documents the Figma-tool workflow and React-side translation path.
 
 ---
 

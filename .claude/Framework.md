@@ -2,7 +2,7 @@
 
 Phased plan; no dates. Order is the only commitment.
 
-> **Stack: SwiftUI.** Capability-level version descriptions below survive an editor-implementation pivot inside the SwiftUI path (Option 1 native vs Option 2 WKWebView).
+> **Stack: SwiftUI.** Page editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). Capability-level version descriptions below are written to survive any future editor-implementation swap.
 
 #### Vision
 
@@ -109,7 +109,7 @@ Each patch ships green standalone. The infrastructure patches (.1 – .5) should
 - **v0.2.9 — Directives + heading fold + slash menu (UNSCHEDULED, re-homing TBD)** — `:::callout` / `@Columns` directives, heading-fold chevrons, `/` slash menu. Removed from the active v0.2.x patch sequence at RC-2026-05-19; page editor is functional without them. Re-homes to a later v0.2.x patch, or post-v0.3.x, when Nathan decides.
 - **v0.2.10 — Wikilinks** — **moved to v0.3.2** (RC-2026-05-19). Couples with SQLite at v0.3.3 so the autocomplete + rename cascade ship indexed from day one. Full scope under v0.3.2 in the v0.3.x sub-sequence below.
 
-End of v0.2.x: `main` has CI + formatter + trash + a fully usable Pages editor with NavDropdown navigation history (Recents + Favorites), directives, and wikilinks. **"Pommora is writable + multi-instance" milestone is complete** — long-form notes, standalone-window previews of any entity, wikilink-driven navigation, fenced callout + multi-column directives, foldable headings. v0.3.0 begins the data-model side (Properties).
+End of v0.2.x: `main` has formatter + trash + a fully usable Pages editor with NavDropdown navigation history (Pinned + Recents). Directives + wikilinks no longer land inside v0.2.x — directives are unscheduled; wikilinks moved to v0.3.2. GitHub CI was removed at v0.2.7.1 (lint-only locally + via `swift format` subcommand). **"Pommora is writable" milestone is complete** — long-form notes editable, NavDropdown navigation history, right-click context menus for Page + Item CRUD. v0.3.0 begins the data-model side (Properties).
 
 ##### v0.3.x — Properties + Items pane + Wikilinks + SQLite (data-layer chapter)
 

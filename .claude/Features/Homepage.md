@@ -1,8 +1,8 @@
 ### Homepage
 
-Pommora's **singleton dashboard entity** — one per Nexus, fixed location, no parents, no tier. A composed-blocks surface that can embed any other Pommora entity, designed as the user's general dashboard / landing surface.
+Pommora's **singleton dashboard entity** — one per Nexus, fixed location, no parents, no tier. Composed-blocks surface that can embed any entity; the user's landing surface.
 
-Structurally distinct from Contexts (Spaces / Topics / Sub-topics) but **shares the same composed-blocks surface pattern** — same `blocks` field, same widget types, same inline editability rules. The only difference is **identity / parenting**: Contexts are tiered, parented entities that things relate *to*; Homepage is a singleton that pulls things *in*.
+Shares the composed-blocks pattern with Contexts (same `blocks` field, widget types, inline editability) but differs in **identity / parenting**: Contexts are tiered entities things relate *to*; Homepage is a singleton that pulls things *in*.
 
 ---
 
@@ -14,7 +14,7 @@ Structurally distinct from Contexts (Spaces / Topics / Sub-topics) but **shares 
     homepage.json          ← singleton; fixed location
 ```
 
-Seeded on first launch (along with `nexus.json`, `tier-config.json`, etc.) with a minimal default — welcome heading + empty callout — so the file always exists. User-deletion is not supported (the file regenerates if removed externally).
+Seeded on first launch with a minimal default (welcome heading + empty callout). User-deletion not supported (regenerates if removed externally).
 
 ---
 
@@ -43,22 +43,22 @@ Notable absences vs. Context entities:
 
 #### Composition surface
 
-Same block types as Spaces / Topics / Sub-topics:
-- Text blocks: paragraph, heading, list, callout, code, quote, divider, columns
-- Widget blocks:
-  - `embedded-collection-view` — a saved view from any Vault, rendered inline (editable per the inline-editing principle)
-  - `embedded-context-view` — auto-collected linked-content from a Space / Topic / Sub-topic
+Same block types as Contexts:
+- Text: paragraph, heading, list, callout, code, quote, divider, columns
+- Widgets:
+  - `embedded-collection-view` — saved Vault view, rendered inline (editable)
+  - `embedded-context-view` — auto-collected linked-content from a Context
   - `linked-pages` — Pages whose `tierN` includes a specified Context
-  - `link-list` — manually curated list of links
-  - `mini-calendar` (post-v0.10) — small Agenda view
+  - `link-list` — manually curated links
+  - `mini-calendar` — small Agenda view (ships v0.8.0)
 
-All widget blocks render as **live, fully-editable views of their source** — never read-only snapshots. Inline editing of properties, completion toggles, row creation, etc. all flow through to the underlying source files via atomic write. See `// Planning//Contexts-Vaults-spec.md` for the full inline-editing principle.
+All widgets render as **live, fully-editable views of their source** — never read-only snapshots. Edits flow to source files via atomic write. Inline-editing principle → `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
 #### Pinned-section integration
 
-The pinned section at the top of the sidebar (heading-less in v0.2; gains a "Saved" header when user-pinning ships per the Prospects entry) contains the `Homepage` entry that opens this file in the main pane. The label is user-renamable via Settings → Saved Section (per `saved-config.json`); the `homepage` code key is fixed.
+The pinned section at the top of the sidebar (heading-less in v0.2; gains "Saved" header when user-pinning ships) contains the `Homepage` entry that opens this file in the main pane. Label is renamable via Settings → Saved Section; the `homepage` code key is fixed.
 
 ```json
 // .nexus/saved-config.json
@@ -77,7 +77,7 @@ The pinned section at the top of the sidebar (heading-less in v0.2; gains a "Sav
 #### CRUD
 
 - **Create**: Seeded on first launch — no user-creation action (Homepage is a singleton)
-- **Read**: Top of sidebar → Homepage opens in a tab
+- **Read**: Top of sidebar → Homepage opens in the main detail pane
 - **Update**: Composed-blocks editor (Phase 10 in implementation plan); inline-edit any embedded widget per the inline-editing principle
 - **Delete**: Not user-deletable; regenerates if removed externally
 
@@ -92,4 +92,4 @@ The pinned section at the top of the sidebar (heading-less in v0.2; gains a "Sav
 
 #### Full specification
 
-Complete schema and CRUD details live in `// Planning//Contexts-Vaults-spec.md`.
+Schema + CRUD detail → `// Planning//Contexts-Vaults-spec.md`.

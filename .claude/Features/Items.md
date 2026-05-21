@@ -1,18 +1,18 @@
 ### Items
 
-An Item is a **row-shaped record** stored as a `.json` file. Properties + relations + a 250-character plain-text description, opened in an **Item window** (popover-style — Calendar-event-detail pattern). For database entries that don't warrant a full Page: wishlist entries, contacts, references, citations, music releases, recipes-as-rows. No Markdown body, no tab, no full page.
+An Item is a **row-shaped record** stored as a `.json` file: properties + relations + a 250-char plain-text description, opened in an **Item window** (popover, Calendar-event-detail pattern). For database entries that don't warrant a full Page — wishlist, contacts, references, citations, music releases, recipes-as-rows. No Markdown body.
 
-Items solve the Notion problem of every database row being a full page — by keeping prose-bearing entities (Pages) and row-shaped entities (Items) as separate file types that can coexist inside the same Vault.
+Items solve the Notion problem of every database row being a full page — by keeping Pages (prose-bearing) and Items (row-shaped) as separate file types that coexist inside the same Vault.
 
-**Important: tasks and calendar events are NOT Items in v1.** They live as **Agenda items** (`.agenda.json`) in a separate operational-layer entity with EventKit integration. See `Agenda.md`. Items are for row-shaped data that doesn't need calendar/EventKit semantics.
+**Tasks and calendar events are NOT Items in v1** — they're **Agenda items** (`.agenda.json`) with EventKit integration. See `Agenda.md`.
 
-Items live inside a Vault (or Collection sub-folder within a Vault). See `Vaults.md` for the containment rules. Vaults are kind-agnostic — Pages and Items can coexist in the same Vault under the shared schema.
+Items live inside a Vault or Collection sub-folder. Vaults are kind-agnostic — Pages and Items coexist under the shared schema.
 
 ---
 
 #### On disk
 
-**One `.json` file per Item.** Filename = title (same rule as Pages). Items live inside a Vault — either directly in the Vault folder or in a Collection sub-folder. No aggregate file, no nested `items//` subfolder.
+**One `.json` file per Item.** Filename = title. Lives in the Vault folder or a Collection sub-folder. No aggregate file.
 
 ```
 Materials/                  ← Vault
@@ -22,18 +22,18 @@ Materials/                  ← Vault
   Bookmark.json             ← Item directly in Vault (no Collection sub-folder)
 ```
 
-Renaming an Item in the UI renames the `.json` file on disk. Inbound relations stay intact because relations are by `id`, not by name.
+Renaming in UI renames the file. Inbound relations stay intact (by `id`, not name).
 
 Each Item file holds:
 
-- `id` — ULID, stable across renames (target of relations)
-- `description` — plain-text field, **hard cap 250 characters**. Sized so the field fits within the Item window without scrolling. Not Markdown, not a body.
-- `icon` — optional, same catalog as Pages and Vaults
-- `properties` — values conforming to the Vault's schema (same property catalog as Pages and Agenda)
-- `tier1` / `tier2` / `tier3` — per-tier multi-valued relation arrays pointing to Contexts (Spaces / Topics / Sub-topics). Independent per tier — each filled separately. Replaces the earlier `spaces` field.
-- `created_at` / `modified_at` — UNIX timestamps, auto-managed
+- `id` — ULID, stable across renames
+- `description` — plain text, **hard cap 250 chars**. Fits in the Item window without scrolling.
+- `icon` — optional, same catalog as Pages
+- `properties` — values conforming to the Vault schema
+- `tier1` / `tier2` / `tier3` — per-tier multi-valued relation arrays to Contexts. Independent per tier.
+- `created_at` / `modified_at` — UNIX timestamps
 
-No `name` field — the filename IS the name (consistent with Pages, where filename IS the title).
+No `name` field — filename IS the name.
 
 ---
 
@@ -42,7 +42,7 @@ No `name` field — the filename IS the name (consistent with Pages, where filen
 The decision is per-entry now (Vaults are kind-agnostic):
 
 - **Item** — row-shaped data without prose: contacts, wishlist, bookmarks, citations, music releases, recipes-as-rows, references. Opens in Item Window popover.
-- **Page** — prose-bearing content: notes, papers, project briefs, journal entries, reading reports. Opens in a tab with the editor.
+- **Page** — prose-bearing content: notes, papers, project briefs, journal entries, reading reports. Opens in the main detail pane with the editor.
 - **Agenda item** — calendar-anchored (tasks, events, to-dos, phases). Lives in `<nexus>/Agenda/`, NOT in a Vault. EventKit-integrable. See `Agenda.md`.
 
 If an Item later needs prose, the user creates a Page (in the same Vault or another) and links the two by ID. No in-place promotion in v1 (see `Prospects.md`).
@@ -61,15 +61,11 @@ If an Item later needs prose, the user creates a Page (in the same Vault or anot
 
 #### Sidebar visibility
 
-**Items do NOT appear in the sidebar.** They live exclusively in the detail-pane Tables (`VaultDetailView` shows a hierarchical Table that expands Collections to reveal contained Pages + Items; `CollectionDetailView` shows a flat Table of all Pages + Items in that Collection). The sidebar tree shows the structural / Page-shaped view — Vaults disclose Pages + Collections, Collections disclose Pages, full stop. Putting Items in the sidebar would clutter without serving navigation; the detail pane is where Item discovery happens.
-
-This is a paradigm decision (2026-05-17, in `// Guidelines//Paradigm-Decisions.md`). Same rule applies to Agenda items and Events — sidebar-invisible, detail-pane-only.
+**Items do NOT appear in the sidebar.** They live in detail-pane Tables (`VaultDetailView` hierarchical; `CollectionDetailView` flat). Sidebar shows the structural / Page-shaped view only. Paradigm decision 2026-05-17 — same rule applies to Agenda items and Events.
 
 #### Item window
 
-Items don't have a prose editor; they open in an **Item window** — a popover-style floating surface anchored to the trigger (detail-pane row click, table cell, wikilink, embedded-view row). Reference pattern: Calendar.app event-detail popover; macOS Finder's Get Info window. Not a tab, not a full page, not the inspector.
-
-The window contains:
+Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. Not a tab, not a full page, not the inspector. Contains:
 
 - **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
 - **Icon** — optional SF Symbol, editable via TextField (curated SymbolPicker UI deferred to a polish pass; current sheet supports manual entry).
@@ -82,9 +78,9 @@ Dismissed by clicking Done, pressing Esc, or closing the window. Save commits vi
 
 ---
 
-#### Item window — design evolution (v0.3.1 design intent)
+#### Item window — design evolution (v0.3.1)
 
-Nathan-sketched 2026-05-17. The current v0.2 ItemWindow is functional but Spartan — the design direction below supersedes it at v0.3.1, immediately after v0.3.0 Properties lands. v0.3.0 ships properties into the existing popover; v0.3.1 reshapes the surface around them.
+Nathan-sketched 2026-05-17. Supersedes the v0.2 popover at v0.3.1, immediately after v0.3.0 Properties. v0.3.0 ships properties into the existing popover; v0.3.1 reshapes around them.
 
 **Layout:** modal window (not popover) with a `New Item` / item-title header, two-column body, footer with Delete + Save.
 
@@ -108,28 +104,28 @@ Nathan-sketched 2026-05-17. The current v0.2 ItemWindow is functional but Sparta
 
 **Region-by-region:**
 
-- **Title bar** — `New Item` for creation flow; item title (filename) for edit flow. Editable in place — renaming retitles the `.json` file via `ContentManager.renameItem`.
-- **Top-right action buttons** (the two squares in the sketch) — icon picker + view-toggle / preview-toggle affordances. Exact actions TBD; expectation is one is SF Symbol icon picker (current TextField fallback retires once SymbolPicker integration completes per paradigm decision #3) and the other is a compact-vs-expanded view toggle.
-- **Left column — description/notes body** — large multi-line text area, dark-mode-prominent. Hard cap of 250 characters from the spec retained; the larger visual footprint just gives the field more breathing room. NOT a Markdown editor — Pages exist for that.
-- **Right column — properties** — stacked dropdown pickers, one per property in the parent Vault's schema. Auto-populates from `Vault.properties`; uses `PropertyEditorRow` dispatch per type (Select / Multi-select / Date / etc.). Replaces the current vertical list inside the ItemWindow popover.
-- **Footer left — Delete (red, secondary destructive)** — visible only in edit mode (hidden during create flow). Confirms via `SidebarConfirmation` dialog before destruction.
-- **Footer right — Save (blue, primary)** — commits via `ContentManager.updateItem` (or `createItem` on the create flow). Disabled until title is non-empty + validates against the parent Vault schema.
+- **Title bar** — `New Item` (create) / item title (edit). Editable in place via `ContentManager.renameItem`.
+- **Top-right action buttons** — icon picker + view-toggle (compact-vs-expanded). Exact actions TBD; SymbolPicker integration retires the TextField fallback per paradigm decision #3.
+- **Left column — description/notes body** — large multi-line text area; 250-char cap retained. NOT a Markdown editor (Pages exist for that).
+- **Right column — properties** — stacked dropdown pickers, one per Vault property. `PropertyEditorRow` dispatch per type. Replaces the popover's vertical list.
+- **Delete (red, destructive)** — edit mode only; confirms via `SidebarConfirmation`.
+- **Save (blue, primary)** — commits via `ContentManager.updateItem` / `createItem`. Disabled until title non-empty + schema-valid.
 
-**Why this evolution waits for v0.3.1:** the design assumes the full property panel UI from v0.3.0. Shipping the new shell before properties exist would leave the right column empty. v0.2's current ItemWindow popover suffices through v0.3.0 (title + icon + description + meta + properties). The shell redesign at v0.3.1 reshapes around the now-filled property column.
+**Why this waits for v0.3.1:** design assumes the v0.3.0 property panel. Shipping the shell before properties exist would leave the right column empty.
 
-**v0.3.1 implementation notes** (forward-looking):
-- The window becomes a true `WindowGroup(for: ItemRef.self)` rather than a sheet — clicking an Item row opens a separate macOS window (matching the standalone-Page pattern from `WindowGroup(for: PageRef.self)`, generalized to `EntityRef` at v0.2.8 NavDropdown). Side-by-side editing of two Items becomes possible.
-- The same view doubles as create + edit by passing `mode: .create | .edit(Item)`. Create flow hides Delete; edit flow shows it.
-- The two-column layout uses `HStack` with proportional widths — body 60% / properties 40% (revisit ratios at implementation).
-- The existing `ItemWindow.swift` popover stays as the "compact" / inspector view if we want both modes.
+**v0.3.1 implementation notes:**
+- Window becomes a true `WindowGroup(for: ItemRef.self)` — clicking an Item opens a separate macOS window. Depends on the cross-feature PreviewWindow primitive (`Guidelines/CRUD-Patterns.md`); the earlier `EntityRef` machinery from v0.2.7.2 was deleted at v0.2.7.1 and won't be revived.
+- Same view doubles as create + edit via `mode: .create | .edit(Item)`. Create flow hides Delete.
+- Two-column `HStack` — body 60% / properties 40% (revisit at implementation).
+- Existing `ItemWindow.swift` popover stays as compact / inspector mode if wanted.
 
 ---
 
 #### Item creation surfacing — lands at v0.3.0 (decided 2026-05-17; re-confirmed RC-2026-05-19)
 
-Item creation affordances stay narrow through v0.2.x — only `CollectionDetailView`'s footer "+ New Item" exists. Broader surfacing (Vault detail footer button + sidebar context menu entries on Vault + Collection rows) **ships with Properties at v0.3.0** because an Item without typed properties is just title + icon + 250-char description, which doesn't yet justify the Item paradigm. Teaching users to "create Items" before Properties exist would seat a mental model that changes meaning under them when v0.3.0 arrives.
+Through v0.2.x only `CollectionDetailView`'s footer "+ New Item" exists. Broader surfacing (Vault detail footer + Vault/Collection row right-click) **ships with Properties at v0.3.0** — an Item without typed properties doesn't yet justify the paradigm.
 
-The `.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDetailView` from v0.2; v0.3.0 hangs the visible entry points off existing routes. The Item Window redesign (Nathan sketch above) then ships at v0.3.1 so the full Item story completes in v0.3.0 → v0.3.1 across two minor versions. Full scope + the 3 surfacing additions catalogued at `// Planning//v0.3.0-Properties-implementation.md`.
+`.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDetailView`; v0.3.0 hangs visible entry points off existing routes. Item Window redesign ships at v0.3.1 so the full Item story completes across v0.3.0 → v0.3.1. Full scope → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 
@@ -145,9 +141,9 @@ The `.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDe
 
 #### Why Items exist
 
-Notion conflates "row in a database" with "page with a body" because every database entry is a full page. Pommora keeps them distinct as separate file types — Items are pure rows (no body), Pages are prose. Both can coexist in the same Vault under the shared schema, and the user picks per-entry. This:
+Notion conflates "row in a database" with "page with a body." Pommora keeps them as separate file types — Items are pure rows, Pages are prose. Both coexist in the same Vault under the shared schema; user picks per-entry. This:
 
-- Keeps the nexus scannable — an Item's `.json` is small and EditorViewer-friendly
+- Keeps the nexus scannable — Item `.json` is small and EditorViewer-friendly
 - Maps cleanly to cloud sync (parallel `pages` / `items` tables keyed by `vault_id`)
-- Preserves file-canonical agent legibility (each Item is its own openable JSON file)
-- Removes the per-Vault "kind?" decision the earlier 3-entity model forced
+- Preserves agent legibility (each Item is its own openable JSON file)
+- Removes the per-Vault "kind?" decision the earlier model forced

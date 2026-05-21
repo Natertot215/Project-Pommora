@@ -8,7 +8,7 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 - **Operational layer — Vaults + Agenda**: Vaults (folder + `_vault.json` with shared schema) contain Collections (sub-folders sharing the Vault's schema in v1) which contain Pages (`.md`) and Items (`.json`). Agenda is a sibling of Vaults at `<nexus>/Agenda/` for calendar-anchored items with EventKit integration.
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
 
-Items open in a popover-style **Item Window** (title + properties + 250-char description, not a full-frame surface); Pages open in the main detail pane (or in a standalone window via NavDropdown's preview gate or `⌥⌘O`). Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
+Items open in a popover-style **Item Window** (title + properties + 250-char description, not a full-frame surface); Pages open in the main detail pane. (Standalone-window previews are queued behind the cross-feature PreviewWindow primitive; not yet wired.) Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
 
 #### Working with Nathan
 
@@ -21,7 +21,7 @@ Items open in a popover-style **Item Window** (title + properties + 250-char des
 
 #### Stack
 
-Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote) is the likely direction for the Pages editor; Option 1 (native NSTextView + `swift-markdown` + TextKit 2; Clearly available as a fork-reference) is the more ambitious alternative. React+Electron is preserved as the contingency path — translation methodology lives at `// ReactInfo//Contingency.md`; topic-based React reference at `// ReactInfo//` folder.
+Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as the contingency path — translation methodology lives at `// ReactInfo//Contingency.md`; topic-based React reference at `// ReactInfo//` folder.
 
 #### Core Principles
 
@@ -44,7 +44,7 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
 - **Move-strip rule.** Moving a Page or Item across Vaults strips properties not in the destination schema — Notion-style; no quarantine. The user gets a simple confirmation warning listing which properties will be stripped. Within the same Vault (between Collection sub-folders), no strip — schema is shared.
 
 - **Design system: SwiftUI primary + AppKit where needed**
- Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView/TextKit 2 for Option 1 editor, NSSplitView for splitter polish). 
+ Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView / TextKit 2 for the Page editor, NSSplitView for splitter polish). 
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 
@@ -67,15 +67,17 @@ Locked to **SwiftUI**. Option 2 (WKWebView hosting Tiptap / Milkdown / BlockNote
   - `PageEditor.md` — editor implementation spec: library (swift-markdown + vendored swift-markdown-engine), shipped v0.2.7.0 features, v0.2.7.x deferred patches, save pipeline, hot-swap surface
   - `Items.md` — row-shaped `.json` entries; Item Window UI; tier1/2/3
   - `Properties.md` — property type catalog (Vault-wide v1; shared across Pages, Items, Agenda)
-  - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Recents + Favorites); v0.2.7.2 — supersedes the old `Navigation-Bar.md` tab-strip model
+  - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Pinned + Recents); shipped v0.2.7.1 — supersedes the earlier tab-strip navigation model
   - `Sidebar.md` — four-section sidebar (Saved / Spaces / Topics / Vaults); selection language, indentation mechanisms
   - `Architecture.md` — what survives a stack rebuild (conceptual portability)
   - `Prospects.md` — post-v1 features (incl. synced blocks, collection-local schemas, graph view, Item ↔ Page promotion)
   - `Spaces.md` — STUB: redirects to `Contexts.md` (Spaces are now tier-1 Contexts)
   - `Collections.md` — STUB: redirects to `Vaults.md` (Collections are now sub-folders inside Vaults)
 - `// Guidelines//`
-  - `UIX-Guide.md` — SwiftUI-native design philosophy, component conventions, AppKit interop
+  - `Design.md` — SwiftUI-native design philosophy, brand-value placement, component conventions, AppKit interop
+  - `Symbols.md` — SF Symbol registry (Application ↔ Symbol table); spec for the future in-app Symbol Settings surface
   - `CRUD-Patterns.md` — SwiftUI patterns for per-entity CRUD UI, atomic-write discipline, manager pattern
+  - `Paradigm-Decisions.md` — Confirmation protocol + registry of paradigm-solidifying decisions
 - `// Planning//`
   - `Contexts-Vaults-spec.md` — complete implementation spec for the locked 2-layer model (file schemas, validation, CRUD scope, 11-phase plan, SwiftUI research, EventKit details, day-1 plan)
   - `v0.1-nexus-foundation-design.md` — v0.1a implementation design + Findings (shipped)

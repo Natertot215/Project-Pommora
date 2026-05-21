@@ -1,30 +1,20 @@
 ### CRUD Patterns
 
-SwiftUI patterns for per-entity CRUD UI in Pommora — what every new entity manager should look like, from file format through sidebar UI through validation. Derived from the existing `NexusManager` / `NexusIdentity` / `NexusStore` shape (v0.1a) and the swiftui-expert-skill research captured during the RC-session domain-model revision.
-
-This is a Guideline — patterns to follow, not enforcement. Full per-entity CRUD scope lives at `// Planning//Contexts-Vaults-spec.md`.
+SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → validation. Derived from `NexusManager` / `NexusIdentity` / `NexusStore` (v0.1a) + swiftui-expert-skill research from the RC-session domain-model revision. Guideline, not enforcement. Full per-entity CRUD scope → `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
 #### Preview-window prerequisite (locked v0.2.7.1)
 
-Pommora exposes "open in preview" as a generic affordance — the dropdown's preview-on-click, future `⌥⌘O`, future Cmd-click-from-anywhere. The preview surface is a **shared primitive** (PreviewWindow), not a per-feature one.
+"Open in preview" is a generic affordance (dropdown preview-on-click, future `⌥⌘O`, future Cmd-click-from-anywhere) backed by a **shared primitive** (PreviewWindow), not a per-feature one.
 
-**Rule:** for any entity kind (Page, Vault, Collection, Space, Topic, Sub-topic, Item, Agenda item), the PreviewWindow for that kind ships **before** any "open in preview" UI is wired for that kind. CRUD on an entity may land independently, but the affordance that says "open this in a separate window" must wait until the PreviewWindow actually has wiring for that kind.
-
-Why: features that shipped half-wired (the v0.2.7.2 NavDropdown EntityWindowHost, since removed) accreted feature-specific window plumbing that immediately rotted when the requirements shifted. The PreviewWindow is one project-wide primitive; bolt new feature surfaces onto it, not bespoke windows per feature.
-
-Practical implication for future work:
-- New entity CRUD lands without standalone-window affordances by default.
-- When PreviewWindow gains support for a kind, "open in preview" affordances may be enabled for that kind in NavDropdown, sidebar, detail views, etc.
-- Until then, double-click and Cmd-click-from-sidebar both route to the main detail pane (or, for Items, to ItemWindow which is already shipped).
-- Items are the exception that proves the rule: ItemWindow is the canonical "popover-style detail surface" and predates this rule, so Item rows route to ItemWindow today. When the PreviewWindow primitive lands, Items may move to it or stay on ItemWindow per the spec at that time.
+**Rule:** for any entity kind (Page, Vault, Collection, Space, Topic, Sub-topic, Item, Agenda item), PreviewWindow support for that kind ships **before** any "open in preview" UI is wired. CRUD may land independently; the standalone-window affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Practical implication: new entity CRUD lands without standalone-window affordances by default; double-click and Cmd-click-from-sidebar route to the main detail pane until PreviewWindow gains support. Exception: ItemWindow predates this rule, so Item rows route to ItemWindow today; may migrate to PreviewWindow per future spec.
 
 ---
 
 #### Manager pattern — per entity, `@MainActor @Observable`
 
-Every new entity (Space, Topic, Sub-topic, Vault, Item, Page, Agenda item, Homepage, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity managers (not one unified store) — keeps state-driven updates narrowly scoped so changing a Topic doesn't re-evaluate the Spaces section.
+Every new entity (Space, Topic, Sub-topic, Vault, Item, Page, Agenda item, Homepage, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity (not one unified store) — narrows state-driven updates so changing a Topic doesn't re-evaluate the Spaces section.
 
 ```swift
 @MainActor
@@ -48,15 +38,15 @@ final class SpaceManager {
 }
 ```
 
-Inject the active Nexus's root URL into each manager at construction; managers re-load when `NexusManager.currentNexus` changes (via `.onChange(of:initial:true)` on the parent view — `initial: true` covers the initial nil → Nexus transition; without it, the first construction relies on a separate `.task { await loadOnLaunch() }` race).
+Inject the active Nexus's root URL at construction; re-load when `NexusManager.currentNexus` changes via `.onChange(of:initial:true)` on the parent view — `initial: true` covers the nil → Nexus transition, else first construction races a separate `.task { await loadOnLaunch() }`.
 
-**`pendingError` scope (v0.2 state):** today, managers assign `pendingError` only from `loadAll`/`load` paths — CRUD methods (`create`, `rename`, `update*`, `delete`) throw out of `async throws` and the row/sheet catch block is responsible for surfacing. This means failed renames / deletes from sidebar context-menu actions are currently silent (the row's catch block has no error UI). The locked direction (4-commit pre-merge cleanup, paradigm-scaffolding branch) is: managers ALSO set `pendingError` on CRUD failures, and a sidebar-level toast observes the error and surfaces it transiently. Until that lands, sheet-level forms (NewSpaceSheet etc.) use per-view `@State errorMessage: String?` for inline error display.
+**`pendingError` scope (v0.2):** assigned only from `loadAll`/`load`; CRUD methods (`create`, `rename`, `update*`, `delete`) throw out of `async throws` and the row/sheet catch block surfaces. Failed sidebar context-menu renames/deletes are currently silent. Locked direction (4-commit pre-merge cleanup): managers ALSO set `pendingError` on CRUD failures + a sidebar-level toast surfaces it transiently. Until then, sheet-level forms (NewSpaceSheet etc.) use per-view `@State errorMessage: String?` for inline display.
 
 ---
 
 #### Codable file types — `load(from:)` + `save(to:)` mirror `NexusIdentity`
 
-Every Codable entity file follows `NexusIdentity`'s shape:
+Every Codable entity file follows `NexusIdentity`'s shape.
 
 ```swift
 struct Space: Codable, Equatable, Identifiable, Hashable {
@@ -83,7 +73,7 @@ extension Space {
 
 #### Atomic JSON write — `Data.write(.atomic)` is enough
 
-Pommora's existing `NexusIdentity.save(to:)` pattern is the atomic-write reference:
+Reference pattern (from `NexusIdentity.save(to:)`):
 
 ```swift
 enum AtomicJSON {
@@ -106,15 +96,13 @@ enum AtomicJSON {
 }
 ```
 
-`Data.write(to:options:[.atomic])` writes to a temp file + atomic rename under the hood — **no separate `.tmp` helper needed**. Reuse `AtomicJSON` for every Codable entity file.
-
-JSON output: pretty-printed + sorted keys + ISO-8601 dates. Human-inspectable on disk; agent-legible without app round-trip.
+`Data.write(to:options:[.atomic])` writes to a temp file + atomic rename under the hood — **no separate `.tmp` helper needed**. Reuse `AtomicJSON` for every Codable entity file. Output: pretty-printed + sorted keys + ISO-8601 dates — human-inspectable, agent-legible without app round-trip.
 
 ---
 
 #### YAML frontmatter — use Yams
 
-Yams (`github.com/jpsim/Yams`, MIT) is the recommended dependency for Page frontmatter parsing. No first-party Apple solution; `apple/swift-markdown` handles Markdown body but not frontmatter.
+Yams (`github.com/jpsim/Yams`, MIT) — Page frontmatter parsing. No first-party Apple solution; `apple/swift-markdown` handles body but not frontmatter.
 
 ```swift
 import Yams
@@ -138,13 +126,13 @@ struct PageFile {
 }
 ```
 
-Add via Swift Package Manager: `https://github.com/jpsim/Yams.git`, version `from: "5.1.0"`. Worth adding at Phase 0 even though Spaces don't need it — Phase 6 (Page CRUD) shouldn't block on dependency management.
+SPM: `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`. Add at Phase 0 so Phase 6 (Page CRUD) doesn't block on dependency management.
 
 ---
 
 #### Sidebar pattern — extend existing `SidebarView`
 
-The current `SidebarView` already uses `List` + `Section(isExpanded:)` + `DisclosureGroup` + the locked `SelectableRow` selection language. **No new sidebar architecture needed** — swap placeholders for real data from each manager as it lands.
+`SidebarView` already uses `List` + `Section(isExpanded:)` + `DisclosureGroup` + the locked `SelectableRow` selection language. **No new sidebar architecture needed** — swap placeholders for real data from each manager as it lands.
 
 ```swift
 struct SidebarView: View {
@@ -173,19 +161,16 @@ struct SidebarView: View {
             }
         }
     }
-
-    // Each `xxxSection` extracted to its own SwiftUI `View` struct (not a computed
-    // var) so SwiftUI can skip body re-evaluation when its inputs don't change.
 }
 ```
 
-Section structs are extracted as their own `struct: View` types, not computed properties — extracted-as-struct pattern from `swiftui-expert-skill/references/view-structure.md` ("Extract Subviews, Not Computed Properties").
+Each `xxxSection` is its own `struct: View` (not a computed property) so SwiftUI can skip body re-evaluation when inputs don't change — pattern from `swiftui-expert-skill/references/view-structure.md` ("Extract Subviews, Not Computed Properties").
 
 ---
 
 #### Creation sheets — enum-keyed `.sheet(item:)`, triggered by right-click context menus
 
-Single sheet modifier with an `Identifiable` enum, not N boolean state properties. **Triggered by `.contextMenu` items on rows / section areas, NOT by always-visible "+ New" buttons** (paradigm decision 2026-05-17 — see `Sidebar.md` for the full right-click table).
+Single sheet modifier with an `Identifiable` enum, not N boolean state properties. **Triggered by `.contextMenu` on rows / section areas, NOT by always-visible "+ New" buttons** (paradigm decision 2026-05-17 — see `Sidebar.md` for the full right-click table).
 
 ```swift
 enum SidebarSheet: Identifiable {
@@ -221,9 +206,7 @@ enum SidebarSheet: Identifiable {
 }
 ```
 
-Each sheet owns its actions via `@Environment(\.dismiss)` — no callback prop-drilling. Each enum case carries the parent entity binding through so the sheet never re-asks for parent location — the right-click cursor already identified it.
-
-**`Pommora.Collection` qualification** required on enum case associated values that carry `Collection` — the bare name shadows with `Swift.Collection` protocol. See project quirk #6 in `// CLAUDE.md`.
+Each sheet owns its actions via `@Environment(\.dismiss)` — no callback prop-drilling. Each case carries the parent entity binding so the sheet never re-asks for parent location. **`Pommora.Collection` qualification** required on enum case associated values carrying `Collection` — bare name shadows `Swift.Collection` (project quirk #6 in `// CLAUDE.md`).
 
 ---
 
@@ -241,11 +224,8 @@ struct SpaceRow: View {
             TextField("", text: $draft)
                 .focused($isFocused)
                 .onSubmit { commit() }
-                .onKeyPress(.escape) { cancel(); return .handled }   // Esc cancels (iOS 17+/macOS 14+)
-                .onAppear {
-                    draft = space.title
-                    isFocused = true
-                }
+                .onKeyPress(.escape) { cancel(); return .handled }
+                .onAppear { draft = space.title; isFocused = true }
         } else {
             SelectableRow(title: space.title, ...)
                 .contextMenu {
@@ -254,15 +234,12 @@ struct SpaceRow: View {
                 }
         }
     }
-
     private func commit() { ... }
     private func cancel() { editingID = nil }
 }
 ```
 
-Trigger rename via right-click → Rename, keyboard Enter on selected row, or — for power users only — double-click on the row. Avoid double-click as the default trigger for openable entities (it conflicts with open-on-click).
-
-**Esc-to-cancel:** prefer `.onKeyPress(.escape)` (iOS 17+ / macOS 14+ — Pommora targets macOS 26.4 so always available). The legacy `.onExitCommand` is macOS-only and still works but `.onKeyPress` is the forward-compatible API.
+Trigger rename via right-click → Rename, keyboard Enter on selected row, or (power users only) double-click — avoid double-click as default for openable entities (conflicts with open-on-click). **Esc-to-cancel:** prefer `.onKeyPress(.escape)` over the legacy macOS-only `.onExitCommand` — forward-compatible API.
 
 ---
 
@@ -285,7 +262,7 @@ SelectableRow(...)
 
 #### Folder + file atomicity (multi-step filesystem ops)
 
-Creating a Topic / Vault is **two steps** — (1) create folder, (2) write metadata file. `Data.write(.atomic)` only atomicizes the second step; the combined operation needs **best-effort rollback** on failure plus **idempotent recovery** on load.
+Creating a Topic / Vault is **two steps** — (1) create folder, (2) write metadata file. `Data.write(.atomic)` only atomicizes step 2; the combined op needs **best-effort rollback** on failure + **idempotent recovery** on load.
 
 ```swift
 func create(name: String, parents: [String]) async throws {
@@ -303,34 +280,25 @@ func create(name: String, parents: [String]) async throws {
 }
 ```
 
-**Idempotent recovery on load:** if `loadAll()` encounters a folder under `.nexus/topics/` without a `_topic.json` inside, skip it silently — treat as cosmetic / user-manual organization rather than crash or auto-create a phantom Topic. User can repair via Finder.
-
-**Folder rename** uses `FileManager.moveItem(at:to:)` — atomic on same volume (always true for nexus contents; cross-volume is impossible since the whole nexus is one path tree).
+**Idempotent recovery on load:** if `loadAll()` encounters a folder under `.nexus/topics/` without a `_topic.json` inside, skip silently — treat as user-manual organization; user repairs via Finder. **Folder rename** uses `FileManager.moveItem(at:to:)` — atomic on same volume (always true for nexus contents).
 
 ##### Rename atomicity — pending consistent pattern (4-commit cleanup)
 
-The v0.2 managers all use a **rename-folder-first-then-write-metadata** pattern that has an unrecoverable failure mode: if the metadata write fails (disk full, permissions, etc.) the folder is already at the new name with stale `modified_at`. Six sites today:
+v0.2 managers use **rename-folder-first-then-write-metadata** with an unrecoverable failure mode: if metadata write fails the folder is already at the new name with stale `modified_at`. Six sites: `SpaceManager.rename`, `TopicManager.renameTopic`, `TopicManager.renameSubtopic` + `moveSubtopic`, `VaultManager.renameVault`, `VaultManager.renameCollection`, `ContentManager.renameItem`.
 
-- `SpaceManager.rename`
-- `TopicManager.renameTopic`
-- `TopicManager.renameSubtopic` + `moveSubtopic`
-- `VaultManager.renameVault`
-- `VaultManager.renameCollection`
-- `ContentManager.renameItem`
+Locked direction (4-commit pre-merge cleanup): pick ONE pattern. Candidates:
 
-The locked direction (4-commit pre-merge cleanup) is to pick ONE pattern and apply consistently. Three candidates:
+1. **Write metadata first, then rename folder** — on folder-rename failure metadata is already correct; retry rename on next load. Resilient; brief on-disk name divergence.
+2. **Rollback on metadata failure** — current pattern; rename folder back on metadata-write failure. Risk: rename-back can also fail.
+3. **Write-temp + atomic rename of metadata, then folder rename** — closest to true atomicity; requires two-phase recovery.
 
-1. **Write metadata first, then rename folder** — if folder rename fails, the metadata write has already succeeded with the new title, so we attempt the rename again on next load. Resilient but the metadata-vs-folder name divergence is briefly observable on disk.
-2. **Rollback on metadata failure** — current pattern; on metadata-write failure, attempt to rename the folder back. Risk: rename-back could also fail.
-3. **Write-temp + atomic rename of metadata, then folder rename** — closest to true atomicity but requires two-phase recovery on failure.
-
-Decision will be locked when the 4-commit cleanup executes. Pattern will then be documented here as the canonical rename flow.
+Decision locked when cleanup executes; canonical flow documented here then.
 
 ---
 
 #### Validation — pure functions per entity
 
-Validation enforced at the manager layer, before write:
+Enforced at the manager layer, before write.
 
 ```swift
 enum SpaceValidator {
@@ -345,7 +313,7 @@ enum SpaceValidator {
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
         let invalidChars: Set<Character> = ["/", ":", "\\"]
         guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            // Check `trimmed`, not `title` — consistent with the empty-check pattern above
+            // Check `trimmed`, not `title` — matches the empty-check above
             throw ValidationError.invalidTitleCharacters
         }
         let conflicts = existing.contains {
@@ -356,11 +324,11 @@ enum SpaceValidator {
 }
 ```
 
-Tier-parent validation needs cross-entity lookup (a Sub-topic's parent Topic ID must resolve to an actual Topic). **The locked Swift 6 pattern**: managers take a `contextProvider: @MainActor @escaping () -> NexusContext` closure at init that returns a fresh snapshot per call. NexusContext's own inner closures are `@Sendable` (they cross into validators that may run off-actor), so capture `Sendable` value-type arrays (`spaceMgr.spaces`, `topicMgr.topics`, etc.) into local lets at the outer `@MainActor` closure scope:
+Tier-parent validation needs cross-entity lookup (Sub-topic's parent Topic ID must resolve). **Locked Swift 6 pattern:** managers take a `contextProvider: @MainActor @escaping () -> NexusContext` closure at init returning a fresh snapshot per call. NexusContext's inner closures are `@Sendable` (cross into off-actor validators); capture `Sendable` value-type arrays into local lets at the outer `@MainActor` scope:
 
 ```swift
 @MainActor
-final class ContentView { /* ... */
+final class ContentView {
     private func constructManagers(for nexus: Nexus) {
         let spaceMgr = SpaceManager(nexus: nexus)
         let topicMgr = TopicManager(nexus: nexus) { @MainActor in
@@ -375,32 +343,27 @@ final class ContentView { /* ... */
                 lookupVault: { id in /* via vaultMgr — similar snapshot */ nil }
             )
         }
-        // ...
     }
 }
 ```
 
-**One-shot only:** the returned NexusContext is invoked per-validate-call and thrown away. **Do not store the returned NexusContext** in a long-lived closure (e.g. background indexer, search index) — the snapshot would go stale. Validation is a one-shot per-call use; that's the only safe shape today.
-
-A higher-level `NexusCoordinator` aggregating all managers is post-v1 if needed; v1 uses the per-manager `contextProvider` closure pattern above.
+**One-shot only:** invoked per-validate-call and thrown away. **Do not store** in a long-lived closure (background indexer, search index, etc.) — snapshot would go stale. A higher-level `NexusCoordinator` aggregating all managers is post-v1; v1 uses the per-manager `contextProvider` closure pattern.
 
 ---
 
 #### Sandbox + security-scoped access — already solved
 
-`NexusManager` already handles `startAccessingSecurityScopedResource()` / `stopAccessingSecurityScopedResource()` lifecycle. New file writes inside the nexus inherit access from the active resource scope — **no per-write bookmark needed**.
+`NexusManager` handles `startAccessingSecurityScopedResource()` / `stopAccessingSecurityScopedResource()` lifecycle. New file writes inside the nexus inherit access from the active scope — **no per-write bookmark needed**.
 
-**Discipline:** new entity managers should NOT call `startAccessing` independently. They assume the active Nexus's resource scope is held by `NexusManager`. They read `nexusURL` from the active `Nexus` value and write within that tree.
+**Discipline:** new entity managers must NOT call `startAccessing` independently — they assume `NexusManager` holds the active scope and read `nexusURL` from the active `Nexus`, writing within that tree.
 
-For EventKit (Agenda layer, Phase 6.5): separate sandbox entitlement (`com.apple.security.personal-information.calendars`) + Info.plist usage description keys + `requestFullAccessTo*` APIs. EventKit is its own access flow, NOT the file-r/w resource scope. Detail → `Features/Agenda.md`.
+EventKit (Agenda, Phase 6.5): separate sandbox entitlement (`com.apple.security.personal-information.calendars`) + Info.plist usage description keys + `requestFullAccessTo*` APIs — its own access flow, NOT the file-r/w resource scope. Detail → `Features/Agenda.md`.
 
 ---
 
 #### SF Symbol picker — `xnth97/SymbolPicker` SPM dep behind `IconPickerSheet` wrapper
 
-Paradigm decision 2026-05-16 (see `// Guidelines//Paradigm-Decisions.md`): use the `xnth97/SymbolPicker` Swift Package wrapped behind Pommora's own `IconPickerSheet` view. Wrapping isolates call sites from the third-party API surface — swapping libraries (or moving to a hand-rolled grid) is a single-file rewrite in the wrapper, no call-site churn.
-
-Wrapper shape:
+Paradigm decision 2026-05-16 (see `// Guidelines//Paradigm-Decisions.md`): use `xnth97/SymbolPicker` wrapped behind Pommora's own `IconPickerSheet`. Wrapping isolates call sites from the third-party API — swapping libraries is a single-file rewrite in the wrapper.
 
 ```swift
 import SymbolPicker
@@ -415,41 +378,30 @@ struct IconPickerSheet: View {
     @State private var icon: String = ""
 
     var body: some View {
-        SymbolPicker(symbol: $icon)  // library renders own UI; nullable variant exposes a delete-icon button
+        SymbolPicker(symbol: $icon)  // nullable variant exposes a delete-icon button
             .onAppear { icon = currentIcon ?? "" }
             .onChange(of: icon) { _, newValue in
                 Task { await save(newIcon: newValue.isEmpty ? nil : newValue); dismiss() }
             }
     }
-
     // currentIcon + save() switch on `target` to dispatch to the right manager method
 }
 ```
 
-SymbolPicker auto-renders Cancel / clear / done chrome; no need to add it in the wrapper. The wrapper's only responsibility: bind the picked symbol back to the right manager's `updateIcon` method via the `IconTarget` enum.
-
-SPM dep added at branch commit `22e3fc6`. Resolver settled on 1.6.2. No curated default list — the library's full search picker is the only icon-picker UI in v0.2.
+SymbolPicker auto-renders Cancel / clear / done chrome. Wrapper's only job: bind the picked symbol to the right manager's `updateIcon` via the `IconTarget` enum. SPM dep added at commit `22e3fc6`, resolver 1.6.2. No curated default list — library's full search picker is the only icon-picker UI in v0.2.
 
 ---
 
 #### Inline editing principle — managers own writes, embeds dispatch to managers
 
-Every embedded view (in a Context page, in the Homepage) is **a live, fully-editable view of its source** — not a snapshot. Implementation discipline:
+Every embedded view (Context page, Homepage) is **a live, fully-editable view of its source** — not a snapshot.
 
 - Block stores the **reference** (source entity ID + view config + filters), not a snapshot
-- Edits route through the source entity's manager (e.g. checking off a Task in an embedded view calls `AgendaManager.toggleCompleted(...)`)
+- Edits route through the source entity's manager (e.g. checking off a Task in an embed calls `AgendaManager.toggleCompleted(...)`)
 - Manager atomically writes the source file
-- File watcher catches the change → SQLite re-indexes → all embedded views of that entity refresh live
+- File watcher catches the change → SQLite re-indexes → all embedded views refresh live
 
-**No separate "embed-edit path" vs "primary-surface edit path."** Same manager, same methods. One source of truth per entity.
-
-Detail → `Planning/Contexts-Vaults-spec.md` "Inline editing in composed-page blocks (Notion-style)."
-
----
-
-#### Section-extraction discipline (from swiftui-expert-skill)
-
-Per `swiftui-expert-skill/references/view-structure.md`, extract complex view sections into separate `struct: View` types — not `@ViewBuilder` computed properties — so SwiftUI can skip body re-evaluation when inputs don't change. Applies especially to large `SidebarView` sections (Spaces / Topics / Vaults), each of which has independent state sources (one manager each).
+**No separate "embed-edit path" vs "primary-surface edit path."** Same manager, same methods. One source of truth per entity. Detail → `Planning/Contexts-Vaults-spec.md` "Inline editing in composed-page blocks (Notion-style)."
 
 ---
 
@@ -469,4 +421,4 @@ Per `swiftui-expert-skill/references/latest-apis.md`:
 - `tint(_:)` not `accentColor(_:)`
 - `@Entry` macro for custom environment values, not manual `EnvironmentKey`
 
-Target is macOS 26.4. Use modern APIs throughout — Pommora doesn't carry back-deployment burden.
+Target macOS 26.4 — no back-deployment burden.

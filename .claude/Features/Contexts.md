@@ -1,8 +1,8 @@
 ### Contexts
 
-The organization layer of Pommora's domain model. Three tiers — Spaces (1), Topics (2), Sub-topics (3) — that act as categorical anchors that other entities relate *to*. Per-tier labels are user-configurable; the tier *numbers* are load-bearing in code, the *labels* are presentation.
+The organization layer. Three tiers — Spaces (1), Topics (2), Sub-topics (3) — that act as categorical anchors other entities relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
 
-This doc replaces the earlier per-tier-1 `Spaces.md`. All three tiers share the same shape; tier-specific differences are called out below.
+Replaces the earlier `Spaces.md`. All three tiers share the same shape; differences called out below.
 
 ---
 
@@ -20,15 +20,15 @@ Tier names are stored in `.nexus/tier-config.json` with both singular and plural
 
 #### Shared shape
 
-All three tiers are composed-blocks surfaces — same pattern as the Homepage. Each Context entity carries:
+All three tiers are composed-blocks surfaces — same pattern as Homepage. Each carries:
 
 - `id` (ULID), `tier` (1/2/3), `icon` (SF Symbol, optional)
 - `parents` — IDs of Contexts at lower tier numbers (validated)
-- `blocks` — composed-page block tree; can embed any other Pommora entity by ID
+- `blocks` — composed-page block tree; can embed any entity by ID
 - `modified_at`
 - Tier-1 (Space) additionally carries `color` (one of 9 Notion palette colors)
 
-Filename = title (no `title` field in the JSON). Renaming the entity in the UI renames the file on disk.
+Filename = title. Renaming in the UI renames the file.
 
 ---
 
@@ -83,7 +83,7 @@ tier2: [<topic-id>, ...]
 tier3: [<subtopic-id>, ...]
 ```
 
-Each tier filled independently — no requirement to fill all three. Editing happens in the property panel (Item Window, Page property panel, Agenda Item Window) via type-to-search relation pickers.
+Each tier filled independently. Edited via type-to-search relation pickers in the property panel.
 
 ---
 
@@ -123,4 +123,4 @@ User-configurable per Nexus at `.nexus/tier-config.json`:
 
 #### Full specification
 
-The complete on-disk schema, validation rules, sidebar layout, and CRUD scope live in `// Planning//Contexts-Vaults-spec.md`. This Features doc covers the user-facing model; the Planning doc covers the implementation surface.
+Complete on-disk schema, validation, sidebar layout, and CRUD scope → `// Planning//Contexts-Vaults-spec.md`.

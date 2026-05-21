@@ -2,11 +2,9 @@
 
 #### Context
 
-Pommora's original 3-entity model (Pages / Collections / Spaces + Items) was reconsidered during an RC session on 2026-05-16. The conversation iterated through Vault-as-containment, Anytype-style typed-objects, and Capacities-style renamable labels before landing on a final shape: a **2-layer model** with PARA-aligned naming and a tiered Context system.
+Locked synthesis of the 2026-05-16 RC session: **2-layer model** with PARA-aligned naming + tiered Contexts. Supersedes sections of `Domain-Model.md`, `Spaces.md`, `Collections.md`, `Items.md`, `Pages.md`, `Sidebar.md`, `PommoraPRD.md`, `Framework.md` once implemented (doc rewrites happen post-implementation).
 
-This spec is the locked synthesis of that conversation. It supersedes the relevant sections of `Domain-Model.md`, `Spaces.md`, `Collections.md`, `Items.md`, `Pages.md`, `Sidebar.md`, `PommoraPRD.md`, and `Framework.md` once implemented; the spec-doc rewrites happen post-implementation, not as part of this work.
-
-The implementation discipline locked in by Nathan during the same session: **CRUD and paradigm must land hand-in-hand**. Spaces are not "added" until "+ New Space" works end-to-end on disk; sub-topics don't exist until the "create sub-topic" interaction lands. Each entity's first appearance in the codebase is paired with its CRUD interface, not a separate later pass.
+**Locked discipline**: CRUD and paradigm land hand-in-hand. Each entity's first appearance in the codebase is paired with its CRUD interface — no separate later pass.
 
 ---
 
@@ -38,11 +36,11 @@ Three tiers, all exposed in UI from v1.
 ##### Connection rules within the Contexts layer
 
 - **Spaces** have no parents (tier 1 is root).
-- **Topics** have multi-parent Spaces — a single Topic can be tagged to multiple Spaces. The Topic's parent Space(s) are a **typed multi-valued relation property** on the Topic, not a folder-structural fact.
-- **Sub-topics** have a single **file-structural parent Topic** (encoded by which Topic folder the file lives in). This is fixed by the filesystem.
-- **Sub-topics can have additional Topic relations** beyond their file-structural parent. These are stored as a **typed multi-valued relation property** on the Sub-topic (`linked_relations` field — same shape as the property-panel multi-select chip relations used for Item↔Context relations). **They are not body wikilinks** — they are real relational properties, editable in the property panel, queryable via the index, and surfaced in graph view. The file-structural parent Topic remains fixed; the linked Topic relations are additive.
-- **Same-tier links between Tier entities are not file-structural** (Topic ↛ Topic, Space ↛ Space). If users want to express a relationship between two Topics (or two Spaces), it lives as a body-content wikilink inside that Tier entity's composed page — never as a parent or sibling relation.
-- **Tier-skip allowed** — a Sub-topic can parent directly to a Space (becoming what's effectively a leaf Topic), and its `linked_relations` field can target any tier.
+- **Topics** have multi-parent Spaces — a Topic can be tagged to multiple Spaces. Parent Space(s) are a **typed multi-valued relation property**, not a folder-structural fact.
+- **Sub-topics** have a single **file-structural parent Topic** (encoded by Topic folder location). Fixed by the filesystem.
+- **Sub-topics' `linked_relations`** — typed multi-valued relation property holding additional Topic / Space IDs beyond the file-structural parent. Editable in the property panel, queryable via index, surfaced in graph view. **NOT body wikilinks** — real relational properties.
+- **Same-tier links are not file-structural** (Topic ↛ Topic, Space ↛ Space). Same-tier relationships live as body-content wikilinks inside that entity's composed page — never as parent / sibling relations.
+- **Tier-skip allowed** — a Sub-topic can parent directly to a Space; `linked_relations` can target any tier.
 
 ##### Operational layer — Vaults / Collections / Content + Agenda
 
@@ -57,13 +55,13 @@ Three tiers, all exposed in UI from v1.
 
 ##### Inline editing in composed-page blocks (Notion-style)
 
-**Embedded blocks are live, fully-editable views of their source — never read-only snapshots.** Whenever a Context page (Space / Topic / Sub-topic) or the Homepage embeds another entity (Items, Pages, Agenda items, Collection views, linked-content lists), the user can interact with that content **in place**: check off a task, edit a property cell, add a new row, change a date, all without leaving the composed page.
+**Embedded blocks are live, fully-editable views of their source — never read-only snapshots.** When a Context page or the Homepage embeds another entity (Items, Pages, Agenda items, Collection views, linked-content lists), the user can interact with that content in place — check off tasks, edit cells, add rows, change dates.
 
-This is structurally identical to how Notion treats embedded databases — the embed stores a reference (entity ID + view config + filters), and the UI renders an interactive view backed by the live source. Pommora's existing foundation already supports this:
+Structurally identical to Notion's embedded databases — the embed stores a reference (entity ID + view config + filters); UI renders an interactive view backed by the live source:
 
-- **Embed = reference, not snapshot** — block JSON stores the source entity ID + view config; the actual data is read live from the SQLite index
-- **Edits route to the source manager** — checking off a Task in a Topic's embedded view calls `AgendaManager.toggleCompleted(...)`; the manager atomically writes the source file; the file watcher catches the change; SQLite re-indexes; *every* embedded view of that entity refreshes live
-- **Same write discipline everywhere** — there's no "embed-edit path" separate from "primary-surface edit path"; both call the same manager methods. One source of truth per entity.
+- **Embed = reference, not snapshot** — block JSON stores entity ID + view config; data read live from SQLite index
+- **Edits route to the source manager** — e.g. checking off a Task calls `AgendaManager.toggleCompleted(...)`; manager atomic-writes; watcher catches; SQLite re-indexes; every embedded view refreshes live
+- **Same write discipline everywhere** — no separate "embed-edit path"; both call the same manager methods
 
 **Editability by block type (v1 scope):**
 
@@ -76,15 +74,15 @@ This is structurally identical to how Notion treats embedded databases — the e
 | Link list | Full — rename labels, reorder, add / remove links |
 | Text blocks (paragraphs, headings, callouts, columns) | Full — composed-page authoring as expected |
 
-**Why this matters for implementation:** the block renderer is a thin shell around the entity's normal property/row UI components, NOT a separate read-only renderer. The Item-Window's property editor and a Collection-view-block's row editor are the *same component*, just embedded in different layouts. Reuse is structural — building inline editing isn't a separate feature, it's how the components were going to be built anyway.
+**Why this matters for implementation:** the block renderer is a thin shell around the entity's normal property/row UI components — NOT a separate read-only renderer. Item-Window's property editor and Collection-view-block's row editor are the *same component* in different layouts. Reuse is structural.
 
-**Out-of-scope concerns for v1:** drag-to-rewrite-frontmatter on kanban boards (planned post-v1.0 per current spec); cross-block transclusion of body text (post-v1); collaborative simultaneous editing (out of scope indefinitely — single-user).
+**Out-of-scope for v1:** drag-to-rewrite-frontmatter on kanban boards (post-v1.0); cross-block transclusion of body text (post-v1); collaborative simultaneous editing (out of scope indefinitely — single-user).
 
 **Why Agenda is separate from Vaults:**
-- EventKit (the macOS Calendar/Reminders system framework) requires structurally distinct entities matching `EKEvent` and `EKReminder` shapes — fixed schemas with `startDate`/`endDate` (events) or `dueDate`/`completed` (tasks). Generic Vault Items can't carry these cleanly without lossy bidirectional mapping.
-- Quick-capture surfaces (system Calendar, Siri, Reminders, lock-screen widgets, Notification Center) need a single known-location entity to write to. "Create a task" shouldn't have to decide "in which Vault?"
-- Pommora's Mac-first posture makes deep EventKit integration a real value, not polish. The structural decision is upstream of all of it.
-- UX-wise Agenda items behave identically to Items — they open in the Item Window popover, carry tier1/2/3 multi-relations to Contexts, have user properties, and can be sorted/filtered. The distinction is on-disk + EventKit-facing only.
+- EventKit requires structurally distinct entities matching `EKEvent` and `EKReminder` shapes — fixed schemas with `startDate`/`endDate` or `dueDate`/`completed`. Generic Vault Items can't carry these without lossy mapping.
+- Quick-capture surfaces (system Calendar, Siri, Reminders, widgets, Notification Center) need a single known-location entity — "create a task" shouldn't have to decide "in which Vault?"
+- Mac-first posture makes deep EventKit integration real value, not polish.
+- UX-wise Agenda items behave identically to Items — Item Window popover, tier1/2/3 multi-relations, user properties, sortable/filterable. Distinction is on-disk + EventKit-facing only.
 
 ##### Cross-layer connections (Content → Contexts)
 
@@ -133,25 +131,22 @@ Each tier's relation is filled independently — no requirement to fill all thre
 ```
 
 **Saved section** (renamed from earlier "Pinned"):
-- Three default items: `Homepage`, `Calendar`, `Recents`
-- Each item key is fixed in code (`homepage`, `calendar`, `recents`); label is user-renamable via Settings
-- `Homepage` opens the **Homepage entity** (see below — its own type, NOT a Space)
-- `Calendar` opens the **Agenda layer's calendar view** (see "Agenda" entity below)
-- `Recents` shows recently-opened tabs (lightweight v1 implementation if state tracking is already available; otherwise placeholder)
-- User-pinning of arbitrary entities remains a post-v1 Prospect
+- Three default items: `Homepage`, `Calendar`, `Recents`. Keys fixed in code (`homepage`, `calendar`, `recents`); labels user-renamable via Settings.
+- `Homepage` opens the **Homepage entity** (singleton; see below)
+- `Calendar` opens the **Agenda layer's calendar view**
+- `Recents` shows recently-opened tabs (lightweight v1 if state tracking available; otherwise placeholder)
+- User-pinning of arbitrary entities is a post-v1 Prospect
 
 **Homepage entity** (singleton, NOT a Space):
-- One per Nexus, fixed identity (code key: `homepage`)
-- A **composed-blocks dashboard surface** — like a Notion page that can embed anything
-- Can embed: linked-content views of Spaces / Topics / Sub-topics, embedded Vault collection views, link lists, prose blocks, callouts, columns, calendar/agenda mini-views — anything
-- Stored at `.nexus/homepage.json` (fixed location, singleton — not under `spaces/` or any tier folder)
-- Structurally **shares the same composed-blocks surface pattern as Contexts** (Spaces, Topics, Sub-topics) — all four entity types are composed-page surfaces that can embed anything. The distinction is **identity / parenting**:
-  - Contexts have an `id`, a `tier`, and `parents` — they are tiered, parented entities that things relate *to*
-  - Homepage is a singleton — no `id`, no tier, no parents — exists at a fixed location; can pull things *in* but isn't itself a referent
+- One per Nexus; fixed code key `homepage`; stored at `.nexus/homepage.json`
+- Composed-blocks dashboard surface — can embed linked-content views, Vault collection views, link lists, prose, callouts, columns, calendar mini-views, anything
+- Shares the composed-blocks surface pattern with Contexts. Distinction = **identity / parenting**:
+  - Contexts have `id`, `tier`, `parents` — tiered parented entities that things relate *to*
+  - Homepage is a singleton — no `id`, no tier, no parents — pulls things *in* but isn't a referent
 
-**Topic tagging visual** (sidebar tagging of Topics by their parent Space):
-- Tagging can be rendered as **color dots**, **SF Symbol icons**, or **both** — leave the door open for all three modes
-- Spaces store both `color` and `icon`/`symbol` fields; the sidebar's tagging style is a setting (v1 default: color dot)
+**Topic tagging visual** (sidebar tagging of Topics by parent Space):
+- Renderable as color dots, SF Symbol icons, or both — all three modes supported
+- Spaces store `color` and `icon`/`symbol` fields; tagging style is a setting (v1 default: color dot)
 - Multi-Space Topics show multiple indicators side by side
 
 ---
@@ -183,31 +178,31 @@ Each tier's relation is filled independently — no requirement to fill all thre
       Side-Projects/
         _topic.json
 
-  Agenda/                                ← NEW operational-layer entity (sibling of Vaults)
-    Buy-groceries.agenda.json            ← kind: "task"
-    Team-standup.agenda.json             ← kind: "event"
-    Submit-report.agenda.json            ← kind: "task"
+  Agenda/                                ← operational-layer sibling of Vaults
+    Buy-groceries.agenda.json
+    Team-standup.agenda.json
+    Submit-report.agenda.json
 
-  Planner/                               ← Vault (folder with content)
-    _vault.json                          ← shared schema for all Content inside
-    Tasks-archive/                       ← Collection (a generic Tasks-style Collection still possible —
-      Old-task.json                      ←   for retrospective/non-EventKit work)
+  Planner/                               ← Vault
+    _vault.json                          ← shared schema for all contained Content
+    Tasks-archive/                       ← Collection (generic Tasks for non-EventKit work)
+      Old-task.json
     Goals/
       Q1-goals.json
-    Events-notes/                        ← Collection (notes about events, not the events themselves)
+    Events-notes/                        ← Collection (notes about events, not events themselves)
       Conference-summary.md
 
   Materials/                             ← Vault
     _vault.json
     Pages/                               ← Collection
-      Attention-is-all-you-need.md       ← Page
+      Attention-is-all-you-need.md
     Documents/
       Annual-report.json
     Reports/
       Research-summary.md
 
-  .trash/                                ← existing spec; nexus-local trash
-  .git/, .obsidian/, etc.                ← user's own dotfolders, filtered from sidebar
+  .trash/                                ← nexus-local trash
+  .git/, .obsidian/, etc.                ← user dotfolders, filtered from sidebar
 
 ~/Library/Application Support/com.nathantaichman.Pommora/
   state.json                             ← machine-specific (security-scoped bookmark)
@@ -232,8 +227,8 @@ Each tier's relation is filled independently — no requirement to fill all thre
 }
 ```
 
-- `color`: one of the 9 Notion-palette colors (`gray`, `brown`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`, `red`) — reuses the existing palette spec
-- `icon`: SF Symbol name (e.g. `person.circle`, `book.closed`)
+- `color`: one of 9 Notion-palette colors (`gray`, `brown`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`, `red`)
+- `icon`: SF Symbol name (e.g. `person.circle`)
 - `blocks`: composed-page block tree (same shape as existing `.space.json`)
 
 ##### Topic (`.nexus/topics/<Title>/_topic.json`)
@@ -249,9 +244,9 @@ Each tier's relation is filled independently — no requirement to fill all thre
 }
 ```
 
-- `parents`: multi-Space, validated each must be a tier-1 Space
+- `parents`: multi-Space; each must be a tier-1 Space
 - `icon`: SF Symbol name (optional)
-- Topic has NO own `color` — its visual tag comes from inheriting parent Space(s) colors
+- No own `color` — visual tag inherited from parent Space(s)
 
 ##### Sub-topic (`.nexus/topics/<TopicFolder>/<Title>.subtopic.json`)
 
@@ -267,8 +262,8 @@ Each tier's relation is filled independently — no requirement to fill all thre
 }
 ```
 
-- `parents`: single-valued, the file-structural parent Topic (encoded by which Topic folder the file lives in). Cannot be changed without moving the file.
-- `linked_relations`: **a typed multi-valued relation property** (edited in the property panel like any other relation). Holds IDs of additional Topics or Spaces the Sub-topic relates to, beyond its file-structural parent. **These are NOT body wikilinks — they are real relational properties** queryable via the index and surfaced in graph view + property panel.
+- `parents`: single-valued, the file-structural parent Topic (encoded by folder location). Cannot be changed without moving the file.
+- `linked_relations`: typed multi-valued relation property (edited in property panel). Holds IDs of additional Topics / Spaces. NOT body wikilinks — real relational properties queryable via index, surfaced in graph view + property panel.
 - `icon`: SF Symbol name (optional)
 
 ##### Tier config (`.nexus/tier-config.json`)
@@ -318,16 +313,16 @@ Each tier's relation is filled independently — no requirement to fill all thre
 }
 ```
 
-- Singleton — no `id` field (the file location is the identity)
-- `blocks`: same composed-page block tree as the existing `.space.json` schema. Can embed any other Pommora entity by ID.
-- Seeded on first launch with a minimal default (welcome heading + empty callout) so the file always exists on disk
-- Distinct from Spaces — Spaces are *categorical anchors* (things relate *to* them); Homepage is a *user-composed dashboard* (it pulls things *in*)
+- Singleton — no `id` field (file location is identity)
+- `blocks`: same composed-page block tree as `.space.json`. Can embed any entity by ID.
+- Seeded on first launch with a minimal default (welcome heading + empty callout)
+- Distinct from Spaces — Spaces are categorical anchors (things relate *to*); Homepage is a user-composed dashboard (pulls things *in*)
 
 ##### Agenda Item (`<nexus-root>/Agenda/<Title>.agenda.json`)
 
-Agenda items are a **single unified entity** — no structural `kind` discriminator. The user-facing distinction (Task vs To-Do vs Phase vs Event) is a **property** (`properties.type`), making it user-extensible like any other Select property. EventKit mapping is driven by which time fields are populated, not by a schema discriminator.
+Single unified entity — no structural `kind` discriminator. User-facing distinction (Task / To-Do / Phase / Event) is a `properties.type` Select, user-extensible. EventKit mapping is driven by which time fields are populated, not a schema discriminator.
 
-Schema is **deliberately shaped to mirror EventKit primitives** (`EKEvent` and `EKReminder`) verified against Apple's current EventKit documentation. The fields below have exact EventKit counterparts to make two-way sync 1:1 mapping rather than lossy transformation.
+Schema mirrors EventKit primitives (`EKEvent`, `EKReminder`) — each field has an exact EventKit counterpart for 1:1 sync.
 
 ```json
 {
@@ -407,13 +402,13 @@ EventKit uses `EKRecurrenceRule`, conceptually equivalent to RFC 5545 RRULE but 
 }
 ```
 
-A small serializer/deserializer (~80 lines) converts between this JSON and `EKRecurrenceRule` on sync.
+A small serializer/deserializer (~80 lines) converts between JSON and `EKRecurrenceRule` on sync.
 
-**Important EventKit constraint:** `EKRecurrenceRule` and its properties are **read-only after creation** — modifying recurrence on a saved EKEvent / EKReminder requires creating a new `EKRecurrenceRule` and reassigning. Pommora's sync layer always constructs a fresh `EKRecurrenceRule` when writing recurrence changes back; no in-place mutation.
+**Constraint:** `EKRecurrenceRule` is read-only after creation — modifying recurrence on a saved EKEvent/EKReminder requires constructing a new `EKRecurrenceRule` and reassigning. Pommora's sync layer always builds fresh; no in-place mutation.
 
 ##### EventKit change observation (Swift Concurrency)
 
-Pommora observes external EKEventStore changes via `NotificationCenter` async sequences:
+Observe external EKEventStore changes via `NotificationCenter` async sequences:
 
 ```swift
 let center = NotificationCenter.default
@@ -424,7 +419,7 @@ Task {
 }
 ```
 
-Reconciliation re-fetches all EKEvents and EKReminders in the user-selected calendars, compares against Pommora's `.agenda.json` files by `eventkit_uuid` + `lastModifiedDate`, and applies last-write-wins per item.
+Reconciliation re-fetches EKEvents/EKReminders in selected calendars, compares against `.agenda.json` files by `eventkit_uuid` + `lastModifiedDate`, applies last-write-wins per item.
 
 **Built-in schema for Agenda items** (`<nexus-root>/Agenda/_agenda.json`):
 
@@ -454,9 +449,9 @@ Reconciliation re-fetches all EKEvents and EKReminders in the user-selected cale
 }
 ```
 
-- The Agenda layer uses the same schema mechanism as Vaults (a `_agenda.json` schema sidecar) — reuses the Vault property/view editor UI
-- The built-in `type` Select has default values `[Task, To-Do, Phase, Event]` — user can add custom types (e.g., "Habit," "Block," "Reminder") and rename existing options, but the `type` property itself cannot be deleted (marked `builtin: true`)
-- All other Agenda properties are user-defined the same way Vault properties are
+- Agenda uses Vault's schema mechanism (`_agenda.json` sidecar); reuses Vault property/view editor UI
+- Built-in `type` Select defaults to `[Task, To-Do, Phase, Event]` — users can add types (e.g. "Habit", "Block") and rename existing options; the `type` property itself cannot be deleted (`builtin: true`)
+- All other Agenda properties are user-defined like Vault properties
 
 ##### EventKit mapping (data-driven, no explicit kind)
 
@@ -469,46 +464,37 @@ Reconciliation re-fetches all EKEvents and EKReminders in the user-selected cale
 
 ##### EventKit permissions + entitlements (required for sandbox)
 
-Pommora is sandboxed (per v0.1a — `ENABLE_APP_SANDBOX = YES`). EventKit access requires additional setup beyond the file-r/w entitlement:
+Pommora is sandboxed (`ENABLE_APP_SANDBOX = YES`); EventKit requires additional setup:
 
-**1. Sandbox entitlement (required for any Calendar / EventKit access):**
-- `com.apple.security.personal-information.calendars` — enables EventKit at the sandbox level
-- Set via Xcode build setting `ENABLE_PERSONAL_INFORMATION_CALENDARS = YES` (auto-generates the entitlement in modern Xcode projects, same mechanism used for `ENABLE_USER_SELECTED_FILES = readwrite` in v0.1a)
-- Without this entitlement, all EventKit API calls fail silently in a sandboxed build
+**1. Sandbox entitlement:** `com.apple.security.personal-information.calendars` — set via Xcode build setting `ENABLE_PERSONAL_INFORMATION_CALENDARS = YES` (auto-generates entitlement, same mechanism as `ENABLE_USER_SELECTED_FILES = readwrite`). Without it, EventKit calls fail silently in sandboxed builds.
 
-**2. Info.plist usage description keys (required for the system permission prompt):**
-- `NSCalendarsFullAccessUsageDescription` — string shown when requesting full Calendar access
-- `NSRemindersFullAccessUsageDescription` — string shown when requesting Reminders access
-- These are separate keys for separate permission grants; both required if Agenda syncs both
+**2. Info.plist usage description keys** (required for system permission prompts):
+- `NSCalendarsFullAccessUsageDescription`
+- `NSRemindersFullAccessUsageDescription`
+- Separate keys for separate grants; both required if Agenda syncs both.
 
 **3. Permission request flow (macOS 14+ / iOS 17+):**
-- Use the modern `requestFullAccessToEvents(completion:)` and `requestFullAccessToReminders(completion:)` APIs (or their async variants)
-- The legacy `requestAccess(to:completion:)` is deprecated on iOS 17+ / macOS 14+ — Pommora targets macOS 26.4 so this is well past the cutoff
-- Calendar offers a `requestWriteOnlyAccessToEvents` variant (less invasive — only write, can't read existing events) but Reminders does NOT have a write-only equivalent
+- Use `requestFullAccessToEvents(completion:)` and `requestFullAccessToReminders(completion:)` (or async variants)
+- Legacy `requestAccess(to:completion:)` is deprecated on macOS 14+ — Pommora targets macOS 26.4 so well past cutoff
+- Calendar offers `requestWriteOnlyAccessToEvents`; Reminders has no write-only equivalent
 
 **4. Identifiers for two-way sync stability:**
-- `EKEvent.eventIdentifier` for events
-- `EKCalendarItem.calendarItemIdentifier` for reminders (also works for events as a generic identifier)
-- Both are documented as stable for external persistence — safe to store in Pommora's `eventkit_uuid` field
-- `EKEventStoreChangedNotification` posts when EventKit data changes externally — observe for two-way sync
+- `EKEvent.eventIdentifier` for events; `EKCalendarItem.calendarItemIdentifier` for reminders (also works as a generic identifier)
+- Both documented stable for external persistence — safe to store in `eventkit_uuid`
+- `EKEventStoreChangedNotification` posts on external EventKit data changes — observe for two-way sync
 
-**5. Sync conflict policy (initial v1):**
-- Last-write-wins by `modified_at` / EKCalendarItem's `lastModifiedDate`
-- Surface conflict count in UI but don't block sync
-- More sophisticated conflict resolution is post-v1
+**5. Sync conflict policy (initial v1):** last-write-wins by `modified_at` / EKCalendarItem's `lastModifiedDate`. Surface conflict count in UI; don't block sync. Sophisticated resolution is post-v1.
 
 ##### UI affordance — collapsed single-date input
 
-When an Agenda item's start_at and due_at would carry the same value, the property editor should collapse them into a **single "When?" date input** rather than showing two separate fields. Expands back to two inputs when the user wants asymmetric values (e.g. "scheduled today but due tomorrow"). On disk, both `start_at` and `due_at` continue to exist as separate JSON fields — the collapse is purely UI. Schema unchanged.
-
-Resolved when the Agenda property panel UI lands (Phase 6.5 / Phase 7 area).
+When `start_at` and `due_at` would carry the same value, the property editor collapses them into a single "When?" date input. Expands back to two inputs when the user wants asymmetric values. On disk both fields persist separately — collapse is purely UI. Schema unchanged. Resolved when Agenda property panel lands (Phase 6.5 / 7 area).
 
 ##### Notes and constraints
 
 - Filename = title (same convention as Items and Pages)
-- `calendar_id` + `eventkit_uuid` are nullable — populated only when the user enables EventKit sync for this item or globally for the Agenda layer
-- The user can disable EventKit sync per-item or globally; disabling per-item clears `eventkit_uuid` (the Pommora item persists, the EventKit-side mirror is removed)
-- **EventKit sync is NOT enabled in v1 by default** — users opt in via Settings → Agenda. Schema fields exist from day one so opt-in is additive, not migration
+- `calendar_id` + `eventkit_uuid` nullable — populated only when EventKit sync is enabled per-item or globally
+- Disabling sync per-item clears `eventkit_uuid` (Pommora item persists; EventKit mirror removed)
+- **EventKit sync NOT enabled in v1 by default** — users opt in via Settings → Agenda. Schema fields exist day one so opt-in is additive, not migration.
 
 ##### Vault (`<nexus>/<VaultName>/_vault.json`)
 
@@ -530,7 +516,7 @@ Resolved when the Agenda property panel UI lands (Phase 6.5 / Phase 7 area).
 
 ##### Property value encoding (PropertyValue Codable)
 
-Property values on disk (in Page frontmatter, Item `properties` block, Agenda item `properties` block) decode via shape-sniffing the JSON/YAML token. Most types decode directly:
+Property values on disk (Page frontmatter, Item `properties`, Agenda `properties`) decode via shape-sniffing. Most types decode directly:
 
 - `number` → JSON number
 - `checkbox` → JSON boolean
@@ -539,7 +525,7 @@ Property values on disk (in Page frontmatter, Item `properties` block, Agenda it
 - `multiSelect` → JSON `[string]` array
 - `url` → JSON string
 
-**Relation values use a tagged-object encoding** `{"$rel": "<ULID>"}` (paradigm decision 2026-05-16, `// Guidelines//Paradigm-Decisions.md`) — NOT a bare string. Rationale: bare-string `.relation` and `.select` are indistinguishable on the wire; the tagged-object form makes relation edges legible to external agents + the graph-view indexer without consulting Vault schema (satisfies load-bearing constraint #3). Single-relation: `{"$rel": "01H..."}`. Multi-relation: `[{"$rel": "01H..."}, {"$rel": "01H..."}]`.
+**Relation values use a tagged-object encoding** `{"$rel": "<ULID>"}` (paradigm decision 2026-05-16, `// Guidelines//Paradigm-Decisions.md`) — NOT a bare string. Bare-string `.relation` and `.select` are indistinguishable on the wire; tagged-object form makes relation edges legible to external agents + the graph indexer without consulting Vault schema (satisfies load-bearing constraint #3). Single: `{"$rel": "01H..."}`. Multi: `[{"$rel": "..."}, {"$rel": "..."}]`.
 
 Example mixed-properties block:
 
@@ -563,9 +549,9 @@ Example mixed-properties block:
 }
 ```
 
-Collections persist a minimal `_collection.json` sidecar. The `vault_id` makes the parent-Vault relation an explicit on-disk property so external query/parsing tools can navigate the relationship without inferring from filesystem nesting. Title still comes from the folder name (filename-as-title rule applies). Collections share the parent Vault's property schema in v1.
+Minimal `_collection.json` sidecar. `vault_id` makes the parent-Vault relation explicit on-disk so external tools navigate without inferring from nesting. Title from folder name (filename-as-title). Collections share parent Vault's schema in v1.
 
-**Post-v1 Prospect**: Collection-local schema overrides + per-Collection icons / descriptions / view configs land additively in the same `_collection.json` (additive fields, no migration cost). Not in v1 scope.
+**Post-v1 Prospect**: Collection-local schema overrides + per-Collection icons / descriptions / view configs land additively in `_collection.json` (no migration cost). Not v1.
 
 ##### Item (`<nexus>/<VaultName>/<CollectionName>/<Title>.json`)
 
@@ -624,11 +610,13 @@ Enforced at every file write. Reject + warn the user if violated.
 
 Each entity must support all four operations in v1.
 
+Context entities (Space / Topic / Sub-topic) open a composed-blocks page on Read (can embed anything, like Homepage).
+
 | Entity | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| Space | Name + color + icon picker | Click to open composed-blocks page (can embed anything, like Homepage) | Inline rename / right-click change color/icon / edit blocks | Confirm + warn if Topics reference it (strips parent reference from Topics) |
-| Topic | Name + parent Space picker (multi) + icon | Click to open composed-blocks page (can embed anything, like Homepage) | Inline rename / change parents / icon / edit blocks | Confirm + warn if Sub-topics inside (move sub-topics out OR delete cascade?) |
-| Sub-topic | Inside expanded Topic; name + icon | Click to open composed-blocks page (can embed anything, like Homepage) | Inline rename / move to another Topic / edit linked_relations via property panel / edit blocks | Confirm + delete |
+| Space | Name + color + icon picker | Composed-blocks page | Inline rename / right-click change color/icon / edit blocks | Confirm + warn if Topics reference it (strips parent reference from Topics) |
+| Topic | Name + parent Space picker (multi) + icon | Composed-blocks page | Inline rename / change parents / icon / edit blocks | Confirm + warn if Sub-topics inside (move out OR cascade?) |
+| Sub-topic | Inside expanded Topic; name + icon | Composed-blocks page | Inline rename / move to another Topic / edit linked_relations via property panel / edit blocks | Confirm + delete |
 | Vault | Name + icon + schema editing | Click to open default Collection view | Inline rename / icon / edit Vault schema | Confirm + warn (contains N Collections, M Items/Pages) |
 | Collection | Inside Vault; name only | Click to open view | Inline rename | Confirm + warn (contains N Items/Pages) |
 | Item | Inside Collection; name | Item Window popover | Item Window (properties, description, relations) | Confirm + delete |
@@ -636,99 +624,90 @@ Each entity must support all four operations in v1.
 | **Homepage** | **Seeded on first launch (no manual create)** | **Saved → Homepage opens it in a tab** | **Composed-blocks editor (Phase 10)** | **Not user-deletable (singleton)** |
 | **Agenda Item** | **From Calendar saved view / quick-capture (no Vault decision); name + type + optional times** | **Item Window popover OR inline in calendar view** | **Item Window (properties, time fields, relations); EventKit two-way sync** | **Confirm + delete (with EventKit unsync if mirrored)** |
 
-Open spec question parked for later: **on Topic delete, do we delete sub-topics (cascade) or move them out (promote to standalone)?** Recommend warning + cascade-delete as v1 default since standalone sub-topics aren't an exposed concept. Confirm during implementation.
+**Open question (parked):** on Topic delete — cascade sub-topics or promote to standalone? Recommend warning + cascade-delete as v1 default (standalone sub-topics aren't an exposed concept). Confirm during implementation.
 
 ---
 
 #### Implementation Phasing
 
-CRUD + paradigm pair at every step. Each phase delivers a *functional* slice — entity creation works end-to-end on disk before the next phase begins.
+CRUD + paradigm pair every step. Each phase ships a functional slice — entity creation works end-to-end on disk before next phase begins.
 
 ##### Phase 0 — Schema + Codable foundation
 - Codable structs: `Space`, `Topic`, `Subtopic`, `Vault`, `TierConfig`, `SavedConfig`, `Item`, `PageFrontmatter`
-- ULID generation already shipped in v0.1a (`ULID.swift`)
-- Atomic-write JSON helpers (`.tmp` + `rename`)
-- YAML frontmatter parser for `.md` files (frontmatter only; body stays as raw `String` until editor work)
-- Round-trip tests for every entity Codable
+- ULID already shipped (v0.1a `ULID.swift`)
+- Atomic-write JSON helpers (`.tmp` + rename)
+- YAML frontmatter parser for `.md` (frontmatter only; body stays raw `String` until editor work)
+- Round-trip tests for every Codable
 
 ##### Phase 1 — File system primitives + validation
 - Folder create / rename / delete under sandbox (security-scoped bookmark coordination)
 - File create / atomic write / read / delete
-- Validation rules engine (tier-parent rule, sub-topic file location, etc.)
-- Extend existing `FolderTree.swift` to recognize Spaces/Topics/Vaults/Collections vs. cosmetic folders
+- Validation rules engine (tier-parent, sub-topic file location, etc.)
+- Extend `FolderTree.swift` to recognize Spaces/Topics/Vaults/Collections vs. cosmetic folders
 
 ##### Phase 2 — Spaces CRUD + sidebar (first user-visible slice)
-- New `Spaces/` source folder
-- `SpaceFile.swift` (Codable), `SpaceManager.swift` (@Observable @MainActor)
+- New `Spaces/` source folder; `SpaceFile.swift`, `SpaceManager.swift` (`@Observable @MainActor`)
 - Sidebar `Spaces` section renders flat rows from `SpaceManager.spaces`
-- "+ New Space" command — sheet with name field + color picker + SF Symbol picker
-- Inline rename: tap-to-edit on row
-- Right-click context menu: rename, change color, change icon, delete
-- Delete confirmation
-- Locked selection language from v0.0 reused (`SelectableRow`)
+- "+ New Space" — sheet with name + color picker + SF Symbol picker
+- Inline rename (tap-to-edit); right-click menu (rename, change color, change icon, delete); delete confirmation
+- Reuses locked v0.0 `SelectableRow` selection language
 
 ##### Phase 3 — Topics CRUD + sidebar
-- New `Topics/` source folder
-- `TopicFile.swift`, `SubtopicFile.swift`, `TopicManager.swift`
-- Sidebar `Topics` section: chevron-disclosure row per Topic
-- "+ New Topic" command — sheet with name + parent Space multi-picker + icon picker
+- New `Topics/` source folder; `TopicFile.swift`, `SubtopicFile.swift`, `TopicManager.swift`
+- Sidebar `Topics` section: chevron-disclosure per Topic
+- "+ New Topic" — sheet with name + parent Space multi-picker + icon picker
 - Topic creation = folder + `_topic.json` written atomically
-- Sidebar Topic row tagging indicator (color dot v1; symbol/both modes settable later)
+- Tagging indicator (color dot v1; symbol/both later)
 - Inline rename, right-click menu, delete with cascade warning
 
 ##### Phase 4 — Sub-topics CRUD
-- "+ New Sub-topic" appears inside an expanded Topic
-- Sub-topic file written into the parent Topic's folder
-- Inline rename
-- Right-click: rename, move to another Topic (filesystem move + relink), delete
-- `linked_relations` editing deferred to property panel work (Phase 7)
+- "+ New Sub-topic" inside expanded Topic; file written into parent Topic's folder
+- Inline rename; right-click rename / move to another Topic (FS move + relink) / delete
+- `linked_relations` editing deferred to property panel (Phase 7)
 
 ##### Phase 5 — Vaults + Collections CRUD + sidebar
-- New `Vaults/` source folder
-- `VaultFile.swift`, `VaultManager.swift`
-- Sidebar `Vaults` section: chevron disclosure per Vault, sub-disclosure per Collection (Collection has no chevron in v1 — leaf node showing Items list when opened in main pane)
-- "+ New Vault" sheet — name + icon picker; schema starts empty (full property editor v1.x)
-- "+ New Collection" — name only; creates a folder inside the Vault
+- New `Vaults/` source folder; `VaultFile.swift`, `VaultManager.swift`
+- Sidebar `Vaults`: chevron-disclosure per Vault; sub-disclosure per Collection (no chevron in v1 — leaf node showing Items list when opened)
+- "+ New Vault" — name + icon picker; schema starts empty (full property editor v1.x)
+- "+ New Collection" — name only; creates folder inside Vault
 - Rename + delete with cascade warnings
 
 ##### Phase 6 — Content CRUD (Pages + Items)
-- "+ New Page" in a Collection → creates `.md` with frontmatter scaffold (id, tier1/2/3 empty, properties empty)
-- "+ New Item" in a Collection → creates `.json` with empty properties/relations
-- Inline rename in sidebar/Item window
-- Delete
+- "+ New Page" → `.md` with frontmatter scaffold (id, tier1/2/3 empty, properties empty)
+- "+ New Item" → `.json` with empty properties/relations
+- Inline rename in sidebar / Item Window; delete
 
 ##### Phase 7 — Cross-tier relations on Items/Pages
-- Property panel (or Item Window) UI for `tier1`/`tier2`/`tier3` multi-select chips
-- Type-to-search relation picker that resolves to Tier entity IDs
-- Save updates frontmatter/json via atomic write
-- SQLite `links` table re-indexes via watcher
+- Property panel UI for `tier1`/`tier2`/`tier3` multi-select chips
+- Type-to-search relation picker resolves to Tier entity IDs
+- Save → atomic write to frontmatter/json; SQLite `links` table re-indexes via watcher
 
 ##### Phase 8 — Tier-config + Saved-config settings UI
 - Settings scene scaffold (Cmd-, opens `SettingsScene`)
-- Tier labels editor — three sections (one per tier), singular + plural text fields each
-- Saved-section labels editor — three rows (homepage/calendar/recents), label only
+- Tier labels editor — 3 sections, singular + plural text fields each
+- Saved-section labels editor — 3 rows (homepage/calendar/recents), label only
 - Tagging style picker (color / symbol / both)
 
 ##### Phase 9 — Saved section content
-- `Homepage` resolves to the seeded Homepage Space (existing spec); clicking opens it
-- `Calendar` placeholder — empty view with "Calendar view coming v1.x" marker
-- `Recents` — implement if recently-opened-tabs tracking is already available; otherwise placeholder
+- `Homepage` resolves to seeded Homepage Space; clicking opens it
+- `Calendar` placeholder — "Calendar view coming v1.x"
+- `Recents` — implement if recently-opened-tabs tracking exists; otherwise placeholder
 
-##### Phase 10 — File watcher integration (this is the v0.2 spec)
+##### Phase 10 — File watcher integration (v0.2 spec)
 - FSEventStream on the nexus folder
 - External file changes → SQLite re-index → sidebar refresh
 - Atomic-write detection (debounce 50–100 ms; track outbound mtimes to ignore self-writes)
 
-##### Phase 11 — Graph view foundation (Prospect, but code-ready)
-- Ensure SQLite `links` table is queryable for graph data
+##### Phase 11 — Graph view foundation (Prospect, code-ready)
+- SQLite `links` table queryable for graph data
 - Reserve tab-content shape that can accommodate a graph-view tab later
-- No actual graph rendering in v1
+- No graph rendering in v1
 
 ---
 
 #### What Changes from Current Spec Docs (post-implementation)
 
-Tracking list — these edits happen after implementation, not as part of this work:
+Tracking list (edits happen post-implementation, not as part of this work):
 
 - `PommoraPRD.md` → Storage Model section, on-disk tree, SQLite schema
 - `Features/Domain-Model.md` → Major rewrite (2-layer model with PARA mapping)
@@ -750,24 +729,19 @@ Tracking list — these edits happen after implementation, not as part of this w
 
 After each Phase ships:
 - `xcodebuild -project Pommora/Pommora.xcodeproj -scheme Pommora build` succeeds
-- Unit tests for that phase's Codable round-trip pass
-- Manual verification: create / rename / delete on that phase's entity works end-to-end, on-disk files reflect the operation, sidebar updates live
-- `codesign -d --entitlements - Pommora.app` confirms sandbox still intact
-- LLM-legibility check: read a freshly created entity file directly via `cat` (or Read tool) — confirm content is human/agent-parseable
+- Phase's Codable round-trip tests pass
+- Manual: create / rename / delete works end-to-end; on-disk files reflect; sidebar updates live
+- `codesign -d --entitlements - Pommora.app` confirms sandbox intact
+- LLM-legibility check: `cat` a freshly created file — confirm human/agent-parseable
 
 ##### End-to-end gold path test (Phase 2 onward)
 
-After Phase 2: create a Space "Personal," rename it to "Life," delete it. Verify all three operations land cleanly on disk; the sidebar reflects each change instantly.
-
-After Phase 3: create the Personal Space, then a "Productivity" Topic tagged to Personal. Verify Topic folder + `_topic.json` exist, sidebar shows Topic under chevron disclosure.
-
-After Phase 4: add Sub-topic "GTD Method" inside Productivity. Verify file in correct folder, sidebar shows the nesting.
-
-After Phase 5: create Planner Vault with Tasks Collection inside.
-
-After Phase 6: create a Task Item "Buy groceries" inside Planner/Tasks. Open it in the Item Window.
-
-After Phase 7: edit the Task's `tier2` relation to include Productivity. Verify the relationship persists to disk and surfaces on the Productivity Topic's page.
+- **Phase 2:** create Space "Personal", rename to "Life", delete. Verify all operations land on disk; sidebar reflects instantly.
+- **Phase 3:** create Personal Space + "Productivity" Topic tagged to Personal. Verify Topic folder + `_topic.json`; sidebar shows under chevron disclosure.
+- **Phase 4:** add Sub-topic "GTD Method" inside Productivity. Verify file in correct folder; sidebar shows nesting.
+- **Phase 5:** create Planner Vault with Tasks Collection inside.
+- **Phase 6:** create Item "Buy groceries" inside Planner/Tasks. Open in Item Window.
+- **Phase 7:** edit Task's `tier2` to include Productivity. Verify persistence + surfacing on Productivity Topic's page.
 
 That's the v1 organization + operational layer fully functional.
 
@@ -775,89 +749,40 @@ That's the v1 organization + operational layer fully functional.
 
 #### Research Findings — SwiftUI Implementation Patterns
 
-Derived from `swiftui-expert-skill` consultation + existing Pommora code review (`NexusManager`, `NexusStore`, `NexusIdentity`, `SidebarView`, `FolderTree`).
+Derived from `swiftui-expert-skill` + Pommora code review (`NexusManager`, `NexusStore`, `NexusIdentity`, `SidebarView`, `FolderTree`).
 
 ##### 1. Manager pattern — per entity, mirroring `NexusManager`
 
-Pommora's `NexusManager` is `@MainActor @Observable final class` with a single source-of-truth pattern. **Same shape for each new entity manager** — no unified store, because each entity has independent file-system locations, validation rules, and CRUD flows. Per-entity managers keep state-driven updates narrowly scoped (changing a Topic doesn't re-evaluate the Spaces section).
+`NexusManager` is `@MainActor @Observable final class` with single source-of-truth. **Same shape per new entity** — no unified store; each entity has independent file locations, validation, and CRUD flows. Per-entity managers keep state-driven updates narrowly scoped. Concrete shape in Day-1 plan step 7 (`SpaceManager`).
 
-```swift
-@MainActor
-@Observable
-final class SpaceManager {
-    var spaces: [Space] = []
-    var pendingError: SpaceError?
-
-    private let nexusURL: URL  // injected from NexusManager
-
-    func loadAll() async { ... }
-    func create(name: String, color: SpaceColor, icon: String?) async { ... }
-    func rename(_ space: Space, to newName: String) async { ... }
-    func updateColor(_ space: Space, to color: SpaceColor) async { ... }
-    func delete(_ space: Space) async { ... }
-}
-```
-
-Inject the active Nexus's root URL into each manager at construction; managers re-load when `NexusManager.currentNexus` changes (driven via an `.onChange(of:)` on the parent view).
+Inject active Nexus root URL at construction; re-load when `NexusManager.currentNexus` changes via `.onChange(of:)` on the parent view.
 
 ##### 2. Sidebar pattern — extend the existing `SidebarView`
 
-The existing `SidebarView` already uses `List` with `Section(isExpanded:)` and `DisclosureGroup` + the locked `SelectableRow` selection language. **No new sidebar architecture needed** — just swap the hardcoded placeholders for real data from each manager.
+`SidebarView` already uses `List` with `Section(isExpanded:)` + `DisclosureGroup` + locked `SelectableRow`. **No new sidebar architecture** — swap hardcoded placeholders for manager data.
 
 Layout target:
 - Top-level `List` with four `Section`s: Saved, Spaces, Topics, Vaults
-- Saved section: 3 fixed rows (`Homepage`, `Calendar`, `Recents`) reading labels from `SavedConfig`
-- Spaces section: `ForEach(spaceManager.spaces)` — flat rows, no chevron
-- Topics section: `ForEach(topicManager.topics)` — each Topic is a `DisclosureGroup` whose content is its sub-topics
-- Vaults section: `ForEach(vaultManager.vaults)` — each Vault is a `DisclosureGroup` whose content is its Collections (Collections themselves are leaf rows)
+- Saved: 3 fixed rows (`Homepage`, `Calendar`, `Recents`) reading labels from `SavedConfig`
+- Spaces: `ForEach(spaceManager.spaces)` — flat rows, no chevron
+- Topics: `ForEach(topicManager.topics)` — each is a `DisclosureGroup` of sub-topics
+- Vaults: `ForEach(vaultManager.vaults)` — each is a `DisclosureGroup` of Collections (leaf rows)
 
-`SelectableRow` already encapsulates the selection chrome — reuse as-is for every leaf and disclosure-label row.
+`SelectableRow` encapsulates selection chrome — reuse as-is.
 
 ##### 3. Inline rename — `@FocusState` + `TextField`
 
-The cleanest inline-rename pattern on macOS Tahoe:
+Pattern on macOS Tahoe: `@State editingID: String?` + `@State draftName: String` + `@FocusState renameFocused: Bool`. When `editingID == space.id`, render `TextField` with `.focused($renameFocused)`, `.onSubmit { commitRename(); editingID = nil }`, `.onExitCommand { editingID = nil }`; otherwise render `Text(space.title)`.
 
-```swift
-@State private var editingID: String?
-@State private var draftName: String = ""
-@FocusState private var renameFocused: Bool
-
-// In the row:
-if editingID == space.id {
-    TextField("", text: $draftName)
-        .focused($renameFocused)
-        .onSubmit { commitRename(); editingID = nil }
-        .onExitCommand { editingID = nil }  // Esc cancels
-} else {
-    Text(space.title)
-}
-```
-
-Trigger rename via:
-- Right-click context menu → "Rename"
-- Keyboard Enter on selected row (via `.onKeyPress(.return)`)
-- Double-click on row (avoid — conflicts with open-on-click for entities that are openable)
+Trigger via right-click → "Rename" or Enter on selected row (`.onKeyPress(.return)`). Avoid double-click — conflicts with open-on-click for openable entities.
 
 ##### 4. Right-click context menu — `.contextMenu`
 
-Native SwiftUI `.contextMenu` on each row:
-
-```swift
-SelectableRow(...)
-    .contextMenu {
-        Button("Rename") { startRename(space) }
-        Button("Change Color") { showColorPicker = space }
-        Button("Change Icon") { showIconPicker = space }
-        Divider()
-        Button("Delete", role: .destructive) { confirmDelete = space }
-    }
-```
-
-Color/icon pickers + delete confirmation: drive via `.sheet(item:)` and `.confirmationDialog(item:)` patterns (deferred to Phase 2+).
+Native SwiftUI `.contextMenu` per row, with Buttons for Rename / Change Color / Change Icon / Divider / Delete (destructive role). Color/icon pickers + delete confirmation drive via `.sheet(item:)` + `.confirmationDialog(item:)` (deferred to Phase 2+).
 
 ##### 5. "+ New" sheets — `.sheet(item:)` with enum-keyed presentation
 
-Per the SwiftUI ref, item-driven sheets are preferred. Each section's `+ New X` button sets a presentation enum:
+Item-driven sheets preferred. Each section's `+ New X` button sets a presentation enum:
 
 ```swift
 enum SidebarSheet: Identifiable {
@@ -880,141 +805,88 @@ enum SidebarSheet: Identifiable {
 }
 ```
 
-Each sheet owns its actions via `@Environment(\.dismiss)` — no callback prop-drilling per the SwiftUI ref.
+Each sheet owns its actions via `@Environment(\.dismiss)` — no callback prop-drilling.
 
 ##### 6. Atomic JSON write — already done in `NexusIdentity`
 
-Pommora's existing pattern in `NexusIdentity.save(to:)`:
-
-```swift
-let encoder = JSONEncoder()
-encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-encoder.dateEncodingStrategy = .iso8601
-let data = try encoder.encode(self)
-try data.write(to: url, options: [.atomic])
-```
-
-`Data.write(to:options:[.atomic])` writes to a temp file + atomic rename under the hood — no separate `.tmp` helper needed. **Reuse this pattern verbatim for every Codable entity file.**
+Pattern from `NexusIdentity.save(to:)`: `JSONEncoder` (`.prettyPrinted`, `.sortedKeys`, `.iso8601`) + `Data.write(to:options:[.atomic])` (writes to temp + atomic-rename — no separate `.tmp` helper). **Reuse verbatim for every Codable entity.** Concrete impl in Day-1 plan step 3 (`AtomicJSON`).
 
 ##### 7. YAML frontmatter parsing — recommend `Yams` (MIT, jpsim)
 
-There is no first-party Apple YAML parser. `apple/swift-markdown` handles Markdown body but not frontmatter.
+No first-party Apple YAML parser. `apple/swift-markdown` handles body but not frontmatter.
 
-**Recommendation: [Yams](https://github.com/jpsim/Yams)** (MIT, written by John Sundell, maintained by jpsim, used by the Swift compiler's own SwiftPM tooling).
+**Use [Yams](https://github.com/jpsim/Yams)** (MIT, John Sundell, jpsim-maintained, used by SwiftPM tooling). API: `try YAMLDecoder().decode(PageFrontmatter.self, from: yamlString)`.
 
-```swift
-import Yams
-
-let frontmatterString = "id: 01H...\ntier1: [01H...]\n..."
-let decoder = YAMLDecoder()
-let frontmatter = try decoder.decode(PageFrontmatter.self, from: frontmatterString)
-```
-
-Parsing a `.md` file becomes:
+Parsing a `.md`:
 1. Read file as `String`
-2. Detect frontmatter block by leading `---\n` + trailing `\n---\n`
-3. Pass the inner YAML to `YAMLDecoder().decode(PageFrontmatter.self, ...)`
-4. Body is everything after the trailing `---`
+2. Detect frontmatter block via leading `---\n` + trailing `\n---\n`
+3. `YAMLDecoder().decode(PageFrontmatter.self, ...)` on inner YAML
+4. Body = everything after trailing `---`
 
-Wraps the parsing + composition into a `PageFile` struct mirroring `NexusIdentity`'s `load(from:)` / `save(to:)` shape. Encoder uses `YAMLEncoder()` for the round-trip.
+Wrap into a `PageFile` struct mirroring `NexusIdentity`'s `load(from:)` / `save(to:)`. Encoder uses `YAMLEncoder()`. SPM: `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`.
 
-Add to project via Swift Package Manager: `https://github.com/jpsim/Yams.git`, version `5.1.0+`.
+##### 8. SF Symbol icon picker — `xnth97/SymbolPicker` SPM dep, wrapped behind `IconPickerSheet`
 
-##### 8. SF Symbol icon picker — `xnth97/SymbolPicker` SPM dep, wrapped behind Pommora's `IconPickerSheet`
+**Locked 2026-05-16**: `xnth97/SymbolPicker` — most popular, simplest API, cross-platform (macOS 13+), sheet-presented, maintained.
 
-**Locked 2026-05-16**: Use the third-party `xnth97/SymbolPicker` Swift package. Most popular, simplest API, cross-platform (macOS 13+), sheet-presented (matches Pommora's other sheet patterns), maintained.
-
-Pommora wraps it in `Pommora/Pommora/Sidebar/Sheets/IconPickerSheet.swift` so call sites only ever see Pommora's API, never `SymbolPicker` directly. Swap-safety: replacing the library (e.g. switching to a hand-rolled grid or a different package) is a single-file rewrite in the wrapper — no call-site churn.
-
-```swift
-import SwiftUI
-import SymbolPicker
-
-struct IconPickerSheet: View {
-    @Binding var icon: String
-    @State private var presented = false
-
-    var body: some View {
-        Button { presented = true } label: {
-            Label("Pick Icon", systemImage: icon.isEmpty ? "questionmark.square" : icon)
-        }
-        .sheet(isPresented: $presented) {
-            SymbolPicker(symbol: $icon)
-        }
-    }
-}
-```
+Wrapped in `Pommora/Pommora/Sidebar/Sheets/IconPickerSheet.swift` — `@Binding var icon: String` + a Button that presents `SymbolPicker(symbol: $icon)` via `.sheet(isPresented:)`. Call sites see Pommora's API only; replacing the library is a single-file wrapper rewrite.
 
 SPM dep: `.package(url: "https://github.com/xnth97/SymbolPicker", from: "1.5.1")`.
 
 ##### 9. Validation enforcement — pure functions on Codable entities
 
-Validation happens at the manager layer (before write):
+Validation runs at the manager layer (before write). Concrete `SpaceValidator` impl in Day-1 plan step 6. Manager pattern: `try Validator.validate(...) → try await save(...)`.
 
-```swift
-enum SpaceValidator {
-    static func validate(_ space: Space, in nexus: Nexus) throws { ... }
-}
+Tier-parent validation needs access to other tiers' managers (to resolve parent IDs). Two options:
+- Pass dependent managers into the validator call
+- Validators as methods on a higher-level `NexusCoordinator` holding all managers
 
-func create(name: String, color: SpaceColor) async throws {
-    let space = Space(id: ULID.generate(), title: name, color: color)
-    try SpaceValidator.validate(space, in: currentNexus)
-    try await saveAtomically(space)
-    spaces.append(space)
-}
-```
-
-For tier-parent validation, the validator needs access to the other tiers' managers (to resolve parent IDs). Either:
-- Pass dependent managers into the validator's call
-- Validators live as methods on a higher-level `NexusCoordinator` that has all managers
-
-Simpler v1 approach: validators are static functions; the manager fetches needed parent data (a tier-3's parent must be tier-2) and passes it in. Coordinator layer comes later if needed.
+Simpler v1: static functions; manager fetches parent data and passes it in. Coordinator later if needed.
 
 ##### 10. Sandbox + security-scoped access — already solved
 
-`NexusManager` already handles `startAccessingSecurityScopedResource()` / `stopAccessingSecurityScopedResource()` lifecycle. New file writes inside the nexus inherit access from the active resource scope — no per-write bookmark needed.
+`NexusManager` handles `startAccessingSecurityScopedResource()` / `stop...` lifecycle. New file writes inside the nexus inherit access from the active resource scope — no per-write bookmark.
 
-**Discipline:** new entity managers should NOT call `startAccessing` independently — they assume the active Nexus's resource scope is held by `NexusManager`. They read `nexusURL` from the active `Nexus` and write within that tree.
+**Discipline:** new entity managers MUST NOT call `startAccessing` independently — they assume `NexusManager` holds the active scope. Read `nexusURL` from the active `Nexus`; write within that tree.
 
 ---
 
 #### Ready-to-Code-Today Working Plan
 
-Day-1 scope: land Phase 0 (Codable foundation), Phase 1 (file system + validation), and Phase 2 (Spaces CRUD + sidebar). End of day: user can create / rename / delete a Space, the file lands on disk, the sidebar updates live.
+Day-1 scope: Phases 0–2 (Codable foundation, FS + validation, Spaces CRUD + sidebar). End-of-day: user can create / rename / delete a Space; file lands on disk; sidebar updates live.
 
 Files to create:
 
 ```
 Pommora/Pommora/
-  Contexts/                       ← NEW folder
-    Space.swift                   ← Codable value type (id, title, color, icon, blocks, modified_at)
-    SpaceColor.swift              ← enum (gray, brown, orange, yellow, green, blue, purple, pink, red)
-    SpaceFile.swift               ← Codable storage + load/save (mirrors NexusIdentity)
-    SpaceManager.swift            ← @MainActor @Observable; loadAll/create/rename/delete
-    SpaceValidator.swift          ← pure validation functions
+  Contexts/                       ← NEW
+    Space.swift                   ← Codable value type
+    SpaceColor.swift              ← enum (Notion 9-palette)
+    SpaceFile.swift               ← load/save (mirrors NexusIdentity)
+    SpaceManager.swift            ← @MainActor @Observable; CRUD
+    SpaceValidator.swift          ← pure validation
 
-  AtomicIO/                       ← NEW folder (shared helpers for future entities)
-    AtomicJSON.swift              ← thin wrapper over Data.write(.atomic) for any Codable
-    NexusPaths.swift              ← NEW — path resolution helpers within the active nexus
-                                  ←   (e.g. spacesDirURL(in:), topicsDirURL(in:), vaultsDir(in:))
+  AtomicIO/                       ← NEW (shared helpers)
+    AtomicJSON.swift              ← Data.write(.atomic) wrapper
+    NexusPaths.swift              ← path helpers (spacesDir(in:), topicsDir(in:), …)
 
 Pommora/Pommora/Sidebar/
-  SidebarView.swift               ← MODIFY — add Spaces section reading from SpaceManager
-  SpaceRow.swift                  ← NEW — extracted row view; reuses SelectableRow styling
-  NewSpaceSheet.swift             ← NEW — "+ New Space" sheet (name + color picker + icon)
+  SidebarView.swift               ← MODIFY: Spaces section reads SpaceManager
+  SpaceRow.swift                  ← NEW: reuses SelectableRow styling
+  NewSpaceSheet.swift             ← NEW: name + color + icon
 
 Pommora/Pommora/
-  ContentView.swift               ← MODIFY — inject SpaceManager into environment
+  ContentView.swift               ← MODIFY: inject SpaceManager into environment
 
 Pommora/PommoraTests/
-  SpaceFileTests.swift            ← NEW — round-trip tests
-  SpaceValidatorTests.swift       ← NEW — validation rule coverage
-  SpaceManagerTests.swift         ← NEW — CRUD lifecycle (temp dir, no real nexus)
+  SpaceFileTests.swift            ← round-trip
+  SpaceValidatorTests.swift       ← validation coverage
+  SpaceManagerTests.swift         ← CRUD lifecycle (temp dir)
 ```
 
 Concrete sequence to execute today:
 
-1. **Add Yams via Swift Package Manager** — even though Spaces don't use YAML, registering it now means Phase 6 (Pages CRUD) doesn't block on dependency-management. URL: `https://github.com/jpsim/Yams.git`, version `from: "5.1.0"`.
+1. **Add Yams via SPM** — registering now so Phase 6 (Pages CRUD) doesn't block on dependency management. `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`.
 
 2. **Create `NexusPaths.swift`** — pure path helpers:
 
@@ -1062,13 +934,13 @@ Concrete sequence to execute today:
    }
    ```
 
-4. **Create `SpaceColor.swift`** — fixed 9-color enum matching Notion palette:
+4. **Create `SpaceColor.swift`** — 9-color enum (Notion palette):
 
    ```swift
    enum SpaceColor: String, Codable, CaseIterable, Identifiable, Hashable {
        case gray, brown, orange, yellow, green, blue, purple, pink, red
        var id: String { rawValue }
-       var swiftUIColor: Color { ... }  // map each to a Color value
+       var swiftUIColor: Color { ... }
    }
    ```
 
@@ -1078,15 +950,14 @@ Concrete sequence to execute today:
    struct Space: Codable, Equatable, Identifiable, Hashable {
        var id: String           // ULID
        var tier: Int = 1
-       var title: String        // derived from filename on load, set on create
+       var title: String        // derived from filename on load
        var color: SpaceColor
-       var icon: String?        // SF Symbol name
-       var blocks: [SpaceBlock] // empty in v1; populated when Spaces composition lands
+       var icon: String?        // SF Symbol
+       var blocks: [SpaceBlock] // empty v1; populated when Spaces composition lands
        var modifiedAt: Date
    }
 
-   // Placeholder until Phase 10 (Spaces composition)
-   struct SpaceBlock: Codable, Equatable, Hashable {}
+   struct SpaceBlock: Codable, Equatable, Hashable {} // placeholder until Phase 10
    ```
 
 6. **Create `SpaceValidator.swift`** — pure functions:
@@ -1156,7 +1027,7 @@ Concrete sequence to execute today:
                            .tag(color)
                    }
                }
-               // Icon picker: text field + filtered grid (phase 2 keeps it minimal — just a TextField for SF Symbol name)
+               // Phase-2 icon picker: TextField for SF Symbol name; grid later.
            }
            .toolbar {
                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -1169,25 +1040,22 @@ Concrete sequence to execute today:
        }
 
        private func create() async {
-           do {
-               try await spaceManager.create(name: name, color: color, icon: icon)
-               dismiss()
-           } catch { /* show inline error */ }
+           do { try await spaceManager.create(name: name, color: color, icon: icon); dismiss() }
+           catch { /* show inline error */ }
        }
    }
    ```
 
-9. **Modify `SidebarView.swift`** — replace placeholder rows with real data:
+9. **Modify `SidebarView.swift`** — replace placeholders with real data:
+   - Inject `@Environment(SpaceManager.self)`
+   - Replace "Spaces" section placeholders with `ForEach(spaceManager.spaces)`
+   - Each row = `SpaceRow(space:)` wrapping `SelectableRow` with color/icon
+   - `+ New Space` button at section footer sets `presentedSheet = .newSpace`
+   - Add `.sheet(item: $presentedSheet)` (handles `.newSpace`, extensible)
+   - `.contextMenu` per row (rename, change color, change icon, delete)
+   - Inline rename state (`@State private var editingSpaceID: String?`)
 
-   - Inject `@Environment(SpaceManager.self)` 
-   - Replace the existing "Spaces" section's hardcoded placeholders with `ForEach(spaceManager.spaces)`
-   - Each row is `SpaceRow(space:)` wrapping `SelectableRow` with the space's color/icon
-   - Add `+ New Space` button at section footer that sets `presentedSheet = .newSpace`
-   - Add `.sheet(item: $presentedSheet)` modifier (initially handles `.newSpace`, extensible)
-   - Add `.contextMenu` per row (rename, change color, change icon, delete)
-   - Add inline rename state (`@State private var editingSpaceID: String?`)
-
-10. **Modify `ContentView.swift`** — inject `SpaceManager` when the Nexus loads:
+10. **Modify `ContentView.swift`** — inject `SpaceManager` on Nexus load:
 
     ```swift
     @State private var spaceManager: SpaceManager?
@@ -1201,96 +1069,67 @@ Concrete sequence to execute today:
     }
     ```
 
-11. **Write tests** — at minimum:
-    - `SpaceFileTests`: encode/decode round-trip for a sample `Space`
+11. **Write tests** — minimum:
+    - `SpaceFileTests`: encode/decode round-trip
     - `SpaceValidatorTests`: empty title rejected, duplicate rejected, valid passes
-    - `SpaceManagerTests`: create → file exists on disk; rename → file renamed; delete → file gone
+    - `SpaceManagerTests`: create → file exists; rename → renamed; delete → gone
 
-12. **Run `xcodebuild` + run tests + manually verify** in the app:
-    - Create a Space "Personal" → `<nexus>/.nexus/spaces/Personal.space.json` exists on disk
-    - Rename "Personal" → "Life" → file renamed; sidebar shows "Life"
-    - Delete "Life" → file gone; sidebar updates
-    - All operations leave SQLite untouched (no DB layer yet)
+12. **Run `xcodebuild` + tests + manually verify**:
+    - Create "Personal" → `<nexus>/.nexus/spaces/Personal.space.json` exists
+    - Rename → "Life" → file renamed; sidebar shows "Life"
+    - Delete → file gone; sidebar updates
+    - SQLite untouched (no DB layer yet)
     - `codesign -d --entitlements -` still shows sandbox + user-files-rw
 
-End of day deliverable: **Spaces tier fully CRUD-able end-to-end**, with the file-on-disk reflecting every UI action. Phase 3 (Topics) starts the next session — same pattern, plus folder creation and parent Space picker.
+End-of-day deliverable: **Spaces tier fully CRUD-able end-to-end**; file-on-disk reflects every UI action. Phase 3 (Topics) next session — same pattern + folder creation + parent Space picker.
 
 ---
 
 #### Open Items Carrying Into Day 2+
 
-- Phase 3: Topics (folder + `_topic.json`, multi-Space parent picker, chevron-disclosure sidebar)
-- Phase 4: Sub-topics
-- Phase 5: Vaults + Collections (note: Collection has no metadata file in v1)
-- Phase 6: Content CRUD — first place Yams comes in
-- Phase 7: cross-tier relations property panel
-- Phase 8: Settings scene scaffold + Tier-config / Saved-config editors
-- Phase 9: Saved-section content (Homepage seeded Space, Calendar/Recents placeholders)
-- Phase 10: file watcher (v0.2 in current Framework)
-- Phase 11: graph-view readiness audit
-- Post-implementation: doc-set rewrites per the tracking list above
+Phases 3–11 as specified in *Implementation Phasing*. Post-implementation: doc-set rewrites per *What Changes from Current Spec Docs* above. Notes: Phase 6 is first Yams use; Phase 10 = v0.2 file watcher in Framework.
 
 ---
 
 #### Pre-Plan Validation Findings (2026-05-16)
 
-Sanity-check pass via context7 + find-docs + swiftui-expert-skill before entering structured plan mode. Documenting what's verified-fine vs what needed adjustment so the plan doesn't re-litigate.
+Sanity-check via context7 + find-docs + swiftui-expert-skill before plan mode. Verified-fine vs adjusted, recorded so the plan doesn't re-litigate.
 
 ##### Verified fine (no adjustment needed)
 
-- **Yams** (`/jpsim/yams`) — clean Codable patterns (`YAMLDecoder().decode(T.self, from: String/Data/Node)`); supports multi-document YAML via `compose_all`; has source-position `Mark` for diagnostics. v5.1+ works under Swift 6. Add via SwiftPM: `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`.
-- **GRDB.swift v7+** (`/groue/grdb.swift`, v7.5.0 on context7) — **explicitly requires Xcode 16+ and Swift 6 compiler**. `ValueObservation.values(in:)` returns an `AsyncSequence` consumable via `for try await values in observation.values(in: dbQueue)`. FTS5 supports `unicode61` (default), `ascii`, `porter` tokenizers. macOS Application Support directory pattern is the documented file-location convention. Standard `DatabaseQueue(path:)` initializer.
-- **EKCalendarItem.lastModifiedDate** — confirmed `var lastModifiedDate: Date? { get }`, available since macOS 10.8. Safe for sync conflict resolution.
-- **`@Observable` + `@MainActor`** combo for managers — verified against `swiftui-expert-skill/references/state-management.md`: "Always mark @Observable classes with @MainActor for thread safety." Pommora pattern matches.
-- **`@Environment(Type.self)` injection** — verified pattern. Inject via `.environment(SpaceManager(...))`; read via `@Environment(SpaceManager.self) private var spaceManager`. No `.environmentObject` needed with `@Observable`.
+- **Yams** (`/jpsim/yams`) — Codable patterns (`YAMLDecoder().decode(T.self, from: String/Data/Node)`); multi-document via `compose_all`; source-position `Mark` for diagnostics. v5.1+ on Swift 6. `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`.
+- **GRDB.swift v7+** (`/groue/grdb.swift`, v7.5.0) — requires Xcode 16+ and Swift 6. `ValueObservation.values(in:)` returns `AsyncSequence` via `for try await values in observation.values(in: dbQueue)`. FTS5: `unicode61` (default), `ascii`, `porter`. macOS Application Support directory is the documented location. Standard `DatabaseQueue(path:)`.
+- **EKCalendarItem.lastModifiedDate** — confirmed `var lastModifiedDate: Date? { get }`, since macOS 10.8. Safe for conflict resolution.
+- **`@Observable` + `@MainActor`** combo — verified per `swiftui-expert-skill/references/state-management.md`: "Always mark @Observable classes with @MainActor for thread safety." Pommora pattern matches.
+- **`@Environment(Type.self)` injection** — `.environment(SpaceManager(...))` to inject; `@Environment(SpaceManager.self) private var spaceManager` to read. No `.environmentObject` needed with `@Observable`.
 
-##### Adjusted in spec (applied to this doc + Features/Agenda.md)
+##### Adjusted in spec (applied here + Features/Agenda.md)
 
-- **EKRecurrenceRule `daysOfTheWeek` shape correction** — actual type is `[EKRecurrenceDayOfWeek]?` (a typed object with `dayOfTheWeek` enum + optional `weekNumber`), NOT a string array like `["mon", "wed"]`. Updated JSON schema above to reflect.
-- **EKRecurrenceRule `firstDayOfTheWeek` property** — was missing from earlier JSON sketch. Added.
-- **EKRecurrenceRule immutability** — modifying recurrence on a saved EKEvent/EKReminder requires constructing a new `EKRecurrenceRule` (no in-place mutation). Pommora's sync layer always builds fresh objects. Noted in spec + Agenda.md.
-- **EKEventStoreChanged observation pattern** — added the Swift Concurrency `for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged)` pattern to spec + Agenda.md.
+- **EKRecurrenceRule `daysOfTheWeek`** — actual type is `[EKRecurrenceDayOfWeek]?` (typed object with `dayOfTheWeek` enum + optional `weekNumber`), NOT a string array. JSON schema above reflects this.
+- **EKRecurrenceRule `firstDayOfTheWeek`** — added to schema (was missing).
+- **EKRecurrenceRule immutability** — modifying recurrence on a saved item requires constructing a new `EKRecurrenceRule`. Sync layer always builds fresh.
+- **EKEventStoreChanged observation** — added Swift Concurrency `for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged)` pattern.
 
 ##### Implementation discipline to add (folder + file atomicity)
 
-Creating a Topic / Vault is a two-step filesystem operation: (1) create folder, (2) write metadata file inside. If step 2 fails, the folder is orphaned. Two complementary disciplines:
+Creating a Topic / Vault is two-step: (1) create folder, (2) write metadata. If step 2 fails, the folder is orphaned. Two disciplines:
 
-1. **Best-effort rollback on creation failure** — if metadata write throws, delete the created folder before propagating the error. The manager's `create(...)` method wraps both ops:
-   ```swift
-   func create(name: String, ...) async throws {
-       let folderURL = NexusPaths.topicsDir(in: nexus).appendingPathComponent(name)
-       try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-       do {
-           let topic = Topic(...)
-           try AtomicJSON.write(topic, to: folderURL.appendingPathComponent("_topic.json"))
-       } catch {
-           try? FileManager.default.removeItem(at: folderURL)  // rollback
-           throw error
-       }
-   }
-   ```
-2. **Idempotent recovery on load** — if a folder exists without its metadata file, `loadAll()` skips it silently (treats as cosmetic folder) rather than crashing or creating a phantom Topic. User can inspect via Finder if curious.
+1. **Best-effort rollback on creation failure** — if metadata write throws, `try? FileManager.removeItem(at: folderURL)` before propagating. Manager's `create(...)` wraps both ops in a do/catch, calling `AtomicJSON.write(topic, to: folderURL/_topic.json)` and rolling back on throw.
+2. **Idempotent recovery on load** — if a folder exists without metadata, `loadAll()` silently skips it (treats as cosmetic).
 
-Folder rename is atomic via `FileManager.moveItem(at:to:)` on same volume (always true for nexus contents). Cross-volume isn't a concern.
+Folder rename atomic via `FileManager.moveItem(at:to:)` on same volume (always true for nexus contents).
 
 ##### Esc-to-cancel for inline rename
 
-Both `.onExitCommand { cancel() }` (macOS-specific, fires on system Cancel command including Esc) and `.onKeyPress(.escape) { cancel(); return .handled }` (iOS 17+ / macOS 14+, more flexible) work. **Recommendation: `.onKeyPress(.escape)`** for forward-compatibility and explicit key-binding. Both pass validation.
+Both `.onExitCommand` (macOS-specific) and `.onKeyPress(.escape) { cancel(); return .handled }` (macOS 14+) work. **Use `.onKeyPress(.escape)`** for forward-compatibility and explicit key-binding.
 
 ##### SwiftUI WebView on macOS 26 — Pages editor (Phase 8+) consideration
 
-macOS 26 ships first-class `WebView` + `WebPage` observable model (WWDC25 Session 231 "Meet WebKit for SwiftUI"). For Pommora's Option 2 editor (WKWebView hosting a JS Markdown editor — Tiptap / Milkdown / BlockNote / CodeMirror), the native `WebView` *should* simplify the SwiftUI shell, but:
+macOS 26 ships `WebView` + `WebPage` observable model (WWDC25 Session 231). For Option 2 editor (WKWebView hosting JS Markdown), native `WebView` may simplify the shell — but `WebView(url:)` / `WebView(_:page)` don't surface a public `WKScriptMessageHandler` equivalent in early docs, and Pommora needs both a JS↔Swift bridge (editor events, save, paste) and `WKURLSchemeHandler` (since `file://` blocks ES modules).
 
-- The simple `WebView(url:)` and `WebView(_:page)` initializers don't surface a public `WKScriptMessageHandler` equivalent in early docs
-- Pommora's editor needs a JS↔Swift bridge (editor change events, save commands, paste handlers)
-- Pommora's editor needs to load bundled JS via custom URL scheme (`WKURLSchemeHandler`) because `file://` blocks ES module loading in WebKit
-
-**Recommendation for Pages editor work (Phase 8+):**
-- **Try `WebView` + `WebPage` first** when implementing the editor canvas; if it exposes message handlers + custom scheme support, use it (simpler, more SwiftUI-native)
-- **Fall back to `WKWebView` via `NSViewRepresentable`** if the bridge or scheme APIs aren't exposed — this is the existing spec direction and remains valid
-- This is **not blocking** for Phases 0–7 (no Pages editor work in those phases). Decision happens when Phase 8 starts and the `WebView`/`WebPage` API can be poked at directly.
+**Recommendation (Phase 8+):** Try `WebView` + `WebPage` first; fall back to `WKWebView` via `NSViewRepresentable` if message handlers / custom scheme APIs aren't exposed. Not blocking for Phases 0–7.
 
 ##### FSEventStream
 
-No community-blessed Apple-direct replacement for FSEventStream in Swift 6. `EonilFSEvents` (Swift wrapper) or hand-rolled `FSEventStreamCreate` remain the two options; both work under Swift 6 with `@MainActor` discipline on the callback dispatch. No spec change.
+No community-blessed Apple-direct replacement in Swift 6. `EonilFSEvents` (Swift wrapper) or hand-rolled `FSEventStreamCreate` — both work under Swift 6 with `@MainActor` discipline on callback dispatch.
 

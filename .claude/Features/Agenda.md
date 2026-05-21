@@ -1,13 +1,13 @@
 ### Agenda
 
-Pommora's third operational-layer entity, sibling to Vaults — **calendar-anchored items (events, tasks, to-dos, phases)** with EventKit integration as a load-bearing concern. Agenda items live structurally separate from Vault Content because the macOS EventKit ecosystem requires distinct, fixed-shape entities that map cleanly to `EKEvent` and `EKReminder`.
+Pommora's third operational-layer entity, sibling to Vaults — **calendar-anchored items (events, tasks, to-dos, phases)** with EventKit integration as a load-bearing concern.
 
-**Why Agenda is separate from Vaults:**
-- EventKit (Calendar / Reminders system framework) requires entities matching `EKEvent` / `EKReminder` shapes — fixed schemas with `startDate`/`endDate` (events) or `dueDateComponents`/`completed` (reminders). Generic Vault Items can't carry these cleanly without lossy bidirectional mapping.
-- Quick-capture surfaces (system Calendar, Siri, Reminders, lock-screen widgets, Notification Center) need a single known-location entity to write to. "Create a task" shouldn't have to decide "in which Vault?"
-- Pommora's Mac-first posture makes deep EventKit integration a real value, not polish
+**Why separate from Vaults:**
+- EventKit requires entities matching `EKEvent` / `EKReminder` shapes — fixed schemas (`startDate`/`endDate` or `dueDateComponents`/`completed`). Generic Vault Items can't carry these without lossy bidirectional mapping.
+- Quick-capture surfaces (system Calendar, Siri, Reminders, lock-screen widgets) need a single known-location entity. "Create a task" shouldn't have to decide "in which Vault?"
+- Pommora's Mac-first posture makes deep EventKit integration a real value.
 
-UX-wise Agenda items behave identically to Items — Item Window popover, tier1/2/3 multi-relations to Contexts, user properties, sort/filter. Distinction is on-disk + EventKit-facing only.
+UX-wise Agenda items behave identically to Items — Item Window popover, tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk + EventKit-facing only.
 
 ---
 
@@ -28,9 +28,7 @@ UX-wise Agenda items behave identically to Items — Item Window popover, tier1/
 
 #### Single unified entity with type-as-property
 
-No structural `kind` discriminator. The user-facing distinction (Task / To-Do / Phase / Event / custom) is a **property** (`properties.type`) — user-extensible like any other Select. EventKit mapping is driven by which time fields are populated, not by a schema field.
-
-This means: users don't have to know "is this an event or a reminder?" up front. They enter what they know (a time, or a due date, or just a title) and Pommora — and EventKit — figure out the mapping from the data shape.
+No structural `kind` discriminator. The user-facing distinction (Task / To-Do / Phase / Event / custom) is a **property** (`properties.type`) — user-extensible like any other Select. EventKit mapping is driven by which time fields are populated, not by a schema field. Users enter what they know (a time, a due date, or just a title) and Pommora figures out the mapping from the data shape.
 
 ---
 
@@ -81,17 +79,15 @@ Full field-by-field details, recurrence shape, and validation rules live in `// 
 
 #### Built-in `type` property
 
-The Agenda layer's `_agenda.json` schema includes one built-in `type` property — a Select with defaults `[Task, To-Do, Phase, Event]`. Marked `builtin: true` (cannot be deleted), but the options are user-editable: rename existing, add custom (Habit, Block, Reminder, etc.), recolor.
-
-All other user-added Agenda properties are user-defined the same way Vault properties are. The Agenda layer reuses Pommora's Vault property/view editor UI — no special property panel.
+`_agenda.json` includes a built-in `type` Select with defaults `[Task, To-Do, Phase, Event]`. `builtin: true` (cannot be deleted); options user-editable (rename, add Habit/Block/Reminder, recolor). Other Agenda properties are user-defined like Vault properties; reuses the Vault property/view editor — no special panel.
 
 ---
 
 #### Built-in `status` property (v0.3.0)
 
-The Agenda layer includes a built-in `status` property — Pommora's Status type with **3 EventKit-aligned fixed groups: Upcoming / In Progress / Done**. The group IDs (`upcoming` / `in_progress` / `done`) are chosen specifically to map cleanly onto EventKit's reminder + event semantics — the v0.7.0 sync layer doesn't need translation logic.
+Pommora's Status type with **3 EventKit-aligned fixed groups: Upcoming / In Progress / Done**. Group IDs (`upcoming` / `in_progress` / `done`) map cleanly onto EventKit semantics — the v0.7.0 sync layer doesn't need translation logic.
 
-Marked `builtin: true` — Status cannot be deleted from the Agenda schema. Within the property, group **labels** are user-renamable (rename "Upcoming" → "Queued" if you prefer) and **options** are user-editable (add "Blocked", "Waiting on someone", etc. to any group). Default seed:
+Marked `builtin: true` — Status cannot be deleted. Group **labels** are user-renamable; **options** are user-editable (add "Blocked", "Waiting on someone", etc.). Default seed:
 
 ```
 Upcoming        → [Not started]
@@ -99,7 +95,7 @@ In Progress     → [In progress]
 Done            → [Done]
 ```
 
-EventKit mapping when v0.7.0 sync ships:
+EventKit mapping when v0.6.0 sync ships:
 
 | Pommora StatusGroupID | `EKEvent.status` | `EKReminder.isCompleted` |
 |---|---|---|
@@ -107,9 +103,9 @@ EventKit mapping when v0.7.0 sync ships:
 | `in_progress` | `.confirmed` (currently happening) | `false` |
 | `done` | `.confirmed` (past) | `true` |
 
-**The 3-slot structure is structural — not user-configurable.** Adding a 4th group would break EventKit compatibility at v0.7.0 (no clean mapping target). User customization of workflow happens by adding options within groups, not by inventing new groups.
+**The 3-slot structure is structural — not user-configurable.** Adding a 4th group would break EventKit compatibility (no clean mapping target). Customization happens by adding options within groups.
 
-Existing nexuses with `_agenda.json` predating v0.3.0 get Status auto-injected on first load via `AgendaSchema.migrate(_:)`. Full Status property spec at `// Features//Properties.md`.
+Existing nexuses predating v0.3.0 get Status auto-injected on first load via `AgendaSchema.migrate(_:)`. Full spec → `// Features//Properties.md`.
 
 ---
 
@@ -128,17 +124,17 @@ Stable identifiers: `EKEvent.eventIdentifier` for events, `EKCalendarItem.calend
 
 #### Sandbox + permissions (macOS 26.4 target)
 
-Required for any EventKit access in a sandboxed Pommora build:
+Required for EventKit access in a sandboxed build:
 
-1. **Sandbox entitlement** — `com.apple.security.personal-information.calendars` (Xcode build setting `ENABLE_PERSONAL_INFORMATION_CALENDARS = YES`)
-2. **Info.plist usage description keys** — `NSCalendarsFullAccessUsageDescription` + `NSRemindersFullAccessUsageDescription`
-3. **Modern access APIs** — `requestFullAccessToEvents(completion:)` and `requestFullAccessToReminders(completion:)` (legacy `requestAccess` is deprecated on macOS 14+; Pommora targets 26.4)
+1. **Sandbox entitlement** — `com.apple.security.personal-information.calendars` (`ENABLE_PERSONAL_INFORMATION_CALENDARS = YES`)
+2. **Info.plist** — `NSCalendarsFullAccessUsageDescription` + `NSRemindersFullAccessUsageDescription`
+3. **Modern access APIs** — `requestFullAccessToEvents(completion:)` + `requestFullAccessToReminders(completion:)` (legacy `requestAccess` deprecated on macOS 14+)
 
-EventKit sync is **NOT enabled by default in v1** — opt-in via Settings → Agenda. Schema fields exist from day one so opt-in is additive.
+EventKit sync **NOT enabled by default in v1** — opt-in via Settings → Agenda. Schema fields exist day one so opt-in is additive.
 
 ##### Change observation
 
-Pommora observes external EKEventStore changes via Swift Concurrency async sequences over `NotificationCenter`:
+External EKEventStore changes observed via Swift Concurrency async sequences over `NotificationCenter`:
 
 ```swift
 for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
@@ -146,29 +142,27 @@ for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChan
 }
 ```
 
-Reconciliation re-fetches calendars + reminders, compares against Pommora's `.agenda.json` files by `eventkit_uuid` + `EKCalendarItem.lastModifiedDate`, applies last-write-wins per item. Verified against current Apple EventKit documentation.
+Reconciliation re-fetches calendars + reminders, compares against `.agenda.json` files by `eventkit_uuid` + `EKCalendarItem.lastModifiedDate`, applies last-write-wins.
 
 ##### Constraint: `EKRecurrenceRule` is immutable after creation
 
-Modifying recurrence on a saved EKEvent / EKReminder requires constructing a new `EKRecurrenceRule` and reassigning. Pommora's sync layer always builds a fresh `EKRecurrenceRule` from the JSON `recurrence` block when writing changes back — never attempts in-place mutation. Same shape on the JSON side, fresh object on the EventKit side every write.
+Modifying recurrence requires constructing a new `EKRecurrenceRule` and reassigning. Pommora's sync layer always builds fresh from the JSON `recurrence` block — never in-place mutation.
 
 ---
 
 #### Sidebar treatment
 
-No dedicated "Agenda" section in the sidebar. **Agenda items don't appear in the sidebar at all** (consistent with Items — see `Items.md` "Sidebar visibility"; both live exclusively in their primary views, not in the structural tree). Access via:
+**Agenda items don't appear in the sidebar at all** (consistent with Items — see `Items.md` "Sidebar visibility"). Access via:
 
-- The `Calendar` row at the top of the sidebar (in the heading-less pinned section; opens the calendar view over Agenda items + EventKit-mirrored system events)
-- From within a Context's composed page (embedded "agenda items linked to this Topic" view; v0.9+)
-- Direct file access in Finder for power users
-
-Keeps the sidebar focused on browse navigation; Agenda's primary surface is calendar / list views.
+- The `Calendar` row at the top of the sidebar (heading-less pinned section; opens the calendar view over Agenda items + EventKit-mirrored system events)
+- From within a Context's composed page (embedded "agenda items linked to this Topic" view; v0.7.0)
+- Direct file access in Finder
 
 ---
 
 #### UI: single "When?" date input
 
-When an Agenda item's `start_at` and `due_at` would carry the same value, the property panel collapses to **a single "When?" date input** rather than two separate fields. Expands back to two when the user wants asymmetric values. On disk, both fields persist separately — the collapse is purely UI. Schema unchanged.
+When `start_at` and `due_at` would carry the same value, the property panel collapses to **a single "When?" date input**. Expands to two when the user wants asymmetric values. On disk, both fields persist separately — the collapse is purely UI.
 
 ---
 

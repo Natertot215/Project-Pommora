@@ -1,14 +1,14 @@
 ### Pommora — Roadmap Reorder: Tier Model
 
-> RC-session brainstorm output. Authored end-of-2026-05-18 post-v0.2.7.0 / pre-v0.2.7.1. Supersedes the per-minor ordering in `Framework.md` from v0.2.7.2 onward.
+> RC-session brainstorm. Authored end-of-2026-05-18 post-v0.2.7.0 / pre-v0.2.7.1. Supersedes per-minor ordering in `Framework.md` from v0.2.7.2 onward.
 
 #### Why this exists
 
-`Framework.md` currently mixes "new feature" and "polish" inside the v0.2.7.x patch family (NavDropdown at .2, Tables-custom-grid at .3) and defers paradigm-completing work (Properties, wikilinks) behind multiple polish patches. The actual reasoning behind the ordering had drifted from the project's foundational pattern: build a scaffold, then polish it, then build the next scaffold on top.
+`Framework.md` had mixed new-feature and polish inside the v0.2.7.x patch family and deferred paradigm-completing work (Properties, wikilinks) behind multiple polish patches.
 
-Nathan's stated thesis at RC session: **"Polish what we have, then move on to the larger functional structures that support the interaction. Spaces views come AFTER everything Spaces are meant to be used with."**
+Nathan's RC thesis: **"Polish what we have, then move on to the larger functional structures that support the interaction. Spaces views come AFTER everything Spaces are meant to be used with."**
 
-That's a **tier model**, not a sequence. It re-applies the same scaffolding pattern that produced v0.1.0 (data scaffold) and v0.2.0 (paradigm scaffold) — now as a third scaffold pass spanning post-v0.2.7.0 through v1.0.0.
+A **tier model**, not a sequence — re-applies the scaffolding pattern that produced v0.1.0 (data scaffold) and v0.2.0 (paradigm scaffold) as a third pass through v1.0.0.
 
 #### The tier model
 
@@ -26,11 +26,11 @@ Tier C — Interaction layer (v0.8.0 → v0.9.0 + stabilization)
    Final feature work before v1.0.0.
 ```
 
-The polish-vs-new filter applied at the patch level:
-- **Polish** = refines a surface that already exists and is functionally complete.
-- **New** = adds a capability that doesn't currently exist.
+Polish-vs-new filter at the patch level:
+- **Polish** — refines a complete existing surface.
+- **New** — adds a capability that doesn't exist.
 
-Six items previously scheduled inside v0.2.7.x or v0.2.9/.10 fail the polish filter and re-home to their proper minor versions: NavDropdown, Tables-custom-grid, wikilinks-with-autocomplete, directives, slash menu, heading fold.
+Six previously-scheduled items fail the polish filter and re-home: NavDropdown, Tables-custom-grid, wikilinks-with-autocomplete, directives, slash menu, heading fold.
 
 #### Tier A — Polish (v0.2.7.x)
 
@@ -59,83 +59,80 @@ Three patches. Each refines a surface shipped at v0.2.7.0 or earlier.
 - **Phase 3 AST tokenizer rewrite**: wholesale-rewrite engine's `MarkdownTokenizer.parseTokens(in:)` body to walk Apple AST + emit `[MarkdownToken]` shims; same for `MarkdownStyler.styleAttributes`. Delete `MarkdownTokenizer+Emphasis.swift` + 6 `MarkdownStyler+*` extensions. Internal cleanup; not user-visible. Unifies everything onto Apple AST.
 - **Developer cosmetics**: catch-rewrap (`do { try await … } catch { … }` ~12 single-line patterns in SidebarView + IconPickerSheet), CI `working-directory: .` removal, outdated `Page-Editor-Plan.md` Tiptap-locked language sync-or-delete.
 
-##### What v0.2.7.x removes from the previous list
+##### What v0.2.7.x removes
 
-- **Tables custom grid** — substantial TextKit-2 work (NSTextLayoutFragment subclass with per-cell hit-testing). Source-aligned rendering shipped at v0.2.7.0 is functional. Re-home to v0.6.0 Vault-views or v1.0.0 polish.
-- **NavDropdown** — new navigation surface, not polish. Re-homes to v0.7.0 productivity-surface version.
+- **Tables custom grid** — substantial TextKit-2 work; source-aligned rendering at v0.2.7.0 is functional. Re-home to v0.6.0 or v1.0.0.
+- **NavDropdown** — new navigation surface, not polish. Re-homes to v0.7.0.
 
 ---
 
 #### Tier B — Operational foundation (5 minors)
 
-Each minor closes a layer of the operational paradigm. After all five, everything Spaces are meant to consume is shipped.
+Each minor closes a layer. After all five, everything Spaces consume is shipped.
 
 ##### v0.3.0 — Properties
 
-**Closes the Items paradigm.** Items have been data-only since v0.2.0 — Vault `_vault.json.properties[]` is empty in v0.2.0; this is where the schema actually fills up. Pages also gain full property editing.
+**Closes the Items paradigm.** Items have been data-only since v0.2.0; this fills the schema. Pages gain full property editing.
 
-- **Vault property-schema editor** — `+ Add property` button → name + type picker → per-type config (options for Select, scope for Relation, etc.). Edits `_vault.json.properties[]` atomically.
-- **Per-type property editors** — fully wire the existing `PropertyEditorRow` dispatch (TextField / Toggle / DatePicker / Picker / `MultiSelectChips`) into both Pages inspector and Item Window.
-- **tier1 / tier2 / tier3 chip relation editors** — type-to-search relation pickers backed by Space / Topic / Sub-topic managers.
-- **Vault schema mutations** — rename / type-change (lossless only) / delete; cross-member rewrite using the same atomic-transaction pattern as future wikilink rename cascade.
-- **Item Window redesign** per Nathan's WIP sketch — modal `WindowGroup(for: ItemRef.self)`, 2-col body (description left, properties right), Delete/Save footer.
-- **Item creation surfacing** — Vault detail footer `+ New Item`, Collection row right-click → `New Item (in This Collection)`, Vault row right-click → `New Item`. Sidebar.md right-click table updated.
+- **Vault property-schema editor** — `+ Add property` → name + type picker → per-type config. Edits `_vault.json.properties[]` atomically.
+- **Per-type property editors** — wire `PropertyEditorRow` dispatch (TextField / Toggle / DatePicker / Picker / `MultiSelectChips`) into Pages inspector + Item Window.
+- **tier1 / tier2 / tier3 chip relation editors** — type-to-search pickers backed by Space / Topic / Sub-topic managers.
+- **Vault schema mutations** — rename / type-change (lossless) / delete; cross-member rewrite via atomic-transaction.
+- **Item Window redesign** — modal `WindowGroup(for: ItemRef.self)`, 2-col body, Delete/Save footer.
+- **Item creation surfacing** — Vault detail footer `+ New Item`, Collection/Vault row right-click `New Item`. Sidebar.md table updated.
 
-End of v0.3.0: data model is feature-complete. Pages and Items both have body content AND properties AND tier1/2/3 relations editable in-app.
+End of v0.3.0: data model feature-complete. Pages and Items have body, properties, and tier1/2/3 relations editable in-app.
 
 ##### v0.4.0 — Pages editor expanded
 
-**Pages editor reaches feature-complete per `// Features//Pages.md`.** Capitalizes on engine being fresh in context.
+**Editor reaches feature-complete per `// Features//Pages.md`.** Capitalizes on engine being fresh in context.
 
 - **`:::callout` directive** — parser via Apple AST `BlockDirective` walker (engine groundwork already wired). Renders as outlined box, distinct from blockquote.
 - **`@Columns` directive** — multi-column section rendering. Renders as CSS-grid-equivalent layout (TextKit-2 multi-column via NSTextContainer geometry).
 - **Heading fold** — chevrons on heading rows; collapse/expand the section under each heading. Persist per-document fold state in editor model.
 - **Slash menu** — `/` trigger → popover menu for inserting blocks (tables / HR / code blocks / blockquotes / callout / columns / headings).
 
-End of v0.4.0: Pages editor matches Pages.md spec end-to-end.
+End of v0.4.0: editor matches Pages.md spec end-to-end.
 
 ##### v0.5.0 — SQLite + live-data infrastructure
 
-**The "live data" version.** Disk and app stay in sync; cross-entity navigation indexed; deletes recoverable via UI.
+**The "live data" version.** Disk + app stay in sync; cross-entity nav indexed; deletes recoverable.
 
-- **SQLite indexer (GRDB.swift v7.5+)** — rebuilt from files on launch; six-table schema from PRD (`pages` / `items` / `agenda` / `vaults` / `tiers` / `links`). Per-nexus DB at `~/Library/Application Support/Pommora/nexuses/<nexus-id>/nexus.db` (outside the nexus to avoid iCloud-sync locking).
-- **File watcher (FSEventStream)** — external changes update SQLite + sidebar live; atomic-write detection (debounce + outbound mtime tracking to ignore Pommora's own writes).
-- **Wikilinks indexed from day one**:
-  - `[[Title]]` autocomplete popover (queries SQLite live)
-  - Click routing (Page → opens in detail pane; Context → detail pane; Item → ItemWindow popover)
-  - Rename cascade rewrite via SQLite-indexed lookup (NOT naive body scan — no two-step)
-- **Trash UI window** — `.trash//` data already shipped v0.2.5; v0.5.0 adds the SwiftUI surface listing entries with restore + permanent-delete + Empty Trash.
-- **Cross-Vault move-strip** — Notion-style; confirm dialog lists props that will be stripped.
-- **External-edit detection on Page save** — when editor saves a Page whose mtime drifted since editor mount, prompt before overwriting.
+- **SQLite indexer (GRDB.swift v7.5+)** — rebuilt from files on launch; six-table schema (`pages`/`items`/`agenda`/`vaults`/`tiers`/`links`). Per-nexus DB at `~/Library/Application Support/Pommora/nexuses/<nexus-id>/nexus.db` (outside nexus to avoid iCloud-sync locking).
+- **File watcher (FSEventStream)** — external changes update SQLite + sidebar live; atomic-write detection (debounce + outbound mtime tracking).
+- **Wikilinks indexed from day one** — `[[Title]]` autocomplete (live SQLite), click routing, rename cascade via indexed lookup (no naive body scan).
+- **Trash UI window** — `.trash//` data shipped v0.2.5; v0.5.0 adds the SwiftUI surface (restore + permanent-delete + Empty Trash).
+- **Cross-Vault move-strip** — Notion-style; confirm dialog lists stripped props.
+- **External-edit detection on Page save** — prompt before overwriting if mtime drifted since editor mount.
 
-End of v0.5.0: filesystem and app are live-synced. Wikilinks work like Obsidian.
+End of v0.5.0: filesystem + app live-synced. Wikilinks work like Obsidian.
 
 ##### v0.6.0 — Vault view types
 
-**Vaults stop being lists of files; become real database views.**
+**Vaults stop being lists; become real database views.**
 
-- **Five view types**: table / board (kanban grouped by property options) / list / cards / gallery.
+- **Five view types**: table / board (kanban) / list / cards / gallery.
 - **Inline cell editing** in Table view.
 - **Per-view controls**: filter / sort / group / shown-properties (powered by v0.5.0 SQLite + `json_extract`).
-- **Saved view configurations** stored in `_vault.json`. `views` field becomes populated and editable.
-- Board view ships as visual kanban; cards group by a property's options; editing a card moves it visually. Drag-to-rewrite-frontmatter on kanban is a post-v1 follow-up.
+- **Saved view configurations** in `_vault.json`. `views` field populates.
+- Board view ships visual; drag-to-rewrite-frontmatter is post-v1.
 
-End of v0.6.0: Pommora's Notion-like value proposition is visible to the user.
+End of v0.6.0: Pommora's Notion-like value proposition visible.
 
 ##### v0.7.0 — Productivity surface complete
 
-**System integration + onboarding + nav history + Settings.** The "polish and integration" pass — all the pieces that make Pommora feel like an app rather than a prototype.
+**System integration + onboarding + nav history + Settings.** The polish-and-integration pass.
 
-- **EventKit bridge** — Sandbox entitlement `com.apple.security.personal-information.calendars` + Info.plist usage description keys + modern `requestFullAccessTo*` APIs. Bidirectional mirroring (`EKEvent` for items with `start_at` + `end_at`; `EKReminder` for items with `due_at` or unscheduled). **Opt-in via Settings.**
-- **Agenda UI** — Item Window parallel to existing Item Window (time-field collapse per Agenda.md); Calendar view replacing the placeholder Saved → Calendar entry; menu-bar Quick Capture.
-- **Settings scene** (`⌘,`) — Tier-config editor (singular + plural labels; `tagging_style`; `exposed` toggle); Saved-section labels editor; EventKit sync opt-in toggle; accent color + font size customization.
-- **NavDropdown** — Liquid Glass dropdown button in toolbar (SF Symbol `square.on.square`) opening popover with `[Favorites | Recents]` segmented Picker + scrollable list. `EntityRef` generalization wires `WindowGroup(for: EntityRef.self)` for standalone preview windows. Recents 500-store/100-display LRU; Favorites uncapped with hover-star toggle. Back/Forward arrows + `⌘[`/`⌘]`. `⌘T` opens. Persistence at `<nexus>/.nexus/state.json`.
-- **Accessibility checkpoint** — VoiceOver labels + focus order + Dynamic Type respect across all v0.2.0-v0.6.0 surfaces.
-- **Performance budgets verified** — Page open time, sidebar N-row render, Vault view 1000-row scroll.
-- **First-launch UX** — empty-state copy; nexus-picker polish; discoverable menu-bar Quick Capture entry.
-- **Saved section content fills in** — Recents (full-frame view backed by NavDropdown's RecentsManager); Calendar (with EventKit mirror visible if opt-in).
+- **EventKit bridge** — Sandbox entitlement `com.apple.security.personal-information.calendars` + Info.plist usage description keys + modern `requestFullAccessTo*` APIs. Bidirectional mirroring (`EKEvent` for `start_at`+`end_at`; `EKReminder` for `due_at` or unscheduled). **Opt-in via Settings.**
+- **Agenda UI** — Item Window (time-field collapse per Agenda.md); Calendar view replacing the Saved → Calendar placeholder; menu-bar Quick Capture.
+- **Settings scene** (`⌘,`) — Tier-config editor; Saved-section labels; EventKit opt-in toggle; accent + font size.
+- **NavDropdown** — Liquid Glass dropdown (SF Symbol `square.on.square`) opening popover with `[Favorites | Recents]` segmented Picker. `EntityRef` wires `WindowGroup(for: EntityRef.self)` for preview windows. Recents 500-store/100-display LRU; Favorites uncapped. Back/Forward + `⌘[`/`⌘]`. `⌘T` opens. Persistence at `<nexus>/.nexus/state.json`.
+- **Accessibility checkpoint** — VoiceOver + focus order + Dynamic Type across v0.2.0–v0.6.0 surfaces.
+- **Performance budgets** — Page open, sidebar N-row render, Vault 1000-row scroll.
+- **First-launch UX** — empty-state copy, nexus-picker polish, menu-bar Quick Capture entry.
+- **Saved section content** — Recents (RecentsManager-backed); Calendar (EventKit mirror if opt-in).
 
-End of v0.7.0: Pommora is integration-complete, accessible, performant, and onboards new users without surprises.
+End of v0.7.0: Pommora is integration-complete, accessible, performant, onboards cleanly.
 
 ---
 
@@ -143,13 +140,13 @@ End of v0.7.0: Pommora is integration-complete, accessible, performant, and onbo
 
 ##### v0.8.0 — Composed-blocks editor for Contexts + Homepage
 
-**The capstone.** Spaces / Topics / Sub-topics / Homepage finally get their composed-blocks surface — the dashboard concept that's been a placeholder since v0.2.0.
+**The capstone.** Contexts and Homepage get their composed-blocks surface — the dashboard concept placeholder since v0.2.0.
 
-- **Block types**: paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (live, fully editable per the inline-editing principle — works because Vault views shipped at v0.6.0), linked-pages widget, link-list widget.
+- **Block types**: paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (live, editable; works because Vault views shipped at v0.6.0), linked-pages, link-list.
 - **Drag-and-drop reordering**; slash-menu insertion.
 - `ContextDetailPlaceholder` retires.
 
-End of v0.8.0: organization layer becomes substantive. The 2-layer model claim is honored end-to-end.
+End of v0.8.0: organization layer becomes substantive; 2-layer model honored end-to-end.
 
 ##### v0.9.0 — Global search + rich blocks
 
@@ -159,7 +156,7 @@ End of v0.8.0: organization layer becomes substantive. The 2-layer model claim i
 
 ##### v1.0.0 — Stabilization
 
-No new features. Polish + perf + bug-fix across everything v0.0.0 → v0.9.0. Final accent / typography pass. Release-readiness checklist (Sparkle if non-MAS, TestFlight if MAS).
+No new features. Polish + perf + bug-fix across v0.0.0 → v0.9.0. Final accent / typography pass. Release-readiness checklist (Sparkle non-MAS, TestFlight MAS).
 
 ---
 
@@ -167,29 +164,29 @@ No new features. Polish + perf + bug-fix across everything v0.0.0 → v0.9.0. Fi
 
 ##### Net changes from the previous Framework
 
-| Item | Previous slot | New slot | Why |
+| Item | Previous | New | Why |
 |---|---|---|---|
-| Tables custom grid | v0.2.7.3 (patch) | v0.6.0 or later (Vault-views or v1.0.0 polish) | Substantial new feature, not polish. Source-aligned rendering at v0.2.7.0 is functional. |
-| NavDropdown | v0.2.7.2 / v0.2.8 (patch / minor) | v0.7.0 (productivity-surface) | New navigation surface, not polish. Coexists naturally with Settings + Quick Capture. |
-| Directives (`:::callout`, `@Columns`) | v0.2.9 (patch-numbered minor) | v0.4.0 (Pages-editor-expanded minor) | New capabilities; minor-version-worthy. |
+| Tables custom grid | v0.2.7.3 | v0.6.0 / v1.0.0 | Substantial new feature, not polish. |
+| NavDropdown | v0.2.7.2 / v0.2.8 | v0.7.0 | New nav surface; coexists with Settings + Quick Capture. |
+| Directives (`:::callout`, `@Columns`) | v0.2.9 | v0.4.0 | New capabilities; minor-version-worthy. |
 | Heading fold | v0.2.9 | v0.4.0 | Same. |
 | Slash menu | v0.2.9 | v0.4.0 | Same. |
-| Wikilinks (autocomplete + click + rename cascade) | v0.2.10 | v0.5.0 (with SQLite) | Indexed from day one — no naive→indexed rewrite. |
-| Properties | v0.3.0 (existing) | v0.3.0 (kept) | Confirmed first foundation minor — closes the longest-running paradigm hole. |
-| SQLite + Watcher | v0.4.0 (existing) | v0.5.0 | Shifts one minor later to accommodate Pages-editor-expanded at v0.4.0. |
-| Trash UI | v0.4.0 (existing) | v0.5.0 | Bundled with SQLite + Watcher cluster. |
-| Vault views | v0.5.0 (existing) | v0.6.0 | Same content; shifted one minor later. |
-| EventKit + Agenda + Settings + a11y + perf + onboarding | v0.6.0 (existing) | v0.7.0 | Same bundle; shifted one minor + NavDropdown absorbed. |
-| Composed-blocks Contexts | v0.7.0 (existing) | v0.8.0 | Same content; shifted one minor later. |
-| Global search + rich blocks | v0.8.0 (existing) | v0.9.0 | Same content; shifted one minor later. |
+| Wikilinks (autocomplete + click + rename) | v0.2.10 | v0.5.0 | Indexed from day one — no naive→indexed rewrite. |
+| Properties | v0.3.0 | v0.3.0 | First foundation minor — closes the longest-running paradigm hole. |
+| SQLite + Watcher | v0.4.0 | v0.5.0 | Shifts to accommodate Pages-editor-expanded at v0.4.0. |
+| Trash UI | v0.4.0 | v0.5.0 | Bundled with SQLite + Watcher. |
+| Vault views | v0.5.0 | v0.6.0 | Shifted one minor later. |
+| EventKit + Agenda + Settings + a11y + perf + onboarding | v0.6.0 | v0.7.0 | Shifted one minor + NavDropdown absorbed. |
+| Composed-blocks Contexts | v0.7.0 | v0.8.0 | Shifted one minor later. |
+| Global search + rich blocks | v0.8.0 | v0.9.0 | Shifted one minor later. |
 | Stabilization | v1.0.0 | v1.0.0 | Unchanged. |
 
 ##### Count check
 
-- **Previous:** v0.2.7 + v0.2.8 + v0.2.9 + v0.2.10 + v0.3.0–v0.8.0 + v1.0.0 = 4 patch-numbered-as-minors + 6 minors + 1 major = 11 versions.
-- **New:** v0.2.7.1–.3 + v0.3.0–v0.9.0 + v1.0.0 = 3 patches + 7 minors + 1 major = 11 versions.
+- **Previous:** v0.2.7 + v0.2.8 + v0.2.9 + v0.2.10 + v0.3.0–v0.8.0 + v1.0.0 = 4 + 6 + 1 = 11 versions.
+- **New:** v0.2.7.1–.3 + v0.3.0–v0.9.0 + v1.0.0 = 3 + 7 + 1 = 11 versions.
 
-Same total. The naming now matches actual scope of each version.
+Same total. Naming now matches actual scope.
 
 ---
 
@@ -206,24 +203,24 @@ Same total. The naming now matches actual scope of each version.
 
 #### Decisions still open
 
-- **Tables-custom-grid final home** — v0.6.0 (Vault-views, since cell-edit is a related interaction model) vs. v1.0.0 (stabilization polish). Defer to v0.6.0 prep.
-- **Search FTS5 schema timing** — could ship the FTS5 tables alongside SQLite at v0.5.0 (cheap; index is already there) and only the `⌘K` UI defers to v0.9.0. Or wait. Defer to v0.5.0 prep.
-- **Where do Sub-topic-specific composed blocks differ from Topic / Space?** — open from before; settles inside v0.8.0 prep.
-- **NavDropdown vs. ⌥⌘O standalone window opening** — both ship at v0.7.0; verify the interactions don't conflict.
+- **Tables-custom-grid final home** — v0.6.0 vs. v1.0.0. Defer to v0.6.0 prep.
+- **Search FTS5 schema timing** — could ship FTS5 tables alongside SQLite at v0.5.0; `⌘K` UI defers to v0.9.0. Defer to v0.5.0 prep.
+- **Sub-topic-specific composed blocks vs. Topic / Space** — settles inside v0.8.0 prep.
+- **NavDropdown vs. ⌥⌘O standalone window opening** — both at v0.7.0; verify interactions don't conflict.
 
 #### What this document is NOT
 
-- Not an implementation plan. Implementation plans are per-version, created at the start of each version's session.
-- Not a binding contract. Future sessions can re-question this ordering if a new constraint surfaces (a v0.3.0 Properties session might reveal that Pages-editor-expansion needs to come first for some technical reason).
-- Not a date plan. Per Studio rules, no calendar dates — phases and steps only.
+- Not an implementation plan (plans are per-version, at the start of each version's session).
+- Not a binding contract — future sessions can re-question if a new constraint surfaces.
+- Not a date plan (Studio rule: phases and steps only).
 
 ---
 
-#### Next steps (per Studio convention)
+#### Next steps
 
-1. Deploy this doc to `//The Studio//Projects//Project Pommora//.claude/Planning/Roadmap-Reorder-Tier-Model.md` when back at desk (Nexus-first per RC session rule; Studio after).
-2. Update `Framework.md` "Phases" section + "Roadmap reorders (cumulative history)" to reflect the tier model (add 2026-05-19 entry).
-3. Update `Handoff.md` "Next session priorities" — replace the v0.2.7.x list with the new 3-patch bundle.
-4. Update `CLAUDE.md` "Active Version" block — replace the v0.2.7.x list with the new 3-patch bundle; remove "v0.2.9" + "v0.2.10" references.
-5. Reconcile `// Features//NavDropdown.md` and `PommoraPRD.md` version references — both currently say v0.2.8; new slot is v0.7.0.
-6. NO immediate implementation plan needed — v0.2.7.1 already has its verbatim resume prompt in `Handoff.md`.
+1. Deploy to `//The Studio//Projects//Project Pommora//.claude/Planning/Roadmap-Reorder-Tier-Model.md` (Nexus-first per RC rule).
+2. Update `Framework.md` "Phases" + "Roadmap reorders (cumulative history)" — add 2026-05-19 entry.
+3. Update `Handoff.md` "Next session priorities" — replace v0.2.7.x list with the new 3-patch bundle.
+4. Update `CLAUDE.md` "Active Version" — replace v0.2.7.x list; remove v0.2.9 + v0.2.10 references.
+5. Reconcile `// Features//NavDropdown.md` and `PommoraPRD.md` version references (currently v0.2.8; new slot is v0.7.0).
+6. No implementation plan needed — v0.2.7.1 has its resume prompt in `Handoff.md`.

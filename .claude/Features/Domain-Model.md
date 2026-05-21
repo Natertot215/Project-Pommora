@@ -1,8 +1,8 @@
 ### Domain Model
 
-Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Vaults + Agenda) holds the actual data. Entities in the operational layer relate to entities in the organization layer via per-tier multi-relation fields.
+Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Vaults + Agenda) holds the actual data. Operational entities relate to organization entities via per-tier multi-relation fields.
 
-This is the post-RC-revision domain model. Per-entity detail lives in dedicated docs (Contexts.md, Vaults.md, Items.md, Pages.md, Agenda.md, Homepage.md). The complete on-disk schema + validation + CRUD spec lives at `// Planning//Contexts-Vaults-spec.md`.
+Per-entity detail → dedicated docs. Complete on-disk schema + validation + CRUD → `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
@@ -63,17 +63,12 @@ Detail → `Vaults.md` + `Pages.md` + `Items.md`.
 
 #### Operational layer — Agenda (separate from Vaults)
 
-Calendar-anchored items (events, tasks, to-dos, phases) live as **a third operational-layer entity** at `<nexus>/Agenda/`. Sibling of Vaults, not nested.
-
-**Why separate:**
-- macOS EventKit requires entities matching `EKEvent` and `EKReminder` shapes — fixed schemas that don't map cleanly to generic Vault Items
-- Quick-capture from system Calendar / Siri / Reminders / lock-screen widgets needs one known location, not a "what Vault?" decision
-- Pommora's Mac-first posture makes EventKit integration load-bearing, not polish
+Calendar-anchored items (events, tasks, to-dos, phases) live as **a third operational-layer entity** at `<nexus>/Agenda/`. Sibling of Vaults.
 
 **Shape:**
-- Single unified entity (no `kind` field at schema level)
-- User-facing type (Task / To-Do / Phase / Event / custom) is a **property** (`properties.type`), user-extensible like any other Select
-- EventKit mapping data-driven: `start_at` + `end_at` set → `EKEvent`; `due_at` only → `EKReminder`; neither → unscheduled `EKReminder`
+- Single unified entity (no `kind` field)
+- User-facing type is a **property** (`properties.type`), user-extensible Select
+- EventKit mapping data-driven: `start_at` + `end_at` → `EKEvent`; `due_at` only → `EKReminder`; neither → unscheduled `EKReminder`
 - Same Item Window UI as Items; same tier1/2/3 relations; same sort/filter
 
 Detail → `Agenda.md`.
@@ -121,38 +116,36 @@ Relations are stored by ID (rename-safe); body wikilinks reference by name and r
 
 #### Sidebar shape
 
-Four top-level groups (only three carry a heading label):
+Four top-level groups (only three carry a heading):
 
-- **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable in Settings. Structurally a `Section` wrapper to host future user-pinned pages; renders without a "Saved" header text today
+- **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Spaces** — flat rows for tier-1 Contexts
-- **Topics** — chevron-disclosure for tier-2 Contexts with file-nested Sub-topics
-- **Vaults** — chevron-disclosure showing **Pages directly in the vault root + Collection sub-folders** as children; each Collection further discloses its own Pages. Pages render with the `doc.text` icon
+- **Topics** — chevron-disclosure for tier-2 with file-nested Sub-topics
+- **Vaults** — chevron-disclosure showing Pages (in vault root) + Collection sub-folders; each Collection discloses its own Pages
 
-Items, Agenda items, and Events do **NOT** appear in the sidebar — they live exclusively in the detail-pane Tables (`VaultDetailView`, `CollectionDetailView`). The sidebar tree shows the Page-shaped / structural view; the detail pane shows the full data view.
+Items, Agenda items, and Events do **NOT** appear in the sidebar — they live in detail-pane Tables (`VaultDetailView`, `CollectionDetailView`).
 
-No always-visible "+ New" buttons — creation is **right-click context menus, scoped by cursor location** (right-click on a Vault → "New Collection / New Page" both scoped to THAT Vault; right-click on a Collection → "New Page" in THAT Collection; etc.). Hover-icon "+" affordance on section headings is deferred until quick-capture lands. Detail → `Sidebar.md`.
+No always-visible "+ New" — creation via **right-click context menus, scoped by cursor location**. Detail → `Sidebar.md`.
 
 ---
 
 #### Inline editing principle
 
-Every embedded view inside a composed-blocks surface (Context page, Homepage) is **a live, fully-editable view of its source** — never a read-only snapshot. Editing flows through to the source file via the file watcher + atomic-write loop. Detail → `Architecture.md` + `// Planning//Contexts-Vaults-spec.md`.
-
-Full-body inline Page editing (Notion-style synced blocks) is post-v1 — see `Prospects.md`.
+Every embedded view inside a composed-blocks surface (Context, Homepage) is **a live, fully-editable view of its source** — never a read-only snapshot. Edits flow through via the file watcher + atomic-write loop. Full-body inline Page editing (Notion-style synced blocks) is post-v1 → `Prospects.md`. Detail → `Architecture.md`.
 
 ---
 
 #### Properties
 
-Property schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `type` Select + built-in `status` Status + user-extensible). Same property catalog applies to Pages, Items, and Agenda items. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is a first-class type with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** containing user-editable options. **Vault- and Collection-scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the Vault Settings sheet (`// Features//Vaults.md`). Full type catalog + scope/dual semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
+Schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `type` Select + built-in `status` Status + user-extensible). Same property catalog applies to Pages, Items, and Agenda items. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)**. **Vault- and Collection-scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the Vault Settings sheet. Full catalog + scope/dual semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 
 #### What changed from the earlier 3-entity model
 
-- The earlier "Spaces" (composed-page entity holding `.space.json`) became **tier-1 Contexts** — same shape, different role (categorical anchor, not container)
-- The earlier "Collections" (folder + `_collection.json` typed at creation) became **Vaults** (folder + `_vault.json`) with **Collections** as sub-folders that share the Vault's schema
-- Typed-at-creation distinction (`kind: pages | items`) is dropped — Vaults are kind-agnostic
-- **Agenda** is new — a third operational-layer entity for calendar/task items with EventKit integration
-- **Homepage** is new — singleton dashboard at `.nexus/homepage.json`, separate from any Space
+- Earlier "Spaces" (composed-page `.space.json`) became **tier-1 Contexts** — same shape, different role (anchor, not container)
+- Earlier "Collections" (folder + `_collection.json` typed at creation) became **Vaults** (folder + `_vault.json`) with **Collections** as sub-folders sharing the Vault schema
+- Typed-at-creation distinction (`kind: pages | items`) dropped — Vaults are kind-agnostic
+- **Agenda** new — third operational entity for calendar/task items with EventKit
+- **Homepage** new — singleton dashboard at `.nexus/homepage.json`
 - Per-tier multi-relations (`tier1` / `tier2` / `tier3`) replace the earlier `spaces` multi-relation

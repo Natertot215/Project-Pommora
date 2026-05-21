@@ -1,8 +1,8 @@
 ### Vaults
 
-The operational layer's containment unit. A Vault is a **folder with a shared property schema** that applies to all Content inside it. Collections are sub-folders within a Vault that share the Vault's schema. This doc supersedes most of the earlier `Collections.md`; that doc is now a stub redirect.
+The operational layer's containment unit. A Vault is a **folder with a shared property schema** applied to all Content inside. Collections are sub-folders that share the Vault's schema. Supersedes the earlier `Collections.md` (now a stub redirect).
 
-Maps to PARA's "Resources" — the place where typed reference data, projects, and source material lives.
+Maps to PARA's "Resources" — typed reference data, projects, and source material.
 
 ---
 
@@ -10,11 +10,11 @@ Maps to PARA's "Resources" — the place where typed reference data, projects, a
 
 | Entity | Role | On disk |
 |---|---|---|
-| **Vault** | Folder with property schema; all Content inside shares the schema | A folder containing `_vault.json` at the nexus root |
-| **Collection** | Sub-folder inside a Vault; shares the Vault's schema (no own schema in v1) | A folder inside a Vault, no separate schema file |
-| **Content** | The actual data — Pages (`.md`) and Items (`.json`) | Files inside a Collection (or directly inside the Vault) |
+| **Vault** | Folder with property schema; all Content inside shares the schema | Folder containing `_vault.json` at the nexus root |
+| **Collection** | Sub-folder inside a Vault; shares the Vault's schema (no own schema in v1) | Folder inside a Vault, no separate schema file |
+| **Content** | Pages (`.md`) and Items (`.json`) | Files inside a Collection (or directly inside the Vault) |
 
-Why Collections share the Vault's schema: simplicity. v1 doesn't support Collection-local property overrides — that's tracked as a Prospect for post-v1. The benefit is that a Materials Vault is one coherent data pool: Pages, Documents, Reports, and Other collections inside it all share the same `type`, `source`, `read_status` etc. — no parallel mini-databases.
+Collections share the Vault's schema for simplicity (Collection-local overrides are a post-v1 Prospect). A Materials Vault is one coherent data pool — Pages, Documents, Reports, and Other collections all share the same `type`, `source`, `read_status` etc.
 
 ---
 
@@ -22,24 +22,19 @@ Why Collections share the Vault's schema: simplicity. v1 doesn't support Collect
 
 ```
 <nexus-root>/
-  Planner/                      ← Vault
-    _vault.json                  ← shared schema
-    Tasks-archive/               ← Collection (sub-folder)
-      Old-task.json              ← Item
-    Goals/                       ← Collection
-      Q1-goals.json              ← Item
-
-  Materials/                    ← Vault
+  Planner/                          ← Vault
+    _vault.json                      ← shared schema
+    Tasks-archive/                   ← Collection (sub-folder)
+      Old-task.json                  ← Item
+    Goals/                           ← Collection
+      Q1-goals.json                  ← Item
+  Materials/                        ← Vault
     _vault.json
-    Pages/                       ← Collection
-      Attention-is-all-you-need.md   ← Page
-    Documents/
-      Annual-report.json         ← Item
+    Pages/Attention-is-all-you-need.md   ← Collection / Page
+    Documents/Annual-report.json     ← Collection / Item
 ```
 
-Vault folder name = Vault title. Collection folder name = Collection title. File renames in UI rename folders on disk.
-
-Content sitting directly in a Vault (not in a Collection) is allowed — the Collection sub-folder is optional grouping, not a requirement.
+Vault folder name = Vault title. Collection folder name = Collection title. UI renames rename folders on disk. Content directly in a Vault (not in a Collection) is allowed — Collections are optional grouping.
 
 ---
 
@@ -121,9 +116,9 @@ Content sitting directly in a Vault (not in a Collection) is allowed — the Col
 }
 ```
 
-The Vault's title comes from the folder name. Property schema applies to **all** Content inside (every Page's frontmatter and every Item's `properties` block must conform). `default_sort` is the per-Vault default sort applied to the Vault Table view (v0.3.0); the full per-view sort + filter + group ships at v0.6.0 alongside saved views. `hidden_properties` controls **Vault Table column** visibility — Vault-wide; distinct from per-entity inspector panel visibility (`<entity>.panel_hidden_properties`) which is its own field on Pages / Items / Agenda items (see `// Features//Properties.md` "Per-entity property panel visibility").
+Title = folder name. Schema applies to **all** Content inside (every Page's frontmatter and every Item's `properties` block must conform). `default_sort` is the per-Vault default in the Vault Table view (v0.3.0); full per-view sort + filter + group ships v0.6.0 with saved views. `hidden_properties` controls **Vault Table column** visibility (Vault-wide); distinct from per-entity inspector panel visibility (`<entity>.panel_hidden_properties` — see `// Features//Properties.md` "Per-entity property panel visibility").
 
-**Paired relation properties** — the `sources` Relation property above (`relation_scope.kind: "vault"` + `dual_property` filled) is one half of a paired relation. The target Vault (`01HMATERIALSVAULT...`) carries the corresponding reverse property `"Cited By"` in its own `_vault.json`:
+**Paired relation properties** — the `sources` Relation above (`relation_scope.kind: "vault"` + `dual_property`) is one half of a paired relation. The target Vault (`01HMATERIALSVAULT...`) carries the reverse `"Cited By"` in its own `_vault.json`:
 
 ```json
 {
@@ -141,18 +136,18 @@ The Vault's title comes from the folder name. Property schema applies to **all**
 }
 ```
 
-The two properties are created in a single atomic transaction (SchemaTransaction two-phase commit). Setting a value on either side mirrors the reverse value automatically. Renaming or deleting either side cascades to the other. See "Dual relations" in `// Features//Properties.md` for full lifecycle.
+Both properties are created in a single SchemaTransaction two-phase commit. Setting a value on either side mirrors the reverse; renaming or deleting either cascades. See "Dual relations" in `// Features//Properties.md` for full lifecycle.
 
 #### Vault Settings sheet
 
-The central edit surface for everything about a Vault — schema, sort, filter, group-by, layout, property visibility. v0.3.0 ships the sheet with six sections; three are functional at v0.3.0 and three are placeholder shells that fill in at v0.6.0 alongside Vault Views.
+Central edit surface — schema, sort, filter, group-by, layout, property visibility. v0.3.0 ships six sections; three functional, three placeholder shells filling in at v0.6.0 with Vault Views.
 
 ##### Reaching Vault Settings
 
-- **VaultDetailView toolbar** — gear button (`gearshape`) at the top-right of the detail pane
-- **Vault row right-click** in sidebar — "Vault Settings…" menu entry
-- **"+" column header** in Vault Table view — opens to Edit Properties section + "Add property" active
-- **Column header right-click** in Vault Table — "Edit property…" jumps to the relevant Property row
+- **VaultDetailView toolbar** — gear (`gearshape`) at top-right
+- **Vault row right-click** in sidebar — "Vault Settings…"
+- **"+" column header** in Vault Table view — opens at Edit Properties + "Add property" active
+- **Column header right-click** in Vault Table — "Edit property…" jumps to the relevant row
 
 ##### Six sections
 
@@ -162,20 +157,15 @@ The central edit surface for everything about a Vault — schema, sort, filter, 
 | **Sort** | Functional (single criterion) | Pick property + direction; persists to `_vault.json.default_sort`. Multi-criterion sort arrives v0.6.0 with saved views. |
 | **Property Visibility** | Functional (per-Vault) | Show/hide per property in the Vault Table view. Persists to `_vault.json.hidden_properties: [String]`. Per-saved-view visibility ships v0.6.0. Distinct from per-entity `panel_hidden_properties` (inspector panel scope). |
 | **Filter** | Placeholder — "Coming v0.6.0 with Vault Views" | WHERE-style criteria over property values |
-| **Group By** | Placeholder — "Coming v0.6.0" | Groups rows in the Table view by a chosen property value — **renders as folder-like sections inside the Table**, each section headed by the variant's name + color, with rows clustering beneath. Same data backing as Board view's kanban columns; different render. **Restricted to single-value property types** at v0.6.0 launch (Number, Select, Status, Date / Date & Time, Checkbox, Relation, Last Edited Time) — **Multi-select is NOT supported initially** (ambiguous which group a row with multiple values belongs to; deferred to a later patch). Group order within the view is **view-specific** (drag-reorder section headers in the view editor; persists to `_vault.json.views[i].group_by.order: [String]`). This is distinct from schema-level option order (Edit Properties → drag-reorder options), which affects the property itself across all views. Full spec → `// Features//Properties.md` "Schema-level option order vs view-level group order". |
+| **Group By** | Placeholder — "Coming v0.6.0" | Groups Table rows by a property value — **folder-like sections in the Table**, each headed by variant name + color, rows clustered beneath. Same data backing as Board's kanban columns; different render. **Single-value types only** at v0.6.0 launch (Number, Select, Status, Date / Date & Time, Checkbox, Relation, Last Edited Time); **Multi-select NOT supported initially** (ambiguous group membership). Group order is **view-specific** (drag-reorder section headers; persists to `_vault.json.views[i].group_by.order: [String]`) — distinct from schema-level option order (Edit Properties → drag-reorder options), which affects the property across all views. Full spec → `// Features//Properties.md` "Schema-level option order vs view-level group order". |
 | **Layout** | Placeholder — "Current: Table view. Five-type picker arrives v0.6.0" | View type — Table / Board / List / Cards / Gallery |
-| **Templates** | Placeholder — "Coming post-v1" | Content templates (Page templates, Item templates) that pre-fill body + properties at content creation time. Lives in Vault Settings (this section) so templates are scoped to their Vault. Reserved storage at `<nexus>/.nexus/templates/`. |
+| **Templates** | Placeholder — "Coming post-v1" | Content templates (Page/Item) that pre-fill body + properties at creation. Vault-scoped. Reserved storage at `<nexus>/.nexus/templates/`. |
 
 ##### Properties section detail
 
-The Properties section is the schema editor. Each row in the list shows:
-- The property's icon (if set) + name
-- Type badge (small label)
-- Per-property menu: Rename / Change Type / Edit Options or Groups / Delete / Move Up-Down
+Schema editor. Each row: icon (if set) + name, type badge, per-property menu (Rename / Change Type / Edit Options or Groups / Delete / Move Up-Down).
 
-The "+ Add property" button at the bottom opens the type picker → per-type config sub-view. Relation property creation triggers the multi-step `RelationPropertyWizard` (scope kind → target → property name in this Vault → reverse name in target → allow multiple).
-
-Per-property config is editable inline within the property's expandable row (drag-to-reorder list for Select/Multi-select options; 3-group editor for Status; etc.).
+"+ Add property" opens the type picker → per-type config sub-view. Relation creation triggers `RelationPropertyWizard` (scope kind → target → name here → reverse name → allow multiple). Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status; etc.).
 
 ##### Settings JSON shape
 
@@ -195,37 +185,32 @@ Vault Settings reads/writes these `_vault.json` fields:
 }
 ```
 
-`filter` / `group_by` / `layout` are written as `null` / `"table"` defaults in v0.3.0; v0.6.0 expands their shapes when the placeholder sections fill in.
+`filter` / `group_by` / `layout` are written as `null` / `"table"` defaults v0.3.0; v0.6.0 expands their shapes.
 
 ---
 
 #### No Vault templates (RC-2026-05-19)
 
-Vault creation does NOT seed default properties. `NewVaultSheet` stays as v0.2.0 shipped — name + icon, no template toggles. Users who want Status (or any other property) on a Vault add it manually via Vault Settings → Edit Properties → "+ Add property".
+Vault creation does NOT seed default properties. `NewVaultSheet` stays as v0.2.0 shipped — name + icon, no template toggles. Users add Status (or anything else) manually via Vault Settings → Edit Properties → "+ Add property". **Status is built-in only on Agenda** (where EventKit needs it); on user-created Vaults, Status is opt-in.
 
-**Status is built-in only on Agenda** (where EventKit needs it). On user-created Vaults, Status is a normal property type the user opts into.
-
-Future **content-level templates** (Page templates, Item templates — Notion-style, pre-fill body + properties at creation time) are reserved for post-v1. v0.3.0 keeps the data scaffold compatible without shipping a template surface. See `// Planning//v0.3.0-Properties-implementation.md` "Content templates (post-v1 reservation)" for the reserved storage location + Codable sketch + API signature reservation.
-
-Property type catalog, scope shapes, Status groups, and dual-relation semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
+Future **content-level templates** (Page/Item, Notion-style pre-fill at creation) are reserved for post-v1; v0.3.0 keeps the scaffold compatible. See `// Planning//v0.3.0-Properties-implementation.md` "Content templates (post-v1 reservation)" for storage + Codable sketch + API signature reservation. Property type catalog, scope shapes, Status groups, dual-relation semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 
 #### Content inside a Vault
 
-Two file types are valid Content:
 - **Pages** — `.md` files with YAML frontmatter; prose-bearing. See `Pages.md`.
 - **Items** — `.json` files; row-shaped, no body, open in an Item Window popover. See `Items.md`.
 
-A single Vault can hold both Pages and Items — heterogeneous content sharing the same property schema. v1 makes no distinction between "Pages Vault" and "Items Vault" — the typed-Collection split from the earlier 3-entity model is gone. Vaults are kind-agnostic.
+Vaults are kind-agnostic — Pages and Items can coexist sharing the same schema. The typed-Collection split from the earlier 3-entity model is gone.
 
 ---
 
 #### Collections (sub-folders within a Vault)
 
-Collections in v1 are **filesystem folders inside a Vault** with a minimal sidecar — they share the Vault's schema but persist their own stable identity. They exist for visual / structural grouping inside large Vaults.
+Filesystem folders inside a Vault with a minimal sidecar — share the Vault's schema but persist stable identity. Exist for visual / structural grouping inside large Vaults.
 
-**`_collection.json` sidecar** (paradigm decision 2026-05-16) — every Collection folder contains:
+**`_collection.json` sidecar** (paradigm decision 2026-05-16):
 
 ```json
 {
@@ -235,13 +220,9 @@ Collections in v1 are **filesystem folders inside a Vault** with a minimal sidec
 }
 ```
 
-Making the parent-Vault relation an explicit on-disk property keeps external query/parsing tools from having to infer it from filesystem nesting, and gives Collections stable portable IDs across renames (vs the SHA-256 path-hash fallback the original spec assumed).
+Making parent-Vault an explicit on-disk property keeps external query/parsing tools from inferring it via filesystem nesting, and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
 
-- A Collection's title comes from its folder name
-- Creating a Collection = creating a sub-folder + writing `_collection.json`
-- Renaming a Collection = renaming the folder (id/vault_id/modified_at preserved in sidecar)
-- Deleting a Collection = deleting the folder (with warn-and-confirm if it contains Content)
-- Moving Content between Collections within the same Vault: pure filesystem move; properties survive unchanged (same schema)
+- Title = folder name; create = sub-folder + `_collection.json`; rename = folder rename (id/vault_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving Content between Collections in the same Vault = pure filesystem move, properties unchanged.
 
 **Collection-local schemas** are a post-v1 Prospect; see `Prospects.md`.
 
@@ -249,39 +230,34 @@ Making the parent-Vault relation an explicit on-disk property keeps external que
 
 #### Sidebar treatment
 
-- Vaults appear as chevron-disclosure rows in the sidebar's `Vaults` section
-- **A Vault's disclosure children are: Pages directly in the vault root + Collection sub-folders** (Pages above Collections in v1). Pages render with the `doc.text` icon; Collections render with the `folder` icon
-- **A Collection's disclosure children are: its Pages** (also `doc.text` icon)
-- **Items, Agenda items, Events do NOT appear in the sidebar** — they live exclusively in the detail-pane Tables. The sidebar tree is the structural / Page-shaped view; the detail pane is the full data view including Items
-- Clicking a Vault opens `VaultDetailView` — a hierarchical Finder-style Table over Collections (expandable to show contained Pages + Items)
-- Clicking a Collection opens `CollectionDetailView` — a flat Table of Pages + Items in that Collection
-- Clicking a Page is a no-op until the Markdown editor lands (v0.6); the row is visible / selectable in the sidebar but doesn't open anything yet
-- **Creation is right-click-only** — right-click a Vault row → "New Vault / New Collection / New Page" (all scoped to that Vault); right-click a Collection row → "New Page" (in that Collection); see `Sidebar.md` for the full right-click table
+- Vaults appear as chevron-disclosure rows in the `Vaults` section
+- **A Vault's disclosure children**: Pages directly in vault root + Collection sub-folders (Pages above Collections in v1). Pages = `doc.text`; Collections = `folder`
+- **A Collection's disclosure children**: its Pages (`doc.text`)
+- **Items, Agenda items, Events do NOT appear in the sidebar** — they live in detail-pane Tables. The sidebar tree is the structural / Page-shaped view
+- Clicking a Vault opens `VaultDetailView` — hierarchical Finder-style Table over Collections (expandable for contained Pages + Items)
+- Clicking a Collection opens `CollectionDetailView` — flat Table of Pages + Items
+- Clicking a Page opens it in the main detail pane via TextKit-2 editor (shipped v0.2.7.0; spec → `PageEditor.md`)
+- **Creation is right-click-only** — right-click a Vault row → "New Vault / New Collection / New Page"; right-click a Collection → "New Page". See `Sidebar.md` for the full table.
 
 ---
 
 #### View types
 
-Five view types over Vault Content (and per-Collection scoping):
-- **Table** — sortable columns, inline cell edit
-- **Board** — kanban layout grouped by a property's options
-- **List** — plain list with title + selected inline properties
-- **Gallery** — grid with cover image
-- **Cards** — grid without cover-first emphasis
+Five view types (per-Vault and per-Collection scoping): **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
 
-Saved views configured per-Vault in `_vault.json` `views[]`. Embedded view widgets in Context pages or Homepage reference these by ID and apply local overrides (filter / sort / group / shown-properties) without modifying the Vault's saved views.
+Saved views configured per-Vault in `_vault.json` `views[]`. Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
 
 ---
 
 #### Cross-layer connections
 
-Vault Content (Pages, Items) carries `tier1` / `tier2` / `tier3` multi-relation fields pointing to Contexts. The relations are queryable both ways — a Topic's composed page can embed a view of "all Tasks in Planner where `tier2` includes this Topic."
+Vault Content (Pages, Items) carries `tier1` / `tier2` / `tier3` multi-relations to Contexts. Queryable both ways — a Topic's composed page can embed "all Tasks in Planner where `tier2` includes this Topic."
 
 ---
 
 #### Move-strip rule
 
-Moving a Page or Item from one Vault to another strips properties not in the destination Vault's schema (Notion-style, no quarantine). Simple confirmation warning lists what will be stripped. Within the same Vault (between Collections), no strip — schema is shared.
+Moving a Page or Item to another Vault strips properties not in the destination schema (Notion-style, no quarantine). Confirmation warning lists what's stripped. Within the same Vault (between Collections), no strip — shared schema.
 
 ---
 
@@ -298,4 +274,4 @@ Enforced at every file write:
 
 #### Full specification
 
-Complete on-disk schema, SQLite mirror, sidebar layout, and CRUD scope live in `// Planning//Contexts-Vaults-spec.md`.
+Complete on-disk schema, SQLite mirror, sidebar layout, and CRUD scope → `// Planning//Contexts-Vaults-spec.md`.

@@ -1,10 +1,8 @@
 ### Prospects
 
-> Potential features. Not in immediate scope; brainstormed ideas that we may build in the future. Items here aren't committed to any specific version — they're the ongoing wishlist. Items get pulled out of Prospects and into `Framework.md` when they become committed work.
+> Potential features — not committed to any version. The ongoing wishlist. Items move into `Framework.md` when they become committed work.
 
 #### Format
-
-Each prospect uses the format below. Easy to add new entries: copy the template, fill in the description.
 
 ```
 #### Feature name
@@ -17,72 +15,64 @@ Each prospect uses the format below. Easy to add new entries: copy the template,
 **Description:** Allow a Page's display title in the UI to differ from its filename on disk. v1 ties title strictly to filename — renaming the title in the UI renames the file. North-star feature for later; could be implemented as an opt-in alias layer in frontmatter without changing the file-as-source-of-truth principle.
 
 #### In-line view embeds (`@View`) inside Pages
-**Description:** Embed a Collection view directly inside a Page's prose via the `@View` directive — Notion-style. Embedded Collection views remain available *inside Contexts and Homepage* (as widget blocks) for v1; this prospect is about extending them inline into Pages.
+**Description:** Embed a Collection view directly inside a Page's prose via the `@View` directive — Notion-style. Embedded views remain available inside Contexts and Homepage as widget blocks in v1; this is about extending them inline into Pages.
 
-On Option 1 (native editor), hosting a non-text view inline in the prose flow requires custom layout attachment work — materially harder than on a JS editor. On Option 2 (WKWebView + JS editor), the same node-component approach BlockNote and Tiptap support directly applies, making this feasible if Option 2 is the editor path.
-
-> If pivoting to React, see `// ReactInfo// Editor.md` — `@View` becomes a custom block / node component on BlockNote or Tiptap, well-trodden territory.
+On native TextKit 2, hosting a non-text view inline requires custom layout-attachment work — materially harder than on a JS editor. Feasible if Pommora ever pivots to BlockNote / Tiptap, where node-component approach applies directly. See `// ReactInfo// Editor.md` for the React-pivot path.
 
 #### Ad-hoc page-local properties
-**Description:** Allow a Page to declare properties not in its Collection's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Collection. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
+**Description:** Allow a Page to declare properties not in its parent Vault's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Vault. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
 
 #### Cloud sync (Supabase or otherwise)
 **Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `vault_id` + `properties` JSONB; a parallel `items` table; each `_vault.json` schema → a row in a `vaults` table; each Context (Space / Topic / Sub-topic) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
 
 #### Mobile companion (iOS / iPad)
-**Description:** Real long-term intent (not just "potential"). Read and edit access to the nexus from mobile devices. iPad and iOS are both on the table.
-
-Essentially free — the same Swift Package codebase ships to iPad and iOS with platform adaptations. The natural growth path on the current stack.
-
-> If pivoting to React, see `// ReactInfo// ReactInfo.md` — mobile becomes a Capacitor wrapper or parallel native build; data-layer TypeScript can be UI-decoupled, but the UI itself isn't portable to mobile-native paradigms.
+**Description:** Real long-term intent. Read + edit access to the nexus from mobile. Same Swift Package codebase ships to iPad and iOS with platform adaptations — the natural growth path on the current stack. React pivot path → `// ReactInfo// ReactInfo.md`.
 
 #### Sub-pages (nested Page hierarchy)
-**Description:** v2 candidate. Allow a Page to contain other Pages as children — Notion-style nesting. Filesystem realization: a sub-folder named after the parent Page holds its children. v1 keeps Pages flat within a Pages collection (no nesting), with linking handling "this Page belongs to that Page" relationships. Sub-pages complicate the membership rules (is a child Page in the same Collection as its parent? what if the parent is loose?) — worth implementing once the flat model is well-exercised in practice.
+**Description:** v2 candidate. Allow a Page to contain other Pages as children — Notion-style nesting. Filesystem realization: a sub-folder named after the parent Page holds its children. v1 keeps Pages flat within a Vault or Collection (no nesting), with linking handling "this Page belongs to that Page" relationships. Sub-pages complicate the membership rules (is a child Page in the same Vault as its parent? what if the parent moves?) — worth implementing once the flat model is well-exercised in practice.
 
 #### Item ↔ Page promotion / demotion
-**Description:** Currently dropped from v1 alongside the typed-Collection model. If an entry inside an Items collection later needs prose, the user has to create a separate loose Page (or a Page inside a different Pages collection) and link to the Item by ID — manual, not automatic.
+**Description:** Dropped from v1. If an Item needs prose, the user creates a separate Page and links by ID.
 
-**The design insight worth preserving for the future build:** Pages and Items share the same property catalog. The only structural difference is the storage substrate (Pages = `.md` with frontmatter + body; Items = `.json` with `properties` key, no body). That makes promotion / demotion **conceptually a format conversion, not a data migration**:
+**Insight for future:** Pages and Items share the same property catalog; only the storage substrate differs (Pages = `.md` + body; Items = `.json` properties, no body). Promotion / demotion is **format conversion, not data migration**:
 
-- **Item → Page (promotion):** every property value carries over to the new Page's frontmatter directly (same property names, same value shapes). The new Page starts with an empty body for the user to fill in. The Item's `id` is preserved on the new Page so inbound relations stay intact. The Item file is then deleted (or kept and the new Page is linked).
-- **Page → Item (demotion):** every frontmatter property migrates to the new Item's `properties` key. **The Markdown body is stripped** (Items have no body) — this is data loss and must be confirmed by the user before the operation runs. `id` is preserved.
+- **Item → Page:** every property carries to frontmatter; `id` preserved (inbound relations intact); body starts empty.
+- **Page → Item:** every frontmatter property migrates to `properties`; **body is stripped** — data loss, requires confirmation. `id` preserved.
 
-In either direction, what migrates: properties (relations, dates, tags, selects, numbers, etc.), `icon`, `spaces`. What doesn't migrate on demotion: the Markdown body content. The migration code is straightforward (no schema reconciliation needed since both kinds share the same Collection schema) — the only real concern is the body-stripping UX on demotion.
-
-Slot this as a probable v1.x or v2.0 quality-of-life addition once the typed-Collection model is exercised in practice and the friction surfaces (or doesn't).
+What migrates either way: properties, `icon`, `tier1/2/3`. Migration code is straightforward (shared schema); only concern is the body-stripping UX. Slot as v1.x or v2.0 once typed-Collection model is exercised.
 
 #### Property panel placement options
 **Description:** v1 puts the property panel in the right inspector pane. Two alternate placements are nice-to-haves for later: below the page heading (Notion-style) and at the page bottom. Setting-toggleable per user. Doesn't block v1 — the inspector is the natural starting point — but the placements have different feel for different writing modes (top = reference-while-writing, inspector = reference-while-navigating).
 
 #### AI chat interface in the inspector
-**Description:** Add an AI chat surface as a second view in the right inspector pane (toggled or tabbed alongside the property panel). **Frontend to Nathan's existing local CLI, not an API integration** — the chat UI sends user input to a CLI subprocess and renders streamed output. No model hosting inside the app, no API keys to manage, no per-token costs. Nathan has already built and uses this pattern on Obsidian; the same architecture ports cleanly to Pommora. The inspector has the right dimensions for chat (narrow, vertical, persistent during navigation) and the right context (already attached to the active Page). Implementation is essentially a chat-UI component + a subprocess bridge. v1 ships with the inspector hosting only the property panel; this addition slots in cleanly post-v1 without changing the shell.
+**Description:** Second view in the right inspector pane (toggled or tabbed alongside the property panel). **Frontend to Nathan's local CLI, not an API integration** — chat UI sends to a CLI subprocess and renders streamed output. No model hosting, no API keys, no per-token costs. Nathan already runs this pattern on Obsidian; ports cleanly. Inspector dimensions (narrow, vertical, persistent) fit chat well, and it's already attached to the active Page. Implementation: chat-UI component + subprocess bridge. Slots in post-v1 without shell changes.
 
 #### Sidebar Collection-kind indicator toggle
 **Description:** A setting that adds a small per-row icon distinguishing Pages collections from Items collections in the sidebar. The default v1 sidebar is kind-agnostic; this is a power-user detail for users who want the type division visible at a glance.
 
 #### Custom color picker for Select / Multi-select properties
-**Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Probably gated by the design-system customization work in Framework v0.12.
+**Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Probably gated by the design-system customization work in the v0.6.0 Settings scaffold.
 
 #### Hide-empty-properties toggle in the property panel
-**Description:** v1 shows every property from the Collection's schema in the property panel (Notion-style), even when the value is unset. A setting-toggleable mode that hides unset properties would reduce visual noise on Pages with many schema properties but few values per entry — useful for sparsely-populated databases. Post-v1.
+**Description:** v1 shows every property from the Vault's schema in the property panel (Notion-style), even when the value is unset. A setting-toggleable mode that hides unset properties would reduce visual noise on Pages with many schema properties but few values per entry — useful for sparsely-populated databases. Post-v1.
 
 #### Drag-to-reorder schema-level property declarations
 **Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).
 
 #### Board view: drag-to-rewrite-frontmatter
-**Description:** Planned post-v1.0 feature. Board view (kanban) ships in v0.9 as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Slot for v1.x or v2.0 once foundations stabilize.
+**Description:** Planned post-v1.0 feature. Board view (kanban) ships in v0.5.0 as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Slot for v1.x or v2.0 once foundations stabilize.
 
 #### Quick-capture (Cmd+Shift+N / menu-bar)
-**Description:** Global Cmd+Shift+N (or menu-bar capture popover) that creates a new Item / Page / Agenda entry from anywhere in the OS without navigating the sidebar. Aligns with the v0.2 sidebar UX direction (paradigm decision 2026-05-17) — right-click context menus are the canonical creation affordance, and quick-capture is the planned discoverable counterpart that absorbs most CRUD entry traffic. **Lands before v1** — sequencing TBD relative to the existing roadmap; likely v0.5 or v0.6 alongside the editor work since quick-capture for Pages needs at least a minimal editor to be useful.
+**Description:** Global Cmd+Shift+N or menu-bar popover creating Items / Pages / Agenda from anywhere in the OS. Right-click is canonical contextual creation; quick-capture is the discoverable global counterpart, absorbs most CRUD entry traffic. Slotted v0.6.0.
 
-The shape borrows from Things 3, NotePlan, Drafts: tiny floating window, defaults to the user-configured "inbox" Vault, optional fields for Tier1/2/3 relations and a Vault override. Submits via Enter; Esc dismisses without saving.
+Shape borrows from Things 3, NotePlan, Drafts: tiny floating window, defaults to user-configured "inbox" Vault, optional Tier1/2/3 + Vault override fields. Enter submits; Esc dismisses.
 
 #### Hover-icon "+" affordance on sidebar section headings
 **Description:** Visible counterpart to the right-click creation menu — section headings (Spaces / Topics / Vaults) get a hover-revealed "+" icon at the trailing edge (same pattern as the disclosure chevron). Click triggers the section's default new sheet. **Explicitly skipped in v0.2** in favor of right-click-only; if sidebar discoverability becomes a friction point pre-quick-capture, this is the open slot. After quick-capture ships, this likely stays deferred indefinitely — quick-capture is the primary discoverable path.
 
 #### Pinned-page user pinning (the "Saved" section's real role)
-**Description:** v0.2 ships the Saved section structurally but as a heading-less group at the top of the sidebar holding three fixed entries (Homepage / Calendar / Recents). The planned post-v1 enhancement: users pin arbitrary pages / items / agenda items / context pages to that section, and it gains its "Saved" heading + a "+" affordance for pinning. The three default entries become movable / removable. The underlying `saved-config.json` already accommodates arbitrary `items[]` — the v0.2 implementation just doesn't expose pinning UI.
+**Description:** v0.2 ships the Saved section heading-less with three fixed entries (Homepage / Calendar / Recents). Post-v1: users pin arbitrary pages / items / agenda / contexts; section gets "Saved" heading + "+" affordance; defaults become movable. `saved-config.json` already accommodates arbitrary `items[]`.
 
 #### Synced blocks (inline Page-body editing inside embeds)
-**Description:** Notion-style "synced blocks" — embedding a Page (or a section of one) inside another composed-page surface (Space / Topic / Sub-topic / Homepage) such that editing the Markdown body in the embed mirrors back to the source Page and vice versa. v1's inline editing covers properties, relations, Items, Agenda items, and Collection-view rows in place (per the locked spec at `// Planning//Contexts-Vaults-spec.md`), but **full inline editing of a referenced Page's body** is deferred. Implementation is substantially harder than property/row inline edits: requires per-block addressable IDs in Markdown source, transclusion-aware undo/redo, cursor coordination across surfaces, conflict resolution when the same range is edited in two places simultaneously, and a more complex serializer. Post-v1 — slots in once the v1 editor + watcher loop has been exercised against real usage and the trade-offs of body-level transclusion are concrete. Pommora's existing "Linked Pages widget" affordance (title + frontmatter inline; click to open Page tab for body editing) is the v1 stand-in.
+**Description:** Notion-style synced blocks — embedding a Page inside a composed-page surface such that body edits mirror both ways. v1 covers properties, relations, Items, Agenda, and Collection-row inline editing; **full Page-body transclusion is deferred**. Requires per-block addressable IDs in Markdown, transclusion-aware undo/redo, cross-surface cursor coordination, conflict resolution, and a richer serializer. Post-v1 once the v1 editor + watcher loop is exercised. v1 stand-in: Linked Pages widget (title + frontmatter inline; click opens Page tab).
 
