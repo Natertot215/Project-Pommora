@@ -63,7 +63,17 @@ extension NativeTextViewCoordinator {
             precomputedTokens: tokens,
             configuration: configuration
         )
-        for (range, attrs) in ranges {
+        // Supplemental AST pass covers BlockQuote / Strikethrough / Table /
+        // ThematicBreak — block constructs the regex tokenizer doesn't emit.
+        // Must run on the initial-load / full-rebuild path too, otherwise
+        // these constructs render unstyled until the first per-edit restyle
+        // (e.g. a freshly-opened page would show raw `>` markers).
+        let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
+            text: displayText,
+            baseFont: baseFont,
+            theme: configuration.theme
+        )
+        for (range, attrs) in ranges + supplementalRanges {
             for (key, value) in attrs {
                 textView.textStorage?.addAttribute(key, value: value, range: range)
             }

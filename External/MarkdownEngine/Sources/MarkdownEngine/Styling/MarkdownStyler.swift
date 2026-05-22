@@ -560,6 +560,11 @@ extension MarkdownStyler {
                                 [
                                     .strikethroughStyle: NSUnderlineStyle.single.rawValue,
                                     .strikethroughColor: ctx.configuration.theme.strikethroughColor,
+                                    // Dim the completed-task text so the row reads
+                                    // as "done". Checkbox glyph keeps its accent
+                                    // tint — it draws via `drawTaskCheckboxes` and
+                                    // doesn't read this foreground attribute.
+                                    .foregroundColor: ctx.configuration.theme.mutedText,
                                 ]
                             ))
                     }

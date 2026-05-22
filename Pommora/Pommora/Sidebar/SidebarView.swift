@@ -370,10 +370,12 @@ struct SelectableRow<Trailing: View>: View {
 /// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
 /// edges by default for flat rows. DisclosureGroup-wrapped rows pass
 /// `.disclosure` style to flush the leading edge so chrome covers the chevron.
+import SwiftUI
+
 struct SelectionChrome: View {
     enum Style {
-        case flat  // 11pt symmetric horizontal inset
-        case disclosure  // 0pt leading, 11pt trailing — covers chevron
+        case flat
+        case disclosure
 
         var insets: EdgeInsets {
             switch self {
@@ -389,13 +391,16 @@ struct SelectionChrome: View {
     var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.gray.opacity(0.11))
+                // This forces the permanent native gray sidebar selection
+                .fill(Color(nsColor: .quaternarySystemFill))
                 .padding(style.insets)
         } else {
             Color.clear
         }
     }
 }
+
+
 
 // MARK: - SectionHeader
 
