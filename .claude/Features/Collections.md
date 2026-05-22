@@ -1,17 +1,16 @@
-### Collections
+### Collections — see [[PageTypes|Page Types]] (for Pages) or [[Items]] (for Items)
 
-**Collections are now sub-folders inside Vaults.** This doc is retained as a stub redirect — the full spec for Vaults, Collections, and Content lives in `Vaults.md`.
+Post-ParadigmV2, "Collection" is a generic prose term — the on-disk concept splits per side:
 
-The earlier model — Collections as standalone typed-at-creation entities (`kind: pages | items`) holding `_collection.json` — has been replaced. The new model:
+- **Page Collections** — Pages-side organizational sub-folders inside a Page Type. UI label "Collection" by default. Full spec → [[PageTypes]].
+- **Item Collections** — Items-side organizational sub-folders inside an Item Type. UI label **"Set"** by default. Full spec → [[Items]].
 
-- **Vaults** are the schema-bearing folder entity (`<nexus>/<Vault>/_vault.json`)
-- **Collections** are sub-folders inside Vaults, sharing the Vault's schema. They carry a minimal `_collection.json` sidecar (`{id, vault_id, modified_at}`) for stable identity across renames (paradigm decision 2026-05-16)
-- **Content** (Pages + Items) lives inside Collections (or directly inside the Vault)
-- Vaults are kind-agnostic — Pages and Items can coexist in the same Vault under the shared schema
+Both share the on-disk shape (sub-folder + `_schema.json` carrying `id` + `type_id` + ordering + `modified_at`; properties + views inherit from the parent Type). The UI label divergence is intentional — each side has one signature word and one shared word (Pages: "Vault" + "Collection"; Items: "Type" + "Set").
 
-Collection-local schema overrides are a post-v1 Prospect (see `Prospects.md`).
+In generic prose discussing schema mechanics, ordering, or queries, the term "Collection" covers both. Use "Page Collection" or "Item Collection" when side-specific.
 
-→ `Vaults.md` — full spec for the operational-layer containment unit
-→ `Pages.md` — Markdown-bearing Content
-→ `Items.md` — JSON row-shaped Content
+This doc is retained as a stub redirect — there is no standalone Collection entity post-ParadigmV2. The pre-existing "Collections as standalone typed-at-creation entities" model is gone.
+
+→ [[PageTypes]] — Pages-side container layer (Page Types + Page Collections)
+→ [[Items]] — Items-side container layer (Item Types + Item Collections)
 → `// Planning//Contexts-Vaults-spec.md` — complete on-disk schema + CRUD

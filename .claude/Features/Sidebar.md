@@ -1,12 +1,21 @@
 ### Sidebar
 
-Pommora's leading-edge navigation pane in the three-pane shell. Four top-level groups — a heading-less pinned (Saved) section at top, then Spaces, Topics, Vaults. Locked selection language from v0.0 carries forward.
+Pommora's leading-edge navigation pane in the three-pane shell. Five top-level groups — a heading-less pinned section at top, then Spaces, Topics, Items, Pages. Locked selection language from v0.0 carries forward.
 
-Per-entity routing rules → `Domain-Model.md`; SwiftUI implementation + CRUD UI → `// Planning//Contexts-Vaults-spec.md`.
+Per-entity routing rules → [[Domain-Model]]; SwiftUI implementation + CRUD UI → `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
 #### Layout
+
+Five top-level groups (all labels renameable via Settings scaffold — Phase 7):
+- **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
+- **Spaces** — flat rows for tier-1 Contexts
+- **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
+- **Items** (default label) — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set")
+- **Pages** (default label) — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection")
+
+Items sits above Pages — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. Calendar wires the Agenda data layer in a follow-up plan.
 
 ```
 [Sidebar]
@@ -25,18 +34,25 @@ Per-entity routing rules → `Domain-Model.md`; SwiftUI implementation + CRUD UI
       GTD method
       Time-blocking
   ▸ Side Projects  [tagged: blue]
-─ Vaults ───────────────────────
-  ▾ Documents
-      📄 README                    ← Page directly in vault root
-      ▾ Assignments
-          📄 History WS
-          📄 Math WS
+─ Items ────────────────────────
+  ▾ Bookmarks                              ← Item Type row (UI label: "Type")
+      Tech                                 ← Item Collection row (UI label: "Set")
+  ▸ Books
+─ Pages ────────────────────────
+  ▾ Assignments                            ← Page Type row (UI label: "Vault")
+      📄 README                            ← Page directly in Page Type root
+      ▾ Spring 2026                        ← Page Collection row (UI label: "Collection")
+          📄 Essay 1
       ▾ Reports
           📄 2026 H1
-─ ...
+  ▸ Notes
 ```
 
 No always-visible "+ New" buttons — creation is **right-click first**, complemented by **hover-only `+` buttons** on section headings (visible on hover, hidden at rest). The fuller discoverability layer lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
+
+##### Wrapper-folder visibility
+
+The on-disk wrapper folders `<nexus>/Pages/`, `<nexus>/Items/`, and `<nexus>/Agenda/` are organizational only — they are NOT rendered as sidebar rows. The **section heading** ("Pages" / "Items") IS the visual representation of those wrappers in the sidebar. Agenda has no sidebar visualization at all — the wrapper exists on disk and the data layer ships in v0.3.0, but sidebar surfacing routes through the Calendar pin entry once Calendar UI lands.
 
 ---
 
@@ -61,9 +77,9 @@ Stored in `.nexus/saved-config.json`:
 
 Each item's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
 
-- `homepage` opens the Homepage singleton (see `Homepage.md`)
-- `calendar` opens a calendar view over Agenda items + EventKit-mirrored events (see `Agenda.md`)
-- `recents` shows the NavDropdown's Recents store as a full-frame view; ships at v0.6.0 per `NavDropdown.md`
+- `homepage` opens the Homepage singleton (see [[Homepage]])
+- `calendar` opens a calendar view over Agenda Tasks + Agenda Events + EventKit-mirrored entries (see [[Agenda]]); Calendar UI lands in a follow-up plan, data layer ships v0.3.0
+- `recents` shows the NavDropdown's Recents store as a full-frame view; ships at v0.6.0 per [[NavDropdown]]
 
 **User-pinning of arbitrary entities is post-v1** — section gets its "Saved" heading + "+" affordance then; the three defaults become movable / removable.
 
@@ -73,17 +89,23 @@ Flat rows — no chevron, no children disclosure. Each Space carries a `color` (
 
 ##### Topics
 
-Chevron-disclosure rows. Each Topic expands to show file-nested Sub-topics as leaf rows.
+Chevron-disclosure rows. Each Topic expands to show file-nested Projects (tier-3 Contexts) as leaf rows.
 
-Topic rows carry **tagging indicators inherited from parent Space(s)**. Multi-Space Topics show multiple indicators side by side (e.g. blue + green dots for a Topic that belongs to both Personal and Work). Clicking a Topic or Sub-topic opens its composed-blocks page.
+Topic rows carry **tagging indicators inherited from parent Space(s)**. Multi-Space Topics show multiple indicators side by side (e.g. blue + green dots for a Topic that belongs to both Personal and Work). Clicking a Topic or Project opens its composed-blocks page.
 
-##### Vaults
+##### Items
 
-Chevron-disclosure rows. **Each Vault discloses both Pages (in the vault root) AND Collection sub-folders** as children. Each Collection discloses its Pages. Pages use the `doc.text` icon; Collections use `folder`.
+Chevron-disclosure rows. **Each Item Type discloses its Item Collections** as children. The default UI label for Item Type rows is "Type"; for Item Collection rows is **"Set"** (both renameable via Settings).
 
-Items, Agenda items, and Events do **NOT** appear in the sidebar — they live in detail-pane Tables (`VaultDetailView` / `CollectionDetailView`). Sidebar shows the structural / Page-shaped view; detail pane shows the full data view.
+Items themselves do **NOT** appear as leaves in the sidebar — they live in detail-pane Tables under their Item Type. Sidebar shows the structural / container view; detail pane shows the full data view.
 
-Vaults don't display tagging (operational, not categorical). Clicking a Vault opens its hierarchical Table; Collection opens a scoped view; Page opens in the main detail pane via the TextKit-2 editor (shipped v0.2.7.0).
+Item Types don't display tagging (operational, not categorical). Clicking an Item Type opens its Items Table; clicking an Item Collection opens a scoped view.
+
+##### Pages
+
+Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages use the `doc.text` icon; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
+
+Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page opens it in the main detail pane via the TextKit-2 editor (shipped v0.2.7.0).
 
 ---
 
@@ -95,15 +117,20 @@ Canonical creation pattern. No always-visible "+ New" buttons; right-click the r
 |---|---|---|
 | Spaces section area (empty / on heading) | New Space | — |
 | Topics section area | New Topic | — |
-| Vaults section area | New Vault | — |
+| Items section area | New Item Type | — |
+| Pages section area | New Page Type | — |
 | Space row | New Space | Rename / Change Color / Change Icon / Delete |
-| Topic row (when disclosed) | New Sub-topic *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
-| Sub-topic row | — | Rename / Change Icon / Delete |
-| Vault row | New Vault + New Collection + New Page *(scoped to THIS Vault)* | **Vault Settings…** (v0.3.0; opens VaultSettingsSheet — schema editor + sort + property visibility) / Rename / Change Icon / Delete |
-| Collection row | New Page *(in THIS Collection)* | Rename / Delete |
+| Topic row (when disclosed) | New Project *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
+| Project row | — | Rename / Change Icon / Delete |
+| Item Type row | — *(no menu in v0.3.0 — stub row)* | — *(designed UI in follow-up plan)* |
+| Item Collection row | — *(no menu in v0.3.0 — stub row)* | — *(designed UI in follow-up plan)* |
+| Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Page Type Settings…** (opens schema editor + sort + property visibility) / Rename / Change Icon / Delete |
+| Page Collection row | New Page *(in THIS Collection)* | Rename / Delete |
 | Page row | — | Rename / Delete (Page editor shipped v0.2.7.0) |
 
-Location scoping is load-bearing — right-clicking on a Collection produces "New Page" that creates IN that Collection. Matches Finder + Notion + Obsidian.
+Location scoping is load-bearing — right-clicking on a Page Collection produces "New Page" that creates IN that Page Collection. Matches Finder + Notion + Obsidian.
+
+No Agenda menu rows in the sidebar at all — Agenda surfaces via the Calendar pin entry; Agenda Task and Agenda Event creation runs through the Calendar UI when it lands.
 
 #### Discoverable creation: hover-icon "+" + quick-capture
 
@@ -139,16 +166,20 @@ When adjusting sidebar geometry, the mechanism depends on what's being adjusted 
 
 #### Section ordering
 
-User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Vaults** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
+User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Items / Pages** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
 
 ---
 
 #### Inline-chevron experiment (Finder pattern)
 
-Captured intent from v0.0 spike (not committed): hand-rolling chevron + member ForEach in Vault Collection rows gives Finder-style flush-left flat rows. Verified in v0.0. Revisit once Vault → Collection → Page chain is observed against real data.
+Captured intent from v0.0 spike (not committed): hand-rolling chevron + member ForEach in Page Collection rows gives Finder-style flush-left flat rows. Verified in v0.0. Revisit once Page Type → Page Collection → Page chain is observed against real data.
 
 ---
 
 #### Open until content lands
 
 Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `tagging_style` default, and Page-row icon hover behavior — all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.
+
+---
+
+> **v0.3.0 status:** The Pages-side ships fully designed per this spec — Page Type rows (labeled "Vault" by default), Page Collection rows, context menus, sheet wiring. The Items-side ships as minimal stubs: `ItemTypeRow` + `ItemCollectionRow` render as plain selectable rows (no context menus, no quick-actions). Click-through lands on a `ContentUnavailableView` placeholder; the Items table UI lands in a follow-up plan. Agenda has no sidebar section — Agenda Tasks + Agenda Events surface via the Calendar pin entry (data layer ships in v0.3.0; Calendar UI is a follow-up plan).

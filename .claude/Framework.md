@@ -6,11 +6,15 @@ Phased plan; no dates. Order is the only commitment.
 
 #### Vision
 
-A Markdown-canonical, SQLite-indexed personal management platform that combines Obsidian's local-first openness with Notion's database and view capabilities. Built around a **2-layer domain model** with PARA-aligned naming:
+A Markdown-canonical, SQLite-indexed personal management platform that combines Obsidian's local-first openness with Notion's database and view capabilities. Built around a **2-layer domain model** with PARA-aligned naming (ParadigmV2 refactor 2026-05-22):
 
-- **Organization layer — Contexts** (Spaces / Topics / Sub-topics) — categorical anchors that things relate *to*
-- **Operational layer — Vaults + Agenda** — the data: Pages (`.md`) + Items (`.json`) inside Vaults; calendar-anchored items (`.agenda.json`) in Agenda with EventKit integration
+- **Organization layer — Contexts** (Spaces / Topics / **Projects**) — categorical anchors that things relate *to*
+- **Operational layer — symmetric Pages + Items + Agenda**:
+  - **Pages side:** Page Types → Page Collections → Pages (`.md`). UI labels default to "Vault" + "Collection".
+  - **Items side:** Item Types → Item Collections → Items (`.json`). UI labels default to "Type" + "Set".
+  - **Agenda:** split into Agenda Tasks (`.task.json`, EKReminder-aligned) and Agenda Events (`.event.json`, EKEvent-aligned) at `<nexus>/Agenda/Tasks/` and `<nexus>/Agenda/Events/`. EventKit integration. No sidebar section — surfaces via Calendar pin.
 - **Singleton — Homepage** — composed-blocks dashboard
+- **Settings scaffold** — `.nexus/settings.json` carrying user-overridable UI labels + accent color (ships v0.3.0; editing UI ships v0.6.0)
 
 Mac-first for v1, always open-source. Full domain spec → `// Features//Domain-Model.md`; complete implementation spec → `// Planning//Contexts-Vaults-spec.md`.
 
@@ -33,6 +37,10 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
+**2026-05-22 — ParadigmV2 IN FLIGHT.** Operational-layer domain model refactor between v0.2.8 (shipped: drag-reorder Phase 1) and v0.3.0 (Properties). Vault becomes Pages-only as Page Type; new Item Type parallels Page Type on the Items side; AgendaItem splits into AgendaTask + AgendaEvent; Sub-topics rename to Projects; schema sidecars unify to `_schema.json`; wrapper folders introduced (`<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/`); Settings scaffold lays groundwork for v0.6.0 Settings UI. UI label divergence: Item Collections render as "Set" by default. "Pommora" prohibited in on-disk schemas + Swift namespace qualifications; retires `Pommora.Collection` quirk #6. Plan locked at `// Planning//ParadigmV2.md` (~2,360 lines, 11 phases). Tag: `paradigmV2` (between v0.2.8 and v0.3.0). When ParadigmV2 ships, v0.3.0 Properties begins on the new symmetric foundation.
+
+---
+
 **End of 2026-05-18 (Session 9 close — v0.2.7.0 SHIPPED + PUSHED):** The native TextKit-2 Page editor is **LIVE on `origin/main` at `9a0b383`**, **tagged `v0.2.7.0`**. Pommora uses Apple `swift-markdown 0.8.0` + a locally vendored `swift-markdown-engine` package (`External/MarkdownEngine/`, Apache 2.0). After an initial bad attempt with the Pallepadehat WKWebView fork that didn't deliver the Notion/Obsidian-native feel, the TextKit-2 pivot sealed it — Apple-native Writing Tools, Look Up / Translate, spell-check, IME, dynamic colors all show up free. Build green, **197/197 tests pass**, lint exit 0, engine builds standalone.
 
 **Shipped this session (10 commits, `1c6e270` → `9a0b383`):** Full commit table at the top of `Handoff.md`. Highlights: Pallepadehat fork stripped (`h.1`); engine vendored as local SPM + Apple swift-markdown 0.8.0 added (`h.2`); `PageEditorView` wired to `NativeTextViewWrapper` (`h.3`); character-pair auto-pair (`h.4`); UX polish — title-body padding + body 24pt textInsets + auto-unpair-on-backspace (`h.7`); Apple-AST supplemental styler for BlockQuote/Strikethrough/Table/ThematicBreak + expanded right-click menu Format/Heading/Lists/Block (`h.8`); HR-as-real-line via custom NSTextLayoutFragment drawing + table pipes/separator-row hidden + Enter→body focus shift (`h.9`); HR draw-detection fix + title @FocusState + H5/H6 removed (`h.10`).
@@ -49,8 +57,8 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 - 🟡 **v0.2.7.2 — Page editor fixes (PARTIAL SHIP 2026-05-20, Sessions 12 + 13)** — **HR / divider SHIPPED** Session 12 via Obsidian-style dynamic syntax (full architecture at `Features/PageEditor.md → Dynamic-syntax pattern`). Established the locked architecture for paragraph-level dynamic-syntax constructs: AST-backed detection in renderer + caret-awareness service as sole writer + styler emits nothing for the construct. Session-12 changes: `MarkdownTextLayoutFragment.swift` + `AppleASTSupplementalStyler.swift` + `NativeTextViewCoordinator+HRVisibility.swift` (new) + legacy `MarkdownListHandler` HR expansion removed. **Lists SHIPPED** Session 13 via rewrite of `MarkdownListHandler.swift`: space styles immediately (styler-driven, no source mutation), Enter continues with next marker via Case 4, Shift+Enter exits via modifier-flag check at top of `\n` block (NOT `doCommandBy` — that selector only fires on Ctrl+\), bare `-` / `1.` + Enter initializes list via Case 1, edge guard fixes the "voids the line at caret-line-start" regression. Portable CommonMark source on disk (`- item` / `* item` / `+ item` / `1. item`) instead of pre-v0.2.7.2 `\t• ` engine-only syntax. Visual indent restored via `firstLineHeadIndent = indentPerLevel + depthIndent`. `bulletListPattern` broadened from `[-•]` to `[-*+•]`. ContextMenu cleanup: "Insert bullet list" writes `- ` not `\t• `; `isSelectionList` detects CommonMark + legacy; `applyList` strips any known prefix before re-adding. Pre-existing typo fix at `MarkdownTextLayoutFragment.swift:534`. **Bullet glyph substitution (`-` → `•` visually) attempted + reverted** (overlay produced invisible bullets — deferred as a known cosmetic caveat). **Blockquote DEFERRED** (next session — Apple-Calendar-event-card chrome via dynamic-syntax pattern). **Tables DEFERRED** (~10-15h realistic estimate). Right-click "Insert HR" out of scope.
 - **Remaining page editor fixes** (next session — full list in Handoff) — Bullet glyph substitution (`-` → `•`); Blockquote rendering (Apple-Calendar-event-card chrome); Code & Quote `Enter}` auto-completion; Code block → red text bug; Auto-format `←` / `↔` (the `->` works but `<-` / `<->` don't transform on typed input — paste works fine).
 - **Tables** (queued — ASAP but realistic estimate 10-15h after divider iteration experience) — Full spec preserved at `// Planning//Page-Editor-Plan.md → Phase 3` (CG inline grid overlay + drag-resize column dividers + `pommora_table_widths` frontmatter persistence + double-click NSPopover hosting SwiftUI Grid with editable TextField cells + right-click structural context menu via `TableStructureRewriter` AST splice). NSTextTable explicitly rejected; Core Graphics overlay IS the 2026 Apple-native path.
-- **Sidebar + Vault/Collection drag-to-reorder** (queued) — drag Pages between Collections; reorder Spaces/Topics/Sub-topics; reorder Pinned in NavDropdown (covers the v0.2.7.1 follow-up #2); persist order via new `_order: [<id>]` overlay on parent JSON sidecars.
-- **PreviewWindow primitive** (queued) — cross-feature standalone-window surface for Pages / Vaults / Collections / Spaces / Topics / Sub-topics / Items / Agenda items. Once any kind has a wired PreviewWindow, NavDropdown's open-in-preview can be lit up per kind (covers v0.2.7.1 follow-up #1). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` for the project-wide contract.
+- **Sidebar drag-to-reorder Phase 2** (queued) — drag Pages between Page Collections; drag Items between Item Collections (post-ParadigmV2 Items-side designed UI); reorder Spaces / Topics / Projects; reorder Page Types / Item Types within their sections; reorder Pinned in NavDropdown (covers the v0.2.7.1 follow-up #2). Phase 1 persistence (`OrderResolver` + `OrderPersister` + `_order: [<id>]` overlay on parent JSON sidecars) shipped v0.2.8. Phase 2 lights up full row-content drag via the LazyVStack rebuild documented in `Planning/v0.2.8-Drag-Reorder.md`.
+- **PreviewWindow primitive** (queued) — cross-feature standalone-window surface for Pages / Page Types / Page Collections / Item Types / Item Collections / Spaces / Topics / Projects / Items / Agenda Tasks / Agenda Events. Once any kind has a wired PreviewWindow, NavDropdown's open-in-preview can be lit up per kind (covers v0.2.7.1 follow-up #1). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` for the project-wide contract.
 
 After v0.2.7.x: **v0.3.0 (Properties)** begins the data-layer chapter (v0.3.x sub-sequence locked RC-2026-05-19; see "Roadmap reorders" below). **Wikilinks moved from v0.2.10 → v0.3.2** (couples with SQLite at v0.3.3, indexed from day one). **Directives + heading fold + slash menu** (formerly v0.2.9) are unscheduled — page editor is functional without them; they re-home to a future v0.2.x or post-v0.3.x patch as decided.
 
@@ -124,17 +132,17 @@ v0.3.3 — SQLite + querying
 
 Full implementation spec → `// Planning//v0.3.0-Properties-implementation.md`.
 
-###### v0.3.0 — Properties
+###### v0.3.0 — Properties (post-ParadigmV2 foundation)
 
-- **Property panel UI** — separate SwiftUI surface (in the Pages inspector pane + Item Window) showing each property in the parent Vault's schema, dispatched to per-type controls (TextField / Toggle / DatePicker / Picker / `MultiSelectChips` — most already wired from v0.2.0's `PropertyEditorRow`). 7 of 8 property types already wired; v0.3.0 adds the Relation editor (currently stubbed at `PropertyEditorRow.swift:33`) + scope-aware pickers (Vault / Collection / Context-tier).
-- **Last Edited Time property type** — promoted from collapsed `modified_at` footer to first-class sortable property; v0.3.0 default sort on Vault Table views is descending.
-- **`tier1` / `tier2` / `tier3` multi-select chip relation editor** — type-to-search relation pickers backed by Space / Topic / Sub-topic managers (shared `ContextTierPicker` component).
-- **Vault property-schema editor** — `NewPropertySheet` opened from the Vault Table view's rightmost "+ Property" column header (Notion pattern) + Vault row right-click → "Edit Schema…". Name + type picker → per-type config (options for Select, scope for Relation, dual toggle for Relation, etc.). Edits `_vault.json.properties[]` atomically via `SchemaTransaction` (new two-phase commit infrastructure in `AtomicIO//`).
+- **Property panel UI** — separate SwiftUI surface (in the Pages inspector pane + Item Window) showing each property in the parent Type's schema (Page Type or Item Type), dispatched to per-type controls (TextField / Toggle / DatePicker / Picker / `MultiSelectChips` — most already wired from v0.2.0's `PropertyEditorRow`). 7 of 8 property types already wired; v0.3.0 adds the Relation editor (currently stubbed at `PropertyEditorRow.swift:33`) + scope-aware pickers (Page Type / Item Type / Page Collection / Item Collection / Context-tier).
+- **Last Edited Time property type** — promoted from collapsed `modified_at` footer to first-class sortable property; v0.3.0 default sort on Type Table views is descending.
+- **`tier1` / `tier2` / `tier3` multi-select chip relation editor** — type-to-search relation pickers backed by Space / Topic / Project managers (shared `ContextTierPicker` component).
+- **Per-Type property-schema editor** — `NewPropertySheet` opened from the Type Table view's rightmost "+ Property" column header (Notion pattern) + Type row right-click → "Edit Schema…". Name + type picker → per-type config (options for Select, scope for Relation, dual toggle for Relation, etc.). Edits the Type's `_schema.json.properties[]` atomically via `SchemaTransaction` (new two-phase commit infrastructure in `AtomicIO//`). Implemented in parallel for Page Types and Item Types.
 - **Schema mutations** — add / rename / type-change (lossless only) / delete / reorder; cross-member rewrite for renames using `SchemaTransaction`.
-- **Dual relations** — Notion-parity: setting a dual Relation on Vault A pointing at Vault B auto-creates a reverse property on B; values mirror automatically. Context-tier scopes are inherently one-way (Contexts don't have a per-tier `properties[]`); UI grays out the dual toggle for those.
-- **Cross-Vault move-strip** — pulled forward from v0.4.0; tightly coupled to property schema. Move dialog lists props that'll be stripped before commit.
-- **Item creation surfacing** — Item creation paths expand from "only `CollectionDetailView` footer" to: `VaultDetailView` footer `+ New Item`, Collection row right-click → `New Item (in This Collection)`, Vault row right-click → `New Item`. `Sidebar.md` right-click menu table updated.
-- **Sort by property** in Vault Table views — type-aware comparators (Select option-order, Date chronological, Last Edited Time descending default, etc.). Per-Vault default-sort persists in `_vault.json.default_sort` (new field). Full per-view sort + saved configurations land at v0.6.0.
+- **Dual relations** — Notion-parity: setting a dual Relation on Type A pointing at Type B auto-creates a reverse property on B; values mirror automatically. Applies across all four container/sub-folder scopes (`page_type` / `item_type` / `page_collection` / `item_collection`). Context-tier scopes are inherently one-way (Contexts don't have a per-tier `properties[]`); UI grays out the dual toggle for those.
+- **Cross-Type move-strip** — pulled forward from v0.4.0; tightly coupled to property schema. Move dialog lists props that'll be stripped before commit. Page across Page Types or Item across Item Types triggers the strip; cross-side promotion (Item ↔ Page) remains a post-v1 Prospect.
+- **Item creation surfacing** — Item creation paths land in the designed Items-side UI (post-ParadigmV2 stub replacement plan). v0.3.0 ships data layer end-to-end; the designed Items-side sidebar UI lands in a follow-up plan after ParadigmV2's stub-and-progressively-replace foundation.
+- **Sort by property** in Type Table views — type-aware comparators (Select option-order, Date chronological, Last Edited Time descending default, etc.). Per-Type default-sort persists in the Type's `_schema.json.default_sort` (new field). Full per-view sort + saved configurations land at v0.6.0.
 
 End of v0.3.0: Items paradigm closes. Pages + Items both have body + properties + tier relations editable in-app.
 
@@ -169,40 +177,40 @@ End of v0.3.x: data layer is complete. Pages editable + Items paradigm closed + 
 
 ##### v0.4.0 — Trash UI + cascade-delete refinements
 
-Smaller version — SQLite + Watcher absorbed into v0.3.3; cross-Vault move-strip absorbed into v0.3.0.
+Smaller version — SQLite + Watcher absorbed into v0.3.3; cross-Type move-strip absorbed into v0.3.0.
 
 - **In-app Trash window** — `.trash//` data layer already shipped at v0.2.5; v0.4.0 adds the SwiftUI surface listing entries with restore + permanent-delete + Empty Trash actions.
-- **Cascade-delete reporting refinements** — exact counts in confirmation dialogs (Vault → N Collections + M Pages + K Items).
-- **External-edit detection on Item / Agenda save** — extends v0.3.3's Page-save detection to other entity types as needed.
+- **Cascade-delete reporting refinements** — exact counts in confirmation dialogs (Page Type → N Page Collections + M Pages; Item Type → N Item Collections + K Items).
+- **External-edit detection on Item / Agenda Task / Agenda Event save** — extends v0.3.3's Page-save detection to other entity types as needed.
 
 End of v0.4.0: deletes recoverable via UI. The "infrastructure" base layer is complete.
 
-##### v0.5.0 — Vault view types (table / board / list / cards / gallery)
+##### v0.5.0 — Type view types (table / board / list / cards / gallery)
 
-The five view types over Vault Content. Inline cell editing in Table view; Board view ships as visual kanban (cards grouped by a property's options; editing a card via the card UI moves it visually). Drag-to-rewrite-frontmatter on kanban is a post-v1.0 follow-up. Per-view filter / sort / group / shown-properties controls (powered by v0.4.0's SQLite + `json_extract` queries). Saved view configurations stored inside `_vault.json`. Vault `views` field becomes populated and editable.
+The five view types over Page Type / Item Type Content. Inline cell editing in Table view; Board view ships as visual kanban (cards grouped by a property's options; editing a card via the card UI moves it visually). Drag-to-rewrite-frontmatter on kanban is a post-v1.0 follow-up. Per-view filter / sort / group / shown-properties controls (powered by v0.3.3's SQLite + `json_extract` queries). Saved view configurations stored inside each Type's `_schema.json.views[]` (parallel for Page Type + Item Type).
 
-End of v0.5.0: Vaults stop being just "lists of files in a folder" and become real database views — Pommora's Notion-like value proposition is now visible to the user.
+End of v0.5.0: Page Types + Item Types stop being just "lists of files in a folder" and become real database views — Pommora's Notion-like value proposition is now visible to the user.
 
 ##### v0.6.0 — EventKit + Agenda UI + Hardening + accessibility + performance + onboarding
 
 The "polish + integration" version. Agenda's full UI ships **hand-in-hand with EventKit** (Nathan-locked: they go together — see Paradigm-Decisions.md). Combines previously-scattered concerns:
 
-- **Agenda Item Window** — parallel to Item Window; time-field handling (single "When?" input when `start_at == due_at`; expands when divergent); per-Vault-schema property panel (same `PropertyEditorRow` dispatch as Items).
+- **Agenda Item Window (Task + Event variants)** — parallel to Item Window; time-field handling (AgendaTask single "When?" input when due / start collapse; AgendaEvent always shows start + end); per-side schema property panel reading from `AgendaTaskSchema` / `AgendaEventSchema` (same `PropertyEditorRow` dispatch as Items).
 - **Agenda creation surfacing** — sidebar context-menu entries; menu-bar Quick Capture for fast event entry.
 - **Calendar view over Agenda** — date-anchored grid replacing the placeholder Saved → Calendar entry; can be embedded in Contexts/Homepage post-v0.7.0.
 - **EventKit bridge** — Sandbox entitlement (`com.apple.security.personal-information.calendars`) + Info.plist usage description keys + modern `requestFullAccessTo*` APIs. **Opt-in via Settings.** Bidirectional mirroring (`EKEvent` for items with `start_at` + `end_at`; `EKReminder` for items with `due_at` or unscheduled).
 - **Settings scene scaffold** (`⌘,`) — Tier-config editor (per-tier singular + plural labels; `tagging_style`; `exposed` toggle); Saved-section labels editor (Homepage / Calendar / Recents renaming); EventKit sync opt-in toggle; **accent color + font size customization** (was previously a standalone v0.12.0 — folded in here since this is the natural home for user-overridable surface).
 - **Accessibility checkpoint** — VoiceOver labels + focus order + Dynamic Type respect verified across all v0.2.0-v0.5.0 surfaces.
-- **Performance budgets verified** — "open a Page in <X ms," "render N-row sidebar without jank," "Vault view with 1000 rows scrolls smoothly." Sets a baseline before v0.7.0 stacks more on top.
+- **Performance budgets verified** — "open a Page in <X ms," "render N-row sidebar without jank," "Page Type / Item Type Table view with 1000 rows scrolls smoothly." Sets a baseline before v0.7.0 stacks more on top.
 - **First-launch UX** — empty-state copy across sidebar sections + detail pane; nexus-picker flow polish; menu-bar `+ New` Quick Capture entry as the discoverable counterpart to right-click-only creation.
 - **Saved section content fills in** — Recents (full-frame view backed by NavDropdown's `RecentsManager`, sharing the v0.2.7.1 store); Calendar (with EventKit mirror visible if opt-in).
-- ✅ **Pending-error toast surface** — already shipped in v0.2.0 (`2d707a0`). v0.6.0 extends observation to AgendaManager / HomepageManager / TierConfigManager if user-driven CRUD lands for those.
+- ✅ **Pending-error toast surface** — already shipped in v0.2.0 (`2d707a0`). v0.6.0 extends observation to AgendaTaskManager / AgendaEventManager / HomepageManager / TierConfigManager / SettingsManager if user-driven CRUD lands for those.
 
 End of v0.6.0: Pommora is integration-complete with system Calendar/Reminders, accessible, performant, and onboards new users without surprises.
 
 ##### v0.7.0 — Composed-blocks editor for Contexts + Homepage
 
-The composed-blocks surface used by Spaces / Topics / Sub-topics / Homepage gets its editor. Block types: paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (with **inline editing per the locked principle** — not snapshots; works because Vault views shipped at v0.5.0), linked-pages widget, link-list widget. Drag-and-drop reordering; slash-menu insertion.
+The composed-blocks surface used by Spaces / Topics / Projects / Homepage gets its editor. Block types: paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (with **inline editing per the locked principle** — not snapshots; works because Type views shipped at v0.5.0), linked-pages widget, link-list widget. Drag-and-drop reordering; slash-menu insertion.
 
 End of v0.7.0: Contexts stop being "labeled buckets with an icon" and become real composed dashboards. The organization layer becomes substantive.
 
@@ -239,3 +247,5 @@ No specific phase commitments yet. Catalog at `// Features//Prospects.md` — ad
 **2026-05-19 RC-session (v0.3.x sub-sequence locked):** The v0.3.x patch family was explicit at: `v0.3.0 = Properties` / `v0.3.1 = Items pane` / `v0.3.2 = Page-wikilinks` / `v0.3.3 = SQLite + querying`. SQLite + Watcher absorbed from v0.4.0 → v0.3.3 (data-layer chapter completes in one minor). Cross-Vault move-strip absorbed from v0.4.0 → v0.3.0 (tightly coupled to property schema). Wikilinks moved from v0.2.10 → v0.3.2 (depends on derived `wikilinks: []` frontmatter mirror which is naturally part of the data-layer chapter). v0.4.0 reduced to Trash UI + cascade-delete refinements. Full v0.3.0 implementation spec at `// Planning//v0.3.0-Properties-implementation.md`.
 
 **2026-05-20 (v0.2.7.2 slot assigned + plan locked):** The post-NavDropdown v0.2.7.x patch slot is now planned for page editor fixes (Blockquote Apple-Calendar-event-card chrome + HR auto-transform/cursor-atom + Tables Core-Graphics grid + popover edit + structural context menu). Tables custom grid (previously sketched as a separate v0.2.7.3 patch) is absorbed into v0.2.7.2 Phase 3. NSTextTable rejected as a viable Apple-native alternative — Round-5 research confirmed Apple's own TextEdit downgrades to TextKit 1 to use it, and Apple Notes uses a custom protobuf model. ~7.5h estimate across 3 phases / 4 stages. Full implementation spec at `// Planning//Page-Editor-Plan.md`.
+
+**2026-05-22 (ParadigmV2 inserted between v0.2.8 and v0.3.0):** Operational-layer domain model refactor — Vault becomes Pages-only as Page Type; new Item Type parallels Page Type on the Items side; AgendaItem splits into AgendaTask + AgendaEvent (EKReminder + EKEvent aligned); Sub-topics rename to Projects; schema sidecars unify to `_schema.json`; wrapper folders introduced (`<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/`). Settings scaffold (`.nexus/settings.json` + `SettingsManager` + label wiring) lays groundwork for v0.6.0 Settings UI. UI label divergence: Pages-side "Vault" + "Collection"; Items-side "Type" + "Set" — each side has one signature word + one shared word. "Pommora" prohibited in on-disk schemas + Swift namespace qualifications; retires `Pommora.Collection` quirk #6. Sidebar shape: Pinned / Spaces / Topics / Items / Pages (Items above Pages; no Agenda section — Calendar pin consolidates). Tag: `paradigmV2`. v0.3.0 Properties begins on the new symmetric foundation. Plan: `// Planning//ParadigmV2.md`.

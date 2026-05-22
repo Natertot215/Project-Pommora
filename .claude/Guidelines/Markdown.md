@@ -314,9 +314,9 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 #### 7. Engine-specific quirks
 
-##### 7.1 `Pommora.Collection` qualification
+##### 7.1 `Pommora.Collection` qualification — RETIRED post-ParadigmV2
 
-`Collection` is both a Pommora type (the Vault sub-folder entity) and a Swift standard-library protocol. Field declarations and type signatures involving Collection must use `Pommora.Collection` to avoid shadowing. The compiler error is `Cannot specialize non-generic type 'Collection'` or similar. Fix at commit `2b54123` and repeated several times since. **This is not specific to the markdown engine but is the most common Swift-6-strict-concurrency footgun in the project.**
+**Retired 2026-05-22.** The `Collection` Swift struct was renamed to `PageCollection` (Pages-side) and the new Items-side struct is `ItemCollection` — both bare-unambiguous, no qualification needed. Historical context: pre-ParadigmV2, `Collection` was both a Pommora type (the Vault sub-folder entity) and a Swift standard-library protocol; field declarations had to use `Pommora.Collection` to avoid shadowing. The ParadigmV2 rename eliminates the collision and the qualification requirement. CLAUDE.md quirk #6 is no longer active.
 
 ##### 7.2 `@MainActor.assumeIsolated` wrappers on fragment overrides
 

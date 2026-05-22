@@ -2,6 +2,12 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### ParadigmV2 (2026-05-22) — Operational-layer domain model refactor
+
+Vault becomes Pages-only as Page Type; Item Type introduced as parallel Items-side container; Page Collection (Pages) + Item Collection (Items) as parallel organizational sub-folders. AgendaItem split into AgendaTask + AgendaEvent (matching EKReminder + EKEvent). Sub-topics renamed to Projects. Schema sidecars unified to `_schema.json` across all typed containers. On-disk wrapper folders introduced: `<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/`. UI label divergence locked: Pages-side defaults to "Vault" + "Collection"; Items-side defaults to "Type" + "Set"; renameable via Settings. Settings scaffold (`.nexus/settings.json` + `SettingsManager` + label wiring across UI) lays groundwork for v0.6.0 Settings UI. New paradigm rule: "Pommora" prohibited in on-disk schemas + Swift namespace qualifications. Retires `Pommora.Collection` quirk #6. Plan: `// Planning//ParadigmV2.md`.
+
+**Locked phase sequence (11 phases):** 1) Doc rewrites → 2) PageType + PageCollection renames + `_schema.json` sidecar → 3) Subtopic → Project rename → 4) AgendaItem split → 5) New ItemType + ItemCollection subsystem → 6) Pages/Items/Agenda wrapper folders + NexusAdopter → 7) Settings scaffold → 8) Sidebar / Detail / Sheet UI restructure → 9) Tests consolidation + v0.3.0 Properties spec reconciliation → 10) Nathan's user-data migration (one-shot script) → 11) Cleanup + Framework reconciliation + ship (tag `paradigmV2`).
+
 #### Session 15B (parallel) — 2026-05-21 (Blockquote chrome — v0.2.7.5; visual TBD)
 
 Concurrent with Session 15's drag-reorder work; engine-only scope. Blockquote rendering rewritten from flat `.backgroundColor` + 20pt indent to a renderer-drawn rounded card + continuous vertical accent bar, using the always-show overlay pattern (same as v0.2.7.4 bullet glyph + task checkbox; no caret-aware service).

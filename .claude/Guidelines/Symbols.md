@@ -11,29 +11,33 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 | Application | Symbol |
 |---|---|
 | Pages | `doc.text` |
-| Collections | `folder` |
-| Vaults | `book` (or per-vault override in `_vault.json.icon`) |
+| Page Collections (UI label "Collection") | `folder` |
+| Page Types (UI label "Vault") | `book` (or per-Type override in `_schema.json.icon`) |
+| Item Types (UI label "Type") | `tray.full` (or per-Type override in `_schema.json.icon`) |
+| Item Collections (UI label "Set") | `square.stack.3d.up` (or per-Collection override) |
+| Items | `tray` (or per-item override) |
 | Spaces | `rectangle.3.group` (or per-space override) |
 | Topics | `folder` (or per-topic override) |
-| Sub-topics  | `folder` (or per-sub-topic override) |
-| Items| `tray` (or per-item override) |
-| Tasks | `checkmark.circle` (or per-item override) |
-| Homepage (Saved-section pin) | `house` |
-| Calendar (Saved-section pin) | `calendar` |
-| Recents (Saved-section pin) | *(TBD — leave blank for now)* |
+| Projects (formerly Sub-topics) | `folder` (or per-project override) |
+| Agenda Tasks | `checkmark.circle` (or per-task override) |
+| Agenda Events | `calendar.badge.clock` (or per-event override) |
+| Homepage (Pinned section) | `house` |
+| Calendar (Pinned section) | `calendar` |
+| Recents (Pinned section) | *(TBD — leave blank for now)* |
 | NavDropdown trigger (toolbar) | `square.on.square` |
 | Inspector toggle (toolbar) | `sidebar.trailing` |
 | Sidebar toggle (toolbar) | *(system-provided by `NavigationSplitView`)* |
 | Back / forward arrows (toolbar) | `chevron.left` / `chevron.right` |
-| Vault Settings | `gearshape` |
+| Page Type Settings / Item Type Settings | `gearshape` |
+| App-wide Settings scene (Cmd+,) | `gearshape` |
 
 ---
 
 #### Conventions
 
 - **Filled / outlined choice** follows Apple's HIG default for each symbol — outlined for nav, filled for status. Don't toggle unless there's a reason.
-- **User-overridable per entity** — Pages, Items, Vaults, Collections, Spaces, Topics, Sub-topics, and Agenda items all carry an optional `icon: String?` field on disk. The defaults above are fallbacks when the field is unset.
-- **Per-property icons** — every property in a Vault's schema can carry an icon (`PropertyDefinition.icon: String?`); chosen via `IconPickerField` (wraps the `xnth97/SymbolPicker` SPM dep behind Pommora's own sheet).
+- **User-overridable per entity** — Pages, Items, Page Types, Page Collections, Item Types, Item Collections, Spaces, Topics, Projects, Agenda Tasks, and Agenda Events all carry an optional `icon: String?` field on disk. The defaults above are fallbacks when the field is unset.
+- **Per-property icons** — every property in a Type's schema can carry an icon (`PropertyDefinition.icon: String?`); chosen via `IconPickerField` (wraps the `xnth97/SymbolPicker` SPM dep behind Pommora's own sheet).
 - **No raw `Image(systemName:)` literals scattered across views** for entity defaults — wrap through a single resolver so this table is the only place to change a default.
 
 ---
@@ -44,14 +48,21 @@ Once the Symbol Settings surface ships (post-v1 candidate), this table becomes u
 
 ```swift
 struct IconConfig: Codable {
-    var page: String        // default "doc.text"
-    var collection: String  // default "folder"
-    var vault: String       // default "book"
-    var space: String       // default "rectangle.3.group"
+    var page: String            // default "doc.text"
+    var pageCollection: String  // default "folder"
+    var pageType: String        // default "book"
+    var itemType: String        // default "tray.full"
+    var itemCollection: String  // default "square.stack.3d.up"
+    var item: String            // default "tray"
+    var space: String           // default "rectangle.3.group"
+    var topic: String           // default "folder"
+    var project: String         // default "folder"
+    var agendaTask: String      // default "checkmark.circle"
+    var agendaEvent: String     // default "calendar.badge.clock"
     // ... one field per row above
 }
 ```
 
-Stored at `.nexus/icon-config.json` alongside `tier-config.json` / `saved-config.json`. The `IconPickerField` surface (already used in Vault Settings for per-property icons) supplies the editor UI.
+Stored at `.nexus/icon-config.json` alongside `tier-config.json` / `saved-config.json` / `settings.json`. The `IconPickerField` surface (already used in per-Type Settings for per-property icons) supplies the editor UI. Post-v0.6.0, the IconConfig store may fold into `settings.json` since both carry per-Nexus UI customization — TBD when the surface ships.
 
 Until that ships, edits to defaults happen by editing this file + the corresponding `Image(systemName:)` site in code.

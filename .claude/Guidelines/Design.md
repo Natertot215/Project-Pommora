@@ -61,22 +61,26 @@ Section header chevrons appear **on hover only** — Apple's default for `Sectio
 Implementation pattern in SwiftUI:
 
 ```swift
-ForEach(vaultManager.vaults) { vault in
-    VaultRow(vault: vault, ...)
+ForEach(pageTypeManager.pageTypes) { type in
+    PageTypeRow(pageType: type, ...)
         .contextMenu {
-            Button("New Vault") { presentedSheet = .newVault }
-            Button("New Collection") { presentedSheet = .newCollection(vault: vault) }
-            Button("New Page") { presentedSheet = .newPage(collection: nil, vault: vault) }
+            // Sheet titles are user-facing — read from SettingsManager.
+            // Defaults: Pages-side "Vault" / "Collection"; Items-side "Type" / "Set".
+            Button(settings.labels.pageType.singular("New ")) { presentedSheet = .newPageType }
+            Button(settings.labels.pageCollection.singular("New ")) {
+                presentedSheet = .newPageCollection(type: type)
+            }
+            Button("New Page") { presentedSheet = .newPage(collection: nil, type: type) }
             Divider()
             Button("Rename") { ... }
-            Button("Change Icon") { presentedSheet = .editIcon(.vault(vault)) }
+            Button("Change Icon") { presentedSheet = .editIcon(.pageType(type)) }
             Divider()
-            Button("Delete", role: .destructive) { confirmingDelete = .deleteVault(vault, collectionCount: ...) }
+            Button("Delete", role: .destructive) { confirmingDelete = .deletePageType(type, collectionCount: ...) }
         }
 }
 ```
 
-The `.contextMenu` attaches to the row view directly — clicking on the Vault row's chevron, title, or icon all open the same scoped menu. Each enum case in `SidebarSheet` / `SidebarConfirmation` carries the parent entity binding through to the presented sheet — the sheet never re-asks for parent location.
+The `.contextMenu` attaches to the row view directly — clicking on the Page Type row's chevron, title, or icon all open the same scoped menu. Each enum case in `SidebarSheet` / `SidebarConfirmation` carries the parent entity binding through to the presented sheet — the sheet never re-asks for parent location. Items-side rows ship as minimal stubs at v0.3.0 (no context menus); designed Items-side UI lands in a follow-up plan.
 
 **Why over always-visible "+ New":**
 - Sidebar reads content-forward at rest (matches chevron-on-hover)

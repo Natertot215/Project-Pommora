@@ -1,6 +1,6 @@
 ### Domain Model
 
-Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Vaults + Agenda) holds the actual data. Operational entities relate to organization entities via per-tier multi-relation fields.
+Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Page Types + Item Types + Agenda) holds the actual data. Operational entities relate to organization entities via per-tier multi-relation fields.
 
 Per-entity detail → dedicated docs. Complete on-disk schema + validation + CRUD → `// Planning//Contexts-Vaults-spec.md`.
 
@@ -13,65 +13,79 @@ Per-entity detail → dedicated docs. Complete on-disk schema + validation + CRU
 | (workspace) | **Nexus** | Root |
 | Areas | **Spaces** (tier 1) | Organization |
 | Projects | **Topics** (tier 2) | Organization |
-| (sub-projects) | **Sub-topics** (tier 3) | Organization |
-| Resources | **Vaults + Collections + Content** | Operational |
-| (calendar) | **Agenda** | Operational |
+| (specifics) | **Projects** (tier 3) | Organization |
+| Resources | **Page Types + Item Types + Agenda** | Operational |
 | (dashboard) | **Homepage** | Singleton |
 | Archive | `.trash/` | Singleton |
+
+PARA's "Projects" maps to Pommora tier-3 "Projects" — same word, intentional alignment.
 
 ---
 
 #### Organization layer — Contexts
 
-Three tiers — Spaces (1), Topics (2), Sub-topics (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
+Three tiers — Spaces (1), Topics (2), Projects (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code. Tier-3 Projects are stored as `.project.json` files inside their parent Topic folder.
 
 | Tier | Default label | Role | Sidebar render |
 |---|---|---|---|
 | 1 | Spaces | Broad life domains (Personal, Academics, Work) | Flat row with color/symbol; no chevron |
-| 2 | Topics | Subject areas inside Spaces (Productivity, Side Projects) | Chevron-disclosure expanding to Sub-topics |
-| 3 | Sub-topics | Specifics within one Topic (CS 161, Pommora) | Leaf row inside parent Topic |
+| 2 | Topics | Subject areas inside Spaces (Productivity, Side Projects) | Chevron-disclosure expanding to Projects |
+| 3 | Projects | Specifics within one Topic (CS 161, Pommora) | Leaf row inside parent Topic |
 
 **Rules:**
-- Topics multi-parent across Spaces; Sub-topics single-parent at file (folder location = parent Topic)
-- Sub-topics carry additional `linked_relations` to other Topics/Spaces as a **typed multi-valued relation property** (NOT body wikilinks)
+- Topics multi-parent across Spaces; Projects single-parent at file (folder location = parent Topic)
+- Projects carry additional `linked_relations` to other Topics/Spaces as a **typed multi-valued relation property** (NOT body wikilinks)
 - No same-tier file-structural links (Topic ↛ Topic; Space ↛ Space)
-- Tier-skip allowed: Sub-topic can parent directly to a Space
+- Tier-skip allowed: a Project can parent directly to a Space
 - All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; can embed anything)
 
 Detail → `Contexts.md`.
 
 ---
 
-#### Operational layer — Vaults / Collections / Content
+#### Operational layer — Pages
 
-| Entity | Role | On disk |
-|---|---|---|
-| **Vault** | Folder with shared property schema | Folder + `_vault.json` |
-| **Collection** | Sub-folder inside a Vault; shares Vault schema (v1) | Folder inside a Vault; no own schema file |
-| **Content** | The data: Pages (`.md`) and Items (`.json`) | Files inside a Collection (or directly in the Vault) |
+| Entity | Role | On disk | Default UI label |
+|---|---|---|---|
+| **Page Type** | Schema-bearing container for Pages | `<nexus>/Pages/<Title>/_schema.json` | **"Vault"** |
+| **Page Collection** | Organizational sub-folder inside a Page Type | `<nexus>/Pages/<Type>/<Title>/_schema.json` | "Collection" |
+| **Page** | Markdown document with prose + frontmatter | `<nexus>/Pages/<Type>/<Collection>/Page.md` | "Page" |
+
+#### Operational layer — Items
+
+| Entity | Role | On disk | Default UI label |
+|---|---|---|---|
+| **Item Type** | Schema-bearing container for Items | `<nexus>/Items/<Title>/_schema.json` | "Type" |
+| **Item Collection** | Organizational sub-folder inside an Item Type | `<nexus>/Items/<Type>/<Title>/_schema.json` | **"Set"** |
+| **Item** | Row-shaped JSON record with properties + 250-char description | `<nexus>/Items/<Type>/<Collection>/Item.json` | "Item" |
+
+#### Operational layer — Agenda
+
+| Entity | Role | On disk | Default UI label |
+|---|---|---|---|
+| **Agenda Task** | EKReminder-shaped: due date, completion, priority | `<nexus>/Agenda/Tasks/_schema.json` + `<title>.task.json` | "Task" |
+| **Agenda Event** | EKEvent-shaped: start + end, location | `<nexus>/Agenda/Events/_schema.json` + `<title>.event.json` | "Event" |
 
 **Rules:**
-- Vault schema applies to ALL Content inside (Pages + Items both)
-- Vaults are kind-agnostic — heterogeneous content (Pages + Items together) is allowed
-- Collections in v1 are pure folders (no metadata file, no own schema)
-- Collection-local schemas are a post-v1 Prospect
-- Move between Vaults strips properties not in destination schema (Notion-style, with confirm)
+- Page Type schema applies to all Pages inside (including Pages in Page Collections — Collections inherit the parent Type's schema)
+- Item Type schema applies to all Items inside (Item Collections inherit the parent Type's schema)
+- Page Collections and Item Collections in v0.3.0 are organizational only — their `_schema.json` carries `id` + `type_id` + ordering + `modified_at`; properties and views live on the parent Type. Collection-local schema overrides are a post-v1 Prospect
+- Move between Page Types (or between Item Types) strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections), no strip — schema is shared
+- Agenda Tasks and Agenda Events are separate kinds with separate schemas — the unified `AgendaItem` is gone
 
-Detail → `Vaults.md` + `Pages.md` + `Items.md`.
+#### Naming convention — three layers
 
----
+Pommora's domain model has three layers of naming that intentionally diverge:
 
-#### Operational layer — Agenda (separate from Vaults)
+| Layer | Use |
+|---|---|
+| **Code + data** | `PageType` / `PageCollection` / `ItemType` / `ItemCollection` — always exact, side-prefixed, unambiguous. JSON keys, sidecar fields, file references all use these literal names. |
+| **Docs prose** | "Type" + "Collection" as generic terms; "Page Type" / "Item Type" / etc. when side-specific |
+| **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (Phase 7). |
 
-Calendar-anchored items (events, tasks, to-dos, phases) live as **a third operational-layer entity** at `<nexus>/Agenda/`. Sibling of Vaults.
+The on-disk file shape is identical across sides (every typed container has a `_schema.json`); only the UI label and the Swift type differ.
 
-**Shape:**
-- Single unified entity (no `kind` field)
-- User-facing type is a **property** (`properties.type`), user-extensible Select
-- EventKit mapping data-driven: `start_at` + `end_at` → `EKEvent`; `due_at` only → `EKReminder`; neither → unscheduled `EKReminder`
-- Same Item Window UI as Items; same tier1/2/3 relations; same sort/filter
-
-Detail → `Agenda.md`.
+Detail → `PageTypes.md` + `Pages.md` + `Items.md` + `Agenda.md`.
 
 ---
 
@@ -85,15 +99,15 @@ Detail → `Homepage.md`.
 
 #### Cross-layer relations
 
-Operational-layer entities (Pages, Items, Agenda items) carry **per-tier multi-relation fields** pointing to Contexts:
+Operational-layer entities (Pages, Items, Agenda Tasks, Agenda Events) carry **per-tier multi-relation fields** pointing to Contexts:
 
 ```yaml
 tier1: [<space-id>, ...]
 tier2: [<topic-id>, ...]
-tier3: [<subtopic-id>, ...]
+tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. A Task can link to a Space, a Topic, and a Sub-topic independently — no requirement to fill all three. Editing in the property panel (Item Window, Page property panel) via type-to-search relation pickers.
+Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three. Editing in the property panel (Item Window, Page property panel) via type-to-search relation pickers.
 
 ---
 
@@ -104,10 +118,11 @@ Each tier filled independently. A Task can link to a Space, a Topic, and a Sub-t
 | Page → Page (wikilink) | `[[Page Name]]` in body or relation property value | Inline reference or structured relation |
 | Page → Context (tier N) | `tierN: [<id>]` in frontmatter | Categorical assignment |
 | Item → Context (tier N) | `tierN: [<id>]` in `.json` | Categorical assignment |
-| Agenda → Context (tier N) | `tierN: [<id>]` in `.agenda.json` | Categorical assignment |
+| Agenda Task → Context (tier N) | `tierN: [<id>]` in `.task.json` | Categorical assignment |
+| Agenda Event → Context (tier N) | `tierN: [<id>]` in `.event.json` | Categorical assignment |
 | Context → Context | `parents` (file-structural) + `linked_relations` (property) | Hierarchy + cross-cutting relations |
-| Page → Vault / Collection | Implicit by file location | Membership |
-| Item → Vault / Collection | Implicit by file location | Membership |
+| Page → Page Type / Page Collection | Implicit by file location | Membership |
+| Item → Item Type / Item Collection | Implicit by file location | Membership |
 | Anything → Anything | Wikilinks in composed-page body / Markdown body | Free reference |
 
 Relations are stored by ID (rename-safe); body wikilinks reference by name and rewrite on rename.
@@ -116,14 +131,17 @@ Relations are stored by ID (rename-safe); body wikilinks reference by name and r
 
 #### Sidebar shape
 
-Four top-level groups (only three carry a heading):
+Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — Phase 7):
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Spaces** — flat rows for tier-1 Contexts
-- **Topics** — chevron-disclosure for tier-2 with file-nested Sub-topics
-- **Vaults** — chevron-disclosure showing Pages (in vault root) + Collection sub-folders; each Collection discloses its own Pages
+- **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
+- **Items** — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses its Item Collections (UI label **"Set"**)
+- **Pages** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages (in Type root) + Page Collections (UI label "Collection"); each Collection discloses its Pages
 
-Items, Agenda items, and Events do **NOT** appear in the sidebar — they live in detail-pane Tables (`VaultDetailView`, `CollectionDetailView`).
+Items sits **above** Pages — quicker-capture entities ride higher in the visual hierarchy. The `<nexus>/Pages/`, `<nexus>/Items/`, and `<nexus>/Agenda/` wrapper folders are **NOT** rendered as sidebar rows — the section headings are the visual representation.
+
+Agenda has **no** sidebar section. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section (Calendar UI ships in a follow-up plan). Individual Items, Agenda Tasks, and Agenda Events do **not** appear as sidebar leaves — they live in detail-pane Tables under their parent Type.
 
 No always-visible "+ New" — creation via **right-click context menus, scoped by cursor location**. Detail → `Sidebar.md`.
 
@@ -137,7 +155,7 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `type` Select + built-in `status` Status + user-extensible). Same property catalog applies to Pages, Items, and Agenda items. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)**. **Vault- and Collection-scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the Vault Settings sheet. Full catalog + scope/dual semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
+Schemas live in `_schema.json` sidecars on each typed container — one per Page Type, Item Type, AgendaTask, and AgendaEvent. Page Collections + Item Collections carry their own `_schema.json` for id + ordering only; properties + views inherit from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required on AgendaTask schemas, not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection -scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
 
 ---
 
@@ -149,3 +167,4 @@ Schemas live in `_vault.json` (Vault-wide in v1) and `_agenda.json` (built-in `t
 - **Agenda** new — third operational entity for calendar/task items with EventKit
 - **Homepage** new — singleton dashboard at `.nexus/homepage.json`
 - Per-tier multi-relations (`tier1` / `tier2` / `tier3`) replace the earlier `spaces` multi-relation
+- **ParadigmV2 (2026-05-22)** — Operational layer made symmetric: Page Type + Page Collection on the Pages side; Item Type + Item Collection on the Items side. Agenda split into Tasks + Events (EKReminder vs EKEvent aligned). Schema sidecars unified to `_schema.json` across all typed containers. Sub-topics renamed to Projects. UI label divergence: Item Collections render as "Set" by default (renameable via Settings scaffold). "Pommora" prohibited in on-disk schemas + Swift namespace qualifications.

@@ -1,6 +1,6 @@
 ### Contexts
 
-The organization layer. Three tiers — Spaces (1), Topics (2), Sub-topics (3) — that act as categorical anchors other entities relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
+The organization layer. Three tiers — Spaces (1), Topics (2), Projects (3) — that act as categorical anchors other entities relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
 
 Replaces the earlier `Spaces.md`. All three tiers share the same shape; differences called out below.
 
@@ -12,7 +12,7 @@ Replaces the earlier `Spaces.md`. All three tiers share the same shape; differen
 |---|---|---|---|
 | Areas | Spaces (renamable) | 1 | Broad life domains — Personal, Academics, Work |
 | Projects | Topics (renamable) | 2 | Subject areas inside one or more Spaces — Productivity, Side Projects, Reading List |
-| (sub-projects) | Sub-topics (renamable) | 3 | Specifics within one Topic — CS 161, Pommora, "Atomic Habits" |
+| (sub-projects) | Projects (renamable) | 3 | Specifics within one Topic — CS 161, Pommora, "Atomic Habits" |
 
 Tier names are stored in `.nexus/tier-config.json` with both singular and plural forms (Capacities convention). Default labels above; user can rename per-Nexus via Settings.
 
@@ -44,32 +44,32 @@ Filename = title. Renaming in the UI renames the file.
 
 #### Topics (tier 2)
 
-- Folder at `.nexus/topics/<Title>/` containing `_topic.json` and member Sub-topic files
+- Folder at `.nexus/topics/<Title>/` containing `_topic.json` and member Project files
 - `parents` — multi-valued tier-1 Space IDs (a Topic can belong to multiple Spaces)
-- Sidebar render: chevron-disclosure row; expanded view shows file-nested Sub-topics
+- Sidebar render: chevron-disclosure row; expanded view shows file-nested Projects
 - Topic's color tag in the sidebar derives from parent Space(s) — multi-Space Topics show multi-color indicators
 - The tagging visual mode (color dot / SF Symbol / both) is settable in `.nexus/tier-config.json` (`tagging_style`)
 - Clicking opens the Topic's composed-blocks page
 
 ---
 
-#### Sub-topics (tier 3)
+#### Projects (tier 3)
 
-- File at `.nexus/topics/<TopicFolder>/<Title>.subtopic.json` — file location IS the file-structural parent
+- File at `.nexus/topics/<TopicFolder>/<Title>.project.json` — file location IS the file-structural parent
 - `parents` — single-valued (the parent Topic, encoded by folder location)
-- `linked_relations` — **typed multi-valued relation property** on the Sub-topic. Holds IDs of additional Topics or Spaces the Sub-topic relates to. **Not body wikilinks** — editable in the property panel like any other relation, queryable via the index, surfaced in graph view
-- Tier-skip allowed: a Sub-topic CAN parent directly to a Space if it has no file-structural Topic parent (handled by treating it as a Topic in v1 — the "standalone sub-topic" case is not a distinct user-facing concept)
+- `linked_relations` — **typed multi-valued relation property** on the Project. Holds IDs of additional Topics or Spaces the Project relates to. **Not body wikilinks** — editable in the property panel like any other relation, queryable via the index, surfaced in graph view
+- Tier-skip allowed: a Project CAN parent directly to a Space if it has no file-structural Topic parent (handled by treating it as a Topic in v1 — the "standalone project" case is not a distinct user-facing concept)
 - Sidebar render: leaf row inside parent Topic's disclosure
-- Clicking opens the Sub-topic's composed-blocks page
+- Clicking opens the Project's composed-blocks page
 
 ---
 
 #### Connection rules
 
 - **Tier-parent rule** — every value in `parents` must resolve to a Context with `level < this.tier`. Cycles impossible by construction.
-- **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Sub-topic's `linked_relations` can target multiple Topics/Spaces.
+- **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Project's `linked_relations` can target multiple Topics/Spaces.
 - **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships happen only as body-content wikilinks inside a Context's composed page.
-- **Tier-skip allowed** — Sub-topics can connect to Spaces directly via `parents` or `linked_relations`.
+- **Tier-skip allowed** — Projects can connect to Spaces directly via `parents` or `linked_relations`.
 
 ---
 
@@ -80,7 +80,7 @@ Items, Pages, and Agenda items carry **per-tier multi-relation fields** independ
 ```yaml
 tier1: [<space-id>, ...]
 tier2: [<topic-id>, ...]
-tier3: [<subtopic-id>, ...]
+tier3: [<project-id>, ...]
 ```
 
 Each tier filled independently. Edited via type-to-search relation pickers in the property panel.
@@ -92,8 +92,8 @@ Each tier filled independently. Edited via type-to-search relation pickers in th
 Enforced at every file write:
 
 1. `parents[i]` resolves to a Context with `level < this.tier`
-2. Sub-topic file MUST physically live inside a Topic folder (file location = file-structural parent)
-3. Sub-topic `parents` array contains exactly one ID (the folder-derived parent)
+2. Project file MUST physically live inside a Topic folder (file location = file-structural parent)
+3. Project `parents` array contains exactly one ID (the folder-derived parent)
 4. Item / Page / Agenda `tierN` values resolve to Contexts with `level == N`
 5. Filename = title; no separate `title` field
 
@@ -109,7 +109,7 @@ User-configurable per Nexus at `.nexus/tier-config.json`:
   "tiers": [
     { "level": 1, "singular": "Space",     "plural": "Spaces",     "exposed": true },
     { "level": 2, "singular": "Topic",     "plural": "Topics",     "exposed": true },
-    { "level": 3, "singular": "Sub-topic", "plural": "Sub-topics", "exposed": true }
+    { "level": 3, "singular": "Project", "plural": "Projects", "exposed": true }
   ],
   "tagging_style": "color"
 }
@@ -124,3 +124,9 @@ User-configurable per Nexus at `.nexus/tier-config.json`:
 #### Full specification
 
 Complete on-disk schema, validation, sidebar layout, and CRUD scope → `// Planning//Contexts-Vaults-spec.md`.
+
+---
+
+#### What changed (ParadigmV2)
+
+- **ParadigmV2 (2026-05-22)** — Tier-3 Contexts renamed from **Sub-topics** to **Projects** throughout the model. On-disk file extension changed from `.subtopic.json` to `.project.json`; folder location is unchanged (`.nexus/topics/<TopicFolder>/<Title>.project.json`). Tier-config default singular/plural labels updated to `Project` / `Projects`. PARA mapping aligns Pommora tier-3 to PARA's "Projects" — same word, intentional. Tier numbers remain load-bearing in code; only labels and the file extension changed.

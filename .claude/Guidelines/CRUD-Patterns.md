@@ -8,13 +8,13 @@ SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → valid
 
 "Open in preview" is a generic affordance (dropdown preview-on-click, future `⌥⌘O`, future Cmd-click-from-anywhere) backed by a **shared primitive** (PreviewWindow), not a per-feature one.
 
-**Rule:** for any entity kind (Page, Vault, Collection, Space, Topic, Sub-topic, Item, Agenda item), PreviewWindow support for that kind ships **before** any "open in preview" UI is wired. CRUD may land independently; the standalone-window affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Practical implication: new entity CRUD lands without standalone-window affordances by default; double-click and Cmd-click-from-sidebar route to the main detail pane until PreviewWindow gains support. Exception: ItemWindow predates this rule, so Item rows route to ItemWindow today; may migrate to PreviewWindow per future spec.
+**Rule:** for any entity kind (Page, Page Type, Page Collection, Item Type, Item Collection, Space, Topic, Project, Item, Agenda Task, Agenda Event), PreviewWindow support for that kind ships **before** any "open in preview" UI is wired. CRUD may land independently; the standalone-window affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Practical implication: new entity CRUD lands without standalone-window affordances by default; double-click and Cmd-click-from-sidebar route to the main detail pane until PreviewWindow gains support. Exception: ItemWindow predates this rule, so Item rows route to ItemWindow today; may migrate to PreviewWindow per future spec.
 
 ---
 
 #### Manager pattern — per entity, `@MainActor @Observable`
 
-Every new entity (Space, Topic, Sub-topic, Vault, Item, Page, Agenda item, Homepage, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity (not one unified store) — narrows state-driven updates so changing a Topic doesn't re-evaluate the Spaces section.
+Every new entity (Space, Topic, Project, Page Type, Page Collection, Page, Item Type, Item Collection, Item, Agenda Task, Agenda Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity (not one unified store) — narrows state-driven updates so changing a Topic doesn't re-evaluate the Spaces section. Post-ParadigmV2: `ContentManager` splits into `PageContentManager` (Pages side) + `ItemContentManager` (Items side); `AgendaManager` splits into `AgendaTaskManager` + `AgendaEventManager`.
 
 ```swift
 @MainActor
@@ -138,26 +138,34 @@ SPM: `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`. Add at Phase 0 so Pha
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var presentedSheet: SidebarSheet?
 
     var body: some View {
         List {
-            savedSection
+            pinnedSection
             spacesSection
             topicsSection
-            vaultsSection
+            itemsSection      // Items above Pages — quicker-capture entities ride higher
+            pagesSection
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .newSpace:                  NewSpaceSheet()
-            case .newTopic:                  NewTopicSheet()
-            case .newVault:                  NewVaultSheet()
-            case .newCollection(let vault):  NewCollectionSheet(vault: vault)
-            case .newSubtopic(let topic):    NewSubtopicSheet(topic: topic)
+            case .newSpace:                          NewSpaceSheet()
+            case .newTopic:                          NewTopicSheet()
+            case .newProject(let topic):             NewProjectSheet(topic: topic)
+            case .newPageType:                       NewPageTypeSheet()
+            case .newPageCollection(let type):       NewPageCollectionSheet(type: type)
+            case .newPage(let coll, let type):       NewPageSheet(collection: coll, type: type)
+            case .newItemType:                       NewItemTypeSheet()        // stub in v0.3.0
+            case .newItemCollection(let type):       NewItemCollectionSheet(type: type) // stub
+            case .newItem(let coll, let type):       NewItemSheet(collection: coll, type: type)
+            // No Agenda sheets — Agenda has no sidebar entry; Calendar plan adds its own.
             }
         }
     }
@@ -176,28 +184,36 @@ Single sheet modifier with an `Identifiable` enum, not N boolean state propertie
 enum SidebarSheet: Identifiable {
     case newSpace
     case newTopic
-    case newSubtopic(parent: Topic)
-    case newVault
-    case newCollection(vault: Vault)
-    case newPage(collection: Pommora.Collection, vault: Vault)
-    case newItem(collection: Pommora.Collection, vault: Vault)
+    case newProject(parent: Topic)
+    case newPageType
+    case newPageCollection(type: PageType)
+    case newPage(collection: PageCollection?, type: PageType)
+    case newItemType
+    case newItemCollection(type: ItemType)
+    case newItem(collection: ItemCollection?, type: ItemType)
+    // No `newAgendaTask` / `newAgendaEvent` — Agenda has no sidebar entry;
+    // Calendar plan adds its own sheet enum when it builds Agenda UI.
     case editTopicParents(Topic)
     case editIcon(IconTarget)
     case editColor(Space)
 
     enum IconTarget: Hashable {
-        case space(Space), topic(Topic), subtopic(Subtopic), vault(Vault)
+        case space(Space), topic(Topic), project(Project),
+             pageType(PageType), pageCollection(PageCollection),
+             itemType(ItemType), itemCollection(ItemCollection)
     }
 
     var id: String {
         switch self {
         case .newSpace:                       "newSpace"
         case .newTopic:                       "newTopic"
-        case .newSubtopic(let t):             "newSubtopic-\(t.id)"
-        case .newVault:                       "newVault"
-        case .newCollection(let v):           "newCollection-\(v.id)"
-        case .newPage(let c, _):              "newPage-\(c.id)"
-        case .newItem(let c, _):              "newItem-\(c.id)"
+        case .newProject(let t):              "newProject-\(t.id)"
+        case .newPageType:                    "newPageType"
+        case .newPageCollection(let t):       "newPageCollection-\(t.id)"
+        case .newPage(let c, let t):          "newPage-\(c?.id ?? t.id)"
+        case .newItemType:                    "newItemType"
+        case .newItemCollection(let t):       "newItemCollection-\(t.id)"
+        case .newItem(let c, let t):          "newItem-\(c?.id ?? t.id)"
         case .editTopicParents(let t):        "editTopicParents-\(t.id)"
         case .editIcon(let t):                "editIcon-\(t)"  // expanded form
         case .editColor(let s):               "editColor-\(s.id)"
@@ -206,7 +222,9 @@ enum SidebarSheet: Identifiable {
 }
 ```
 
-Each sheet owns its actions via `@Environment(\.dismiss)` — no callback prop-drilling. Each case carries the parent entity binding so the sheet never re-asks for parent location. **`Pommora.Collection` qualification** required on enum case associated values carrying `Collection` — bare name shadows `Swift.Collection` (project quirk #6 in `// CLAUDE.md`).
+Each sheet owns its actions via `@Environment(\.dismiss)` — no callback prop-drilling. Each case carries the parent entity binding so the sheet never re-asks for parent location. Post-ParadigmV2: `PageCollection` and `ItemCollection` are **bare-unambiguous** Swift type names — no `Pommora.X` qualification needed. The pre-ParadigmV2 quirk #6 (`Pommora.Collection`) is RETIRED.
+
+The sheet titles displayed to the user read from `SettingsManager` so user-renamed labels surface: "New Vault" (Page Type, Pages-side default) / "New Collection" (Page Collection) / "New Type" (Item Type, Items-side default) / "New Set" (Item Collection). Items-side sheets ship as minimal `ContentUnavailableView` stubs at v0.3.0; designed UI lands in a follow-up plan.
 
 ---
 
@@ -284,7 +302,7 @@ func create(name: String, parents: [String]) async throws {
 
 ##### Rename atomicity — pending consistent pattern (4-commit cleanup)
 
-v0.2 managers use **rename-folder-first-then-write-metadata** with an unrecoverable failure mode: if metadata write fails the folder is already at the new name with stale `modified_at`. Six sites: `SpaceManager.rename`, `TopicManager.renameTopic`, `TopicManager.renameSubtopic` + `moveSubtopic`, `VaultManager.renameVault`, `VaultManager.renameCollection`, `ContentManager.renameItem`.
+v0.2 managers use **rename-folder-first-then-write-metadata** with an unrecoverable failure mode: if metadata write fails the folder is already at the new name with stale `modified_at`. Post-ParadigmV2 rename sites (one per manager): `SpaceManager.rename`, `TopicManager.renameTopic` + `renameProject` + `moveProject`, `PageTypeManager.renamePageType`, `PageTypeManager.renamePageCollection`, `ItemTypeManager.renameItemType`, `ItemTypeManager.renameItemCollection`, `PageContentManager.renamePage`, `ItemContentManager.renameItem`, `AgendaTaskManager.renameTask`, `AgendaEventManager.renameEvent`.
 
 Locked direction (4-commit pre-merge cleanup): pick ONE pattern. Candidates:
 
@@ -324,7 +342,7 @@ enum SpaceValidator {
 }
 ```
 
-Tier-parent validation needs cross-entity lookup (Sub-topic's parent Topic ID must resolve). **Locked Swift 6 pattern:** managers take a `contextProvider: @MainActor @escaping () -> NexusContext` closure at init returning a fresh snapshot per call. NexusContext's inner closures are `@Sendable` (cross into off-actor validators); capture `Sendable` value-type arrays into local lets at the outer `@MainActor` scope:
+Tier-parent validation needs cross-entity lookup (Project's parent Topic ID must resolve). **Locked Swift 6 pattern:** managers take a `contextProvider: @MainActor @escaping () -> NexusContext` closure at init returning a fresh snapshot per call. NexusContext's inner closures are `@Sendable` (cross into off-actor validators); capture `Sendable` value-type arrays into local lets at the outer `@MainActor` scope:
 
 ```swift
 @MainActor
@@ -335,12 +353,13 @@ final class ContentView {
             // Snapshot live state into Sendable locals; inner closures capture the snapshot
             let spaces = spaceMgr.spaces
             let topics = topicMgr.topics
-            let subtopics = topicMgr.subtopicsByParent
+            let projects = topicMgr.projectsByParent
             return NexusContext(
                 lookupSpace: { id in spaces.first { $0.id == id } },
                 lookupTopic: { id in topics.first { $0.id == id } },
-                lookupSubtopic: { id in subtopics.values.lazy.flatMap { $0 }.first { $0.id == id } },
-                lookupVault: { id in /* via vaultMgr — similar snapshot */ nil }
+                lookupProject: { id in projects.values.lazy.flatMap { $0 }.first { $0.id == id } },
+                lookupPageType: { id in /* via pageTypeMgr — similar snapshot */ nil },
+                lookupItemType: { id in /* via itemTypeMgr — similar snapshot */ nil }
             )
         }
     }
@@ -369,11 +388,12 @@ Paradigm decision 2026-05-16 (see `// Guidelines//Paradigm-Decisions.md`): use `
 import SymbolPicker
 
 struct IconPickerSheet: View {
-    let target: SidebarSheet.IconTarget   // .space(Space) | .topic(Topic) | .subtopic(Subtopic) | .vault(Vault)
+    let target: SidebarSheet.IconTarget   // .space | .topic | .project | .pageType | .pageCollection | .itemType | .itemCollection
     @Environment(\.dismiss) private var dismiss
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(ItemTypeManager.self) private var itemTypeManager
 
     @State private var icon: String = ""
 
@@ -397,7 +417,7 @@ SymbolPicker auto-renders Cancel / clear / done chrome. Wrapper's only job: bind
 Every embedded view (Context page, Homepage) is **a live, fully-editable view of its source** — not a snapshot.
 
 - Block stores the **reference** (source entity ID + view config + filters), not a snapshot
-- Edits route through the source entity's manager (e.g. checking off a Task in an embed calls `AgendaManager.toggleCompleted(...)`)
+- Edits route through the source entity's manager (e.g. checking off a Task in an embed calls `AgendaTaskManager.toggleCompleted(...)`)
 - Manager atomically writes the source file
 - File watcher catches the change → SQLite re-indexes → all embedded views refresh live
 

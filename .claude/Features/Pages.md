@@ -1,20 +1,22 @@
 ### Pages
 
-A Page is one Markdown file in the nexus. Pages are the only Markdown-file entity in Pommora and the only entity that holds prose content. A Page **belongs to one Vault** (the Vault whose folder it physically lives in). Pages conform to their Vault's property schema (Vault-wide in v1; see `Vaults.md`). Vaults are kind-agnostic — Pages and Items can coexist in the same Vault. Pages are never shared between multiple Vaults.
+A Page is one Markdown file inside a [[PageTypes|Page Type]]. Pages are the only Markdown-file entity in Pommora and the only entity that holds prose content. A Page **belongs to one Page Type** (the Type whose folder it physically lives in). Pages conform to their Page Type's property schema.
+
+The parallel Items-side entity is the Item — a row-shaped JSON record without body. See [[Items]] for details.
 
 ---
 
 #### On disk
 
-- A single `.md` file in the nexus.
+- A single `.md` file inside a Page Type folder (under `<nexus>/Pages/<PageType>/`).
 
-- **Vault membership is determined by location.** A Page inside a Vault folder (folder containing `_vault.json`) is a Page in that Vault. Pages can live directly in a Vault folder or in a Collection sub-folder inside the Vault.
+- **Page Type membership is determined by location.** A Page inside a Page Type folder (folder containing `_schema.json`) is a Page in that Page Type. Pages can live directly in a Page Type folder or in a Page Collection sub-folder inside the Page Type.
 
-- Move a Page between Vaults → properties not in the destination Vault's schema are stripped (Notion-style; confirm prompt warns the user). Move it within the same Vault (between Collection sub-folders) → no strip; schema is shared.
+- Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it within the same Page Type (between Page Collection sub-folders) → no strip; schema is shared.
 
-- YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Vault's schema. **No `vault` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → `Prospects.md`.)
+- YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Page Type's schema. **No `page_type` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
 
-- Properties on a Page must conform to the Vault's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → `Prospects.md`.)
+- Properties on a Page must conform to the Page Type's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
 
 - Markdown body for prose.
 
@@ -24,7 +26,7 @@ A Page is one Markdown file in the nexus. Pages are the only Markdown-file entit
 
 #### Markdown features in v1
 
-**Pages are Markdown documents — not block surfaces.** A Page is one continuous Markdown stream from top to bottom. Pommora doesn't impose a block abstraction on Pages; "block-level features" as a project term belongs to Contexts (Spaces / Topics / Sub-topics) only — the composed-blocks surfaces, not Pages.
+**Pages are Markdown documents — not block surfaces.** A Page is one continuous Markdown stream from top to bottom. Pommora doesn't impose a block abstraction on Pages; "block-level features" as a project term belongs to Contexts (Spaces / Topics / Projects) only — the composed-blocks surfaces, not Pages.
 
 Pages support everything in standard Markdown:
 
@@ -53,7 +55,7 @@ On top of standard Markdown, Pages support **two Pommora-specific rendering dire
 
 Side-by-side variants of either: wrap multiple blockquotes (or callouts) inside an `@Columns` directive.
 
-The earlier-proposed `@View` (in-line database view embed) is **deferred** to v2+; full prospect → `Prospects.md`. Inline embedded views (live editable embeds of other entities) are a **Contexts / Homepage** feature, not a Pages feature — composed-blocks surfaces have blocks; Pages don't.
+The earlier-proposed `@View` (in-line database view embed) is **deferred** to v2+; full prospect → [[Prospects]]. Inline embedded views (live editable embeds of other entities) are a **Contexts / Homepage** feature, not a Pages feature — composed-blocks surfaces have blocks; Pages don't.
 
 ---
 
@@ -85,7 +87,7 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 **Editor implementation — shipped at v0.2.7.0 on native TextKit 2.** Pommora uses Apple `swift-markdown` 0.8.0 + vendored `swift-markdown-engine` (at `External/MarkdownEngine/`, Apache 2.0) + a Pommora-side `AppleASTSupplementalStyler` layered on top. Full implementation spec lives at `PageEditor.md`. The three-options inventory used during v0.2.7 prep (Native Swift / JS-editor in WKWebView / Pallepadehat fork) has been resolved — historical context preserved in git history.
 
-**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` is the Swift-side write path, mirroring the existing `updateItem` shape.
+**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. The Pages-side content manager's `updatePage(_:in:pageType:)` + `(_:inPageTypeRoot:)` write path is the Swift-side surface (renames land in Phase 2 of ParadigmV2).
 
 **Pommora-specific surface behavior:**
 
@@ -101,34 +103,34 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 #### Opening behavior
 
-**Default — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the `CollectionDetailView` / `VaultDetailView` / `ContextDetailPlaceholder` for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop). Shipped at v0.2.7.
+**Default — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop). Shipped at v0.2.7.
 
 **From the NavDropdown — single-click select / double-click open** (as shipped at v0.2.7.1). Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action). Double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure (no preview gate, no standalone window). Full mechanics live in `NavDropdown.md`. The preview-then-expand mechanic (an earlier v0.2.7.2 attempt) was reverted in favor of the cross-feature **PreviewWindow primitive** project-wide rule at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`: the PreviewWindow primitive ships per kind before any "open in preview" UI for that kind is wired. NavDropdown's open-in-preview affordance will light up per kind once the primitive lands.
 
 **Standalone-window path: deferred.** The shipped v0.2.7.1 NavDropdown does NOT include a standalone-window scene for Pages — the `WindowGroup(for: EntityRef.self)` machinery from the failed first attempt was deleted entirely (`EntityRef` + `EntityWindowHost` + 406 lines stripped). Standalone Page previews / multi-instance windows ship later via the PreviewWindow primitive (queued).
 
-Items use a different model — they open in the **Item Window popover** (Calendar-event-detail pattern), never in a standalone window. See `Items.md`.
+Items use a different model — they open in the **Item Window popover** (Calendar-event-detail pattern), never in a standalone window. See [[Items]].
 
 ---
 
 #### Hierarchy
 
-Pages are flat within a Collection. No forced sub-page nesting. A Collection's folder typically holds its member `.md` files directly (no nested sub-folders inside a Collection). Pages can also live directly in a Vault's folder root (outside any Collection sub-folder). Sub-pages (nested Page hierarchy inside a Collection) is a v2 candidate (see `Prospects.md`).
+Pages are flat within a Page Collection. No forced sub-page nesting. A Page Collection's folder typically holds its member `.md` files directly (no nested sub-folders inside a Page Collection). Pages can also live directly in a Page Type's folder root (outside any Page Collection sub-folder). Sub-pages (nested Page hierarchy inside a Page Collection) is a v2 candidate (see [[Prospects]]).
 
 ---
 
 #### Sidebar visibility
 
-Pages appear **in the sidebar** as leaf rows under their parent Vault (root) or Collection, rendered with the `doc.text` icon. This is the only Content type with sidebar visibility — **Items, Agenda items, and Events do NOT appear in the sidebar** (they live exclusively in detail-pane Tables). The rationale: the sidebar tree is the structural / Page-shaped view; the detail pane is the full data view that includes Items.
+Pages appear **in the sidebar** as leaf rows under their parent Page Type (root) or Page Collection, rendered with the `doc.text` icon. Pages are the only operational entity with sidebar leaf visibility — **Items, Agenda Tasks, and Agenda Events do NOT appear in the sidebar** (Items live in detail-pane Tables under their Item Type; Agenda Tasks + Events surface via the Calendar pin entry). The rationale: the sidebar tree is the structural / Page-shaped view; the detail pane is the full data view that includes Items.
 
-- Vault row → discloses Pages directly in the vault root + Collection sub-folders
-- Collection row → discloses its Pages
+- Page Type row → discloses Pages directly in the Page Type root + Page Collection sub-folders
+- Page Collection row → discloses its Pages
 - Page row → leaf (no further disclosure; v1 has no sub-pages)
 - Click on a Page row opens the Page in the detail pane (single Page at a time; shipped v0.2.7.0 + selection wiring from v0.2.1)
 - From the NavDropdown (Pinned / Recents), double-click on a Page row opens it in the main detail pane (shipped v0.2.7.1)
 - Right-click "Open in New Window" / `⌥⌘O` affordance is queued for the PreviewWindow primitive ship — not yet wired
 
-Right-click on a Page row in the sidebar gives Rename / Delete. Right-click in `VaultDetailView` or `CollectionDetailView` gives Rename / Pin (or Unpin) / Delete (shipped v0.2.7.1 additive scope). For full sidebar layout + creation affordances → `Sidebar.md`.
+Right-click on a Page row in the sidebar gives Rename / Delete. Right-click in a Page Type or Page Collection detail view gives Rename / Pin (or Unpin) / Delete (shipped v0.2.7.1 additive scope). For full sidebar layout + creation affordances → [[Sidebar]].
 
 ---
 
@@ -139,4 +141,4 @@ Right-click on a Page row in the sidebar gives Rename / Delete. Right-click in `
 - Renaming a Page that has ambiguous siblings updates only the references that resolve to it.
 - Wikilinks render as **styled colored inline text** (Obsidian-style hyperlink), not as Notion-style chips/pills.
 
-Full rename + wikilink-rewrite algorithm lives in `PommoraPRD.md` ("File Renames and Wikilink Updates").
+Full rename + wikilink-rewrite algorithm lives in [[PommoraPRD]] ("File Renames and Wikilink Updates").
