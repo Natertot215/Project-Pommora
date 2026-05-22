@@ -97,7 +97,9 @@ enum NexusAdopter {
         var itemCount = 0
 
         for folder in topLevelFolders {
-            let vaultMetaURL = folder.appendingPathComponent("_vault.json", isDirectory: false)
+            let vaultMetaURL = folder.appendingPathComponent(
+                NexusPaths.schemaSidecarFilename, isDirectory: false
+            )
             if !Filesystem.fileExists(at: vaultMetaURL) {
                 plannedVaults.append(
                     PlannedVault(folderURL: folder, title: folder.lastPathComponent)
@@ -107,7 +109,9 @@ enum NexusAdopter {
             let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
             for sub in subFolders where !isExcludedSubFolder(sub) {
                 let collectionMetaURL =
-                    sub.appendingPathComponent("_collection.json", isDirectory: false)
+                    sub.appendingPathComponent(
+                        NexusPaths.schemaSidecarFilename, isDirectory: false
+                    )
                 if !Filesystem.fileExists(at: collectionMetaURL) {
                     plannedCollections.append(
                         PlannedCollection(
@@ -139,7 +143,7 @@ enum NexusAdopter {
         )
     }
 
-    /// Writes the planned `_vault.json` and `_collection.json` sidecars.
+    /// Writes the planned schema sidecars (`_schema.json`) for vaults + collections.
     /// Each write is atomic via `Filesystem.writeMetadataIntoExistingFolder`.
     /// Failures are collected and re-thrown as a single
     /// `AdoptionError.partialFailure` at the end — partial progress is
@@ -152,7 +156,7 @@ enum NexusAdopter {
         for planned in plan.vaults {
             let vaultID = ULID.generate()
             let metaURL = planned.folderURL.appendingPathComponent(
-                "_vault.json", isDirectory: false
+                NexusPaths.schemaSidecarFilename, isDirectory: false
             )
             do {
                 try Filesystem.writeMetadataIntoExistingFolder(
@@ -182,7 +186,9 @@ enum NexusAdopter {
             if let cached = vaultIDByFolder[key] {
                 vaultID = cached
             } else if let loaded = try? Vault.load(
-                from: key.appendingPathComponent("_vault.json", isDirectory: false)
+                from: key.appendingPathComponent(
+                    NexusPaths.schemaSidecarFilename, isDirectory: false
+                )
             ) {
                 vaultID = loaded.id
                 vaultIDByFolder[key] = vaultID
@@ -191,7 +197,7 @@ enum NexusAdopter {
             }
 
             let metaURL = planned.folderURL.appendingPathComponent(
-                "_collection.json", isDirectory: false
+                NexusPaths.schemaSidecarFilename, isDirectory: false
             )
             do {
                 try Filesystem.writeMetadataIntoExistingFolder(

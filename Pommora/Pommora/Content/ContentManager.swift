@@ -174,7 +174,7 @@ final class ContentManager {
         // handle inside ContentManager.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
-            Filesystem.fileExists(at: sub.appendingPathComponent("_collection.json"))
+            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.schemaSidecarFilename))
         }
         let excludedCollectionFolders = Set(collectionFolders.map { $0.standardizedFileURL })
         do {

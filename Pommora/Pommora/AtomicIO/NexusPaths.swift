@@ -4,6 +4,13 @@ import Foundation
 /// No I/O except `ensureDirectoryExists`.
 enum NexusPaths {
 
+    // MARK: - Schema sidecar
+
+    /// Unified schema sidecar filename — used by Page Types, Page Collections,
+    /// Item Types, Item Collections, AgendaTask schema, AgendaEvent schema.
+    /// Replaces per-kind names per ParadigmV2.
+    static let schemaSidecarFilename = "_schema.json"
+
     // MARK: - .nexus/ subdirectories
 
     static func nexusConfigDir(in nexus: Nexus) -> URL {
@@ -94,7 +101,7 @@ enum NexusPaths {
 
     static func vaultMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
         vaultFolderURL(forTitle: title, in: nexus)
-            .appendingPathComponent("_vault.json", isDirectory: false)
+            .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
     }
 
     static func collectionFolderURL(

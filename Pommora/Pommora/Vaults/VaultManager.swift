@@ -37,18 +37,18 @@ final class VaultManager {
             var loadedCols: [String: [Collection]] = [:]
 
             for folder in topLevel {
-                let metaURL = folder.appendingPathComponent("_vault.json")
+                let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
                     let vault = try? Vault.load(from: metaURL)
                 else { continue }
                 loadedVaults.append(vault)
 
-                // Discover Collections (sub-folders with _collection.json sidecar; skip _- and .-prefixed)
+                // Discover Collections (sub-folders with schema sidecar; skip _- and .-prefixed)
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { folder -> Pommora.Collection? in
-                        let metaURL = folder.appendingPathComponent("_collection.json")
+                        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
                         guard Filesystem.fileExists(at: metaURL) else { return nil }
                         return try? Pommora.Collection.load(from: metaURL)
                     }
@@ -212,7 +212,7 @@ final class VaultManager {
                 folderURL: folder,
                 modifiedAt: now
             )
-            let metaURL = folder.appendingPathComponent("_collection.json")
+            let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: metaURL, metadata: coll
             )
@@ -256,7 +256,7 @@ final class VaultManager {
                 pageOrder: collection.pageOrder,
                 itemOrder: collection.itemOrder
             )
-            let metaURL = newURL.appendingPathComponent("_collection.json")
+            let metaURL = newURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
             do {
                 try updated.save(to: metaURL)
             } catch let saveError {

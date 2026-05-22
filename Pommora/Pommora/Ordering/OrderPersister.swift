@@ -110,7 +110,7 @@ enum OrderPersister {
         _ collection: Pommora.Collection,
         _ mutate: (inout Pommora.Collection) -> Void
     ) throws {
-        let url = collection.folderURL.appendingPathComponent("_collection.json")
+        let url = collection.folderURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         var updated = try Pommora.Collection.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
