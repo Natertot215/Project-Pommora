@@ -2,7 +2,58 @@
 
 > **Read this first at session start.** Branch + state + next session's priorities here.
 
-#### Current State (late 2026-05-21 Session 15B [parallel] — **v0.2.7.5 blockquote chrome SHIPPED with rework tomorrow**)
+#### Current State (2026-05-22 — **ParadigmV2 plan LOCKED; execution is the active focus**)
+
+**Active focus:** [[ParadigmV2]] — operational-layer domain model refactor. Plan locked at [`Planning/ParadigmV2.md`](Planning/ParadigmV2.md) (~2,360 lines, 11 phases). Execution is the next session's priority; all other in-flight work (v0.2.7.5 blockquote polish + v0.2.8 drag-reorder Phase 1) is **paused behind it** — see "Prior in-flight work" below for status.
+
+##### The refactor in one paragraph
+
+Pre-ParadigmV2: kind-agnostic Vaults containing Pages + Items, with Collections as sub-folders, AgendaItem as a unified Task+Event struct, and Sub-topics for tier-3 Contexts. Post-ParadigmV2: **symmetric Page/Item model** — Page Type → Page Collection → Page (`.md`) on the Pages side; Item Type → Item Collection → Item (`.json`) on the Items side. AgendaItem splits into **AgendaTask** + **AgendaEvent** (EKReminder + EKEvent aligned). Sub-topics renamed to **Projects**. Schema sidecars unify to `_schema.json` everywhere. On-disk wrapper folders introduced: `<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/`. **UI label divergence**: Item Collections render as **"Set"** in the app by default (renameable via Settings). **Settings scaffold** (`.nexus/settings.json` + SettingsManager + label wiring + Cmd+, stub scene) lays groundwork for v0.6.0 Settings UI. **"Pommora" prohibited** in on-disk schemas + Swift namespace qualifications; retires `Pommora.Collection` quirk #6.
+
+##### Locked phase sequence
+
+1. Doc rewrites (Studio direct — no Nexus-first workflow)
+2. PageType + PageCollection renames + `_schema.json` sidecar
+3. Subtopic → Project rename
+4. AgendaItem split → AgendaTask + AgendaEvent
+5. New ItemType + ItemCollection subsystem
+6. Pages/Items wrapper folders + NexusAdopter update
+7. **Settings scaffold** (storage + manager + UI label wiring + Cmd+, stub scene)
+8. Sidebar / Detail / Sheet UI restructure (consumes Phase 7 label source)
+9. Tests consolidation + v0.3.0 Properties spec reconciliation
+10. Nathan's user-data migration (one-shot script; not committed)
+11. Cleanup + Framework reconciliation + ship (tag `paradigmV2`)
+
+Phases 2/3/4 are parallelizable. Phases 5 → 6 → 7 → 8 are sequential. Each phase ships green standalone (stub-and-progressively-replace per quirk #8). All dispatched agents use Opus 4.7.
+
+##### Key naming decisions (locked in plan)
+
+- **Swift types:** `PageType`, `PageCollection`, `ItemType`, `ItemCollection`, `AgendaTask`, `AgendaEvent`, `Project`, `SavedView` (renamed from `VaultView`), `Settings`, `SettingsManager`, `SettingsLabels`, `LabelPair`
+- **UI labels (defaults, renameable via Settings):** "Type" for both sides; "Collection" for Pages-side, **"Set"** for Items-side; "Task", "Event", "Project"; section labels "Pages"/"Items"/"Agenda"
+- **Banned in on-disk schemas + Swift qualifications:** "Pommora" prefix. No `pommora_*` JSON keys; no `Pommora.X` qualifications — use side-prefixed names (`AgendaTask` not `Pommora.Task`). Existing `pommora_table_widths` grandfathered for v0.3.0; rename when Tables ship.
+
+##### Next-session entry path — Phase 1 ready to dispatch
+
+The execution playbook lives at `~/.claude/plans/velvet-crunching-frost.md`. It enumerates all 54 tasks across 11 phases with per-task gate checks and the subagent dispatch prompt template. Execution mode is locked: **subagent-driven, sequential** (one fresh Opus 4.7 subagent per task; main session reviews between tasks).
+
+1. Open the playbook. Confirm Phase 1 checkbox state (all unchecked = fresh start).
+2. Dispatch Task 1.1 — rewrite `Features/Domain-Model.md` — per the dispatch protocol template in the playbook.
+3. Review subagent return + run GATE 1 check after Task 1.14 lands (full doc rewrite ships as one commit).
+4. Continue sequential dispatch through Phase 11.
+
+Builder agent handles all `xcodebuild` (quirk #3). Build verify + test pass + lint between every gate. 252/252 unit tests is the baseline.
+
+---
+
+#### Prior shipped work (no longer in working tree)
+
+- **v0.2.7.5 blockquote chrome + v0.2.8 drag-reorder Phase 1 persistence** — both shipped in commit `5a264f0` (combined v0.2.8.0). Working tree is clean of these. The "Prior session record" section below remains as historical context only.
+
+---
+
+#### Prior session record (v0.2.7.5 blockquote + v0.2.8 drag-reorder — full context for the v0.2.8.0 first commit)
+
+##### v0.2.7.5 blockquote chrome (late 2026-05-21 Session 15B)
 
 **Concurrent with Session 15's drag-reorder work** (see next section). Engine-only scope; Session 15B did NOT touch any Pommora-target files. MarkdownEngine + Pommora target both build clean as of last check. **Blockquote ships now to land what works — one visual issue carries over to tomorrow.**
 
