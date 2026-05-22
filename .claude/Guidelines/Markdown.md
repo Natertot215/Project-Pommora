@@ -278,6 +278,38 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **What to do instead:** for any feature that needs custom inline widths (e.g. drag-resize columns), either (a) accept that source padding is the only authority and mutate source on user intent only, or (b) build a custom render layer that overrides natural text positioning (multi-week effort with hit-test + selection consequences). When the Tables work resumes, this is the central architectural question to answer first.
 
+##### 6.11 Don't draft plans with new files when existing files cover the change
+
+**The mistake:** propose new theme properties, new service files, new abstractions when the actual change is a one-line addition to an existing styler dict or an existing case in `handleInsertion`'s switch.
+
+**Why it fails:** bloats the diff, multiplies bug surface, dilutes the review. Pommora's customization slots already exist — `PlainTextSyntaxHighlighter.backgroundColor()`, the `styleCodeBlocks` / `styleInlineCode` attrs dicts, `handleInsertion`'s `>` / `-` / `[` branches. Most "polish" changes slot in as a single property add.
+
+**What to do instead:** before writing a plan, grep the candidate files for the existing extension point. If the change is one entry in an existing dict or one case in an existing switch, propose THAT — not a parallel system. Nathan corrected this several times during v0.2.7.4 planning.
+
+##### 6.12 Don't use AST detection where lockstep with a regex-based styler is required
+
+**The mistake:** detect a construct via `Markdown.Document(parsing: line).children.contains { $0 is UnorderedList }` in a renderer/service, while the styler decides hide-attr application via `NSRegularExpression`.
+
+**Why it fails:** AST and regex disagree on edge cases. `Markdown.Document(parsing: "- ")` (empty bullet, no content) parses as `Paragraph`, not `UnorderedList` — CommonMark requires content after the marker. The styler's regex still matches `- ` and hides the dash; the renderer's AST rejects the line and draws no `•`. Result: blank line where a bullet should be. Cost the "Enter continues empty list" UX during v0.2.7.4 bullet glyph ship.
+
+**What to do instead:** when two layers must agree on detection, use the SAME REGEX in both. `MarkdownDetection.isDashBulletLine` mirrors the styler's exact pattern (`^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$`) verbatim. Drift in either direction = half-applied state. Note this nuances the §4.1 Stage-2 rule: AST is the right confirmation when the styler also uses AST (e.g. HR detection); pick the layer that already exists upstream.
+
+##### 6.13 Don't font-collapse chars whose visual width is consumed downstream
+
+**The mistake:** hide a Markdown marker by setting `font: NSFont.systemFont(ofSize: 0.1) + .foregroundColor: NSColor.clear` over a range that includes characters another layer measures (e.g. the `[` of a task checkbox, whose font size determines the drawn box dimensions).
+
+**Why it fails:** font-0.1 shrinks the char's advance width to near-zero, not just its visible glyph. Code that asks "where does this char sit?" or "how big is it?" (e.g. `drawTaskCheckboxes` reading `font.pointSize` from the `[`) gets a near-zero answer. The checkbox renders invisible. Burned during v0.2.7.4 when the bullet collapse range swallowed the task `[`.
+
+**What to do instead:** pick the hiding mechanism by intent. **Width must be preserved** (e.g. the `-` before bullet content — invisible gap) → `.foregroundColor: NSColor.clear` ONLY. **Char must be structurally gone** (e.g. the `- ` spacer before a checkbox so the box lands at the indent) → font-0.1 + clear-color, AND verify nothing downstream measures the collapsed range.
+
+##### 6.14 Don't let detection regex drift across the multiple sites that describe one construct
+
+**The mistake:** the same construct (e.g. unordered list with optional task brackets) is matched in 4+ regex patterns — `listRegex`, `bulletListPattern`, `taskListRegex`, `isDashBulletLine`. Each one independently encodes (a) which markers count (`[-*+•]`) and (b) whether brackets are optional (`(?:[ \t]*\[[ xX]?\])?`).
+
+**Why it fails:** silent half-applied state. One site accepts `-[]` shorthand, another requires `- [ ]` GFM form → user types `-[]` and gets right-aligned brackets without indent (or indented brackets without a drawn checkbox). Every v0.2.7.4 bullet/task hotfix iteration traced back to one of these four patterns being out of sync.
+
+**What to do instead:** when adding a new detection site for an existing construct, audit ALL existing regex patterns describing it and update them in lockstep — same marker class, same optional-bracket spec. If a pattern is referenced by 3+ sites, consider hoisting it to a `static let` shared constant.
+
 ---
 
 #### 7. Engine-specific quirks
@@ -329,6 +361,12 @@ Each lesson is grounded in a shipped engine file or a documented Apple API. Cite
 | L8 | When fixing a problem and trying many things, STRIP and try again — don't pile fixes | HR Session 12 + List Session 13 |
 | L9 | macOS default key bindings collapse Shift+Return → `insertNewline:` | List Session 13; [MarkdownListHandler.swift:405-412](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L405-L412) |
 | L10 | `shouldChangeTypingAttributes` re-baselines but Pommora-custom flag attrs still leak | List Session 13 + HR Session 12; [+TextDelegate.swift:22-38](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38) |
+| L11 | When two layers must agree on detection, share the regex — AST and regex disagree on edge cases (e.g. empty `- ` parses as Paragraph) | Bullet glyph Session 14 (v0.2.7.4); §6.12 |
+| L12 | Font-collapse swallows advance width; use clear-color-only when natural width must survive | Task checkbox Session 14; §6.13 |
+| L13 | Detection regex MUST agree across every site describing the same construct — drift = silent half-applied state | Bullet/task Session 14; §6.14 |
+| L14 | Always-show overlay (Notion checkbox pattern) > dynamic-syntax caret-aware reveal for non-interactive markers | Bullet glyph Session 14 — shipped at always-show after Session 13's caret-aware reveal was reverted |
+| L15 | Position-based intercepts (caret-between-pair) > state-based (was-this-auto-paired) for symmetric edits | Bracket-skip Enter Session 14 — stateless, handles auto-pair/typed/pasted uniformly |
+| L16 | Existing extension points (styler dicts, `handleInsertion` switch cases) absorb most "polish" changes — don't draft parallel systems | v0.2.7.4 planning (multiple Nathan corrections); §6.11 |
 
 ---
 
@@ -370,11 +408,41 @@ Nathan-locked operating principle for any debugging session. When N speculative 
 
 Tables work is deferred. The architecture-stress-test work captured in `// Planning//Page-Editor-Plan.md` is preserved as reference, but no Tables coding starts until other markdown editor features ship and we have a better feel for the engine's behavior. The column-alignment question (Strategy A / B / C / hybrid) remains open and will be answered against accumulated experience, not in a vacuum.
 
-##### 9.7 Bullet glyph substitution attempted + reverted; deferred (Session 13)
+##### 9.7 Bullet glyph substitution SHIPPED (v0.2.7.4 — 2026-05-21)
 
-> "Reverted by Nathan after the overlay positioning + fragment-walk produced invisible bullets in practice."
+Source `- item` renders as `• item`; `*`, `+`, legacy `•` render literally (locked: only `-` substitutes). Implementation: always-show overlay in `MarkdownTextLayoutFragment.drawDashBulletGlyph` (no caret-aware reveal — sidesteps the Session 13 failure mode entirely; L14). Pixel-aligned via `window?.backingScaleFactor`. Bullet sized at `baseFont.pointSize * 1.5`. Source on disk stays `-` for portability.
 
-The `-` → `•` visual substitution attempt was correctly reverted per L8. The aesthetic is acceptable as-is; future work can revisit with `NSScreen.backingScaleFactor`-aware position math if priority shifts.
+##### 9.8 Pommora `-[]` task shorthand accepted alongside GFM (2026-05-21)
+
+> "Lets change the syntax for task list to this -[] / rather than - [ ]."
+
+Pommora accepts `-[]` / `-[x]` as task-list syntax in addition to GFM's `- [ ]` / `- [x]`. The shorthand is **NOT portable** — Obsidian, iA Writer, GitHub, pandoc render `-[]` as literal text, not a checkbox. Nathan explicitly accepted the tradeoff for typing fluidity. The styler/renderer detection regex must accept both forms (`[-*+•](?:[ \t]*\[[ xX]?\])?` — zero-or-more whitespace before brackets, optional bracket content). See L13.
+
+##### 9.9 Bracket-skip Enter intercept (v0.2.7.4 — 2026-05-21)
+
+When the caret sits between a matched open/close pair on the current line (`[ ]`, `( )`, `{ }`, `[[ ]]`), pressing Enter jumps the caret past the closer instead of inserting `\n` — VS Code's "Tab to escape brackets" pattern mapped to Enter. Position-based detection (no auto-pair state tracking; L15). Gated by `autoClosePairsEnabled`. Carve-out: matched pair inside the list-marker checkbox falls through to list-Enter so the user can continue the list from inside the brackets. Implementation: [MarkdownListHandler.swift](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift) `\n` branch, between the Shift+Enter intercept and the fenced-code completion intercept.
+
+##### 9.10 Blockquote architecture: always-show overlay, NOT dynamic-syntax (v0.2.7.5 — 2026-05-21)
+
+> "The always-show is how it currently works; we have no intent on changing that."
+
+**Status:** ✅ SHIPPED v0.2.7.5 with one carry-over visual TBD (horizontal "highlight not extending into syntax gap" — fix paths documented in `Handoff.md` "Carries to tomorrow"). Architecture + all other behaviors locked.
+
+Blockquote uses the **always-show overlay** pattern — same model as the v0.2.7.4 bullet glyph and task checkbox. NOT the HR-style caret-aware dynamic-syntax pattern. Rationale: L14 (always-show > caret-aware for non-interactive markers), and the alternative "card visible / `>` markers toggle on caret" produces a text-jump on caret-enter when `headIndent` toggles.
+
+Locked behavior (as-shipped):
+- `>` markers permanently hidden via font-0.1 + clear-color on `> ` (marker + space). Activation gate requires `>` + space/tab — bare `>` doesn't activate (matches list UX where `-` alone doesn't activate until `- `; L13 — detection regex consistency).
+- `paragraphStyle.headIndent = 20` preserved (per Nathan: "text indented just as it is currently").
+- Card chrome permanently visible via `MarkdownTextLayoutFragment.drawBlockquoteCard` — renderer-drawn `CGPath` with `NSColor.tertiarySystemFill` (native intensity, adapts light/dark).
+- 4pt accent bar in `NSColor.secondaryLabelColor` inside the card on the left (pill-shaped ends).
+- **Continuous bar across multi-line quotes** — per-fragment segments butt-jointed via `paragraphStyle.paragraphSpacing = 0` + `paragraphSpacingBefore = 0` on consecutive quote paragraphs. Card AND bar both inflated by `cornerRadius = 6pt` on rounded ends so visual extents match.
+- Slight right margin via `paragraphStyle.tailIndent = -8`.
+- `paragraphStyle.minimumLineHeight = ceil(bodyFont.ascender - bodyFont.descender + bodyFont.leading)` prevents 1pt line collapse when only collapsed-marker chars exist on the line (empty `> ` line).
+- **Plain Enter continues** the quote with `\n<prefix>` (preserves leading indent); **Shift+Enter exits** with plain `\n`. Mirrors list convention. New `MarkdownLists.blockquoteMarkerRegex` (`^[ \t]*>[ \t]`) powers detection.
+- Italic text (existing styler emission — only emitted when source has inline `*..*` / `_.._`, untouched by blockquote).
+- No service file; no caret-aware logic; no reentry flag. Two files modified: `AppleASTSupplementalStyler.swift` + `MarkdownTextLayoutFragment.swift`. New regex in `MarkdownListHandler.swift`.
+
+This nuances §9.1's general "render is the spec" principle: the chrome is still a Pommora-side render that doesn't physically exist in the source, but it's permanently visible rather than caret-conditional. Both patterns honor §9.1; the choice between them is per-construct per L14.
 
 ---
 

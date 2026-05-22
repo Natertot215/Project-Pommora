@@ -58,21 +58,105 @@ enum AppleASTSupplementalStyler {
         mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
             if let range = SourceRangeConverter.nsRange(from: blockQuote.range, in: nsText, lineIndex: lineIndex) {
                 let paragraph = NSMutableParagraphStyle()
+                // Preserved from current behavior (per Nathan: "text indented just
+                // as it is currently"). Bar+gap sit OUTSIDE this indent, in the
+                // leading-margin area; card draws between the bar and the text.
                 paragraph.headIndent = 20
                 paragraph.firstLineHeadIndent = 20
+                // Continuous bar requirement — consecutive `> ` paragraphs must
+                // butt-joint with zero vertical gap, otherwise the per-fragment
+                // bar segments show seams. Both spacing properties zeroed because
+                // a multi-paragraph quote includes inter-paragraph metrics from
+                // either side.
+                paragraph.paragraphSpacing = 0
+                paragraph.paragraphSpacingBefore = 0
+                // Slight right margin so the renderer-drawn card stops short of
+                // the text-area edge. Negative tailIndent value is the standard
+                // AppKit idiom.
+                paragraph.tailIndent = -8
+                // Force line height to body-font height. Without this, a
+                // `> ` line with no content yet has only font-0.1 marker
+                // chars on the line → natural line height ~1pt. The
+                // minimumLineHeight floor keeps the line tall enough to
+                // type into AND lets the renderer-drawn chrome have proper
+                // vertical extent before the user adds content.
+                let bodyLineHeight = baseFont.ascender - baseFont.descender + baseFont.leading
+                paragraph.minimumLineHeight = ceil(bodyLineHeight)
+
                 styledRanges.append(
                     (
                         range,
                         [
+                            // Foreground dimming preserved exactly.
                             .foregroundColor: theme.bodyText.withAlphaComponent(0.75),
-                            .backgroundColor: theme.bodyText.withAlphaComponent(0.06),
+                            // .backgroundColor INTENTIONALLY REMOVED — renderer
+                            // now draws the card via CGPath so corner rounding is
+                            // possible. Same color is used at draw time.
                             .paragraphStyle: paragraph,
                         ]
                     ))
+
+                // Hide `>` marker characters via font 0.1 + clear color so the
+                // renderer's card draws over a clean leading area. Same pattern
+                // as `visitTable`'s pipe-collapse. Walk each line within the
+                // blockquote's NSRange, find the leading `>` (after any leading
+                // whitespace), apply the collapse to the `>` and the single
+                // trailing space.
+                applyMarkerCollapse(in: range)
             }
             // Continue walking children so nested strikethrough etc. still fire.
             for child in blockQuote.children {
                 visit(child)
+            }
+        }
+
+        /// Scan each line inside `range` and hide the leading `>` (and one
+        /// trailing space if present) via font-0.1 + clear-color. Mirrors the
+        /// table-pipe hiding pattern.
+        private mutating func applyMarkerCollapse(in range: NSRange) {
+            let end = range.location + range.length
+            var lineStart = range.location
+            while lineStart < end {
+                // Find this line's end (next \n or range end).
+                var scan = lineStart
+                while scan < end, nsText.character(at: scan) != 0x0A {  // \n
+                    scan += 1
+                }
+                let lineEnd = scan
+
+                // Find leading non-whitespace within [lineStart, lineEnd).
+                var i = lineStart
+                while i < lineEnd {
+                    let c = nsText.character(at: i)
+                    if c == 0x20 || c == 0x09 {
+                        i += 1
+                        continue
+                    }  // space or tab
+                    break
+                }
+                // Hide `>` + trailing whitespace ONLY when the marker is
+                // followed by space or tab — the activation gate. Bare `>`
+                // (with no space after) shouldn't collapse, matching list
+                // UX where bare `-` doesn't activate until `- `. This
+                // prevents the "type `>` and the line collapses to 1pt
+                // before you can type content" regression.
+                if i < lineEnd, nsText.character(at: i) == 0x3E,  // '>'
+                    i + 1 < lineEnd
+                {
+                    let next = nsText.character(at: i + 1)
+                    if next == 0x20 || next == 0x09 {  // space or tab
+                        styledRanges.append(
+                            (
+                                NSRange(location: i, length: 2),
+                                [
+                                    .font: NSFont.systemFont(ofSize: 0.1),
+                                    .foregroundColor: NSColor.clear,
+                                ]
+                            ))
+                    }
+                }
+
+                lineStart = lineEnd + 1  // skip past the newline
             }
         }
 

@@ -27,6 +27,11 @@ struct VaultRow: View {
                     editingID: $editingID
                 )
             }
+            .onMove { source, destination in
+                contentManager.reorderPages(
+                    inVault: vault, fromOffsets: source, toOffset: destination
+                )
+            }
             ForEach(vaultManager.collections(in: vault)) { coll in
                 CollectionRow(
                     collection: coll,
@@ -35,6 +40,11 @@ struct VaultRow: View {
                     editingID: $editingID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
+                )
+            }
+            .onMove { source, destination in
+                vaultManager.reorderCollections(
+                    in: vault, fromOffsets: source, toOffset: destination
                 )
             }
         } label: {

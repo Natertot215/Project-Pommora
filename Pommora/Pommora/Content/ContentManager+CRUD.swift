@@ -43,7 +43,11 @@ extension ContentManager {
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
             var arr = existing
             arr.append(meta)
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: collection.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
             pagesByCollection[collection.id] = arr
             return meta
         } catch {
@@ -79,7 +83,11 @@ extension ContentManager {
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
                 arr[i] = updated
-                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: collection.pageOrder,
+                    titleKeyPath: \PageMeta.title
+                )
             }
             pagesByCollection[collection.id] = arr
         } catch {
@@ -176,7 +184,11 @@ extension ContentManager {
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
             var arr = existing
             arr.append(meta)
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: vault.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
             pagesByVaultRoot[vault.id] = arr
             return meta
         } catch {
@@ -210,7 +222,11 @@ extension ContentManager {
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
                 arr[i] = updated
-                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: vault.pageOrder,
+                    titleKeyPath: \PageMeta.title
+                )
             }
             pagesByVaultRoot[vault.id] = arr
         } catch {
@@ -288,7 +304,11 @@ extension ContentManager {
 
             var arr = existing
             arr.append(item)
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: collection.itemOrder,
+                titleKeyPath: \Item.title
+            )
             itemsByCollection[collection.id] = arr
             return item
         } catch {
@@ -332,7 +352,11 @@ extension ContentManager {
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
-                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: collection.itemOrder,
+                    titleKeyPath: \Item.title
+                )
             }
             itemsByCollection[collection.id] = arr
         } catch {
@@ -409,7 +433,11 @@ extension ContentManager {
 
             var arr = existing
             arr.append(item)
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: vault.itemOrder,
+                titleKeyPath: \Item.title
+            )
             itemsByVaultRoot[vault.id] = arr
             return item
         } catch {
@@ -452,7 +480,11 @@ extension ContentManager {
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
-                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: vault.itemOrder,
+                    titleKeyPath: \Item.title
+                )
             }
             itemsByVaultRoot[vault.id] = arr
         } catch {

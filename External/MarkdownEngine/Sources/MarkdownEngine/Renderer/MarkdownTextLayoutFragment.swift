@@ -9,6 +9,7 @@
 //  via NSTextLayoutFragment instead of NSLayoutManager glyph overrides.
 
 @preconcurrency import AppKit
+import Markdown
 
 // MARK: - Custom attribute keys for rendering overlays
 
@@ -228,6 +229,311 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         bulletString.draw(at: drawPoint)
     }
 
+    // MARK: - Blockquote marker (Pommora addition)
+
+    /// True when this fragment's first non-whitespace character is `>`
+    /// AND is followed by space or tab AND the per-fragment AST confirms
+    /// a `BlockQuote` child. Three-stage detection mirroring
+    /// `hasThematicBreak` (L70-77):
+    ///   - Stage 0: code-block guard (a `> foo` inside a fenced block must
+    ///     NOT render blockquote chrome).
+    ///   - Stage 1: cheap string prefilter scanning the raw fragment text
+    ///     (NOT a trimmed copy — trimming would strip the very trailing
+    ///     space we need to verify on a `> \n` line with no content). Skip
+    ///     leading whitespace, confirm `>`, then confirm next char is
+    ///     space or tab. Matches list-activation UX where `-` alone
+    ///     doesn't activate until `- `.
+    ///   - Stage 2: per-fragment swift-markdown AST parse — canonical answer.
+    private var hasBlockquoteMarker: Bool {
+        guard !hasCodeBlockBackground,
+            let ts = textStorage,
+            let range = fragmentNSRange,
+            range.length > 0
+        else { return false }
+        let fragmentString = ts.attributedSubstring(from: range).string
+
+        // Stage 1: scan raw string. Skip leading whitespace, find `>`,
+        // require next char to be space or tab.
+        let nsFragment = fragmentString as NSString
+        var i = 0
+        while i < nsFragment.length {
+            let c = nsFragment.character(at: i)
+            if c == 0x20 || c == 0x09 {
+                i += 1
+                continue
+            }
+            break
+        }
+        guard i < nsFragment.length, nsFragment.character(at: i) == 0x3E else { return false }
+        guard i + 1 < nsFragment.length else { return false }
+        let next = nsFragment.character(at: i + 1)
+        guard next == 0x20 || next == 0x09 else { return false }
+
+        // Stage 2: AST confirms (canonical).
+        let document = Markdown.Document(parsing: fragmentString)
+        return document.children.contains { $0 is BlockQuote }
+    }
+
+    /// Position of this fragment within a multi-paragraph blockquote.
+    /// Drives selective corner-rounding for the card AND selective rounded
+    /// caps for the vertical bar so the rendering reads as one continuous
+    /// visual block across multiple paragraphs.
+    enum BlockquotePosition {
+        case only  // Single-paragraph quote — round all 4 card corners; bar has rounded caps on both ends.
+        case first  // Top of a multi-paragraph quote — round only top card corners; bar rounded cap on top only.
+        case middle  // Interior paragraph — no rounding; bar caps flat both ends.
+        case last  // Bottom of a multi-paragraph quote — round only bottom card corners; bar rounded cap on bottom only.
+    }
+
+    /// Compute this fragment's position within the surrounding blockquote
+    /// by peeking one line up and one line down in textStorage and asking
+    /// whether the neighbor also starts with `>` (after leading whitespace).
+    /// Returns nil when the fragment isn't a blockquote at all.
+    private var blockquotePosition: BlockquotePosition? {
+        guard hasBlockquoteMarker,
+            let ts = textStorage,
+            let range = fragmentNSRange
+        else { return nil }
+        let nsText = ts.string as NSString
+
+        let prevStartsWithQuote = lineStartsWithQuote(
+            lineBeforeLocation: range.location, in: nsText)
+        let nextStartsWithQuote = lineStartsWithQuote(
+            lineAfterLocation: range.location + range.length, in: nsText)
+
+        switch (prevStartsWithQuote, nextStartsWithQuote) {
+        case (false, false): return .only
+        case (false, true): return .first
+        case (true, true): return .middle
+        case (true, false): return .last
+        }
+    }
+
+    /// True when the line ending at (or just before) `location - 1` starts
+    /// with `>` after optional leading whitespace.
+    private func lineStartsWithQuote(lineBeforeLocation location: Int, in nsText: NSString) -> Bool {
+        guard location > 0 else { return false }
+        let prevLineRange = nsText.lineRange(for: NSRange(location: location - 1, length: 0))
+        return lineRangeStartsWithQuote(prevLineRange, in: nsText)
+    }
+
+    /// True when the line starting at `location` starts with `>` after
+    /// optional leading whitespace.
+    private func lineStartsWithQuote(lineAfterLocation location: Int, in nsText: NSString) -> Bool {
+        guard location < nsText.length else { return false }
+        let nextLineRange = nsText.lineRange(for: NSRange(location: location, length: 0))
+        return lineRangeStartsWithQuote(nextLineRange, in: nsText)
+    }
+
+    /// True when, after optional leading whitespace, the line starts with
+    /// `>` AND the next character is a space or tab. Bare `>` (no space)
+    /// is NOT treated as quote-context for position detection, matching
+    /// `hasBlockquoteMarker`'s activation gate.
+    private func lineRangeStartsWithQuote(_ lineRange: NSRange, in nsText: NSString) -> Bool {
+        let end = lineRange.location + lineRange.length
+        var i = lineRange.location
+        while i < end {
+            let c = nsText.character(at: i)
+            if c == 0x20 || c == 0x09 {
+                i += 1
+                continue
+            }  // skip spaces/tabs
+            guard c == 0x3E else { return false }  // '>'
+            // Require `>` followed by space or tab — the activation gate.
+            guard i + 1 < end else { return false }
+            let next = nsText.character(at: i + 1)
+            return next == 0x20 || next == 0x09
+        }
+        return false
+    }
+
+    /// Draws the rounded card (behind text) and the continuous vertical
+    /// accent bar (outside the card, in the leading margin) for a
+    /// blockquote line. Per-fragment; selective corner rounding driven by
+    /// `blockquotePosition` so consecutive fragments butt-joint into a
+    /// single visually-contiguous block.
+    ///
+    /// Coordinate model mirrors `drawCodeBlockBackground` (L391-445):
+    /// `x: point.x - layoutFragmentFrame.origin.x` shifts us to the
+    /// container's left edge; add `textContainer.lineFragmentPadding` to
+    /// land at the leftmost visible text position.
+    private func drawBlockquoteCard(at point: CGPoint, in context: CGContext) {
+        guard let position = blockquotePosition,
+            let textContainer = textLayoutManager?.textContainer
+        else { return }
+
+        // Compute the fragment's vertical extent (mirror drawCodeBlockBackground's
+        // effective-height computation for trailing empty-line fragments).
+        var effectiveHeight = layoutFragmentFrame.height
+        if textLineFragments.count > 1,
+            let lastLF = textLineFragments.last,
+            lastLF.characterRange.length == 0
+        {
+            effectiveHeight -= lastLF.typographicBounds.height
+        }
+
+        // Pixel-snap y-coords so per-fragment bar segments butt-joint
+        // without hairline seams. Same snap formula as drawCodeBlockBackground.
+        let scale =
+            textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor ?? 2.0
+        let rawY = point.y
+        let rawMaxY = point.y + effectiveHeight
+        let snappedY = floor(rawY * scale) / scale
+        let snappedMaxY = ceil(rawMaxY * scale) / scale
+
+        // Visual constants (see Page-Editor-Plan.md §"Visual specifications").
+    
+        let barWidth: CGFloat = 4
+        let cornerRadius: CGFloat = 6
+
+        // X anchors — relative to draw context, container-left-aware.
+        let containerLeftX = point.x - layoutFragmentFrame.origin.x
+        let leftmostVisibleX = containerLeftX + textContainer.lineFragmentPadding
+        let barX = leftmostVisibleX
+        // Card starts AT the bar's left edge (overlaps the bar entirely).
+        // The bar draws AFTER the card so it sits on top visually. This
+        // guarantees the card fill extends through the invisible-syntax
+        // area between the bar and the body text, regardless of any
+        // paragraphStyle indent interactions.
+        let cardLeftX = barX
+
+        // Right edge — full container width minus lineFragmentPadding on
+        // both sides minus the tailIndent we set in the styler (-8).
+        let containerWidth = textContainer.size.width - (textContainer.lineFragmentPadding * 2)
+        let cardRightX = containerLeftX + textContainer.lineFragmentPadding + containerWidth - 8
+
+        // Card vertical extent — inflated by `cornerRadius` on rounded
+        // ends ONLY. Without inflation, the 6pt rounded corners curve
+        // INWARD by 6pt, making the visible card body look shorter
+        // than the bar. Inflating pushes the corner curve OUTWARD so the
+        // card's straight body extends slightly above/below the text.
+        // .middle fragments inflate NEITHER end so they butt-joint
+        // flat-to-flat with neighbors (continuous multi-paragraph cards).
+        let cardTopY: CGFloat
+        let cardBotY: CGFloat
+        switch position {
+        case .only:
+            cardTopY = snappedY - cornerRadius
+            cardBotY = snappedMaxY + cornerRadius
+        case .first:
+            cardTopY = snappedY - cornerRadius
+            cardBotY = snappedMaxY
+        case .middle:
+            cardTopY = snappedY
+            cardBotY = snappedMaxY
+        case .last:
+            cardTopY = snappedY
+            cardBotY = snappedMaxY + cornerRadius
+        }
+
+        // Bar vertical extent — matches the card exactly (per Nathan:
+        // "make the bar align with the height of the fill"). Same
+        // position-driven inflation as the card, so the bar's pill caps
+        // and the card's rounded corners share the same Y extent.
+        let barTopY = cardTopY
+        let barBotY = cardBotY
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.current = nsContext
+
+        // === Draw the card ===
+        let cardRect = CGRect(
+            x: cardLeftX,
+            y: cardTopY,
+            width: cardRightX - cardLeftX,
+            height: cardBotY - cardTopY
+        )
+        let cardPath = makeSelectiveRoundedRect(
+            cardRect,
+            radius: cornerRadius,
+            roundTop: position == .only || position == .first,
+            roundBottom: position == .only || position == .last
+        )
+        // Highlight fill — `tertiarySystemFill` is the system's mid-tier
+        // semantic fill (more visible than quaternary, less than secondary).
+        // Used at native intensity (no alpha modification) — adapts
+        // automatically to light/dark mode and accessibility settings.
+        NSColor.tertiarySystemFill.setFill()
+        cardPath.fill()
+
+        // === Draw the bar ===
+        let barRect = CGRect(
+            x: barX,
+            y: barTopY,
+            width: barWidth,
+            height: barBotY - barTopY
+        )
+        let barPath = makeSelectiveRoundedRect(
+            barRect,
+            radius: barWidth / 2,  // pill-end radius = half the bar width
+            roundTop: position == .only || position == .first,
+            roundBottom: position == .only || position == .last
+        )
+        NSColor.secondaryLabelColor.setFill()
+        barPath.fill()
+    }
+
+    /// Build an `NSBezierPath` with selective top/bottom corner rounding.
+    /// When both `roundTop` and `roundBottom` are true, the result equals
+    /// `NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)`.
+    /// When only one is true, the other two corners are square. When both
+    /// are false, returns a plain rect path. Required because the built-in
+    /// NSBezierPath roundedRect API rounds all 4 corners uniformly — the
+    /// multi-paragraph .first/.middle/.last cases need independent control.
+    private func makeSelectiveRoundedRect(
+        _ rect: CGRect,
+        radius: CGFloat,
+        roundTop: Bool,
+        roundBottom: Bool
+    ) -> NSBezierPath {
+        let path = NSBezierPath()
+        let r = max(0, min(radius, min(rect.width, rect.height) / 2))
+        let minX = rect.minX
+        let maxX = rect.maxX
+        let minY = rect.minY
+        let maxY = rect.maxY
+
+        // Top edge — start from top-left.
+        if roundTop {
+            path.move(to: CGPoint(x: minX, y: minY + r))
+            path.appendArc(
+                withCenter: CGPoint(x: minX + r, y: minY + r),
+                radius: r,
+                startAngle: 180, endAngle: 270, clockwise: false)
+            path.line(to: CGPoint(x: maxX - r, y: minY))
+            path.appendArc(
+                withCenter: CGPoint(x: maxX - r, y: minY + r),
+                radius: r,
+                startAngle: 270, endAngle: 360, clockwise: false)
+        } else {
+            path.move(to: CGPoint(x: minX, y: minY))
+            path.line(to: CGPoint(x: maxX, y: minY))
+        }
+
+        // Right edge + bottom — flow down to bottom-right.
+        if roundBottom {
+            path.line(to: CGPoint(x: maxX, y: maxY - r))
+            path.appendArc(
+                withCenter: CGPoint(x: maxX - r, y: maxY - r),
+                radius: r,
+                startAngle: 0, endAngle: 90, clockwise: false)
+            path.line(to: CGPoint(x: minX + r, y: maxY))
+            path.appendArc(
+                withCenter: CGPoint(x: minX + r, y: maxY - r),
+                radius: r,
+                startAngle: 90, endAngle: 180, clockwise: false)
+        } else {
+            path.line(to: CGPoint(x: maxX, y: maxY))
+            path.line(to: CGPoint(x: minX, y: maxY))
+        }
+
+        path.close()
+        return path
+    }
+
     // MARK: - FB15131180
 
     /// Maps to TextKit-2's private `extraLineFragmentAttributes` selector so we can pin the trailing extra-line metrics to body font; otherwise a trailing heading paragraph inflates `usageBoundsForTextContainer` by ~30pt when the caret enters it. Pattern from STTextView.
@@ -289,6 +595,27 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                 )
                 bounds = bounds.union(glyphRect)
             }
+            // Extend bounds for the blockquote card + bar. Mirrors the
+            // code-block bounds extension shape — left to container edge so
+            // the bar (which sits OUTSIDE the natural fragment frame) isn't
+            // clipped. Also extend VERTICALLY on rounded-end fragments so
+            // the card's inflated corners (drawn by `drawBlockquoteCard`)
+            // aren't clipped — the inflation amount is `cornerRadius = 6pt`.
+            if hasBlockquoteMarker {
+                let containerWidth = textLayoutManager?.textContainer?.size.width ?? bounds.width
+                bounds.origin.x = -layoutFragmentFrame.origin.x
+                bounds.size.width = containerWidth
+                if let position = blockquotePosition {
+                    let cornerInflation: CGFloat = 6
+                    if position == .only || position == .first {
+                        bounds.origin.y -= cornerInflation
+                        bounds.size.height += cornerInflation
+                    }
+                    if position == .only || position == .last {
+                        bounds.size.height += cornerInflation
+                    }
+                }
+            }
             return bounds
         }
     }
@@ -300,22 +627,26 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             // 1. Code-block backgrounds (behind text)
             drawCodeBlockBackground(at: point, in: context)
 
-            // 2. LaTeX images (behind text — hidden markers are invisible anyway)
+            // 2. Blockquote card + bar (behind text — always-show overlay,
+            //    no caret-aware logic; mirrors bullet-glyph pattern)
+            drawBlockquoteCard(at: point, in: context)
+
+            // 3. LaTeX images (behind text — hidden markers are invisible anyway)
             drawLatexImages(at: point, in: context)
 
-            // 3. Normal text
+            // 4. Normal text
             super.draw(at: point, in: context)
 
-            // 4. ThematicBreak horizontal line (covers hidden `---` dashes
+            // 5. ThematicBreak horizontal line (covers hidden `---` dashes
             //    when caret is not on the line — see hasThematicBreak +
             //    caretIsInFragment guards)
             drawThematicBreak(at: point, in: context)
 
-            // 5. Dash-bullet glyph (overlays `•` on the hidden source `-`
+            // 6. Dash-bullet glyph (overlays `•` on the hidden source `-`
             //    marker; always-on, same UX as task checkboxes)
             drawDashBulletGlyph(at: point, in: context)
 
-            // 6. Task checkboxes (on top of hidden [ ]/[x] markers)
+            // 7. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
         }
     }

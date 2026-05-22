@@ -2,6 +2,33 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 15B (parallel) — 2026-05-21 (Blockquote chrome — v0.2.7.5; visual TBD)
+
+Concurrent with Session 15's drag-reorder work; engine-only scope. Blockquote rendering rewritten from flat `.backgroundColor` + 20pt indent to a renderer-drawn rounded card + continuous vertical accent bar, using the always-show overlay pattern (same as v0.2.7.4 bullet glyph + task checkbox; no caret-aware service).
+
+**Hidden `>` syntax + activation gate.** `> ` (marker + space/tab) is the activation trigger; bare `>` doesn't fire either the renderer chrome or the marker collapse (matches list UX where `-` alone doesn't activate until `- `). `applyMarkerCollapse(in:)` on the supplemental styler walks each line in the blockquote NSRange and applies `font: 0.1pt + foregroundColor: .clear` to `>` + trailing whitespace only when the gate matches — mirrors `visitTable`'s pipe-collapse pattern.
+
+**Renderer-drawn card.** `drawBlockquoteCard(at:in:)` in `MarkdownTextLayoutFragment` draws a rounded `CGPath` fill at `NSColor.tertiarySystemFill` (system-native intensity). The styler no longer emits `.backgroundColor` — moving the fill to the renderer is what makes corner rounding possible (attribute-emitted backgrounds are flat rects with no shape control). New `BlockquotePosition` enum (`.only` / `.first` / `.middle` / `.last`) drives selective corner rounding so multi-paragraph quotes butt-joint into one visually-contiguous block. Position computed via neighbor-line peeks for `> ` start.
+
+**Continuous vertical bar.** 4pt wide pill at `NSColor.secondaryLabelColor`. Bar Y-extent matches card exactly (both inflated by `cornerRadius = 6pt` on rounded ends so the bar extends slightly above/below the body text). `paragraphSpacing = 0` + `paragraphSpacingBefore = 0` between consecutive quote paragraphs so per-fragment bar segments butt-joint flat across multi-line quotes without seams.
+
+**Line-height floor.** `paragraph.minimumLineHeight = ceil(baseFont.ascender - baseFont.descender + baseFont.leading)` forces body line height — without it, a `> ` line with no content yet has only font-0.1 marker chars on it → natural line collapse to ~1pt. The floor keeps the line tall enough to type into AND lets the chrome have proper vertical extent before content arrives.
+
+**Enter/Shift+Enter semantics match list convention.** Plain Enter on a `> foo` line inserts `\n<prefix>` (continues the quote, preserving leading indent — new `blockquoteMarkerRegex` powers detection); Shift+Enter inserts plain `\n` (exits the quote). Mirrors how plain Enter continues lists and Shift+Enter exits.
+
+**v0.2.7.5 caveat:** the horizontal positioning of the card highlight relative to the bar still has a visual mismatch — the card appears to start at the body text rather than extending into the hidden `>` syntax area. Suspected to be either a bar-pill-radius (2pt) vs card-corner-radius (6pt) mismatch causing a visible 2pt gap at the rounded corners, OR a card-fill alpha visibility issue. Shipped as-is, follow-up next session.
+
+**Files (this session — engine package only):**
+- `External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift` — `visitBlockQuote` rewrite + `applyMarkerCollapse(in:)`.
+- `External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift` — `import Markdown`, `hasBlockquoteMarker`, `BlockquotePosition` + `blockquotePosition`, `drawBlockquoteCard(at:in:)`, `makeSelectiveRoundedRect(_:radius:roundTop:roundBottom:)`, `renderingSurfaceBounds` extension.
+- `External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift` — `blockquoteMarkerRegex`, plain-Enter blockquote-continue branch.
+- `External/MarkdownEngine/NOTICE.md` — v0.2.7.5 entries.
+
+**Decisions locked (this session):**
+
+10. **Blockquote uses always-show overlay, NOT dynamic-syntax.** Per Nathan: "the always-show is how it currently works; we have no intent on changing that." Per L14 (`// Guidelines//Markdown.md`): always-show beats caret-aware reveal for non-interactive markers. Locked at `// Guidelines//Markdown.md` §9.10.
+11. **Plain Enter continues quotes; Shift+Enter exits.** Mirrors list convention. Both behaviors live in `MarkdownListHandler.handleInsertion`'s `\n` branch.
+
 #### Session 14 (parallel) — 2026-05-21 (Editor polish bundled into v0.2.7.4)
 
 A parallel session shipped four small editor wins folded into the v0.2.7.4 ship.

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderSpaces
 
 @MainActor
 @Observable
@@ -8,6 +9,9 @@ final class SpaceManager {
     var pendingError: (any Error)?
 
     private let nexus: Nexus
+
+    /// Current Nexus ID — used by the drag system's cross-window guard.
+    var nexusID: String { nexus.id }
 
     init(nexus: Nexus) {
         self.nexus = nexus
@@ -21,7 +25,11 @@ final class SpaceManager {
                 url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "space"
             }
             let loaded = files.compactMap { try? Space.load(from: $0) }
-            self.spaces = loaded.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            self.spaces = OrderResolver.resolve(
+                loaded,
+                persistedOrder: readPersistedSpaceOrder(),
+                titleKeyPath: \Space.title
+            )
             self.pendingError = nil
         } catch {
             self.spaces = []
@@ -47,7 +55,11 @@ final class SpaceManager {
             try space.save(to: url)
 
             spaces.append(space)
-            spaces.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            spaces = OrderResolver.resolve(
+                spaces,
+                persistedOrder: readPersistedSpaceOrder(),
+                titleKeyPath: \Space.title
+            )
         } catch {
             self.pendingError = error
             throw error
@@ -84,7 +96,11 @@ final class SpaceManager {
 
             if let i = spaces.firstIndex(where: { $0.id == space.id }) {
                 spaces[i] = updated
-                spaces.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                spaces = OrderResolver.resolve(
+                    spaces,
+                    persistedOrder: readPersistedSpaceOrder(),
+                    titleKeyPath: \Space.title
+                )
             }
         } catch {
             // RenameAtomicityError already sets pendingError; don't double-wrap.
@@ -93,6 +109,15 @@ final class SpaceManager {
             }
             throw error
         }
+    }
+
+    /// Reads the persisted Space sibling order from `.nexus/state.json`. Returns
+    /// nil if no state.json exists or no `spaceOrder` has been recorded — the
+    /// resolver falls back to alphabetic in that case.
+    private func readPersistedSpaceOrder() -> [String]? {
+        let url = NexusPaths.nexusStateURL(in: nexus)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return (try? AtomicJSON.decode(NexusState.self, from: url))?.spaceOrder
     }
 
     func updateColor(_ space: Space, to color: SpaceColor?) async throws {
@@ -124,6 +149,21 @@ final class SpaceManager {
         } catch {
             self.pendingError = error
             throw error
+        }
+    }
+
+    /// Reorders Spaces in response to a sidebar drag (v0.2.8.0). Matches the
+    /// SwiftUI `.onMove(perform:)` signature. New full ID order persists to
+    /// `.nexus/state.json`.
+    func reorderSpaces(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = spaces
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != spaces else { return }
+        spaces = arr
+        do {
+            try OrderPersister.setSpaceOrder(arr.map(\.id), in: nexus)
+        } catch {
+            self.pendingError = error
         }
     }
 

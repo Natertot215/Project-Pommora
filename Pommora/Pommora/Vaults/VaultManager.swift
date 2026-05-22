@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderVaults/Collections
 
 @MainActor
 @Observable
@@ -9,6 +10,9 @@ final class VaultManager {
     var pendingError: (any Error)?
 
     private let nexus: Nexus
+
+    /// Current Nexus ID — used by the drag system's cross-window guard.
+    var nexusID: String { nexus.id }
 
     init(nexus: Nexus) {
         self.nexus = nexus
@@ -43,16 +47,23 @@ final class VaultManager {
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
-                    .compactMap { folder -> Collection? in
+                    .compactMap { folder -> Pommora.Collection? in
                         let metaURL = folder.appendingPathComponent("_collection.json")
                         guard Filesystem.fileExists(at: metaURL) else { return nil }
-                        return try? Collection.load(from: metaURL)
+                        return try? Pommora.Collection.load(from: metaURL)
                     }
-                    .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-                loadedCols[vault.id] = cols
+                loadedCols[vault.id] = OrderResolver.resolve(
+                    cols,
+                    persistedOrder: vault.collectionOrder,
+                    titleKeyPath: \Pommora.Collection.title
+                )
             }
 
-            self.vaults = loadedVaults.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            self.vaults = OrderResolver.resolve(
+                loadedVaults,
+                persistedOrder: readPersistedVaultOrder(),
+                titleKeyPath: \Vault.title
+            )
             self.collectionsByVault = loadedCols
             self.pendingError = nil
         } catch {
@@ -82,7 +93,11 @@ final class VaultManager {
 
             vaults.append(vault)
             collectionsByVault[vault.id] = []
-            vaults.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            vaults = OrderResolver.resolve(
+                vaults,
+                persistedOrder: readPersistedVaultOrder(),
+                titleKeyPath: \Vault.title
+            )
         } catch {
             self.pendingError = error
             throw error
@@ -121,20 +136,27 @@ final class VaultManager {
                 vaults[i] = updated
                 // Rebuild Collection in-memory under new parent path (id + vault_id unchanged;
                 // _collection.json sidecar moved with its folder, just re-derive folderURL).
+                // Preserve pageOrder/itemOrder so a vault rename doesn't drop persisted ordering.
                 if let oldCols = collectionsByVault[vault.id] {
-                    let rebuilt = oldCols.map { c -> Collection in
+                    let rebuilt = oldCols.map { c -> Pommora.Collection in
                         let newCollURL = newFolder.appendingPathComponent(c.title, isDirectory: true)
-                        return Collection(
+                        return Pommora.Collection(
                             id: c.id,
                             vaultID: c.vaultID,
                             title: c.title,
                             folderURL: newCollURL,
-                            modifiedAt: c.modifiedAt
+                            modifiedAt: c.modifiedAt,
+                            pageOrder: c.pageOrder,
+                            itemOrder: c.itemOrder
                         )
                     }
                     collectionsByVault[vault.id] = rebuilt
                 }
-                vaults.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                vaults = OrderResolver.resolve(
+                    vaults,
+                    persistedOrder: readPersistedVaultOrder(),
+                    titleKeyPath: \Vault.title
+                )
             }
         } catch {
             if !(error is RenameAtomicityError) {
@@ -197,7 +219,11 @@ final class VaultManager {
 
             var arr = existing
             arr.append(coll)
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: vault.collectionOrder,
+                titleKeyPath: \Pommora.Collection.title
+            )
             collectionsByVault[vault.id] = arr
         } catch {
             self.pendingError = error
@@ -205,7 +231,7 @@ final class VaultManager {
         }
     }
 
-    func renameCollection(_ collection: Collection, to newName: String) async throws {
+    func renameCollection(_ collection: Pommora.Collection, to newName: String) async throws {
         do {
             guard let vault = vaults.first(where: { $0.id == collection.vaultID }) else { return }
             let existing = collectionsByVault[vault.id] ?? []
@@ -218,14 +244,17 @@ final class VaultManager {
             )
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
-            // Bump modified_at in the sidecar at its new location
+            // Bump modified_at in the sidecar at its new location. Preserve
+            // pageOrder/itemOrder so a rename doesn't drop persisted ordering.
             let now = Date()
-            let updated = Collection(
+            let updated = Pommora.Collection(
                 id: collection.id,
                 vaultID: collection.vaultID,
                 title: newName,
                 folderURL: newURL,
-                modifiedAt: now
+                modifiedAt: now,
+                pageOrder: collection.pageOrder,
+                itemOrder: collection.itemOrder
             )
             let metaURL = newURL.appendingPathComponent("_collection.json")
             do {
@@ -244,7 +273,11 @@ final class VaultManager {
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == collection.id }) {
                 arr[i] = updated
-                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: vault.collectionOrder,
+                    titleKeyPath: \Pommora.Collection.title
+                )
             }
             collectionsByVault[vault.id] = arr
         } catch {
@@ -255,7 +288,7 @@ final class VaultManager {
         }
     }
 
-    func deleteCollection(_ collection: Collection) async throws {
+    func deleteCollection(_ collection: Pommora.Collection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
             var arr = collectionsByVault[collection.vaultID] ?? []
@@ -265,5 +298,48 @@ final class VaultManager {
             self.pendingError = error
             throw error
         }
+    }
+
+    /// Reorders Vaults in response to a sidebar drag (v0.2.8.0). Matches the
+    /// SwiftUI `.onMove(perform:)` signature. New full ID order persists to
+    /// `.nexus/state.json`.
+    func reorderVaults(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = vaults
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != vaults else { return }
+        vaults = arr
+        do {
+            try OrderPersister.setVaultOrder(arr.map(\.id), in: nexus)
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    /// Reorders Collections within `vault`. New ID order persists to the parent
+    /// Vault's `_vault.json` sidecar.
+    func reorderCollections(in vault: Vault, fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = collectionsByVault[vault.id] ?? []
+        let before = arr
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != before else { return }
+        collectionsByVault[vault.id] = arr
+        do {
+            try OrderPersister.setCollectionOrder(arr.map(\.id), in: vault, nexus: nexus)
+            // Keep the in-memory Vault's collectionOrder in sync.
+            if let i = vaults.firstIndex(where: { $0.id == vault.id }) {
+                vaults[i].collectionOrder = arr.map(\.id)
+            }
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    /// Reads the persisted Vault sibling order from `.nexus/state.json`. Returns
+    /// nil if no state.json exists or no `vaultOrder` has been recorded — the
+    /// resolver falls back to alphabetic in that case.
+    private func readPersistedVaultOrder() -> [String]? {
+        let url = NexusPaths.nexusStateURL(in: nexus)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return (try? AtomicJSON.decode(NexusState.self, from: url))?.vaultOrder
     }
 }

@@ -102,69 +102,92 @@ Service runs AFTER styler in every pipeline. Service writes attributes that the 
 
 ---
 
-#### Blockquote — verified spec
+#### Blockquote — ✅ SHIPPED v0.2.7.5 (2026-05-21) with one visual TBD
+
+> **Status:** Always-show overlay implementation shipped per the spec below. **Carries to tomorrow:** horizontal "highlight not extending into syntax gap" visual mismatch — fix paths documented in [`Handoff.md`](../Handoff.md) "Carries to tomorrow" section. Architecture and all other behaviors locked.
+
+---
+
+#### Blockquote — verified spec (REVISED 2026-05-21 — always-show overlay, post-v0.2.7.4 lessons)
+
+##### Pattern lock: always-show, NOT dynamic-syntax
+
+Per Nathan 2026-05-21: blockquote uses the **always-show overlay** pattern (mirrors v0.2.7.4 bullet glyph + task checkbox), NOT the HR-style caret-aware dynamic-syntax pattern. The original plan's "card visible / `>` markers toggle on caret" was abandoned because (a) it produced a text-jump on caret-enter when `headIndent` toggled, and (b) L14 in [`// Guidelines//Markdown.md`](.claude/Guidelines/Markdown.md) — always-show beats caret-aware reveal for non-interactive markers.
+
+The card is permanently visible; `>` markers are permanently hidden via font-0.1 + clear-color. No caret tracking. No service file. No reentry flag.
 
 ##### Target visual
 
-Apple Calendar event-card chrome (Round 6 lock — Nathan-flagged via screenshot). Rounded grey card spanning the line-fragment width minus textInsets; 3pt vertical accent bar inside the card at ~4pt from the leading edge; ~6pt vertical padding above the first line + below the last line of a multi-line blockquote. Multi-line blockquotes render as ONE visually contiguous card via per-fragment selective corner-rounding. Nested blockquotes deferred (single-level v1).
+- Rounded card (all 4 corners on `.only`; selective on multi-line — see position enum below)
+- 3pt vertical accent bar inside card on left
+- **Continuous bar across multi-paragraph quotes** — each fragment draws its own segment, butt-jointed via `paragraphSpacing = 0` between quote paragraphs so no seam shows
+- Slight right padding via `paragraphStyle.tailIndent` so card stops short of text-area edge
+- Same grey color the styler currently emits (just moved into shape-controllable `CGPath`)
+- `>` markers hidden; text sits naturally (no `headIndent` shifting content right)
+- Nested blockquotes deferred (single-level v1)
 
-Visual values (locked from prior plan; re-verified against Apple-source citations):
-- Card fill: `Color.primary.opacity(0.06)` → resolved as `NSColor.labelColor.withAlphaComponent(0.06)` for AppKit draw
-- Card corner radius: 6pt
-- Bar color: raw `NSColor.separatorColor` (Apple pre-attenuates; no `.withAlphaComponent` multiplier — the prior plan's `.withAlphaComponent(0.8)` is the "weak rendering" root cause Nathan reported)
+Visual values:
+- Card fill: same color the styler's current `.backgroundColor` uses (preserved exactly — no color change)
+- Card corner radius: ~6pt
+- Bar color: `NSColor.separatorColor` raw (Apple pre-attenuates; no `.withAlphaComponent`)
 - Bar width: 3pt
-- Bar inset from leading edge: ~4pt
-- `paragraphStyle.headIndent = 20` (4pt card-edge → 3pt bar → 13pt clear → text)
+- Bar inset from card left: ~4pt
+- Bar vertical inset from card top/bottom (only on `.first`/`.last`/`.only`): ~4pt to clear rounded corners
+- Right padding (`tailIndent`): ~8pt starting; tune visually
 
-##### Architecture: dynamic-syntax pattern, multi-paragraph extension
+##### Architecture: minimal overlay (2 files touched)
 
-Mirrors HR's three-piece architecture (styler emits nothing / service is sole writer / renderer detects via AST), adapted for the fact that a blockquote spans multiple paragraphs.
+**1. Styler** — `AppleASTSupplementalStyler.visitBlockQuote`:
+- **Remove** `.backgroundColor` emission (renderer now draws the fill in a shape that supports corners — same color, different layer)
+- **Remove** existing `headIndent` (text sits naturally)
+- **Add** `.foregroundColor: NSColor.clear` + `.font: NSFont.systemFont(ofSize: 0.1)` on the `>` marker + trailing space (mirrors task-checkbox marker collapse; L12 — collapse where width is consumed)
+- **Add** `paragraphStyle.tailIndent = -8` (negative — pushes right edge inward for the card padding)
+- **Add** `paragraphStyle.paragraphSpacing = 0` + `paragraphSpacingBefore = 0` within consecutive `> ` paragraphs so per-fragment bar segments butt-joint seamlessly
+- Foreground / italic emphasis / child-walking: untouched
 
-**1. Styler** — `AppleASTSupplementalStyler.visitBlockQuote` emits NOTHING for the BlockQuote-specific visual state. (Walks children so nested inline marks still fire, mirroring the existing `visitThematicBreak` pattern.) **This deletes the current visitor's `.backgroundColor` + `.foregroundColor` + `.paragraphStyle` emission** at [AppleASTSupplementalStyler.swift:58-77](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift#L58-L77).
+**2. Renderer** — `MarkdownTextLayoutFragment.swift`:
+- **Add** `hasBlockquoteMarker: Bool` computed property — three-stage detection mirroring `hasThematicBreak`: (Stage 0) `hasCodeBlockBackground` guard; (Stage 1) trimmed first non-whitespace char equals `>`; (Stage 2) per-fragment `Document(parsing:)` confirms `BlockQuote` child
+- **Add** position-within-blockquote enum (`.only` / `.first` / `.middle` / `.last`) — computed by peeking one line up + one line down in textStorage for `>` start; mirrors what other multi-line chrome will need too
+- **Add** `drawBlockquoteCard(at:in:)` — `CGPath` with selective corner radii per position, filled with same color the styler used to emit, then 3pt bar drawn inside on left (bar vertical extent inset on `.first`/`.last`/`.only` to clear corners). Mirrors `drawCodeBlockBackground`'s CGPath + fill pattern verbatim.
+- **Extend** `renderingSurfaceBounds` to cover the card extent (typically within line-fragment vertical bounds; only minor inflation needed)
+- **Call** from `draw(at:in:)` **before** `super.draw` so card+bar render behind text
 
-**2. Service** — new `NativeTextViewCoordinator+BlockquoteVisibility.swift` extension, mirroring the HR service file's shape ([+HRVisibility.swift:1-184](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L1-L184)). Responsibilities:
-- Parses the document once per call (`Document(parsing: ts.string)` — same cost as the existing per-edit restyle's parse).
-- For each `BlockQuote` node: compute `NSRange` via the existing `SourceRangeConverter` + `LineOffsetIndex` infrastructure.
-- For each blockquote, determine: is the caret inside any paragraph of this blockquote?
-- Apply hide-or-reveal attributes to the marker characters (`>` at line starts, plus the immediately-following space) within that blockquote's range:
-  - **Caret IN this blockquote**: REVEAL — body font + body color on the `>` chars; restore base paragraphStyle on the paragraph (no headIndent — feels like editing normal text).
-  - **Caret OUT of this blockquote**: HIDE — font 0.1 + clear color on the `>` chars; apply blockquote paragraphStyle (`headIndent = 20`) on the paragraph.
-- Reentry-guarded by a new `isSyncingBlockquoteVisibility: Bool` flag on the coordinator. **Or — preferred — a single `isSyncingDynamicSyntax` flag shared with HR**, since both services share the same recursion-via-restyle vulnerability. Pick at implementation time after checking whether the two services can call each other (they shouldn't, but the shared flag is structurally cleaner).
-
-**3. Renderer** — `MarkdownTextLayoutFragment.drawBlockquote(at:in:)` follows the HR renderer's three-stage pattern ([MarkdownTextLayoutFragment.swift:69-103](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L69-L103)):
-- **Stage 0**: code-block guard via existing `hasCodeBlockBackground` property.
-- **Stage 1** prefilter: cheap string check — does this fragment's first non-whitespace character equal `>`? Bail otherwise.
-- **Stage 2**: per-fragment `Document(parsing: fragmentString)` — does it contain a `BlockQuote` child? (CommonMark parses an isolated `> foo` line as `BlockQuote { Paragraph { Text } }`, so this works on per-fragment text.)
-- **Position-in-blockquote computation**: walk textStorage one line backward and one line forward from the fragment's paragraph. If neither neighbor starts with `>`: `.only`. If forward neighbor does but backward doesn't: `.first`. If backward does but forward doesn't: `.last`. If both do: `.middle`.
-- Draw the card: `CGPath` with selective corner rounding (`.only`: all 4 rounded; `.first`: top 2 rounded + bottom 2 square; `.middle`: all square; `.last`: bottom 2 rounded + top 2 square). Mirrors `drawCodeBlockBackground`'s CGPath + fill pattern ([MarkdownTextLayoutFragment.swift:285-339](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L285-L339)) at body-text scale.
-- Draw the bar inside the card: x = `card.minX + 4`, full card height for this fragment's position, color = raw `NSColor.separatorColor`.
-- Call from `draw(at:in:)` BEFORE `super.draw` so the card + bar render behind the text.
-- Extend `renderingSurfaceBounds` to cover `.first` and `.only` vertical padding above, `.last` and `.only` vertical padding below.
-
-**Card visibility while caret is IN the blockquote**: The card stays visible (matches Apple Calendar / Bear / Notion behavior). Only the `>` markers toggle. This is a deliberate divergence from HR's "whole construct hides while editing" behavior — blockquotes feel more like edit-in-place content than transient layout markers.
-
-##### Component file plan (one-line-per-change; no inline code until ready to ship)
+##### Component file plan
 
 | File | Change |
 |---|---|
-| [`AppleASTSupplementalStyler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift) | `visitBlockQuote` strips to a children-walker only. Drops `.backgroundColor` / `.foregroundColor` / `.paragraphStyle` emission. Mirrors `visitThematicBreak` shape. |
-| `NativeTextViewCoordinator+BlockquoteVisibility.swift` (NEW) | Service file mirroring `+HRVisibility.swift` shape. Walks document, finds BlockQuote ranges, applies hide/reveal based on caret containment. Reentry-guarded. |
-| [`NativeTextViewCoordinator.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator.swift) | Add `isSyncingBlockquoteVisibility: Bool` (or rename `isSyncingHRVisibility` to a shared `isSyncingDynamicSyntax` if the design lock allows). |
-| [`NativeTextViewCoordinator+Restyling.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift) | Add `syncBlockquoteVisibility` call after each `syncHRVisibility` call (3 sites: `rebuildTextStorageAndStyle`, `restyleTextView`, `+TextDelegate.textViewDidChangeSelection`). |
-| [`NativeTextViewCoordinator+TextDelegate.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift) | Add `syncBlockquoteVisibility` call alongside the existing `syncHRVisibility` at the end of `textViewDidChangeSelection`. |
-| [`MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) | Add `hasBlockquote: Bool` + position-within-blockquote enum (`.only / .first / .middle / .last`) + `drawBlockquote(at:in:)`. Extend `renderingSurfaceBounds` for `.first`/`.only`/`.last` vertical padding. Wire call into `draw(at:in:)` between `drawCodeBlockBackground` (step 1) and `super.draw` (step 3). |
+| [`AppleASTSupplementalStyler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift) | `visitBlockQuote` edits: remove `.backgroundColor`, remove `headIndent`, add `>`-collapse attrs (font 0.1 + clear color), add `tailIndent` for right padding, set `paragraphSpacing = 0` between quote paragraphs. Keep foreground/emphasis/child-walking. |
+| [`MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) | Add `hasBlockquoteMarker` + position enum + `drawBlockquoteCard(at:in:)` + `renderingSurfaceBounds` extension. Wire call into `draw(at:in:)` before `super.draw`. |
 
-Test coverage: blockquote visual rendering (card + bar geometry per position), service hide/reveal on caret cross-paragraph, multi-paragraph continuity (no visible seam between fragments), single-line blockquote (`.only` position with all 4 corners rounded), code-block guard (no blockquote chrome on `> foo` inside a fenced code block).
+**Net: 2 files, 0 new files, 0 new services, ~50 lines added, ~3 lines removed/adjusted.**
 
-##### Resolved decisions (Nathan-locked 2026-05-21)
+##### Lesson alignment (L1–L16)
 
-1. **Caret-out vs caret-in behavior:** full HR-pattern dynamic syntax. Caret-out → source `>` markers hidden + card/bar render. Caret-in → source `>` markers visible + no card/bar render. The visual chrome does NOT physically exist in the source; it's a Pommora-side attributed-string render, just like HR's line replaces `---`. (`// Guidelines//Markdown.md` Section 9.1)
-2. **Reentry flag:** per-construct flag (`isSyncingBlockquoteVisibility`). Collapse to a shared `isSyncingDynamicSyntax` flag only if a real cross-service recursion path is observed during testing.
-3. **Nested blockquote (`> > inner`):** render as single-level card in v1. Stack-of-bars via `locations[]` deferred.
+| Lesson | Compliance |
+|---|---|
+| L1 (no custom render-signal attribute) | ✓ AST detection only |
+| L3 (service sole writer / styler emits nothing) | N/A — no service; styler emits structural attrs only (collapse, paragraphStyle), renderer owns the chrome shape |
+| L6 (no source mutation) | ✓ |
+| L7 (hotfix-iteration budget) | ✓ Smaller scope → 1h + 1h buffer |
+| L12 (font-collapse vs clear-color) | ✓ Font-0.1 + clear-color used on `>` (width irrelevant since there's no headIndent), preserves CharacterRange for AST detection |
+| L13 (regex drift) | ✓ Single detection site (renderer-only AST) |
+| L14 (always-show > caret-aware) | ✓ The pattern lock |
+| L16 (existing extension points) | ✓ Mirrors `drawCodeBlockBackground` + `hasThematicBreak` patterns; no new abstractions |
+
+##### Edge cases addressed
+
+1. **Code-block guard** — `> foo` inside ``` ``` ``` doesn't render as blockquote (Stage 0).
+2. **Nested blockquotes (`>> deep`)** — render as single-level card in v1. AST detection still triggers on outer `BlockQuote`. Stack-of-bars deferred.
+3. **Empty blockquote line (`>` alone)** — AST parses as `BlockQuote { Paragraph {} }` or similar. Card draws around an empty line. Acceptable.
+4. **Blank line between quote paragraphs (`> foo\n\n> bar`)** — two separate `BlockQuote` nodes → two separate cards. Standard CommonMark behavior.
+5. **`> foo\n> bar` consecutive** — ONE `BlockQuote` with two paragraphs → one continuous card via position enum + `paragraphSpacing = 0`.
+6. **Bullet inside blockquote (`> - item`)** — both detectors fire independently; card draws around line, bullet `•` overlays the hidden `-`. Both always-show patterns compose naturally.
+7. **Caret on quote line** — no visual change (no caret-aware logic).
+8. **Continuous bar across paragraphs** — relies on `paragraphSpacing = 0` between consecutive quote paragraphs to avoid seam gaps; verify in build.
 
 ##### Estimate
 
-~2h base + ~1.5h hotfix iteration buffer per L7. Single phase, single commit.
+~1h base + ~1h hotfix iteration buffer (L7). Hotfixes most likely on bar inset values (top/bottom clearance for rounded corners) and right-padding tuning. Single phase, single commit.
 
 ---
 

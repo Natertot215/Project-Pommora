@@ -10,10 +10,18 @@ struct Collection: Codable, Equatable, Identifiable, Hashable, Sendable {
     var folderURL: URL  // runtime only (not persisted)
     var modifiedAt: Date
 
+    // Persisted display order for direct children (v0.2.8.0). Nil until the
+    // user reorders inside this Collection; missing entries fall through to
+    // OrderResolver's alphabetic tail.
+    var pageOrder: [String]?
+    var itemOrder: [String]?
+
     enum CodingKeys: String, CodingKey {
         case id
         case vaultID = "vault_id"
         case modifiedAt = "modified_at"
+        case pageOrder = "page_order"
+        case itemOrder = "item_order"
     }
 
     init(
@@ -21,13 +29,17 @@ struct Collection: Codable, Equatable, Identifiable, Hashable, Sendable {
         vaultID: String,
         title: String,
         folderURL: URL,
-        modifiedAt: Date
+        modifiedAt: Date,
+        pageOrder: [String]? = nil,
+        itemOrder: [String]? = nil
     ) {
         self.id = id
         self.vaultID = vaultID
         self.title = title
         self.folderURL = folderURL
         self.modifiedAt = modifiedAt
+        self.pageOrder = pageOrder
+        self.itemOrder = itemOrder
     }
 
     init(from decoder: any Decoder) throws {
@@ -37,6 +49,8 @@ struct Collection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = ""  // caller (load(from:)) overwrites from folder name
         self.folderURL = URL(fileURLWithPath: "/")  // caller overwrites
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -44,6 +58,8 @@ struct Collection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(id, forKey: .id)
         try c.encode(vaultID, forKey: .vaultID)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
     }
 }
 

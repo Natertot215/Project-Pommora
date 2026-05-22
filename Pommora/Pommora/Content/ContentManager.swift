@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPages
 
 /// Manages Pages (`.md`) + Items (`.json`) inside a Vault. The spec allows
 /// Content to live either directly in a Vault's root folder or inside a
@@ -39,6 +40,9 @@ final class ContentManager {
     // private) so the extension can read them across the file boundary.
     let nexus: Nexus
     let contextProvider: @MainActor () -> NexusContext
+
+    /// Current Nexus ID — used by the drag system's cross-window guard.
+    var nexusID: String { nexus.id }
 
     init(nexus: Nexus, contextProvider: @escaping @MainActor () -> NexusContext) {
         self.nexus = nexus
@@ -109,13 +113,13 @@ final class ContentManager {
     /// frontmatter still surface; missing `id` is synthesized deterministically
     /// from the file's path relative to the Nexus root (stable across launches,
     /// not written back until the user edits).
-    func loadAll(for collection: Collection) async {
+    func loadAll(for collection: Pommora.Collection) async {
         let nexusRoot = nexus.rootURL
         do {
             let pageFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
-            let pageMetas: [PageMeta] = pageFiles.compactMap { url in
+            let unsortedPages: [PageMeta] = pageFiles.compactMap { url in
                 guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
                 else { return nil }
                 return PageMeta(
@@ -124,13 +128,22 @@ final class ContentManager {
                     url: url,
                     frontmatter: pf.frontmatter
                 )
-            }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            }
+            let pageMetas = OrderResolver.resolve(
+                unsortedPages,
+                persistedOrder: collection.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
 
             let itemFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
                 url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
             }
-            let items: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
-                .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
+            let items = OrderResolver.resolve(
+                unsortedItems,
+                persistedOrder: collection.itemOrder,
+                titleKeyPath: \Item.title
+            )
 
             pagesByCollection[collection.id] = pageMetas
             itemsByCollection[collection.id] = items
@@ -171,7 +184,7 @@ final class ContentManager {
             ) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
-            let pageMetas: [PageMeta] = pageFiles.compactMap { url in
+            let unsortedPages: [PageMeta] = pageFiles.compactMap { url in
                 guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
                 else { return nil }
                 return PageMeta(
@@ -180,7 +193,12 @@ final class ContentManager {
                     url: url,
                     frontmatter: pf.frontmatter
                 )
-            }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            }
+            let pageMetas = OrderResolver.resolve(
+                unsortedPages,
+                persistedOrder: vault.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
 
             let itemFiles = try Filesystem.descendantFiles(
                 of: folder,
@@ -188,8 +206,12 @@ final class ContentManager {
             ) { url in
                 url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
             }
-            let items: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
-                .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
+            let items = OrderResolver.resolve(
+                unsortedItems,
+                persistedOrder: vault.itemOrder,
+                titleKeyPath: \Item.title
+            )
 
             pagesByVaultRoot[vault.id] = pageMetas
             itemsByVaultRoot[vault.id] = items
@@ -198,6 +220,47 @@ final class ContentManager {
             pagesByVaultRoot[vault.id] = []
             itemsByVaultRoot[vault.id] = []
             pendingError = error
+        }
+    }
+
+    // MARK: - Reorder (v0.2.8.0)
+
+    /// Reorders Pages within `collection`. Matches the SwiftUI
+    /// `.onMove(perform:)` signature. New ID order persists to the parent
+    /// Collection's `_collection.json` sidecar.
+    func reorderPages(
+        in collection: Pommora.Collection,
+        fromOffsets source: IndexSet,
+        toOffset destination: Int
+    ) {
+        var arr = pagesByCollection[collection.id] ?? []
+        let before = arr
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != before else { return }
+        pagesByCollection[collection.id] = arr
+        do {
+            try OrderPersister.setPageOrder(arr.map(\.id), in: collection)
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    /// Reorders Pages at the root of `vault`. New ID order persists to the
+    /// Vault's `_vault.json` sidecar.
+    func reorderPages(
+        inVault vault: Vault,
+        fromOffsets source: IndexSet,
+        toOffset destination: Int
+    ) {
+        var arr = pagesByVaultRoot[vault.id] ?? []
+        let before = arr
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != before else { return }
+        pagesByVaultRoot[vault.id] = arr
+        do {
+            try OrderPersister.setPageOrder(arr.map(\.id), inVault: vault, nexus: nexus)
+        } catch {
+            self.pendingError = error
         }
     }
 }

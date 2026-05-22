@@ -12,14 +12,27 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
     var views: [VaultView]  // saved views (empty placeholder in v0.2)
     var modifiedAt: Date
 
+    // Persisted display order for direct children (v0.2.8.0). All nil until the
+    // user reorders inside that container; missing entries fall through to
+    // OrderResolver's alphabetic tail.
+    var collectionOrder: [String]?
+    var pageOrder: [String]?
+    var itemOrder: [String]?
+
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
         case modifiedAt = "modified_at"
+        case collectionOrder = "collection_order"
+        case pageOrder = "page_order"
+        case itemOrder = "item_order"
     }
 
     init(
         id: String, title: String, icon: String?,
-        properties: [PropertyDefinition], views: [VaultView], modifiedAt: Date
+        properties: [PropertyDefinition], views: [VaultView], modifiedAt: Date,
+        collectionOrder: [String]? = nil,
+        pageOrder: [String]? = nil,
+        itemOrder: [String]? = nil
     ) {
         self.id = id
         self.title = title
@@ -27,6 +40,9 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.properties = properties
         self.views = views
         self.modifiedAt = modifiedAt
+        self.collectionOrder = collectionOrder
+        self.pageOrder = pageOrder
+        self.itemOrder = itemOrder
     }
 
     init(from decoder: any Decoder) throws {
@@ -37,6 +53,9 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
         self.views = try c.decodeIfPresent([VaultView].self, forKey: .views) ?? []
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
+        self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -46,6 +65,9 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(properties, forKey: .properties)
         try c.encode(views, forKey: .views)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
+        try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
     }
 }
 

@@ -226,6 +226,9 @@ struct SpacesSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
+            .onMove { source, destination in
+                spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
+            }
         } header: {
             SectionHeader(title: "Spaces") {
                 presentedSheet = .newSpace
@@ -254,6 +257,9 @@ struct TopicsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
+            .onMove { source, destination in
+                topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
+            }
         } header: {
             SectionHeader(title: "Topics") {
                 presentedSheet = .newTopic
@@ -281,6 +287,9 @@ struct VaultsSection: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+            }
+            .onMove { source, destination in
+                vaultManager.reorderVaults(fromOffsets: source, toOffset: destination)
             }
         } header: {
             SectionHeader(title: "Vaults") {
@@ -347,7 +356,11 @@ struct SelectableRow<Trailing: View>: View {
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onTapGesture { onSelect() }
+        // .simultaneousGesture instead of .onTapGesture so taps don't claim
+        // mouse-down exclusively — leaves the row edges available as drag
+        // initiation zones for List.onMove. Partial fix: drag works on the
+        // outer margins of each row, not on the label content itself.
+        .simultaneousGesture(TapGesture().onEnded { onSelect() })
         .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
     }
 }
@@ -376,7 +389,7 @@ struct SelectionChrome: View {
     var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.gray.opacity(0.10))
+                .fill(Color.gray.opacity(0.11))
                 .padding(style.insets)
         } else {
             Color.clear

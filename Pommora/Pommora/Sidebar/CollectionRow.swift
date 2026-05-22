@@ -26,6 +26,11 @@ struct CollectionRow: View {
                     editingID: $editingID
                 )
             }
+            .onMove { source, destination in
+                contentManager.reorderPages(
+                    in: collection, fromOffsets: source, toOffset: destination
+                )
+            }
         } label: {
             label
         }

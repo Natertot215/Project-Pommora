@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderTopics/Subtopics
 
 @MainActor
 @Observable
@@ -11,6 +12,9 @@ final class TopicManager {
 
     private let nexus: Nexus
     private let contextProvider: @MainActor () -> NexusContext
+
+    /// Current Nexus ID — used by the drag system's cross-window guard.
+    var nexusID: String { nexus.id }
 
     init(nexus: Nexus, contextProvider: @escaping @MainActor () -> NexusContext) {
         self.nexus = nexus
@@ -49,10 +53,18 @@ final class TopicManager {
                         copy.parents = [topic.id]  // file-location-derived parent
                         return copy
                     }
-                loadedSubs[topic.id] = subs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                loadedSubs[topic.id] = OrderResolver.resolve(
+                    subs,
+                    persistedOrder: topic.subtopicOrder,
+                    titleKeyPath: \Subtopic.title
+                )
             }
 
-            self.topics = loadedTopics.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            self.topics = OrderResolver.resolve(
+                loadedTopics,
+                persistedOrder: readPersistedTopicOrder(),
+                titleKeyPath: \Topic.title
+            )
             self.subtopicsByParent = loadedSubs
             self.pendingError = nil
         } catch {
@@ -85,7 +97,11 @@ final class TopicManager {
 
             topics.append(topic)
             subtopicsByParent[topic.id] = []
-            topics.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            topics = OrderResolver.resolve(
+                topics,
+                persistedOrder: readPersistedTopicOrder(),
+                titleKeyPath: \Topic.title
+            )
         } catch {
             self.pendingError = error
             throw error
@@ -125,7 +141,11 @@ final class TopicManager {
 
             if let i = topics.firstIndex(where: { $0.id == topic.id }) {
                 topics[i] = updated
-                topics.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                topics = OrderResolver.resolve(
+                    topics,
+                    persistedOrder: readPersistedTopicOrder(),
+                    titleKeyPath: \Topic.title
+                )
             }
         } catch {
             if !(error is RenameAtomicityError) {
@@ -254,7 +274,11 @@ final class TopicManager {
 
             var arr = subtopicsByParent[parent.id] ?? []
             arr.append(sub)
-            arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: parent.subtopicOrder,
+                titleKeyPath: \Subtopic.title
+            )
             subtopicsByParent[parent.id] = arr
         } catch {
             self.pendingError = error
@@ -310,7 +334,11 @@ final class TopicManager {
             var arr = subtopicsByParent[parent.id] ?? []
             if let i = arr.firstIndex(where: { $0.id == sub.id }) {
                 arr[i] = updated
-                arr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: parent.subtopicOrder,
+                    titleKeyPath: \Subtopic.title
+                )
             }
             subtopicsByParent[parent.id] = arr
         } catch {
@@ -358,7 +386,11 @@ final class TopicManager {
 
             var newArr = subtopicsByParent[newParent.id] ?? []
             newArr.append(updated)
-            newArr.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            newArr = OrderResolver.resolve(
+                newArr,
+                persistedOrder: newParent.subtopicOrder,
+                titleKeyPath: \Subtopic.title
+            )
             subtopicsByParent[newParent.id] = newArr
         } catch {
             if !(error is RenameAtomicityError) {
@@ -409,5 +441,49 @@ final class TopicManager {
             self.pendingError = error
             throw error
         }
+    }
+
+    /// Reorders Topics in response to a sidebar drag (v0.2.8.0). Matches the
+    /// SwiftUI `.onMove(perform:)` signature. New full ID order persists to
+    /// `.nexus/state.json`.
+    func reorderTopics(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = topics
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != topics else { return }
+        topics = arr
+        do {
+            try OrderPersister.setTopicOrder(arr.map(\.id), in: nexus)
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    /// Reorders Subtopics within `topic`. New ID order persists to the parent
+    /// Topic's `_topic.json` sidecar.
+    func reorderSubtopics(in topic: Topic, fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = subtopicsByParent[topic.id] ?? []
+        let before = arr
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != before else { return }
+        subtopicsByParent[topic.id] = arr
+        do {
+            try OrderPersister.setSubtopicOrder(arr.map(\.id), in: topic, nexus: nexus)
+            // Keep the in-memory Topic's subtopicOrder in sync so subsequent
+            // resolve() calls (after rename, create, etc.) see the latest order.
+            if let i = topics.firstIndex(where: { $0.id == topic.id }) {
+                topics[i].subtopicOrder = arr.map(\.id)
+            }
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    /// Reads the persisted Topic sibling order from `.nexus/state.json`. Returns
+    /// nil if no state.json exists or no `topicOrder` has been recorded — the
+    /// resolver falls back to alphabetic in that case.
+    private func readPersistedTopicOrder() -> [String]? {
+        let url = NexusPaths.nexusStateURL(in: nexus)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return (try? AtomicJSON.decode(NexusState.self, from: url))?.topicOrder
     }
 }

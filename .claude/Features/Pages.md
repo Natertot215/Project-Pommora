@@ -33,7 +33,7 @@ Pages support everything in standard Markdown:
 - **Code blocks** (fenced) and **inline code** — render in mono font (SF Mono) at 1.0 em (same size as body) with system-semantic colors as of v0.2.7.4: text color is `NSColor.systemRed.withAlphaComponent(0.85)` (adapts light↔dark via the system accent's red); background is `NSColor.quaternaryLabelColor` (semantic system fill — built-in subtle alpha, adapts light↔dark, sits visibly distinct from the page background without a custom blend). Future per-Nexus theme tokens may expose these as overrides, but the defaults now ride the system palette rather than the earlier hardcoded `#FF2525` / `#323233` values.
 - Images
 - **Tables** — standard GFM `| col | col |` syntax
-- **Blockquotes** — standard `>` syntax. Rendered Apple-style: filled rounded box with a left-side bar (the Calendar.app event-card pattern — vertical bar at the leading edge, no outline border, medium corner radius). Default tint is grey (not accent) for v1. Distinct from callouts (see below). On disk they're standard blockquotes.
+- **Blockquotes** — standard `>` syntax (shipped v0.2.7.5). Rendered Notion/Obsidian-style: filled rounded card with a continuous vertical accent bar to its left (separated by a small gap). The `>` syntax marker is hidden in-editor (font 0.1 + clear color) but stays on disk for portability; activation requires `> ` (marker + space). Multi-paragraph quotes (consecutive `> ` lines) render as one visually-contiguous block via per-fragment position enum (`.only` / `.first` / `.middle` / `.last`) for selective corner rounding. Plain Enter continues the quote with `> ` prefix; Shift+Enter exits. Default tint is `NSColor.tertiarySystemFill` (system semantic, light/dark adaptive); accent bar is `NSColor.secondaryLabelColor`. Distinct from callouts (see below). On disk they're standard CommonMark blockquotes.
 - **Horizontal rules** — standard `---` or `***`
 
 Standard Markdown round-trips natively to any tool that reads the file.
@@ -48,7 +48,7 @@ On top of standard Markdown, Pages support **two Pommora-specific rendering dire
 
 | | Markdown syntax | Visual treatment |
 |---|---|---|
-| **Blockquote** | standard `>` | filled rounded box + left-side bar (grey default; Apple Calendar event-card pattern) |
+| **Blockquote** | standard `>` | filled rounded card + continuous left accent bar with small gap (Notion/Obsidian-style); hidden `>` marker; activation = `> `; plain Enter continues, Shift+Enter exits |
 | **Callout** | `:::callout` directive | outlined box, minimal rounding, transparent / subtle bg |
 
 Side-by-side variants of either: wrap multiple blockquotes (or callouts) inside an `@Columns` directive.

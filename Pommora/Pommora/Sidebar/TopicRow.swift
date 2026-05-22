@@ -27,6 +27,11 @@ struct TopicRow: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
+            .onMove { source, destination in
+                topicManager.reorderSubtopics(
+                    in: topic, fromOffsets: source, toOffset: destination
+                )
+            }
         } label: {
             label
         }

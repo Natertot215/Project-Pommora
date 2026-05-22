@@ -38,6 +38,10 @@ struct MarkdownLists {
     )
     static let dashNoSpaceRegex = try! NSRegularExpression(pattern: #"^\s*-(?!\s)"#)
     static let leadingWhitespaceRegex = try! NSRegularExpression(pattern: #"^\s*"#)
+    /// Matches a blockquote line prefix: optional leading whitespace, `>`,
+    /// then one space or tab. Captures the WHOLE prefix (leading WS + `> `)
+    /// so it can be replicated on the new line for Shift+Enter continuation.
+    static let blockquoteMarkerRegex = try! NSRegularExpression(pattern: #"^[ \t]*>[ \t]"#)
     /// Matches lines containing ONLY a bare list marker (`-`, `*`, `+`, or
     /// `\d+\.`) with optional whitespace — i.e. the user typed the marker but
     /// no content yet. Used by `detectListContext` to trigger Case 1: Enter
@@ -509,7 +513,9 @@ struct MarkdownLists {
             // `insertLineBreak:` selector only fires on Ctrl+\). We distinguish
             // here via the current keyboard event's modifier flags. Shift held
             // → plain `\n` (hard exit / consistent soft newline), skip all list
-            // logic. Shift released → fall through to the list handler below.
+            // AND blockquote continuation logic. Shift released → fall through
+            // to the list / blockquote handlers below (plain Enter continues
+            // both lists and blockquotes; Shift+Enter exits both).
             if let event = NSApp.currentEvent,
                 event.type == .keyDown,
                 event.modifierFlags.contains(.shift)
@@ -523,6 +529,106 @@ struct MarkdownLists {
             let safeLocENTER = min(affectedCharRange.location, nsText.length)
             let currentLineRange = nsText.lineRange(for: NSRange(location: safeLocENTER, length: 0))
             let currentLine = nsText.substring(with: currentLineRange).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Bracket-skip: when the caret sits between a matched open/close
+            // pair on the current line, Enter jumps past the closer instead
+            // of inserting `\n`. Mirrors the VS Code "Tab to escape brackets"
+            // pattern, mapped to Enter. Position-based (no auto-pair state
+            // tracking) so it works for both auto-paired and manually-typed
+            // or pasted brackets. Gated by `autoClosePairsEnabled` so users
+            // who disabled auto-pair keep full control over Enter.
+            //
+            // Carve-out: when the matched opener is part of the list-marker
+            // checkbox (e.g. `-[x|]` / `- [x|]`), fall through to list-Enter
+            // so the user can continue the list from inside the brackets.
+            //
+            // Obsidian `[[ ]]` double-jump: both `[[` behind AND `]]` ahead
+            // → jump past both `]]`. Requires both to avoid mis-detecting
+            // pathological strings like `[a]] caret` as wikilinks.
+            if autoClosePairsEnabled && affectedCharRange.length == 0 && !isInCodeBlock {
+                let lineEnd = currentLineRange.location + currentLineRange.length
+                let hasTrailingNewline =
+                    currentLineRange.length > 0
+                    && nsText.character(at: lineEnd - 1) == 10  // '\n'
+                let lineContentEnd = hasTrailingNewline ? lineEnd - 1 : lineEnd
+
+                let openSquare: unichar = 0x5B  // [
+                let closeSquare: unichar = 0x5D  // ]
+                let openParen: unichar = 0x28  // (
+                let closeParen: unichar = 0x29  // )
+                let openBrace: unichar = 0x7B  // {
+                let closeBrace: unichar = 0x7D  // }
+
+                // Forward scan: nearest `]`, `)`, or `}` ahead on this line.
+                var foundCloserLoc = -1
+                var foundCloserChar: unichar = 0
+                var scan = safeLocENTER
+                while scan < lineContentEnd {
+                    let c = nsText.character(at: scan)
+                    if c == closeSquare || c == closeParen || c == closeBrace {
+                        foundCloserLoc = scan
+                        foundCloserChar = c
+                        break
+                    }
+                    scan += 1
+                }
+
+                if foundCloserLoc >= 0 {
+                    let opener: unichar
+                    switch foundCloserChar {
+                    case closeSquare: opener = openSquare
+                    case closeParen: opener = openParen
+                    case closeBrace: opener = openBrace
+                    default: opener = openSquare
+                    }
+                    // Backward scan: nearest matching opener behind caret.
+                    var openerLoc = -1
+                    var back = safeLocENTER - 1
+                    while back >= currentLineRange.location {
+                        if nsText.character(at: back) == opener {
+                            openerLoc = back
+                            break
+                        }
+                        back -= 1
+                    }
+
+                    if openerLoc >= 0 {
+                        // Carve-out: opener lies inside the list-marker zone
+                        // (i.e. it's the `[` of a `-[x]` / `- [x]` checkbox).
+                        var isCheckboxBracket = false
+                        let lineContentLen = lineContentEnd - currentLineRange.location
+                        let lineRaw = nsText.substring(
+                            with: NSRange(location: currentLineRange.location, length: lineContentLen))
+                        if let listMatch = MarkdownLists.listRegex.firstMatch(
+                            in: lineRaw,
+                            range: NSRange(location: 0, length: lineRaw.utf16.count))
+                        {
+                            let markerCapture = listMatch.range(at: 1)
+                            let markerEnd = markerCapture.location + markerCapture.length
+                            let openerLineOffset = openerLoc - currentLineRange.location
+                            if openerLineOffset < markerEnd {
+                                isCheckboxBracket = true
+                            }
+                        }
+
+                        if !isCheckboxBracket {
+                            // Default: jump past the single closer.
+                            var jumpToLoc = foundCloserLoc + 1
+                            // Obsidian double-jump: require both `[[` and `]]`.
+                            if foundCloserChar == closeSquare,
+                                foundCloserLoc + 1 < lineContentEnd,
+                                nsText.character(at: foundCloserLoc + 1) == closeSquare,
+                                openerLoc > currentLineRange.location,
+                                nsText.character(at: openerLoc - 1) == openSquare
+                            {
+                                jumpToLoc = foundCloserLoc + 2
+                            }
+                            textView.setSelectedRange(NSRange(location: jumpToLoc, length: 0))
+                            return false
+                        }
+                    }
+                }
+            }
 
             if currentLine.range(of: "^```\\w*$", options: .regularExpression) != nil {
                 let textBeforeLine = nsText.substring(to: currentLineRange.location)
@@ -540,6 +646,27 @@ struct MarkdownLists {
                     let completion = "\n\n```"
                     MarkdownLists.performEdit(textView, replace: affectedCharRange, with: completion)
                     textView.setSelectedRange(NSRange(location: insertionLocation + 1, length: 0))
+                    return false
+                }
+            }
+
+            // Blockquote continuation. Plain Enter on a `> ...` line inserts
+            // `\n<prefix>` where <prefix> is the captured leading whitespace +
+            // `> ` so nested-indent quotes preserve their depth. Matches list
+            // convention: plain Enter continues, Shift+Enter (intercepted at
+            // the top of the `\n` block) exits. No-op when there's a selection
+            // or the caret is inside a fenced code block.
+            if affectedCharRange.length == 0 && !isInCodeBlock {
+                let rawCurrentLine = nsText.substring(with: currentLineRange)
+                if let match = MarkdownLists.blockquoteMarkerRegex.firstMatch(
+                    in: rawCurrentLine,
+                    range: NSRange(location: 0, length: rawCurrentLine.utf16.count))
+                {
+                    let prefix = (rawCurrentLine as NSString).substring(with: match.range)
+                    let insertion = "\n\(prefix)"
+                    MarkdownLists.performEdit(textView, replace: affectedCharRange, with: insertion)
+                    textView.setSelectedRange(
+                        NSRange(location: affectedCharRange.location + insertion.utf16.count, length: 0))
                     return false
                 }
             }
