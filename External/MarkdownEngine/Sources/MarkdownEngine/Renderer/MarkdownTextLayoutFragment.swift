@@ -969,48 +969,18 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let boxRect = CGRect(x: alignToPixel(boxX), y: alignToPixel(boxY), width: size, height: size)
             guard !boxRect.isEmpty, !boxRect.isNull else { return }
 
-            let theme =
-                (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration.theme ?? .default
-
-            // Always draw the muted `square` outline at the full boxRect —
-            // zero inset, so the outline silhouette is identical in checked
-            // and unchecked states. Checked state layers an accent fill +
-            // checkmark on top.
-            let sizeConfig = NSImage.SymbolConfiguration(pointSize: boxRect.height, weight: .regular)
-            if let squareSymbol = NSImage(systemSymbolName: "square", accessibilityDescription: nil) {
-                let outlineConfig = sizeConfig.applying(
-                    NSImage.SymbolConfiguration(hierarchicalColor: theme.mutedText))
-                let outline = squareSymbol.withSymbolConfiguration(outlineConfig) ?? squareSymbol
-                outline.draw(in: boxRect)
-            }
-
-            if isChecked {
-                // Accent fill, inset to sit inside the `square` stroke. Corner
-                // radius matches SF Symbol's `square` curvature roughly.
-                let strokeInset = max(1.0, boxRect.height * 0.12)
-                let interior = boxRect.insetBy(dx: strokeInset, dy: strokeInset)
-                let cornerRadius = max(1.0, boxRect.height * 0.08)
-                let fillPath = CGPath(
-                    roundedRect: interior,
-                    cornerWidth: cornerRadius,
-                    cornerHeight: cornerRadius,
-                    transform: nil)
-                context.addPath(fillPath)
-                context.setFillColor(theme.accentColor.cgColor)
-                context.fillPath()
-
-                // White checkmark glyph centered in the box.
-                if let checkmark = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) {
-                    let checkSize = boxRect.height * 0.65
-                    let checkRect = CGRect(
-                        x: boxRect.midX - checkSize / 2,
-                        y: boxRect.midY - checkSize / 2,
-                        width: checkSize,
-                        height: checkSize)
-                    let checkConfig = NSImage.SymbolConfiguration(pointSize: checkSize, weight: .semibold)
-                        .applying(NSImage.SymbolConfiguration(hierarchicalColor: NSColor.white))
-                    (checkmark.withSymbolConfiguration(checkConfig) ?? checkmark).draw(in: checkRect)
-                }
+            let iconInset = max(0.0, size * 0.01)
+            let iconRect = boxRect.insetBy(dx: iconInset, dy: iconInset)
+            let symbolName = isChecked ? "checkmark.square.fill" : "square"
+            if let baseSymbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+                let sizeConfig = NSImage.SymbolConfiguration(pointSize: iconRect.height, weight: .regular)
+                let theme =
+                    (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration.theme ?? .default
+                let tint = isChecked ? theme.accentColor : theme.mutedText
+                let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: tint)
+                let symbolConfig = sizeConfig.applying(colorConfig)
+                let symbol = baseSymbol.withSymbolConfiguration(symbolConfig) ?? baseSymbol
+                symbol.draw(in: iconRect)
             }
         }
     }

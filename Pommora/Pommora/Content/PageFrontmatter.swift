@@ -11,17 +11,25 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var tier3: [String]
     var properties: [String: PropertyValue]
     var createdAt: Date
+    /// Per-Page editor display state: exact heading source lines (e.g. `"## Foo"`)
+    /// whose content is currently collapsed in the editor. Nil/missing = no folds.
+    /// UI-only — never reflected in the body Markdown. See
+    /// `.claude/Features/Pages.md` "Foldable headings" and
+    /// `.claude/Guidelines/Markdown.md` §9.x for the rationale.
+    var foldedHeadings: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, tier1, tier2, tier3, properties
         case createdAt = "created_at"
+        case foldedHeadings = "folded_headings"
     }
 
     init(
         id: String, icon: String?,
         tier1: [String], tier2: [String], tier3: [String],
         properties: [String: PropertyValue],
-        createdAt: Date
+        createdAt: Date,
+        foldedHeadings: [String]? = nil
     ) {
         self.id = id
         self.icon = icon
@@ -30,6 +38,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.tier3 = tier3
         self.properties = properties
         self.createdAt = createdAt
+        self.foldedHeadings = foldedHeadings
     }
 
     init(from decoder: any Decoder) throws {
@@ -44,6 +53,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.tier3 = try c.decodeIfPresent([String].self, forKey: .tier3) ?? []
         self.properties = try c.decodeIfPresent([String: PropertyValue].self, forKey: .properties) ?? [:]
         self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date(timeIntervalSince1970: 0)
+        self.foldedHeadings = try c.decodeIfPresent([String].self, forKey: .foldedHeadings)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -55,5 +65,11 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         try c.encode(tier3, forKey: .tier3)
         try c.encode(properties, forKey: .properties)
         try c.encode(createdAt, forKey: .createdAt)
+        // Encode-if-present-and-non-empty so an empty array doesn't pollute the
+        // YAML with `folded_headings: []`. The editor caller is expected to set
+        // the field to nil when emptied, but defending in depth here is cheap.
+        if let folded = foldedHeadings, !folded.isEmpty {
+            try c.encode(folded, forKey: .foldedHeadings)
+        }
     }
 }

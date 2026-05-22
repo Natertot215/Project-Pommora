@@ -67,4 +67,84 @@ struct PageFileTests {
         #expect(raw.contains("created_at:"))
         #expect(raw.contains("tier1:"))
     }
+
+    @Test("foldedHeadings round-trips through YAML")
+    func foldedHeadingsRoundTrip() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let url = nexus.rootURL.appendingPathComponent("Folded.md")
+
+        let folded = ["## Implementation notes", "### Edge cases"]
+        let fm = PageFrontmatter(
+            id: "01HFOLD",
+            icon: nil,
+            tier1: [], tier2: [], tier3: [],
+            properties: [:],
+            createdAt: Date(timeIntervalSince1970: 1_716_000_000),
+            foldedHeadings: folded
+        )
+        try PageFile(frontmatter: fm, body: "# Folded\n\nBody.\n").save(to: url)
+
+        let raw = try String(contentsOf: url, encoding: .utf8)
+        #expect(raw.contains("folded_headings:"))
+
+        let loaded = try PageFile.load(from: url)
+        #expect(loaded.frontmatter.foldedHeadings == folded)
+    }
+
+    @Test("foldedHeadings omitted from YAML when nil or empty")
+    func foldedHeadingsOmitWhenEmpty() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let nilURL = nexus.rootURL.appendingPathComponent("Nil.md")
+        let emptyURL = nexus.rootURL.appendingPathComponent("Empty.md")
+
+        let baseFM = PageFrontmatter(
+            id: "01HNIL", icon: nil,
+            tier1: [], tier2: [], tier3: [],
+            properties: [:],
+            createdAt: Date(timeIntervalSince1970: 0)
+        )
+        try PageFile(frontmatter: baseFM, body: "").save(to: nilURL)
+
+        var emptyFM = baseFM
+        emptyFM.id = "01HEMPTY"
+        emptyFM.foldedHeadings = []
+        try PageFile(frontmatter: emptyFM, body: "").save(to: emptyURL)
+
+        let nilRaw = try String(contentsOf: nilURL, encoding: .utf8)
+        let emptyRaw = try String(contentsOf: emptyURL, encoding: .utf8)
+        #expect(!nilRaw.contains("folded_headings"))
+        #expect(!emptyRaw.contains("folded_headings"))
+
+        // Decoded back, both round-trip to nil — no spurious empty array.
+        let nilLoaded = try PageFile.load(from: nilURL)
+        let emptyLoaded = try PageFile.load(from: emptyURL)
+        #expect(nilLoaded.frontmatter.foldedHeadings == nil)
+        #expect(emptyLoaded.frontmatter.foldedHeadings == nil)
+    }
+
+    @Test("foldedHeadings tolerates missing key from older files")
+    func foldedHeadingsLegacyAbsent() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let url = nexus.rootURL.appendingPathComponent("Legacy.md")
+
+        // Hand-write a pre-foldable-headings frontmatter envelope (no key).
+        let legacy = """
+            ---
+            id: 01HLEGACY
+            tier1: []
+            tier2: []
+            tier3: []
+            properties: {}
+            created_at: 2024-05-22T00:00:00Z
+            ---
+            # Body
+            """
+        try FixtureFiles.write(legacy, to: url)
+
+        let loaded = try PageFile.load(from: url)
+        #expect(loaded.frontmatter.foldedHeadings == nil)
+    }
 }
