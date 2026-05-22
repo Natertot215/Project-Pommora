@@ -49,6 +49,54 @@ enum MarkdownDetection {
         return document.children.contains { $0 is ThematicBreak }
     }
 
+    // MARK: - Dash bullet detection
+
+    /// Three-stage detection for whether a single-paragraph string is a
+    /// `-`-marker bullet list item (excluding task lists). Used by the
+    /// renderer to decide whether to overlay a `•` glyph on the hidden
+    /// source `-`. Mirrors `isThematicBreakLine`'s pattern.
+    ///
+    /// Only `-` triggers. `*`, `+`, and legacy `•` lines return false here
+    /// and render as their literal characters. Task lines (`- [ ]` /
+    /// `- [x]`) also return false — the existing checkbox UX is preserved.
+    ///
+    /// - Parameters:
+    ///   - paragraphString: The line(s) to test, including any trailing newline.
+    ///   - isInsideCodeBlock: Stage 0 result from the caller's context.
+    static func isDashBulletLine(
+        _ paragraphString: String,
+        isInsideCodeBlock: Bool
+    ) -> Bool {
+        // Stage 0 — code-block guard.
+        if isInsideCodeBlock { return false }
+
+        // Match the SAME regex the styler uses in `MarkdownLists.applyListMatches`
+        // so the renderer's bullet-glyph detection and the styler's hide-attr
+        // are guaranteed to agree. No AST parse needed — the regex already
+        // encodes CommonMark's space-after-marker requirement.
+        let pattern = #"^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else {
+            return false
+        }
+        let nsLine = paragraphString as NSString
+        guard let match = regex.firstMatch(
+            in: paragraphString,
+            options: [],
+            range: NSRange(location: 0, length: nsLine.length)
+        ) else { return false }
+
+        // Marker char must be `-`. Task lists (`- [ ]` / `- [x]`) are excluded
+        // so the existing checkbox UX is preserved.
+        let markerRange = match.range(at: 2)
+        guard markerRange.length > 0 else { return false }
+        let firstChar = nsLine.substring(with: NSRange(location: markerRange.location, length: 1))
+        guard firstChar == "-" else { return false }
+        let group2 = nsLine.substring(with: markerRange)
+        if group2.contains("[") { return false }
+
+        return true
+    }
+
     // MARK: - Active Token Indices
 
     static func computeActiveTokenIndices(

@@ -18,6 +18,8 @@ A Page is one Markdown file in the nexus. Pages are the only Markdown-file entit
 
 - Markdown body for prose.
 
+- **Adopted `.md` files load leniently (shipped v0.2.7.4).** Markdown files that surface during folder adoption — i.e. existing notes without Pommora frontmatter — open via `PageFile.loadLenient(from:nexusRoot:)`. Missing `id` is synthesized as `"adopted-" + sha256(relativePath).prefix(16)` (stable across launches, derived from the file's path relative to the Nexus root). Missing `created_at` falls back to the file's `creationDate`; tier and properties default to empty. The on-disk file is **not mutated** by the lenient loader — frontmatter is only written when the user actually edits and saves the Page through the editor. This guarantees opening a folder that's also an Obsidian vault leaves your notes byte-identical until you touch them. Both the sidebar's discovery (`ContentManager.loadAll(for:)`) and the editor (`PageEditorHost`) use the lenient path — anything that surfaces also opens.
+
 ---
 
 #### Markdown features in v1
@@ -28,7 +30,7 @@ Pages support everything in standard Markdown:
 
 - Paragraphs, **headings** (H1–H5 in v0's type scale; no H6 token). **Headings are foldable by default** — clicking the chevron on any heading collapses the content below until the next equal-or-higher heading. This is built-in UI behavior, not a Markdown directive; no on-disk syntax change.
 - Bulleted / numbered lists
-- **Code blocks** (fenced) and **inline code** — render in mono font (SF Mono) at 1.0 em (same size as body) with their own color tokens: `code// fg` (text color; default `#FF2525`) and `code// bg` (background; default `#323233`). Both are independent tokens tied to the color primitives so the code palette can be tuned through the color system without touching text or accent.
+- **Code blocks** (fenced) and **inline code** — render in mono font (SF Mono) at 1.0 em (same size as body) with system-semantic colors as of v0.2.7.4: text color is `NSColor.systemRed.withAlphaComponent(0.85)` (adapts light↔dark via the system accent's red); background is `NSColor.quaternaryLabelColor` (semantic system fill — built-in subtle alpha, adapts light↔dark, sits visibly distinct from the page background without a custom blend). Future per-Nexus theme tokens may expose these as overrides, but the defaults now ride the system palette rather than the earlier hardcoded `#FF2525` / `#323233` values.
 - Images
 - **Tables** — standard GFM `| col | col |` syntax
 - **Blockquotes** — standard `>` syntax. Rendered Apple-style: filled rounded box with a left-side bar (the Calendar.app event-card pattern — vertical bar at the leading edge, no outline border, medium corner radius). Default tint is grey (not accent) for v1. Distinct from callouts (see below). On disk they're standard blockquotes.

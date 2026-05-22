@@ -201,11 +201,17 @@ extension NativeTextViewCoordinator {
         let caretLoc = selRange.location
         let paragraphRange = nsText.paragraphRange(for: NSRange(location: caretLoc, length: 0))
 
+        // Capture the prior caret location BEFORE `previousCaretLocation` is
+        // overwritten at the bottom of this function — the scoped HR sync
+        // needs the genuine previous location to know which paragraph the
+        // caret just left.
+        let priorCaretLocation = previousCaretLocation
+
         var paragraphCandidates: [NSRange] = [paragraphRange]
         if paragraphRange.length == 0 && caretLoc > 0 {
             paragraphCandidates.append(nsText.paragraphRange(for: NSRange(location: max(0, caretLoc - 1), length: 0)))
         }
-        if let prevLoc = previousCaretLocation, prevLoc != caretLoc {
+        if let prevLoc = priorCaretLocation, prevLoc != caretLoc {
             let safePrev = min(prevLoc, nsText.length)
             let prevPara = nsText.paragraphRange(for: NSRange(location: safePrev, length: 0))
             paragraphCandidates.append(prevPara)
@@ -319,12 +325,23 @@ extension NativeTextViewCoordinator {
             updateCodeBlockSelection(textView: tv, tokens: tokens)
         }
 
-        // Pommora: re-sync HR dynamic-syntax visibility on every caret move.
-        // The service hides dashes + applies 16/16 paragraphSpacing when the
-        // caret leaves an HR paragraph, and restores body styling when caret
-        // enters. Reentry-guarded to prevent recursion via restyle.
-        if let ts = tv.textStorage {
-            syncHRVisibility(in: ts, textView: tv)
+        // Pommora: re-sync HR dynamic-syntax visibility on caret move.
+        // SCOPED variant — only the paragraph the caret just left and the
+        // one it just entered can transition HR state on a caret-only event;
+        // every other HR in the document is already correctly hidden/revealed
+        // from the last full walk (initial load + each edit cycle). The full
+        // walk in `restyleTextView` / `rebuildTextStorageAndStyle` still
+        // catches HRs created or destroyed by edits, so this scoped path is
+        // safe. Replaces an O(N) per-caret-tick document scan that caused
+        // visible jitter on large files. Reentry-guarded to prevent
+        // recursion via restyle.
+        if !tokensChanged, let ts = tv.textStorage {
+            var scope: [NSRange] = [paragraphRange]
+            if let prev = priorCaretLocation, prev != caretLoc {
+                let safePrev = min(prev, nsText.length)
+                scope.append(nsText.paragraphRange(for: NSRange(location: safePrev, length: 0)))
+            }
+            syncHRVisibility(in: ts, textView: tv, scopedTo: scope)
         }
     }
 

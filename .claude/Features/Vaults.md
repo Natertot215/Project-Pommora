@@ -272,6 +272,18 @@ Enforced at every file write:
 
 ---
 
+#### Adopting existing folders (shipped v0.2.7.4)
+
+Opening any folder as a Nexus — including pre-existing user folders that have never seen Pommora — runs an idempotent scan that proposes Vaults for top-level folders missing `_vault.json` and Collections for direct sub-folders missing `_collection.json`. A preview sheet shows counts (Vaults / Collections / Pages / Items) plus the skipped set; Adopt writes the sidecars in place, Skip opens the Nexus empty. Re-runs on every open catch newly-dropped folders — the indexer is the source of truth, not first-launch state. Fully-adopted Nexuses skip the sheet silently.
+
+Exclusion set (never adopted): any folder starting with `.` or `_`, plus `node_modules`, `.trash`, `Agenda`. Hidden folders are filtered by `.skipsHiddenFiles` at the enumerator level.
+
+`.md` and `.json` files within an adopted Vault need no Pommora-specific shape to surface — the discovery is extension-based. Pages without Pommora frontmatter open via the lenient loader (synthesized id from path-relative SHA256; details → `Pages.md`). Items that don't decode as the `Item` shape are silently skipped (random `.json` like `package.json` won't pollute the sidebar).
+
+Implementation: `NexusAdopter.scan` + `.apply` at `Pommora/Pommora/Nexus/NexusAdopter.swift`; preview sheet at `AdoptionPreviewView.swift`; both `NexusManager.openPicked` and `openExisting` call `runAdoptionIfNeeded` after identity is set. Indexing status surfaces via `NexusManager.isIndexing` → `IndexingHUD` overlay in the sidebar.
+
+---
+
 #### Full specification
 
 Complete on-disk schema, SQLite mirror, sidebar layout, and CRUD scope → `// Planning//Contexts-Vaults-spec.md`.

@@ -2,6 +2,70 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### Session 14 (parallel) — 2026-05-21 (Editor polish bundled into v0.2.7.4)
+
+A parallel session shipped four small editor wins folded into the v0.2.7.4 ship.
+
+**Bullet glyph substitution shipped.** Closes the Session 13 deferred item. Lines starting with `- ` render `•` via `MarkdownTextLayoutFragment.drawDashBulletGlyph` overlay (always-on, no caret-reveal — same UX guarantee as task checkboxes). The source dash stays in storage as portable CommonMark `- item` for cross-tool readability; the styler hides only its color (`NSColor.clear` while preserving natural width). Only `-` triggers — `*` / `+` / `•` literal markers render as-is. Pixel-aligned draw via `backingScaleFactor` so the bullet doesn't vanish on fractional Y positions (the Session 13 failure mode).
+
+**Task-list shorthand `-[]` / `-[x]`.** Both forms now match alongside the GFM `- [ ]` / `- [x]` form. Regex updated in two places (`MarkdownStyler.taskListRegex` + `MarkdownLists.listRegex` + `bulletListPattern`): spacer group is zero-or-more (was one-or-more), inner-bracket content is `[ xX]?` (was `[ xX]`). Marker collapse: the leading `-` plus any whitespace before the `[` shrinks to font 0.1pt + clear color so the drawn checkbox glyph is the only visible marker prefix (the `[...]` brackets themselves stay at body font — the checkbox draw reads `font.pointSize` from the `[` to compute its size, so collapsing the brackets would make the box render near-zero).
+
+**Bracket auto-pair guard.** Typing `[` only fires the `[` → `[|]` auto-pair when the preceding char is whitespace (space / tab / newline) or the cursor is at line start. Lets the Pommora `-[]` flow without the auto-pair inserting a `]` between `-` and `[`. Prose-link case (`text [link](url)`) still auto-pairs. Implementation in [`MarkdownLists.handleListInsertion`](../External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift) — `shouldAutoPair = (insertionLocation == 0) || prevChar in {" ", "\t", "\n"}`.
+
+**Arrow auto-format extended.** Closes the Session 13 known bug ("typed `<-` and `<->` don't fire on input — only on paste"). Two new cases added to the `>` keypress handler: (A) chained `<-` → `←` then `>` extends `←` → `↔`; (B) pasted `<-` still-literal in buffer, `>` does a combined two-char replace `<-` → `↔`. The existing `->` → `→` case unchanged.
+
+**Code colors.** `MarkdownStyler` now applies `.foregroundColor: NSColor.systemRed.withAlphaComponent(0.85)` to both `.codeBlock` and `.inlineCode` token attributes. `PlainTextSyntaxHighlighter.backgroundColor()` returns `NSColor.quaternaryLabelColor` — semantic system fill, adapts light↔dark, has built-in subtle alpha. Replaces the previous `textBackgroundColor.withAlphaComponent(0)` (effectively invisible).
+
+**Files (parallel session):** `MarkdownStyler.swift`, `MarkdownListHandler.swift`, `MarkdownDetection.swift` (added `isDashBulletLine` mirroring `isThematicBreakLine`'s three-stage pattern, with regex-only Stage 2 since CommonMark's space-after-marker requirement is encoded in the bullet regex), `MarkdownTextLayoutFragment.swift` (added `hasDashBulletMarker` + `dashBulletMarkerDocumentLocation` + `drawDashBulletGlyph` + `renderingSurfaceBounds` extension for invalidation), `MarkdownEditorServices.swift` (`PlainTextSyntaxHighlighter.backgroundColor()`).
+
+**Decisions locked:**
+
+7. **Portable-source-with-overlay is the locked pattern for dash bullets** — same as HR. Source on disk is portable CommonMark; the visual glyph is drawn by the layout fragment at render time. No source mutation.
+8. **`-` is the only dash-bullet trigger.** `*`, `+`, and legacy `•` markers render literally. Single-trigger keeps the styler-vs-renderer agreement contract simple.
+9. **Bracket auto-pair requires a word boundary on the left.** Auto-pair fires only after whitespace or at line start. Lets compact task syntax (`-[]`) coexist with prose-link auto-pair.
+
+#### Session 14 (continued) — 2026-05-21 (HR jitter on large files — root-cause + two-phase fix)
+
+Editor exhibited two distinct jitter symptoms on large documents: (a) general jitter during cursor placement and selection drag, and (b) a vertical "auto-adjust" of the line when the caret entered or left an HR paragraph. Systematic debugging located two independent root causes, both in the Session 12 HR dynamic-syntax pattern. Same UX preserved.
+
+**Phase 4a — selection-scope.** `NativeTextViewCoordinator.syncHRVisibility` walked the **entire document** on every `textViewDidChangeSelection`, calling `NSString.lineRange(for:)` + `substring(with:)` + an attribute read on every paragraph and Stage-1 + Stage-2 `Markdown.Document(parsing:)` AST parse on any HR-shaped paragraph. The comment claimed "microseconds for typical docs" — true for small files, but on a 1000-paragraph file the cost is ~1ms per caret tick and mouse-drag selection fires this 60+ times per second.
+
+The HR state of paragraphs N..end can only change when the caret crosses into or out of a specific paragraph — every other paragraph's hidden/revealed state is already correct from the last full walk (initial load + each edit cycle). Added a scoped overload `syncHRVisibility(in:textView:scopedTo:)` that walks only a supplied list of paragraph ranges; `textViewDidChangeSelection` now passes `{currentCaretParagraph, priorCaretParagraph}`. Restyle paths (`restyleTextView`, `rebuildTextStorageAndStyle`) keep the full walk because edits can introduce or remove HRs anywhere. Shared `applyHRSync` + `makeHRStylingContext` extracted so the two variants cannot drift. The `priorCaretLocation` must be captured BEFORE `previousCaretLocation` is overwritten at the bottom of `textViewDidChangeSelection`; a local variable at the top of the function handles this. O(N) per-caret-tick walk replaced with O(1).
+
+**Phase 4b — layout-constancy.** Caret entering an HR paragraph caused a visible vertical jump because the locked design swapped the dashes from `NSFont.systemFont(ofSize: 0.1)` (line height ~0.1pt) to `bodyFont` (~21pt) AND swapped the paragraph style from `hrParaStyle` (paragraphSpacingBefore = paragraphSpacing = 16) to `baseParagraphStyle` (zero spacing). Net paragraph height collapsed by ~11pt on enter and reflowed on leave.
+
+Unified the two states: dashes always render at `bodyFont`, only the foreground color toggles (body text color when caret is in, `NSColor.clear` when out). Same paragraph style in both states, computed once per sync pass from the base style with `paragraphSpacingBefore = paragraphSpacing = max(0, 16 - bodyLineHeight / 2)` — preserves Session 12's perceived 16pt visual margin around the drawn rule line at any font size while keeping total paragraph height constant. Replaced separate `applyHRHiding` / `revealHRDashes` with a single `applyHRDashAttributes(in:paragraphRange:bodyFont:foregroundColor:)`. The drawn rule (in `MarkdownTextLayoutFragment.drawThematicBreak`) sits at the line's typographic midY, which is now identical in both states — so the rule's geometric position relative to the dashes is unchanged whether they're visible or invisible.
+
+**Files:** [`External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift) (scoped overload + unified hidden/revealed paths + computed paragraph spacing); [`NativeTextViewCoordinator+TextDelegate.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift) (capture `priorCaretLocation` before overwrite; switch caret-only path to scoped sync; skip when `tokensChanged` since `restyleTextView` already did a full walk).
+
+**Decisions locked:**
+
+5. **HR caret-aware reveal/hide must not cause vertical layout change.** Both states share line metrics + paragraph spacing; only dash color differs. Computed spacing `max(0, 16 - bodyLineHeight / 2)` keeps the ~16pt visual margin invariant at any font size.
+6. **Dynamic-syntax services must scope per-caret-move work.** `syncHRVisibility` on `textViewDidChangeSelection` is the canonical example — only the prior + current caret paragraphs need touching. Full walks stay on `restyleTextView` and `rebuildTextStorageAndStyle` for events that can add/remove the construct anywhere.
+
+Build green; 244 unit tests passing (one pre-existing full-suite flake on `debounceCoalescesRapidEdits` unrelated to TextKit); lint exit 0.
+
+#### Session 14 — 2026-05-21 (v0.2.7.4 Nexus folder adoption SHIPPED)
+
+Obsidian-parity "open folder as Nexus." Both Nexus-open paths (`openPicked` from menu, `openExisting` from saved bookmark) now run `NexusAdopter.scan` after identity is established and present a preview-and-confirm sheet listing top-level folders → Vaults and direct sub-folders → Collections. Excludes only `.`/`_`-prefixed, `node_modules`, `.trash`, `Agenda`. Idempotent — fully-adopted Nexuses produce an empty plan and skip the sheet silently. Re-runs on every open catch newly-added folders (the indexer is the source of truth, not first-launch state).
+
+`PageFile.loadLenient(from:nexusRoot:)` accepts `.md` files without Pommora frontmatter — synthesizes a stable `id` from `"adopted-" + sha256(relativePath).prefix(16)`, defaults tier/properties to empty, uses file `creationDate` for `created_at`. Critical invariant: does NOT write back. Files stay byte-identical until the user actually edits and saves. Used by both `ContentManager.loadAll(for:)` and the editor host (`PageEditorHost.swift:74`) — anything that surfaces in the sidebar also opens. `Filesystem.descendantFiles` makes Content discovery recursive; depth-≥2 folders aren't Collections but their files roll up to the nearest Collection ancestor.
+
+`NexusManager.isIndexing` + `IndexingHUD` overlay in the sidebar give visible feedback during the scan. `pendingAdoption: AdoptionPlan?` + `withCheckedContinuation` route the sheet's user decision back into the async open flow; sheet auto-dismiss (Esc / click-outside) handled via `.sheet(item:onDismiss:)` calling idempotent `resolveAdoption(false)`.
+
+**Architecture cross-check via Context7.** Pommora's Vault + `.nexus/` structure verified identical to Obsidian's Vault + `.obsidian/` shape. The one principled divergence: Vaults need `_vault.json` and Collections need `_collection.json` because Pommora has a per-Vault property schema concept Obsidian lacks. The indexer creates those sidecars on existing folders so the user doesn't have to.
+
+**Files:** `NexusAdopter.swift` (new), `AdoptionPreviewView.swift` (new), `NexusManager.swift` (open hooks), `Filesystem.swift` (`descendantFiles` + `writeMetadataIntoExistingFolder`), `PageFile.swift` (lenient path), `ContentManager.swift` (recursive load + lenient), `PageEditorHost.swift:74` (load swap), `ContentView.swift` (sheet + HUD). Tests: `NexusAdopterTests` (11) + `PageFileLenientTests` (6); full suite 244 passing, lint exit 0.
+
+**Cleanup pass post-implementation:** auto-dismiss continuation hang fixed; redundant `String.StringInterpolation` extension removed; manual `Equatable` on `AdoptionError` replaced with auto-synth; duplicate `childFolders` enumeration in `scan` merged; `apply`'s vault-id cache populated inline as we write instead of via a separate reload pass.
+
+**Decisions locked:**
+
+1. **Adoption runs on every open**, not just first-time init. Re-runs are idempotent and catch newly-added top-level folders (Obsidian-parity).
+2. **Existing `.md` files stay byte-identical** until the user edits — lenient load synthesizes the id in memory only. Adopting a folder that's also an Obsidian vault doesn't mutate any notes.
+3. **2-level structural depth** (Vault > Collection) preserved from the locked domain model; deeper sub-folders aren't Collections but their Markdown files roll up to the nearest Collection. No flattening of the model.
+4. **Agenda stays as a sibling of Vaults** at `<nexus>/Agenda/`, not inside `.nexus/`. Files-are-canonical principle: user data lives at the user-visible root.
+
 #### Session 13 — 2026-05-20 (v0.2.7.2 Lists shipped)
 
 Lists rewrite: space styles immediately (styler-driven, no source mutation), Enter continues with the next marker, Shift+Enter exits with a plain `\n`, bare `-` / `1.` + Enter initializes. Source on disk is portable CommonMark (`- item` / `* item` / `+ item` / `1. item`) — pre-v0.2.7.2 `\t• ` engine-only syntax dropped (legacy files render via back-compat regex). Visual indent via styler paragraphStyle without source `\t`. Bullet glyph substitution (`-` → `•` visually) attempted + reverted (overlay produced invisible bullets); deferred as non-blocking cosmetic.

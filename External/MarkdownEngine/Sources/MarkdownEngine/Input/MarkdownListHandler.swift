@@ -30,7 +30,11 @@ struct MarkdownLists {
     }
 
     static let listRegex = try! NSRegularExpression(
-        pattern: #"^\s*((?:(\d+)\.|[-•])(?:\s+\[[ xX]\])?\s+)"#
+        // `[-*+•]` covers all CommonMark bullets (`-`, `*`, `+`) plus the
+        // legacy Pommora `•`. `\s*\[[ xX]?\]` (zero-or-more whitespace before
+        // brackets, optional single-char content inside) lets the Pommora
+        // `-[]` and `-[x]` shorthand match alongside the GFM `- [ ]` form.
+        pattern: #"^\s*((?:(\d+)\.|[-*+•])(?:\s*\[[ xX]?\])?\s+)"#
     )
     static let dashNoSpaceRegex = try! NSRegularExpression(pattern: #"^\s*-(?!\s)"#)
     static let leadingWhitespaceRegex = try! NSRegularExpression(pattern: #"^\s*"#)
@@ -249,6 +253,49 @@ struct MarkdownLists {
                 ps.headIndent = indentPerLevel + depthIndent + markerWidth + extraSpacing
 
                 attributesList.append((match.range(at: 0), [.paragraphStyle: ps]))
+
+                // Pommora marker rewrite — `-` prefix handling for bullets + tasks.
+                // Only fires when the source marker char is `-` (not `*`, `+`, `•`).
+                if markerRange.length > 0,
+                    nsText.substring(with: NSRange(location: markerRange.location, length: 1)) == "-"
+                {
+                    if hasCheckbox {
+                        // Task line — collapse the leading `-` and any spacer
+                        // BEFORE the `[` bracket via font 0.1, so the drawn
+                        // checkbox glyph is the only visible marker prefix. The
+                        // `[` brackets themselves stay at body font (the checkbox
+                        // draw reads `font.pointSize` from the `[` to compute its
+                        // size — collapsing the brackets makes the box render
+                        // near-zero size and disappear). Supports both GFM
+                        // `- [ ] task` and Pommora `-[]` / `-[x]` syntax.
+                        let group2 = nsText.substring(with: markerRange) as NSString
+                        let bracketLocalOffset = group2.range(of: "[").location
+                        if bracketLocalOffset != NSNotFound, bracketLocalOffset > 0 {
+                            let collapseRange = NSRange(
+                                location: markerRange.location, length: bracketLocalOffset)
+                            attributesList.append(
+                                (
+                                    collapseRange,
+                                    [
+                                        .font: NSFont.systemFont(ofSize: 0.1),
+                                        .foregroundColor: NSColor.clear,
+                                    ]
+                                ))
+                        }
+                    } else {
+                        // Plain bullet line — hide the `-` so MarkdownTextLayoutFragment
+                        // can overlay a `•` glyph. NOT collapsed (no font change), so
+                        // the dash's natural width is preserved invisibly to keep the
+                        // gap between the bullet glyph and the content.
+                        attributesList.append(
+                            (
+                                NSRange(location: markerRange.location, length: 1),
+                                [
+                                    .foregroundColor: NSColor.clear
+                                ]
+                            ))
+                    }
+                }
             }
         }
 
@@ -259,7 +306,10 @@ struct MarkdownLists {
         }
 
         // Bullet lists. Accepts `-`, `*`, `+` (CommonMark) and `•` (legacy Pommora).
-        let bulletListPattern = #"^([ \t]*)([-*+•](?:[ \t]+\[[ xX]\])?[ \t]+)(.*)$"#
+        // Space between marker and brackets is OPTIONAL, and inner-bracket content
+        // is also OPTIONAL, so the Pommora `-[]` / `-[x]` shorthand matches
+        // alongside the GFM `- [ ]` / `- [x]` form.
+        let bulletListPattern = #"^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$"#
         if let bulletListRegex = try? NSRegularExpression(pattern: bulletListPattern, options: [.anchorsMatchLines]) {
             applyListMatches(bulletListRegex.matches(in: text, options: [], range: fullRange))
         }
@@ -272,9 +322,11 @@ struct MarkdownLists {
         guard let replacementString = replacementString else { return true }
 
         // Fast path: skip the expensive isInsideCodeBlock scan for ordinary typing.
+        // `-` is included so the `<-` arrow auto-transform can inspect previousChar.
         if replacementString.count == 1,
             let ch = replacementString.first,
-            ch != ">" && ch != "[" && ch != "(" && ch != "{" && ch != "\t" && ch != " " && ch != "\n"
+            ch != ">" && ch != "-" && ch != "[" && ch != "(" && ch != "{"
+                && ch != "\t" && ch != " " && ch != "\n"
         {
             return true
         }
@@ -300,8 +352,44 @@ struct MarkdownLists {
             let nsText = textView.string as NSString
             let previousCharRange = NSRange(location: insertionLocation - 1, length: 1)
             let previousChar = nsText.substring(with: previousCharRange)
+
+            // Case A: chained "<-" → "←", then ">" → extend to "↔".
+            if previousChar == "←" {
+                MarkdownLists.performEdit(textView, replace: previousCharRange, with: "↔")
+                textView.setSelectedRange(NSRange(location: insertionLocation, length: 0))
+                return false
+            }
+
+            // Case B: pasted "<-" still literal in buffer; ">" → "↔".
+            if previousChar == "-", insertionLocation >= 2 {
+                let twoBackRange = NSRange(location: insertionLocation - 2, length: 1)
+                if nsText.substring(with: twoBackRange) == "<" {
+                    let combinedRange = NSRange(location: insertionLocation - 2, length: 2)
+                    MarkdownLists.performEdit(textView, replace: combinedRange, with: "↔")
+                    // Buffer shrank by 1; cursor sits just after the new "↔".
+                    textView.setSelectedRange(NSRange(location: insertionLocation - 1, length: 0))
+                    return false
+                }
+            }
+
+            // Case C (existing): "->" → "→".
             if previousChar == "-" {
                 MarkdownLists.performEdit(textView, replace: previousCharRange, with: "→")
+                textView.setSelectedRange(NSRange(location: insertionLocation, length: 0))
+                return false
+            }
+        }
+
+        // "<-" → "←". When the user types "-" right after "<", swap the "<"
+        // for "←" and suppress the typed "-". Chains naturally with Case A
+        // above to produce "↔" when ">" is typed next.
+        if replacementString == "-" && affectedCharRange.length == 0 && !isInCodeBlock {
+            let insertionLocation = affectedCharRange.location
+            guard insertionLocation > 0 else { return true }
+            let nsText = textView.string as NSString
+            let previousCharRange = NSRange(location: insertionLocation - 1, length: 1)
+            if nsText.substring(with: previousCharRange) == "<" {
+                MarkdownLists.performEdit(textView, replace: previousCharRange, with: "←")
                 textView.setSelectedRange(NSRange(location: insertionLocation, length: 0))
                 return false
             }
@@ -333,6 +421,22 @@ struct MarkdownLists {
                 }
             }
             guard autoClosePairsEnabled else { return true }
+            // Only auto-pair single `[` when the preceding char is whitespace
+            // or the cursor is at the start of the document/line. This keeps
+            // the Pommora `-[]` task-list shorthand fluid (`-[` doesn't get
+            // auto-paired, so the user can type the literal `[]` and then
+            // continue with space + content). Auto-pair still fires for the
+            // common prose-link case (e.g. `text [link](url)`) where `[`
+            // follows a space, and at line start.
+            let shouldAutoPair: Bool
+            if insertionLocation == 0 {
+                shouldAutoPair = true
+            } else {
+                let prevChar = nsText.substring(
+                    with: NSRange(location: insertionLocation - 1, length: 1))
+                shouldAutoPair = prevChar == " " || prevChar == "\t" || prevChar == "\n"
+            }
+            guard shouldAutoPair else { return true }
             return insertAutoPair(open: "[", close: "]")
         }
 

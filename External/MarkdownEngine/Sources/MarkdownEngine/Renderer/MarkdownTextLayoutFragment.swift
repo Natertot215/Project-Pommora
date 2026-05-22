@@ -138,6 +138,96 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         NSBezierPath(rect: lineRect).fill()
     }
 
+    // MARK: - Dash bullet marker (Pommora addition)
+
+    /// True when this fragment is a `-`-marker bullet item — the source `-` has
+    /// been hidden by `MarkdownListHandler.paragraphAttributes` (font 0.1 +
+    /// clear color) and we need to overlay a `•` glyph. Three-stage detection
+    /// mirroring `hasThematicBreak`:
+    ///   - Stage 0: code-block guard.
+    ///   - Stage 1: cheap prefilter — trimmed line starts with `-` followed by
+    ///     whitespace AND does not contain `[` (excludes task lists).
+    ///   - Stage 2: per-fragment AST parse confirms `UnorderedList`.
+    ///
+    /// Only `-` triggers. `*`, `+`, and legacy `•` render as their literal
+    /// characters (no hide, no overlay). Same UX guarantee as task checkboxes:
+    /// always-on, no caret-aware reveal.
+    private var hasDashBulletMarker: Bool {
+        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
+        let fragmentString = ts.attributedSubstring(from: range).string
+        return MarkdownDetection.isDashBulletLine(
+            fragmentString,
+            isInsideCodeBlock: hasCodeBlockBackground
+        )
+    }
+
+    /// Document-level NSRange location of the `-` source marker for this
+    /// fragment, or `nil` if not found. Walks forward from the fragment's
+    /// start, skipping `\t` and ` `, returns the first non-whitespace char's
+    /// location (the `-` per `hasDashBulletMarker`'s Stage 1 guarantee).
+    private var dashBulletMarkerDocumentLocation: Int? {
+        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return nil }
+        let nsText = ts.string as NSString
+        let end = min(range.location + range.length, nsText.length)
+        for i in range.location..<end {
+            let ch = nsText.character(at: i)
+            if ch == 0x09 || ch == 0x20 { continue }  // \t or space
+            if ch == 0x2D { return i }  // `-`
+            return nil
+        }
+        return nil
+    }
+
+    /// Draws a `•` glyph at the location of the hidden source `-` marker.
+    /// Always-on (no `caretIsInFragment` guard) — same UX as task checkboxes.
+    /// Pixel-aligned on both axes via `backingScaleFactor` to avoid the
+    /// invisible-bullet failure mode from Session 13.
+    private func drawDashBulletGlyph(at point: CGPoint, in context: CGContext) {
+        guard hasDashBulletMarker,
+            let markerLoc = dashBulletMarkerDocumentLocation,
+            let pos = drawPosition(forDocumentCharAt: markerLoc, point: point)
+        else { return }
+
+        let baseFont =
+            (textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
+            ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let theme =
+            (textLayoutManager?.textContainer?.textView as? NativeTextView)?
+            .configuration.theme ?? .default
+
+        // Bullet glyph at 1.5× body font size for visual prominence.
+        // (Apple's default is 1.0× — NSTextList, TextEdit, Notes all match
+        // the paragraph's font size — but SF Pro's `•` glyph reads small at
+        // body size, so Pommora bumps it.)
+        let bulletFont = NSFont.systemFont(ofSize: baseFont.pointSize * 1.5)
+
+        let scale =
+            textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor ?? 2.0
+        func alignToPixel(_ value: CGFloat) -> CGFloat {
+            (value * scale).rounded(.toNearestOrAwayFromZero) / scale
+        }
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.current = nsContext
+
+        let bulletString = NSAttributedString(
+            string: "•",
+            attributes: [
+                .font: bulletFont,
+                .foregroundColor: theme.bodyText,
+            ])
+        // NSAttributedString.draw(at:) takes the top-left of the bounding rect;
+        // baseline lands at point.y + ascender in the flipped coordinate space.
+        // Use the bullet font's ascender so the glyph sits on the body baseline.
+        let drawPoint = CGPoint(
+            x: alignToPixel(pos.x),
+            y: alignToPixel(pos.baselineY - bulletFont.ascender))
+        bulletString.draw(at: drawPoint)
+    }
+
     // MARK: - FB15131180
 
     /// Maps to TextKit-2's private `extraLineFragmentAttributes` selector so we can pin the trailing extra-line metrics to body font; otherwise a trailing heading paragraph inflates `usageBoundsForTextContainer` by ~30pt when the caret enters it. Pattern from STTextView.
@@ -177,6 +267,28 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                 bounds.origin.y = lineMidY - padding - lineThickness / 2
                 bounds.size.height = lineThickness + (padding * 2)
             }
+            // Extend bounds for the dash-bullet overlay glyph. Small inflated
+            // rect around where `drawDashBulletGlyph` will draw. Uses the same
+            // 1.2× bullet font multiplier as the draw function so the
+            // invalidation rect tracks what's actually rendered.
+            if hasDashBulletMarker,
+                let markerLoc = dashBulletMarkerDocumentLocation,
+                let pos = drawPosition(forDocumentCharAt: markerLoc, point: .zero)
+            {
+                let baseFont =
+                    (textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
+                    ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+                let bulletFont = NSFont.systemFont(ofSize: baseFont.pointSize * 1.5)
+                let glyphWidth = ("•" as NSString).size(withAttributes: [.font: bulletFont]).width
+                let lineHeight = bulletFont.ascender - bulletFont.descender + bulletFont.leading
+                let glyphRect = CGRect(
+                    x: pos.x - 2,
+                    y: pos.baselineY - bulletFont.ascender - 1,
+                    width: glyphWidth + 4,
+                    height: lineHeight + 2
+                )
+                bounds = bounds.union(glyphRect)
+            }
             return bounds
         }
     }
@@ -199,7 +311,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             //    caretIsInFragment guards)
             drawThematicBreak(at: point, in: context)
 
-            // 5. Task checkboxes (on top of hidden [ ]/[x] markers)
+            // 5. Dash-bullet glyph (overlays `•` on the hidden source `-`
+            //    marker; always-on, same UX as task checkboxes)
+            drawDashBulletGlyph(at: point, in: context)
+
+            // 6. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
         }
     }
@@ -500,7 +616,16 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             let fontHeight = max(1, ceil(ascent + descent))
             let markerWidth = ("[ ]" as NSString).size(withAttributes: [.font: font]).width
             let size = max(1.0, min(floor(fontHeight * 1.2), floor(markerWidth * 1.2)))
-            let boxX = pos.x + max(0, (markerWidth - size) / 2)
+            // Align the checkbox's visual center with where the bullet glyph's
+            // visual center sits on a plain bullet line. The bullet renders at
+            // `pos.x` using a font at `baseFont * 1.5` (see `drawDashBulletGlyph`);
+            // its visible dot sits roughly at the glyph's advance-width midpoint.
+            // Without this, the checkbox's left edge starts at `pos.x` while the
+            // bullet's visible center starts at `pos.x + ~bulletAdvance/2`, so
+            // task lines visually sit further right than bullet lines.
+            let bulletFont = NSFont.systemFont(ofSize: font.pointSize * 1.5)
+            let bulletAdvance = ("•" as NSString).size(withAttributes: [.font: bulletFont]).width
+            let boxX = pos.x + (bulletAdvance - size) / 2
             let centerY = pos.baselineY + (descent - ascent) / 2
             let boxY = centerY - size / 2
 

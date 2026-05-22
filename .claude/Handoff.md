@@ -2,7 +2,82 @@
 
 > **Read this first at session start.** Branch + state + next session's priorities here.
 
-#### Current State (end of 2026-05-20 Session 13 — **v0.2.7.2 LISTS + HR shipped; bullet glyph + blockquote + tables deferred**)
+#### Current State (end of 2026-05-21 Session 14 — **v0.2.7.4 Nexus folder adoption SHIPPED**)
+
+**v0.2.7.4 ships Obsidian-parity folder adoption.** Opening any folder as a Nexus — empty, populated, or already-initialized — now indexes top-level folders into Vaults and direct sub-folders into Collections by writing `_vault.json` / `_collection.json` sidecars. Recursive `.md` / `.json` discovery means every Markdown file in the tree surfaces as a Page of its nearest Collection (or Vault root). Existing Obsidian-style notes stay byte-identical on disk until you actually edit them. 244 unit tests passing (17 new), lint exit 0.
+
+##### What shipped
+
+- **`NexusAdopter.scan` + `.apply`** at [`Pommora/Pommora/Nexus/NexusAdopter.swift`](../Pommora/Pommora/Nexus/NexusAdopter.swift) — walks the Nexus root, proposes sidecars for top-level folders without `_vault.json` and their direct sub-folders without `_collection.json`. Excludes only `.`/`_`-prefixed, `node_modules`, `.trash`, and `Agenda` (own paradigm). Idempotent — re-runs on a fully-adopted Nexus return an empty plan.
+- **Always-on adoption hook.** `NexusManager.openPicked` and `NexusManager.openExisting` both call `runAdoptionIfNeeded` after identity is established. Re-opening a pre-v0.2.7.4 Nexus catches up; subsequent opens catch newly-dropped folders. Matches Obsidian's "open folder as vault."
+- **Preview-and-confirm sheet** ([`AdoptionPreviewView.swift`](../Pommora/Pommora/Nexus/AdoptionPreviewView.swift)) — shows counts of Vaults / Collections / Pages / Items + skipped folders. Adopt or "Skip — open empty." Esc / click-outside resolves as Skip (continuation hang fixed via `.sheet(item:onDismiss:)`).
+- **`IndexingHUD`** — material-backed "Indexing…" pill at the bottom of the sidebar while `NexusManager.isIndexing` is true. Dropped before the sheet awaits, re-raised during `apply`.
+- **`PageFile.loadLenient(from:nexusRoot:)`** — tolerates `.md` files without Pommora frontmatter. Synthesizes a stable `id` as `"adopted-" + sha256(relativePath).prefix(16)`; missing `created_at` falls back to file `creationDate`; tier/properties default to empty. Does NOT write back — adopted files stay byte-identical on disk until the user edits and saves. Used by `ContentManager.loadAll(for:)` and the editor host alike, so anything that surfaces in the sidebar also opens.
+- **Recursive Content discovery.** [`Filesystem.descendantFiles`](../Pommora/Pommora/AtomicIO/Filesystem.swift) walks the entire Vault subtree for `.md` / `.json`, excluding already-Collection sub-folders during a Vault-root walk so files don't double-count. Depth-≥2 folders aren't Collections themselves but their files roll up to the nearest Collection ancestor (Obsidian-style "every markdown is visible").
+- **Editor swap.** [`PageEditorHost.swift:74`](../Pommora/Pommora/Pages/PageEditorHost.swift#L74) uses `PageFile.loadLenient` (was strict `PageFile.load`) so adopted pages open instead of showing the "Couldn't load this Page from disk" placeholder.
+
+##### Architecture cross-check
+
+Pommora's Nexus structure verified against Obsidian's official help docs (Context7). Vault = folder + `.obsidian/`-equivalent (`.nexus/`) — identical shape. The one principled divergence: Pommora's Vaults need `_vault.json` and Collections need `_collection.json` because Pommora has a per-Vault property schema concept Obsidian lacks. The indexer creates those sidecars on existing folders so the user doesn't have to.
+
+##### Cleanup pass (post-implementation)
+
+Caught + fixed during a final review:
+
+1. Sheet auto-dismiss hung the adoption continuation — added `onDismiss:` callback that calls `resolveAdoption(false)` (idempotent if a button already resumed it).
+2. Removed an unused `String.StringInterpolation` extension in `AdoptionPreviewView`.
+3. `AdoptionError.partialFailure` had a manual `Equatable` impl that auto-synth covers — removed.
+4. `NexusAdopter.scan` was enumerating top-level folders twice — merged into one pass.
+5. `NexusAdopter.apply` reloaded just-written `_vault.json` files to populate a cache — restructured to cache vault ids inline as we write, only loading from disk for pre-existing vaults.
+
+##### Files changed this session
+
+- [`Pommora/Pommora/Nexus/NexusManager.swift`](../Pommora/Pommora/Nexus/NexusManager.swift) — added `pendingAdoption`, `isIndexing`, `resolveAdoption(_:)`; both open paths call `runAdoptionIfNeeded`.
+- [`Pommora/Pommora/Nexus/NexusAdopter.swift`](../Pommora/Pommora/Nexus/NexusAdopter.swift) — new file; `scan` + `apply` + `AdoptionPlan` / `PlannedVault` / `PlannedCollection`.
+- [`Pommora/Pommora/Nexus/AdoptionPreviewView.swift`](../Pommora/Pommora/Nexus/AdoptionPreviewView.swift) — new file; SwiftUI sheet.
+- [`Pommora/Pommora/AtomicIO/Filesystem.swift`](../Pommora/Pommora/AtomicIO/Filesystem.swift) — `descendantFiles(of:excluding:where:)` + `writeMetadataIntoExistingFolder(metadataURL:metadata:)`.
+- [`Pommora/Pommora/Content/PageFile.swift`](../Pommora/Pommora/Content/PageFile.swift) — `loadLenient(from:nexusRoot:)` + `LenientFrontmatterShape` + `shortHash` (CryptoKit SHA256).
+- [`Pommora/Pommora/Content/ContentManager.swift`](../Pommora/Pommora/Content/ContentManager.swift) — `loadAll(for:)` paths use `descendantFiles` + `loadLenient`; Vault-root walk excludes Collection sub-folders by `_collection.json` sidecar presence.
+- [`Pommora/Pommora/Pages/PageEditorHost.swift`](../Pommora/Pommora/Pages/PageEditorHost.swift) — load swap to `loadLenient`.
+- [`Pommora/Pommora/ContentView.swift`](../Pommora/Pommora/ContentView.swift) — `.sheet(item:onDismiss:)`, `IndexingHUD` overlay, `@Bindable` shadow on `nexusManager`.
+- [`Pommora/PommoraTests/Nexus/NexusAdopterTests.swift`](../Pommora/PommoraTests/Nexus/NexusAdopterTests.swift) — 11 tests.
+- [`Pommora/PommoraTests/Content/PageFileLenientTests.swift`](../Pommora/PommoraTests/Content/PageFileLenientTests.swift) — 6 tests.
+
+##### Parallel-session ship (editor polish — bundled into v0.2.7.4)
+
+A parallel session shipped a cluster of small editor wins alongside the adoption work. All in `External/MarkdownEngine/`:
+
+- **Bullet glyph substitution.** Lines starting with `- ` now render `•` (always-on overlay via `MarkdownTextLayoutFragment.drawDashBulletGlyph`). Source on disk stays portable CommonMark `- item`; the dash is hidden in-editor via `.foregroundColor: NSColor.clear` (natural width preserved). Only `-` triggers; `*` / `+` / `•` literal markers render as-is. Closes the Session 13 deferred item.
+- **Task-list shorthand.** Both `- [ ]` / `- [x]` (GFM) and `-[]` / `-[x]` (Pommora compact) now match. Regex pattern made tolerant: spacer group is zero-or-more (was one-or-more); inner-bracket content is optional. Marker collapse: the leading `-` plus any whitespace before the `[` shrinks to font 0.1pt + clear color so the drawn checkbox glyph is the only visible marker prefix.
+- **Bracket auto-pair guard.** Typing `[` only auto-completes to `[|]` when the preceding char is whitespace (or at line start). Lets `-[` continue cleanly into `-[]` task syntax without the auto-pair stealing input. Prose-link case (`text [link]`) still auto-pairs.
+- **Arrow auto-format extended.** Typed `<-` → `←` and `<->` → `↔` now fire on input (was paste-only). Two new cases in [`MarkdownLists.handleListInsertion`](../External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift): (A) chained "<-" → "←" then ">" extends to "↔"; (B) pasted "<-" still-literal, ">" combined-replaces both with "↔". Closes the Session 13 known bug.
+- **Code colors.** `MarkdownStyler` now applies `.foregroundColor: NSColor.systemRed.withAlphaComponent(0.85)` to both `.codeBlock` and `.inlineCode` token attributes. `PlainTextSyntaxHighlighter.backgroundColor()` returns `NSColor.quaternaryLabelColor` (was: invisible `textBackgroundColor` with 0 alpha). Light/dark adaptive via system semantics.
+
+**Files touched** (parallel session): [`MarkdownStyler.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Styling/MarkdownStyler.swift), [`MarkdownListHandler.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift), [`MarkdownDetection.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Parser/MarkdownDetection.swift) (`isDashBulletLine`), [`MarkdownTextLayoutFragment.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) (`hasDashBulletMarker` + `drawDashBulletGlyph` + `renderingSurfaceBounds` extension), [`MarkdownEditorServices.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Services/MarkdownEditorServices.swift).
+
+##### Mid-session follow-up — HR editor jitter (root-caused + two-phase fix)
+
+Reported: jitter and vertical "auto-adjust" of the cursor line on large files, both on cursor placement / selection and when the caret enters or leaves an HR paragraph. Root-caused via systematic debugging Phase 1 to two independent problems in the Session 12 HR dynamic-syntax pattern; both fixed without changing HR UX.
+
+- **Selection-scope (Phase 4a).** `syncHRVisibility` walked the entire document on every `textViewDidChangeSelection`. Added a scoped overload `syncHRVisibility(in:textView:scopedTo:)` that touches only `{currentCaretParagraph, priorCaretParagraph}`. Full walks stay on `restyleTextView` + `rebuildTextStorageAndStyle` (edits can add/remove HRs anywhere). `textViewDidChangeSelection` now captures `priorCaretLocation` BEFORE `previousCaretLocation` is overwritten — local variable at function top.
+- **Layout-constancy (Phase 4b).** Caret entering an HR paragraph collapsed it by ~11pt (dashes from font 0.1pt → bodyFont AND paragraph style from 16/16-spacing → baseStyle's zero-spacing). Unified: dashes always render at `bodyFont`; only foreground color toggles between `bodyColor` (caret in) and `NSColor.clear` (caret out). Paragraph spacing computed as `max(0, 16 - bodyLineHeight / 2)` and applied in both states — preserves Session 12's 16pt visual margin around the drawn rule line at any font size while keeping total paragraph height constant. Replaced separate `applyHRHiding` / `revealHRDashes` with a single `applyHRDashAttributes(...)`.
+
+**Files touched** (in `External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/`): `NativeTextViewCoordinator+HRVisibility.swift`, `NativeTextViewCoordinator+TextDelegate.swift`. Build green, 244 unit tests passing, lint exit 0.
+
+**Two new paradigm decisions added to History.md (Session 14 continued entry):**
+
+5. HR caret-aware reveal/hide must not cause vertical layout change. Both states share line metrics + paragraph spacing; only dash color differs.
+6. Dynamic-syntax services must scope per-caret-move work. Full walks stay on restyle + rebuild paths only.
+
+These generalize to blockquote and any future caret-aware constructs — reuse the scoped-on-selection + constant-line-metrics pattern.
+
+##### Next session priorities
+
+Lists / blockquote / tables / bullet glyph carry forward from Session 13. No new priorities introduced by v0.2.7.4 or the HR jitter follow-up.
+
+---
+
+#### Prior state (end of 2026-05-20 Session 13 — **v0.2.7.2 LISTS + HR shipped; bullet glyph + blockquote + tables deferred**)
 
 **v0.2.7.2 ships HR (carried over from Session 12) + the list-input rewrite (this session).** Two local commits on `main` pending push: Session 12's HR work (`a2fa85c`) + this session's list rewrite (about to commit). Lint exit 0, build clean.
 

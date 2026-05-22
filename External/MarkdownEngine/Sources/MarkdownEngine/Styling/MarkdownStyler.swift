@@ -33,7 +33,10 @@ extension MarkdownStyler {
         "\\[[^\\]\\r\\n]+\\]\\(\\)",
     ].map { try! NSRegularExpression(pattern: $0) }
     static let taskListRegex: NSRegularExpression = try! NSRegularExpression(
-        pattern: #"^([ \t]*)([-•]|\d+\.)([ \t]+)(\[[ xX]\])(?=[ \t])"#,
+        // `([ \t]*)` (zero-or-more) on the spacer group AND optional inner-bracket
+        // content `[ xX]?` let the Pommora `-[]` / `-[x]` shorthand match
+        // alongside the GFM `- [ ]` / `- [x]` form.
+        pattern: #"^([ \t]*)([-*+•]|\d+\.)([ \t]*)(\[[ xX]?\])(?=[ \t])"#,
         options: [.anchorsMatchLines]
     )
 }
@@ -446,6 +449,7 @@ extension MarkdownStyler {
                     token.range,
                     [
                         .font: ctx.codeFont,
+                        .foregroundColor: NSColor.systemRed.withAlphaComponent(0.85),
                         .backgroundColor: ctx.codeBackgroundColor,
                         .paragraphStyle: ctx.codeParagraphStyle,
                     ]
@@ -482,6 +486,7 @@ extension MarkdownStyler {
                     token.contentRange,
                     [
                         .font: ctx.codeFont,
+                        .foregroundColor: NSColor.systemRed.withAlphaComponent(0.85),
                         .backgroundColor: ctx.codeBackgroundColor,
                     ]
                 ))

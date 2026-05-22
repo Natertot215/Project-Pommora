@@ -32,9 +32,25 @@ final class NexusManager {
     /// for now the property is just observable state.
     var pendingError: NexusError?
 
+    /// The adoption plan that `openPicked` is currently waiting on user
+    /// confirmation for. ContentView observes this and presents
+    /// `AdoptionPreviewView` whenever it goes non-nil; the sheet resolves via
+    /// `resolveAdoption(_:)`.
+    var pendingAdoption: AdoptionPlan?
+
+    /// True while the adoption scan is walking the Nexus folder. ContentView
+    /// shows an "Indexing…" HUD over the sidebar while this is set so the
+    /// user knows the brief stall on open is intentional. Obsidian-parity.
+    var isIndexing: Bool = false
+
     /// The URL we currently hold security-scoped access to. Cleared when the
     /// active nexus changes (we stop access on the old before starting on the new).
     private var accessingURL: URL?
+
+    /// Backing continuation for the adoption sheet's async wait. Held in a
+    /// stored property because `withCheckedContinuation`'s closure stores it
+    /// before the `await` suspends; resumed exactly once by `resolveAdoption`.
+    private var adoptionContinuation: CheckedContinuation<Bool, Never>?
 
     init() {}
 
@@ -144,11 +160,19 @@ final class NexusManager {
             pendingError = .appSupportFailed(error.localizedDescription)
         }
 
+        // Always offer adoption — re-opening a Nexus that pre-dates this
+        // feature is the primary use case (existing Nexuses don't have
+        // _vault.json sidecars yet). The scan is idempotent: if every
+        // top-level folder already has one, the sheet doesn't appear.
+        await runAdoptionIfNeeded(at: url)
+
         currentNexus = Nexus(id: identity.id, rootURL: url)
     }
 
     /// Routes a freshly-picked URL through init (empty/silent or non-empty/confirm)
-    /// or load (existing `.nexus/`).
+    /// or load (existing `.nexus/`), then always runs the adoption scan so
+    /// existing folders without `_vault.json` / `_collection.json` sidecars
+    /// can be adopted as Vaults / Collections (Obsidian-parity).
     private func openPicked(at url: URL) async {
         let nexusConfigDir = url.appendingPathComponent(".nexus", isDirectory: true)
         let identityURL = nexusConfigDir.appendingPathComponent("nexus.json", isDirectory: false)
@@ -186,6 +210,11 @@ final class NexusManager {
             }
         }
 
+        // Always offer adoption — covers both first-time init AND re-opens
+        // of Nexuses that pre-date this feature. The scan is idempotent;
+        // fully-adopted Nexuses produce an empty plan and skip the sheet.
+        await runAdoptionIfNeeded(at: url)
+
         replaceAccessingURL(with: url)
         guard NexusBookmark.startAccessing(url) else {
             pendingError = .accessDenied
@@ -209,6 +238,62 @@ final class NexusManager {
         }
 
         currentNexus = Nexus(id: identity.id, rootURL: url)
+    }
+
+    /// Scans the freshly-initialized Nexus root for adoptable folders. If
+    /// there's anything to adopt, hands off to the SwiftUI sheet via
+    /// `pendingAdoption` and awaits the user's Adopt / Skip decision. If the
+    /// scan finds nothing, the function silently returns — the Nexus is
+    /// already initialized; the sidebar will just be empty.
+    private func runAdoptionIfNeeded(at url: URL) async {
+        isIndexing = true
+        defer { isIndexing = false }
+
+        let plan: AdoptionPlan
+        do {
+            plan = try NexusAdopter.scan(nexusRoot: url)
+        } catch {
+            pendingError = .enumerationFailed(error.localizedDescription)
+            return
+        }
+
+        guard plan.hasAnythingToAdopt else { return }
+
+        // The sheet should be visible WITHOUT the indexing HUD competing for
+        // attention behind it. Drop the indexing flag before awaiting the
+        // user's decision, then re-raise it only while `apply` is writing
+        // sidecars.
+        isIndexing = false
+        let confirmed = await presentAdoptionPreview(plan)
+        guard confirmed else { return }
+
+        isIndexing = true
+        do {
+            try NexusAdopter.apply(plan)
+        } catch {
+            pendingError = .initFailed(error.localizedDescription)
+        }
+    }
+
+    /// Publishes `plan` for ContentView's sheet to pick up, then suspends
+    /// until `resolveAdoption(_:)` resumes with the user's decision.
+    private func presentAdoptionPreview(_ plan: AdoptionPlan) async -> Bool {
+        await withCheckedContinuation { continuation in
+            adoptionContinuation = continuation
+            pendingAdoption = plan
+        }
+    }
+
+    /// Called from `AdoptionPreviewView`'s buttons (or from ContentView when
+    /// the sheet is dismissed without an explicit choice). Resumes the
+    /// `presentAdoptionPreview` continuation with `confirmed` and clears the
+    /// presented sheet. Safe to call when no continuation is pending —
+    /// becomes a no-op.
+    func resolveAdoption(_ confirmed: Bool) {
+        let cont = adoptionContinuation
+        adoptionContinuation = nil
+        pendingAdoption = nil
+        cont?.resume(returning: confirmed)
     }
 
     // MARK: - Helpers

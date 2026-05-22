@@ -34,6 +34,8 @@ struct ContentView: View {
     @State private var mainWindowRouter: MainWindowRouter?
 
     var body: some View {
+        @Bindable var bindableNexusManager = nexusManager
+
         NavigationSplitView {
             sidebar
                 .safeAreaInset(edge: .top, spacing: 8) {
@@ -43,6 +45,21 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
             detail
+        }
+        .sheet(
+            item: $bindableNexusManager.pendingAdoption,
+            onDismiss: {
+                // Catches Esc / click-outside dismissal — without this the
+                // continuation in `runAdoptionIfNeeded` would never resume
+                // and the app would hang on the loading placeholder.
+                // resolveAdoption is idempotent: a no-op if a button already
+                // resumed it.
+                nexusManager.resolveAdoption(false)
+            }
+        ) { plan in
+            AdoptionPreviewView(plan: plan) { confirmed in
+                nexusManager.resolveAdoption(confirmed)
+            }
         }
         .inspector(isPresented: $inspectorPresented) {
             inspectorContent
@@ -159,6 +176,14 @@ struct ContentView: View {
                 .environment(vaultMgr)
                 .environment(contentMgr)
                 .environment(savedMgr)
+                .overlay(alignment: .bottom) {
+                    if nexusManager.isIndexing {
+                        IndexingHUD()
+                            .transition(.opacity)
+                            .padding(10)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.18), value: nexusManager.isIndexing)
         } else {
             VStack(spacing: 8) {
                 ProgressView()
@@ -314,6 +339,28 @@ struct ContentView: View {
             await recentsMgr.load()
             await pinnedMgr.load()
         }
+    }
+}
+
+/// Transient HUD shown over the sidebar while `NexusManager.isIndexing`
+/// is true. Mirrors the Obsidian-style "indexing…" feedback the user expects
+/// on Nexus open. Auto-fades in/out via the caller's `.animation` modifier.
+private struct IndexingHUD: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Indexing…")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(.separator, lineWidth: 0.5)
+        )
     }
 }
 

@@ -99,18 +99,35 @@ final class ContentManager {
 
     // MARK: - Load (Collection-scoped)
 
+    /// Loads every `.md` Page and `.json` Item inside `collection.folderURL`,
+    /// descending recursively through sub-folders. Sub-folders deeper than
+    /// the locked 2-level Vault/Collection model aren't themselves Collections
+    /// — their files roll up into this Collection (Obsidian-parity for
+    /// adopted folder structures).
+    ///
+    /// Pages use the lenient loader so adopted `.md` files without Pommora
+    /// frontmatter still surface; missing `id` is synthesized deterministically
+    /// from the file's path relative to the Nexus root (stable across launches,
+    /// not written back until the user edits).
     func loadAll(for collection: Collection) async {
+        let nexusRoot = nexus.rootURL
         do {
-            let pageFiles = try Filesystem.children(of: collection.folderURL) { url in
-                url.pathExtension == "md"
+            let pageFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
             let pageMetas: [PageMeta] = pageFiles.compactMap { url in
-                guard let pf = try? PageFile.load(from: url) else { return nil }
-                return PageMeta(id: pf.frontmatter.id, title: pf.title, url: url, frontmatter: pf.frontmatter)
+                guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
+                else { return nil }
+                return PageMeta(
+                    id: pf.frontmatter.id,
+                    title: pf.title,
+                    url: url,
+                    frontmatter: pf.frontmatter
+                )
             }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
 
-            let itemFiles = try Filesystem.children(of: collection.folderURL) { url in
-                url.pathExtension == "json"
+            let itemFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
+                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
             }
             let items: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
                 .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
@@ -127,26 +144,49 @@ final class ContentManager {
 
     // MARK: - Load (vault-root)
 
-    /// Scans the vault's root folder for `.md` Pages and `.json` Items DIRECTLY
-    /// (non-recursive — does not descend into Collection sub-folders, since
-    /// those are loaded separately via `loadAll(for: collection)`).
-    /// Skips the `_vault.json` sidecar (any `_`-prefixed file) and `_collection.json`
-    /// sidecars (also `_`-prefixed but only ever found in sub-folders).
+    /// Scans the Vault root for `.md` Pages and `.json` Items, recursing into
+    /// every sub-folder EXCEPT those that are themselves Collections — those
+    /// roll up under `loadAll(for: collection)` instead. Deep sub-folders that
+    /// aren't Collections (depth ≥ 2) contribute their files to the Vault root,
+    /// matching Obsidian's "show every `.md` in the vault" semantics.
+    ///
+    /// Pages use the lenient loader so adopted Markdown surfaces even when
+    /// it predates Pommora frontmatter.
     func loadAll(for vault: Vault) async {
         let folder = folderURL(for: vault)
+        let nexusRoot = nexus.rootURL
+        // Discover Collection sub-folders by sidecar presence so we exclude
+        // their subtrees from the Vault-root walk — their files load via
+        // `loadAll(for: collection)`, not here. Avoids needing a VaultManager
+        // handle inside ContentManager.
+        let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
+        let collectionFolders = allSubs.filter { sub in
+            Filesystem.fileExists(at: sub.appendingPathComponent("_collection.json"))
+        }
+        let excludedCollectionFolders = Set(collectionFolders.map { $0.standardizedFileURL })
         do {
-            let pageFiles = try Filesystem.children(of: folder) { url in
-                url.pathExtension == "md"
-                    && !url.lastPathComponent.hasPrefix("_")
+            let pageFiles = try Filesystem.descendantFiles(
+                of: folder,
+                excluding: excludedCollectionFolders
+            ) { url in
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
             let pageMetas: [PageMeta] = pageFiles.compactMap { url in
-                guard let pf = try? PageFile.load(from: url) else { return nil }
-                return PageMeta(id: pf.frontmatter.id, title: pf.title, url: url, frontmatter: pf.frontmatter)
+                guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
+                else { return nil }
+                return PageMeta(
+                    id: pf.frontmatter.id,
+                    title: pf.title,
+                    url: url,
+                    frontmatter: pf.frontmatter
+                )
             }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
 
-            let itemFiles = try Filesystem.children(of: folder) { url in
-                url.pathExtension == "json"
-                    && !url.lastPathComponent.hasPrefix("_")
+            let itemFiles = try Filesystem.descendantFiles(
+                of: folder,
+                excluding: excludedCollectionFolders
+            ) { url in
+                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
             }
             let items: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
                 .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }

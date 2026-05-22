@@ -128,7 +128,11 @@ public struct PlainTextSyntaxHighlighter: SyntaxHighlighter {
     }
 
     public func backgroundColor() -> NSColor {
-        NSColor.textBackgroundColor.withAlphaComponent(0)
+        // Semantic system fill — adapts light↔dark, has built-in subtle alpha,
+        // visibly distinct from the page background without a custom edit.
+        // `quaternaryLabelColor` (~10% alpha) reads lighter than `tertiary`
+        // (~26% alpha); preferred for the "code paper" subtle box.
+        NSColor.quaternaryLabelColor
     }
 
     public func highlight(code: String, language: String?) -> NSAttributedString? {

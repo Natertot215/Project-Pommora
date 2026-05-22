@@ -81,6 +81,17 @@ enum Filesystem {
         }
     }
 
+    /// Writes a metadata sidecar into an already-existing folder.
+    /// Counterpart to `createFolderWithMetadata` for the adoption flow:
+    /// the folder is the user's pre-existing content, so we MUST NOT touch
+    /// the folder itself — only drop the sidecar JSON next to it.
+    static func writeMetadataIntoExistingFolder<T: Codable>(
+        metadataURL: URL,
+        metadata: T
+    ) throws {
+        try AtomicJSON.write(metadata, to: metadataURL)
+    }
+
     // MARK: - Trash (recoverable deletes)
 
     /// Move a file or folder to the nexus's `.trash//` directory, preserving
@@ -169,6 +180,61 @@ enum Filesystem {
             FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
             return isDir.boolValue
         }
+    }
+
+    /// Recursively enumerates files under `folderURL`, descending into every
+    /// non-excluded sub-folder. Excludes:
+    /// - any URL in `excludedFolderURLs` (entire subtree is skipped)
+    /// - any folder whose last path component begins with `.` or `_`
+    /// - any folder named `node_modules` (compiled artefact dir, never user content)
+    /// Hidden files are skipped via `.skipsHiddenFiles`.
+    ///
+    /// Used by the adoption flow to count `.md` and `.json` descendants of a
+    /// Vault folder, and by `ContentManager` to surface deeply-nested Pages
+    /// under their nearest Collection.
+    static func descendantFiles(
+        of folderURL: URL,
+        excluding excludedFolderURLs: Set<URL> = [],
+        where predicate: (URL) -> Bool
+    ) throws -> [URL] {
+        guard folderExists(at: folderURL) else { return [] }
+
+        let excludedPaths = Set(excludedFolderURLs.map { $0.standardizedFileURL.path })
+
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: folderURL,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )
+        else {
+            return []
+        }
+
+        var results: [URL] = []
+        for case let url as URL in enumerator {
+            let isDir: Bool = {
+                var flag: ObjCBool = false
+                FileManager.default.fileExists(atPath: url.path, isDirectory: &flag)
+                return flag.boolValue
+            }()
+
+            if isDir {
+                let name = url.lastPathComponent
+                let isExcludedByName =
+                    name.hasPrefix(".") || name.hasPrefix("_") || name == "node_modules"
+                let isExcludedByPath = excludedPaths.contains(url.standardizedFileURL.path)
+                if isExcludedByName || isExcludedByPath {
+                    enumerator.skipDescendants()
+                }
+                continue
+            }
+
+            if predicate(url) {
+                results.append(url)
+            }
+        }
+        return results
     }
 }
 

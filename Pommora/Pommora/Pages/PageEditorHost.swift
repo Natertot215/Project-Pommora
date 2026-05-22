@@ -66,12 +66,21 @@ struct PageEditorHost: View {
             return
         }
 
-        // PageFile.load is @MainActor — call directly. (File I/O on the main
-        // actor is fine at v1 prose sizes; if we later need to keep the main
-        // thread free, the right move is to make PageFile.load nonisolated
-        // rather than hop off via Task.detached, since the callee requires
-        // MainActor isolation.)
-        guard let pageFile = try? PageFile.load(from: page.url) else {
+        // Lenient load is the editor's canonical path: matches the sidebar's
+        // discovery contract (ContentManager.loadAll → PageFile.loadLenient)
+        // so any adopted `.md` file that surfaces in the sidebar also opens
+        // in the editor. Files without Pommora frontmatter get a synthesized
+        // path-stable id; the on-disk file isn't mutated until the user
+        // edits and saves.
+        // (File I/O on the main actor is fine at v1 prose sizes; if we later
+        // need to keep the main thread free, make the loader nonisolated
+        // rather than hopping off via Task.detached.)
+        guard
+            let pageFile = try? PageFile.loadLenient(
+                from: page.url,
+                nexusRoot: contentManager.nexus.rootURL
+            )
+        else {
             viewModel = nil
             resolvedVault = nil
             resolvedCollection = nil
