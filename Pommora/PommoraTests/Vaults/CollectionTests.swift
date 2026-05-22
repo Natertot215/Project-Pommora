@@ -6,7 +6,7 @@ import Testing
 @Suite("CollectionFile")
 struct CollectionTests {
 
-    @Test("Collection round-trips through _collection.json")
+    @Test("Collection round-trips through _schema.json")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -14,7 +14,7 @@ struct CollectionTests {
             .appendingPathComponent("Planner", isDirectory: true)
             .appendingPathComponent("Tasks", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_collection.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         let original = Collection(
             id: "01HCOLL",
@@ -41,7 +41,7 @@ struct CollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("C", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_collection.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         try Collection(
             id: "01H", vaultID: "01HV", title: "C",
@@ -64,7 +64,7 @@ struct CollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("Side Projects", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_collection.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         try Collection(
             id: "01H", vaultID: "01HV", title: "Side Projects",
@@ -83,7 +83,7 @@ struct CollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("X", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_collection.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         try Collection(
             id: "01H", vaultID: "01HV", title: "X",

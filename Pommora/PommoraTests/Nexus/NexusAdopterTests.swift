@@ -23,7 +23,7 @@ struct NexusAdopterTests {
         #expect(!plan.hasAnythingToAdopt)
     }
 
-    @Test("scan proposes Vault for top-level folder without _vault.json")
+    @Test("scan proposes Vault for top-level folder without _schema.json")
     func scanProposesVault() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -37,13 +37,13 @@ struct NexusAdopterTests {
         #expect(plan.vaults.first?.folderURL.lastPathComponent == "Projects")
     }
 
-    @Test("scan skips top-level folder that already has _vault.json (idempotent)")
+    @Test("scan skips top-level folder that already has _schema.json (idempotent)")
     func scanSkipsExistingVault() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Projects", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_vault.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         try FixtureFiles.writeJSON(
             #"{"id":"01HV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
             to: metaURL
@@ -53,7 +53,7 @@ struct NexusAdopterTests {
         #expect(plan.vaults.isEmpty)
     }
 
-    @Test("scan proposes Collection for sub-folder without _collection.json")
+    @Test("scan proposes Collection for sub-folder without _schema.json")
     func scanProposesCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -68,7 +68,7 @@ struct NexusAdopterTests {
         #expect(plan.collections.first?.vaultFolderURL.lastPathComponent == "Projects")
     }
 
-    @Test("scan skips sub-folder that already has _collection.json")
+    @Test("scan skips sub-folder that already has _schema.json")
     func scanSkipsExistingCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -77,13 +77,13 @@ struct NexusAdopterTests {
         try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
         try FixtureFiles.writeJSON(
             #"{"id":"01HC","vault_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
-            to: sub.appendingPathComponent("_collection.json")
+            to: sub.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
 
-        // Vault is still proposed (no _vault.json yet), but the existing
-        // _collection.json sub-folder is NOT re-proposed.
+        // Vault is still proposed (no _schema.json on the vault folder yet),
+        // but the existing sub-folder sidecar means the collection is NOT re-proposed.
         #expect(plan.vaults.count == 1)
         #expect(plan.collections.isEmpty)
     }
@@ -139,7 +139,7 @@ struct NexusAdopterTests {
 
     // MARK: - apply
 
-    @Test("apply writes _vault.json into existing folders")
+    @Test("apply writes _schema.json into existing folders")
     func applyWritesVaultSidecar() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -149,7 +149,7 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         try NexusAdopter.apply(plan)
 
-        let metaURL = folder.appendingPathComponent("_vault.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: metaURL.path))
 
         let vault = try Vault.load(from: metaURL)
@@ -157,7 +157,7 @@ struct NexusAdopterTests {
         #expect(!vault.id.isEmpty)
     }
 
-    @Test("apply writes _collection.json with parent vault's id")
+    @Test("apply writes Collection _schema.json with parent vault's id")
     func applyLinksCollectionToVault() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -168,8 +168,8 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         try NexusAdopter.apply(plan)
 
-        let vaultMetaURL = vault.appendingPathComponent("_vault.json")
-        let collMetaURL = sub.appendingPathComponent("_collection.json")
+        let vaultMetaURL = vault.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let collMetaURL = sub.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         let vaultModel = try Vault.load(from: vaultMetaURL)
         let collModel = try Collection.load(from: collMetaURL)
 
@@ -204,7 +204,7 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         try NexusAdopter.apply(plan)
 
-        let metaURL = folder.appendingPathComponent("_vault.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         let first = try Vault.load(from: metaURL)
         let second = try Vault.load(from: metaURL)
         #expect(first.id == second.id)

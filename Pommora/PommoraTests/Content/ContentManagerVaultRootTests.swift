@@ -67,7 +67,7 @@ struct ContentManagerVaultRootTests {
             modifiedAt: Date()
         )
         // Sidecar so Vault discovery would treat this as a real Collection
-        try coll.save(to: collFolder.appendingPathComponent("_collection.json"))
+        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.schemaSidecarFilename))
         try FixtureFiles.write(
             "---\nid: 01HINNER\ncreated_at: 2025-01-01T00:00:00Z\n---\n\nbody\n",
             to: NexusPaths.pageFileURL(forTitle: "InnerPage", in: collFolder)

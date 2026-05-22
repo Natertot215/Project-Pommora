@@ -7,7 +7,7 @@ import Testing
 @Suite("VaultManager")
 struct VaultManagerTests {
 
-    @Test("createVault writes folder + _vault.json")
+    @Test("createVault writes folder + _schema.json")
     func createVault() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -85,7 +85,7 @@ struct VaultManagerTests {
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
-    @Test("loadAll skips top-level folders without _vault.json (cosmetic dirs)")
+    @Test("loadAll skips top-level folders without _schema.json (cosmetic dirs)")
     func skipCosmeticFolders() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }

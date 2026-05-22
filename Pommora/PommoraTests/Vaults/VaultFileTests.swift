@@ -12,7 +12,7 @@ struct VaultFileTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Planner", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_vault.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         let original = Vault(
             id: "01HVAULT",
@@ -49,7 +49,7 @@ struct VaultFileTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Materials", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_vault.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         try Vault(id: "01H", title: "Materials", icon: nil, properties: [], views: [], modifiedAt: Date())
             .save(to: metaURL)
@@ -63,7 +63,7 @@ struct VaultFileTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Empty", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent("_vault.json")
+        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
         let v = Vault(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
         try v.save(to: metaURL)

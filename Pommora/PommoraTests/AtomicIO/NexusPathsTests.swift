@@ -85,7 +85,7 @@ struct NexusPathsTests {
         #expect(url.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
-    @Test("vaultFolderURL is rootURL/<title>; metadata is _vault.json")
+    @Test("vaultFolderURL is rootURL/<title>; metadata is _schema.json")
     func vaultPaths() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -93,7 +93,7 @@ struct NexusPathsTests {
         #expect(folder.lastPathComponent == "Planner")
         #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
-        #expect(meta.lastPathComponent == "_vault.json")
+        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
     }
 
     @Test("collectionFolderURL nests inside vault folder")
