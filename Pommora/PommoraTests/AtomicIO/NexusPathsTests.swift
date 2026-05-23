@@ -33,13 +33,25 @@ struct NexusPathsTests {
         #expect(dir.deletingLastPathComponent().lastPathComponent == ".nexus")
     }
 
-    @Test("agendaDir is rootURL/Agenda")
-    func agendaDirShape() throws {
+    @Test("agendaWrapperDir is rootURL/Agenda")
+    func agendaWrapperDirShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let dir = NexusPaths.agendaDir(in: nexus)
+        let dir = NexusPaths.agendaWrapperDir(in: nexus)
         #expect(dir.lastPathComponent == "Agenda")
         #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
+    }
+
+    @Test("tasksDir is Agenda/Tasks; eventsDir is Agenda/Events")
+    func tasksAndEventsDirsShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let tasks = NexusPaths.tasksDir(in: nexus)
+        let events = NexusPaths.eventsDir(in: nexus)
+        #expect(tasks.lastPathComponent == "Tasks")
+        #expect(tasks.deletingLastPathComponent().lastPathComponent == "Agenda")
+        #expect(events.lastPathComponent == "Events")
+        #expect(events.deletingLastPathComponent().lastPathComponent == "Agenda")
     }
 
     @Test("named file URLs use the documented extensions")
@@ -49,7 +61,14 @@ struct NexusPathsTests {
         #expect(NexusPaths.tierConfigURL(in: nexus).lastPathComponent == "tier-config.json")
         #expect(NexusPaths.savedConfigURL(in: nexus).lastPathComponent == "saved-config.json")
         #expect(NexusPaths.homepageURL(in: nexus).lastPathComponent == "homepage.json")
-        #expect(NexusPaths.agendaSchemaURL(in: nexus).lastPathComponent == "_agenda.json")
+        #expect(
+            NexusPaths.taskSchemaURL(in: nexus).lastPathComponent
+                == NexusPaths.schemaSidecarFilename
+        )
+        #expect(
+            NexusPaths.eventSchemaURL(in: nexus).lastPathComponent
+                == NexusPaths.schemaSidecarFilename
+        )
     }
 
     @Test("spaceFileURL embeds title with .space.json extension")
@@ -122,13 +141,28 @@ struct NexusPathsTests {
         #expect(item.lastPathComponent == "Buy groceries.json")
     }
 
-    @Test("agendaItemFileURL uses .agenda.json extension")
-    func agendaItemPath() throws {
+    @Test("taskFileURL nests inside Agenda/Tasks with .task.json extension")
+    func taskFilePath() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.agendaItemFileURL(forTitle: "Team standup", in: nexus)
-        #expect(url.lastPathComponent == "Team standup.agenda.json")
-        #expect(url.deletingLastPathComponent().lastPathComponent == "Agenda")
+        let url = NexusPaths.taskFileURL(forTitle: "Submit grant proposal", in: nexus)
+        #expect(url.lastPathComponent == "Submit grant proposal.task.json")
+        #expect(url.deletingLastPathComponent().lastPathComponent == "Tasks")
+        #expect(
+            url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Agenda"
+        )
+    }
+
+    @Test("eventFileURL nests inside Agenda/Events with .event.json extension")
+    func eventFilePath() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let url = NexusPaths.eventFileURL(forTitle: "Team standup", in: nexus)
+        #expect(url.lastPathComponent == "Team standup.event.json")
+        #expect(url.deletingLastPathComponent().lastPathComponent == "Events")
+        #expect(
+            url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Agenda"
+        )
     }
 
     @Test("ensureDirectoryExists creates intermediate dirs idempotently")
