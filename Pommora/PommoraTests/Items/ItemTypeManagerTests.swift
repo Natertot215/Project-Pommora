@@ -179,6 +179,36 @@ struct ItemTypeManagerTests {
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
+    @Test("updateItemTypeIcon persists icon change + survives reload")
+    func updateItemTypeIcon() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = ItemTypeManager(nexus: nexus)
+        await manager.loadAll()
+
+        try await manager.createItemType(name: "Errands", icon: nil)
+        let itemType = manager.types.first!
+        #expect(itemType.icon == nil)
+
+        try await manager.updateItemTypeIcon(itemType, to: "cart.fill")
+        #expect(manager.types.first?.icon == "cart.fill")
+        #expect(manager.typesByID[itemType.id]?.icon == "cart.fill")
+
+        // Reload from disk to confirm persistence
+        let fresh = ItemTypeManager(nexus: nexus)
+        await fresh.loadAll()
+        #expect(fresh.types.first?.icon == "cart.fill")
+
+        // Clearing back to nil also round-trips
+        let reloaded = fresh.types.first!
+        try await fresh.updateItemTypeIcon(reloaded, to: nil)
+        #expect(fresh.types.first?.icon == nil)
+
+        let fresh2 = ItemTypeManager(nexus: nexus)
+        await fresh2.loadAll()
+        #expect(fresh2.types.first?.icon == nil)
+    }
+
     @Test("loadAll discovers existing ItemTypes after createItemType auto-creates wrapper")
     func loadAllAfterCreate() async throws {
         let nexus = try TempNexus.make()

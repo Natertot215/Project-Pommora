@@ -254,6 +254,18 @@ struct ItemContentManagerTests {
         #expect(manager.items(in: itemType).first?.title == "Ideas")
     }
 
+    @Test("createItem in type root rejects duplicate title (case-insensitive)")
+    func duplicateTitleRejectedInTypeRoot() async throws {
+        let (nexus, itemType, manager) = try await setupTypeRoot()
+        defer { TempNexus.cleanup(nexus) }
+
+        _ = try await manager.createItem(name: "Notes", inTypeRoot: itemType)
+        await #expect(throws: ItemCRUDError.duplicateTitle) {
+            _ = try await manager.createItem(name: "NOTES", inTypeRoot: itemType)
+        }
+        #expect(manager.items(in: itemType).count == 1)
+    }
+
     @Test("deleteItem in type root removes file + updates items(in: itemType)")
     func deleteItemInTypeRoot() async throws {
         let (nexus, itemType, manager) = try await setupTypeRoot()
