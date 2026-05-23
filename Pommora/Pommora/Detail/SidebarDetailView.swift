@@ -74,23 +74,13 @@ struct SidebarDetailView: View {
                 PageEditorHost(page: p)
 
             case .itemType(let t):
-                // ParadigmV2 (Task 8.4): Designed Items-table detail view ships
-                // in a follow-up plan. Placeholder keeps selection routing
-                // build-clean.
-                ContextDetailPlaceholder(
-                    title: t.title,
-                    icon: t.icon ?? "tray",
-                    accent: nil,
-                    supportingLine: "Item Type — detail UI lands in Task 8.4"
-                )
+                // ParadigmV2 (Task 8.4): Routing wired; detail view is a
+                // ContentUnavailableView stub. Real Items-table surface ships
+                // in a follow-up plan.
+                ItemTypeDetailView(type: t)
 
             case .itemCollection(let c):
-                ContextDetailPlaceholder(
-                    title: c.title,
-                    icon: "tray.fill",
-                    accent: nil,
-                    supportingLine: "Item Collection — detail UI lands in Task 8.4"
-                )
+                ItemCollectionDetailView(collection: c)
             }
         }
         .sheet(item: $presentedItem) { item in
