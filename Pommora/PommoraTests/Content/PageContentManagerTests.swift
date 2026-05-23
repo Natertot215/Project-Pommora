@@ -64,7 +64,8 @@ struct PageContentManagerTests {
         #expect(!FileManager.default.fileExists(atPath: pageURL.path))
 
         // File now in .trash, preserving relative path under nexus root
-        let trashPage = NexusPaths.trashDir(in: nexus).appendingPathComponent("V/C/P.md")
+        // (PageType + PageCollection folders live inside <nexus>/Pages/ post-ParadigmV2 Phase 6).
+        let trashPage = NexusPaths.trashDir(in: nexus).appendingPathComponent("Pages/V/C/P.md")
         #expect(FileManager.default.fileExists(atPath: trashPage.path))
     }
 

@@ -33,6 +33,28 @@ struct NexusPathsTests {
         #expect(dir.deletingLastPathComponent().lastPathComponent == ".nexus")
     }
 
+    // MARK: - ParadigmV2 wrapper folders
+
+    @Test("pagesWrapperDir is rootURL/Pages")
+    func pagesWrapperDirShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let dir = NexusPaths.pagesWrapperDir(in: nexus)
+        #expect(dir.lastPathComponent == "Pages")
+        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
+        // URL-form overload matches the Nexus-typed form
+        #expect(NexusPaths.pagesWrapperDir(in: nexus.rootURL) == dir)
+    }
+
+    @Test("itemsWrapperDir is rootURL/Items")
+    func itemsWrapperDirShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let dir = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
+        #expect(dir.lastPathComponent == "Items")
+        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
+    }
+
     @Test("agendaWrapperDir is rootURL/Agenda")
     func agendaWrapperDirShape() throws {
         let nexus = try TempNexus.make()
@@ -40,6 +62,17 @@ struct NexusPathsTests {
         let dir = NexusPaths.agendaWrapperDir(in: nexus)
         #expect(dir.lastPathComponent == "Agenda")
         #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
+        // URL-form overload matches the Nexus-typed form
+        #expect(NexusPaths.agendaWrapperDir(in: nexus.rootURL) == dir)
+    }
+
+    @Test("reservedTopLevelFolderNames contains Pages, Items, and Agenda")
+    func reservedTopLevelFolderNames() throws {
+        let reserved = NexusPaths.reservedTopLevelFolderNames
+        #expect(reserved.contains("Pages"))
+        #expect(reserved.contains("Items"))
+        #expect(reserved.contains("Agenda"))
+        #expect(reserved.count == 3)
     }
 
     @Test("tasksDir is Agenda/Tasks; eventsDir is Agenda/Events")
@@ -104,19 +137,66 @@ struct NexusPathsTests {
         #expect(url.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
-    @Test("vaultFolderURL is rootURL/<title>; metadata is _schema.json")
-    func vaultPaths() throws {
+    // MARK: - PageType / PageCollection (rooted at <nexus>/Pages/)
+
+    @Test("pageTypeFolderURL nests inside Pages/ wrapper")
+    func pageTypeFolderShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = NexusPaths.pageTypeFolderURL(
+            in: nexus.rootURL, typeFolderName: "Recipes"
+        )
+        #expect(folder.lastPathComponent == "Recipes")
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "Pages")
+        #expect(folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path)
+
+        // metadata URL co-located
+        let meta = NexusPaths.pageTypeMetadataURL(
+            in: nexus.rootURL, typeFolderName: "Recipes"
+        )
+        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.deletingLastPathComponent() == folder)
+    }
+
+    @Test("pageCollectionFolderURL nests inside <Pages>/<Type>/<Collection>")
+    func pageCollectionFolderShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = NexusPaths.pageCollectionFolderURL(
+            in: nexus.rootURL,
+            typeFolderName: "Recipes",
+            collectionFolderName: "Dinners"
+        )
+        #expect(folder.lastPathComponent == "Dinners")
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "Recipes")
+        #expect(
+            folder.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Pages"
+        )
+
+        // metadata sidecar
+        let meta = NexusPaths.pageCollectionMetadataURL(
+            in: nexus.rootURL,
+            typeFolderName: "Recipes",
+            collectionFolderName: "Dinners"
+        )
+        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.deletingLastPathComponent() == folder)
+    }
+
+    @Test("legacy vaultFolderURL / vaultMetadataURL also root inside Pages/")
+    func legacyVaultAliasesRootInsidePages() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         #expect(folder.lastPathComponent == "Planner")
-        #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "Pages")
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
         #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.deletingLastPathComponent() == folder)
     }
 
-    @Test("collectionFolderURL nests inside vault folder")
-    func collectionPath() throws {
+    @Test("legacy collectionFolderURL nests inside Pages/<Vault>/<Collection>")
+    func legacyCollectionAliasRootsInsidePages() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let url = NexusPaths.collectionFolderURL(
@@ -126,6 +206,53 @@ struct NexusPathsTests {
         )
         #expect(url.lastPathComponent == "Tasks")
         #expect(url.deletingLastPathComponent().lastPathComponent == "Planner")
+        #expect(
+            url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Pages"
+        )
+    }
+
+    // MARK: - ItemType / ItemCollection (rooted at <nexus>/Items/)
+
+    @Test("itemTypeFolderURL nests inside Items/ wrapper")
+    func itemTypeFolderShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = NexusPaths.itemTypeFolderURL(
+            in: nexus.rootURL, typeFolderName: "Errands"
+        )
+        #expect(folder.lastPathComponent == "Errands")
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "Items")
+        #expect(folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path)
+
+        let meta = NexusPaths.itemTypeMetadataURL(
+            in: nexus.rootURL, typeFolderName: "Errands"
+        )
+        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.deletingLastPathComponent() == folder)
+    }
+
+    @Test("itemCollectionFolderURL nests inside <Items>/<Type>/<Collection>")
+    func itemCollectionFolderShape() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = NexusPaths.itemCollectionFolderURL(
+            in: nexus.rootURL,
+            typeFolderName: "Errands",
+            collectionFolderName: "Groceries"
+        )
+        #expect(folder.lastPathComponent == "Groceries")
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "Errands")
+        #expect(
+            folder.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Items"
+        )
+
+        let meta = NexusPaths.itemCollectionMetadataURL(
+            in: nexus.rootURL,
+            typeFolderName: "Errands",
+            collectionFolderName: "Groceries"
+        )
+        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.deletingLastPathComponent() == folder)
     }
 
     @Test("pageFileURL + itemFileURL use the right extensions inside a PageCollection")
