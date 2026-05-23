@@ -35,7 +35,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
-- **Files are canonical (≠ everything is Markdown).** Pages = `.md` (inside a Page Type's Page Collection sub-folder, or directly in a Page Type). Items = `.json` (inside an Item Type's Item Collection sub-folder, or directly in an Item Type). Page Type = folder + `_schema.json`; Item Type = folder + `_schema.json`. Page Collection / Item Collection = sub-folder + `_schema.json` (carries id + type_id + ordering). Agenda Tasks = `.task.json` inside `<nexus>/Agenda/Tasks/`. Agenda Events = `.event.json` inside `<nexus>/Agenda/Events/`. Projects (tier-3 Contexts) = `.project.json` inside `.nexus/topics/<TopicFolder>/`. Settings = `.nexus/settings.json` (Phase 7). SQLite is regeneratable index — no user data trapped in it.
+- **Files are canonical (≠ everything is Markdown).** Pages = `.md` (inside a Page Type's Page Collection sub-folder, or directly in a Page Type). Items = `.json` (inside an Item Type's Item Collection sub-folder, or directly in an Item Type). Page Type = folder + `_pagetype.json`; Item Type = folder + `_itemtype.json`. Page Collection = sub-folder + `_pagecollection.json`; Item Collection = sub-folder + `_itemcollection.json` (carries id + type_id + ordering). Agenda Tasks = `.task.json` files inside the Tasks singleton folder (root folder carrying `_taskconfig.json`). Agenda Events = `.event.json` files inside the Events singleton folder (root folder carrying `_eventconfig.json`). All operational containers live at the nexus root — no wrapper folders. Projects (tier-3 Contexts) = `.project.json` inside `.nexus/topics/<TopicFolder>/`. Settings = `.nexus/settings.json` (Phase 7). SQLite is regeneratable index — no user data trapped in it.
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 
@@ -78,7 +78,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
   - `Pages.md` — on-disk shape, Markdown features + two rendering directives, opening behavior, wikilinks, tier1/2/3
   - `PageEditor.md` — editor implementation spec: library (swift-markdown + vendored swift-markdown-engine), shipped v0.2.7.0 features, v0.2.7.x deferred patches, save pipeline, hot-swap surface
   - `Items.md` — Item Types + Item Collections + Items (`.json` row entries); Item Window UI; tier1/2/3
-  - `Properties.md` — property type catalog (per-Type via `_schema.json`; shared across Pages, Items, Agenda Tasks, Agenda Events)
+  - `Properties.md` — property type catalog (per-Type via per-kind sidecar — `_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json`; shared across Pages, Items, Agenda Tasks, Agenda Events)
   - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Pinned + Recents); shipped v0.2.7.1 — supersedes the earlier tab-strip navigation model
   - `Sidebar.md` — five-section sidebar (Pinned / Spaces / Topics / Items / Pages — no Agenda section); selection language, indentation mechanisms
   - `Architecture.md` — what survives a stack rebuild (conceptual portability)
@@ -90,9 +90,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
   - `Symbols.md` — SF Symbol registry (Application ↔ Symbol table); spec for the future in-app Symbol Settings surface
   - `CRUD-Patterns.md` — SwiftUI patterns for per-entity CRUD UI, atomic-write discipline, manager pattern
   - `Paradigm-Decisions.md` — Confirmation protocol + registry of paradigm-solidifying decisions
-- `// Planning//`
-  - `Contexts-Vaults-spec.md` — complete implementation spec for the locked 2-layer model (file schemas, validation, CRUD scope, 11-phase plan, SwiftUI research, EventKit details, day-1 plan)
-  - `v0.1-nexus-foundation-design.md` — v0.1a implementation design + Findings (shipped)
+- `// Planning//` — active plans + `Superseded/` archive; index at `// Planning//README.md`
 - `// ReactInfo//` — React+Electron contingency reference
   - `Contingency.md` — translation methodology and the update-obligation pattern
   - `ReactInfo.md` — folder index + preserved verified-findings appendix
@@ -113,9 +111,9 @@ The React+Electron-locked predecessor spec for v0.0.0 is preserved at `// ReactI
 1. **Test filter form uses FILENAME, not @Suite name.** `-only-testing:PommoraTests/<FilenameWithTests>`. Suite-name form silently no-ops with `** TEST SUCCEEDED **`. Visually verify count.
 2. **Both targets use `PBXFileSystemSynchronizedRootGroup`** — new Swift files auto-include; pbxproj usually doesn't need editing.
 3. **Trust `xcodebuild`, not SourceKit squiggles** — IDE diagnostics frequently stale (especially `Cannot find type X` for same-module types, `Collection` shadow with `Swift.Collection`, `No such module 'SymbolPicker'` after SPM dep landed).
-4. **`.claude/*` IS included in commits** (corrected end-of-2026-05-17). The prior "DO NOT stage `.claude/*` unless explicitly asked" rule prevents unilateral doc bundling into Swift commits, but does NOT preclude explicit doc commits. Commit accumulated docs to the active branch so branch switches don't make them "disappear" from the working view. Still: don't auto-bundle docs into Swift commits without explicit ask.
+4. **`.claude/*` is included in commits.** Don't auto-bundle docs into Swift commits without explicit ask, but explicit doc commits are fine — commit accumulated docs to the active branch so branch switches don't make them "disappear" from the working view.
 5. **Swift 6 strict concurrency + ExistentialAny ON.** Custom Codable: `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)`. Errors: `var foo: (any Error)?`. NexusContext closure tests: hoist `let id = ULID.generate()` before building entity to avoid `@Sendable` capture errors. `@MainActor @escaping () -> NexusContext` is the locked parameter pattern on TopicManager / ContentManager; snapshot-closure trick at `ContentView.constructManagers` is the in-body solution for capturing manager state into validator closures.
-6. ~~**`Pommora.Collection` qualification** required~~ — **RETIRED in ParadigmV2 (2026-05-22).** `Collection` Swift struct renamed to `PageCollection`; new Items-side `ItemCollection` is bare-unambiguous. Quirk no longer applies; no Swift collisions with `Swift.Collection` remain.
+6. *(retired in ParadigmV2 — was `Pommora.Collection` qualification rule; superseded by the `PageCollection` / `ItemCollection` renames. Slot kept so #7–#12 references stay valid.)*
 7. **Xcode auto-reorders SymbolPicker/Yams entries in pbxproj on every build** — incidental noop diff. Revert before commit to keep diffs limited to intended files.
 8. **Stub-and-progressively-replace is the locked execution strategy** for branch-spanning plans with forward task dependencies (paradigm decision #4 in `// Guidelines//Paradigm-Decisions.md`). Each task ships green standalone; later tasks replace earlier stubs in-place. Supersedes spec batch-commit-at-end approach.
 9. **Section structure in SidebarView is load-bearing.** Changes to `Section(isExpanded:) { } header: { SectionHeader(...) }` patterns or to the `SectionHeader`/`SelectableRow`/`SelectionChrome` shape risk regressing a launch crash (the in-content `.background` workaround tried during the polish series broke `OutlineListCoordinator.recursivelyDiffRows`). Verify via `xcodebuild test` (tests must actually bootstrap, not just compile).
