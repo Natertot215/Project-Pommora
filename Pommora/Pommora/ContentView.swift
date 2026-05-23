@@ -175,6 +175,7 @@ struct ContentView: View {
         if let spaceMgr = spaceManager,
             let topicMgr = topicManager,
             let vaultMgr = vaultManager,
+            let itemTypeMgr = itemTypeManager,
             let contentMgr = contentManager,
             let itemContentMgr = itemContentManager,
             let savedMgr = savedConfigManager,
@@ -184,6 +185,7 @@ struct ContentView: View {
                 .environment(spaceMgr)
                 .environment(topicMgr)
                 .environment(vaultMgr)
+                .environment(itemTypeMgr)
                 .environment(contentMgr)
                 .environment(itemContentMgr)
                 .environment(savedMgr)

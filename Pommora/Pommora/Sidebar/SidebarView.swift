@@ -5,11 +5,12 @@
 
 import SwiftUI
 
-/// Four-section sidebar: Saved (pinned-headerless) / Spaces / Topics / Vaults. Rows extracted to *Row.swift files; sheets at Sheets/*Sheet.swift.
+/// Five-section sidebar: Saved (pinned-headerless) / Spaces / Topics / Items / Pages. Rows extracted to *Row.swift files; sheets at Sheets/*Sheet.swift.
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
 
     @Binding var selection: SidebarSelection
@@ -33,6 +34,12 @@ struct SidebarView: View {
                     confirmingDelete: $confirmingDelete
                 )
                 TopicsSection(
+                    selection: $selection,
+                    editingID: $editingID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete
+                )
+                ItemsSection(
                     selection: $selection,
                     editingID: $editingID,
                     presentedSheet: $presentedSheet,
@@ -265,6 +272,34 @@ struct TopicsSection: View {
         } header: {
             SectionHeader(title: "Topics") {
                 presentedSheet = .newTopic
+            }
+        }
+    }
+}
+
+struct ItemsSection: View {
+    @Binding var selection: SidebarSelection
+    @Binding var editingID: String?
+    @Binding var presentedSheet: SidebarSheet?
+    @Binding var confirmingDelete: SidebarConfirmation?
+    @Environment(ItemTypeManager.self) private var itemTypeManager
+
+    @State private var expanded: Bool = true
+
+    var body: some View {
+        Section(isExpanded: $expanded) {
+            ForEach(itemTypeManager.types) { itemType in
+                ItemTypeRow(
+                    itemType: itemType,
+                    selection: $selection
+                )
+            }
+        } header: {
+            // Phase 8 stub: literal "Items" label (no SettingsManager read yet —
+            // Items-side label wiring lands with the real Items UI plan, per
+            // Task 8.5 spec).
+            SectionHeader(title: "Items") {
+                presentedSheet = .newItemType
             }
         }
     }
