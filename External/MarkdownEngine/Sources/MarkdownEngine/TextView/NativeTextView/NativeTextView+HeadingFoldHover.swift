@@ -274,30 +274,24 @@ extension NativeTextView {
         return true
     }
 
-    /// Chevron rect for a layout fragment in VIEW coordinates. Mirrors the
-    /// math in `MarkdownTextLayoutFragment.chevronRect(at:)` — both sites
-    /// must produce identical rects (L2 shared logic) so the click hit-test
-    /// agrees with what the renderer draws.
+    /// Chevron rect in VIEW coordinates for a layout fragment. Mirrors the
+    /// renderer's `chevronRect(at:)` via shared `HeadingChevronGeometry`
+    /// (Markdown.md L2 — both sites must produce identical rects so the
+    /// click hit-test lands on the drawn glyph).
     private func chevronViewRect(for fragment: NSTextLayoutFragment) -> CGRect? {
         guard textLayoutManager?.textContainer != nil,
             let firstLine = fragment.textLineFragments.first
         else { return nil }
-        let chevronSize: CGFloat = 12
-        let chevronToTextGap: CGFloat = 6
-        // Container leading edge in view coords. The renderer's formula
-        // `point.x - layoutFragmentFrame.origin.x` reduces to this same
-        // value because `point.x = textContainerOrigin.x + layoutFragmentFrame.origin.x`.
-        // No `max(0, ...)` clamp here — must match the renderer's chevronRect
-        // math exactly, including allowing negative X on narrow gutters.
-        let containerLeading = textContainerOrigin.x
-        let gutterX = containerLeading - chevronSize - chevronToTextGap
-        let lineOriginY = textContainerOrigin.y + fragment.layoutFragmentFrame.origin.y
-        let lineMidY = lineOriginY + firstLine.typographicBounds.midY
-        return CGRect(
-            x: gutterX,
-            y: lineMidY - chevronSize / 2,
-            width: chevronSize,
-            height: chevronSize
+        // Renderer's call site passes fragment-local origin; this site uses
+        // view-coord origin (textContainerOrigin + fragment's offset).
+        let fragmentOrigin = CGPoint(
+            x: textContainerOrigin.x + fragment.layoutFragmentFrame.origin.x,
+            y: textContainerOrigin.y + fragment.layoutFragmentFrame.origin.y
+        )
+        return HeadingChevronGeometry.rect(
+            fragmentOrigin: fragmentOrigin,
+            containerLeading: textContainerOrigin.x,
+            firstLineBounds: firstLine.typographicBounds
         )
     }
 

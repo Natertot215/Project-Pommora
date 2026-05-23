@@ -192,18 +192,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         guard textLayoutManager?.textContainer != nil,
             let firstLine = textLineFragments.first
         else { return nil }
-        let chevronSize: CGFloat = 12
-        let chevronToTextGap: CGFloat = 6
         let containerLeading = point.x - layoutFragmentFrame.origin.x
-        // Place the chevron so its RIGHT edge sits `chevronToTextGap` to the
-        // left of the text container's leading edge.
-        let gutterX = containerLeading - chevronSize - chevronToTextGap
-        let lineMidY = point.y + firstLine.typographicBounds.midY
-        return CGRect(
-            x: gutterX,
-            y: lineMidY - chevronSize / 2,
-            width: chevronSize,
-            height: chevronSize
+        return HeadingChevronGeometry.rect(
+            fragmentOrigin: point,
+            containerLeading: containerLeading,
+            firstLineBounds: firstLine.typographicBounds
         )
     }
 
