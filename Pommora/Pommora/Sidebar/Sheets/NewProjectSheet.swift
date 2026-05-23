@@ -5,6 +5,7 @@ struct NewProjectSheet: View {
     let parent: Topic
     @Environment(\.dismiss) private var dismiss
     @Environment(TopicManager.self) private var topicManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var name: String = ""
     @State private var icon: String? = nil
@@ -13,7 +14,7 @@ struct NewProjectSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("New Project in \"\(parent.title)\"")
+            Text("New \(settingsManager.settings.labels.project.singular) in \"\(parent.title)\"")
                 .font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
@@ -52,10 +53,12 @@ struct NewProjectSheet: View {
     }
 
     private func friendly(_ error: ProjectValidator.ValidationError) -> String {
+        let projectLabel = settingsManager.settings.labels.project.singular
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle: return "A Project with that name already exists in this Topic."
+        case .duplicateTitle:
+            return "A \(projectLabel) with that name already exists in this Topic."
         case .missingParent, .tooManyParents, .parentNotFound, .fileLocationMismatch:
             return "Internal validation error."
         }

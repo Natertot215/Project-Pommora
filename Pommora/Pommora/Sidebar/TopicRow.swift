@@ -10,6 +10,7 @@ struct TopicRow: View {
 
     @Environment(TopicManager.self) private var topicManager
     @Environment(SpaceManager.self) private var spaceManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -59,8 +60,9 @@ struct TopicRow: View {
                 }
             )
             .contextMenu {
+                let projectLabel = settingsManager.settings.labels.project.singular
                 Button("New Topic") { presentedSheet = .newTopic }
-                Button("New Project (in This Topic)") { presentedSheet = .newProject(parent: topic) }
+                Button("New \(projectLabel) (in This Topic)") { presentedSheet = .newProject(parent: topic) }
                 Divider()
                 Button("Rename") { editingID = topic.id }
                 Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }

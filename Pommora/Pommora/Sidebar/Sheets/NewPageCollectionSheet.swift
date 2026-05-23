@@ -4,6 +4,7 @@ struct NewPageCollectionSheet: View {
     let vault: PageType
     @Environment(\.dismiss) private var dismiss
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var name: String = ""
     @State private var errorMessage: String?
@@ -11,7 +12,8 @@ struct NewPageCollectionSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("New Collection in \"\(vault.title)\"").font(.headline)
+            Text("New \(settingsManager.settings.labels.pageCollection.singular) in \"\(vault.title)\"")
+                .font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
             }
@@ -45,10 +47,13 @@ struct NewPageCollectionSheet: View {
     }
 
     private func friendly(_ error: PageCollectionValidator.ValidationError) -> String {
+        let collection = settingsManager.settings.labels.pageCollection.singular
+        let vaultLabel = settingsManager.settings.labels.pageType.singular
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle: return "A Collection with that name already exists in this Vault."
+        case .duplicateTitle:
+            return "A \(collection) with that name already exists in this \(vaultLabel)."
         }
     }
 }

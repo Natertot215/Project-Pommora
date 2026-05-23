@@ -10,6 +10,7 @@ struct PageCollectionRow: View {
 
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -61,7 +62,8 @@ struct PageCollectionRow: View {
                 onSelect: { selection = .collection(collection) }
             )
             .contextMenu {
-                Button("New Page (in This Collection)") {
+                let collectionLabel = settingsManager.settings.labels.pageCollection.singular
+                Button("New Page (in This \(collectionLabel))") {
                     presentedSheet = .newPage(collection: collection, pageType: parentVault)
                 }
                 Divider()

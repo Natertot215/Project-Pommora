@@ -3,6 +3,7 @@ import SwiftUI
 struct NewPageTypeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var name: String = ""
     @State private var icon: String? = "tray.2"
@@ -11,7 +12,7 @@ struct NewPageTypeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("New Vault").font(.headline)
+            Text("New \(settingsManager.settings.labels.pageType.singular)").font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
                 LabeledContent("Icon") {
@@ -52,7 +53,8 @@ struct NewPageTypeSheet: View {
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle: return "A Vault with that name already exists."
+        case .duplicateTitle:
+            return "A \(settingsManager.settings.labels.pageType.singular) with that name already exists."
         }
     }
 }

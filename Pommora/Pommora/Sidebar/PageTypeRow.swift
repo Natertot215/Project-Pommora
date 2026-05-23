@@ -10,6 +10,7 @@ struct PageTypeRow: View {
 
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -77,9 +78,15 @@ struct PageTypeRow: View {
                 onSelect: { selection = .pageType(pageType) }
             )
             .contextMenu {
-                Button("New Vault") { presentedSheet = .newPageType }
-                Button("New Collection (in This Vault)") { presentedSheet = .newCollection(pageType: pageType) }
-                Button("New Page (in This Vault root)") { presentedSheet = .newPageInPageType(pageType: pageType) }
+                let pageTypeLabel = settingsManager.settings.labels.pageType.singular
+                let collectionLabel = settingsManager.settings.labels.pageCollection.singular
+                Button("New \(pageTypeLabel)") { presentedSheet = .newPageType }
+                Button("New \(collectionLabel) (in This \(pageTypeLabel))") {
+                    presentedSheet = .newCollection(pageType: pageType)
+                }
+                Button("New Page (in This \(pageTypeLabel) root)") {
+                    presentedSheet = .newPageInPageType(pageType: pageType)
+                }
                 Divider()
                 Button("Rename") { editingID = pageType.id }
                 Button("Change Icon") { presentedSheet = .editIcon(.pageType(pageType)) }
