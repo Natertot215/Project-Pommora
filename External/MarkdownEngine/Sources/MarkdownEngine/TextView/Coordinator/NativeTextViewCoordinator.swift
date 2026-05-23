@@ -27,6 +27,13 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var documentId: String?
     @Binding var text: String
     @Binding var isWikiLinkActive: Bool
+    /// UI-only fold state for the editor surface. Keys are exact heading
+    /// source lines (e.g. `"## Foo"`); each present key means the content
+    /// under that heading is collapsed. The HeadingFolding service is the
+    /// sole consumer; it derives the runtime `foldedRanges` from this set
+    /// + the current document AST. Defaults to `.constant([])` when the
+    /// embedder doesn't supply a binding.
+    @Binding var foldedHeadings: Set<String>
     var fontName: String
     var fontSize: CGFloat
     var configuration: MarkdownEditorConfiguration = .default {
@@ -78,6 +85,48 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     /// cleared in defer, early-return if already set.
     var isSyncingHRVisibility: Bool = false
 
+    // MARK: - Foldable headings
+
+    /// NSRanges of content currently hidden by a folded heading. Refilled by
+    /// `syncHeadingFolding` from the AST + `foldedHeadings` binding; the
+    /// renderer queries it at `layoutFragmentFrame` / `draw(at:in:)` time to
+    /// skip folded fragments.
+    var foldedRanges: [NSRange] = []
+    /// Heading key (exact source line, e.g. `"## Foo"`) currently under the
+    /// mouse cursor — drives chevron visibility. nil means no heading hovered.
+    var hoveredHeadingKey: String? = nil
+    /// In-flight chevron rotation animations, keyed by heading source line.
+    /// Single-glyph rotation per Nathan's preference: `chevron.right`
+    /// rotated 0° (folded) ↔ 90° (expanded) — geometrically identical to
+    /// `chevron.down` at the 90° endpoint, matching SwiftUI DisclosureGroup's
+    /// pattern. The interpolator reads from this dict at draw time; absent
+    /// key means no in-flight animation so the renderer snaps to the static
+    /// target angle for the current fold state.
+    var chevronAnimations: [String: ChevronAnimation] = [:]
+    /// Timer that ticks `chevronAnimations` toward completion at ~60Hz.
+    /// Lives only while at least one animation is in flight; nil otherwise.
+    var chevronAnimationTimer: Timer?
+
+    /// A single chevron's rotation animation. Captures the heading's line
+    /// range at start time so the 60Hz tick can nudge it without re-walking
+    /// the document per frame.
+    struct ChevronAnimation: Sendable {
+        let startAngle: CGFloat
+        let targetAngle: CGFloat
+        let startTime: TimeInterval
+        let duration: TimeInterval
+        let headingRange: NSRange?
+    }
+    /// Snapshot of `foldedHeadings` at the last successful sync — the
+    /// fold-toggle path compares the live binding against this to decide
+    /// whether to re-sync. `syncHeadingFolding` keeps it in lockstep.
+    var lastSyncedFoldedHeadings: Set<String> = []
+    /// Reentry guard for the caret-skip path. `NSTextView.setSelectedRange`
+    /// synchronously re-fires `textViewDidChangeSelection`, and the skip
+    /// handler lives at the top of that delegate method — without this
+    /// flag the push would recurse.
+    var isPushingCaretOutOfFold: Bool = false
+
     var cachedCodeBlockTokens: [(index: Int, token: MarkdownToken)] = []
     var cachedParsedText: String?
     var cachedParsedDocument: ParsedDocument?
@@ -127,12 +176,14 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         fontSize: CGFloat,
         isWikiLinkActive: Binding<Bool>,
         onLinkClick: ((String) -> Void)?,
-        onInlineSelectionChange: ((InlineSelectionState?) -> Void)?
+        onInlineSelectionChange: ((InlineSelectionState?) -> Void)?,
+        foldedHeadings: Binding<Set<String>> = .constant([])
     ) {
         _text = text
         self.fontName = fontName
         self.fontSize = fontSize
         _isWikiLinkActive = isWikiLinkActive
+        _foldedHeadings = foldedHeadings
         self.onLinkClick = onLinkClick
         self.onCaretRectChange = nil
         self.onInlineSelectionChange = onInlineSelectionChange
@@ -255,6 +306,10 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         // based bus + appearance subscriptions. No @MainActor-isolated state
         // is touched.
         NotificationCenter.default.removeObserver(self)
+        // `Timer.scheduledTimer(target:)` retains its target until
+        // invalidate, so without this the chevron animation timer would
+        // hold a strong ref to a dead coordinator on page switch.
+        chevronAnimationTimer?.invalidate()
     }
 }
 

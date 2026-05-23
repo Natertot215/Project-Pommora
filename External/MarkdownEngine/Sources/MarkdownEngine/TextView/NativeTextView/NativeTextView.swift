@@ -48,6 +48,13 @@ final class NativeTextView: NSTextView {
     // MARK: Drag-select state
     var dragStartMouseScreenLoc: NSPoint?
 
+    // MARK: Heading-fold hover state
+    /// Tracking area that fires `mouseMoved` events whenever the cursor moves
+    /// over the visible text area. Owned by `NativeTextView+HeadingFoldHover`
+    /// which rebuilds it from `updateTrackingAreas()` so the area always
+    /// matches the current visible-rect after scroll / window resize.
+    var headingFoldHoverTrackingArea: NSTrackingArea?
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         // Forward appearance changes to the embedder-supplied syntax highlighter

@@ -18,6 +18,13 @@ extension NativeTextView {
         if remapClickInParagraphSpacing(event: event) {
             return
         }
+        // Hit-test the foldable-headings chevron rect before any drag-select
+        // machinery so a chevron click toggles the fold without moving the
+        // caret or arming the autoscroll boost timer.
+        let viewPoint = convert(event.locationInWindow, from: nil)
+        if handleHeadingChevronClick(at: viewPoint) {
+            return
+        }
         dragStartMouseScreenLoc = NSEvent.mouseLocation
         let boostTimer = Timer(timeInterval: 1.0 / configuration.dragSelection.ticksPerSecond, repeats: true) { [weak self] _ in
             self?.performDragBoostTick()

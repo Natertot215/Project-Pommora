@@ -93,11 +93,14 @@ extension NativeTextViewCoordinator {
             tlm.ensureLayout(for: tlm.documentRange)
         }
 
-        // Pommora: initial-load / full-rebuild HR visibility sync. Same as the
-        // per-edit hook in restyleTextView — service is the sole owner of HR
-        // styling and must run after any pass that resets base attributes.
+        // Pommora: initial-load / full-rebuild HR visibility sync. Same as
+        // the per-edit hook in restyleTextView — service is the sole owner
+        // of HR styling and must run after any pass that resets base attrs.
+        // Foldable-headings sync picks up folds restored from frontmatter
+        // so the document opens already collapsed where the user left it.
         if let ts = textView.textStorage {
             syncHRVisibility(in: ts, textView: textView)
+            syncHeadingFolding(in: ts, textView: textView)
         }
     }
 
@@ -129,12 +132,14 @@ extension NativeTextViewCoordinator {
         )
 
         // Pommora: re-sync HR dynamic-syntax visibility after every restyle.
-        // The styler emits nothing for ThematicBreak (Change 1 of the HR
-        // dynamic-syntax plan), so the service must re-apply hidden/revealed
-        // attributes whenever a restyle could have cleared them. Reentry-
-        // guarded to prevent recursion.
+        // The styler emits nothing for ThematicBreak, so the service must
+        // re-apply hidden/revealed attributes whenever a restyle could have
+        // cleared them. Reentry-guarded to prevent recursion. The fold
+        // sync recomputes `foldedRanges` if text changes added/removed/
+        // renamed any headings.
         if let ts = textView.textStorage {
             syncHRVisibility(in: ts, textView: textView)
+            syncHeadingFolding(in: ts, textView: textView)
         }
     }
 

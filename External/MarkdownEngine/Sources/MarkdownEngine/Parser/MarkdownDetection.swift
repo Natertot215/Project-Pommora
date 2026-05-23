@@ -10,7 +10,36 @@
 import Foundation
 import Markdown
 
-enum MarkdownDetection {
+/// A top-level Markdown heading paired with the source range of the content
+/// that falls under it. Returned from `MarkdownDetection.foldableHeadings` so
+/// the editor can collapse / expand sections by NSRange without re-walking
+/// the AST at every render.
+public struct FoldedHeading: Equatable, Sendable {
+    /// Exact heading source line, stripped of trailing newline — e.g.
+    /// `"## Implementation notes"`. Used as the stable identity key in
+    /// `Set<String>`-shaped fold state on disk and in memory.
+    public let key: String
+    /// 1...6 — ATX heading depth.
+    public let level: Int
+    /// Source range of the heading line itself, INCLUDING the trailing
+    /// newline (the line range). The chevron + draw logic positions itself
+    /// against this range.
+    public let headingRange: NSRange
+    /// Source range of the content under this heading — from the first
+    /// character after the heading's newline to (exclusive) the start of the
+    /// next heading at level ≤ `level`, or document end if no such heading
+    /// follows. Zero-length when the heading has no content under it.
+    public let contentRange: NSRange
+
+    public init(key: String, level: Int, headingRange: NSRange, contentRange: NSRange) {
+        self.key = key
+        self.level = level
+        self.headingRange = headingRange
+        self.contentRange = contentRange
+    }
+}
+
+public enum MarkdownDetection {
 
     // MARK: - Thematic Break (HR) detection
 
@@ -79,11 +108,13 @@ enum MarkdownDetection {
             return false
         }
         let nsLine = paragraphString as NSString
-        guard let match = regex.firstMatch(
-            in: paragraphString,
-            options: [],
-            range: NSRange(location: 0, length: nsLine.length)
-        ) else { return false }
+        guard
+            let match = regex.firstMatch(
+                in: paragraphString,
+                options: [],
+                range: NSRange(location: 0, length: nsLine.length)
+            )
+        else { return false }
 
         // Marker char must be `-`. Task lists (`- [ ]` / `- [x]`) are excluded
         // so the existing checkbox UX is preserved.
@@ -95,6 +126,135 @@ enum MarkdownDetection {
         if group2.contains("[") { return false }
 
         return true
+    }
+
+    // MARK: - Heading detection (foldable headings)
+
+    /// Three-stage detection for whether a paragraph string is an ATX heading
+    /// line (e.g. `## Foo`, `###`, `# `). Used by the hover tracker to decide
+    /// whether to show a fold chevron over the fragment under the cursor.
+    /// Mirrors `isThematicBreakLine`'s three-stage shape so renderer + service
+    /// agree at every decision point (`.claude/Guidelines/Markdown.md` L2).
+    ///
+    /// - Parameters:
+    ///   - paragraphString: The line(s) to test, including any trailing newline.
+    ///   - isInsideCodeBlock: Stage 0 result from the caller's context — `# X`
+    ///     inside a fenced block parses as code, not a heading; must not be
+    ///     foldable.
+    static func isHeadingLine(
+        _ paragraphString: String,
+        isInsideCodeBlock: Bool
+    ) -> Bool {
+        // Stage 0 — code-block guard.
+        if isInsideCodeBlock { return false }
+
+        // Stage 1 — cheap prefilter. CommonMark requires 1-6 `#`s followed by
+        // a space, tab, or end-of-line; `#Foo` (no space) is NOT a heading.
+        let trimmed = paragraphString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("#") else { return false }
+        guard trimmed.range(of: #"^#{1,6}([ \t]|$)"#, options: .regularExpression) != nil else {
+            return false
+        }
+
+        // Stage 2 — AST parse confirms.
+        let document = Markdown.Document(parsing: paragraphString)
+        return document.children.contains { $0 is Markdown.Heading }
+    }
+
+    /// Walk a parsed document for top-level headings, pairing each with the
+    /// NSRange of source content that falls under it (until the next equal-
+    /// or-higher heading, or document end). Used by the engine's
+    /// HeadingFolding service to translate the user's set of folded heading
+    /// keys into runtime ranges that the renderer can collapse to zero height.
+    ///
+    /// Top-level only — headings nested inside list items / blockquotes /
+    /// custom blocks are NOT foldable in v1. CommonMark places headings at
+    /// the top level by default; nested headings are uncommon Pommora content.
+    public static func foldableHeadings(
+        in document: Markdown.Document,
+        nsText: NSString
+    ) -> [FoldedHeading] {
+        let lineIndex = LineOffsetIndex(text: nsText as String)
+        return foldableHeadings(in: document, nsText: nsText, lineIndex: lineIndex)
+    }
+
+    /// One-shot convenience: parses `text` and computes folded ranges in a
+    /// single call. Used by tests + Pommora-side helpers that don't already
+    /// have a parsed document on hand. Production hot paths should prefer
+    /// the `(document:, nsText:, lineIndex:)` overload to reuse caches.
+    public static func foldableHeadings(in text: String) -> [FoldedHeading] {
+        let document = Markdown.Document(parsing: text)
+        return foldableHeadings(in: document, nsText: text as NSString)
+    }
+
+    /// Internal overload that accepts a prebuilt `LineOffsetIndex` so the
+    /// service can avoid re-walking the document text once per restyle.
+    static func foldableHeadings(
+        in document: Markdown.Document,
+        nsText: NSString,
+        lineIndex: LineOffsetIndex
+    ) -> [FoldedHeading] {
+        // Collect top-level headings in document order with their AST NSRanges.
+        struct RawHeading {
+            let level: Int
+            let astRange: NSRange
+        }
+        var raws: [RawHeading] = []
+        raws.reserveCapacity(8)
+        for child in document.children {
+            guard let heading = child as? Markdown.Heading else { continue }
+            guard
+                let astRange = SourceRangeConverter.nsRange(
+                    from: heading.range, in: nsText, lineIndex: lineIndex
+                )
+            else { continue }
+            raws.append(RawHeading(level: heading.level, astRange: astRange))
+        }
+
+        // Pair each heading with its content range via the level-stack rule:
+        // for heading at index i with level N, the content spans from the end
+        // of its line to the start of the next heading at level <= N (or to
+        // the document end if no such heading follows).
+        var result: [FoldedHeading] = []
+        result.reserveCapacity(raws.count)
+        for (i, raw) in raws.enumerated() {
+            // The heading occupies a full line (`## Foo\n`). The AST range
+            // covers only `## Foo` — we widen to the line range so content
+            // starts cleanly on the next line.
+            let headingLine = nsText.lineRange(
+                for: NSRange(location: raw.astRange.location, length: 0)
+            )
+            let contentStart = headingLine.location + headingLine.length
+
+            var contentEnd = nsText.length
+            for j in (i + 1)..<raws.count where raws[j].level <= raw.level {
+                contentEnd = raws[j].astRange.location
+                break
+            }
+
+            // Heading key = exact source line stripped of its trailing newline
+            // (so `"## Foo"` matches across LF / CRLF / no-trailing-newline).
+            // Swift represents `\r\n` as a single extended grapheme cluster, so
+            // `hasSuffix("\n")` returns false on CRLF input — the prior
+            // two-step strip silently no-op'd on Windows-saved files.
+            // `trimmingCharacters(in: .newlines)` handles LF, CR, CRLF, and the
+            // Unicode line/paragraph separators in one pass.
+            let key = nsText.substring(with: headingLine)
+                .trimmingCharacters(in: .newlines)
+
+            let contentRange = NSRange(
+                location: contentStart,
+                length: max(0, contentEnd - contentStart)
+            )
+            result.append(
+                FoldedHeading(
+                    key: key,
+                    level: raw.level,
+                    headingRange: headingLine,
+                    contentRange: contentRange
+                ))
+        }
+        return result
     }
 
     // MARK: - Active Token Indices

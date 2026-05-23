@@ -444,6 +444,55 @@ Locked behavior (as-shipped):
 
 This nuances §9.1's general "render is the spec" principle: the chrome is still a Pommora-side render that doesn't physically exist in the source, but it's permanently visible rather than caret-conditional. Both patterns honor §9.1; the choice between them is per-construct per L14.
 
+##### 9.11 Foldable headings — hybrid hover-overlay + true zero-height collapse (v0.2.x)
+
+**Status:** ✅ SHIPPED. Hover a heading line → chevron appears in left gutter; click toggles a true zero-height collapse of the content under that heading (down to the next equal-or-higher heading or document end). Chevron rotates 0 → π/2 over 200ms ease-in-out between right (folded) and down (expanded). Caret + nonzero selections that land in a folded region get pushed past it. Per-Page state persists via `folded_headings: [String]` in YAML frontmatter; renaming a heading drops its entry.
+
+Foldable headings fit neither §9.1 (dynamic-syntax caret-reveal) nor §9.10 (always-show overlay) cleanly. They are the third locked pattern: **hover-overlay + zero-height collapse + frontmatter persistence**.
+
+###### Why neither prior pattern fits
+
+- Dynamic-syntax (§9.1, HR) hides source markers on caret leave. Foldable headings NEVER hide the `##` markers — the heading text stays visible at all times. So caret-aware reveal is not the lever.
+- Always-show overlay (§9.10, blockquote, bullet, task checkbox) draws stateless chrome that's always visible. The chevron is interactive + stateful — it appears only on hover (per the design decision) and its orientation reflects fold state. So permanently-visible chrome is also not the lever.
+
+###### The three pieces
+
+| Layer | Role | Implementation file |
+|---|---|---|
+| **Detection** | `MarkdownDetection.foldableHeadings(in:nsText:)` walks the AST once per restyle and returns `[FoldedHeading]` (key + level + headingRange + contentRange). Both renderer and service consume the same set. | [`Parser/MarkdownDetection.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Parser/MarkdownDetection.swift) |
+| **Service** | Sole writer of `coordinator.foldedRanges`. `syncHeadingFolding` rebuilds the set on restyle; `applyFoldStateIfChanged` is the fold-toggle path that diffs against `lastSyncedFoldedHeadings`, calls `invalidateLayout(for:)` on the union of old + new ranges, then pushes the caret out of any newly-folded region via `skipCaretOutOfFoldedRangesIfNeeded`. Owns the chevron rotation animation timer. | [`+HeadingFolding.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HeadingFolding.swift) |
+| **Renderer** | Overrides `layoutFragmentFrame` to report `height = 0` for fragments inside any `coordinator.foldedRanges` entry (true zero-height collapse, not attribute-based hide). Draws the chevron via SF Symbol `chevron.right` rotated by `coordinator.currentChevronAngle(...)` in `draw(at:in:)` when this fragment is the hovered heading. | [`Renderer/MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) |
+| **Hover tracker** | NSTrackingArea on `NativeTextView` fires `mouseMoved`; Y-based hit-test against `enumerateTextLayoutFragments(...)` so the hover zone covers the entire row width including the gutter chevron area (keeps chevron stable while user moves to click it). | [`NativeTextView+HeadingFoldHover.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextView/NativeTextView+HeadingFoldHover.swift) |
+| **Click toggle** | Mouse-down intercept in `NativeTextView+DragSelectBoost.swift` calls `handleHeadingChevronClick(at:)` before drag-boost arms. Mutates `coordinator.foldedHeadings`, synchronously runs `applyFoldStateIfChanged`, kicks off `startChevronAnimation`. | [`+DragSelectBoost.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextView/NativeTextView+DragSelectBoost.swift) |
+| **Persistence** | `PageFrontmatter.foldedHeadings: [String]?` (CodingKey `folded_headings`) — encoded-if-present-and-non-empty so empty folds don't pollute YAML. `PageEditorViewModel` exposes `Set<String>` with a `didSet` that mirrors changes back to `page.frontmatter.foldedHeadings` (sorted array, nil-on-empty) AND calls `scheduleSave()` — without this last hook, fold-only toggles would never hit disk because there's no body change. | [`PageFrontmatter.swift`](Pommora/Pommora/Content/PageFrontmatter.swift), [`PageEditorViewModel.swift`](Pommora/Pommora/Pages/PageEditorViewModel.swift) |
+
+###### Why a true zero-height collapse, not an attribute hide
+
+`§9.10`-style font-0.1 + clear-color leaves a vertical gap where the content used to be. For foldable headings the user expects the document to genuinely shrink. The fix is overriding `NSTextLayoutFragment.layoutFragmentFrame` to return `height = 0` — TextKit 2 then stacks the next fragment at the same Y. The override pairs with `textLayoutManager.invalidateLayout(for:)` on toggle so the layout manager re-queries the getter and respects the new height. No text-storage mutation, no source change, no editing-flow side effects.
+
+###### Why frontmatter, not a sidecar
+
+Per `§9.2` (display state in frontmatter): when a feature needs per-Page UI state that survives across launches, it lives in YAML frontmatter, not in body content and not in a separate sidecar. `folded_headings: ["## Foo"]` is the canonical example. Same shape extends to future per-Page UI state (column widths, scroll position, etc.).
+
+###### Failure modes the locked pattern eliminates
+
+- **`@MainActor` isolation cascade.** Helpers that read `coordinator.foldedRanges` / `hoveredHeadingKey` / `chevronAnimations` MUST be `@MainActor` because the coordinator is `@MainActor`. The renderer's `nonisolated` overrides (`layoutFragmentFrame`, `renderingSurfaceBounds`, `draw(at:in:)`) wrap bodies in `MainActor.assumeIsolated` so calls to those `@MainActor` helpers are valid at runtime. **`drawHeadingChevron` itself must be `@MainActor`** — the prior helpers on this fragment (`hasThematicBreak`, `caretIsInFragment`) didn't need it because they only touched nonisolated state.
+- **Frontmatter mutation needs its own save trigger.** The existing pipeline routes body keystrokes through `scheduleSave`; pure frontmatter changes (fold toggle) don't touch body. The `foldedHeadings` `didSet` on `PageEditorViewModel` explicitly calls `scheduleSave()` to bridge this gap. Without it, fold toggles would never persist.
+- **`hasSuffix("\n")` is wrong for CRLF-terminated files.** Swift treats `\r\n` as a single extended grapheme cluster, so `"## Foo\r\n".hasSuffix("\n")` returns false. The fix is `trimmingCharacters(in: .newlines)` which handles LF / CR / CRLF / Unicode line/paragraph separators uniformly. Burned during Phase 3 CRLF-strip implementation.
+- **`mouseDown` collision.** `NativeTextView` already has a `mouseDown` override in `+DragSelectBoost.swift` that handles task-checkbox + paragraph-spacing remap + drag-boost arming. Adding a parallel override in `+HeadingFoldHover.swift` fails to compile (`'mouseDown' has already been overridden`). The fix: integrate chevron hit-test into the existing `mouseDown`, positioned AFTER prior intercepts but BEFORE drag-boost arms.
+- **Class-level `final` blocks `open`.** `NativeTextView` is `final`; `override open func` on extension overrides emits a compiler diagnostic ("members of 'final' classes are implicitly 'final'; use 'public' instead of 'open'"). Drop `open` on the overrides — `override func` is enough.
+
+###### Reentry guards in this construct
+
+Three separate flags on the coordinator:
+- `isSyncingHeadingFolds` — guards `syncHeadingFolding` / `applyFoldStateIfChanged` re-entry from restyle.
+- `isPushingCaretOutOfFold` — guards the caret-skip recursion. `setSelectedRange` synchronously re-fires `textViewDidChangeSelection`; without this flag the skip handler would recurse on its own selection change.
+- `isProgrammaticEdit` — not used here; the service doesn't write to `textStorage` at all.
+
+###### Files touched (v0.2.x ship)
+
+10 files in the engine, 4 files in Pommora-side, 3 doc files. Full per-file table in [`External/MarkdownEngine/NOTICE.md`](../External/MarkdownEngine/NOTICE.md).
+
 ---
 
 #### 10. Reference index — where things actually live

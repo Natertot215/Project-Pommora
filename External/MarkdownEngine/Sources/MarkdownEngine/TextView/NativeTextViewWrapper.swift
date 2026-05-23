@@ -34,6 +34,12 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
     /// Push a replacement into the editor by setting this to a non-nil value;
     /// the engine applies it on the next update and then clears the binding.
     @Binding public var pendingInlineReplacement: InlineReplacementRequest?
+    /// UI-only fold state — set of exact heading source lines (e.g. `"## Foo"`)
+    /// whose content is currently collapsed. Two-way: clicks on the editor's
+    /// chevron toggle membership through this binding. Embedders that don't
+    /// want fold support can omit this argument; the default `.constant([])`
+    /// preserves the v0.2.7-era no-fold behavior.
+    @Binding public var foldedHeadings: Set<String>
     /// The full editor configuration (theme + services + style toggles). Engine
     /// embedders construct this themselves and pass it in; the wrapper does
     /// not read UserDefaults or know about app-specific colors/services.
@@ -73,6 +79,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         text: Binding<String>,
         isWikiLinkActive: Binding<Bool> = .constant(false),
         pendingInlineReplacement: Binding<InlineReplacementRequest?> = .constant(nil),
+        foldedHeadings: Binding<Set<String>> = .constant([]),
         configuration: MarkdownEditorConfiguration = .default,
         fontName: String = "SF Pro",
         fontSize: CGFloat = 16,
@@ -87,6 +94,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         self._text = text
         self._isWikiLinkActive = isWikiLinkActive
         self._pendingInlineReplacement = pendingInlineReplacement
+        self._foldedHeadings = foldedHeadings
         self.configuration = configuration
         self.fontName = fontName
         self.fontSize = fontSize
@@ -282,6 +290,13 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         if context.coordinator.didInitialFormatting
             && context.coordinator.lastSyncedText == text
             && !fontChanged {
+            // Fold-toggle path. Text + font + node are unchanged, but the
+            // user may have clicked a chevron — that mutates `foldedHeadings`
+            // without touching text. Detect the diff here so the renderer's
+            // zero-height collapse picks it up before we early-return.
+            if let ts = textView.textStorage {
+                context.coordinator.applyFoldStateIfChanged(in: ts, textView: textView)
+            }
             return
         }
         if fontChanged {
@@ -340,7 +355,8 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
             fontSize: fontSize,
             isWikiLinkActive: $isWikiLinkActive,
             onLinkClick: onLinkClick,
-            onInlineSelectionChange: onInlineSelectionChange
+            onInlineSelectionChange: onInlineSelectionChange,
+            foldedHeadings: $foldedHeadings
         )
         coordinator.documentId = documentId
         coordinator.configuration = configuration

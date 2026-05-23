@@ -100,6 +100,180 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         textLayoutManager?.textContainer?.textView
     }
 
+    // MARK: - Foldable headings (Pommora addition)
+
+    /// Reaches the coordinator from the layout fragment via the standard
+    /// TextKit 2 chain → NSTextView → delegate. Returns nil if either link
+    /// in the chain is missing (e.g. during teardown).
+    @MainActor
+    private func nearestCoordinator() -> NativeTextViewCoordinator? {
+        nearestTextView()?.delegate as? NativeTextViewCoordinator
+    }
+
+    /// True when this fragment's NSRange intersects any of the coordinator's
+    /// current `foldedRanges`. Drives both the zero-height `layoutFragmentFrame`
+    /// override (the fragment becomes invisible to layout) and the early-
+    /// return in `draw(at:in:)` (overlays don't bother drawing into an empty
+    /// surface). Both layers read the SAME source — the HeadingFolding service
+    /// fills `coordinator.foldedRanges` from the AST. No drift possible by
+    /// construction (`.claude/Guidelines/Markdown.md` L2).
+    @MainActor
+    private var isInsideFoldedRange: Bool {
+        guard let range = fragmentNSRange,
+            let coordinator = nearestCoordinator(),
+            !coordinator.foldedRanges.isEmpty
+        else { return false }
+        for folded in coordinator.foldedRanges {
+            if NSIntersectionRange(folded, range).length > 0 { return true }
+        }
+        return false
+    }
+
+    /// Exact source-line string for this fragment with no trailing newline —
+    /// the same shape used as the fold-state key. Returns nil when the
+    /// fragment has no backing storage (teardown).
+    @MainActor
+    private var headingFragmentString: String? {
+        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else {
+            return nil
+        }
+        return ts.attributedSubstring(from: range).string
+    }
+
+    /// True when this fragment IS an ATX heading line. Three-stage detection
+    /// via the shared `MarkdownDetection.isHeadingLine` so renderer + hover
+    /// tracker + fold service agree on what counts as a heading (L2).
+    @MainActor
+    private var hasHeadingMarker: Bool {
+        guard let fragmentString = headingFragmentString else { return false }
+        return MarkdownDetection.isHeadingLine(
+            fragmentString, isInsideCodeBlock: hasCodeBlockBackground
+        )
+    }
+
+    /// Key for this heading fragment — exact source line stripped of any
+    /// trailing newline. Matches `FoldedHeading.key` shape so the renderer
+    /// can compare against `coordinator.foldedHeadings` /
+    /// `coordinator.hoveredHeadingKey` directly.
+    @MainActor
+    private var headingKey: String? {
+        guard hasHeadingMarker, let fragmentString = headingFragmentString else {
+            return nil
+        }
+        return fragmentString.trimmingCharacters(in: .newlines)
+    }
+
+    /// True when this heading is currently under the mouse cursor — the
+    /// hover tracker on `NativeTextView` writes `hoveredHeadingKey` and the
+    /// renderer reads it. Drives chevron visibility.
+    @MainActor
+    private var isHoveredHeading: Bool {
+        guard hasHeadingMarker,
+            let coordinator = nearestCoordinator(),
+            let key = headingKey
+        else { return false }
+        return coordinator.hoveredHeadingKey == key
+    }
+
+    /// True when this heading's content is currently collapsed. Determines
+    /// chevron orientation (right ▶ for folded, down ▼ for expanded).
+    @MainActor
+    private var isHeadingFolded: Bool {
+        guard let coordinator = nearestCoordinator(), let key = headingKey else { return false }
+        return coordinator.foldedHeadings.contains(key)
+    }
+
+    /// Chevron draw geometry — gutter rect positioned OUTSIDE the text
+    /// container's leading edge, vertically centered on the first line
+    /// fragment's mid-Y.
+    ///
+    /// `point` is the fragment's origin. Two call sites use this with very
+    /// different `point` meanings:
+    /// 1. `draw(at:in:)` passes the fragment's VIEW-COORD origin → returned
+    ///    rect is in view coords (e.g. `(6, midY-6, 12, 12)` for Pommora's
+    ///    24pt `textContainerInset`).
+    /// 2. `renderingSurfaceBounds` passes `.zero` → returned rect is in
+    ///    fragment-LOCAL coords (e.g. `(-18, midY-6, 12, 12)`).
+    ///
+    /// The math is identical for both because of the identity
+    /// `point.x = textContainerOrigin.x + layoutFragmentFrame.origin.x`.
+    /// The result is offset accordingly without conditional logic.
+    ///
+    /// **No clamping to non-negative X.** A `max(0, ...)` guard on this
+    /// rect was previously biting `renderingSurfaceBounds`: it forced the
+    /// rect's fragment-local X to 0 when the chevron actually drew at -18,
+    /// so TextKit 2 clipped the chevron entirely out of the visible
+    /// rendering surface. Letting X go negative is correct — the gutter
+    /// area lives to the left of the fragment's natural frame, and the
+    /// rendering surface must include it.
+    @MainActor
+    private func chevronRect(at point: CGPoint) -> CGRect? {
+        guard textLayoutManager?.textContainer != nil,
+            let firstLine = textLineFragments.first
+        else { return nil }
+        let chevronSize: CGFloat = 12
+        let chevronToTextGap: CGFloat = 6
+        let containerLeading = point.x - layoutFragmentFrame.origin.x
+        // Place the chevron so its RIGHT edge sits `chevronToTextGap` to the
+        // left of the text container's leading edge.
+        let gutterX = containerLeading - chevronSize - chevronToTextGap
+        let lineMidY = point.y + firstLine.typographicBounds.midY
+        return CGRect(
+            x: gutterX,
+            y: lineMidY - chevronSize / 2,
+            width: chevronSize,
+            height: chevronSize
+        )
+    }
+
+    /// Draws the fold chevron in the left gutter when this fragment is the
+    /// hovered heading. Single-glyph rotation: `chevron.right` rotated 0°
+    /// (folded) ↔ 90° (expanded). The 90°-rotated `chevron.right` is
+    /// geometrically identical to `chevron.down` — same vector path.
+    /// Coordinator's chevron animation timer drives the angle interpolation
+    /// over 200ms; per-tick paragraphStyle nudge on the heading line forces
+    /// `draw(at:in:)` to re-run with the new angle.
+    ///
+    /// `@MainActor` because the body queries the `@MainActor`-isolated
+    /// coordinator. Called from `draw(at:in:)` inside
+    /// `MainActor.assumeIsolated` so the isolation is satisfied at runtime.
+    @MainActor
+    private func drawHeadingChevron(at point: CGPoint, in context: CGContext) {
+        guard hasHeadingMarker, isHoveredHeading else { return }
+        guard let rect = chevronRect(at: point),
+            let coordinator = nearestCoordinator(),
+            let key = headingKey
+        else { return }
+
+        let angle = coordinator.currentChevronAngle(
+            forHeadingKey: key, isFolded: isHeadingFolded
+        )
+
+        guard
+            let baseSymbol = NSImage(
+                systemSymbolName: "chevron.right", accessibilityDescription: nil)
+        else { return }
+        let sizeConfig = NSImage.SymbolConfiguration(pointSize: rect.height, weight: .medium)
+        let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: NSColor.secondaryLabelColor)
+        let symbol =
+            baseSymbol.withSymbolConfiguration(sizeConfig.applying(colorConfig)) ?? baseSymbol
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.current = nsContext
+
+        // Rotate around the chevron's center. Save/restore CGContext state
+        // around the transform so the rest of the draw pipeline stays in
+        // its original coordinate system.
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.translateBy(x: rect.midX, y: rect.midY)
+        context.rotate(by: angle)
+        context.translateBy(x: -rect.width / 2, y: -rect.height / 2)
+        symbol.draw(in: CGRect(origin: .zero, size: rect.size))
+    }
+
     /// Draws a horizontal line in place of the HR's hidden dashes — but only
     /// when the caret is NOT in this fragment (Obsidian-style dynamic syntax).
     /// When the caret is on the line, the service in the coordinator restores
@@ -546,6 +720,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// and block images drawn below text via paragraphSpacing.
     nonisolated override var renderingSurfaceBounds: CGRect {
         MainActor.assumeIsolated {
+            // Folded fragments report zero rendering bounds so TextKit doesn't
+            // try to draw overlays (HR line, blockquote chrome, etc.) into a
+            // visually-collapsed surface.
+            if isInsideFoldedRange { return .zero }
             var bounds = super.renderingSurfaceBounds
             if hasCodeBlockBackground {
                 let containerWidth = textLayoutManager?.textContainer?.size.width ?? bounds.width
@@ -595,6 +773,16 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                 )
                 bounds = bounds.union(glyphRect)
             }
+            // Extend bounds for the fold chevron when this is a heading
+            // fragment. The chevron sits in the LEFT GUTTER outside the
+            // text container's natural fragment frame, so the default
+            // rendering surface clips it. Always-extended (regardless of
+            // hover state) so the invalidation rect doesn't lag behind the
+            // hover-driven draw.
+            if hasHeadingMarker, let rect = chevronRect(at: .zero) {
+                bounds = bounds.union(rect)
+            }
+
             // Extend bounds for the blockquote card + bar. Mirrors the
             // code-block bounds extension shape — left to container edge so
             // the bar (which sits OUTSIDE the natural fragment frame) isn't
@@ -624,6 +812,13 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     nonisolated override func draw(at point: CGPoint, in context: CGContext) {
         MainActor.assumeIsolated {
+            // Foldable headings — skip every overlay + `super.draw` when
+            // this fragment lives inside a folded section. The frame is
+            // already zero-height; bailing here avoids running the overlay
+            // detection passes (HR / blockquote / bullet / task) on each
+            // hidden fragment per draw.
+            if isInsideFoldedRange { return }
+
             // 1. Code-block backgrounds (behind text)
             drawCodeBlockBackground(at: point, in: context)
 
@@ -648,6 +843,12 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
             // 7. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
+
+            // 8. Foldable-headings chevron: only when this fragment
+            //    is a heading AND the mouse is currently hovering it. Hover
+            //    state is owned by `NativeTextView+HeadingFoldHover` which
+            //    triggers a visible-rect redraw on transitions.
+            drawHeadingChevron(at: point, in: context)
         }
     }
 
