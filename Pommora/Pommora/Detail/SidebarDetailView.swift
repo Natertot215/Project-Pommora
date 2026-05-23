@@ -72,6 +72,25 @@ struct SidebarDetailView: View {
 
             case .page(let p):
                 PageEditorHost(page: p)
+
+            case .itemType(let t):
+                // ParadigmV2 (Task 8.4): Designed Items-table detail view ships
+                // in a follow-up plan. Placeholder keeps selection routing
+                // build-clean.
+                ContextDetailPlaceholder(
+                    title: t.title,
+                    icon: t.icon ?? "tray",
+                    accent: nil,
+                    supportingLine: "Item Type — detail UI lands in Task 8.4"
+                )
+
+            case .itemCollection(let c):
+                ContextDetailPlaceholder(
+                    title: c.title,
+                    icon: "tray.fill",
+                    accent: nil,
+                    supportingLine: "Item Collection — detail UI lands in Task 8.4"
+                )
             }
         }
         .sheet(item: $presentedItem) { item in
@@ -91,7 +110,9 @@ struct SidebarDetailView: View {
             case .newCollection(let v): NewPageCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
             case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
-            case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
+            case .newItemType: Text("New Item Type — UI lands in Task 8.2").padding()
+            case .newItemCollection: Text("New Item Collection — UI lands in Task 8.2").padding()
+            case .newItem(let c, let t): NewItemSheet(collection: c, type: t)
             case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
             case .editColor(let s): ColorPickerSheet(space: s)

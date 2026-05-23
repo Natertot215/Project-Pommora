@@ -23,6 +23,7 @@ struct IconPickerSheet: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(ItemTypeManager.self) private var itemTypeManager
 
     /// Nullable binding so the picker exposes its built-in delete-icon button on
     /// macOS — a `nil` value clears the icon back to the entity's default.
@@ -52,6 +53,7 @@ struct IconPickerSheet: View {
         case .topic(let t): return t.icon
         case .project(let p): return p.icon
         case .pageType(let t): return t.icon
+        case .itemType(let t): return t.icon
         }
     }
 
@@ -69,6 +71,9 @@ struct IconPickerSheet: View {
             { /* pendingError set by manager; toast surfaces */  }
         case .pageType(let t):
             do { try await vaultManager.updatePageTypeIcon(t, to: newIcon) } catch
+            { /* pendingError set by manager; toast surfaces */  }
+        case .itemType(let t):
+            do { try await itemTypeManager.updateItemTypeIcon(t, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         }
     }

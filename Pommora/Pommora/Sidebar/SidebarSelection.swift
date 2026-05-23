@@ -11,6 +11,8 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case pageType(PageType)
     case collection(PageCollection)
     case page(PageMeta)
+    case itemType(ItemType)
+    case itemCollection(ItemCollection)
 }
 
 extension SidebarSelection {
@@ -85,6 +87,8 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case pageType(String)
     case collection(String)
     case page(String)
+    case itemType(String)
+    case itemCollection(String)
 
     func matches(_ selection: SidebarSelection) -> Bool {
         switch (self, selection) {
@@ -95,6 +99,8 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case (.pageType(let id), .pageType(let t)): return id == t.id
         case (.collection(let id), .collection(let c)): return id == c.id
         case (.page(let id), .page(let p)): return id == p.id
+        case (.itemType(let id), .itemType(let t)): return id == t.id
+        case (.itemCollection(let id), .itemCollection(let c)): return id == c.id
         default: return false
         }
     }

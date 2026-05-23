@@ -47,6 +47,12 @@ extension EntityStateRef {
         case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
         case .project(let p): self.init(kind: .project, id: p.id, title: p.title)
         case .collection(let c): self.init(kind: .collection, id: c.id, title: c.title)
+        case .itemType, .itemCollection:
+            // ParadigmV2 (Task 8.1): Items-side Recents/Pinned state.json wiring
+            // lands with the Items detail surface plan. EntityStateRef.Kind only
+            // knows the legacy `item` kind today; Recents skips Items-side
+            // selections until the wire format extends.
+            return nil
         }
     }
 }

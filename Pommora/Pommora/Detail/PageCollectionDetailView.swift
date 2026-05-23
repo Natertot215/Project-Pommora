@@ -91,12 +91,10 @@ struct PageCollectionDetailView: View {
             }
             .buttonStyle(.borderless)
 
-            Button {
-                presentedSheet = .newItem(collection: collection, pageType: vault)
-            } label: {
-                Label("New Item", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
+            // ParadigmV2 (Task 8.1): The vestigial "New Item in PageCollection"
+            // button was retired — Items live under ItemCollections (Items-side),
+            // not PageCollections (Pages-side). Items-side creation will surface
+            // when the Items detail surface ships in a follow-up plan.
 
             Spacer()
         }

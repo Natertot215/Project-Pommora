@@ -9,7 +9,9 @@ enum SidebarSheet: Identifiable {
     case newCollection(pageType: PageType)
     case newPage(collection: PageCollection, pageType: PageType)
     case newPageInPageType(pageType: PageType)
-    case newItem(collection: PageCollection, pageType: PageType)
+    case newItemType
+    case newItemCollection(type: ItemType)
+    case newItem(collection: ItemCollection?, type: ItemType)
     case editTopicParents(Topic)
     case editIcon(IconTarget)
     case editColor(Space)
@@ -21,6 +23,7 @@ enum SidebarSheet: Identifiable {
         case topic(Topic)
         case project(Project)
         case pageType(PageType)
+        case itemType(ItemType)
     }
 
     var id: String {
@@ -32,7 +35,9 @@ enum SidebarSheet: Identifiable {
         case .newCollection(let t): return "newCollection-\(t.id)"
         case .newPage(let c, _): return "newPage-\(c.id)"
         case .newPageInPageType(let t): return "newPageInPageType-\(t.id)"
-        case .newItem(let c, _): return "newItem-\(c.id)"
+        case .newItemType: return "newItemType"
+        case .newItemCollection(let t): return "newItemCollection-\(t.id)"
+        case .newItem(let c, let t): return "newItem-\(c?.id ?? t.id)"
         case .editTopicParents(let t): return "editTopicParents-\(t.id)"
         case .editIcon(let target):
             switch target {
@@ -40,6 +45,7 @@ enum SidebarSheet: Identifiable {
             case .topic(let t): return "editIcon-topic-\(t.id)"
             case .project(let p): return "editIcon-project-\(p.id)"
             case .pageType(let t): return "editIcon-pageType-\(t.id)"
+            case .itemType(let t): return "editIcon-itemType-\(t.id)"
             }
         case .editColor(let s): return "editColor-\(s.id)"
         }
