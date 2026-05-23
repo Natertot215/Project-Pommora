@@ -168,9 +168,10 @@ enum NexusPaths {
         pagesWrapperDir(in: nexus.rootURL)
     }
 
-    /// `<nexus>/Pages/<typeFolderName>/` — PageType folder.
+    /// `<nexus>/<typeFolderName>/` — PageType folder (flatlayout: lives at the
+    /// nexus root, no wrapper segment).
     static func pageTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
-        pagesWrapperDir(in: nexusRoot).appendingPathComponent(typeFolderName, isDirectory: true)
+        nexusRoot.appendingPathComponent(typeFolderName, isDirectory: true)
     }
 
     /// Nexus-typed convenience overload — bridges legacy `(forTitle:in:nexus:)` callers.
@@ -178,10 +179,10 @@ enum NexusPaths {
         pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
     }
 
-    /// `<nexus>/Pages/<typeFolderName>/_schema.json` — PageType schema sidecar.
+    /// `<nexus>/<typeFolderName>/_pagetype.json` — PageType schema sidecar.
     static func pageTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
         pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
-            .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+            .appendingPathComponent(pageTypeSidecarFilename, isDirectory: false)
     }
 
     /// Nexus-typed convenience overload.
@@ -189,7 +190,8 @@ enum NexusPaths {
         pageTypeMetadataURL(in: nexus.rootURL, typeFolderName: title)
     }
 
-    /// `<nexus>/Pages/<typeFolderName>/<collectionFolderName>/` — PageCollection folder.
+    /// `<nexus>/<typeFolderName>/<collectionFolderName>/` — PageCollection folder
+    /// (still nested inside its parent PageType folder).
     static func pageCollectionFolderURL(
         in nexusRoot: URL,
         typeFolderName: String,
@@ -212,7 +214,7 @@ enum NexusPaths {
         )
     }
 
-    /// `<nexus>/Pages/<typeFolderName>/<collectionFolderName>/_schema.json` — PageCollection schema sidecar.
+    /// `<nexus>/<typeFolderName>/<collectionFolderName>/_pagecollection.json` — PageCollection schema sidecar.
     static func pageCollectionMetadataURL(
         in nexusRoot: URL,
         typeFolderName: String,
@@ -223,7 +225,7 @@ enum NexusPaths {
             typeFolderName: typeFolderName,
             collectionFolderName: collectionFolderName
         )
-        .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+        .appendingPathComponent(pageCollectionSidecarFilename, isDirectory: false)
     }
 
     // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)

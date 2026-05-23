@@ -152,7 +152,7 @@ final class PageContentManager {
         // handle inside PageContentManager.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
-            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.schemaSidecarFilename))
+            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         }
         let excludedCollectionFolders = Set(collectionFolders.map { $0.standardizedFileURL })
         do {

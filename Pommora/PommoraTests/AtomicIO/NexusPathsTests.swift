@@ -137,9 +137,9 @@ struct NexusPathsTests {
         #expect(url.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
-    // MARK: - PageType / PageCollection (rooted at <nexus>/Pages/)
+    // MARK: - PageType / PageCollection (flatlayout: rooted at the nexus root)
 
-    @Test("pageTypeFolderURL nests inside Pages/ wrapper")
+    @Test("pageTypeFolderURL sits at the nexus root (no wrapper)")
     func pageTypeFolderShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -147,18 +147,17 @@ struct NexusPathsTests {
             in: nexus.rootURL, typeFolderName: "Recipes"
         )
         #expect(folder.lastPathComponent == "Recipes")
-        #expect(folder.deletingLastPathComponent().lastPathComponent == "Pages")
-        #expect(folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path)
+        #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
 
-        // metadata URL co-located
+        // metadata URL co-located using the per-kind PageType sidecar
         let meta = NexusPaths.pageTypeMetadataURL(
             in: nexus.rootURL, typeFolderName: "Recipes"
         )
-        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.pageTypeSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 
-    @Test("pageCollectionFolderURL nests inside <Pages>/<Type>/<Collection>")
+    @Test("pageCollectionFolderURL nests inside <Type>/<Collection> at root")
     func pageCollectionFolderShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -170,33 +169,33 @@ struct NexusPathsTests {
         #expect(folder.lastPathComponent == "Dinners")
         #expect(folder.deletingLastPathComponent().lastPathComponent == "Recipes")
         #expect(
-            folder.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Pages"
+            folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
 
-        // metadata sidecar
+        // metadata sidecar uses the per-kind PageCollection name
         let meta = NexusPaths.pageCollectionMetadataURL(
             in: nexus.rootURL,
             typeFolderName: "Recipes",
             collectionFolderName: "Dinners"
         )
-        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.pageCollectionSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 
-    @Test("legacy vaultFolderURL / vaultMetadataURL also root inside Pages/")
-    func legacyVaultAliasesRootInsidePages() throws {
+    @Test("legacy vaultFolderURL / vaultMetadataURL aliases route to the flat layout")
+    func legacyVaultAliasesRootAtNexus() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         #expect(folder.lastPathComponent == "Planner")
-        #expect(folder.deletingLastPathComponent().lastPathComponent == "Pages")
+        #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
-        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.pageTypeSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 
-    @Test("legacy collectionFolderURL nests inside Pages/<Vault>/<Collection>")
-    func legacyCollectionAliasRootsInsidePages() throws {
+    @Test("legacy collectionFolderURL nests inside <Vault>/<Collection> at root")
+    func legacyCollectionAliasRootsAtNexus() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let url = NexusPaths.collectionFolderURL(
@@ -207,7 +206,7 @@ struct NexusPathsTests {
         #expect(url.lastPathComponent == "Tasks")
         #expect(url.deletingLastPathComponent().lastPathComponent == "Planner")
         #expect(
-            url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Pages"
+            url.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
     }
 

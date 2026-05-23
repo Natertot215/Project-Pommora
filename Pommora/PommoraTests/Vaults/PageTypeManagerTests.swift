@@ -7,7 +7,7 @@ import Testing
 @Suite("PageTypeManager")
 struct PageTypeManagerTests {
 
-    @Test("createPageType writes folder + _schema.json")
+    @Test("createPageType writes folder + _pagetype.json")
     func createPageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -81,26 +81,20 @@ struct PageTypeManagerTests {
         #expect(manager.types.isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
-        // (PageType folder lives inside <nexus>/Pages/ post-ParadigmV2 Phase 6).
-        let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Pages/Planner")
+        // (flatlayout: PageType folder lives directly at the nexus root).
+        let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Planner")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
-    @Test("loadAll skips folders inside Pages/ without _schema.json (cosmetic dirs)")
+    @Test("loadAll skips root folders without _pagetype.json (cosmetic dirs)")
     func skipCosmeticFolders() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        // Cosmetic folder inside the Pages/ wrapper that ISN'T a PageType
-        // (no _schema.json sidecar). Plus a legacy-shaped folder at the nexus
-        // root, which the wrapper-scoped scan never visits.
-        let pagesWrapper = NexusPaths.pagesWrapperDir(in: nexus.rootURL)
-        try FileManager.default.createDirectory(at: pagesWrapper, withIntermediateDirectories: true)
+        // Cosmetic folder at the nexus root that ISN'T a PageType (no
+        // `_pagetype.json` sidecar). Discovery filters by sidecar presence, so
+        // it never resolves into the loaded types.
         try FileManager.default.createDirectory(
-            at: pagesWrapper.appendingPathComponent("NotAVault", isDirectory: true),
-            withIntermediateDirectories: true
-        )
-        try FileManager.default.createDirectory(
-            at: nexus.rootURL.appendingPathComponent("LegacyRoot", isDirectory: true),
+            at: nexus.rootURL.appendingPathComponent("NotAVault", isDirectory: true),
             withIntermediateDirectories: true
         )
         let manager = PageTypeManager(nexus: nexus)
@@ -146,9 +140,9 @@ struct PageTypeManagerTests {
         #expect(manager.pageCollections(in: pageType).isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
-        // (PageCollection folder lives inside <nexus>/Pages/<Type>/ post-ParadigmV2 Phase 6).
+        // (flatlayout: PageCollection folder lives inside <nexus>/<Type>/).
         let trashFolder = NexusPaths.trashDir(in: nexus)
-            .appendingPathComponent("Pages/Planner/Tasks")
+            .appendingPathComponent("Planner/Tasks")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 }

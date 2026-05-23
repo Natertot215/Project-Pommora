@@ -104,7 +104,7 @@ enum OrderPersister {
         _ collection: PageCollection,
         _ mutate: (inout PageCollection) -> Void
     ) throws {
-        let url = collection.folderURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let url = collection.folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         var updated = try PageCollection.load(from: url)
         mutate(&updated)
         try updated.save(to: url)

@@ -26,25 +26,22 @@ final class PageTypeManager {
 
     func loadAll() async {
         do {
-            // Ensure `<nexus>/Pages/` exists so a fresh nexus gets the wrapper
-            // on first load. Idempotent — mkdir -p equivalent.
-            let wrapper = NexusPaths.pagesWrapperDir(in: nexus.rootURL)
-            try NexusPaths.ensureDirectoryExists(wrapper)
+            // flatlayout: PageType folders sit at the Nexus root. Discovery
+            // filters folders by presence of `_pagetype.json`; folders carrying
+            // any of the other per-kind sidecars (Items/Agenda/Collection) or
+            // no recognized sidecar are skipped. NexusAdopter handles surfacing
+            // unrecognized folders for adoption (Phase 4).
+            let root = nexus.rootURL
 
-            // ParadigmV2 auto-heal: rename legacy `_vault.json` / `_collection.json`
-            // sidecars in place to the unified `_schema.json` filename so the
-            // loader below finds them. Idempotent; no-op on already-migrated nexuses.
-            // Scans inside the Pages/ wrapper — pre-ParadigmV2 nexuses with
-            // legacy sidecars at the nexus root won't be auto-healed here
-            // (Phase 10's user-data migration relocates those folders into
-            // `Pages/`; this rename activates naturally once they land).
-            // Removable once Phase 10's user-data migration script ships.
-            migrateLegacySidecarsIfNeeded(in: wrapper)
+            // Legacy sidecar auto-heal — bridges pre-flatlayout nexuses whose
+            // PageType folders still carry `_vault.json` / `_schema.json` (and
+            // sub-folders carrying `_collection.json` / `_schema.json`).
+            // Idempotent; no-op on already-migrated nexuses. NexusAdopter owns
+            // the canonical migration path in Phase 4; this in-loader heal
+            // remains as a belt-and-braces seam until Task 3.1 retires it.
+            migrateLegacySidecarsIfNeeded(in: root)
 
-            // PageType folders live directly under `<nexus>/Pages/`. The
-            // wrapper isolates the scan so sibling top-level folders
-            // (Agenda, Items, .trash, .nexus) no longer need exclusion.
-            let topLevel = try Filesystem.childFolders(of: wrapper)
+            let topLevel = try Filesystem.childFolders(of: root)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
 
@@ -52,18 +49,18 @@ final class PageTypeManager {
             var loadedCols: [String: [PageCollection]] = [:]
 
             for folder in topLevel {
-                let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+                let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
                     let pageType = try? PageType.load(from: metaURL)
                 else { continue }
                 loadedTypes.append(pageType)
 
-                // Discover PageCollections (sub-folders with schema sidecar; skip _- and .-prefixed)
+                // Discover PageCollections (sub-folders with `_pagecollection.json`; skip _- and .-prefixed)
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { folder -> PageCollection? in
-                        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+                        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
                         guard Filesystem.fileExists(at: metaURL) else { return nil }
                         return try? PageCollection.load(from: metaURL)
                     }
@@ -226,7 +223,7 @@ final class PageTypeManager {
                 folderURL: folder,
                 modifiedAt: now
             )
-            let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+            let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: metaURL, metadata: coll
             )
@@ -269,7 +266,7 @@ final class PageTypeManager {
                 modifiedAt: now,
                 pageOrder: collection.pageOrder
             )
-            let metaURL = newURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+            let metaURL = newURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             do {
                 try updated.save(to: metaURL)
             } catch let saveError {
@@ -356,30 +353,32 @@ final class PageTypeManager {
         return (try? AtomicJSON.decode(NexusState.self, from: url))?.vaultOrder
     }
 
-    /// One-time legacy sidecar rename — `_vault.json` → `_schema.json` at the
-    /// PageType folders; `_collection.json` → `_schema.json` inside Page
-    /// Collection sub-folders. Pre-ParadigmV2 nexuses have the legacy names;
-    /// production code only reads the new name; this bridges the gap so
-    /// existing user data shows up post-rename without manual migration.
-    /// Phase 6 narrows the scan to the `Pages/` wrapper — legacy folders
-    /// still sitting at nexus root are surfaced as `skippedTopLevel` by
-    /// NexusAdopter; Phase 10's user-data migration owns relocating them
-    /// into `Pages/`, at which point this auto-heal activates naturally.
+    /// Belt-and-braces in-loader legacy sidecar rename. NexusAdopter is the
+    /// canonical migration path (Phase 4); this in-loader heal stays in place
+    /// until Task 3.1 retires the loader-side migration entirely.
+    ///
+    /// Walks the nexus root and, for any folder carrying a legacy sidecar
+    /// (`_vault.json` or pre-flatlayout `_schema.json`), renames in place to
+    /// `_pagetype.json`. Same treatment for nested Collection sub-folders:
+    /// `_collection.json` / `_schema.json` → `_pagecollection.json`.
     /// Idempotent — no-op when the new filename already exists. Errors
     /// swallowed (best-effort).
-    private func migrateLegacySidecarsIfNeeded(in wrapper: URL) {
-        let schemaName = NexusPaths.schemaSidecarFilename
+    private func migrateLegacySidecarsIfNeeded(in root: URL) {
+        let typeName = NexusPaths.pageTypeSidecarFilename
+        let collectionName = NexusPaths.pageCollectionSidecarFilename
         let fm = FileManager.default
-        guard let topLevel = try? Filesystem.childFolders(of: wrapper) else { return }
+        guard let topLevel = try? Filesystem.childFolders(of: root) else { return }
         for folder in topLevel {
             let name = folder.lastPathComponent
             if name.hasPrefix(".") || name.hasPrefix("_") { continue }
-            renameLegacySidecar(at: folder, legacyName: "_vault.json", newName: schemaName, fm: fm)
+            renameLegacySidecar(at: folder, legacyName: "_vault.json", newName: typeName, fm: fm)
+            renameLegacySidecar(at: folder, legacyName: NexusPaths.schemaSidecarFilename, newName: typeName, fm: fm)
             guard let subs = try? Filesystem.childFolders(of: folder) else { continue }
             for sub in subs {
                 let subName = sub.lastPathComponent
                 if subName.hasPrefix(".") || subName.hasPrefix("_") { continue }
-                renameLegacySidecar(at: sub, legacyName: "_collection.json", newName: schemaName, fm: fm)
+                renameLegacySidecar(at: sub, legacyName: "_collection.json", newName: collectionName, fm: fm)
+                renameLegacySidecar(at: sub, legacyName: NexusPaths.schemaSidecarFilename, newName: collectionName, fm: fm)
             }
         }
     }

@@ -6,7 +6,7 @@ import Testing
 @Suite("PageCollectionFile")
 struct PageCollectionTests {
 
-    @Test("PageCollection round-trips through _schema.json")
+    @Test("PageCollection round-trips through _pagecollection.json")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -14,7 +14,7 @@ struct PageCollectionTests {
             .appendingPathComponent("Planner", isDirectory: true)
             .appendingPathComponent("Tasks", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         let original = PageCollection(
             id: "01HCOLL",
@@ -41,7 +41,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("C", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         try PageCollection(
             id: "01H", typeID: "01HV", title: "C",
@@ -64,7 +64,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("Side Projects", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         try PageCollection(
             id: "01H", typeID: "01HV", title: "Side Projects",
@@ -83,7 +83,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("X", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         try PageCollection(
             id: "01H", typeID: "01HV", title: "X",
