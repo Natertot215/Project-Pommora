@@ -357,13 +357,13 @@ enum NexusAdopter {
 
         // Shape #4 — already flat (one of the per-kind Type sidecars present).
         if let flatKind = topLevelSidecars.first {
-            if topLevelSidecars.count > 1 {
-                warnings.append(
-                    "Folder '\(name)' carries multiple recognized sidecars "
-                        + "(\(topLevelSidecars.map { $0.filename }.joined(separator: ", "))). "
-                        + "Using '\(flatKind.filename)'."
-                )
-            }
+            // Multiple recognized sidecars at the same level → silent cleanup
+            // pass during apply (cleanupLegacyOrphans deletes the non-
+            // authoritative co-located sidecars). NOT warned — this fires
+            // routinely for nexuses migrated through early flatlayout-4.2
+            // versions, and the cleanup is non-destructive (data on disk
+            // matches the authoritative sidecar's kind).
+            _ = flatKind
             // Legacy orphan cleanup is queued via inPlaceRenames-with-noop-target
             // — but inPlaceRenames is only for renames. Orphans on a flat folder
             // are deleted as a cleanup pass inside apply (no plan entry needed;
@@ -767,35 +767,63 @@ enum NexusAdopter {
         }
     }
 
-    /// Deletes legacy `_vault.json` / `_collection.json` orphans co-located
-    /// with a per-kind sidecar on an already-flat folder (Nathan's actual
-    /// scenario — paradigmV2 adoption added `_schema.json` without removing
-    /// the pre-existing legacy sidecars).
+    /// Deletes orphan sidecars co-located with the authoritative per-kind
+    /// sidecar on an already-flat folder. Two categories of orphan:
+    ///
+    /// 1. **Legacy sidecars** — `_vault.json` / `_collection.json` / `_schema.json`
+    ///    left over from earlier paradigm states (Nathan's nexus state when
+    ///    paradigmV2 added `_schema.json` without removing the pre-existing
+    ///    legacy files; or when flatlayout renamed `_schema.json` to per-kind
+    ///    but left _schema.json behind).
+    ///
+    /// 2. **Co-located per-kind sidecars** — a folder carrying TWO recognized
+    ///    per-kind sidecars (e.g. `_pagetype.json` AND `_pagecollection.json`
+    ///    at the same level). This was caused by an early flatlayout-4.2 bug
+    ///    that wrote the wrong sidecar during wrapper unwrap. Subsequent
+    ///    runs of the corrected logic write the right one, but the orphan
+    ///    persists. Rule: only ONE per-kind sidecar is valid at a folder's
+    ///    top level; the rest are orphans. "Which one is authoritative" is
+    ///    decided by `recognizedSidecarsAt`'s order (pageType > itemType >
+    ///    taskConfig > eventConfig > pageCollection > itemCollection), which
+    ///    matches the natural-parent inference (a folder at root carrying
+    ///    both is a Type, not a Collection, because Collections must live
+    ///    inside a Type).
     private static func cleanupLegacyOrphans(in folder: URL, fm: FileManager) {
-        // Top-level cleanup
-        for legacy in [
+        cleanupOrphansAt(folder, fm: fm, legacyNames: [
             legacyVaultSidecarFilename, paradigmV2UnifiedSidecarFilename,
-        ] {
-            let url = folder.appendingPathComponent(legacy, isDirectory: false)
-            // Only delete if a per-kind sidecar already exists in the folder
-            // (so we never strip a legacy file that's still serving as the
-            // authoritative sidecar).
-            let hasPerKind = recognizedSidecarsAt(folder).isEmpty == false
-            if hasPerKind && fm.fileExists(atPath: url.path) {
-                try? fm.removeItem(at: url)
-            }
-        }
+        ])
         // One-level-deep cleanup (Collections inside this Type)
         let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
         for sub in subFolders where !isHiddenOrExcludedSub(sub) {
-            for legacy in [
+            cleanupOrphansAt(sub, fm: fm, legacyNames: [
                 legacyCollectionSidecarFilename, paradigmV2UnifiedSidecarFilename,
-            ] {
-                let url = sub.appendingPathComponent(legacy, isDirectory: false)
-                let hasPerKind = recognizedSidecarsAt(sub).isEmpty == false
-                if hasPerKind && fm.fileExists(atPath: url.path) {
-                    try? fm.removeItem(at: url)
-                }
+            ])
+        }
+    }
+
+    /// Per-folder orphan cleanup. Picks the authoritative per-kind sidecar
+    /// (first in `recognizedSidecarsAt` order) and deletes everything else:
+    /// other per-kind sidecars at this level + any of the listed legacy names.
+    /// No-op if the folder carries no recognized per-kind sidecar.
+    private static func cleanupOrphansAt(
+        _ folder: URL, fm: FileManager, legacyNames: [String]
+    ) {
+        let perKindPresent = recognizedSidecarsAt(folder)
+        guard let authoritative = perKindPresent.first else { return }
+
+        // Delete co-located per-kind sidecars beyond the authoritative one.
+        for other in perKindPresent.dropFirst() {
+            let url = folder.appendingPathComponent(other.filename, isDirectory: false)
+            if fm.fileExists(atPath: url.path) {
+                try? fm.removeItem(at: url)
+            }
+        }
+        // Delete legacy orphans alongside the authoritative sidecar.
+        for legacy in legacyNames {
+            let url = folder.appendingPathComponent(legacy, isDirectory: false)
+            if url.lastPathComponent == authoritative.filename { continue }
+            if fm.fileExists(atPath: url.path) {
+                try? fm.removeItem(at: url)
             }
         }
     }

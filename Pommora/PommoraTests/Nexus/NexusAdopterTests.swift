@@ -230,10 +230,16 @@ struct NexusAdopterTests {
         #expect(plan.inPlaceRenames.isEmpty)
     }
 
-    // MARK: - scan: pathological (warnings)
+    // MARK: - scan: pathological (silent cleanup)
 
-    @Test("scan warns on folder carrying two recognized sidecars")
-    func scanWarnsOnDualSidecars() throws {
+    @Test("scan silently classifies dual-sidecar folders as flat (cleanup at apply)")
+    func scanSilentlyClassifiesDualSidecarsAsFlat() throws {
+        // Folders carrying multiple recognized per-kind sidecars are classified
+        // as alreadyFlat with the FIRST-FOUND sidecar (per recognizedSidecarsAt
+        // order: pageType > itemType > ...). The non-authoritative sidecar is
+        // cleaned up at apply time via cleanupLegacyOrphans — NOT surfaced as
+        // a warning, because this fires routinely on nexuses migrated through
+        // early flatlayout-4.2 versions and the cleanup is non-destructive.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Weird", isDirectory: true)
@@ -249,7 +255,37 @@ struct NexusAdopterTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.alreadyFlat.count == 1)
-        #expect(!plan.warnings.isEmpty)
+        #expect(plan.warnings.isEmpty)  // silent — cleanup pass handles the orphan
+        #expect(plan.hasAnythingToAdopt == false)  // no preview shown
+    }
+
+    @Test("apply deletes co-located per-kind sidecar orphan")
+    func applyCleansUpCoLocatedPerKindOrphan() throws {
+        // Apply pass deletes the non-authoritative co-located sidecar on
+        // already-flat folders (the bug-fix for Nathan's nexus state where
+        // Materials/_pagecollection.json sat next to Materials/_pagetype.json
+        // due to an early flatlayout-4.2 wrong-sidecar write).
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = nexus.rootURL.appendingPathComponent("Materials", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        )
+        let orphanURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HC","type_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
+            to: orphanURL
+        )
+
+        #expect(FileManager.default.fileExists(atPath: orphanURL.path) == true)
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+        _ = NexusAdopter.apply(plan)
+        #expect(FileManager.default.fileExists(atPath: orphanURL.path) == false)
+        // Authoritative sidecar preserved
+        let typeURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        #expect(FileManager.default.fileExists(atPath: typeURL.path) == true)
     }
 
     // MARK: - scan: dotfile / underscore exclusion
