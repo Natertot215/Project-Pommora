@@ -69,7 +69,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// returns ThematicBreak for `---\n` in isolation, so dropping the guard
     /// is structurally correct: AST already gives the desired answer.
     private var hasThematicBreak: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return false }
         let fragmentString = ts.attributedSubstring(from: range).string
         return MarkdownDetection.isThematicBreakLine(
             fragmentString,
@@ -85,7 +85,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     private var caretIsInFragment: Bool {
         guard let textView = nearestTextView(),
             let ts = textStorage,
-            let range = fragmentNSRange
+            let range = nsRange
         else { return false }
         let nsText = ts.string as NSString
         let caretLocation = min(textView.selectedRange().location, ts.length)
@@ -115,7 +115,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// fragment has no backing storage (teardown).
     @MainActor
     private var headingFragmentString: String? {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else {
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else {
             return nil
         }
         return ts.attributedSubstring(from: range).string
@@ -302,7 +302,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// characters (no hide, no overlay). Same UX guarantee as task checkboxes:
     /// always-on, no caret-aware reveal.
     private var hasDashBulletMarker: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return false }
         let fragmentString = ts.attributedSubstring(from: range).string
         return MarkdownDetection.isDashBulletLine(
             fragmentString,
@@ -315,7 +315,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// start, skipping `\t` and ` `, returns the first non-whitespace char's
     /// location (the `-` per `hasDashBulletMarker`'s Stage 1 guarantee).
     private var dashBulletMarkerDocumentLocation: Int? {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return nil }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return nil }
         let nsText = ts.string as NSString
         let end = min(range.location + range.length, nsText.length)
         for i in range.location..<end {
@@ -395,7 +395,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     private var hasBlockquoteMarker: Bool {
         guard !hasCodeBlockBackground,
             let ts = textStorage,
-            let range = fragmentNSRange,
+            let range = nsRange,
             range.length > 0
         else { return false }
         let fragmentString = ts.attributedSubstring(from: range).string
@@ -440,7 +440,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     private var blockquotePosition: BlockquotePosition? {
         guard hasBlockquoteMarker,
             let ts = textStorage,
-            let range = fragmentNSRange
+            let range = nsRange
         else { return nil }
         let nsText = ts.string as NSString
 
@@ -817,15 +817,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     // MARK: - Helpers
 
-    /// NSRange in the document for this fragment's content.
-    private var fragmentNSRange: NSRange? {
-        guard let tcs = textLayoutManager?.textContentManager as? NSTextContentStorage else { return nil }
-        let start = tcs.offset(from: tcs.documentRange.location, to: rangeInElement.location)
-        let end = tcs.offset(from: tcs.documentRange.location, to: rangeInElement.endLocation)
-        guard start != NSNotFound, end != NSNotFound, end > start else { return nil }
-        return NSRange(location: start, length: end - start)
-    }
-
     private var textStorage: NSTextStorage? {
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.textStorage
     }
@@ -835,7 +826,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     private func drawPosition(
         forDocumentCharAt docIndex: Int, point: CGPoint
     ) -> (x: CGFloat, baselineY: CGFloat, lineHeight: CGFloat)? {
-        guard let fragRange = fragmentNSRange else { return nil }
+        guard let fragRange = nsRange else { return nil }
         let localIndex = docIndex - fragRange.location
         guard localIndex >= 0 else { return nil }
 
@@ -877,14 +868,14 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     // MARK: - Code Block Background
 
     private var hasCodeBlockBackground: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return false }
         let bgColor = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor
         guard let bgColor else { return false }
         return isCodeBlockBackgroundColor(bgColor)
     }
 
     private func drawCodeBlockBackground(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
 
         // Only fenced code-block fragments get the full-width fill (first char must carry the code background).
         guard let color = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor,
@@ -1006,7 +997,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         point: CGPoint
     ) -> CGRect? {
         guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return nil }
-        let localIndex = attrRange.location - (fragmentNSRange?.location ?? 0)
+        let localIndex = attrRange.location - (nsRange?.location ?? 0)
         let lb = lineBounds(forLocalIndex: localIndex, point: point)
         let lineHeight = lb?.height ?? pos.lineHeight
         let lineMinY = lb?.origin.y ?? (pos.baselineY - lineHeight)
@@ -1026,7 +1017,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// `point`.  Used by `renderingSurfaceBounds` (with `.zero`) to extend
     /// the surface so images drawn in paragraphSpacing aren't clipped.
     private func blockImageRects(at point: CGPoint) -> [CGRect] {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return [] }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return [] }
         var rects: [CGRect] = []
         ts.enumerateAttribute(.latexImage, in: range, options: []) { value, attrRange, _ in
             guard value is NSImage else { return }
@@ -1047,7 +1038,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     // MARK: - LaTeX Images
 
     private func drawLatexImages(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
 
         NSGraphicsContext.saveGraphicsState()
         defer { NSGraphicsContext.restoreGraphicsState() }
@@ -1085,7 +1076,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     // MARK: - Task List Checkboxes
 
     private func drawTaskCheckboxes(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
         let selectionRanges: [NSRange] = {
             guard let tv = textLayoutManager?.textContainer?.textView else { return [] }
             return tv.selectedRanges.map { $0.rangeValue }.filter { $0.length > 0 }

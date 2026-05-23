@@ -12,8 +12,8 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 |---|---|
 | Pages | `doc.text` |
 | Page Collections (UI label "Collection") | `folder` |
-| Page Types (UI label "Vault") | `book` (or per-Type override in `_schema.json.icon`) |
-| Item Types (UI label "Type") | `tray.full` (or per-Type override in `_schema.json.icon`) |
+| Page Types (UI label "Vault") | `book` (or per-Type override at `_pagetype.json.icon`) |
+| Item Types (UI label "Type") | `tray.full` (or per-Type override at `_itemtype.json.icon`) |
 | Item Collections (UI label "Set") | `square.stack.3d.up` (or per-Collection override) |
 | Items | `tray` (or per-item override) |
 | Spaces | `rectangle.3.group` (or per-space override) |

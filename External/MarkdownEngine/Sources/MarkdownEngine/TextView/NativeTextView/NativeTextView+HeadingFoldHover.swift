@@ -73,7 +73,7 @@ extension NativeTextView {
         }
         let containerY = viewPoint.y - textContainerOrigin.y
         guard let fragment = headingFragment(atContainerY: containerY, in: textLayoutManager),
-            let nsRange = fragmentNSRange(for: fragment, in: textLayoutManager)
+            let nsRange = fragment.nsRange
         else {
             applyHoveredHeadingKey(nil, in: coordinator)
             return
@@ -166,25 +166,6 @@ extension NativeTextView {
         return found
     }
 
-    /// Convert a fragment's `rangeInElement` into a document-relative NSRange,
-    /// mirroring the pattern used inside `MarkdownTextLayoutFragment.fragmentNSRange`.
-    /// Returns nil when the content manager isn't an NSTextContentStorage
-    /// (atypical) or the range can't be resolved.
-    private func fragmentNSRange(
-        for fragment: NSTextLayoutFragment,
-        in textLayoutManager: NSTextLayoutManager
-    ) -> NSRange? {
-        guard
-            let contentStorage = textLayoutManager.textContentManager
-                as? NSTextContentStorage
-        else { return nil }
-        let docStart = contentStorage.documentRange.location
-        let start = contentStorage.offset(from: docStart, to: fragment.rangeInElement.location)
-        let end = contentStorage.offset(from: docStart, to: fragment.rangeInElement.endLocation)
-        guard start != NSNotFound, end != NSNotFound, end > start else { return nil }
-        return NSRange(location: start, length: end - start)
-    }
-
     /// Mirror of `MarkdownTextLayoutFragment.hasCodeBlockBackground` from
     /// outside the fragment — checks whether the paragraph's first character
     /// carries a backgroundColor matching the syntax highlighter's code-block
@@ -228,7 +209,7 @@ extension NativeTextView {
         else { return false }
         let containerY = viewPoint.y - textContainerOrigin.y
         guard let fragment = headingFragment(atContainerY: containerY, in: textLayoutManager),
-            let nsRange = fragmentNSRange(for: fragment, in: textLayoutManager)
+            let nsRange = fragment.nsRange
         else { return false }
         guard nsRange.location < textStorage.length else { return false }
         let fragmentString = (textStorage.string as NSString).substring(with: nsRange)
@@ -306,7 +287,7 @@ extension NativeTextView {
         else { return false }
         let containerY = viewPoint.y - textContainerOrigin.y
         guard let fragment = headingFragment(atContainerY: containerY, in: textLayoutManager),
-            let nsRange = fragmentNSRange(for: fragment, in: textLayoutManager)
+            let nsRange = fragment.nsRange
         else { return false }
         guard nsRange.location < textStorage.length else { return false }
         let fragmentString = (textStorage.string as NSString).substring(with: nsRange)
