@@ -110,25 +110,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         nearestTextView()?.delegate as? NativeTextViewCoordinator
     }
 
-    /// True when this fragment's NSRange intersects any of the coordinator's
-    /// current `foldedRanges`. Drives both the zero-height `layoutFragmentFrame`
-    /// override (the fragment becomes invisible to layout) and the early-
-    /// return in `draw(at:in:)` (overlays don't bother drawing into an empty
-    /// surface). Both layers read the SAME source — the HeadingFolding service
-    /// fills `coordinator.foldedRanges` from the AST. No drift possible by
-    /// construction (`.claude/Guidelines/Markdown.md` L2).
-    @MainActor
-    private var isInsideFoldedRange: Bool {
-        guard let range = fragmentNSRange,
-            let coordinator = nearestCoordinator(),
-            !coordinator.foldedRanges.isEmpty
-        else { return false }
-        for folded in coordinator.foldedRanges {
-            if NSIntersectionRange(folded, range).length > 0 { return true }
-        }
-        return false
-    }
-
     /// Exact source-line string for this fragment with no trailing newline —
     /// the same shape used as the fold-state key. Returns nil when the
     /// fragment has no backing storage (teardown).
@@ -720,10 +701,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// and block images drawn below text via paragraphSpacing.
     nonisolated override var renderingSurfaceBounds: CGRect {
         MainActor.assumeIsolated {
-            // Folded fragments report zero rendering bounds so TextKit doesn't
-            // try to draw overlays (HR line, blockquote chrome, etc.) into a
-            // visually-collapsed surface.
-            if isInsideFoldedRange { return .zero }
             var bounds = super.renderingSurfaceBounds
             if hasCodeBlockBackground {
                 let containerWidth = textLayoutManager?.textContainer?.size.width ?? bounds.width
@@ -812,13 +789,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
     nonisolated override func draw(at point: CGPoint, in context: CGContext) {
         MainActor.assumeIsolated {
-            // Foldable headings — skip every overlay + `super.draw` when
-            // this fragment lives inside a folded section. The frame is
-            // already zero-height; bailing here avoids running the overlay
-            // detection passes (HR / blockquote / bullet / task) on each
-            // hidden fragment per draw.
-            if isInsideFoldedRange { return }
-
             // 1. Code-block backgrounds (behind text)
             drawCodeBlockBackground(at: point, in: context)
 
