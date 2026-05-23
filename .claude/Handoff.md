@@ -4,7 +4,7 @@
 
 #### Current state (2026-05-23)
 
-**flatlayout SHIPPED.** Tag `flatlayout` pushed to origin at the Phase 6.2 ship commit. The on-disk layout is now flat — Page Types / Item Types / Tasks singleton / Events singleton live at the nexus root with six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan cleanup and `.DS_Store`-tolerant empty-wrapper detection. Agenda discovery is sidecar-driven (Tasks/Events folders renameable via Finder).
+**flatlayout SHIPPED.** Tag `flatlayout` pushed to origin at commit `1d72020` (Phase 6.3 doc-sync commit following the 6.3 lint-fix `f2d42fe` and 6.2 ship `5ceca94`). The on-disk layout is now flat — Page Types / Item Types / Tasks singleton / Events singleton live at the nexus root with six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan cleanup and `.DS_Store`-tolerant empty-wrapper detection. Agenda discovery is sidecar-driven (Tasks/Events folders renameable via Finder).
 
 Build green via `xcodebuild`, **363 tests passing** at the ship tag. Pre-existing intermittent flake: `PageEditorViewModelTests.debounceCoalescesRapidEdits` (tight 500ms-after-300ms margin) — not blocking.
 
