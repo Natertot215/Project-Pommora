@@ -338,6 +338,26 @@ extension NativeTextViewCoordinator {
 
     // MARK: - Fold-toggle invalidation
 
+    /// Drop first-responder status when the current selection's leading
+    /// edge lies inside any `foldedRanges` entry. Decision 2: chevron
+    /// click preserves caret + selection by default; this helper only
+    /// fires when the post-toggle caret would otherwise vanish inside an
+    /// elided range with no fragment to render it. Used from the click
+    /// handler in `NativeTextView+HeadingFoldHover`.
+    @discardableResult
+    func unfocusCaretIfInsideFoldedRange(_ textView: NSTextView) -> Bool {
+        guard !foldedRanges.isEmpty else { return false }
+        let sel = textView.selectedRange()
+        let selStart = sel.location
+        for folded in foldedRanges {
+            if selStart >= folded.location, selStart < folded.location + folded.length {
+                textView.window?.makeFirstResponder(nil)
+                return true
+            }
+        }
+        return false
+    }
+
     /// Fold-toggle entry: detects a `foldedHeadings` change that didn't
     /// accompany a text edit (chevron click) and routes through
     /// `syncHeadingFolding`, which rebuilds `foldedRanges` and calls

@@ -237,11 +237,13 @@ extension NativeTextView {
         coordinator.startChevronAnimation(
             forHeadingKey: key, toFolded: willBeFolded, textView: self
         )
-        // Phase-4 will replace this with conditional unfocus (Decision 2):
-        // unconditional resignation here is a temporary stand-in so Phase 1
-        // ships green. Final shape: only drop focus when the post-toggle
-        // caret would otherwise land inside the freshly-folded range.
-        window?.makeFirstResponder(nil)
+        // Decision 2: drop first-responder only when the post-toggle caret
+        // would otherwise land inside a freshly-folded range (no fragment
+        // to render it because content-manager elision vends an empty
+        // paragraph there). In every other case the user's caret +
+        // selection are preserved so chevron clicks don't interrupt
+        // active editing.
+        coordinator.unfocusCaretIfInsideFoldedRange(self)
         return true
     }
 
