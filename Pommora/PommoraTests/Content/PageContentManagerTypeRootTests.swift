@@ -4,16 +4,16 @@ import Testing
 @testable import Pommora
 
 /// PageType-root Pages (sitting directly in a PageType folder, not inside a
-/// PageCollection sub-folder). Mirrors ContentManagerTests but uses the
+/// PageCollection sub-folder). Mirrors PageContentManagerTests but uses the
 /// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` accessors.
 ///
-/// ParadigmV2 (Task 5.5): Item-side tests have been removed from this suite —
-/// Items moved to ItemContentManager keyed on ItemType/ItemCollection. The
-/// Items-side suite lands alongside the wrapper-folder layout in Phase 6.
-/// File-rename to `PageContentManagerVaultRootTests.swift` lands in Task 5.6.
+/// ParadigmV2 (Task 5.5 + 5.6): Item-side tests live in
+/// `PommoraTests/Items/ItemContentManagerTests.swift`. The legacy "VaultRoot"
+/// filename mirrors `pagesByTypeRoot` storage; the suite header keeps the
+/// "vault-root" label since the on-disk concept is still "the PageType root."
 @MainActor
-@Suite("PageContentManager vault-root")
-struct ContentManagerVaultRootTests {
+@Suite("PageContentManager type-root")
+struct PageContentManagerTypeRootTests {
 
     @Test("loadAll for an empty vault root yields empty arrays")
     func loadAllForVaultEmpty() async throws {

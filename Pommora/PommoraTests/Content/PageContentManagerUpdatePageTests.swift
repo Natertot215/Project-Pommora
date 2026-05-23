@@ -4,12 +4,9 @@ import Testing
 @testable import Pommora
 
 /// PageContentManager.updatePage CRUD tests.
-///
-/// ParadigmV2 (Task 5.5): File-rename to
-/// `PageContentManagerUpdatePageTests.swift` lands in Task 5.6.
 @MainActor
 @Suite("PageContentManager.updatePage")
-struct ContentManagerUpdatePageTests {
+struct PageContentManagerUpdatePageTests {
 
     @Test("updatePage persists body to disk (PageCollection-scoped)")
     func updatePagePersistsBodyToDisk() async throws {

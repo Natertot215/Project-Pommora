@@ -5,14 +5,12 @@ import Testing
 
 /// Pages-side CRUD tests for PageContentManager (PageCollection-scoped).
 ///
-/// ParadigmV2 (Task 5.5): ContentManager was split into PageContentManager
-/// (Pages) and ItemContentManager (Items). Item-side tests have been removed
-/// from this suite; the Items-side suite lands alongside the wrapper-folder
-/// layout in Phase 6. File-rename to `PageContentManagerTests.swift` lands in
-/// Task 5.6.
+/// ParadigmV2 (Task 5.5 + 5.6): ContentManager was split into PageContentManager
+/// (Pages) and ItemContentManager (Items). Item-side tests live in
+/// `PommoraTests/Items/ItemContentManagerTests.swift`.
 @MainActor
 @Suite("PageContentManager")
-struct ContentManagerTests {
+struct PageContentManagerTests {
 
     @Test("createPage writes .md with frontmatter scaffold")
     func createPage() async throws {
