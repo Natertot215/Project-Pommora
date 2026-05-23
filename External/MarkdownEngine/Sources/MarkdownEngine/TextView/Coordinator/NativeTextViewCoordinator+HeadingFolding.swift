@@ -293,3 +293,27 @@ extension NativeTextViewCoordinator {
     }
 
 }
+
+// MARK: - NSTextContentStorageDelegate (paragraph elision)
+
+extension NativeTextViewCoordinator: NSTextContentStorageDelegate {
+    /// Returns an empty `NSTextParagraph` for source ranges that intersect
+    /// the current `foldedRanges`. The layout manager then sees zero
+    /// content for that range — no fragments created, no layout space,
+    /// and selection/find/spell-check route through the content manager
+    /// so the elided range is unreachable to all of them.
+    ///
+    /// Returning `nil` for non-folded ranges hands control back to the
+    /// default `NSTextContentStorage` behavior (vend the real paragraph).
+    public func textContentStorage(
+        _ textContentStorage: NSTextContentStorage,
+        textParagraphWith range: NSRange
+    ) -> NSTextParagraph? {
+        guard !foldedRanges.isEmpty else { return nil }
+        let intersects = foldedRanges.contains { folded in
+            NSIntersectionRange(folded, range).length > 0
+        }
+        guard intersects else { return nil }
+        return NSTextParagraph(attributedString: NSAttributedString(string: ""))
+    }
+}
