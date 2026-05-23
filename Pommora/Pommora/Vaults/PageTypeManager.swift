@@ -26,18 +26,27 @@ final class PageTypeManager {
 
     func loadAll() async {
         do {
+            // Ensure `<nexus>/Pages/` exists so a fresh nexus gets the wrapper
+            // on first load. Idempotent — mkdir -p equivalent.
+            let wrapper = NexusPaths.pagesWrapperDir(in: nexus.rootURL)
+            try NexusPaths.ensureDirectoryExists(wrapper)
+
             // ParadigmV2 auto-heal: rename legacy `_vault.json` / `_collection.json`
             // sidecars in place to the unified `_schema.json` filename so the
             // loader below finds them. Idempotent; no-op on already-migrated nexuses.
+            // Scans inside the Pages/ wrapper — pre-ParadigmV2 nexuses with
+            // legacy sidecars at the nexus root won't be auto-healed here
+            // (Phase 10's user-data migration relocates those folders into
+            // `Pages/`; this rename activates naturally once they land).
             // Removable once Phase 10's user-data migration script ships.
-            migrateLegacySidecarsIfNeeded()
+            migrateLegacySidecarsIfNeeded(in: wrapper)
 
-            // Top-level folders inside nexus root that contain a schema sidecar
-            let topLevel = try Filesystem.childFolders(of: nexus.rootURL)
+            // PageType folders live directly under `<nexus>/Pages/`. The
+            // wrapper isolates the scan so sibling top-level folders
+            // (Agenda, Items, .trash, .nexus) no longer need exclusion.
+            let topLevel = try Filesystem.childFolders(of: wrapper)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
-                .filter { $0.lastPathComponent != "Agenda" }
-                .filter { $0.lastPathComponent != ".trash" }
 
             var loadedTypes: [PageType] = []
             var loadedCols: [String: [PageCollection]] = [:]
@@ -348,22 +357,23 @@ final class PageTypeManager {
     }
 
     /// One-time legacy sidecar rename — `_vault.json` → `_schema.json` at the
-    /// top-level Page Type folders; `_collection.json` → `_schema.json` inside
-    /// Page Collection sub-folders. Pre-ParadigmV2 nexuses have the legacy
-    /// names; Phase 2.1 production code only reads the new name; this bridges
-    /// the gap so existing user data shows up post-rename without manual
-    /// migration. Idempotent — no-op when the new filename already exists.
-    /// Errors swallowed (best-effort; load still surfaces a useful empty state
-    /// if the rename fails for permissions etc.). Removable once Phase 10
-    /// migration ships and Nathan's nexus is cleaned up.
-    private func migrateLegacySidecarsIfNeeded() {
+    /// PageType folders; `_collection.json` → `_schema.json` inside Page
+    /// Collection sub-folders. Pre-ParadigmV2 nexuses have the legacy names;
+    /// production code only reads the new name; this bridges the gap so
+    /// existing user data shows up post-rename without manual migration.
+    /// Phase 6 narrows the scan to the `Pages/` wrapper — legacy folders
+    /// still sitting at nexus root are surfaced as `skippedTopLevel` by
+    /// NexusAdopter; Phase 10's user-data migration owns relocating them
+    /// into `Pages/`, at which point this auto-heal activates naturally.
+    /// Idempotent — no-op when the new filename already exists. Errors
+    /// swallowed (best-effort).
+    private func migrateLegacySidecarsIfNeeded(in wrapper: URL) {
         let schemaName = NexusPaths.schemaSidecarFilename
         let fm = FileManager.default
-        guard let topLevel = try? Filesystem.childFolders(of: nexus.rootURL) else { return }
+        guard let topLevel = try? Filesystem.childFolders(of: wrapper) else { return }
         for folder in topLevel {
             let name = folder.lastPathComponent
             if name.hasPrefix(".") || name.hasPrefix("_") { continue }
-            if name == "Agenda" || name == ".trash" { continue }
             renameLegacySidecar(at: folder, legacyName: "_vault.json", newName: schemaName, fm: fm)
             guard let subs = try? Filesystem.childFolders(of: folder) else { continue }
             for sub in subs {

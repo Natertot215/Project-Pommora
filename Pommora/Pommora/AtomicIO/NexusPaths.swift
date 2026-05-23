@@ -11,6 +11,15 @@ enum NexusPaths {
     /// Replaces per-kind names per ParadigmV2.
     static let schemaSidecarFilename = "_schema.json"
 
+    // MARK: - Reserved top-level folder names (ParadigmV2 Phase 6)
+
+    /// Reserved top-level folder names inside a Nexus root. These are wrapper
+    /// folders for operational entity kinds (Pages, Items, Agenda) and are
+    /// skipped by NexusAdopter when surveying legacy-shaped root folders for
+    /// PageType adoption. Phase 10's user-data migration owns the relocation
+    /// of legacy root-level type folders into `Pages/`.
+    static let reservedTopLevelFolderNames: Set<String> = ["Pages", "Items", "Agenda"]
+
     // MARK: - .nexus/ subdirectories
 
     static func nexusConfigDir(in nexus: Nexus) -> URL {
@@ -53,8 +62,15 @@ enum NexusPaths {
     static let eventFileExtension = "event.json"
 
     /// `<nexus>/Agenda/` — wrapper folder containing `Tasks/` and `Events/`.
+    /// Phase 6 form, taking the nexus root URL directly so callers without a
+    /// fully-built Nexus value can still derive the path.
+    static func agendaWrapperDir(in nexusRoot: URL) -> URL {
+        nexusRoot.appendingPathComponent("Agenda", isDirectory: true)
+    }
+
+    /// Nexus-typed convenience overload — defers to the URL form.
     static func agendaWrapperDir(in nexus: Nexus) -> URL {
-        nexus.rootURL.appendingPathComponent("Agenda", isDirectory: true)
+        agendaWrapperDir(in: nexus.rootURL)
     }
 
     /// `<nexus>/Agenda/Tasks/` — holds `_schema.json` + `<title>.task.json` files.
@@ -123,15 +139,92 @@ enum NexusPaths {
             .appendingPathComponent("\(title).project.json", isDirectory: false)
     }
 
-    // MARK: - Vault / Collection / Content paths
+    // MARK: - Pages wrapper / PageType / PageCollection / Content paths (ParadigmV2)
+
+    /// `<nexus>/Pages/` — wrapper folder containing PageType sub-folders.
+    /// PageTypeManager.loadAll surveys under this path; Phase 6 materializes it
+    /// lazily on first load.
+    static func pagesWrapperDir(in nexusRoot: URL) -> URL {
+        nexusRoot.appendingPathComponent("Pages", isDirectory: true)
+    }
+
+    /// Nexus-typed convenience overload.
+    static func pagesWrapperDir(in nexus: Nexus) -> URL {
+        pagesWrapperDir(in: nexus.rootURL)
+    }
+
+    /// `<nexus>/Pages/<typeFolderName>/` — PageType folder.
+    static func pageTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
+        pagesWrapperDir(in: nexusRoot).appendingPathComponent(typeFolderName, isDirectory: true)
+    }
+
+    /// Nexus-typed convenience overload — bridges legacy `(forTitle:in:nexus:)` callers.
+    static func pageTypeFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
+        pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
+    }
+
+    /// `<nexus>/Pages/<typeFolderName>/_schema.json` — PageType schema sidecar.
+    static func pageTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
+        pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
+            .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+    }
+
+    /// Nexus-typed convenience overload.
+    static func pageTypeMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
+        pageTypeMetadataURL(in: nexus.rootURL, typeFolderName: title)
+    }
+
+    /// `<nexus>/Pages/<typeFolderName>/<collectionFolderName>/` — PageCollection folder.
+    static func pageCollectionFolderURL(
+        in nexusRoot: URL,
+        typeFolderName: String,
+        collectionFolderName: String
+    ) -> URL {
+        pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
+            .appendingPathComponent(collectionFolderName, isDirectory: true)
+    }
+
+    /// Nexus-typed convenience overload (legacy parameter shape).
+    static func pageCollectionFolderURL(
+        forTitle title: String,
+        inPageTypeTitled pageTypeTitle: String,
+        in nexus: Nexus
+    ) -> URL {
+        pageCollectionFolderURL(
+            in: nexus.rootURL,
+            typeFolderName: pageTypeTitle,
+            collectionFolderName: title
+        )
+    }
+
+    /// `<nexus>/Pages/<typeFolderName>/<collectionFolderName>/_schema.json` — PageCollection schema sidecar.
+    static func pageCollectionMetadataURL(
+        in nexusRoot: URL,
+        typeFolderName: String,
+        collectionFolderName: String
+    ) -> URL {
+        pageCollectionFolderURL(
+            in: nexusRoot,
+            typeFolderName: typeFolderName,
+            collectionFolderName: collectionFolderName
+        )
+        .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+    }
+
+    // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)
+    //
+    // Existing call sites still use `vaultFolderURL` / `vaultMetadataURL` /
+    // `collectionFolderURL(forTitle:inVaultTitled:in:)`. Phase 6 redirects
+    // them to the new `Pages/` wrapper so on-disk layout shifts in one step;
+    // a follow-up rename pass will retire the legacy names. Keeping the
+    // aliases here is the stub-and-progressively-replace seam.
 
     static func vaultFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
-        nexus.rootURL.appendingPathComponent(title, isDirectory: true)
+        pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
     }
 
     static func vaultMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
-        vaultFolderURL(forTitle: title, in: nexus)
-            .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+        pageTypeMetadataURL(in: nexus.rootURL, typeFolderName: title)
     }
 
     static func collectionFolderURL(
@@ -139,8 +232,11 @@ enum NexusPaths {
         inVaultTitled vaultTitle: String,
         in nexus: Nexus
     ) -> URL {
-        vaultFolderURL(forTitle: vaultTitle, in: nexus)
-            .appendingPathComponent(title, isDirectory: true)
+        pageCollectionFolderURL(
+            in: nexus.rootURL,
+            typeFolderName: vaultTitle,
+            collectionFolderName: title
+        )
     }
 
     static func pageFileURL(forTitle title: String, in collectionFolder: URL) -> URL {
