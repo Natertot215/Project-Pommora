@@ -151,6 +151,52 @@ enum NexusPaths {
         collectionFolder.appendingPathComponent("\(title).json", isDirectory: false)
     }
 
+    // MARK: - Items wrapper / ItemType / ItemCollection paths (ParadigmV2)
+
+    /// `<nexus>/Items/` — wrapper folder containing ItemType sub-folders.
+    /// Defined for Phase 6; Task 5.3 (Phase 5) only declares the helper —
+    /// ItemTypeManager.loadAll reads under this path and currently returns
+    /// empty until Phase 6 materializes the wrapper on disk. Stub-and-
+    /// progressively-replace per branch quirk #8.
+    static func itemsWrapperDir(in nexusRoot: URL) -> URL {
+        nexusRoot.appendingPathComponent("Items", isDirectory: true)
+    }
+
+    /// `<nexus>/Items/<typeFolderName>/` — ItemType folder.
+    static func itemTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
+        itemsWrapperDir(in: nexusRoot).appendingPathComponent(typeFolderName, isDirectory: true)
+    }
+
+    /// `<nexus>/Items/<typeFolderName>/_schema.json` — ItemType schema sidecar.
+    static func itemTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
+        itemTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
+            .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+    }
+
+    /// `<nexus>/Items/<typeFolderName>/<collectionFolderName>/` — ItemCollection folder.
+    static func itemCollectionFolderURL(
+        in nexusRoot: URL,
+        typeFolderName: String,
+        collectionFolderName: String
+    ) -> URL {
+        itemTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
+            .appendingPathComponent(collectionFolderName, isDirectory: true)
+    }
+
+    /// `<nexus>/Items/<typeFolderName>/<collectionFolderName>/_schema.json` — ItemCollection schema sidecar.
+    static func itemCollectionMetadataURL(
+        in nexusRoot: URL,
+        typeFolderName: String,
+        collectionFolderName: String
+    ) -> URL {
+        itemCollectionFolderURL(
+            in: nexusRoot,
+            typeFolderName: typeFolderName,
+            collectionFolderName: collectionFolderName
+        )
+        .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+    }
+
     // MARK: - Filesystem helper
 
     static func ensureDirectoryExists(_ url: URL) throws {
