@@ -73,7 +73,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         let fragmentString = ts.attributedSubstring(from: range).string
         return MarkdownDetection.isThematicBreakLine(
             fragmentString,
-            isInsideCodeBlock: hasCodeBlockBackground
+            isInsideCodeBlock: isInsideCodeBlockAST
         )
     }
 
@@ -110,6 +110,29 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         nearestTextView()?.delegate as? NativeTextViewCoordinator
     }
 
+    /// AST-grounded code-block check for this fragment. Reads via
+    /// `coordinator.isFragmentRangeInsideCodeBlock(_:)` which uses the
+    /// cached `[MarkdownToken]` from the engine's parsed-document cache.
+    /// Replaces the prior `hasCodeBlockBackground` color-comparison check
+    /// for the stage-0 guards (ThematicBreak / DashBullet / Blockquote /
+    /// Heading detection). `hasCodeBlockBackground` stays for
+    /// `drawCodeBlockBackground` which legitimately needs to know whether
+    /// the styler has applied the code-block background-color attribute.
+    ///
+    /// Nonisolated property body wraps coordinator access in
+    /// `MainActor.assumeIsolated` so the existing nonisolated callers
+    /// (`hasThematicBreak`, `hasDashBulletMarker`, `hasBlockquoteMarker`,
+    /// `hasHeadingMarker`) can read it directly. Safe because TextKit 2
+    /// runs all rendering on the main thread.
+    private var isInsideCodeBlockAST: Bool {
+        MainActor.assumeIsolated {
+            guard let range = nsRange,
+                let coordinator = nearestCoordinator()
+            else { return false }
+            return coordinator.isFragmentRangeInsideCodeBlock(range)
+        }
+    }
+
     /// Exact source-line string for this fragment with no trailing newline —
     /// the same shape used as the fold-state key. Returns nil when the
     /// fragment has no backing storage (teardown).
@@ -128,7 +151,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     private var hasHeadingMarker: Bool {
         guard let fragmentString = headingFragmentString else { return false }
         return MarkdownDetection.isHeadingLine(
-            fragmentString, isInsideCodeBlock: hasCodeBlockBackground
+            fragmentString, isInsideCodeBlock: isInsideCodeBlockAST
         )
     }
 
@@ -306,7 +329,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         let fragmentString = ts.attributedSubstring(from: range).string
         return MarkdownDetection.isDashBulletLine(
             fragmentString,
-            isInsideCodeBlock: hasCodeBlockBackground
+            isInsideCodeBlock: isInsideCodeBlockAST
         )
     }
 
@@ -393,7 +416,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     ///     doesn't activate until `- `.
     ///   - Stage 2: per-fragment swift-markdown AST parse — canonical answer.
     private var hasBlockquoteMarker: Bool {
-        guard !hasCodeBlockBackground,
+        guard !isInsideCodeBlockAST,
             let ts = textStorage,
             let range = nsRange,
             range.length > 0

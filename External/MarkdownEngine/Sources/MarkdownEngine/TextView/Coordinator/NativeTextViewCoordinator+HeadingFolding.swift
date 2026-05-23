@@ -26,6 +26,20 @@ import Markdown
 
 extension NativeTextViewCoordinator {
 
+    // MARK: - AST-based code-block check (shared by renderer + hover)
+
+    /// AST-grounded code-block check for a fragment at `range`. Uses the
+    /// coordinator's already-cached `cachedParsedDocument.codeTokens` so the
+    /// renderer and hover handler don't re-parse per call. Replaces the
+    /// prior fragile color-comparison approach in both sites (which
+    /// depended on the syntax highlighter's background-color tolerance
+    /// check and could briefly mis-classify during theme switches).
+    func isFragmentRangeInsideCodeBlock(_ range: NSRange) -> Bool {
+        guard let codeTokens = cachedParsedDocument?.codeTokens, !codeTokens.isEmpty
+        else { return false }
+        return MarkdownDetection.isInsideCodeBlock(range: range, codeTokens: codeTokens)
+    }
+
     // MARK: - Redraw-trigger helpers
 
     /// Find the source-line NSRange for an exact heading key (e.g. `"## Foo"`)

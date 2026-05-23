@@ -87,8 +87,7 @@ extension NativeTextView {
             return
         }
         let fragmentString = nsText.substring(with: nsRange)
-        let insideCodeBlock = headingFragmentInsideCodeBlock(
-            textStorage: textStorage, range: nsRange)
+        let insideCodeBlock = coordinator.isFragmentRangeInsideCodeBlock(nsRange)
         guard MarkdownDetection.isHeadingLine(fragmentString, isInsideCodeBlock: insideCodeBlock)
         else {
             applyHoveredHeadingKey(nil, in: coordinator)
@@ -166,29 +165,6 @@ extension NativeTextView {
         return found
     }
 
-    /// Mirror of `MarkdownTextLayoutFragment.hasCodeBlockBackground` from
-    /// outside the fragment — checks whether the paragraph's first character
-    /// carries a backgroundColor matching the syntax highlighter's code-block
-    /// background. Stage-0 guard for `isHeadingLine`.
-    private func headingFragmentInsideCodeBlock(
-        textStorage: NSTextStorage, range: NSRange
-    ) -> Bool {
-        guard range.location < textStorage.length else { return false }
-        guard
-            let bgColor = textStorage.attribute(
-                .backgroundColor, at: range.location, effectiveRange: nil) as? NSColor
-        else { return false }
-        guard let coordinator = delegate as? NativeTextViewCoordinator else { return false }
-        let currentBg = coordinator.configuration.services.syntaxHighlighter.backgroundColor()
-        guard let lhs = bgColor.usingColorSpace(.deviceRGB),
-            let rhs = currentBg.usingColorSpace(.deviceRGB)
-        else { return false }
-        let tol: CGFloat = 0.03
-        return abs(lhs.redComponent - rhs.redComponent) < tol
-            && abs(lhs.greenComponent - rhs.greenComponent) < tol
-            && abs(lhs.blueComponent - rhs.blueComponent) < tol
-    }
-
     // MARK: - Chevron click
 
     /// Test whether a left-mouseDown at `viewPoint` lands inside a heading's
@@ -213,8 +189,8 @@ extension NativeTextView {
         else { return false }
         guard nsRange.location < textStorage.length else { return false }
         let fragmentString = (textStorage.string as NSString).substring(with: nsRange)
-        let insideCodeBlock = headingFragmentInsideCodeBlock(
-            textStorage: textStorage, range: nsRange)
+        guard let coordinator = delegate as? NativeTextViewCoordinator else { return false }
+        let insideCodeBlock = coordinator.isFragmentRangeInsideCodeBlock(nsRange)
         guard
             MarkdownDetection.isHeadingLine(
                 fragmentString, isInsideCodeBlock: insideCodeBlock)
@@ -291,7 +267,8 @@ extension NativeTextView {
         else { return false }
         guard nsRange.location < textStorage.length else { return false }
         let fragmentString = (textStorage.string as NSString).substring(with: nsRange)
-        let inCodeBlock = headingFragmentInsideCodeBlock(textStorage: textStorage, range: nsRange)
+        guard let coordinator = delegate as? NativeTextViewCoordinator else { return false }
+        let inCodeBlock = coordinator.isFragmentRangeInsideCodeBlock(nsRange)
         guard MarkdownDetection.isHeadingLine(fragmentString, isInsideCodeBlock: inCodeBlock)
         else { return false }
         guard let rect = chevronViewRect(for: fragment) else { return false }
