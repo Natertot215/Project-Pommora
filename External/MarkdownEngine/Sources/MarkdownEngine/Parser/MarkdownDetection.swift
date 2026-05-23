@@ -215,8 +215,17 @@ public enum MarkdownDetection {
         // for heading at index i with level N, the content spans from the end
         // of its line to the start of the next heading at level <= N (or to
         // the document end if no such heading follows).
+        //
+        // Decision 1 (ordinal disambiguation): the first occurrence of a
+        // source line keeps the bare key (`"## Foo"`); subsequent occurrences
+        // with identical source-line text get an ordinal suffix (`"## Foo [2]"`,
+        // `"## Foo [3]"`, ...). Disambiguates duplicate-text headings so each
+        // fold target is independent. Level prefix is part of the key already
+        // (`"## A"` vs `"### A"`), so different levels with the same body text
+        // get separate ordinal counters automatically.
         var result: [FoldedHeading] = []
         result.reserveCapacity(raws.count)
+        var occurrenceCounts: [String: Int] = [:]
         for (i, raw) in raws.enumerated() {
             // The heading occupies a full line (`## Foo\n`). The AST range
             // covers only `## Foo` — we widen to the line range so content
@@ -232,15 +241,18 @@ public enum MarkdownDetection {
                 break
             }
 
-            // Heading key = exact source line stripped of its trailing newline
+            // Bare key = exact source line stripped of its trailing newline
             // (so `"## Foo"` matches across LF / CRLF / no-trailing-newline).
             // Swift represents `\r\n` as a single extended grapheme cluster, so
             // `hasSuffix("\n")` returns false on CRLF input — the prior
             // two-step strip silently no-op'd on Windows-saved files.
             // `trimmingCharacters(in: .newlines)` handles LF, CR, CRLF, and the
             // Unicode line/paragraph separators in one pass.
-            let key = nsText.substring(with: headingLine)
+            let bareKey = nsText.substring(with: headingLine)
                 .trimmingCharacters(in: .newlines)
+            let count = (occurrenceCounts[bareKey] ?? 0) + 1
+            occurrenceCounts[bareKey] = count
+            let key = count == 1 ? bareKey : "\(bareKey) [\(count)]"
 
             let contentRange = NSRange(
                 location: contentStart,

@@ -188,4 +188,41 @@ struct FoldableHeadingsTests {
         let headings = MarkdownDetection.foldableHeadings(in: text)
         #expect(headings.map { $0.key } == ["# A", "## B", "### C", "## D", "# E"])
     }
+
+    // MARK: - Ordinal disambiguation (Decision 1)
+
+    @Test("Duplicate H2 headings — second occurrence keyed with [2] suffix")
+    func duplicateHeadingsOrdinalDisambiguation() {
+        let text = "## Notes\nfirst\n## Notes\nsecond\n"
+        let headings = MarkdownDetection.foldableHeadings(in: text)
+        #expect(headings.count == 2)
+        #expect(headings[0].key == "## Notes")
+        #expect(headings[1].key == "## Notes [2]")
+    }
+
+    @Test("Three duplicates produce [2] and [3] suffixes")
+    func threeDuplicates() {
+        let text = "## A\n1\n## A\n2\n## A\n3\n"
+        let headings = MarkdownDetection.foldableHeadings(in: text)
+        #expect(headings.count == 3)
+        #expect(headings.map { $0.key } == ["## A", "## A [2]", "## A [3]"])
+    }
+
+    @Test("Non-adjacent duplicates still get ordinals")
+    func nonAdjacentDuplicates() {
+        let text = "## A\n1\n## B\n2\n## A\n3\n"
+        let headings = MarkdownDetection.foldableHeadings(in: text)
+        #expect(headings.count == 3)
+        #expect(headings.map { $0.key } == ["## A", "## B", "## A [2]"])
+    }
+
+    @Test("Different-level same-text headings get separate ordinal counters")
+    func differentLevelsSameText() {
+        // `## A` and `### A` are not duplicates of each other; their level
+        // prefixes differ, so each gets its own ordinal sequence.
+        let text = "## A\n1\n### A\n2\n## A\n3\n### A\n4\n"
+        let headings = MarkdownDetection.foldableHeadings(in: text)
+        #expect(headings.count == 4)
+        #expect(headings.map { $0.key } == ["## A", "### A", "## A [2]", "### A [2]"])
+    }
 }
