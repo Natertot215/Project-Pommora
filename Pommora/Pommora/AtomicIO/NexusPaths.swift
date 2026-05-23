@@ -45,10 +45,48 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("homepage.json", isDirectory: false)
     }
 
-    // MARK: - Agenda (operational sibling of Vaults)
+    // MARK: - Agenda (operational sibling of Pages/Items wrappers)
 
-    static func agendaDir(in nexus: Nexus) -> URL {
+    /// File extension for Agenda Tasks: `<title>.task.json`.
+    static let taskFileExtension = "task.json"
+    /// File extension for Agenda Events: `<title>.event.json`.
+    static let eventFileExtension = "event.json"
+
+    /// `<nexus>/Agenda/` — wrapper folder containing `Tasks/` and `Events/`.
+    static func agendaWrapperDir(in nexus: Nexus) -> URL {
         nexus.rootURL.appendingPathComponent("Agenda", isDirectory: true)
+    }
+
+    /// `<nexus>/Agenda/Tasks/` — holds `_schema.json` + `<title>.task.json` files.
+    static func tasksDir(in nexus: Nexus) -> URL {
+        agendaWrapperDir(in: nexus).appendingPathComponent("Tasks", isDirectory: true)
+    }
+
+    /// `<nexus>/Agenda/Events/` — holds `_schema.json` + `<title>.event.json` files.
+    static func eventsDir(in nexus: Nexus) -> URL {
+        agendaWrapperDir(in: nexus).appendingPathComponent("Events", isDirectory: true)
+    }
+
+    /// `<nexus>/Agenda/Tasks/_schema.json` — AgendaTaskSchema sidecar.
+    static func taskSchemaURL(in nexus: Nexus) -> URL {
+        tasksDir(in: nexus).appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+    }
+
+    /// `<nexus>/Agenda/Events/_schema.json` — AgendaEventSchema sidecar.
+    static func eventSchemaURL(in nexus: Nexus) -> URL {
+        eventsDir(in: nexus).appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+    }
+
+    /// `<nexus>/Agenda/Tasks/<title>.task.json` — single AgendaTask file.
+    static func taskFileURL(forTitle title: String, in nexus: Nexus) -> URL {
+        tasksDir(in: nexus)
+            .appendingPathComponent("\(title).\(taskFileExtension)", isDirectory: false)
+    }
+
+    /// `<nexus>/Agenda/Events/<title>.event.json` — single AgendaEvent file.
+    static func eventFileURL(forTitle title: String, in nexus: Nexus) -> URL {
+        eventsDir(in: nexus)
+            .appendingPathComponent("\(title).\(eventFileExtension)", isDirectory: false)
     }
 
     // MARK: - Trash (per-nexus recoverable deletes)
@@ -61,10 +99,19 @@ enum NexusPaths {
         nexus.rootURL.appendingPathComponent(".trash", isDirectory: true)
     }
 
+    // MARK: - Legacy Agenda paths (pre-ParadigmV2; retired in Task 4.3)
+
+    /// Legacy `<nexus>/Agenda/` dir — kept until the AgendaItem split lands.
+    static func agendaDir(in nexus: Nexus) -> URL {
+        agendaWrapperDir(in: nexus)
+    }
+
+    /// Legacy `<nexus>/Agenda/_agenda.json` — kept until the AgendaItem split lands.
     static func agendaSchemaURL(in nexus: Nexus) -> URL {
         agendaDir(in: nexus).appendingPathComponent("_agenda.json", isDirectory: false)
     }
 
+    /// Legacy `<nexus>/Agenda/<title>.agenda.json` — kept until the AgendaItem split lands.
     static func agendaItemFileURL(forTitle title: String, in nexus: Nexus) -> URL {
         agendaDir(in: nexus).appendingPathComponent("\(title).agenda.json", isDirectory: false)
     }
