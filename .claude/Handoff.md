@@ -4,11 +4,21 @@
 
 #### Current state (2026-05-23)
 
-> **flatlayout refactor in-flight.** Plan at [`Planning/v0.3.0-Flat-Layout-Plan.md`](Planning/v0.3.0-Flat-Layout-Plan.md); code catches up over Phases 2–6; **docs already describe the target state** (flat root layout + six per-kind sidecars — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). Phase 1 (docs) sweeps first by design so Phase 2–6 subagents read the target spec cleanly. This is the ONE doc that explicitly signals the disk-state lag; everything else describes flat as canonical.
+> **flatlayout refactor in-flight.** Plan at [`Planning/v0.3.0-Flat-Layout-Plan.md`](Planning/v0.3.0-Flat-Layout-Plan.md); code catches up over Phases 2–6; **docs already describe the target state** (flat root layout + six per-kind sidecars — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). Phase 1 (docs) swept first by design so Phase 2–6 subagents read the target spec cleanly. This is the ONE doc that explicitly signals the disk-state lag; everything else describes flat as canonical.
 
-**ParadigmV2 SHIPPED.** Tag `paradigmV2` pushed to origin at commit `36d48c8`. Local + `origin/main` aligned at `b2e4c53` (post-ship doc sync). Build green via `xcodebuild`, **358 tests passing**. Pre-existing intermittent flake: `PageEditorViewModelTests.debounceCoalescesRapidEdits` (tight 500ms-after-300ms margin) — not blocking.
+**ParadigmV2 SHIPPED.** Tag `paradigmV2` pushed to origin at commit `36d48c8`. **Flatlayout Phase 1 (docs) COMPLETE** — 5 commits on local `main` (`711d570` 1.1 root, `ad59dec` 1.2 Features, `e29f7e3` 1.3 Guidelines [edits bundled with parallel-session editor commit; metadata anomaly noted in eventual ship entry], `2e78503` 1.4 Planning, `735a7a9` planning reorganization + carry-forward cleanup). Phase 1 grep gate clean modulo documented exceptions (History.md archived entries, Transcripts, Properties-plan explicit historical references). Phase 2 (NexusPaths foundation) dispatching next.
 
-**Next focus: flatlayout refactor → then v0.3.0 Properties.** Flatlayout plan at [`Planning/v0.3.0-Flat-Layout-Plan.md`](Planning/v0.3.0-Flat-Layout-Plan.md) (6 phases; ships tagged `flatlayout` between `paradigmV2` and v0.3.0; gated on Nathan's explicit approval after Phase 1). Properties implementation plan at [`Planning/v0.3.0-Properties-plan.md`](Planning/v0.3.0-Properties-plan.md) (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at [`Planning/v0.3.0-Properties-spec.md`](Planning/v0.3.0-Properties-spec.md).
+Build green via `xcodebuild`, **358 tests passing** at the start of flatlayout. Pre-existing intermittent flake: `PageEditorViewModelTests.debounceCoalescesRapidEdits` (tight 500ms-after-300ms margin) — not blocking.
+
+**Next focus: flatlayout Phases 2–6, then v0.3.0 Properties.** Flatlayout plan at [`Planning/v0.3.0-Flat-Layout-Plan.md`](Planning/v0.3.0-Flat-Layout-Plan.md) (6 phases; ships tagged `flatlayout` between `paradigmV2` and v0.3.0). Properties implementation plan at [`Planning/v0.3.0-Properties-plan.md`](Planning/v0.3.0-Properties-plan.md) (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at [`Planning/v0.3.0-Properties-spec.md`](Planning/v0.3.0-Properties-spec.md).
+
+**Flatlayout phase status:**
+- ✅ Phase 1 — Documentation sweep (5 commits)
+- ⏭ Phase 2 — NexusPaths foundation (4 sequential tasks; in-flight)
+- ⏸ Phase 3 — Managers (parallel + sequential mix)
+- ⏸ Phase 4 — NexusAdopter rewrite (sequential)
+- ⏸ Phase 5 — Tests audit (parallel)
+- ⏸ Phase 6 — Ship + tag `flatlayout`
 
 #### Verbatim resume prompt
 
@@ -39,7 +49,7 @@ Flatlayout's Phase 4 rewrites `NexusAdopter` to handle four input shapes in a si
 
 #### Parallel session
 
-Concurrent session shipping collapsible-heading work in `External/MarkdownEngine/` (`NativeTextViewCoordinator+HeadingFolding.swift` + `NativeTextView+HeadingFoldHover.swift`). Per quirk #11, those files stay untouched in commits from this session — Nathan reconciles separately.
+The concurrent editor session shipping collapsible-heading work in `External/MarkdownEngine/` has been landing commits in parallel on `main` throughout the flatlayout doc-sweep dispatches (recent ones: `f6a0661`, `806de93`, `325232a`, `8a81b3a`, `596d89d`, `e29f7e3`, `5c66be8`, etc.). Per Nathan's direction, those commits ARE included in `main` and will be in the eventual `flatlayout` tag push. Interleaving caused one metadata anomaly — `e29f7e3` incidentally absorbed the 1.3 doc-sweep edits to `Paradigm-Decisions.md` + `Symbols.md`; content is correct in HEAD, ship entry should note this.
 
 #### Open questions
 
