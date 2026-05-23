@@ -187,6 +187,25 @@ public enum MarkdownDetection {
         return foldableHeadings(in: document, nsText: text as NSString)
     }
 
+    /// Returns the subset of `foldedHeadings` whose keys still match an
+    /// existing heading in `body` (after ordinal-disambiguation by
+    /// `foldableHeadings`). Stale entries — keys whose corresponding
+    /// heading was renamed or deleted — are dropped.
+    ///
+    /// Used by `PageEditorViewModel` before save to keep `folded_headings:`
+    /// from accumulating dead entries across rename cycles. The on-disk
+    /// frontmatter ends up containing only keys that correspond to a real
+    /// heading in the current body, no matter how many edits the user
+    /// makes between saves.
+    public static func reconcileFoldedHeadings(
+        _ foldedHeadings: Set<String>,
+        in body: String
+    ) -> Set<String> {
+        guard !foldedHeadings.isEmpty else { return foldedHeadings }
+        let currentKeys = Set(foldableHeadings(in: body).map { $0.key })
+        return foldedHeadings.intersection(currentKeys)
+    }
+
     /// Internal overload that accepts a prebuilt `LineOffsetIndex` so the
     /// service can avoid re-walking the document text once per restyle.
     static func foldableHeadings(

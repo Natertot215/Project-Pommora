@@ -225,4 +225,38 @@ struct FoldableHeadingsTests {
         #expect(headings.count == 4)
         #expect(headings.map { $0.key } == ["## A", "### A", "## A [2]", "### A [2]"])
     }
+
+    // MARK: - Orphan-key reconciliation (Phase 5)
+
+    @Test("Reconciliation drops keys whose heading was renamed")
+    func reconcileDropsRenamedHeading() {
+        let body = "## Bar\nbody\n"  // user renamed "## Foo" -> "## Bar"
+        let folded: Set<String> = ["## Foo"]
+        let reconciled = MarkdownDetection.reconcileFoldedHeadings(folded, in: body)
+        #expect(reconciled.isEmpty)
+    }
+
+    @Test("Reconciliation preserves keys that still match")
+    func reconcilePreservesExistingHeading() {
+        let body = "## Foo\nbody\n## Bar\nmore\n"
+        let folded: Set<String> = ["## Foo", "## Stale"]
+        let reconciled = MarkdownDetection.reconcileFoldedHeadings(folded, in: body)
+        #expect(reconciled == ["## Foo"])
+    }
+
+    @Test("Reconciliation respects ordinal disambiguation")
+    func reconcileWithOrdinals() {
+        let body = "## A\n1\n## A\n2\n"
+        // User had three duplicates folded; document now has only two.
+        let folded: Set<String> = ["## A", "## A [2]", "## A [3]"]
+        let reconciled = MarkdownDetection.reconcileFoldedHeadings(folded, in: body)
+        #expect(reconciled == ["## A", "## A [2]"])
+    }
+
+    @Test("Reconciliation on empty foldedHeadings is identity")
+    func reconcileEmptyIsNoOp() {
+        let body = "## Foo\nbody\n"
+        let reconciled = MarkdownDetection.reconcileFoldedHeadings([], in: body)
+        #expect(reconciled.isEmpty)
+    }
 }
