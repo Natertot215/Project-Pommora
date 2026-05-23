@@ -1,4 +1,5 @@
 import Foundation
+import MarkdownEngine
 import Observation
 
 /// Owns the editable body of a Page. Debounces writes to disk (300ms),
@@ -77,6 +78,18 @@ final class PageEditorViewModel {
     func flushNow() async {
         saveTask?.cancel()
         saveTask = nil
+
+        // Drop stale fold-state keys (heading text changed or deleted
+        // between saves) so `folded_headings:` doesn't accumulate dead
+        // entries across rename cycles. Assigning back to foldedHeadings
+        // triggers didSet which mirrors to frontmatter; scheduleSave fires
+        // a 300ms-debounced redundant save (idempotent — the next pass
+        // sees no orphans and is a clean no-op).
+        let reconciled = MarkdownDetection.reconcileFoldedHeadings(foldedHeadings, in: body)
+        if reconciled != foldedHeadings {
+            foldedHeadings = reconciled
+        }
+
         do {
             try await saver.save(page: page, body: body)
             pendingError = nil
