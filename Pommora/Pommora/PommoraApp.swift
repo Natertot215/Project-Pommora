@@ -42,5 +42,9 @@ struct PommoraApp: App {
 
             InspectorCommands()
         }
+
+        // Standard macOS Settings scene — `Cmd+,` opens the placeholder
+        // until the designed Settings UI lands in v0.6.0 (Task 7.6).
+        SettingsScene()
     }
 }
