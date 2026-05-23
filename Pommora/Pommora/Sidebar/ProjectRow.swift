@@ -41,6 +41,28 @@ struct ProjectRow: View {
         .listRowBackground(
             SelectionChrome(isSelected: SelectionTag.project(project.id).matches(selection))
         )
+        .reorderable(
+            kind: .project,
+            id: project.id,
+            containerID: parentTopic.id,
+            nexusID: topicManager.nexusID,
+            symbol: project.icon ?? "doc.text",
+            title: project.title,
+            accent: nil,
+            onDrop: { payload, position in
+                let arr = topicManager.projects(in: parentTopic)
+                guard
+                    let from = arr.firstIndex(where: { $0.id == payload.id }),
+                    let targetIdx = arr.firstIndex(where: { $0.id == project.id })
+                else { return }
+                let toOffset = position == .above ? targetIdx : targetIdx + 1
+                topicManager.reorderProjects(
+                    in: parentTopic,
+                    fromOffsets: IndexSet(integer: from),
+                    toOffset: toOffset
+                )
+            }
+        )
     }
 
     private var renamingRow: some View {

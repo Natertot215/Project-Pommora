@@ -42,6 +42,27 @@ struct SpaceRow: View {
         .listRowBackground(
             SelectionChrome(isSelected: SelectionTag.space(space.id).matches(selection))
         )
+        .reorderable(
+            kind: .space,
+            id: space.id,
+            containerID: nil,
+            nexusID: spaceManager.nexusID,
+            symbol: space.icon ?? "circle.fill",
+            title: space.title,
+            accent: space.color?.swiftUIColor,
+            onDrop: { payload, position in
+                let arr = spaceManager.spaces
+                guard
+                    let from = arr.firstIndex(where: { $0.id == payload.id }),
+                    let targetIdx = arr.firstIndex(where: { $0.id == space.id })
+                else { return }
+                let toOffset = position == .above ? targetIdx : targetIdx + 1
+                spaceManager.reorderSpaces(
+                    fromOffsets: IndexSet(integer: from),
+                    toOffset: toOffset
+                )
+            }
+        )
     }
 
     /// Mirrors SelectableRow's HStack shape (icon + text slot + trailing spacer)

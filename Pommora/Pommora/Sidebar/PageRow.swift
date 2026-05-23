@@ -46,6 +46,64 @@ struct PageRow: View {
         .listRowBackground(
             SelectionChrome(isSelected: SelectionTag.page(page.id).matches(selection))
         )
+        .reorderable(
+            kind: .page,
+            id: page.id,
+            containerID: parentContainerID,
+            isVaultRoot: isVaultRootParent,
+            nexusID: contentManager.nexusID,
+            symbol: "doc.text",
+            title: page.title,
+            accent: nil,
+            onDrop: { payload, position in
+                let arr = siblingPages()
+                guard
+                    let from = arr.firstIndex(where: { $0.id == payload.id }),
+                    let targetIdx = arr.firstIndex(where: { $0.id == page.id })
+                else { return }
+                let toOffset = position == .above ? targetIdx : targetIdx + 1
+                switch parent {
+                case .collection(let coll, _):
+                    contentManager.reorderPages(
+                        in: coll,
+                        fromOffsets: IndexSet(integer: from),
+                        toOffset: toOffset
+                    )
+                case .vaultRoot(let vault):
+                    contentManager.reorderPages(
+                        inVault: vault,
+                        fromOffsets: IndexSet(integer: from),
+                        toOffset: toOffset
+                    )
+                }
+            }
+        )
+    }
+
+    // MARK: - Drag helpers
+
+    /// Container ID for the drag payload: parent Collection's ID when the Page
+    /// lives inside a Collection, parent PageType's ID for vault-root Pages.
+    /// `DragValidator` uses this to keep drops sibling-only (a vault-root Page
+    /// can't land on a Collection page even if they share a PageType, because
+    /// `isVaultRoot` must also match).
+    private var parentContainerID: String {
+        switch parent {
+        case .collection(let coll, _): return coll.id
+        case .vaultRoot(let vault): return vault.id
+        }
+    }
+
+    private var isVaultRootParent: Bool {
+        if case .vaultRoot = parent { return true }
+        return false
+    }
+
+    private func siblingPages() -> [PageMeta] {
+        switch parent {
+        case .collection(let coll, _): return contentManager.pages(in: coll)
+        case .vaultRoot(let vault): return contentManager.pages(in: vault)
+        }
     }
 
     // MARK: - Subviews

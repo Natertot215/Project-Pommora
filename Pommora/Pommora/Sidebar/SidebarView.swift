@@ -240,9 +240,9 @@ struct SpacesSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            .onMove { source, destination in
-                spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
-            }
+            // Reorder is wired per-row via `.reorderable` (v0.2.8 Phase 2);
+            // `.onMove` is omitted on purpose so List doesn't draw its native
+            // blue insertion line. See `Sidebar/Drag/ReorderableRow.swift`.
         } header: {
             SectionHeader(title: "Spaces") {
                 presentedSheet = .newSpace
@@ -271,9 +271,7 @@ struct TopicsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            .onMove { source, destination in
-                topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
-            }
+            // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
         } header: {
             SectionHeader(title: "Topics") {
                 presentedSheet = .newTopic
@@ -331,9 +329,7 @@ struct VaultsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            .onMove { source, destination in
-                vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
-            }
+            // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
         } header: {
             // Task 7.3 — section header text comes from SettingsManager
             // (`sidebar_sections.pages`, default "Pages"). Items section header

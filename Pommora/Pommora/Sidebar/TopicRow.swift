@@ -28,11 +28,6 @@ struct TopicRow: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            .onMove { source, destination in
-                topicManager.reorderProjects(
-                    in: topic, fromOffsets: source, toOffset: destination
-                )
-            }
         } label: {
             label
         }
@@ -40,6 +35,27 @@ struct TopicRow: View {
             SelectionChrome(
                 isSelected: SelectionTag.topic(topic.id).matches(selection)
             )
+        )
+        .reorderable(
+            kind: .topic,
+            id: topic.id,
+            containerID: nil,
+            nexusID: topicManager.nexusID,
+            symbol: topic.icon ?? "folder",
+            title: topic.title,
+            accent: nil,
+            onDrop: { payload, position in
+                let arr = topicManager.topics
+                guard
+                    let from = arr.firstIndex(where: { $0.id == payload.id }),
+                    let targetIdx = arr.firstIndex(where: { $0.id == topic.id })
+                else { return }
+                let toOffset = position == .above ? targetIdx : targetIdx + 1
+                topicManager.reorderTopics(
+                    fromOffsets: IndexSet(integer: from),
+                    toOffset: toOffset
+                )
+            }
         )
     }
 

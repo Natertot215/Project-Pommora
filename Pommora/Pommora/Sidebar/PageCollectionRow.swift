@@ -27,11 +27,6 @@ struct PageCollectionRow: View {
                     editingID: $editingID
                 )
             }
-            .onMove { source, destination in
-                contentManager.reorderPages(
-                    in: collection, fromOffsets: source, toOffset: destination
-                )
-            }
         } label: {
             label
         }
@@ -39,6 +34,28 @@ struct PageCollectionRow: View {
             SelectionChrome(
                 isSelected: SelectionTag.collection(collection.id).matches(selection)
             )
+        )
+        .reorderable(
+            kind: .collection,
+            id: collection.id,
+            containerID: parentVault.id,
+            nexusID: vaultManager.nexusID,
+            symbol: "folder",
+            title: collection.title,
+            accent: nil,
+            onDrop: { payload, position in
+                let arr = vaultManager.pageCollections(in: parentVault)
+                guard
+                    let from = arr.firstIndex(where: { $0.id == payload.id }),
+                    let targetIdx = arr.firstIndex(where: { $0.id == collection.id })
+                else { return }
+                let toOffset = position == .above ? targetIdx : targetIdx + 1
+                vaultManager.reorderPageCollections(
+                    in: parentVault,
+                    fromOffsets: IndexSet(integer: from),
+                    toOffset: toOffset
+                )
+            }
         )
         // Same pattern as PageTypeRow: load on row appearance so Pages are
         // available even when the disclosure is collapsed (count badges,
