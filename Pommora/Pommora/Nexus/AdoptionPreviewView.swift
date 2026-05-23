@@ -4,9 +4,9 @@
 //
 //  Sheet shown after the user picks a non-empty folder. Lists what will be
 //  created — PageTypes + PageCollections (Pages-side) and ItemTypes +
-//  ItemCollections (Items-side) — plus a count of any legacy-shaped folders
-//  at the nexus root that adoption is intentionally not touching (Phase 10's
-//  user-data migration owns that relocation).
+//  ItemCollections (Items-side) — plus any legacy-layout Type folders the
+//  adopter will relocate into the `Pages/` or `Items/` wrappers, plus
+//  truly-skipped non-Pommora folders left untouched at the nexus root.
 //
 //  UI vocabulary mirrors the per-side divergence locked in CLAUDE.md:
 //  Pages-side defaults are "Vault" + "Collection"; Items-side defaults are
@@ -39,6 +39,7 @@ struct AdoptionPreviewView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     summaryRow
+                    legacyMigrationsSection
                     vaultsSection
                     collectionsSection
                     itemTypesSection
@@ -187,12 +188,79 @@ struct AdoptionPreviewView: View {
     }
 
     @ViewBuilder
+    private var legacyMigrationsSection: some View {
+        if !plan.legacyMigrations.isEmpty {
+            let pagesCount = plan.legacyMigrations.filter { $0.side == .pages }.count
+            let itemsCount = plan.legacyMigrations.filter { $0.side == .items }.count
+            sectionHeader(
+                "Legacy folders to migrate (\(plan.legacyMigrations.count))",
+                detail:
+                    legacyMigrationDetailText(
+                        pagesCount: pagesCount, itemsCount: itemsCount
+                    )
+            )
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(plan.legacyMigrations) { migration in
+                    legacyMigrationRow(migration)
+                }
+            }
+        }
+    }
+
+    private func legacyMigrationDetailText(pagesCount: Int, itemsCount: Int) -> String {
+        var pieces: [String] = []
+        if pagesCount > 0 {
+            pieces.append("\(pagesCount) → Pages/")
+        }
+        if itemsCount > 0 {
+            pieces.append("\(itemsCount) → Items/")
+        }
+        let summary = pieces.joined(separator: ", ")
+        return
+            "Pre-existing Type folders at the nexus root will be moved into the matching wrapper (\(summary))."
+    }
+
+    private func legacyMigrationRow(_ migration: PlannedLegacyMigration) -> some View {
+        let icon: String =
+            migration.side == .pages ? "folder.fill" : "tablecells"
+        let sideLabel = migration.side == .pages ? "Pages/" : "Items/"
+        let reason: String = {
+            switch migration.detectedBy {
+            case .markdownChildren: return "contains .md"
+            case .jsonChildren: return "contains .json items"
+            case .emptyFolderDefaultsToPages: return "defaults to Pages/"
+            }
+        }()
+        return HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(migration.title)
+                        .font(.callout)
+                    Image(systemName: "arrow.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text("\(sideLabel)\(migration.title)/")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
     private var skippedSection: some View {
         if !plan.skippedTopLevel.isEmpty {
             sectionHeader(
-                "Skipped — \(plan.skippedTopLevel.count) legacy folder\(plan.skippedTopLevel.count == 1 ? "" : "s")",
+                "Skipped — \(plan.skippedTopLevel.count) folder\(plan.skippedTopLevel.count == 1 ? "" : "s")",
                 detail:
-                    "Folders at the nexus root aren't adopted directly. Phase 10's migration will move them into Pages/."
+                    "Folders at the nexus root that don't look like Pommora data are left untouched."
             )
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(plan.skippedTopLevel, id: \.self) { url in

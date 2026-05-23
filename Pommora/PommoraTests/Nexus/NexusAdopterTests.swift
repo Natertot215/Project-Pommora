@@ -429,8 +429,277 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
 
         // The legacy folder is recorded as skipped, NOT adopted as a PageType.
+        // (Empty folder with no sidecar and no content hints is treated as
+        // non-Pommora and left untouched.)
         #expect(plan.vaults.isEmpty)
         let skippedNames = Set(plan.skippedTopLevel.map { $0.lastPathComponent })
         #expect(skippedNames.contains("Planner"))
+    }
+
+    // MARK: - scan + apply: legacy-layout migrations (Phase 10 scope pulled into adopter)
+
+    @Test("scan plans Pages-side migration for legacy root folder containing .md files")
+    func scanPlansPagesSideMigrationForMarkdownContent() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Pre-ParadigmV2 shape: legacy PageType folder at nexus root, with the
+        // already-auto-healed `_schema.json` sidecar and a stray .md page.
+        let legacy = nexus.rootURL.appendingPathComponent("Recipes", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: legacy.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        )
+        try FixtureFiles.write("# Soup", to: legacy.appendingPathComponent("Soup.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.legacyMigrations.count == 1)
+        let mig = try #require(plan.legacyMigrations.first)
+        #expect(mig.title == "Recipes")
+        #expect(mig.side == .pages)
+        #expect(mig.detectedBy == .markdownChildren)
+        #expect(!mig.needsFreshSidecar)
+        // Destination is inside the Pages/ wrapper.
+        #expect(mig.destinationFolderURL.deletingLastPathComponent().lastPathComponent == "Pages")
+        #expect(mig.destinationFolderURL.lastPathComponent == "Recipes")
+        // The Recipes folder MUST NOT appear in skippedTopLevel — it's been
+        // promoted into the legacy-migration bucket.
+        let skippedNames = Set(plan.skippedTopLevel.map { $0.lastPathComponent })
+        #expect(!skippedNames.contains("Recipes"))
+    }
+
+    @Test("scan plans Items-side migration for legacy root folder containing user .json files")
+    func scanPlansItemsSideMigrationForJSONContent() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let legacy = nexus.rootURL.appendingPathComponent("Errands", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HIT","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: legacy.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        )
+        // User-namespaced .json item (filename does NOT start with `_`).
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HI","created_at":"2026-05-01T00:00:00Z","modified_at":"2026-05-01T00:00:00Z","description":"","tier1":[],"tier2":[],"tier3":[],"properties":{}}"#,
+            to: legacy.appendingPathComponent("Buy milk.json")
+        )
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.legacyMigrations.count == 1)
+        let mig = try #require(plan.legacyMigrations.first)
+        #expect(mig.title == "Errands")
+        #expect(mig.side == .items)
+        #expect(mig.detectedBy == .jsonChildren)
+        #expect(mig.destinationFolderURL.deletingLastPathComponent().lastPathComponent == "Items")
+        #expect(mig.destinationFolderURL.lastPathComponent == "Errands")
+    }
+
+    @Test("scan defaults sidecar-only legacy folder (empty) to Pages-side")
+    func scanDefaultsEmptyLegacyFolderToPages() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let legacy = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        // Sidecar present but no .md / .json content — pre-ParadigmV2 canonical
+        // shape was always Pages-side, so the adopter defaults there.
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HV2","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: legacy.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        )
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.legacyMigrations.count == 1)
+        let mig = try #require(plan.legacyMigrations.first)
+        #expect(mig.side == .pages)
+        #expect(mig.detectedBy == .emptyFolderDefaultsToPages)
+    }
+
+    @Test("scan never plans migration for reserved wrapper names (Pages, Items, Agenda)")
+    func scanNeverMigratesReservedWrappers() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Materialize all three wrappers with sidecars to confirm the reserved-name
+        // filter takes precedence over the sidecar-detection signal.
+        for wrapper in [
+            NexusPaths.pagesWrapperDir(in: nexus.rootURL),
+            NexusPaths.itemsWrapperDir(in: nexus.rootURL),
+            NexusPaths.agendaWrapperDir(in: nexus.rootURL),
+        ] {
+            try FileManager.default.createDirectory(at: wrapper, withIntermediateDirectories: true)
+        }
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.legacyMigrations.isEmpty)
+        let skippedNames = Set(plan.skippedTopLevel.map { $0.lastPathComponent })
+        #expect(!skippedNames.contains("Pages"))
+        #expect(!skippedNames.contains("Items"))
+        #expect(!skippedNames.contains("Agenda"))
+    }
+
+    @Test("apply relocates Pages-side legacy folder into Pages/ wrapper")
+    func applyRelocatesPagesSideLegacyFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let legacy = nexus.rootURL.appendingPathComponent("Recipes", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HVREC","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: legacy.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        )
+        try FixtureFiles.write("# Soup", to: legacy.appendingPathComponent("Soup.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+        try NexusAdopter.apply(plan)
+
+        let movedRoot = nexus.rootURL
+            .appendingPathComponent("Pages", isDirectory: true)
+            .appendingPathComponent("Recipes", isDirectory: true)
+        let sidecar = movedRoot.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let movedPage = movedRoot.appendingPathComponent("Soup.md")
+        #expect(FileManager.default.fileExists(atPath: movedRoot.path))
+        #expect(FileManager.default.fileExists(atPath: sidecar.path))
+        #expect(FileManager.default.fileExists(atPath: movedPage.path))
+        // Source no longer exists at root.
+        #expect(!FileManager.default.fileExists(atPath: legacy.path))
+        // Original sidecar id preserved (the move is a rename, not a fresh write).
+        let pageType = try PageType.load(from: sidecar)
+        #expect(pageType.id == "01HVREC")
+    }
+
+    @Test("apply relocates Items-side legacy folder into Items/ wrapper")
+    func applyRelocatesItemsSideLegacyFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let legacy = nexus.rootURL.appendingPathComponent("Errands", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HITERR","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: legacy.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        )
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HI","created_at":"2026-05-01T00:00:00Z","modified_at":"2026-05-01T00:00:00Z","description":"","tier1":[],"tier2":[],"tier3":[],"properties":{}}"#,
+            to: legacy.appendingPathComponent("Buy milk.json")
+        )
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+        try NexusAdopter.apply(plan)
+
+        let movedRoot = nexus.rootURL
+            .appendingPathComponent("Items", isDirectory: true)
+            .appendingPathComponent("Errands", isDirectory: true)
+        #expect(FileManager.default.fileExists(atPath: movedRoot.path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: movedRoot.appendingPathComponent(NexusPaths.schemaSidecarFilename).path
+            )
+        )
+        #expect(
+            FileManager.default.fileExists(
+                atPath: movedRoot.appendingPathComponent("Buy milk.json").path
+            )
+        )
+        #expect(!FileManager.default.fileExists(atPath: legacy.path))
+    }
+
+    @Test("apply writes fresh sidecar when legacy folder lacks one")
+    func applyWritesFreshSidecarForBareLegacyFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Bare folder with .md content but no sidecar — scan should mark
+        // needsFreshSidecar=true; apply must write one post-move.
+        let legacy = nexus.rootURL.appendingPathComponent("Journal", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.write("# Today", to: legacy.appendingPathComponent("Today.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+        #expect(plan.legacyMigrations.count == 1)
+        #expect(plan.legacyMigrations.first?.needsFreshSidecar == true)
+
+        try NexusAdopter.apply(plan)
+
+        let movedRoot = nexus.rootURL
+            .appendingPathComponent("Pages", isDirectory: true)
+            .appendingPathComponent("Journal", isDirectory: true)
+        let sidecar = movedRoot.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        #expect(FileManager.default.fileExists(atPath: sidecar.path))
+        let pageType = try PageType.load(from: sidecar)
+        #expect(pageType.title == "Journal")
+        #expect(!pageType.id.isEmpty)
+    }
+
+    @Test("apply renames legacy _vault.json to _schema.json post-move")
+    func applyRenamesLegacyVaultSidecarPostMove() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Pre-auto-heal layout: legacy `_vault.json` sidecar at nexus root.
+        let legacy = nexus.rootURL.appendingPathComponent("Legacy", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HVLEGACY","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: legacy.appendingPathComponent("_vault.json")
+        )
+        try FixtureFiles.write("# Old", to: legacy.appendingPathComponent("Old.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+        try NexusAdopter.apply(plan)
+
+        let movedRoot = nexus.rootURL
+            .appendingPathComponent("Pages", isDirectory: true)
+            .appendingPathComponent("Legacy", isDirectory: true)
+        #expect(
+            FileManager.default.fileExists(
+                atPath: movedRoot.appendingPathComponent(NexusPaths.schemaSidecarFilename).path
+            )
+        )
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: movedRoot.appendingPathComponent("_vault.json").path
+            )
+        )
+    }
+
+    @Test("apply fails gracefully when destination already exists")
+    func applyFailsGracefullyOnDestinationCollision() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Legacy source folder...
+        let legacy = nexus.rootURL.appendingPathComponent("Conflict", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FixtureFiles.write("# Old", to: legacy.appendingPathComponent("Old.md"))
+        // ...and a pre-existing folder with the same name at the destination.
+        let collision = NexusPaths.pageTypeFolderURL(
+            in: nexus.rootURL, typeFolderName: "Conflict"
+        )
+        try FileManager.default.createDirectory(at: collision, withIntermediateDirectories: true)
+        try FixtureFiles.write("# Existing", to: collision.appendingPathComponent("Existing.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+        #expect(plan.legacyMigrations.count == 1)
+
+        // The collision is surfaced as a partialFailure; the source folder is
+        // left in place so the user can resolve manually.
+        var thrownFailure: AdoptionError?
+        do {
+            try NexusAdopter.apply(plan)
+        } catch let error as AdoptionError {
+            thrownFailure = error
+        }
+        let failure = try #require(thrownFailure)
+        if case .partialFailure(let urls) = failure {
+            #expect(urls.contains(legacy))
+        } else {
+            Issue.record("expected .partialFailure for the colliding migration")
+        }
+        // Source folder is preserved on collision; existing destination untouched.
+        #expect(FileManager.default.fileExists(atPath: legacy.path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: collision.appendingPathComponent("Existing.md").path
+            )
+        )
     }
 }

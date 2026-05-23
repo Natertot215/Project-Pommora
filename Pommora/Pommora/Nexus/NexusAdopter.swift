@@ -10,9 +10,14 @@
 //  becoming ItemCollections). `Agenda/` is filename-discriminated (`.task.json`
 //  / `.event.json`) and doesn't require folder scanning.
 //
-//  Legacy-shaped folders sitting at the nexus root (pre-ParadigmV2 layout)
-//  are recorded in `skippedTopLevel` and surfaced to the user; Phase 10's
-//  user-data migration owns relocating them into `Pages/`.
+//  Legacy-layout folders at the nexus root (pre-ParadigmV2 shape — Type folders
+//  sitting directly under the nexus root) are surfaced via `legacyMigrations`
+//  on the plan and relocated into `Pages/` or `Items/` on apply. Content sniff
+//  (`.md` → Pages-side, user `.json` → Items-side, empty → Pages-side) classifies
+//  the destination; non-Pommora root folders (no sidecar AND no content hints)
+//  remain in `skippedTopLevel` and are left untouched. Pulls Phase 10's
+//  migration scope into the adopter so the very first onboarding session works
+//  against a pre-existing nexus.
 //
 
 import Foundation
@@ -51,6 +56,47 @@ struct PlannedItemCollection: Equatable, Sendable, Identifiable {
     var id: String { folderURL.path }
 }
 
+/// A single legacy-layout folder sitting at the nexus root that adoption will
+/// move into the appropriate wrapper (`Pages/` or `Items/`). Pulls Phase 10's
+/// user-data migration scope into the adopter — pre-ParadigmV2 nexuses ship
+/// Type folders directly under the root (e.g. `<nexus>/Recipes/`); the adopter
+/// classifies the side via content sniff and relocates atomically on apply.
+struct PlannedLegacyMigration: Equatable, Sendable, Identifiable {
+    /// The legacy folder at the nexus root (source of the move).
+    var sourceFolderURL: URL
+    /// The destination inside the wrapper (e.g. `<nexus>/Pages/Recipes/`).
+    var destinationFolderURL: URL
+    /// Which wrapper the folder is being relocated into.
+    var side: Side
+    /// Why the adopter classified this folder as Pages-side vs Items-side —
+    /// surfaced in the preview UI so the user can see the reasoning.
+    var detectedBy: Detection
+    /// Folder name (== title; renames are filename-driven).
+    var title: String
+    /// True when the source folder lacks any sidecar (neither `_schema.json` nor
+    /// the legacy `_vault.json`). On apply, a fresh PageType/ItemType sidecar is
+    /// written into the destination after the move.
+    var needsFreshSidecar: Bool
+
+    var id: String { sourceFolderURL.path }
+
+    enum Side: String, Sendable, Equatable {
+        case pages
+        case items
+    }
+
+    enum Detection: String, Sendable, Equatable {
+        /// At least one `.md` file exists anywhere inside the source folder.
+        case markdownChildren
+        /// At least one user `.json` file (filename not beginning with `_`)
+        /// exists anywhere inside the source folder.
+        case jsonChildren
+        /// No content hints — defaults to Pages-side (the canonical
+        /// pre-ParadigmV2 data shape).
+        case emptyFolderDefaultsToPages
+    }
+}
+
 /// The full snapshot of what `NexusAdopter.apply` will write. Equatable so
 /// SwiftUI's `.sheet(item:)` can rebuild the preview view on plan replacement.
 struct AdoptionPlan: Equatable, Sendable, Identifiable {
@@ -64,9 +110,14 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
     var itemCollections: [PlannedItemCollection]
     var pagesPreviewCount: Int
     var itemsPreviewCount: Int
+    /// Legacy-layout Type folders at the nexus root that the adopter will
+    /// relocate into `Pages/` or `Items/` on apply. Pre-classified by content
+    /// sniff at scan time so the preview can show the destination path.
+    var legacyMigrations: [PlannedLegacyMigration]
     /// Folders at the nexus root that aren't one of the reserved wrapper names
-    /// (`Pages`, `Items`, `Agenda`) and aren't hidden/build cruft. Surfaced as
-    /// "skipped — Phase 10 migration owns layout change" in the preview.
+    /// (`Pages`, `Items`, `Agenda`), aren't hidden/build cruft, AND don't have
+    /// a sidecar that marks them as legacy Pommora data. These are
+    /// non-Pommora folders — left untouched.
     var skippedTopLevel: [URL]
 
     init(
@@ -77,6 +128,7 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
         itemCollections: [PlannedItemCollection] = [],
         pagesPreviewCount: Int,
         itemsPreviewCount: Int,
+        legacyMigrations: [PlannedLegacyMigration] = [],
         skippedTopLevel: [URL]
     ) {
         self.id = UUID().uuidString
@@ -87,6 +139,7 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
         self.itemCollections = itemCollections
         self.pagesPreviewCount = pagesPreviewCount
         self.itemsPreviewCount = itemsPreviewCount
+        self.legacyMigrations = legacyMigrations
         self.skippedTopLevel = skippedTopLevel
     }
 
@@ -97,6 +150,7 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
     var hasAnythingToAdopt: Bool {
         !vaults.isEmpty || !collections.isEmpty
             || !itemTypes.isEmpty || !itemCollections.isEmpty
+            || !legacyMigrations.isEmpty
             || !skippedTopLevel.isEmpty
     }
 }
@@ -205,16 +259,96 @@ enum NexusAdopter {
             }
         }
 
-        // Skipped top-level — folders at nexus root that aren't one of the
-        // reserved wrapper names (Pages/Items/Agenda) and aren't hidden/cruft.
-        // Per spec these are legacy-shaped folders awaiting Phase 10 migration.
+        // Top-level scan — split candidates into legacy migrations (folders that
+        // look like Pommora data: have a sidecar OR contain Markdown/JSON) and
+        // truly-skipped folders (non-Pommora top-level junk).
         let allTopLevel = (try? Filesystem.childFolders(of: nexusRoot)) ?? []
-        let skipped = allTopLevel.filter { url in
+        let candidates = allTopLevel.filter { url in
             let name = url.lastPathComponent
             if name.hasPrefix(".") || name.hasPrefix("_") { return false }
             if NexusPaths.reservedTopLevelFolderNames.contains(name) { return false }
             if adoptionExcludedSubFolderNames.contains(name) { return false }
             return true
+        }
+
+        var legacyMigrations: [PlannedLegacyMigration] = []
+        var skipped: [URL] = []
+
+        for folder in candidates {
+            // Sidecar detection — `_schema.json` is the unified post-ParadigmV2
+            // name; `_vault.json` is the pre-ParadigmV2 PageType sidecar that
+            // PageTypeManager.loadAll's auto-heal renames in place. Either marks
+            // this folder as Pommora data.
+            let hasSchemaSidecar = Filesystem.fileExists(
+                at: folder.appendingPathComponent(
+                    NexusPaths.schemaSidecarFilename, isDirectory: false
+                )
+            )
+            let hasLegacyVaultSidecar = Filesystem.fileExists(
+                at: folder.appendingPathComponent("_vault.json", isDirectory: false)
+            )
+            let hasAnySidecar = hasSchemaSidecar || hasLegacyVaultSidecar
+
+            // Content sniff — recursive scan for `.md` first (canonical Pages
+            // signal), then user-namespaced `.json` (Items signal). The
+            // sidecar-only path (Sidecar without content hints) still routes
+            // to Pages-side via `emptyFolderDefaultsToPages` since pre-ParadigmV2
+            // canonical data was always Page-shaped.
+            let hasMarkdown = ((try? Filesystem.descendantFiles(of: folder) { url in
+                url.pathExtension == "md"
+            }) ?? []).isEmpty == false
+            let hasUserJSON = ((try? Filesystem.descendantFiles(of: folder) { url in
+                url.pathExtension == "json"
+                    && !url.lastPathComponent.hasPrefix("_")
+            }) ?? []).isEmpty == false
+
+            // Only migrate folders that either look like Pommora data OR are
+            // worth a default-to-Pages relocation because they carry a sidecar.
+            // Folders with no sidecar AND no content hints land in `skipped`
+            // (genuine non-Pommora junk).
+            if !hasAnySidecar && !hasMarkdown && !hasUserJSON {
+                skipped.append(folder)
+                continue
+            }
+
+            let detection: PlannedLegacyMigration.Detection
+            let side: PlannedLegacyMigration.Side
+            if hasMarkdown {
+                detection = .markdownChildren
+                side = .pages
+            } else if hasUserJSON {
+                detection = .jsonChildren
+                side = .items
+            } else {
+                // Sidecar present but no content yet — pre-ParadigmV2 canonical
+                // shape was always Pages-side, so default there.
+                detection = .emptyFolderDefaultsToPages
+                side = .pages
+            }
+
+            let destination: URL = {
+                switch side {
+                case .pages:
+                    return NexusPaths.pageTypeFolderURL(
+                        in: nexusRoot, typeFolderName: folder.lastPathComponent
+                    )
+                case .items:
+                    return NexusPaths.itemTypeFolderURL(
+                        in: nexusRoot, typeFolderName: folder.lastPathComponent
+                    )
+                }
+            }()
+
+            legacyMigrations.append(
+                PlannedLegacyMigration(
+                    sourceFolderURL: folder,
+                    destinationFolderURL: destination,
+                    side: side,
+                    detectedBy: detection,
+                    title: folder.lastPathComponent,
+                    needsFreshSidecar: !hasAnySidecar
+                )
+            )
         }
 
         return AdoptionPlan(
@@ -225,6 +359,7 @@ enum NexusAdopter {
             itemCollections: plannedItemCollections,
             pagesPreviewCount: pageCount,
             itemsPreviewCount: itemCount,
+            legacyMigrations: legacyMigrations,
             skippedTopLevel: skipped
         )
     }
@@ -256,6 +391,85 @@ enum NexusAdopter {
                 try NexusPaths.ensureDirectoryExists(url)
             } catch {
                 failures.append(url)
+            }
+        }
+
+        // Legacy-layout migrations — relocate root-level Type folders into the
+        // appropriate wrapper BEFORE the sidecar writes below run. Each move is
+        // independent; failures collect and don't abort the rest. Post-move,
+        // any `_vault.json` sidecar inside the moved folder is renamed in place
+        // to `_schema.json` (defensive — most cases will already be migrated by
+        // PageTypeManager's auto-heal once the loader sees them inside `Pages/`,
+        // but Items-side folders + first-launch fresh nexuses need this here).
+        let fm = FileManager.default
+        for migration in plan.legacyMigrations {
+            // Collision: a folder with the same name already exists at the
+            // destination. Skip the move + record the failure; the user can
+            // resolve manually before re-running adoption.
+            if fm.fileExists(atPath: migration.destinationFolderURL.path) {
+                failures.append(migration.sourceFolderURL)
+                continue
+            }
+            do {
+                try fm.moveItem(
+                    at: migration.sourceFolderURL,
+                    to: migration.destinationFolderURL
+                )
+            } catch {
+                failures.append(migration.sourceFolderURL)
+                continue
+            }
+
+            // Post-move: rename `_vault.json` → `_schema.json` inside the moved
+            // folder if needed (idempotent; no-op when the new name already
+            // exists). Errors swallowed — best-effort, mirrors the auto-heal
+            // pattern at PageTypeManager.migrateLegacySidecarsIfNeeded.
+            let legacySidecar = migration.destinationFolderURL
+                .appendingPathComponent("_vault.json", isDirectory: false)
+            let unifiedSidecar = migration.destinationFolderURL
+                .appendingPathComponent(
+                    NexusPaths.schemaSidecarFilename, isDirectory: false
+                )
+            if fm.fileExists(atPath: legacySidecar.path),
+                !fm.fileExists(atPath: unifiedSidecar.path)
+            {
+                try? fm.moveItem(at: legacySidecar, to: unifiedSidecar)
+            }
+
+            // No sidecar at all (source was a bare folder with content) — write
+            // a fresh PageType / ItemType sidecar at the destination so the
+            // loader picks it up on next launch.
+            if migration.needsFreshSidecar {
+                do {
+                    switch migration.side {
+                    case .pages:
+                        try Filesystem.writeMetadataIntoExistingFolder(
+                            metadataURL: unifiedSidecar,
+                            metadata: PageType(
+                                id: ULID.generate(),
+                                title: migration.title,
+                                icon: nil,
+                                properties: [],
+                                views: [],
+                                modifiedAt: now
+                            )
+                        )
+                    case .items:
+                        try Filesystem.writeMetadataIntoExistingFolder(
+                            metadataURL: unifiedSidecar,
+                            metadata: ItemType(
+                                id: ULID.generate(),
+                                title: migration.title,
+                                icon: nil,
+                                properties: [],
+                                views: [],
+                                modifiedAt: now
+                            )
+                        )
+                    }
+                } catch {
+                    failures.append(unifiedSidecar)
+                }
             }
         }
 
