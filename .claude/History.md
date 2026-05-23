@@ -2,13 +2,13 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
-#### ParadigmV2 (2026-05-22) — Operational-layer domain model refactor
+#### ParadigmV2 — Operational-layer domain model refactor (2026-05-22 plan; SHIPPED 2026-05-23, tag `paradigmV2`)
 
 Vault becomes Pages-only as Page Type; Item Type introduced as parallel Items-side container; Page Collection (Pages) + Item Collection (Items) as parallel organizational sub-folders. AgendaItem split into AgendaTask + AgendaEvent (matching EKReminder + EKEvent). Sub-topics renamed to Projects. Schema sidecars unified to `_schema.json` across all typed containers. On-disk wrapper folders introduced: `<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/`. UI label divergence locked: Pages-side defaults to "Vault" + "Collection"; Items-side defaults to "Type" + "Set"; renameable via Settings. Settings scaffold (`.nexus/settings.json` + `SettingsManager` + label wiring across UI) lays groundwork for v0.6.0 Settings UI. New paradigm rule: "Pommora" prohibited in on-disk schemas + Swift namespace qualifications. Retires `Pommora.Collection` quirk #6. Plan: `// Planning//ParadigmV2.md`.
 
 **Locked phase sequence (11 phases):** 1) Doc rewrites → 2) PageType + PageCollection renames + `_schema.json` sidecar → 3) Subtopic → Project rename → 4) AgendaItem split → 5) New ItemType + ItemCollection subsystem → 6) Pages/Items/Agenda wrapper folders + NexusAdopter → 7) Settings scaffold → 8) Sidebar / Detail / Sheet UI restructure → 9) Tests consolidation + v0.3.0 Properties spec reconciliation → 10) Nathan's user-data migration (one-shot script) → 11) Cleanup + Framework reconciliation + ship (tag `paradigmV2`).
 
-**Execution status (end of 2026-05-23 session):** Phases 1–9 SHIPPED — all engineering work complete. Build green, 359 tests passing (baseline 252; +107 across Phases 4–9). Subagent-driven dispatch: each phase ships green standalone via stub-and-progressively-replace (quirk #8). Phase 2/3/4 fanned out in parallel since they touched disjoint files; Phase 5 used wave-based dispatch (5.1+5.2 → 5.3+5.4+5.5 → 5.6); Phases 7 + 8 followed the same wave pattern. **Fix-forward at `2b8ade8` pulls Phase 10's data-migration scope into NexusAdopter** — legacy root-level Vault folders are classified by content sniff (`.md` → Pages-side; user `.json` → Items-side; empty → default Pages-side) and moved into the appropriate wrapper at `apply()`, with collision handling + fresh-sidecar generation for bare folders. Phase 10 simplifies to "backup + run adoption + verify"; Phase 11 is the final grep sweep + Framework reconciliation + tag push.
+**Execution status (2026-05-23):** **SHIPPED.** Tag `paradigmV2` pushed to origin at commit `36d48c8`. All 11 phases complete. Build green, 358 tests passing (baseline 252; +106 across Phases 4–9). Subagent-driven dispatch: each phase ships green standalone via stub-and-progressively-replace (quirk #8). Phase 2/3/4 fanned out in parallel since they touched disjoint files; Phase 5 used wave-based dispatch (5.1+5.2 → 5.3+5.4+5.5 → 5.6); Phases 7 + 8 followed the same wave pattern. **Fix-forward at `2b8ade8` pulls Phase 10's data-migration scope into NexusAdopter** — legacy root-level Vault folders are classified by content sniff (`.md` → Pages-side; user `.json` → Items-side; empty → default Pages-side) and moved into the appropriate wrapper at `apply()`, with collision handling + fresh-sidecar generation for bare folders. Phase 10 simplified to "backup + run adoption + verify" — engineering shipped, Nathan's manual step (adopt his real nexus) remains open whenever he chooses. Phase 11 closed the ship: final grep sweep cleaned 5 stale type-description docstrings; Framework.md `Current Focus` flipped from "IN FLIGHT" to "SHIPPED"; tag annotated + pushed.
 
 **Phase-by-phase commit ranges:**
 - Phase 1 — Docs: `e6ddc04`
@@ -19,7 +19,8 @@ Vault becomes Pages-only as Page Type; Item Type introduced as parallel Items-si
 - Phase 6 — Wrapper folders + adopter: `2eba366` → `fe277c9` → `2686799` + fix-forward `2b8ade8`
 - Phase 7 — Settings scaffold: `331f0e2` → `aad27d6` → `fc9903e` → `6e8349e` → `e299587` → `63fb39d` → `207c3ee` (+ UI fix `7f491f7`)
 - Phase 8 — Sidebar / Detail / Sheet UI restructure: `e976bb4` → `9853121` → `053abe0` → `0bb58e1`
-- Phase 9 — Tests audit + Properties plan re-derive: `54b136b` → `cb97ae2`
+- Phase 9 — Tests audit + Properties plan re-derive + Handoff/History sync: `54b136b` → `cb97ae2` → `2b1a1c4`
+- Phase 11 — Grep-sweep stale docstrings + Framework reconciliation + tag push: `36d48c8` + tag `paradigmV2`
 
 **v0.3.0 Properties plan re-derived** (Task 9.2, commit `cb97ae2`). The original implementation plan at `Planning/v0.3.0-Properties-implementation.md` is now archived under `Planning/Superseded/`; the conceptual WHAT lives at `Planning/v0.3.0-Properties-spec.md`; the post-ParadigmV2 HOW lives at `Planning/v0.3.0-Properties-plan.md` (675 lines, 5 phases A–E, `ItemTypeSettingsSheet` locked to ship at v0.3.0 alongside `PageTypeSettingsSheet`).
 
