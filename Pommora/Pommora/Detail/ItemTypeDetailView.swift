@@ -16,7 +16,9 @@ struct ItemTypeDetailView: View {
         ContentUnavailableView(
             type.title,
             systemImage: "tray",
-            description: Text("Items table ships in a follow-up plan. The Item Type exists on disk and via the data manager; UI lands later.")
+            description: Text(
+                "Items table ships in a follow-up plan. The Item Type exists on disk and via the data manager; UI lands later."
+            )
         )
     }
 }

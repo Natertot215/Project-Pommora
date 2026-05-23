@@ -3,6 +3,11 @@
 //  Pommora
 //
 
+/// Selection chrome painted via `.listRowBackground` at the row-file level so
+/// the fill covers the full List row (including any DisclosureGroup chevron
+/// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
+/// edges by default for flat rows. DisclosureGroup-wrapped rows pass
+/// `.disclosure` style to flush the leading edge so chrome covers the chevron.
 import SwiftUI
 
 /// Five-section sidebar: Saved (pinned-headerless) / Spaces / Topics / Items / Pages. Rows extracted to *Row.swift files; sheets at Sheets/*Sheet.swift.
@@ -406,13 +411,6 @@ struct SelectableRow<Trailing: View>: View {
     }
 }
 
-/// Selection chrome painted via `.listRowBackground` at the row-file level so
-/// the fill covers the full List row (including any DisclosureGroup chevron
-/// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
-/// edges by default for flat rows. DisclosureGroup-wrapped rows pass
-/// `.disclosure` style to flush the leading edge so chrome covers the chevron.
-import SwiftUI
-
 struct SelectionChrome: View {
     enum Style {
         case flat
@@ -440,8 +438,6 @@ struct SelectionChrome: View {
         }
     }
 }
-
-
 
 // MARK: - SectionHeader
 

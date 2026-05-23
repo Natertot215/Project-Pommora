@@ -16,7 +16,9 @@ struct NewItemSheet: View {
             ContentUnavailableView(
                 "Create Item",
                 systemImage: "doc.badge.plus",
-                description: Text("UI ships in a follow-up plan. Data layer is live; create stub entities via tests or by editing the nexus folder directly.")
+                description: Text(
+                    "UI ships in a follow-up plan. Data layer is live; create stub entities via tests or by editing the nexus folder directly."
+                )
             )
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)

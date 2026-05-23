@@ -99,8 +99,8 @@ struct SettingsTests {
     }
 }
 
-private extension JSONDecoder {
-    static func iso8601() -> JSONDecoder {
+extension JSONDecoder {
+    fileprivate static func iso8601() -> JSONDecoder {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
         return d
