@@ -1,8 +1,9 @@
 import Foundation
 
-/// One property schema entry inside a PageType / ItemType's `_schema.json`.
-/// Type-specific config fields live as optionals on this struct;
-/// only the ones relevant to `type` should be populated.
+/// One property schema entry inside a PageType / ItemType / Tasks / Events
+/// per-kind sidecar (`_pagetype.json` / `_itemtype.json` / `_taskconfig.json`
+/// / `_eventconfig.json`). Type-specific config fields live as optionals on
+/// this struct; only the ones relevant to `type` should be populated.
 struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable {
     var name: String  // user-facing label; doubles as property key
     var type: PropertyType

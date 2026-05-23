@@ -56,7 +56,7 @@ struct PageTypeRow: View {
                 isSelected: SelectionTag.pageType(pageType.id).matches(selection)
             )
         )
-        // Load Page-Type-root Pages/Items when the row appears, regardless of
+        // Load Page-Type-root Pages when the row appears, regardless of
         // disclosure state. `.task` fires once on appearance; if it were
         // attached to the disclosure children it would only fire on expand.
         .task {

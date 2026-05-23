@@ -1,7 +1,9 @@
 import Foundation
 
-/// Agenda Event — EKEvent-aligned. Lives at `<nexus>/Agenda/Events/<title>.event.json`.
-/// Has required `start_at` + `end_at`, location, all-day flag. NO completion concept.
+/// Agenda Event — EKEvent-aligned. Lives at
+/// `<nexus>/Events/<title>.event.json` (Events singleton folder is renameable
+/// per Settings). Has required `start_at` + `end_at`, location, all-day flag.
+/// NO completion concept.
 ///
 /// Swift name prefixed (`AgendaEvent`) per the ParadigmV2 "no Pommora.X
 /// qualification" rule, paralleling `AgendaTask`. UI label: "Event" (renameable).

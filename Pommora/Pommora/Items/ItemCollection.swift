@@ -1,13 +1,14 @@
 import Foundation
 
-/// Item Collection — sub-folder inside an ItemType with a `_schema.json`
+/// Item Collection — sub-folder inside an ItemType with a `_itemcollection.json`
 /// sidecar. Holds Items only (Pages live in PageCollections under a PageType).
 /// Title derives from folder name (filename-as-title rule).
 ///
 /// UI label: "Set" by default (renameable via Settings); code always says
-/// "Collection." On disk: `<nexus>/Items/<ItemType>/<ItemCollection>/_schema.json`.
+/// "Collection." On disk:
+/// `<nexus>/<ItemType>/<ItemCollection>/_itemcollection.json`.
 struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String  // ULID from _schema.json
+    var id: String  // ULID from _itemcollection.json
     var typeID: String  // ULID of parent ItemType
     var title: String  // derived from folder name on load (not persisted)
     var folderURL: URL  // runtime only (not persisted)
@@ -61,8 +62,8 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
 }
 
 extension ItemCollection {
-    /// Loads `_collection.json` and derives `title` from the parent folder name,
-    /// and `folderURL` from the metadata URL's parent.
+    /// Loads `_itemcollection.json` and derives `title` from the parent folder
+    /// name, and `folderURL` from the metadata URL's parent.
     static func load(from metadataURL: URL) throws -> ItemCollection {
         var c = try AtomicJSON.decode(ItemCollection.self, from: metadataURL)
         let folderURL = metadataURL.deletingLastPathComponent()

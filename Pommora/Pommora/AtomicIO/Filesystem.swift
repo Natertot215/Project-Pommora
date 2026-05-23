@@ -66,7 +66,8 @@ enum Filesystem {
     /// If the metadata write fails, the folder is deleted before the error propagates.
     ///
     /// Used by Topic + PageType + ItemType creation flows (Topic = folder +
-    /// `_topic.json`; PageType / ItemType = folder + `_schema.json`).
+    /// `_topic.json`; PageType = folder + `_pagetype.json`;
+    /// ItemType = folder + `_itemtype.json`).
     static func createFolderWithMetadata<T: Codable>(
         folderURL: URL,
         metadataURL: URL,

@@ -1,7 +1,8 @@
 import Foundation
 
-/// Agenda Task — EKReminder-aligned. Lives at `<nexus>/Agenda/Tasks/<title>.task.json`.
-/// Has due date (optional), completion flag, priority, optional start ("not before") date.
+/// Agenda Task — EKReminder-aligned. Lives at `<nexus>/Tasks/<title>.task.json`
+/// (Tasks singleton folder is renameable per Settings). Has due date (optional),
+/// completion flag, priority, optional start ("not before") date.
 ///
 /// Swift name prefixed (`AgendaTask`) to avoid `_Concurrency.Task` shadow per
 /// the ParadigmV2 "no Pommora.X qualification" rule. UI label: "Task" (renameable).

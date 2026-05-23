@@ -1,10 +1,10 @@
 import Foundation
 
-/// Item Type — folder + `_schema.json` sidecar that defines the property
+/// Item Type — folder + `_itemtype.json` sidecar that defines the property
 /// schema shared by every Item inside. The Items-side schema-bearing container,
 /// parallel to PageType on the Pages side.
 ///
-/// On disk: `<nexus>/<Title>/_schema.json` (folder name = title; no title on disk).
+/// On disk: `<nexus>/<Title>/_itemtype.json` (folder name = title; no title on disk).
 struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var title: String  // derived from folder name (not persisted)

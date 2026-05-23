@@ -25,7 +25,7 @@ struct PageTypeDetailView: View {
             footer
         }
         .task(id: pageType.id) {
-            // Load Page-Type-root Pages/Items + every Collection's content
+            // Load Page-Type-root Pages + every PageCollection's content
             await contentManager.loadAll(for: pageType)
             for coll in pageTypeManager.pageCollections(in: pageType) {
                 await contentManager.loadAll(for: coll)

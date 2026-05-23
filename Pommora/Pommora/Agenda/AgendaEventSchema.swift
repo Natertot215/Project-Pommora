@@ -1,7 +1,8 @@
 import Foundation
 
-/// `_schema.json` for `<nexus>/Agenda/Events/`. Defines built-in `type` Select
-/// property + user-defined additions + saved views.
+/// `_eventconfig.json` for the Events singleton folder (default
+/// `<nexus>/Events/`; folder is renameable per Settings). Defines built-in
+/// `type` Select property + user-defined additions + saved views.
 ///
 /// Parallel to AgendaTaskSchema but carries NO Status — events have no
 /// completion concept (EKEvent has no `isCompleted` field).

@@ -1,7 +1,8 @@
 import Foundation
 
-/// `_schema.json` for `<nexus>/Agenda/Tasks/`. Defines built-in `type` Select
-/// property + user-defined additions + saved views.
+/// `_taskconfig.json` for the Tasks singleton folder (default
+/// `<nexus>/Tasks/`; folder is renameable per Settings). Defines built-in
+/// `type` Select property + user-defined additions + saved views.
 ///
 /// Status property seeding deferred to Phase 9.2 (v0.3.0 reconciliation) once
 /// PropertyDefinition.StatusGroup exists.
