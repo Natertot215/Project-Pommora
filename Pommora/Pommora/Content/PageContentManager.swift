@@ -190,7 +190,7 @@ final class PageContentManager {
 
     /// Reorders Pages within `collection`. Matches the SwiftUI
     /// `.onMove(perform:)` signature. New ID order persists to the parent
-    /// PageCollection's `_schema.json` sidecar.
+    /// PageCollection's `_pagecollection.json` sidecar.
     func reorderPages(
         in collection: PageCollection,
         fromOffsets source: IndexSet,
@@ -209,7 +209,7 @@ final class PageContentManager {
     }
 
     /// Reorders Pages at the root of `pageType`. New ID order persists to the
-    /// Page Type's `_schema.json` sidecar.
+    /// Page Type's `_pagetype.json` sidecar.
     func reorderPages(
         inVault pageType: PageType,
         fromOffsets source: IndexSet,

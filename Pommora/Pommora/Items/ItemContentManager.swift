@@ -134,7 +134,7 @@ final class ItemContentManager {
 
     /// Reorders Items within `collection`. Matches the SwiftUI
     /// `.onMove(perform:)` signature. New ID order persists to the parent
-    /// ItemCollection's `_schema.json` sidecar (Phase 6 wires the persister).
+    /// ItemCollection's `_itemcollection.json` sidecar (Phase 6 wires the persister).
     func reorderItems(
         in collection: ItemCollection,
         fromOffsets source: IndexSet,
@@ -151,7 +151,7 @@ final class ItemContentManager {
     }
 
     /// Reorders Items at the root of `itemType`. New ID order persists to the
-    /// Item Type's `_schema.json` sidecar (Phase 6 wires the persister).
+    /// Item Type's `_itemtype.json` sidecar (Phase 6 wires the persister).
     func reorderItems(
         inType itemType: ItemType,
         fromOffsets source: IndexSet,
