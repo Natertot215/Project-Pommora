@@ -1,13 +1,13 @@
 import Foundation
 
-/// Item Collection — sub-folder inside an ItemType with a `_collection.json`
+/// Item Collection — sub-folder inside an ItemType with a `_schema.json`
 /// sidecar. Holds Items only (Pages live in PageCollections under a PageType).
 /// Title derives from folder name (filename-as-title rule).
 ///
 /// UI label: "Set" by default (renameable via Settings); code always says
-/// "Collection." On disk: `<nexus>/<ItemType>/<ItemCollection>/_collection.json`.
+/// "Collection." On disk: `<nexus>/Items/<ItemType>/<ItemCollection>/_schema.json`.
 struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
-    var id: String  // ULID from _collection.json
+    var id: String  // ULID from _schema.json
     var typeID: String  // ULID of parent ItemType
     var title: String  // derived from folder name on load (not persisted)
     var folderURL: URL  // runtime only (not persisted)

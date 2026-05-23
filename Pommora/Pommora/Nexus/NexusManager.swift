@@ -162,8 +162,10 @@ final class NexusManager {
 
         // Always offer adoption — re-opening a Nexus that pre-dates this
         // feature is the primary use case (existing Nexuses don't have
-        // _vault.json sidecars yet). The scan is idempotent: if every
-        // top-level folder already has one, the sheet doesn't appear.
+        // `_schema.json` sidecars yet, and may carry legacy `_vault.json` /
+        // `_collection.json` files that the adopter migrates). The scan is
+        // idempotent: if every top-level folder is already adopted, the
+        // sheet doesn't appear.
         await runAdoptionIfNeeded(at: url)
 
         currentNexus = Nexus(id: identity.id, rootURL: url)
@@ -171,8 +173,10 @@ final class NexusManager {
 
     /// Routes a freshly-picked URL through init (empty/silent or non-empty/confirm)
     /// or load (existing `.nexus/`), then always runs the adoption scan so
-    /// existing folders without `_vault.json` / `_collection.json` sidecars
-    /// can be adopted as Vaults / Collections (Obsidian-parity).
+    /// existing folders without `_schema.json` sidecars (or carrying legacy
+    /// `_vault.json` / `_collection.json` files from the pre-ParadigmV2
+    /// layout) can be adopted into the Pages / Items / Agenda wrappers
+    /// (Obsidian-parity).
     private func openPicked(at url: URL) async {
         let nexusConfigDir = url.appendingPathComponent(".nexus", isDirectory: true)
         let identityURL = nexusConfigDir.appendingPathComponent("nexus.json", isDirectory: false)

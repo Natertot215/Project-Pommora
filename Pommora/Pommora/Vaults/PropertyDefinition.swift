@@ -1,6 +1,6 @@
 import Foundation
 
-/// One property schema entry inside a Vault's `_vault.json`.
+/// One property schema entry inside a PageType / ItemType's `_schema.json`.
 /// Type-specific config fields live as optionals on this struct;
 /// only the ones relevant to `type` should be populated.
 struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable {
