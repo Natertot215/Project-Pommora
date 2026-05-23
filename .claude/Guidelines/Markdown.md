@@ -446,7 +446,15 @@ This nuances §9.1's general "render is the spec" principle: the chrome is still
 
 ##### 9.11 Foldable headings — hybrid hover-overlay + true zero-height collapse (v0.2.x)
 
-**Status:** ✅ SHIPPED. Hover a heading line → chevron appears in left gutter; click toggles a true zero-height collapse of the content under that heading (down to the next equal-or-higher heading or document end). Chevron rotates 0 → π/2 over 200ms ease-in-out between right (folded) and down (expanded). Caret + nonzero selections that land in a folded region get pushed past it. Per-Page state persists via `folded_headings: [String]` in YAML frontmatter; renaming a heading drops its entry.
+**Status:** 🚧 WIP — NOT shipped. The chevron drawing, hover detection, click hit-test, rotation animation, caret-skip patch, and frontmatter persistence layers all work. The zero-height collapse layer is the open problem; the rest of §9.11 below describes the INTENDED target shape, not the current shipped code.
+
+###### Current state of the collapse layer (the open problem)
+
+The renderer-row "override `layoutFragmentFrame`" approach (see table below) was tried and abandoned: TextKit 2 treats `layoutFragmentFrame` as a stored value the layout manager writes during layout and reads for downstream positioning. A getter override only affects external queries; the manager's internal positioning chain doesn't see it, leaving downstream fragment Y positions stale on collapse (expand worked via natural overflow propagation; collapse didn't). The current code uses an attribute-write fallback ([+HeadingFolding.swift:177-189](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HeadingFolding.swift#L177-L189) — tiny font + zero line-height `paragraphStyle` + clear `foregroundColor`) that requires a chain of forced-layout calls (`invalidateLayout` → `ensureLayout` → `layoutViewport` → `needsDisplay` → `makeFirstResponder(nil)`) to propagate, and still leaves residual height plus caret-addressable invisible content inside collapsed regions. A rebuild around the correct TextKit 2 primitive is being scoped; the rest of this section will be re-confirmed or rewritten once the rebuild lands. Treat the architecture rows that follow as the intended target shape, not the current shipped code — the renderer row in particular is wrong about how the collapse is actually delivered today.
+
+###### Target shape (intended, not current)
+
+Hover a heading line → chevron appears in left gutter; click toggles a true zero-height collapse of the content under that heading (down to the next equal-or-higher heading or document end). Chevron rotates 0 → π/2 over 200ms ease-in-out between right (folded) and down (expanded). Caret + nonzero selections that land in a folded region get pushed past it. Per-Page state persists via `folded_headings: [String]` in YAML frontmatter; renaming a heading drops its entry.
 
 Foldable headings fit neither §9.1 (dynamic-syntax caret-reveal) nor §9.10 (always-show overlay) cleanly. They are the third locked pattern: **hover-overlay + zero-height collapse + frontmatter persistence**.
 
