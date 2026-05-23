@@ -42,6 +42,36 @@ extension NativeTextViewCoordinator {
 
     // MARK: - Redraw-trigger helpers
 
+    /// Compute the ordinal-disambiguated key for a heading line at
+    /// `lineRange` in `nsText`. Mirrors the key-computation rule in
+    /// `MarkdownDetection.foldableHeadings(...)` (Decision 1 — first
+    /// occurrence keeps bare key; Nth identical occurrence gets `[N]`
+    /// suffix). Used by the renderer's `headingKey` accessor and the
+    /// hover handler's hit-test so both agree on the key shape the
+    /// `foldedHeadings` Set + `hoveredHeadingKey` are written/read with.
+    ///
+    /// O(N) document walk. Called from hover/click hot paths but only
+    /// once the cursor is confirmed to be over a heading row, so the
+    /// per-mouseMoved cost stays bounded.
+    static func disambiguatedHeadingKey(
+        forLineRange lineRange: NSRange,
+        in nsText: NSString
+    ) -> String {
+        let bareKey = nsText.substring(with: lineRange)
+            .trimmingCharacters(in: .newlines)
+        var count = 1
+        var location = 0
+        while location < lineRange.location {
+            let line = nsText.lineRange(for: NSRange(location: location, length: 0))
+            let lineText = nsText.substring(with: line).trimmingCharacters(in: .newlines)
+            if lineText == bareKey { count += 1 }
+            let next = line.location + line.length
+            if next <= location { break }
+            location = next
+        }
+        return count == 1 ? bareKey : "\(bareKey) [\(count)]"
+    }
+
     /// Find the source-line NSRange for an exact heading key (e.g. `"## Foo"`)
     /// by walking the document line-by-line. O(N); used from low-frequency
     /// paths (hover transition, animation start).

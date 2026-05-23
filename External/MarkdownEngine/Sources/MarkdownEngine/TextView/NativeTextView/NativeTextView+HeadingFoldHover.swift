@@ -94,7 +94,13 @@ extension NativeTextView {
             return
         }
 
-        let key = fragmentString.trimmingCharacters(in: .newlines)
+        // Decision 1: ordinal-disambiguated key so duplicate-text headings
+        // are independent fold targets. Renderer's headingKey uses the same
+        // helper so hover state and renderer state agree.
+        let lineRange = nsText.lineRange(for: NSRange(location: nsRange.location, length: 0))
+        let key = NativeTextViewCoordinator.disambiguatedHeadingKey(
+            forLineRange: lineRange, in: nsText
+        )
         applyHoveredHeadingKey(key, in: coordinator)
     }
 
@@ -203,7 +209,15 @@ extension NativeTextView {
         let hit = rect.insetBy(dx: -6, dy: -6)
         guard hit.contains(viewPoint) else { return false }
 
-        let key = fragmentString.trimmingCharacters(in: .newlines)
+        // Decision 1: ordinal-disambiguated key so the click resolves to
+        // THIS specific heading's fold target (not the first identical-text
+        // sibling, which would otherwise collide on duplicate `## Notes`
+        // sections in the same Page).
+        let nsText = textStorage.string as NSString
+        let lineRange = nsText.lineRange(for: NSRange(location: nsRange.location, length: 0))
+        let key = NativeTextViewCoordinator.disambiguatedHeadingKey(
+            forLineRange: lineRange, in: nsText
+        )
         let willBeFolded: Bool
         if coordinator.foldedHeadings.contains(key) {
             coordinator.foldedHeadings.remove(key)

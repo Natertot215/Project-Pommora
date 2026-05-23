@@ -155,16 +155,25 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         )
     }
 
-    /// Key for this heading fragment — exact source line stripped of any
-    /// trailing newline. Matches `FoldedHeading.key` shape so the renderer
-    /// can compare against `coordinator.foldedHeadings` /
-    /// `coordinator.hoveredHeadingKey` directly.
+    /// Key for this heading fragment — bare source line for the first
+    /// occurrence, ordinal-suffixed (`"## Foo [2]"`) for Nth identical
+    /// occurrence. Matches `FoldedHeading.key` shape via shared
+    /// `NativeTextViewCoordinator.disambiguatedHeadingKey(...)` so the
+    /// renderer's hover/fold lookups against `coordinator.foldedHeadings`
+    /// and `coordinator.hoveredHeadingKey` resolve correctly (Decision 1).
     @MainActor
     private var headingKey: String? {
-        guard hasHeadingMarker, let fragmentString = headingFragmentString else {
-            return nil
-        }
-        return fragmentString.trimmingCharacters(in: .newlines)
+        guard hasHeadingMarker,
+            let myRange = nsRange,
+            let ts = textStorage
+        else { return nil }
+        let nsText = ts.string as NSString
+        let lineRange = nsText.lineRange(
+            for: NSRange(location: myRange.location, length: 0)
+        )
+        return NativeTextViewCoordinator.disambiguatedHeadingKey(
+            forLineRange: lineRange, in: nsText
+        )
     }
 
     /// True when this heading is currently under the mouse cursor — the
