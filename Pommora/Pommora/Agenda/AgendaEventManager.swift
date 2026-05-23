@@ -1,8 +1,11 @@
 import Foundation
 import Observation
 
-/// Owns the in-memory AgendaEvent collection + the `_schema.json` sidecar for
-/// `<nexus>/Agenda/Events/`. Parallel to AgendaTaskManager on the Tasks side.
+/// Owns the in-memory AgendaEvent collection + the `_eventconfig.json` sidecar
+/// for the Events singleton folder (discovered by sidecar presence at the nexus
+/// root per locked decision #5; default `<nexus>/Events/` when absent — eagerly
+/// seeded by `loadAll` per locked decision #9). Parallel to AgendaTaskManager
+/// on the Tasks side.
 @MainActor
 @Observable
 final class AgendaEventManager {

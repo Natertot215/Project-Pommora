@@ -69,16 +69,25 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("settings.json", isDirectory: false)
     }
 
-    // MARK: - Agenda (operational sibling of Pages/Items wrappers)
+    // MARK: - Agenda (sidecar-driven singleton discovery)
 
     /// File extension for Agenda Tasks: `<title>.task.json`.
     static let taskFileExtension = "task.json"
     /// File extension for Agenda Events: `<title>.event.json`.
     static let eventFileExtension = "event.json"
 
-    /// `<nexus>/Agenda/` — wrapper folder containing `Tasks/` and `Events/`.
-    /// Phase 6 form, taking the nexus root URL directly so callers without a
-    /// fully-built Nexus value can still derive the path.
+    /// Default folder name for the Tasks singleton when no folder carrying
+    /// `_taskconfig.json` has been seeded yet. Adopter / manager use this as
+    /// the seed-target name; once the sidecar exists the folder can be renamed
+    /// freely via Finder and discovery keeps working.
+    static let defaultTasksFolderName = "Tasks"
+    /// Default folder name for the Events singleton (see `defaultTasksFolderName`).
+    static let defaultEventsFolderName = "Events"
+
+    /// `<nexus>/Agenda/` — paradigmV2 wrapper folder. flatlayout drops the
+    /// wrapper from the public path API; this helper survives for NexusAdopter
+    /// (Phase 4) which still needs to detect the paradigmV2 wrapper layout on
+    /// input. Task 4.3 moves it private to the adopter.
     static func agendaWrapperDir(in nexusRoot: URL) -> URL {
         nexusRoot.appendingPathComponent("Agenda", isDirectory: true)
     }
@@ -88,33 +97,101 @@ enum NexusPaths {
         agendaWrapperDir(in: nexus.rootURL)
     }
 
-    /// `<nexus>/Agenda/Tasks/` — holds `_schema.json` + `<title>.task.json` files.
+    /// Discovers a singleton folder by sidecar filename at the nexus root.
+    /// Walks immediate children of `nexusRoot`; returns the first folder that
+    /// carries `sidecarFilename` directly inside it. If multiple match
+    /// (pathological), returns the first found in directory-listing order and
+    /// logs a warning to stderr. If none match (brand-new Nexus, before the
+    /// manager seeds the sidecar), returns `<nexusRoot>/<defaultFolderName>/`.
+    /// If `contentsOfDirectory` throws (root inaccessible), returns the default
+    /// path defensively.
+    private static func singletonDir(
+        in nexusRoot: URL,
+        sidecarFilename: String,
+        defaultFolderName: String
+    ) -> URL {
+        let fm = FileManager.default
+        let defaultURL = nexusRoot.appendingPathComponent(defaultFolderName, isDirectory: true)
+        let contents: [URL]
+        do {
+            contents = try fm.contentsOfDirectory(
+                at: nexusRoot,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )
+        } catch {
+            return defaultURL
+        }
+        var matches: [URL] = []
+        for child in contents {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: child.path, isDirectory: &isDir), isDir.boolValue
+            else { continue }
+            let sidecar = child.appendingPathComponent(sidecarFilename, isDirectory: false)
+            if fm.fileExists(atPath: sidecar.path) {
+                matches.append(child)
+            }
+        }
+        guard let first = matches.first else { return defaultURL }
+        if matches.count > 1 {
+            let names = matches.map { $0.lastPathComponent }.joined(separator: ", ")
+            let warning =
+                "[NexusPaths] WARNING: \(matches.count) folders at root carry \(sidecarFilename) (\(names)). "
+                + "Using first found: '\(first.lastPathComponent)'. Resolve by removing duplicate sidecars.\n"
+            FileHandle.standardError.write(Data(warning.utf8))
+        }
+        return first
+    }
+
+    /// Folder URL of the Tasks singleton — the unique folder at the nexus root
+    /// carrying `_taskconfig.json`. Falls back to `<nexus>/Tasks/` (default
+    /// name) when none is present; the manager seeds the sidecar on launch
+    /// per locked decision #9, after which discovery returns the seeded folder
+    /// (and survives a Finder rename of that folder).
     static func tasksDir(in nexus: Nexus) -> URL {
-        agendaWrapperDir(in: nexus).appendingPathComponent("Tasks", isDirectory: true)
+        singletonDir(
+            in: nexus.rootURL,
+            sidecarFilename: taskConfigSidecarFilename,
+            defaultFolderName: defaultTasksFolderName
+        )
     }
 
-    /// `<nexus>/Agenda/Events/` — holds `_schema.json` + `<title>.event.json` files.
+    /// Folder URL of the Events singleton — the unique folder at the nexus
+    /// root carrying `_eventconfig.json`. See `tasksDir(in:)` for fallback
+    /// semantics.
     static func eventsDir(in nexus: Nexus) -> URL {
-        agendaWrapperDir(in: nexus).appendingPathComponent("Events", isDirectory: true)
+        singletonDir(
+            in: nexus.rootURL,
+            sidecarFilename: eventConfigSidecarFilename,
+            defaultFolderName: defaultEventsFolderName
+        )
     }
 
-    /// `<nexus>/Agenda/Tasks/_schema.json` — AgendaTaskSchema sidecar.
+    /// `<TasksFolder>/_taskconfig.json` — AgendaTaskSchema sidecar inside the
+    /// Tasks singleton (discovered via `tasksDir(in:)`).
     static func taskSchemaURL(in nexus: Nexus) -> URL {
-        tasksDir(in: nexus).appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+        tasksDir(in: nexus).appendingPathComponent(
+            taskConfigSidecarFilename, isDirectory: false
+        )
     }
 
-    /// `<nexus>/Agenda/Events/_schema.json` — AgendaEventSchema sidecar.
+    /// `<EventsFolder>/_eventconfig.json` — AgendaEventSchema sidecar inside
+    /// the Events singleton (discovered via `eventsDir(in:)`).
     static func eventSchemaURL(in nexus: Nexus) -> URL {
-        eventsDir(in: nexus).appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+        eventsDir(in: nexus).appendingPathComponent(
+            eventConfigSidecarFilename, isDirectory: false
+        )
     }
 
-    /// `<nexus>/Agenda/Tasks/<title>.task.json` — single AgendaTask file.
+    /// `<TasksFolder>/<title>.task.json` — single AgendaTask file. Tasks folder
+    /// resolved via sidecar-driven discovery.
     static func taskFileURL(forTitle title: String, in nexus: Nexus) -> URL {
         tasksDir(in: nexus)
             .appendingPathComponent("\(title).\(taskFileExtension)", isDirectory: false)
     }
 
-    /// `<nexus>/Agenda/Events/<title>.event.json` — single AgendaEvent file.
+    /// `<EventsFolder>/<title>.event.json` — single AgendaEvent file. Events
+    /// folder resolved via sidecar-driven discovery.
     static func eventFileURL(forTitle title: String, in nexus: Nexus) -> URL {
         eventsDir(in: nexus)
             .appendingPathComponent("\(title).\(eventFileExtension)", isDirectory: false)

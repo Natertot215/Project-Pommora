@@ -37,16 +37,41 @@ struct AgendaEventManagerTests {
         )
     }
 
-    @Test("loadAll seeds Events/_schema.json if missing")
+    @Test("loadAll eagerly seeds <nexus>/Events/_eventconfig.json on a fresh Nexus")
     func seedsSchema() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = AgendaEventManager(nexus: nexus)
         await manager.loadAll()
+        // Eager creation per locked decision #9: folder + sidecar materialize at
+        // the default name `<nexus>/Events/` and discovery sticks to it.
+        let eventsDir = NexusPaths.eventsDir(in: nexus)
+        #expect(eventsDir.lastPathComponent == "Events")
+        #expect(eventsDir.deletingLastPathComponent().path == nexus.rootURL.path)
         let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+        #expect(schemaURL.lastPathComponent == NexusPaths.eventConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
         let loaded = try AtomicJSON.decode(AgendaEventSchema.self, from: schemaURL)
         #expect(loaded.properties.contains { $0.name == "type" && $0.builtin })
+    }
+
+    @Test("loadAll reuses a renamed Events singleton discovered by _eventconfig.json")
+    func loadAllReusesRenamedSingleton() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let renamed = nexus.rootURL.appendingPathComponent("Calendar", isDirectory: true)
+        try FileManager.default.createDirectory(at: renamed, withIntermediateDirectories: true)
+        try AtomicJSON.write(
+            AgendaEventSchema.defaultSeed(),
+            to: renamed.appendingPathComponent(NexusPaths.eventConfigSidecarFilename)
+        )
+
+        let manager = AgendaEventManager(nexus: nexus)
+        await manager.loadAll()
+
+        #expect(NexusPaths.eventsDir(in: nexus).path == renamed.path)
+        let defaultFolder = nexus.rootURL.appendingPathComponent("Events", isDirectory: true)
+        #expect(!FileManager.default.fileExists(atPath: defaultFolder.path))
     }
 
     @Test("createEvent writes .event.json with type=Event")

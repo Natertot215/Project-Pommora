@@ -75,16 +75,97 @@ struct NexusPathsTests {
         #expect(reserved.count == 3)
     }
 
-    @Test("tasksDir is Agenda/Tasks; eventsDir is Agenda/Events")
-    func tasksAndEventsDirsShape() throws {
+    // MARK: - Agenda singleton discovery (sidecar-driven)
+
+    @Test("tasksDir falls back to <nexus>/Tasks when no _taskconfig.json exists")
+    func tasksDirDefaultFallback() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let tasks = NexusPaths.tasksDir(in: nexus)
-        let events = NexusPaths.eventsDir(in: nexus)
-        #expect(tasks.lastPathComponent == "Tasks")
-        #expect(tasks.deletingLastPathComponent().lastPathComponent == "Agenda")
-        #expect(events.lastPathComponent == "Events")
-        #expect(events.deletingLastPathComponent().lastPathComponent == "Agenda")
+        let dir = NexusPaths.tasksDir(in: nexus)
+        #expect(dir.lastPathComponent == "Tasks")
+        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
+    }
+
+    @Test("eventsDir falls back to <nexus>/Events when no _eventconfig.json exists")
+    func eventsDirDefaultFallback() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let dir = NexusPaths.eventsDir(in: nexus)
+        #expect(dir.lastPathComponent == "Events")
+        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
+    }
+
+    @Test("tasksDir discovers a renamed folder by _taskconfig.json presence")
+    func tasksDirDiscoversRenamedFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Simulate a user-renamed Tasks singleton ("Errands/" carrying _taskconfig.json).
+        let renamed = nexus.rootURL.appendingPathComponent("Errands", isDirectory: true)
+        try FileManager.default.createDirectory(at: renamed, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(
+            to: renamed.appendingPathComponent(NexusPaths.taskConfigSidecarFilename)
+        )
+
+        let resolved = NexusPaths.tasksDir(in: nexus)
+        #expect(resolved.lastPathComponent == "Errands")
+        #expect(resolved.path == renamed.path)
+    }
+
+    @Test("eventsDir discovers a renamed folder by _eventconfig.json presence")
+    func eventsDirDiscoversRenamedFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let renamed = nexus.rootURL.appendingPathComponent("Calendar", isDirectory: true)
+        try FileManager.default.createDirectory(at: renamed, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(
+            to: renamed.appendingPathComponent(NexusPaths.eventConfigSidecarFilename)
+        )
+
+        let resolved = NexusPaths.eventsDir(in: nexus)
+        #expect(resolved.lastPathComponent == "Calendar")
+        #expect(resolved.path == renamed.path)
+    }
+
+    @Test("tasksDir picks first-found when multiple folders carry _taskconfig.json")
+    func tasksDirFirstFoundOnPathologicalDuplicates() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // Two folders both carrying _taskconfig.json — pathological case per
+        // locked decision #5. First-found wins; warning logged to stderr.
+        for name in ["AlphaTasks", "BetaTasks"] {
+            let folder = nexus.rootURL.appendingPathComponent(name, isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("{}".utf8).write(
+                to: folder.appendingPathComponent(NexusPaths.taskConfigSidecarFilename)
+            )
+        }
+        let resolved = NexusPaths.tasksDir(in: nexus)
+        let candidates = Set(["AlphaTasks", "BetaTasks"])
+        #expect(candidates.contains(resolved.lastPathComponent))
+        #expect(resolved.deletingLastPathComponent().path == nexus.rootURL.path)
+    }
+
+    @Test("taskSchemaURL / eventSchemaURL use per-kind sidecar filenames")
+    func agendaSchemaURLsUsePerKindSidecars() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        #expect(
+            NexusPaths.taskSchemaURL(in: nexus).lastPathComponent
+                == NexusPaths.taskConfigSidecarFilename
+        )
+        #expect(
+            NexusPaths.eventSchemaURL(in: nexus).lastPathComponent
+                == NexusPaths.eventConfigSidecarFilename
+        )
+        // Default-fallback parents
+        #expect(
+            NexusPaths.taskSchemaURL(in: nexus).deletingLastPathComponent().lastPathComponent
+                == "Tasks"
+        )
+        #expect(
+            NexusPaths.eventSchemaURL(in: nexus).deletingLastPathComponent().lastPathComponent
+                == "Events"
+        )
     }
 
     @Test("named file URLs use the documented extensions")
@@ -94,14 +175,6 @@ struct NexusPathsTests {
         #expect(NexusPaths.tierConfigURL(in: nexus).lastPathComponent == "tier-config.json")
         #expect(NexusPaths.savedConfigURL(in: nexus).lastPathComponent == "saved-config.json")
         #expect(NexusPaths.homepageURL(in: nexus).lastPathComponent == "homepage.json")
-        #expect(
-            NexusPaths.taskSchemaURL(in: nexus).lastPathComponent
-                == NexusPaths.schemaSidecarFilename
-        )
-        #expect(
-            NexusPaths.eventSchemaURL(in: nexus).lastPathComponent
-                == NexusPaths.schemaSidecarFilename
-        )
     }
 
     @Test("spaceFileURL embeds title with .space.json extension")
@@ -268,19 +341,20 @@ struct NexusPathsTests {
         #expect(item.lastPathComponent == "Buy groceries.json")
     }
 
-    @Test("taskFileURL nests inside Agenda/Tasks with .task.json extension")
+    @Test("taskFileURL nests inside the Tasks singleton with .task.json extension")
     func taskFilePath() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let url = NexusPaths.taskFileURL(forTitle: "Submit grant proposal", in: nexus)
         #expect(url.lastPathComponent == "Submit grant proposal.task.json")
+        // Default-name fallback: parent is <nexus>/Tasks/, no Agenda wrapper.
         #expect(url.deletingLastPathComponent().lastPathComponent == "Tasks")
         #expect(
-            url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Agenda"
+            url.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
     }
 
-    @Test("eventFileURL nests inside Agenda/Events with .event.json extension")
+    @Test("eventFileURL nests inside the Events singleton with .event.json extension")
     func eventFilePath() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -288,8 +362,23 @@ struct NexusPathsTests {
         #expect(url.lastPathComponent == "Team standup.event.json")
         #expect(url.deletingLastPathComponent().lastPathComponent == "Events")
         #expect(
-            url.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Agenda"
+            url.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
+    }
+
+    @Test("taskFileURL resolves into a renamed Tasks singleton after sidecar discovery")
+    func taskFileURLFollowsRenamedSingleton() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let renamed = nexus.rootURL.appendingPathComponent("Errands", isDirectory: true)
+        try FileManager.default.createDirectory(at: renamed, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(
+            to: renamed.appendingPathComponent(NexusPaths.taskConfigSidecarFilename)
+        )
+
+        let url = NexusPaths.taskFileURL(forTitle: "Pay bills", in: nexus)
+        #expect(url.deletingLastPathComponent().lastPathComponent == "Errands")
+        #expect(url.lastPathComponent == "Pay bills.task.json")
     }
 
     @Test("ensureDirectoryExists creates intermediate dirs idempotently")
