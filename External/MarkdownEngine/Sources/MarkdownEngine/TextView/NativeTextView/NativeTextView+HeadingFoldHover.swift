@@ -20,19 +20,20 @@ import AppKit
 
 extension NativeTextView {
 
-    /// Rebuild the heading-fold hover tracking area whenever the visible
-    /// rect changes (scroll, resize, etc.). AppKit calls `updateTrackingAreas`
-    /// on every scroll / live-resize tick, so this keeps the area aligned
-    /// with what the user can actually see. `mouseMoved` events fire only
-    /// while the cursor is inside this area and the window is key.
+    /// Create the heading-fold hover tracking area on the first
+    /// `updateTrackingAreas` call (which AppKit invokes once the view is
+    /// in a window) and leave it alone after that. The `.inVisibleRect`
+    /// option auto-tracks the visible rect across scroll / resize, so the
+    /// prior tear-down + recreate cycle on every AppKit tick was waste —
+    /// the area moves with the visible region for free.
+    ///
+    /// `mouseMoved` events fire only while the cursor is inside this
+    /// area and the window is key.
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let existing = headingFoldHoverTrackingArea {
-            removeTrackingArea(existing)
-            headingFoldHoverTrackingArea = nil
-        }
+        if headingFoldHoverTrackingArea != nil { return }
         let area = NSTrackingArea(
-            rect: visibleRect,
+            rect: .zero,  // ignored when `.inVisibleRect` is set
             options: [.activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
             owner: self,
             userInfo: nil
