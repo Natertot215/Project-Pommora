@@ -54,6 +54,13 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("homepage.json", isDirectory: false)
     }
 
+    /// `<nexus>/.nexus/settings.json` — per-Nexus user preferences (Phase 7).
+    /// Loaded by SettingsManager; seeded with `Settings.defaultSeed()` on first
+    /// launch when no file is present.
+    static func settingsFileURL(in nexus: Nexus) -> URL {
+        nexusConfigDir(in: nexus).appendingPathComponent("settings.json", isDirectory: false)
+    }
+
     // MARK: - Agenda (operational sibling of Pages/Items wrappers)
 
     /// File extension for Agenda Tasks: `<title>.task.json`.
