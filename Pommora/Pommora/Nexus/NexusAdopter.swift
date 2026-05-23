@@ -2,605 +2,810 @@
 //  NexusAdopter.swift
 //  Pommora
 //
-//  Adopts the on-disk structure of a folder the user just picked as a Nexus.
-//  ParadigmV2 Phase 6: surveys the three wrapper directories — `Pages/`,
-//  `Items/`, `Agenda/` — instead of the nexus root. Top-level folders inside
-//  `Pages/` become PageTypes (with their sub-folders becoming PageCollections);
-//  top-level folders inside `Items/` become ItemTypes (with their sub-folders
-//  becoming ItemCollections). `Agenda/` is filename-discriminated (`.task.json`
-//  / `.event.json`) and doesn't require folder scanning.
+//  Surveys a Nexus root folder, classifies each top-level folder into one of
+//  four input shapes, and prepares an AdoptionPlan describing the writes /
+//  renames / moves needed to land the on-disk layout in the v0.3.0 flat shape:
 //
-//  Legacy-layout folders at the nexus root (pre-ParadigmV2 shape — Type folders
-//  sitting directly under the nexus root) are surfaced via `legacyMigrations`
-//  on the plan and relocated into `Pages/` or `Items/` on apply. Content sniff
-//  (`.md` → Pages-side, user `.json` → Items-side, empty → Pages-side) classifies
-//  the destination; non-Pommora root folders (no sidecar AND no content hints)
-//  remain in `skippedTopLevel` and are left untouched. Pulls Phase 10's
-//  migration scope into the adopter so the very first onboarding session works
-//  against a pre-existing nexus.
+//      <nexus>/<TypeFolder>/_pagetype.json (or _itemtype.json / _taskconfig.json
+//                                            / _eventconfig.json)
+//      <nexus>/<TypeFolder>/<CollectionFolder>/_pagecollection.json
+//                                                (or _itemcollection.json)
+//
+//  Shape classifier (per locked decision #7):
+//    1. Fresh             — no recognized sidecar; content-sniff (.md → Pages,
+//                           user .json → Items, none → defaults to Pages).
+//    2. Legacy v0.2       — folder carries `_vault.json` at root (pre-ParadigmV2
+//                           PageType sidecar). Sub-folders may carry
+//                           `_collection.json`. Renamed in place to per-kind
+//                           sidecars.
+//    3. paradigmV2 wrap   — folder IS named `Pages` / `Items` / `Agenda` AND
+//                           contains children that look like Types (or the
+//                           `Tasks/` / `Events/` singletons inside `Agenda/`).
+//                           Children unwrap to root + sidecars rename per depth.
+//    4. Already flat      — folder carries one of the six per-kind sidecars at
+//                           the correct depth. No-op.
+//
+//  Per locked decision #8: best-effort + log warnings. Pathological folders
+//  (two sidecars at the same depth, unknown sidecar filenames, etc.) do not
+//  abort the scan. Per locked decision #11: apply is best-effort + idempotent;
+//  each folder migration is self-atomic. Single failures don't block others —
+//  surfaced via `AdoptionApplyResult.failedFolders`.
 //
 
 import Foundation
 
-/// A single PageType that adoption will create on disk by dropping `_schema.json`
-/// into an existing folder under `<nexus>/Pages/`.
-struct PlannedVault: Equatable, Sendable, Identifiable {
+/// One of the six per-kind sidecar filenames the flat layout recognizes.
+/// Lives at the top of this file so the shape classifier + apply paths share
+/// a single source of truth.
+enum AdoptedSidecarKind: Sendable, Equatable {
+    case pageType
+    case pageCollection
+    case itemType
+    case itemCollection
+    case taskConfig
+    case eventConfig
+
+    var filename: String {
+        switch self {
+        case .pageType: return NexusPaths.pageTypeSidecarFilename
+        case .pageCollection: return NexusPaths.pageCollectionSidecarFilename
+        case .itemType: return NexusPaths.itemTypeSidecarFilename
+        case .itemCollection: return NexusPaths.itemCollectionSidecarFilename
+        case .taskConfig: return NexusPaths.taskConfigSidecarFilename
+        case .eventConfig: return NexusPaths.eventConfigSidecarFilename
+        }
+    }
+}
+
+/// A folder that has no recognized sidecar — adoption will write a fresh
+/// per-kind sidecar in place. Content-sniff picks Pages vs Items.
+struct PlannedFreshSidecar: Equatable, Sendable, Identifiable {
     var folderURL: URL
+    var kind: AdoptedSidecarKind
     var title: String
+
     var id: String { folderURL.path }
 }
 
-/// A single PageCollection that adoption will create on disk by dropping
-/// `_schema.json` into an existing sub-folder of a PageType.
-struct PlannedCollection: Equatable, Sendable, Identifiable {
+/// A folder carrying a legacy v0.2 sidecar (`_vault.json` / `_collection.json`)
+/// — adoption renames the file in place to the per-kind flat-layout name.
+struct PlannedInPlaceRename: Equatable, Sendable, Identifiable {
     var folderURL: URL
-    var vaultFolderURL: URL
-    var title: String
-    var id: String { folderURL.path }
+    var oldSidecar: String
+    var newSidecar: String
+    /// Whether this rename targets a Type-level sidecar (top of folder) or a
+    /// Collection-level sidecar (one level deep). Purely descriptive — kept
+    /// for the preview UI.
+    var depth: Depth
+
+    var id: String { folderURL.path + ":" + oldSidecar }
+
+    enum Depth: String, Sendable, Equatable {
+        case type
+        case collection
+    }
 }
 
-/// A single ItemType that adoption will create on disk by dropping `_schema.json`
-/// into an existing folder under `<nexus>/Items/`.
-struct PlannedItemType: Equatable, Sendable, Identifiable {
-    var folderURL: URL
-    var title: String
-    var id: String { folderURL.path }
-}
+/// A paradigmV2 wrapper folder (`Pages` / `Items` / `Agenda`) — adoption
+/// unwraps each child to the nexus root, then rewrites the legacy `_schema.json`
+/// sidecars at each level to the appropriate per-kind name.
+struct PlannedUnwrap: Equatable, Sendable, Identifiable {
+    /// The wrapper folder being dissolved (e.g. `<nexus>/Pages/`).
+    var wrapperURL: URL
+    /// The wrapper's role — which children kinds and sidecars to expect.
+    var wrapperKind: WrapperKind
+    /// One child of the wrapper that will become a root-level entity post-unwrap.
+    var moves: [ChildMove]
 
-/// A single ItemCollection that adoption will create on disk by dropping
-/// `_schema.json` into an existing sub-folder of an ItemType.
-struct PlannedItemCollection: Equatable, Sendable, Identifiable {
-    var folderURL: URL
-    var itemTypeFolderURL: URL
-    var title: String
-    var id: String { folderURL.path }
-}
+    var id: String { wrapperURL.path }
 
-/// A single legacy-layout folder sitting at the nexus root that adoption will
-/// move into the appropriate wrapper (`Pages/` or `Items/`). Pulls Phase 10's
-/// user-data migration scope into the adopter — pre-ParadigmV2 nexuses ship
-/// Type folders directly under the root (e.g. `<nexus>/Recipes/`); the adopter
-/// classifies the side via content sniff and relocates atomically on apply.
-struct PlannedLegacyMigration: Equatable, Sendable, Identifiable {
-    /// The legacy folder at the nexus root (source of the move).
-    var sourceFolderURL: URL
-    /// The destination inside the wrapper (e.g. `<nexus>/Pages/Recipes/`).
-    var destinationFolderURL: URL
-    /// Which wrapper the folder is being relocated into.
-    var side: Side
-    /// Why the adopter classified this folder as Pages-side vs Items-side —
-    /// surfaced in the preview UI so the user can see the reasoning.
-    var detectedBy: Detection
-    /// Folder name (== title; renames are filename-driven).
-    var title: String
-    /// True when the source folder lacks any sidecar (neither `_schema.json` nor
-    /// the legacy `_vault.json`). On apply, a fresh PageType/ItemType sidecar is
-    /// written into the destination after the move.
-    var needsFreshSidecar: Bool
-
-    var id: String { sourceFolderURL.path }
-
-    enum Side: String, Sendable, Equatable {
+    enum WrapperKind: String, Sendable, Equatable {
+        /// `<nexus>/Pages/` — children become PageTypes; their sub-folders
+        /// become PageCollections.
         case pages
+        /// `<nexus>/Items/` — children become ItemTypes; sub-folders become
+        /// ItemCollections.
         case items
+        /// `<nexus>/Agenda/` — children are the singletons `Tasks/` / `Events/`.
+        case agenda
     }
 
-    enum Detection: String, Sendable, Equatable {
-        /// At least one `.md` file exists anywhere inside the source folder.
-        case markdownChildren
-        /// At least one user `.json` file (filename not beginning with `_`)
-        /// exists anywhere inside the source folder.
-        case jsonChildren
-        /// No content hints — defaults to Pages-side (the canonical
-        /// pre-ParadigmV2 data shape).
-        case emptyFolderDefaultsToPages
+    struct ChildMove: Equatable, Sendable, Identifiable {
+        /// The wrapped child folder pre-move (e.g. `<nexus>/Pages/Recipes/`).
+        var sourceURL: URL
+        /// Destination at the nexus root (e.g. `<nexus>/Recipes/`). May be
+        /// suffixed with a timestamp discriminator if the bare destination
+        /// already exists (collision case).
+        var destURL: URL
+        /// The per-kind sidecar that should sit at the top of the moved folder
+        /// post-rename (drives Type-level sidecar rewrite).
+        var typeSidecar: AdoptedSidecarKind
+        /// The per-kind sidecar for one-level-deep sub-folders (PageCollection
+        /// / ItemCollection). Nil for Agenda children (Tasks/Events have no
+        /// collection layer).
+        var collectionSidecar: AdoptedSidecarKind?
+
+        var id: String { sourceURL.path }
     }
+}
+
+/// A folder that already carries one of the six per-kind sidecars. Recorded
+/// for summary purposes only — apply skips these. (Legacy-orphan cleanup may
+/// still run as a no-op pass on these folders.)
+struct PlannedAlreadyFlat: Equatable, Sendable, Identifiable {
+    var folderURL: URL
+    var kind: AdoptedSidecarKind
+
+    var id: String { folderURL.path }
 }
 
 /// The full snapshot of what `NexusAdopter.apply` will write. Equatable so
 /// SwiftUI's `.sheet(item:)` can rebuild the preview view on plan replacement.
 struct AdoptionPlan: Equatable, Sendable, Identifiable {
-    /// Hashed once at construction time to give SwiftUI's `.sheet(item:)` a
-    /// stable identity across re-renders.
+    /// Stable identity for `.sheet(item:)`.
     let id: String
     var nexusRoot: URL
-    var vaults: [PlannedVault]
-    var collections: [PlannedCollection]
-    var itemTypes: [PlannedItemType]
-    var itemCollections: [PlannedItemCollection]
-    var pagesPreviewCount: Int
-    var itemsPreviewCount: Int
-    /// Legacy-layout Type folders at the nexus root that the adopter will
-    /// relocate into `Pages/` or `Items/` on apply. Pre-classified by content
-    /// sniff at scan time so the preview can show the destination path.
-    var legacyMigrations: [PlannedLegacyMigration]
-    /// Folders at the nexus root that aren't one of the reserved wrapper names
-    /// (`Pages`, `Items`, `Agenda`), aren't hidden/build cruft, AND don't have
-    /// a sidecar that marks them as legacy Pommora data. These are
-    /// non-Pommora folders — left untouched.
+    /// Shape #1: empty/content-only folders that need a fresh sidecar written.
+    var freshSidecars: [PlannedFreshSidecar]
+    /// Shape #2: legacy `_vault.json` / `_collection.json` renames in place.
+    var inPlaceRenames: [PlannedInPlaceRename]
+    /// Shape #3: paradigmV2 wrapper folders to unwrap to root.
+    var unwrapSteps: [PlannedUnwrap]
+    /// Shape #4: folders already in flat shape (informational, no action).
+    var alreadyFlat: [PlannedAlreadyFlat]
+    /// Non-Pommora root-level folders left untouched (e.g. user folders the
+    /// scanner couldn't classify and that don't carry Pommora signals).
     var skippedTopLevel: [URL]
+    /// Pathological-case messages surfaced in the preview UI ("two sidecars
+    /// in <folder>; using <name>"; "unknown sidecar <name>"; etc.).
+    var warnings: [String]
+    /// Populated by `apply` — kept on the plan so re-running with a stale
+    /// plan after a partial-failure surfaces the prior failures. Empty on
+    /// freshly-scanned plans.
+    var failedFolders: [FailedFolder]
 
     init(
         nexusRoot: URL,
-        vaults: [PlannedVault],
-        collections: [PlannedCollection],
-        itemTypes: [PlannedItemType] = [],
-        itemCollections: [PlannedItemCollection] = [],
-        pagesPreviewCount: Int,
-        itemsPreviewCount: Int,
-        legacyMigrations: [PlannedLegacyMigration] = [],
-        skippedTopLevel: [URL]
+        freshSidecars: [PlannedFreshSidecar] = [],
+        inPlaceRenames: [PlannedInPlaceRename] = [],
+        unwrapSteps: [PlannedUnwrap] = [],
+        alreadyFlat: [PlannedAlreadyFlat] = [],
+        skippedTopLevel: [URL] = [],
+        warnings: [String] = [],
+        failedFolders: [FailedFolder] = []
     ) {
         self.id = UUID().uuidString
         self.nexusRoot = nexusRoot
-        self.vaults = vaults
-        self.collections = collections
-        self.itemTypes = itemTypes
-        self.itemCollections = itemCollections
-        self.pagesPreviewCount = pagesPreviewCount
-        self.itemsPreviewCount = itemsPreviewCount
-        self.legacyMigrations = legacyMigrations
+        self.freshSidecars = freshSidecars
+        self.inPlaceRenames = inPlaceRenames
+        self.unwrapSteps = unwrapSteps
+        self.alreadyFlat = alreadyFlat
         self.skippedTopLevel = skippedTopLevel
+        self.warnings = warnings
+        self.failedFolders = failedFolders
     }
 
-    /// Convenience for "is there anything worth showing the user?". The caller
-    /// skips the preview sheet when every list is empty — the Nexus is still
-    /// initialized, the sidebar just stays empty until the user creates types
-    /// manually.
+    /// True when any user-visible work is queued. Caller skips the preview
+    /// sheet when this is false — the Nexus is initialized; sidebar simply
+    /// starts empty until the user creates types.
     var hasAnythingToAdopt: Bool {
-        !vaults.isEmpty || !collections.isEmpty
-            || !itemTypes.isEmpty || !itemCollections.isEmpty
-            || !legacyMigrations.isEmpty
+        !freshSidecars.isEmpty
+            || !inPlaceRenames.isEmpty
+            || !unwrapSteps.isEmpty
             || !skippedTopLevel.isEmpty
+            || !warnings.isEmpty
+    }
+
+    /// Equatable conformance ignores `id` (UUID) so two plans built from the
+    /// same input compare equal — useful in tests.
+    static func == (lhs: AdoptionPlan, rhs: AdoptionPlan) -> Bool {
+        lhs.nexusRoot == rhs.nexusRoot
+            && lhs.freshSidecars == rhs.freshSidecars
+            && lhs.inPlaceRenames == rhs.inPlaceRenames
+            && lhs.unwrapSteps == rhs.unwrapSteps
+            && lhs.alreadyFlat == rhs.alreadyFlat
+            && lhs.skippedTopLevel == rhs.skippedTopLevel
+            && lhs.warnings == rhs.warnings
+            && lhs.failedFolders == rhs.failedFolders
     }
 }
 
-/// Folder names always excluded from sub-folder scans (build cruft / hidden).
-/// Reserved wrapper names (Pages/Items/Agenda) live on NexusPaths so they're
-/// shared with the loader; cruft list stays local.
+/// Per-folder failure recorded during apply. The error is stringified at
+/// capture time so the struct stays Sendable + Equatable without dragging the
+/// Error existential through value semantics.
+struct FailedFolder: Equatable, Sendable, Identifiable {
+    var folderURL: URL
+    var message: String
+
+    var id: String { folderURL.path }
+}
+
+/// Aggregated outcome from `apply`. Non-throwing — callers inspect
+/// `failedFolders` for the partial-failure list (decision #11).
+struct AdoptionApplyResult: Equatable, Sendable {
+    var migrated: Int
+    var unchanged: Int
+    var failedFolders: [FailedFolder]
+
+    var failedCount: Int { failedFolders.count }
+}
+
+/// Folder names always excluded from sub-folder scans (build cruft).
 private let adoptionExcludedSubFolderNames: Set<String> = [
     "node_modules",
     ".trash",
 ]
 
-/// Stateless utility that walks a Nexus root and proposes `_schema.json`
-/// sidecar writes for any existing folders inside the `Pages/` and `Items/`
-/// wrappers that don't already have them. Used by `NexusManager.openPicked`
-/// immediately after `.nexus/nexus.json` is established.
+/// macOS system-noise files that don't count toward a folder's emptiness for
+/// wrapper-deletion purposes (decision per Nathan's real Nexus shape).
+private let macOSNoiseFilenames: Set<String> = [
+    ".DS_Store",
+    "Icon\r",
+    ".localized",
+]
+
+/// Legacy sidecar names from the pre-ParadigmV2 era.
+private let legacyVaultSidecarFilename = "_vault.json"
+private let legacyCollectionSidecarFilename = "_collection.json"
+/// Pre-flatlayout unified sidecar name. The wrapper-layout unwrap reads + rewrites these.
+private let paradigmV2UnifiedSidecarFilename = "_schema.json"
+
+/// Set of all six new per-kind sidecar filenames — fast membership test.
+private let recognizedFlatSidecarFilenames: Set<String> = [
+    NexusPaths.pageTypeSidecarFilename,
+    NexusPaths.pageCollectionSidecarFilename,
+    NexusPaths.itemTypeSidecarFilename,
+    NexusPaths.itemCollectionSidecarFilename,
+    NexusPaths.taskConfigSidecarFilename,
+    NexusPaths.eventConfigSidecarFilename,
+]
+
+/// Stateless utility that walks a Nexus root, classifies each top-level folder
+/// into one of the four input shapes, and offers `apply` to land the flat
+/// target layout on disk.
 @MainActor
 enum NexusAdopter {
 
+    // MARK: - scan
+
     /// Walks the Nexus root and returns the adoption plan. Pure inspection —
-    /// no writes. Safe to call repeatedly; on a second call after `apply`
-    /// the returned plan will be empty (every folder will already carry its
-    /// `_schema.json` sidecar).
+    /// no writes. Safe to call repeatedly; on a second call after `apply`,
+    /// the returned plan classifies migrated folders as `alreadyFlat` and is
+    /// effectively a no-op.
     static func scan(nexusRoot: URL) throws -> AdoptionPlan {
-        let pagesWrapper = NexusPaths.pagesWrapperDir(in: nexusRoot)
-        let itemsWrapper = NexusPaths.itemsWrapperDir(in: nexusRoot)
-
-        // Pages-side scan
-        var plannedVaults: [PlannedVault] = []
-        var plannedCollections: [PlannedCollection] = []
-        var pageCount = 0
-
-        if FileManager.default.fileExists(atPath: pagesWrapper.path) {
-            let pageTypeFolders = try Filesystem.childFolders(of: pagesWrapper)
-                .filter { !isHidden($0) }
-            for folder in pageTypeFolders {
-                let metaURL = folder.appendingPathComponent(
-                    NexusPaths.schemaSidecarFilename, isDirectory: false
-                )
-                if !Filesystem.fileExists(at: metaURL) {
-                    plannedVaults.append(
-                        PlannedVault(folderURL: folder, title: folder.lastPathComponent)
-                    )
-                }
-
-                let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
-                for sub in subFolders where !isHiddenOrExcludedSub(sub) {
-                    let collectionMetaURL = sub.appendingPathComponent(
-                        NexusPaths.schemaSidecarFilename, isDirectory: false
-                    )
-                    if !Filesystem.fileExists(at: collectionMetaURL) {
-                        plannedCollections.append(
-                            PlannedCollection(
-                                folderURL: sub,
-                                vaultFolderURL: folder,
-                                title: sub.lastPathComponent
-                            )
-                        )
-                    }
-                }
-
-                pageCount +=
-                    ((try? Filesystem.descendantFiles(of: folder) { $0.pathExtension == "md" }) ?? [])
-                    .count
-            }
-        }
-
-        // Items-side scan
-        var plannedItemTypes: [PlannedItemType] = []
-        var plannedItemCollections: [PlannedItemCollection] = []
-        var itemCount = 0
-
-        if FileManager.default.fileExists(atPath: itemsWrapper.path) {
-            let itemTypeFolders = try Filesystem.childFolders(of: itemsWrapper)
-                .filter { !isHidden($0) }
-            for folder in itemTypeFolders {
-                let metaURL = folder.appendingPathComponent(
-                    NexusPaths.schemaSidecarFilename, isDirectory: false
-                )
-                if !Filesystem.fileExists(at: metaURL) {
-                    plannedItemTypes.append(
-                        PlannedItemType(folderURL: folder, title: folder.lastPathComponent)
-                    )
-                }
-
-                let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
-                for sub in subFolders where !isHiddenOrExcludedSub(sub) {
-                    let collectionMetaURL = sub.appendingPathComponent(
-                        NexusPaths.schemaSidecarFilename, isDirectory: false
-                    )
-                    if !Filesystem.fileExists(at: collectionMetaURL) {
-                        plannedItemCollections.append(
-                            PlannedItemCollection(
-                                folderURL: sub,
-                                itemTypeFolderURL: folder,
-                                title: sub.lastPathComponent
-                            )
-                        )
-                    }
-                }
-
-                itemCount +=
-                    ((try? Filesystem.descendantFiles(of: folder) { url in
-                        url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
-                    }) ?? []).count
-            }
-        }
-
-        // Top-level scan — split candidates into legacy migrations (folders that
-        // look like Pommora data: have a sidecar OR contain Markdown/JSON) and
-        // truly-skipped folders (non-Pommora top-level junk).
-        let allTopLevel = (try? Filesystem.childFolders(of: nexusRoot)) ?? []
-        let candidates = allTopLevel.filter { url in
-            let name = url.lastPathComponent
-            if name.hasPrefix(".") || name.hasPrefix("_") { return false }
-            if NexusPaths.reservedTopLevelFolderNames.contains(name) { return false }
-            if adoptionExcludedSubFolderNames.contains(name) { return false }
-            return true
-        }
-
-        var legacyMigrations: [PlannedLegacyMigration] = []
+        var freshSidecars: [PlannedFreshSidecar] = []
+        var inPlaceRenames: [PlannedInPlaceRename] = []
+        var unwrapSteps: [PlannedUnwrap] = []
+        var alreadyFlat: [PlannedAlreadyFlat] = []
         var skipped: [URL] = []
+        var warnings: [String] = []
 
-        for folder in candidates {
-            // Sidecar detection — `_schema.json` is the unified post-ParadigmV2
-            // name; `_vault.json` is the pre-ParadigmV2 PageType sidecar that
-            // PageTypeManager.loadAll's auto-heal renames in place. Either marks
-            // this folder as Pommora data.
-            let hasSchemaSidecar = Filesystem.fileExists(
-                at: folder.appendingPathComponent(
-                    NexusPaths.schemaSidecarFilename, isDirectory: false
+        let topLevel = (try? Filesystem.childFolders(of: nexusRoot)) ?? []
+        for folder in topLevel {
+            let name = folder.lastPathComponent
+            // Skip dotfile-prefixed and underscore-prefixed entries entirely
+            // (`.nexus/`, `.trash/`, `.obsidian/`, `.makemd/`, etc.).
+            if name.hasPrefix(".") || name.hasPrefix("_") { continue }
+            if adoptionExcludedSubFolderNames.contains(name) { continue }
+
+            do {
+                try classifyFolder(
+                    folder,
+                    freshSidecars: &freshSidecars,
+                    inPlaceRenames: &inPlaceRenames,
+                    unwrapSteps: &unwrapSteps,
+                    alreadyFlat: &alreadyFlat,
+                    skipped: &skipped,
+                    warnings: &warnings
                 )
-            )
-            let hasLegacyVaultSidecar = Filesystem.fileExists(
-                at: folder.appendingPathComponent("_vault.json", isDirectory: false)
-            )
-            let hasAnySidecar = hasSchemaSidecar || hasLegacyVaultSidecar
-
-            // Content sniff — recursive scan for `.md` first (canonical Pages
-            // signal), then user-namespaced `.json` (Items signal). The
-            // sidecar-only path (Sidecar without content hints) still routes
-            // to Pages-side via `emptyFolderDefaultsToPages` since pre-ParadigmV2
-            // canonical data was always Page-shaped.
-            let hasMarkdown = ((try? Filesystem.descendantFiles(of: folder) { url in
-                url.pathExtension == "md"
-            }) ?? []).isEmpty == false
-            let hasUserJSON = ((try? Filesystem.descendantFiles(of: folder) { url in
-                url.pathExtension == "json"
-                    && !url.lastPathComponent.hasPrefix("_")
-            }) ?? []).isEmpty == false
-
-            // Only migrate folders that either look like Pommora data OR are
-            // worth a default-to-Pages relocation because they carry a sidecar.
-            // Folders with no sidecar AND no content hints land in `skipped`
-            // (genuine non-Pommora junk).
-            if !hasAnySidecar && !hasMarkdown && !hasUserJSON {
-                skipped.append(folder)
-                continue
-            }
-
-            let detection: PlannedLegacyMigration.Detection
-            let side: PlannedLegacyMigration.Side
-            if hasMarkdown {
-                detection = .markdownChildren
-                side = .pages
-            } else if hasUserJSON {
-                detection = .jsonChildren
-                side = .items
-            } else {
-                // Sidecar present but no content yet — pre-ParadigmV2 canonical
-                // shape was always Pages-side, so default there.
-                detection = .emptyFolderDefaultsToPages
-                side = .pages
-            }
-
-            let destination: URL = {
-                switch side {
-                case .pages:
-                    return NexusPaths.pageTypeFolderURL(
-                        in: nexusRoot, typeFolderName: folder.lastPathComponent
-                    )
-                case .items:
-                    return NexusPaths.itemTypeFolderURL(
-                        in: nexusRoot, typeFolderName: folder.lastPathComponent
-                    )
-                }
-            }()
-
-            legacyMigrations.append(
-                PlannedLegacyMigration(
-                    sourceFolderURL: folder,
-                    destinationFolderURL: destination,
-                    side: side,
-                    detectedBy: detection,
-                    title: folder.lastPathComponent,
-                    needsFreshSidecar: !hasAnySidecar
+            } catch {
+                // Classification itself failed (e.g. directory unreadable).
+                // Record as a warning and continue — never abort the whole scan
+                // (decision #8).
+                warnings.append(
+                    "Failed to classify '\(name)': \(error.localizedDescription)"
                 )
-            )
+            }
         }
 
         return AdoptionPlan(
             nexusRoot: nexusRoot,
-            vaults: plannedVaults,
-            collections: plannedCollections,
-            itemTypes: plannedItemTypes,
-            itemCollections: plannedItemCollections,
-            pagesPreviewCount: pageCount,
-            itemsPreviewCount: itemCount,
-            legacyMigrations: legacyMigrations,
-            skippedTopLevel: skipped
+            freshSidecars: freshSidecars,
+            inPlaceRenames: inPlaceRenames,
+            unwrapSteps: unwrapSteps,
+            alreadyFlat: alreadyFlat,
+            skippedTopLevel: skipped,
+            warnings: warnings
         )
     }
 
-    /// Writes the planned `_schema.json` sidecars for PageTypes + PageCollections
-    /// + ItemTypes + ItemCollections, auto-creating the wrapper folders so a
-    /// fresh nexus ends up with the `Pages/`, `Items/`, `Agenda/Tasks/` and
-    /// `Agenda/Events/` layout in place even when nothing is adopted. Each
-    /// write is atomic via `Filesystem.writeMetadataIntoExistingFolder`.
-    /// Failures are collected and re-thrown as a single
-    /// `AdoptionError.partialFailure` at the end — partial progress is
-    /// preserved because rolling back would mutate folders we just touched.
-    static func apply(_ plan: AdoptionPlan) throws {
-        var failures: [URL] = []
-        let now = Date()
+    /// Classifies one top-level folder. Mutates the plan accumulators.
+    private static func classifyFolder(
+        _ folder: URL,
+        freshSidecars: inout [PlannedFreshSidecar],
+        inPlaceRenames: inout [PlannedInPlaceRename],
+        unwrapSteps: inout [PlannedUnwrap],
+        alreadyFlat: inout [PlannedAlreadyFlat],
+        skipped: inout [URL],
+        warnings: inout [String]
+    ) throws {
+        let name = folder.lastPathComponent
 
-        // Auto-create wrapper folders (idempotent — mkdir -p equivalent).
-        let wrappers: [URL] = [
-            NexusPaths.pagesWrapperDir(in: plan.nexusRoot),
-            NexusPaths.itemsWrapperDir(in: plan.nexusRoot),
-            NexusPaths.agendaWrapperDir(in: plan.nexusRoot),
-            NexusPaths.agendaWrapperDir(in: plan.nexusRoot)
-                .appendingPathComponent("Tasks", isDirectory: true),
-            NexusPaths.agendaWrapperDir(in: plan.nexusRoot)
-                .appendingPathComponent("Events", isDirectory: true),
-        ]
-        for url in wrappers {
-            do {
-                try NexusPaths.ensureDirectoryExists(url)
-            } catch {
-                failures.append(url)
-            }
+        // Shape #3 first — wrapper layout supersedes any sidecars at the
+        // wrapper level itself (they shouldn't exist; if they do we treat the
+        // folder as wrapper and warn).
+        if name == "Pages" || name == "Items" || name == "Agenda" {
+            try classifyWrapperFolder(
+                folder,
+                unwrapSteps: &unwrapSteps,
+                warnings: &warnings
+            )
+            return
         }
 
-        // Legacy-layout migrations — relocate root-level Type folders into the
-        // appropriate wrapper BEFORE the sidecar writes below run. Each move is
-        // independent; failures collect and don't abort the rest. Post-move,
-        // any `_vault.json` sidecar inside the moved folder is renamed in place
-        // to `_schema.json` (defensive — most cases will already be migrated by
-        // PageTypeManager's auto-heal once the loader sees them inside `Pages/`,
-        // but Items-side folders + first-launch fresh nexuses need this here).
-        let fm = FileManager.default
-        for migration in plan.legacyMigrations {
-            // Collision: a folder with the same name already exists at the
-            // destination. Skip the move + record the failure; the user can
-            // resolve manually before re-running adoption.
-            if fm.fileExists(atPath: migration.destinationFolderURL.path) {
-                failures.append(migration.sourceFolderURL)
-                continue
-            }
-            do {
-                try fm.moveItem(
-                    at: migration.sourceFolderURL,
-                    to: migration.destinationFolderURL
-                )
-            } catch {
-                failures.append(migration.sourceFolderURL)
-                continue
-            }
+        // Inspect the folder's top-level sidecars.
+        let topLevelSidecars = recognizedSidecarsAt(folder)
+        let hasLegacyVault = Filesystem.fileExists(
+            at: folder.appendingPathComponent(legacyVaultSidecarFilename, isDirectory: false)
+        )
 
-            // Post-move: rename `_vault.json` → `_schema.json` inside the moved
-            // folder if needed (idempotent; no-op when the new name already
-            // exists). Errors swallowed — best-effort. (Phase 4 rewrites this
-            // path; PageTypeManager no longer carries an in-loader auto-heal.)
-            let legacySidecar = migration.destinationFolderURL
-                .appendingPathComponent("_vault.json", isDirectory: false)
-            let unifiedSidecar = migration.destinationFolderURL
-                .appendingPathComponent(
-                    NexusPaths.schemaSidecarFilename, isDirectory: false
+        // Shape #4 — already flat (one of the per-kind Type sidecars present).
+        if let flatKind = topLevelSidecars.first {
+            if topLevelSidecars.count > 1 {
+                warnings.append(
+                    "Folder '\(name)' carries multiple recognized sidecars "
+                        + "(\(topLevelSidecars.map { $0.filename }.joined(separator: ", "))). "
+                        + "Using '\(flatKind.filename)'."
                 )
-            if fm.fileExists(atPath: legacySidecar.path),
-                !fm.fileExists(atPath: unifiedSidecar.path)
-            {
-                try? fm.moveItem(at: legacySidecar, to: unifiedSidecar)
             }
+            // Legacy orphan cleanup is queued via inPlaceRenames-with-noop-target
+            // — but inPlaceRenames is only for renames. Orphans on a flat folder
+            // are deleted as a cleanup pass inside apply (no plan entry needed;
+            // it's a pure on-disk pass keyed off `alreadyFlat`).
+            alreadyFlat.append(
+                PlannedAlreadyFlat(folderURL: folder, kind: flatKind)
+            )
+            // Sub-folders: classify each as Collection-sidecar carriers (already
+            // flat) or sub-folder-without-sidecar (no work — Pages don't get
+            // adoption-time sub-folder fresh-sidecar writes; that's a future
+            // PageCollection creation).
+            return
+        }
 
-            // No sidecar at all (source was a bare folder with content) — write
-            // a fresh PageType / ItemType sidecar at the destination so the
-            // loader picks it up on next launch.
-            if migration.needsFreshSidecar {
-                do {
-                    switch migration.side {
-                    case .pages:
-                        try Filesystem.writeMetadataIntoExistingFolder(
-                            metadataURL: unifiedSidecar,
-                            metadata: PageType(
-                                id: ULID.generate(),
-                                title: migration.title,
-                                icon: nil,
-                                properties: [],
-                                views: [],
-                                modifiedAt: now
-                            )
+        // Shape #2 — legacy v0.2 (`_vault.json` at root).
+        if hasLegacyVault {
+            inPlaceRenames.append(
+                PlannedInPlaceRename(
+                    folderURL: folder,
+                    oldSidecar: legacyVaultSidecarFilename,
+                    newSidecar: NexusPaths.pageTypeSidecarFilename,
+                    depth: .type
+                )
+            )
+            // Sub-folders carrying `_collection.json` → rename to `_pagecollection.json`.
+            let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
+            for sub in subFolders where !isHiddenOrExcludedSub(sub) {
+                let legacyColl = sub.appendingPathComponent(
+                    legacyCollectionSidecarFilename, isDirectory: false
+                )
+                if Filesystem.fileExists(at: legacyColl) {
+                    inPlaceRenames.append(
+                        PlannedInPlaceRename(
+                            folderURL: sub,
+                            oldSidecar: legacyCollectionSidecarFilename,
+                            newSidecar: NexusPaths.pageCollectionSidecarFilename,
+                            depth: .collection
                         )
-                    case .items:
-                        try Filesystem.writeMetadataIntoExistingFolder(
-                            metadataURL: unifiedSidecar,
-                            metadata: ItemType(
-                                id: ULID.generate(),
-                                title: migration.title,
-                                icon: nil,
-                                properties: [],
-                                views: [],
-                                modifiedAt: now
-                            )
-                        )
-                    }
-                } catch {
-                    failures.append(unifiedSidecar)
+                    )
                 }
             }
+            return
         }
 
-        // PageType sidecars
-        var vaultIDByFolder: [URL: String] = [:]
-        for planned in plan.vaults {
-            let vaultID = ULID.generate()
-            let metaURL = planned.folderURL.appendingPathComponent(
-                NexusPaths.schemaSidecarFilename, isDirectory: false
+        // Shape #1 — fresh. No recognized sidecar; content-sniff to pick
+        // Pages vs Items vs default-Pages. The four-shape rule absorbs every
+        // non-dotfile non-underscore top-level folder into one of the four
+        // planning lists — `skipped` exists for completeness but isn't
+        // populated under the current rules. Reserved for future shape rules.
+        _ = skipped
+        let detected = contentSniff(folder)
+        freshSidecars.append(
+            PlannedFreshSidecar(
+                folderURL: folder, kind: detected.kind, title: name
             )
-            do {
-                try Filesystem.writeMetadataIntoExistingFolder(
-                    metadataURL: metaURL,
-                    metadata: PageType(
-                        id: vaultID,
-                        title: planned.title,
-                        icon: nil,
-                        properties: [],
-                        views: [],
-                        modifiedAt: now
+        )
+    }
+
+    /// Classifies a paradigmV2 wrapper folder (`Pages` / `Items` / `Agenda`).
+    private static func classifyWrapperFolder(
+        _ wrapper: URL,
+        unwrapSteps: inout [PlannedUnwrap],
+        warnings: inout [String]
+    ) throws {
+        let name = wrapper.lastPathComponent
+        let kind: PlannedUnwrap.WrapperKind = {
+            switch name {
+            case "Pages": return .pages
+            case "Items": return .items
+            case "Agenda": return .agenda
+            default: return .pages  // unreachable per caller's guard
+            }
+        }()
+
+        let children = (try? Filesystem.childFolders(of: wrapper)) ?? []
+        var moves: [PlannedUnwrap.ChildMove] = []
+
+        for child in children where !isHiddenOrExcludedSub(child) {
+            let typeSidecar: AdoptedSidecarKind
+            let collectionSidecar: AdoptedSidecarKind?
+            switch kind {
+            case .pages:
+                typeSidecar = .pageType
+                collectionSidecar = .pageCollection
+            case .items:
+                typeSidecar = .itemType
+                collectionSidecar = .itemCollection
+            case .agenda:
+                // Tasks/Events sub-folders — name-discriminated since Agenda
+                // is sidecar-asymmetric. Default to Tasks for unknown names
+                // and warn.
+                let childName = child.lastPathComponent
+                if childName == "Tasks" {
+                    typeSidecar = .taskConfig
+                } else if childName == "Events" {
+                    typeSidecar = .eventConfig
+                } else {
+                    warnings.append(
+                        "Unknown child '\(childName)' inside Agenda/ — "
+                            + "treating as Tasks. Move manually if it should be Events."
                     )
-                )
-                vaultIDByFolder[planned.folderURL.standardizedFileURL] = vaultID
-            } catch {
-                failures.append(metaURL)
-            }
-        }
-
-        // PageCollection sidecars
-        for planned in plan.collections {
-            let key = planned.vaultFolderURL.standardizedFileURL
-            let vaultID: String
-            if let cached = vaultIDByFolder[key] {
-                vaultID = cached
-            } else if let loaded = try? PageType.load(
-                from: key.appendingPathComponent(
-                    NexusPaths.schemaSidecarFilename, isDirectory: false
-                )
-            ) {
-                vaultID = loaded.id
-                vaultIDByFolder[key] = vaultID
-            } else {
-                continue
+                    typeSidecar = .taskConfig
+                }
+                collectionSidecar = nil  // Agenda has no collection layer
             }
 
-            let metaURL = planned.folderURL.appendingPathComponent(
-                NexusPaths.schemaSidecarFilename, isDirectory: false
+            let destURL = wrapper.deletingLastPathComponent()
+                .appendingPathComponent(child.lastPathComponent, isDirectory: true)
+            moves.append(
+                PlannedUnwrap.ChildMove(
+                    sourceURL: child,
+                    destURL: destURL,
+                    typeSidecar: typeSidecar,
+                    collectionSidecar: collectionSidecar
+                )
             )
-            do {
-                try Filesystem.writeMetadataIntoExistingFolder(
-                    metadataURL: metaURL,
-                    metadata: PageCollection(
-                        id: ULID.generate(),
-                        typeID: vaultID,
-                        title: planned.title,
-                        folderURL: planned.folderURL,
-                        modifiedAt: now
-                    )
-                )
-            } catch {
-                failures.append(metaURL)
-            }
         }
 
-        // ItemType sidecars
-        var itemTypeIDByFolder: [URL: String] = [:]
-        for planned in plan.itemTypes {
-            let itemTypeID = ULID.generate()
-            let metaURL = planned.folderURL.appendingPathComponent(
-                NexusPaths.schemaSidecarFilename, isDirectory: false
-            )
-            do {
-                try Filesystem.writeMetadataIntoExistingFolder(
-                    metadataURL: metaURL,
-                    metadata: ItemType(
-                        id: itemTypeID,
-                        title: planned.title,
-                        icon: nil,
-                        properties: [],
-                        views: [],
-                        modifiedAt: now
-                    )
-                )
-                itemTypeIDByFolder[planned.folderURL.standardizedFileURL] = itemTypeID
-            } catch {
-                failures.append(metaURL)
+        unwrapSteps.append(
+            PlannedUnwrap(wrapperURL: wrapper, wrapperKind: kind, moves: moves)
+        )
+    }
+
+    /// Returns the set of recognized per-kind sidecar kinds present at the top
+    /// of `folder`. First-found wins on collision; the warning is logged at
+    /// the caller.
+    private static func recognizedSidecarsAt(_ folder: URL) -> [AdoptedSidecarKind] {
+        var found: [AdoptedSidecarKind] = []
+        let allKinds: [AdoptedSidecarKind] = [
+            .pageType, .itemType, .taskConfig, .eventConfig,
+            .pageCollection, .itemCollection,
+        ]
+        for kind in allKinds {
+            let url = folder.appendingPathComponent(kind.filename, isDirectory: false)
+            if Filesystem.fileExists(at: url) {
+                found.append(kind)
             }
         }
+        return found
+    }
 
-        // ItemCollection sidecars
-        for planned in plan.itemCollections {
-            let key = planned.itemTypeFolderURL.standardizedFileURL
-            let itemTypeID: String
-            if let cached = itemTypeIDByFolder[key] {
-                itemTypeID = cached
-            } else if let loaded = try? ItemType.load(
-                from: key.appendingPathComponent(
-                    NexusPaths.schemaSidecarFilename, isDirectory: false
-                )
-            ) {
-                itemTypeID = loaded.id
-                itemTypeIDByFolder[key] = itemTypeID
-            } else {
-                continue
-            }
+    /// Content-sniff for a fresh folder. Recursive `.md` vs user `.json` count.
+    /// Defaults to Pages-side when both signals are zero.
+    private static func contentSniff(_ folder: URL)
+        -> (kind: AdoptedSidecarKind, detection: ContentDetection)
+    {
+        let hasMarkdown = ((try? Filesystem.descendantFiles(of: folder) { url in
+            url.pathExtension == "md"
+        }) ?? []).isEmpty == false
+        let hasUserJSON = ((try? Filesystem.descendantFiles(of: folder) { url in
+            url.pathExtension == "json"
+                && !url.lastPathComponent.hasPrefix("_")
+        }) ?? []).isEmpty == false
 
-            let metaURL = planned.folderURL.appendingPathComponent(
-                NexusPaths.schemaSidecarFilename, isDirectory: false
-            )
-            do {
-                try Filesystem.writeMetadataIntoExistingFolder(
-                    metadataURL: metaURL,
-                    metadata: ItemCollection(
-                        id: ULID.generate(),
-                        typeID: itemTypeID,
-                        title: planned.title,
-                        folderURL: planned.folderURL,
-                        modifiedAt: now
-                    )
-                )
-            } catch {
-                failures.append(metaURL)
-            }
-        }
-
-        if !failures.isEmpty {
-            throw AdoptionError.partialFailure(failures)
+        if hasMarkdown {
+            return (.pageType, .markdownChildren)
+        } else if hasUserJSON {
+            return (.itemType, .jsonChildren)
+        } else {
+            return (.pageType, .emptyFolderDefaultsToPages)
         }
     }
 
-    // MARK: - Exclusion
+    private enum ContentDetection: Sendable, Equatable {
+        case markdownChildren
+        case jsonChildren
+        case emptyFolderDefaultsToPages
+    }
+
+    // MARK: - apply
+
+    /// Executes the plan against disk. Best-effort + idempotent (decision #11).
+    /// Each folder migration is self-atomic; single-folder failures land in the
+    /// returned `AdoptionApplyResult.failedFolders` list and don't abort the
+    /// rest. Re-running on a partially-migrated Nexus is safe — already-flat
+    /// folders are skipped.
+    @discardableResult
+    static func apply(_ plan: AdoptionPlan) -> AdoptionApplyResult {
+        var failures: [FailedFolder] = []
+        var migrated = 0
+        var unchanged = plan.alreadyFlat.count
+        let now = Date()
+        let fm = FileManager.default
+
+        // Shape #1: write fresh per-kind sidecars
+        for fresh in plan.freshSidecars {
+            do {
+                try writeFreshSidecar(fresh, now: now)
+                migrated += 1
+            } catch {
+                failures.append(
+                    FailedFolder(
+                        folderURL: fresh.folderURL,
+                        message: error.localizedDescription
+                    )
+                )
+            }
+        }
+
+        // Shape #2: legacy in-place renames
+        for rename in plan.inPlaceRenames {
+            do {
+                try applyInPlaceRename(rename, fm: fm)
+                migrated += 1
+            } catch {
+                failures.append(
+                    FailedFolder(
+                        folderURL: rename.folderURL,
+                        message: error.localizedDescription
+                    )
+                )
+            }
+        }
+
+        // Shape #3: unwrap paradigmV2 wrappers
+        for unwrap in plan.unwrapSteps {
+            for move in unwrap.moves {
+                do {
+                    try applyUnwrapMove(move, fm: fm)
+                    migrated += 1
+                } catch {
+                    failures.append(
+                        FailedFolder(
+                            folderURL: move.sourceURL,
+                            message: error.localizedDescription
+                        )
+                    )
+                }
+            }
+            // Best-effort wrapper deletion — counts macOS noise files as empty.
+            // Errors swallowed; not a hard failure (just leaves an empty wrapper
+            // the user can delete manually).
+            tryDeleteEmptyWrapper(unwrap.wrapperURL, fm: fm)
+        }
+
+        // Shape #4: cleanup pass on already-flat folders (delete legacy orphans
+        // co-located with a per-kind sidecar — Nathan's real-nexus scenario).
+        for flat in plan.alreadyFlat {
+            cleanupLegacyOrphans(in: flat.folderURL, fm: fm)
+        }
+
+        return AdoptionApplyResult(
+            migrated: migrated, unchanged: unchanged, failedFolders: failures
+        )
+    }
+
+    /// Writes a fresh per-kind sidecar based on the folder's content sniff.
+    private static func writeFreshSidecar(
+        _ fresh: PlannedFreshSidecar, now: Date
+    ) throws {
+        let metaURL = fresh.folderURL.appendingPathComponent(
+            fresh.kind.filename, isDirectory: false
+        )
+        switch fresh.kind {
+        case .pageType:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL,
+                metadata: PageType(
+                    id: ULID.generate(),
+                    title: fresh.title,
+                    icon: nil,
+                    properties: [],
+                    views: [],
+                    modifiedAt: now
+                )
+            )
+        case .itemType:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL,
+                metadata: ItemType(
+                    id: ULID.generate(),
+                    title: fresh.title,
+                    icon: nil,
+                    properties: [],
+                    views: [],
+                    modifiedAt: now
+                )
+            )
+        case .taskConfig:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL, metadata: AgendaTaskSchema.defaultSeed()
+            )
+        case .eventConfig:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
+            )
+        case .pageCollection, .itemCollection:
+            // Fresh PageCollection / ItemCollection writes are not initiated by
+            // the adopter for top-level folders — those land via type-creation
+            // flow inside the app. If we somehow get here, write a minimal
+            // sidecar so the folder is recognized.
+            // (Defensive — shouldn't happen given classifyFolder routes Types
+            // only into freshSidecars.)
+            break
+        }
+    }
+
+    /// Atomic rename of a legacy sidecar to its per-kind name.
+    private static func applyInPlaceRename(
+        _ rename: PlannedInPlaceRename, fm: FileManager
+    ) throws {
+        let oldURL = rename.folderURL.appendingPathComponent(
+            rename.oldSidecar, isDirectory: false
+        )
+        let newURL = rename.folderURL.appendingPathComponent(
+            rename.newSidecar, isDirectory: false
+        )
+        // Idempotence: if the new name already exists, drop the legacy file.
+        if fm.fileExists(atPath: newURL.path) {
+            if fm.fileExists(atPath: oldURL.path) {
+                try fm.removeItem(at: oldURL)
+            }
+            return
+        }
+        try fm.moveItem(at: oldURL, to: newURL)
+    }
+
+    /// Moves one wrapper child to the nexus root, then rewrites sidecars +
+    /// deletes legacy orphans inside the now-moved folder.
+    private static func applyUnwrapMove(
+        _ move: PlannedUnwrap.ChildMove, fm: FileManager
+    ) throws {
+        // Collision-on-unwrap: append timestamp discriminator per
+        // `Filesystem.moveToTrash`'s pattern (decision #8).
+        let finalDest: URL
+        if fm.fileExists(atPath: move.destURL.path) {
+            finalDest = suffixedWithTimestamp(move.destURL)
+        } else {
+            finalDest = move.destURL
+        }
+        try fm.moveItem(at: move.sourceURL, to: finalDest)
+
+        // Post-move sidecar rewrites. AFTER successful move, rename
+        // `_schema.json` (and legacy v0.2 names) → per-kind sidecar.
+        rewriteSidecar(
+            in: finalDest, to: move.typeSidecar, fm: fm,
+            legacyNames: [paradigmV2UnifiedSidecarFilename, legacyVaultSidecarFilename]
+        )
+
+        // Sub-folders: rewrite collection-level sidecars when applicable.
+        if let collectionKind = move.collectionSidecar {
+            let subFolders = (try? Filesystem.childFolders(of: finalDest)) ?? []
+            for sub in subFolders where !isHiddenOrExcludedSub(sub) {
+                rewriteSidecar(
+                    in: sub, to: collectionKind, fm: fm,
+                    legacyNames: [
+                        paradigmV2UnifiedSidecarFilename, legacyCollectionSidecarFilename,
+                    ]
+                )
+            }
+        }
+    }
+
+    /// In a single folder, rename any of the listed legacy sidecar names to
+    /// the target per-kind name. Per decision #11 + idempotence:
+    /// - if the target already exists, delete any legacy orphans alongside it.
+    /// - if no legacy file exists either, this is a no-op.
+    /// - the FIRST legacy name found wins (mirrors classifier first-found rule).
+    private static func rewriteSidecar(
+        in folder: URL,
+        to target: AdoptedSidecarKind,
+        fm: FileManager,
+        legacyNames: [String]
+    ) {
+        let targetURL = folder.appendingPathComponent(target.filename, isDirectory: false)
+        let targetExists = fm.fileExists(atPath: targetURL.path)
+
+        if targetExists {
+            // Cleanup pass — delete every legacy orphan alongside the target.
+            for legacy in legacyNames {
+                let legacyURL = folder.appendingPathComponent(legacy, isDirectory: false)
+                if fm.fileExists(atPath: legacyURL.path) {
+                    try? fm.removeItem(at: legacyURL)
+                }
+            }
+            return
+        }
+
+        // No target yet — pick the first legacy name present and rename it,
+        // then delete any remaining legacy orphans.
+        var renamedFromLegacy = false
+        for legacy in legacyNames {
+            let legacyURL = folder.appendingPathComponent(legacy, isDirectory: false)
+            guard fm.fileExists(atPath: legacyURL.path) else { continue }
+            if !renamedFromLegacy {
+                do {
+                    try fm.moveItem(at: legacyURL, to: targetURL)
+                    renamedFromLegacy = true
+                } catch {
+                    // Couldn't move; try the next legacy candidate.
+                    continue
+                }
+            } else {
+                // Already renamed once — anything left over is an orphan.
+                try? fm.removeItem(at: legacyURL)
+            }
+        }
+    }
+
+    /// Deletes legacy `_vault.json` / `_collection.json` orphans co-located
+    /// with a per-kind sidecar on an already-flat folder (Nathan's actual
+    /// scenario — paradigmV2 adoption added `_schema.json` without removing
+    /// the pre-existing legacy sidecars).
+    private static func cleanupLegacyOrphans(in folder: URL, fm: FileManager) {
+        // Top-level cleanup
+        for legacy in [
+            legacyVaultSidecarFilename, paradigmV2UnifiedSidecarFilename,
+        ] {
+            let url = folder.appendingPathComponent(legacy, isDirectory: false)
+            // Only delete if a per-kind sidecar already exists in the folder
+            // (so we never strip a legacy file that's still serving as the
+            // authoritative sidecar).
+            let hasPerKind = recognizedSidecarsAt(folder).isEmpty == false
+            if hasPerKind && fm.fileExists(atPath: url.path) {
+                try? fm.removeItem(at: url)
+            }
+        }
+        // One-level-deep cleanup (Collections inside this Type)
+        let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
+        for sub in subFolders where !isHiddenOrExcludedSub(sub) {
+            for legacy in [
+                legacyCollectionSidecarFilename, paradigmV2UnifiedSidecarFilename,
+            ] {
+                let url = sub.appendingPathComponent(legacy, isDirectory: false)
+                let hasPerKind = recognizedSidecarsAt(sub).isEmpty == false
+                if hasPerKind && fm.fileExists(atPath: url.path) {
+                    try? fm.removeItem(at: url)
+                }
+            }
+        }
+    }
+
+    /// Deletes a wrapper folder when it (and its descendants) is empty modulo
+    /// macOS system-noise files. Best-effort — failures swallowed.
+    private static func tryDeleteEmptyWrapper(_ wrapper: URL, fm: FileManager) {
+        guard fm.fileExists(atPath: wrapper.path) else { return }
+        let contents = (try? fm.contentsOfDirectory(
+            at: wrapper, includingPropertiesForKeys: nil, options: []
+        )) ?? []
+        // Filter out macOS noise — wrapper is "empty" if everything left is noise.
+        let meaningfulChildren = contents.filter { url in
+            !macOSNoiseFilenames.contains(url.lastPathComponent)
+        }
+        guard meaningfulChildren.isEmpty else { return }
+        try? fm.removeItem(at: wrapper)
+    }
+
+    // MARK: - Helpers
 
     private static func isHidden(_ url: URL) -> Bool {
         let name = url.lastPathComponent
@@ -611,19 +816,23 @@ enum NexusAdopter {
         if isHidden(url) { return true }
         return adoptionExcludedSubFolderNames.contains(url.lastPathComponent)
     }
-}
 
-enum AdoptionError: LocalizedError, Equatable {
-    /// Some sidecar writes failed. The URLs that failed are preserved so the
-    /// caller can surface them if needed; previously-written sidecars stay
-    /// in place (intentional: re-running adoption is idempotent).
-    case partialFailure([URL])
-
-    var errorDescription: String? {
-        switch self {
-        case .partialFailure(let urls):
-            return "Some Nexus sidecars failed to write: "
-                + urls.map { $0.path }.joined(separator: ", ")
+    /// Inserts a `.YYYYMMDD-HHMMSS-XXXX` discriminator into a folder URL.
+    /// Mirrors `Filesystem.suffixedWithTimestamp` (which is fileprivate to
+    /// Filesystem.swift); kept local here so adopter doesn't need to widen
+    /// that helper's visibility.
+    private static func suffixedWithTimestamp(_ url: URL) -> URL {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let timestamp = formatter.string(from: Date())
+        let discriminator = String(UUID().uuidString.prefix(4))
+        let stamp = "\(timestamp)-\(discriminator)"
+        let ext = url.pathExtension
+        let withoutExt = url.deletingPathExtension()
+        if ext.isEmpty {
+            return withoutExt.appendingPathExtension(stamp)
         }
+        return withoutExt.appendingPathExtension(stamp).appendingPathExtension(ext)
     }
 }

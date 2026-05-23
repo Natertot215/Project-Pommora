@@ -272,10 +272,18 @@ final class NexusManager {
         guard confirmed else { return }
 
         isIndexing = true
-        do {
-            try NexusAdopter.apply(plan)
-        } catch {
-            pendingError = .initFailed(error.localizedDescription)
+        // Adopter apply is best-effort + idempotent (decision #11) — it never
+        // throws. Per-folder failures land in `result.failedFolders`; surface
+        // a summary error to the user if any occurred so the migration's
+        // completeness is visible.
+        let result = NexusAdopter.apply(plan)
+        if result.failedCount > 0 {
+            let preview = result.failedFolders.prefix(3)
+                .map { "\($0.folderURL.lastPathComponent): \($0.message)" }
+                .joined(separator: "; ")
+            pendingError = .initFailed(
+                "Adoption completed with \(result.failedCount) failures (\(preview))."
+            )
         }
     }
 

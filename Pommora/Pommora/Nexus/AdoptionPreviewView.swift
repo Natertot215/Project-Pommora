@@ -2,16 +2,17 @@
 //  AdoptionPreviewView.swift
 //  Pommora
 //
-//  Sheet shown after the user picks a non-empty folder. Lists what will be
-//  created — PageTypes + PageCollections (Pages-side) and ItemTypes +
-//  ItemCollections (Items-side) — plus any legacy-layout Type folders the
-//  adopter will relocate into the `Pages/` or `Items/` wrappers, plus
-//  truly-skipped non-Pommora folders left untouched at the nexus root.
+//  Sheet shown after the user picks a folder. Lists the on-disk migrations the
+//  adopter will perform — fresh sidecar writes (shape #1), legacy-sidecar
+//  in-place renames (shape #2), paradigmV2 wrapper unwraps (shape #3), and
+//  already-flat no-ops (shape #4). Warnings + post-apply failure summary
+//  surface alongside.
 //
-//  UI vocabulary mirrors the per-side divergence locked in CLAUDE.md:
-//  Pages-side defaults are "Vault" + "Collection"; Items-side defaults are
-//  "Type" + "Set". Hardcoded here for v0.3.0; Phase 7's SettingsManager will
-//  swap these for user-overridable values.
+//  UI vocabulary defaults to the per-side labels from SettingsLabels
+//  (Pages-side: "Vault" / "Collection"; Items-side: "Type" / "Set"). Adoption
+//  runs before SettingsManager is constructed for a fresh Nexus, so we read
+//  from `SettingsLabels.defaults()` directly — Phase 7's per-Nexus overrides
+//  apply on subsequent launches once the nexus is open.
 //
 
 import SwiftUI
@@ -22,13 +23,10 @@ struct AdoptionPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    // Default UI labels per CLAUDE.md "UI vocabulary diverges per side".
-    // Phase 7's SettingsManager will route these through user-overridable
-    // values; hardcoded here so adoption preview ships green standalone.
-    private let vaultLabel = "Vault"
-    private let collectionLabel = "Collection"
-    private let typeLabel = "Type"
-    private let setLabel = "Set"
+    /// Default UI labels — adoption happens before SettingsManager is built so
+    /// we go through SettingsLabels' default seed (the seed values are the
+    /// canonical per-side defaults; per-Nexus overrides land later).
+    private let labels = SettingsLabels.defaults()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -39,11 +37,11 @@ struct AdoptionPreviewView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     summaryRow
-                    legacyMigrationsSection
-                    vaultsSection
-                    collectionsSection
-                    itemTypesSection
-                    itemCollectionsSection
+                    unwrapsSection
+                    inPlaceRenamesSection
+                    freshSidecarsSection
+                    alreadyFlatSection
+                    warningsSection
                     skippedSection
                 }
                 .padding(20)
@@ -83,19 +81,19 @@ struct AdoptionPreviewView: View {
     private var summaryRow: some View {
         HStack(spacing: 24) {
             summaryStat(
-                count: plan.vaults.count, label: vaultLabel, systemImage: "folder.fill"
+                count: pageTypeMigrationCount,
+                label: labels.pageType.singular,
+                systemImage: "folder.fill"
             )
             summaryStat(
-                count: plan.collections.count, label: collectionLabel,
-                systemImage: "folder.badge.plus"
-            )
-            summaryStat(
-                count: plan.itemTypes.count, label: typeLabel,
+                count: itemTypeMigrationCount,
+                label: labels.itemType.singular,
                 systemImage: "tablecells"
             )
             summaryStat(
-                count: plan.itemCollections.count, label: setLabel,
-                systemImage: "square.stack.3d.up"
+                count: agendaMigrationCount,
+                label: "Agenda",
+                systemImage: "calendar"
             )
             Spacer()
         }
@@ -118,139 +116,154 @@ struct AdoptionPreviewView: View {
     }
 
     @ViewBuilder
-    private var vaultsSection: some View {
-        if !plan.vaults.isEmpty {
+    private var unwrapsSection: some View {
+        if !plan.unwrapSteps.isEmpty {
+            let totalMoves = plan.unwrapSteps.reduce(0) { $0 + $1.moves.count }
             sectionHeader(
-                "Pages/ → \(vaultLabel)s",
+                "Unwrap wrappers (\(totalMoves) folder\(totalMoves == 1 ? "" : "s"))",
                 detail:
-                    "\(plan.pagesPreviewCount) page\(plan.pagesPreviewCount == 1 ? "" : "s") inferred. A _schema.json sidecar will be written into each."
+                    "Pre-existing wrapper folders (Pages/Items/Agenda) will be dissolved — their children move to the nexus root."
             )
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(plan.vaults) { vault in
-                    rowLabel(systemImage: "folder.fill", title: vault.title)
+                ForEach(plan.unwrapSteps) { unwrap in
+                    ForEach(unwrap.moves) { move in
+                        unwrapMoveRow(move, wrapperName: unwrap.wrapperURL.lastPathComponent)
+                    }
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private var collectionsSection: some View {
-        if !plan.collections.isEmpty {
-            sectionHeader(
-                "Sub-folders → \(collectionLabel)s",
-                detail: "A _schema.json sidecar will be written into each."
-            )
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(plan.collections) { coll in
-                    rowLabel(
-                        systemImage: "folder",
-                        title: coll.title,
-                        subtitle: coll.vaultFolderURL.lastPathComponent
-                    )
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var itemTypesSection: some View {
-        if !plan.itemTypes.isEmpty {
-            sectionHeader(
-                "Items/ → \(typeLabel)s",
-                detail:
-                    "\(plan.itemsPreviewCount) item\(plan.itemsPreviewCount == 1 ? "" : "s") inferred. A _schema.json sidecar will be written into each."
-            )
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(plan.itemTypes) { itemType in
-                    rowLabel(systemImage: "tablecells", title: itemType.title)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var itemCollectionsSection: some View {
-        if !plan.itemCollections.isEmpty {
-            sectionHeader(
-                "Sub-folders → \(setLabel)s",
-                detail: "A _schema.json sidecar will be written into each."
-            )
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(plan.itemCollections) { coll in
-                    rowLabel(
-                        systemImage: "square.stack.3d.up",
-                        title: coll.title,
-                        subtitle: coll.itemTypeFolderURL.lastPathComponent
-                    )
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var legacyMigrationsSection: some View {
-        if !plan.legacyMigrations.isEmpty {
-            let pagesCount = plan.legacyMigrations.filter { $0.side == .pages }.count
-            let itemsCount = plan.legacyMigrations.filter { $0.side == .items }.count
-            sectionHeader(
-                "Legacy folders to migrate (\(plan.legacyMigrations.count))",
-                detail:
-                    legacyMigrationDetailText(
-                        pagesCount: pagesCount, itemsCount: itemsCount
-                    )
-            )
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(plan.legacyMigrations) { migration in
-                    legacyMigrationRow(migration)
-                }
-            }
-        }
-    }
-
-    private func legacyMigrationDetailText(pagesCount: Int, itemsCount: Int) -> String {
-        var pieces: [String] = []
-        if pagesCount > 0 {
-            pieces.append("\(pagesCount) → Pages/")
-        }
-        if itemsCount > 0 {
-            pieces.append("\(itemsCount) → Items/")
-        }
-        let summary = pieces.joined(separator: ", ")
-        return
-            "Pre-existing Type folders at the nexus root will be moved into the matching wrapper (\(summary))."
-    }
-
-    private func legacyMigrationRow(_ migration: PlannedLegacyMigration) -> some View {
-        let icon: String =
-            migration.side == .pages ? "folder.fill" : "tablecells"
-        let sideLabel = migration.side == .pages ? "Pages/" : "Items/"
-        let reason: String = {
-            switch migration.detectedBy {
-            case .markdownChildren: return "contains .md"
-            case .jsonChildren: return "contains .json items"
-            case .emptyFolderDefaultsToPages: return "defaults to Pages/"
-            }
-        }()
-        return HStack(spacing: 8) {
-            Image(systemName: icon)
+    private func unwrapMoveRow(_ move: PlannedUnwrap.ChildMove, wrapperName: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconForSidecar(move.typeSidecar))
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text(migration.title)
+                    Text("\(wrapperName)/\(move.sourceURL.lastPathComponent)")
                         .font(.callout)
                     Image(systemName: "arrow.right")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
-                    Text("\(sideLabel)\(migration.title)/")
+                    Text(move.destURL.lastPathComponent + "/")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                Text(reason)
+                Text(labelForSidecar(move.typeSidecar))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
             Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var inPlaceRenamesSection: some View {
+        if !plan.inPlaceRenames.isEmpty {
+            sectionHeader(
+                "Rename legacy sidecars (\(plan.inPlaceRenames.count))",
+                detail:
+                    "Pre-ParadigmV2 sidecar files (_vault.json / _collection.json) will be renamed to the per-kind flat-layout names."
+            )
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(plan.inPlaceRenames) { rename in
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.badge.gearshape")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(rename.folderURL.lastPathComponent)
+                                .font(.callout)
+                            HStack(spacing: 4) {
+                                Text(rename.oldSidecar)
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2)
+                                Text(rename.newSidecar)
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var freshSidecarsSection: some View {
+        if !plan.freshSidecars.isEmpty {
+            sectionHeader(
+                "Write fresh sidecars (\(plan.freshSidecars.count))",
+                detail:
+                    "Folders without a recognized sidecar get a fresh per-kind sidecar based on their contents."
+            )
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(plan.freshSidecars) { fresh in
+                    HStack(spacing: 8) {
+                        Image(systemName: iconForSidecar(fresh.kind))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(fresh.title)
+                                .font(.callout)
+                            Text(labelForSidecar(fresh.kind))
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var alreadyFlatSection: some View {
+        if !plan.alreadyFlat.isEmpty {
+            sectionHeader(
+                "Already adopted (\(plan.alreadyFlat.count))",
+                detail:
+                    "Folders already in the flat layout — no migration needed; orphan-cleanup pass runs."
+            )
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(plan.alreadyFlat) { flat in
+                    HStack(spacing: 8) {
+                        Image(systemName: iconForSidecar(flat.kind))
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 16)
+                        Text(flat.folderURL.lastPathComponent)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var warningsSection: some View {
+        if !plan.warnings.isEmpty {
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(plan.warnings.enumerated()), id: \.offset) { _, warning in
+                        Text("• " + warning)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
+                Label(
+                    "Warnings (\(plan.warnings.count))",
+                    systemImage: "exclamationmark.triangle"
+                )
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.orange)
+            }
         }
     }
 
@@ -264,11 +277,15 @@ struct AdoptionPreviewView: View {
             )
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(plan.skippedTopLevel, id: \.self) { url in
-                    rowLabel(
-                        systemImage: "folder.badge.minus",
-                        title: url.lastPathComponent,
-                        muted: true
-                    )
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder.badge.minus")
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 16)
+                        Text(url.lastPathComponent)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
                 }
             }
         }
@@ -282,30 +299,6 @@ struct AdoptionPreviewView: View {
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    private func rowLabel(
-        systemImage: String,
-        title: String,
-        subtitle: String? = nil,
-        muted: Bool = false
-    ) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: systemImage)
-                .foregroundStyle(muted ? .tertiary : .secondary)
-                .frame(width: 16)
-            Text(title)
-                .font(.callout)
-                .foregroundStyle(muted ? .secondary : .primary)
-            if let subtitle {
-                Text("·")
-                    .foregroundStyle(.tertiary)
-                Text(subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.tertiary)
-            }
-            Spacer()
         }
     }
 
@@ -327,5 +320,52 @@ struct AdoptionPreviewView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
+    }
+
+    // MARK: - Label helpers
+
+    private var pageTypeMigrationCount: Int {
+        let fresh = plan.freshSidecars.filter { $0.kind == .pageType }.count
+        let renames = plan.inPlaceRenames.filter { $0.newSidecar == NexusPaths.pageTypeSidecarFilename }.count
+        let unwraps = plan.unwrapSteps
+            .filter { $0.wrapperKind == .pages }
+            .reduce(0) { $0 + $1.moves.count }
+        return fresh + renames + unwraps
+    }
+
+    private var itemTypeMigrationCount: Int {
+        let fresh = plan.freshSidecars.filter { $0.kind == .itemType }.count
+        let unwraps = plan.unwrapSteps
+            .filter { $0.wrapperKind == .items }
+            .reduce(0) { $0 + $1.moves.count }
+        return fresh + unwraps
+    }
+
+    private var agendaMigrationCount: Int {
+        let fresh = plan.freshSidecars.filter { $0.kind == .taskConfig || $0.kind == .eventConfig }.count
+        let unwraps = plan.unwrapSteps
+            .filter { $0.wrapperKind == .agenda }
+            .reduce(0) { $0 + $1.moves.count }
+        return fresh + unwraps
+    }
+
+    private func iconForSidecar(_ kind: AdoptedSidecarKind) -> String {
+        switch kind {
+        case .pageType, .pageCollection: return "folder.fill"
+        case .itemType, .itemCollection: return "tablecells"
+        case .taskConfig: return "checkmark.circle"
+        case .eventConfig: return "calendar"
+        }
+    }
+
+    private func labelForSidecar(_ kind: AdoptedSidecarKind) -> String {
+        switch kind {
+        case .pageType: return labels.pageType.singular
+        case .pageCollection: return labels.pageCollection.singular
+        case .itemType: return labels.itemType.singular
+        case .itemCollection: return labels.itemCollection.singular
+        case .taskConfig: return labels.agendaTask.plural
+        case .eventConfig: return labels.agendaEvent.plural
+        }
     }
 }
