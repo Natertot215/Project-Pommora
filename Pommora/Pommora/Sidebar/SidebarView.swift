@@ -274,6 +274,7 @@ struct VaultsSection: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -292,7 +293,10 @@ struct VaultsSection: View {
                 vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
             }
         } header: {
-            SectionHeader(title: "Vaults") {
+            // Task 7.3 — section header text comes from SettingsManager
+            // (`sidebar_sections.pages`, default "Pages"). Items section header
+            // wires identically when Phase 8.1 ships ItemsSection.
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.pages) {
                 presentedSheet = .newPageType
             }
         }
