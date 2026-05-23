@@ -21,6 +21,10 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case typeID = "type_id"
         case modifiedAt = "modified_at"
         case pageOrder = "page_order"
+        // Pre-ParadigmV2 `_collection.json` used `vault_id`. Auto-migrated
+        // sidecars renamed to `_schema.json` still carry the old key until a
+        // save() rewrites them; this decode-only fallback bridges the gap.
+        case legacyVaultID = "vault_id"
     }
 
     init(
@@ -42,7 +46,14 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(String.self, forKey: .id)
-        self.typeID = try c.decode(String.self, forKey: .typeID)
+        // ParadigmV2: prefer `type_id`; fall back to legacy `vault_id` from
+        // pre-rename `_collection.json` files that have been auto-renamed to
+        // `_schema.json` but not yet re-saved.
+        if let t = try? c.decode(String.self, forKey: .typeID) {
+            self.typeID = t
+        } else {
+            self.typeID = try c.decode(String.self, forKey: .legacyVaultID)
+        }
         self.title = ""  // caller (load(from:)) overwrites from folder name
         self.folderURL = URL(fileURLWithPath: "/")  // caller overwrites
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)

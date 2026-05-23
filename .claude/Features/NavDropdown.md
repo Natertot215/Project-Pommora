@@ -14,14 +14,14 @@ Pommora's primary navigation-history surface — a **Liquid Glass dropdown butto
 
 Captured at ship time; the functional layer is done. Explicit follow-ups:
 
-1. **Open-in-preview wiring** — when the cross-feature PreviewWindow primitive is built for Pages, Vaults, Collections, Spaces, Topics, Sub-topics, Items, and Agenda items, light up the dropdown's preview-on-click affordance. **Until that primitive exists, no "open in standalone window" UI ships here** — single/double-click both route to the main detail pane (Items route to ItemWindow). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
+1. **Open-in-preview wiring** — when the cross-feature PreviewWindow primitive is built for Pages, Page Types, Page Collections, Item Types, Item Collections, Spaces, Topics, Projects, Items, Agenda Tasks, and Agenda Events, light up the dropdown's preview-on-click affordance. **Until that primitive exists, no "open in standalone window" UI ships here** — single/double-click both route to the main detail pane (Items route to ItemWindow). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
 2. **Drag-to-reorder Pinned** — `.onMove` wiring is in place but drag doesn't initiate inside the popover's List. Likely a SwiftUI List + popover view-host interaction issue.
 3. **Remove type chip** — drop trailing "Page / Vault / Topic" chip text; rely on the leading icon for type identification. Cleaner rows.
 4. **Segmented Pinned/Recents UI polish** — slight opacity / contrast pass on the picker pill. Not blocking.
 
 ##### Possible scope cuts (under consideration)
 
-Nathan may **drop Spaces, Topics, Sub-topics, Vaults, and Collections** from Recents + Pinned in favor of only **Pages, Items, and Tasks (Agenda)** — working-set view rather than universal navigator. Decision deferred; if locked, EntityStateRef.Kind stays unchanged but `RecentsManager.record` + `PinnedManager.toggle` would gate by kind, and the entity roster table contracts.
+Nathan may **drop Spaces, Topics, Projects, Page Types, Page Collections, Item Types, and Item Collections** from Recents + Pinned in favor of only **Pages, Items, and Agenda Tasks / Events** — working-set view rather than universal navigator. Decision deferred; if locked, EntityStateRef.Kind stays unchanged but `RecentsManager.record` + `PinnedManager.toggle` would gate by kind, and the entity roster table contracts.
 
 ---
 
@@ -95,7 +95,7 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 [icon] [title — truncates with ellipsis] [type chip]
 ```
 
-- **Icon** — entity's symbol (Page = `doc.text`, Vault = `book`, Space = `rectangle.3.group`, Topic / Sub-topic = `folder`, Item = `tray`, Collection = `tray.2`, Agenda = `calendar`)
+- **Icon** — entity's symbol (Page = `doc.text`, Page Type (UI "Vault") = `book`, Item Type (UI "Type") = `tray.full`, Page Collection (UI "Collection") = `folder`, Item Collection (UI "Set") = `square.stack.3d.up`, Space = `rectangle.3.group`, Topic / Project = `folder`, Item = `tray`, Agenda Task = `checkmark.circle`, Agenda Event = `calendar.badge.clock`)
 - **Title** — `Text(ref.title).lineLimit(1).truncationMode(.tail)`
 - **Type chip** — full-word, `.font(.caption)`, `.foregroundStyle(.secondary)`, trailing
 

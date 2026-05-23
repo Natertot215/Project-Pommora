@@ -26,6 +26,12 @@ final class PageTypeManager {
 
     func loadAll() async {
         do {
+            // ParadigmV2 auto-heal: rename legacy `_vault.json` / `_collection.json`
+            // sidecars in place to the unified `_schema.json` filename so the
+            // loader below finds them. Idempotent; no-op on already-migrated nexuses.
+            // Removable once Phase 10's user-data migration script ships.
+            migrateLegacySidecarsIfNeeded()
+
             // Top-level folders inside nexus root that contain a schema sidecar
             let topLevel = try Filesystem.childFolders(of: nexus.rootURL)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
@@ -339,5 +345,41 @@ final class PageTypeManager {
         let url = NexusPaths.nexusStateURL(in: nexus)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return (try? AtomicJSON.decode(NexusState.self, from: url))?.vaultOrder
+    }
+
+    /// One-time legacy sidecar rename — `_vault.json` → `_schema.json` at the
+    /// top-level Page Type folders; `_collection.json` → `_schema.json` inside
+    /// Page Collection sub-folders. Pre-ParadigmV2 nexuses have the legacy
+    /// names; Phase 2.1 production code only reads the new name; this bridges
+    /// the gap so existing user data shows up post-rename without manual
+    /// migration. Idempotent — no-op when the new filename already exists.
+    /// Errors swallowed (best-effort; load still surfaces a useful empty state
+    /// if the rename fails for permissions etc.). Removable once Phase 10
+    /// migration ships and Nathan's nexus is cleaned up.
+    private func migrateLegacySidecarsIfNeeded() {
+        let schemaName = NexusPaths.schemaSidecarFilename
+        let fm = FileManager.default
+        guard let topLevel = try? Filesystem.childFolders(of: nexus.rootURL) else { return }
+        for folder in topLevel {
+            let name = folder.lastPathComponent
+            if name.hasPrefix(".") || name.hasPrefix("_") { continue }
+            if name == "Agenda" || name == ".trash" { continue }
+            renameLegacySidecar(at: folder, legacyName: "_vault.json", newName: schemaName, fm: fm)
+            guard let subs = try? Filesystem.childFolders(of: folder) else { continue }
+            for sub in subs {
+                let subName = sub.lastPathComponent
+                if subName.hasPrefix(".") || subName.hasPrefix("_") { continue }
+                renameLegacySidecar(at: sub, legacyName: "_collection.json", newName: schemaName, fm: fm)
+            }
+        }
+    }
+
+    private func renameLegacySidecar(at folder: URL, legacyName: String, newName: String, fm: FileManager) {
+        let legacy = folder.appendingPathComponent(legacyName, isDirectory: false)
+        let target = folder.appendingPathComponent(newName, isDirectory: false)
+        guard fm.fileExists(atPath: legacy.path),
+              !fm.fileExists(atPath: target.path)
+        else { return }
+        try? fm.moveItem(at: legacy, to: target)
     }
 }
