@@ -4,81 +4,81 @@ import Testing
 @testable import Pommora
 
 @MainActor
-@Suite("VaultManager")
-struct VaultManagerTests {
+@Suite("PageTypeManager")
+struct PageTypeManagerTests {
 
-    @Test("createVault writes folder + _schema.json")
-    func createVault() async throws {
+    @Test("createPageType writes folder + _schema.json")
+    func createPageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createVault(name: "Planner", icon: "folder")
+        try await manager.createPageType(name: "Planner", icon: "folder")
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
         #expect(FileManager.default.fileExists(atPath: folder.path))
         #expect(FileManager.default.fileExists(atPath: meta.path))
-        #expect(manager.vaults.count == 1)
-        #expect(manager.vaults.first?.title == "Planner")
+        #expect(manager.types.count == 1)
+        #expect(manager.types.first?.title == "Planner")
     }
 
-    @Test("createCollection creates folder inside Vault")
-    func createCollection() async throws {
+    @Test("createPageCollection creates folder inside PageType")
+    func createPageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createVault(name: "Planner", icon: nil)
-        let vault = manager.vaults.first!
-        try await manager.createCollection(name: "Tasks", inVault: vault)
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
 
         let folder = NexusPaths.collectionFolderURL(
             forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
         )
         #expect(FileManager.default.fileExists(atPath: folder.path))
-        let cols = manager.collections(in: vault)
+        let cols = manager.pageCollections(in: pageType)
         #expect(cols.count == 1)
         #expect(cols.first?.title == "Tasks")
     }
 
-    @Test("renameVault renames folder + updates collection paths")
-    func renameVault() async throws {
+    @Test("renamePageType renames folder + updates collection paths")
+    func renamePageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createVault(name: "Planner", icon: nil)
-        let vault = manager.vaults.first!
-        try await manager.createCollection(name: "Tasks", inVault: vault)
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
 
-        try await manager.renameVault(vault, to: "Schedule")
+        try await manager.renamePageType(pageType, to: "Schedule")
         let newFolder = NexusPaths.vaultFolderURL(forTitle: "Schedule", in: nexus)
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
-        // Collection still present under new vault folder
-        let renamedVault = manager.vaults.first!
-        let cols = manager.collections(in: renamedVault)
+        // PageCollection still present under new PageType folder
+        let renamedType = manager.types.first!
+        let cols = manager.pageCollections(in: renamedType)
         #expect(cols.count == 1)
         #expect(cols.first?.title == "Tasks")
     }
 
-    @Test("deleteVault removes folder + collections")
-    func deleteVault() async throws {
+    @Test("deletePageType removes folder + collections")
+    func deletePageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createVault(name: "Planner", icon: nil)
-        let vault = manager.vaults.first!
-        try await manager.createCollection(name: "Tasks", inVault: vault)
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
 
-        try await manager.deleteVault(vault)
+        try await manager.deletePageType(pageType)
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: folder.path))
-        #expect(manager.vaults.isEmpty)
+        #expect(manager.types.isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
         let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Planner")
@@ -89,52 +89,52 @@ struct VaultManagerTests {
     func skipCosmeticFolders() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        // Create a top-level folder that ISN'T a vault
+        // Create a top-level folder that ISN'T a PageType
         try FileManager.default.createDirectory(
             at: nexus.rootURL.appendingPathComponent("NotAVault", isDirectory: true),
             withIntermediateDirectories: true
         )
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
-        #expect(manager.vaults.isEmpty)
+        #expect(manager.types.isEmpty)
     }
 
-    @Test("renameCollection moves the folder")
-    func renameCollection() async throws {
+    @Test("renamePageCollection moves the folder")
+    func renamePageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.createVault(name: "Planner", icon: nil)
-        let vault = manager.vaults.first!
-        try await manager.createCollection(name: "Tasks", inVault: vault)
-        let coll = manager.collections(in: vault).first!
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
+        let coll = manager.pageCollections(in: pageType).first!
 
-        try await manager.renameCollection(coll, to: "To-dos")
+        try await manager.renamePageCollection(coll, to: "To-dos")
         let newFolder = NexusPaths.collectionFolderURL(
             forTitle: "To-dos", inVaultTitled: "Planner", in: nexus
         )
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
-        #expect(manager.collections(in: vault).first?.title == "To-dos")
+        #expect(manager.pageCollections(in: pageType).first?.title == "To-dos")
     }
 
-    @Test("deleteCollection removes folder")
-    func deleteCollection() async throws {
+    @Test("deletePageCollection removes folder")
+    func deletePageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.createVault(name: "Planner", icon: nil)
-        let vault = manager.vaults.first!
-        try await manager.createCollection(name: "Tasks", inVault: vault)
-        let coll = manager.collections(in: vault).first!
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
+        let coll = manager.pageCollections(in: pageType).first!
 
-        try await manager.deleteCollection(coll)
+        try await manager.deletePageCollection(coll)
         let folder = NexusPaths.collectionFolderURL(
             forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
         )
         #expect(!FileManager.default.fileExists(atPath: folder.path))
-        #expect(manager.collections(in: vault).isEmpty)
+        #expect(manager.pageCollections(in: pageType).isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
         let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Planner/Tasks")

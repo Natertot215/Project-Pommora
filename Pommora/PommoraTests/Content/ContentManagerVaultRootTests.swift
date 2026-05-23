@@ -3,10 +3,11 @@ import Testing
 
 @testable import Pommora
 
-/// Vault-root Content (Pages + Items sitting directly in a Vault folder, not
-/// inside a Collection sub-folder). Mirrors ContentManagerTests but uses the
+/// PageType-root Content (Pages + Items sitting directly in a PageType folder, not
+/// inside a PageCollection sub-folder). Mirrors ContentManagerTests but uses the
 /// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` / `items(in: vault)`
-/// accessors.
+/// accessors. (Method labels still say `inVaultRoot` / `pagesByVaultRoot`
+/// camelCase compounds — see ParadigmV2 Task 2.3.)
 @MainActor
 @Suite("ContentManager vault-root")
 struct ContentManagerVaultRootTests {
@@ -42,7 +43,7 @@ struct ContentManagerVaultRootTests {
         #expect(titles == ["Alpha", "Beta"])  // sorted
     }
 
-    @Test("loadAll for a vault ignores Collection sub-folder contents")
+    @Test("loadAll for a vault ignores PageCollection sub-folder contents")
     func loadAllForVaultIgnoresCollectionContents() async throws {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -54,19 +55,19 @@ struct ContentManagerVaultRootTests {
             to: NexusPaths.pageFileURL(forTitle: "RootPage", in: vaultFolder)
         )
 
-        // One Collection sub-folder containing one Page
+        // One PageCollection sub-folder containing one Page
         let collFolder = NexusPaths.collectionFolderURL(
             forTitle: "Inner", inVaultTitled: vault.title, in: nexus
         )
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = Pommora.Collection(
+        let coll = PageCollection(
             id: ULID.generate(),
-            vaultID: vault.id,
+            typeID: vault.id,
             title: "Inner",
             folderURL: collFolder,
             modifiedAt: Date()
         )
-        // Sidecar so Vault discovery would treat this as a real Collection
+        // Sidecar so PageType discovery would treat this as a real PageCollection
         try coll.save(to: collFolder.appendingPathComponent(NexusPaths.schemaSidecarFilename))
         try FixtureFiles.write(
             "---\nid: 01HINNER\ncreated_at: 2025-01-01T00:00:00Z\n---\n\nbody\n",
@@ -141,9 +142,9 @@ struct ContentManagerVaultRootTests {
 
     // MARK: - Setup
 
-    private func setup() async throws -> (Nexus, Vault, ContentManager) {
+    private func setup() async throws -> (Nexus, PageType, ContentManager) {
         let nexus = try TempNexus.make()
-        let vault = Vault(
+        let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

@@ -3,10 +3,10 @@ import Testing
 
 @testable import Pommora
 
-@Suite("VaultFile")
-struct VaultFileTests {
+@Suite("PageTypeFile")
+struct PageTypeFileTests {
 
-    @Test("Vault round-trips through AtomicJSON")
+    @Test("PageType round-trips through AtomicJSON")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -14,7 +14,7 @@ struct VaultFileTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
-        let original = Vault(
+        let original = PageType(
             id: "01HVAULT",
             title: "Planner",
             icon: "folder",
@@ -34,7 +34,7 @@ struct VaultFileTests {
         )
         try original.save(to: metaURL)
 
-        let loaded = try Vault.load(from: metaURL)
+        let loaded = try PageType.load(from: metaURL)
         #expect(loaded.id == "01HVAULT")
         #expect(loaded.title == "Planner")
         #expect(loaded.icon == "folder")
@@ -43,7 +43,7 @@ struct VaultFileTests {
         #expect(loaded.properties[0].type == .select)
     }
 
-    @Test("Vault on-disk JSON omits title")
+    @Test("PageType on-disk JSON omits title")
     func titleNotPersisted() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -51,23 +51,23 @@ struct VaultFileTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
-        try Vault(id: "01H", title: "Materials", icon: nil, properties: [], views: [], modifiedAt: Date())
+        try PageType(id: "01H", title: "Materials", icon: nil, properties: [], views: [], modifiedAt: Date())
             .save(to: metaURL)
         let raw = try String(contentsOf: metaURL, encoding: .utf8)
         #expect(!raw.contains("\"title\""))
     }
 
-    @Test("empty Vault round-trips with empty properties + views")
-    func emptyVault() throws {
+    @Test("empty PageType round-trips with empty properties + views")
+    func emptyPageType() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Empty", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
 
-        let v = Vault(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let v = PageType(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
         try v.save(to: metaURL)
-        let loaded = try Vault.load(from: metaURL)
+        let loaded = try PageType.load(from: metaURL)
         #expect(loaded.properties == [])
         #expect(loaded.views == [])
     }

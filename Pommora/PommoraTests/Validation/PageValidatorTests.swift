@@ -8,7 +8,7 @@ struct PageValidatorTests {
 
     @Test("happy path passes")
     func happy() throws {
-        let vault = Vault(
+        let vault = PageType(
             id: "01HV", title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         try PageValidator.validate(
@@ -24,7 +24,7 @@ struct PageValidatorTests {
 
     @Test("created_at = zero-epoch is treated as missing")
     func missingCreatedAt() {
-        let vault = Vault(
+        let vault = PageType(
             id: "01HV", title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         #expect(throws: PageValidator.ValidationError.missingCreatedAt) {
@@ -40,9 +40,9 @@ struct PageValidatorTests {
         }
     }
 
-    @Test("duplicate title in same Collection throws")
+    @Test("duplicate title in same PageCollection throws")
     func duplicate() throws {
-        let vault = Vault(
+        let vault = PageType(
             id: "01HV", title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let existing = [makePageMeta(title: "Notes")]

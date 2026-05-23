@@ -72,16 +72,16 @@ struct NexusPathsTests {
         #expect(meta.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
-    @Test("subtopicFileURL nests inside parent Topic folder with .subtopic.json")
-    func subtopicFileFormat() throws {
+    @Test("projectFileURL nests inside parent Topic folder with .project.json")
+    func projectFileFormat() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.subtopicFileURL(
+        let url = NexusPaths.projectFileURL(
             forTitle: "GTD method",
             inTopicTitled: "Productivity",
             in: nexus
         )
-        #expect(url.lastPathComponent == "GTD method.subtopic.json")
+        #expect(url.lastPathComponent == "GTD method.project.json")
         #expect(url.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
@@ -109,7 +109,7 @@ struct NexusPathsTests {
         #expect(url.deletingLastPathComponent().lastPathComponent == "Planner")
     }
 
-    @Test("pageFileURL + itemFileURL use the right extensions inside a Collection")
+    @Test("pageFileURL + itemFileURL use the right extensions inside a PageCollection")
     func contentFilePaths() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }

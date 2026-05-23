@@ -115,7 +115,7 @@ struct ContentManagerTests {
         #expect(FileManager.default.fileExists(atPath: trashItem.path))
     }
 
-    @Test("loadAll discovers existing .md + .json in a Collection")
+    @Test("loadAll discovers existing .md + .json in a PageCollection")
     func loadExisting() async throws {
         let (nexus, _, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -135,9 +135,9 @@ struct ContentManagerTests {
         #expect(manager.items(in: coll).count == 1)
     }
 
-    private func setup() async throws -> (Nexus, Vault, Collection, ContentManager) {
+    private func setup() async throws -> (Nexus, PageType, PageCollection, ContentManager) {
         let nexus = try TempNexus.make()
-        let vault = Vault(
+        let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
@@ -146,9 +146,9 @@ struct ContentManagerTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = Collection(
+        let coll = PageCollection(
             id: ULID.generate(),
-            vaultID: vault.id,
+            typeID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()

@@ -7,7 +7,7 @@ import Testing
 @Suite("ContentManager.updatePage")
 struct ContentManagerUpdatePageTests {
 
-    @Test("updatePage persists body to disk (Collection-scoped)")
+    @Test("updatePage persists body to disk (PageCollection-scoped)")
     func updatePagePersistsBodyToDisk() async throws {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -97,7 +97,7 @@ struct ContentManagerUpdatePageTests {
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
         let page = manager.pages(in: coll).first!
 
-        // Delete the Collection folder out from under us — `pageFile.save(to:)`
+        // Delete the PageCollection folder out from under us — `pageFile.save(to:)`
         // writes via atomic temp-file + rename, which requires the parent dir
         // to exist. Should throw.
         try FileManager.default.removeItem(at: coll.folderURL)
@@ -108,9 +108,9 @@ struct ContentManagerUpdatePageTests {
         #expect(manager.pendingError != nil)
     }
 
-    private func setup() async throws -> (Nexus, Vault, Pommora.Collection, ContentManager) {
+    private func setup() async throws -> (Nexus, PageType, PageCollection, ContentManager) {
         let nexus = try TempNexus.make()
-        let vault = Vault(
+        let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
@@ -119,9 +119,9 @@ struct ContentManagerUpdatePageTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = Pommora.Collection(
+        let coll = PageCollection(
             id: ULID.generate(),
-            vaultID: vault.id,
+            typeID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()

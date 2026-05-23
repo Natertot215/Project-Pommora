@@ -86,19 +86,19 @@ struct RenameAtomicityTests {
         #expect(reloadManager.spaces.first?.title == "Life")
     }
 
-    @Test("VaultManager rename failure (duplicate target) sets pendingError + folder stays at old name")
+    @Test("PageTypeManager rename failure (duplicate target) sets pendingError + folder stays at old name")
     func vaultRenameFailureRollback() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = VaultManager(nexus: nexus)
+        let manager = PageTypeManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createVault(name: "Alpha", icon: nil)
-        try await manager.createVault(name: "Beta", icon: nil)
-        let alpha = manager.vaults.first(where: { $0.title == "Alpha" })!
+        try await manager.createPageType(name: "Alpha", icon: nil)
+        try await manager.createPageType(name: "Beta", icon: nil)
+        let alpha = manager.types.first(where: { $0.title == "Alpha" })!
 
-        await #expect(throws: VaultValidator.ValidationError.duplicateTitle) {
-            try await manager.renameVault(alpha, to: "Beta")
+        await #expect(throws: PageTypeValidator.ValidationError.duplicateTitle) {
+            try await manager.renamePageType(alpha, to: "Beta")
         }
 
         #expect(manager.pendingError != nil)

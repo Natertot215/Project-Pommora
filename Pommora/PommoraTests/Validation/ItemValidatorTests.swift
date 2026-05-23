@@ -10,23 +10,23 @@ struct ItemValidatorTests {
     func happy() throws {
         let spaceID = ULID.generate()
         let topicID = ULID.generate()
-        let subtopicID = ULID.generate()
+        let projectID = ULID.generate()
         let space = Space(
             id: spaceID, title: "S", color: .blue, icon: nil,
             blocks: [], modifiedAt: Date())
         let topic = Topic(
             id: topicID, title: "T", parents: [],
             icon: nil, blocks: [], modifiedAt: Date())
-        let subtopic = Subtopic(
-            id: subtopicID, title: "U", parents: ["01HX"],
+        let project = Project(
+            id: projectID, title: "U", parents: ["01HX"],
             linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
             lookupSpace: { id in id == spaceID ? space : nil },
             lookupTopic: { id in id == topicID ? topic : nil },
-            lookupSubtopic: { id in id == subtopicID ? subtopic : nil },
+            lookupProject: { id in id == projectID ? project : nil },
             lookupVault: { _ in nil }
         )
-        let vault = Vault(
+        let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [
                 PropertyDefinition(
@@ -37,7 +37,7 @@ struct ItemValidatorTests {
         )
         try ItemValidator.validate(
             title: "Buy groceries",
-            tier1: [spaceID], tier2: [topicID], tier3: [subtopicID],
+            tier1: [spaceID], tier2: [topicID], tier3: [projectID],
             properties: ["status": .select("Active")],
             vault: vault,
             existingSiblings: [],
@@ -54,7 +54,7 @@ struct ItemValidatorTests {
         let context = NexusContext(
             lookupSpace: { _ in nil },
             lookupTopic: { id in id == topicID ? topic : nil },
-            lookupSubtopic: { _ in nil },
+            lookupProject: { _ in nil },
             lookupVault: { _ in nil }
         )
         let vault = makeVault(properties: [])
@@ -95,8 +95,8 @@ struct ItemValidatorTests {
         }
     }
 
-    private func makeVault(properties: [PropertyDefinition]) -> Vault {
-        Vault(
+    private func makeVault(properties: [PropertyDefinition]) -> PageType {
+        PageType(
             id: ULID.generate(), title: "V", icon: nil,
             properties: properties, views: [], modifiedAt: Date())
     }

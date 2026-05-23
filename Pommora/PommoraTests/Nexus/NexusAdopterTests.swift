@@ -23,7 +23,7 @@ struct NexusAdopterTests {
         #expect(!plan.hasAnythingToAdopt)
     }
 
-    @Test("scan proposes Vault for top-level folder without _schema.json")
+    @Test("scan proposes PageType for top-level folder without _schema.json")
     func scanProposesVault() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -53,7 +53,7 @@ struct NexusAdopterTests {
         #expect(plan.vaults.isEmpty)
     }
 
-    @Test("scan proposes Collection for sub-folder without _schema.json")
+    @Test("scan proposes PageCollection for sub-folder without _schema.json")
     func scanProposesCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -76,14 +76,14 @@ struct NexusAdopterTests {
         let sub = vault.appendingPathComponent("Active", isDirectory: true)
         try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
         try FixtureFiles.writeJSON(
-            #"{"id":"01HC","vault_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
+            #"{"id":"01HC","type_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
             to: sub.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
 
-        // Vault is still proposed (no _schema.json on the vault folder yet),
-        // but the existing sub-folder sidecar means the collection is NOT re-proposed.
+        // PageType is still proposed (no _schema.json on the PageType folder yet),
+        // but the existing sub-folder sidecar means the PageCollection is NOT re-proposed.
         #expect(plan.vaults.count == 1)
         #expect(plan.collections.isEmpty)
     }
@@ -123,10 +123,10 @@ struct NexusAdopterTests {
         let deep = coll.appendingPathComponent("deep", isDirectory: true)
         try FileManager.default.createDirectory(at: deep, withIntermediateDirectories: true)
 
-        // 2 md files: 1 at vault root, 1 deep inside Collection sub-folder
+        // 2 md files: 1 at vault root, 1 deep inside PageCollection sub-folder
         try FixtureFiles.write("# Top", to: vault.appendingPathComponent("Top.md"))
         try FixtureFiles.write("# Deep", to: deep.appendingPathComponent("Deep.md"))
-        // 1 json file inside the Collection
+        // 1 json file inside the PageCollection
         try FixtureFiles.writeJSON(
             #"{"id":"01HI","created_at":"2026-05-01T00:00:00Z","modified_at":"2026-05-01T00:00:00Z","description":"","tier1":[],"tier2":[],"tier3":[],"properties":{}}"#,
             to: coll.appendingPathComponent("Item.json")
@@ -152,12 +152,12 @@ struct NexusAdopterTests {
         let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: metaURL.path))
 
-        let vault = try Vault.load(from: metaURL)
+        let vault = try PageType.load(from: metaURL)
         #expect(vault.title == "Projects")
         #expect(!vault.id.isEmpty)
     }
 
-    @Test("apply writes Collection _schema.json with parent vault's id")
+    @Test("apply writes PageCollection _schema.json with parent PageType's id")
     func applyLinksCollectionToVault() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -170,10 +170,10 @@ struct NexusAdopterTests {
 
         let vaultMetaURL = vault.appendingPathComponent(NexusPaths.schemaSidecarFilename)
         let collMetaURL = sub.appendingPathComponent(NexusPaths.schemaSidecarFilename)
-        let vaultModel = try Vault.load(from: vaultMetaURL)
-        let collModel = try Collection.load(from: collMetaURL)
+        let vaultModel = try PageType.load(from: vaultMetaURL)
+        let collModel = try PageCollection.load(from: collMetaURL)
 
-        #expect(collModel.vaultID == vaultModel.id)
+        #expect(collModel.typeID == vaultModel.id)
         #expect(collModel.title == "Active")
     }
 
@@ -194,7 +194,7 @@ struct NexusAdopterTests {
         #expect(!plan2.hasAnythingToAdopt)
     }
 
-    @Test("apply preserves vault id across re-load")
+    @Test("apply preserves PageType id across re-load")
     func vaultIDStable() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -205,8 +205,8 @@ struct NexusAdopterTests {
         try NexusAdopter.apply(plan)
 
         let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
-        let first = try Vault.load(from: metaURL)
-        let second = try Vault.load(from: metaURL)
+        let first = try PageType.load(from: metaURL)
+        let second = try PageType.load(from: metaURL)
         #expect(first.id == second.id)
     }
 }
