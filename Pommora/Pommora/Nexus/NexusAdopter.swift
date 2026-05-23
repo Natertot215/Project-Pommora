@@ -548,7 +548,7 @@ enum NexusAdopter {
     static func apply(_ plan: AdoptionPlan) -> AdoptionApplyResult {
         var failures: [FailedFolder] = []
         var migrated = 0
-        var unchanged = plan.alreadyFlat.count
+        let unchanged = plan.alreadyFlat.count
         let now = Date()
         let fm = FileManager.default
 
