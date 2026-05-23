@@ -93,22 +93,17 @@ struct BackForwardButtons: View {
         AppGlobals.mainWindowRouter?.requestStep(to: sel)
     }
 
-    /// O(N) Item lookup across all Vaults + Collections.
-    /// Mirrors the pattern in NavDropdownButton.openItemWindow.
-    /// SQLite in v0.4.0 will make this instant.
+    /// O(N) Item lookup across all Item Types + ItemCollections.
+    ///
+    /// ParadigmV2 (Task 5.5): The PageType-keyed lookup is retired alongside
+    /// ContentManager's Item state. Phase 6 wires the ItemTypeManager walker;
+    /// for now this returns `nil` so the back/forward stack falls through to a
+    /// no-op rather than crashing.
     @MainActor
-    private func lookupItem(id: String, contentManager: ContentManager) -> Item? {
-        guard let vm = AppGlobals.pageTypeManager else { return nil }
-        for vault in vm.types {
-            if let item = contentManager.items(in: vault).first(where: { $0.id == id }) {
-                return item
-            }
-            for collection in vm.pageCollections(in: vault) {
-                if let item = contentManager.items(in: collection).first(where: { $0.id == id }) {
-                    return item
-                }
-            }
-        }
+    private func lookupItem(id: String, contentManager: PageContentManager) -> Item? {
+        _ = id
+        _ = contentManager
+        // TODO Phase 6: walk ItemTypeManager + ItemContentManager.
         return nil
     }
 }

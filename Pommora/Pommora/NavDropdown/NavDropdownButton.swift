@@ -250,21 +250,11 @@ struct NavDropdownButton: View {
     }
 
     private func openItemWindow(_ ref: EntityStateRef) {
-        guard let cm = AppGlobals.contentManager,
-            let vm = AppGlobals.pageTypeManager
-        else { return }
-        // Brute-force O(N) search across all vaults + collections (SQLite in v0.4.0).
-        for vault in vm.types {
-            if let item = cm.items(in: vault).first(where: { $0.id == ref.id }) {
-                AppGlobals.presentItemAction?(item)
-                return
-            }
-            for collection in vm.pageCollections(in: vault) {
-                if let item = cm.items(in: collection).first(where: { $0.id == ref.id }) {
-                    AppGlobals.presentItemAction?(item)
-                    return
-                }
-            }
-        }
+        // ParadigmV2 (Task 5.5): Items moved off PageContentManager onto
+        // ItemContentManager keyed on ItemType + ItemCollection. The Phase 6
+        // rewire ships the ItemTypeManager walker; for now this falls through
+        // so the dropdown entry is a no-op rather than a crash.
+        _ = ref
+        // TODO Phase 6: walk ItemTypeManager + ItemContentManager.
     }
 }

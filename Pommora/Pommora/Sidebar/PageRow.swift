@@ -8,14 +8,14 @@ import SwiftUI
 /// from the enclosing DisclosureGroup (PageTypeRow/CollectionRow).
 ///
 /// Parent routing (vault-root vs Collection) goes through `PageParent`, so the
-/// row itself stays unaware of which ContentManager overload is being called.
+/// row itself stays unaware of which PageContentManager overload is being called.
 struct PageRow: View {
     let page: PageMeta
     let parent: PageParent
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
 
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false

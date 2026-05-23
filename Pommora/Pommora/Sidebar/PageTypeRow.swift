@@ -9,7 +9,7 @@ struct PageTypeRow: View {
     @State private var expanded: Bool = false
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false

@@ -16,7 +16,7 @@ import SwiftUI
 struct PageEditorHost: View {
     let page: PageMeta
 
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var viewModel: PageEditorViewModel?

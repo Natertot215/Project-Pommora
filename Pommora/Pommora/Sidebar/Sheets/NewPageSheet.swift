@@ -3,7 +3,7 @@ import SwiftUI
 struct NewPageSheet: View {
     let parent: PageParent
     @Environment(\.dismiss) private var dismiss
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     @State private var name: String = ""
     @State private var errorMessage: String?

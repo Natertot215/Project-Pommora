@@ -3,7 +3,11 @@ import SwiftUI
 struct ItemWindow: View {
     let item: Item
     @Environment(\.dismiss) private var dismiss
-    @Environment(ContentManager.self) private var contentManager
+
+    // ParadigmV2 (Task 5.5): Item lookup + persistence has moved off the
+    // PageType graph onto ItemContentManager + ItemType. The Phase 6 rewire
+    // ships the Items-side resolver + persistence; for now the window is
+    // preserved as a read-only preview that can't save / rename.
     @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var draftTitle: String = ""
@@ -173,57 +177,17 @@ struct ItemWindow: View {
     }
 
     private func vaultForItem() -> PageType? {
-        // Items live in Collections; find the Vault whose Collection holds this Item
-        for vault in vaultManager.types {
-            for coll in vaultManager.pageCollections(in: vault) {
-                if contentManager.items(in: coll).contains(where: { $0.id == item.id }) {
-                    return vault
-                }
-            }
-        }
+        // TODO Phase 6: walk ItemTypeManager + ItemContentManager instead.
+        // Returning nil during Phase 5 disables the property-editor branch
+        // (the view falls into the "Parent Vault not found" placeholder).
+        _ = vaultManager
         return nil
     }
 
     private func save() async {
-        guard let vault = vaultForItem() else {
-            errorMessage = "Parent Vault not found."
-            return
-        }
-        guard
-            let coll =
-                (vaultManager.pageCollections(in: vault).first {
-                    contentManager.items(in: $0).contains(where: { $0.id == item.id })
-                })
-        else {
-            errorMessage = "Parent Collection not found."
-            return
-        }
-
-        var updated = item
-        applyDraft(to: &updated)
-
-        do {
-            // If title changed, rename first
-            if updated.title != item.title {
-                try await contentManager.renameItem(item, to: updated.title, in: coll, vault: vault)
-                // Force reload from disk before refetch — guards against stale in-memory state
-                await contentManager.loadAll(for: coll)
-                guard let refetched = contentManager.items(in: coll).first(where: { $0.id == item.id }) else {
-                    errorMessage =
-                        "Rename succeeded on disk but in-memory refetch failed. Item state may be stale; please close + reopen."
-                    dismiss()
-                    return
-                }
-                updated = refetched
-                applyDraft(to: &updated)
-            }
-            try await contentManager.updateItem(updated, in: coll, vault: vault)
-            dismiss()
-        } catch let error as ItemValidator.ValidationError {
-            errorMessage = friendly(error)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // TODO Phase 6: route through ItemContentManager.renameItem / updateItem
+        // once the Items-side resolver lands. Until then surface a friendly notice.
+        errorMessage = "Item edits are temporarily disabled while the Items-side surface rebuilds (ParadigmV2 Phase 6)."
     }
 
     /// Apply the draft state into the given Item — used at both the pre-rename

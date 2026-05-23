@@ -20,7 +20,7 @@ extension PageRef {
     @MainActor
     func resolve(
         vaultManager: PageTypeManager,
-        contentManager: ContentManager
+        contentManager: PageContentManager
     ) -> (page: PageMeta, vault: PageType, collection: PageCollection?)? {
         guard let vault = vaultManager.types.first(where: { $0.id == vaultID }) else {
             return nil

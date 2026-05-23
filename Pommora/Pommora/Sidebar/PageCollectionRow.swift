@@ -9,7 +9,7 @@ struct PageCollectionRow: View {
     @Binding var confirmingDelete: SidebarConfirmation?
 
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false

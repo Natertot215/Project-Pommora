@@ -29,7 +29,7 @@ struct PageEditorView: View {
     /// nil = vault-root Page (no Collection parent)
     let collection: PageCollection?
 
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     /// In-flight title text. Synced with `viewModel.page.title` on every
     /// page-id change (the `.onChange(initial: true)` below) — but the host

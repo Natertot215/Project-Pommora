@@ -29,7 +29,7 @@ extension SidebarSelection {
                     return
                 }
             }
-            for pages in cm.pagesByVaultRoot.values {
+            for pages in cm.pagesByTypeRoot.values {
                 if let page = pages.first(where: { $0.id == stateRef.id }) {
                     self = .page(page)
                     return

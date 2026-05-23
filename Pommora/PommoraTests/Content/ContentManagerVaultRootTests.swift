@@ -3,13 +3,16 @@ import Testing
 
 @testable import Pommora
 
-/// PageType-root Content (Pages + Items sitting directly in a PageType folder, not
-/// inside a PageCollection sub-folder). Mirrors ContentManagerTests but uses the
-/// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` / `items(in: vault)`
-/// accessors. (Method labels still say `inVaultRoot` / `pagesByVaultRoot`
-/// camelCase compounds — see ParadigmV2 Task 2.3.)
+/// PageType-root Pages (sitting directly in a PageType folder, not inside a
+/// PageCollection sub-folder). Mirrors ContentManagerTests but uses the
+/// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` accessors.
+///
+/// ParadigmV2 (Task 5.5): Item-side tests have been removed from this suite —
+/// Items moved to ItemContentManager keyed on ItemType/ItemCollection. The
+/// Items-side suite lands alongside the wrapper-folder layout in Phase 6.
+/// File-rename to `PageContentManagerVaultRootTests.swift` lands in Task 5.6.
 @MainActor
-@Suite("ContentManager vault-root")
+@Suite("PageContentManager vault-root")
 struct ContentManagerVaultRootTests {
 
     @Test("loadAll for an empty vault root yields empty arrays")
@@ -19,10 +22,9 @@ struct ContentManagerVaultRootTests {
 
         await manager.loadAll(for: vault)
         #expect(manager.pages(in: vault).isEmpty)
-        #expect(manager.items(in: vault).isEmpty)
     }
 
-    @Test("loadAll for a vault with .md files at root populates pagesByVaultRoot")
+    @Test("loadAll for a vault with .md files at root populates pagesByTypeRoot")
     func loadAllForVaultWithPages() async throws {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -142,7 +144,7 @@ struct ContentManagerVaultRootTests {
 
     // MARK: - Setup
 
-    private func setup() async throws -> (Nexus, PageType, ContentManager) {
+    private func setup() async throws -> (Nexus, PageType, PageContentManager) {
         let nexus = try TempNexus.make()
         let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
@@ -151,7 +153,7 @@ struct ContentManagerVaultRootTests {
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
 
-        let manager = ContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         return (nexus, vault, manager)
     }
 }

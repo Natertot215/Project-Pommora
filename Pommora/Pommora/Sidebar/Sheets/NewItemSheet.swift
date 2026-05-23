@@ -4,8 +4,12 @@ struct NewItemSheet: View {
     let collection: PageCollection
     let vault: PageType
     @Environment(\.dismiss) private var dismiss
-    @Environment(ContentManager.self) private var contentManager
 
+    // ParadigmV2 (Task 5.5): Items are now owned by ItemContentManager keyed on
+    // ItemType + ItemCollection. PageCollection-targeted Item creation disappears
+    // from the UI until Phase 6 wires the Items-side detail surface. This sheet
+    // is preserved as a compile-only stub so the call sites in
+    // PageCollectionDetailView + SidebarView keep wiring through.
     @State private var name: String = ""
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
@@ -35,25 +39,12 @@ struct NewItemSheet: View {
     }
 
     private func create() async {
-        do {
-            try await contentManager.createItem(name: name, in: collection, vault: vault)
-            dismiss()
-        } catch let error as ItemValidator.ValidationError {
-            errorMessage = friendly(error)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func friendly(_ error: ItemValidator.ValidationError) -> String {
-        switch error {
-        case .emptyTitle: return "Name can't be empty."
-        case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle: return "An Item with that name already exists."
-        case .descriptionTooLong: return "Description over 250 characters."
-        case .tierMismatch: return "Internal: tier reference invalid."
-        case .unknownProperty(let n): return "Property '\(n)' not in Vault schema."
-        case .propertyTypeMismatch(let n): return "Property '\(n)' has wrong type."
-        }
+        // TODO Phase 6: route through ItemContentManager.createItem once the
+        // Items-side detail surface exists. Until then, surface a friendly
+        // notice and dismiss without writing.
+        _ = collection
+        _ = vault
+        _ = name
+        errorMessage = "Item creation is temporarily disabled while the Items-side surface rebuilds (ParadigmV2 Phase 6)."
     }
 }

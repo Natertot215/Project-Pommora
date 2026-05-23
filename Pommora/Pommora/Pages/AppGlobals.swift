@@ -4,7 +4,7 @@ import Foundation
 /// Lightweight @MainActor singleton holder for cross-scene access to managers
 /// and the editor-VM registry that gets flushed on app lifecycle events.
 ///
-/// **Why not hoist managers to `PommoraApp`?** ContentManager construction
+/// **Why not hoist managers to `PommoraApp`?** PageContentManager construction
 /// depends on TopicManager which depends on SpaceManager + PageTypeManager (see
 /// `ContentView.constructManagers`). The full graph is too entangled to hoist
 /// without major restructuring. AppGlobals gives `WindowGroup(for: PageRef.self)`
@@ -19,7 +19,8 @@ enum AppGlobals {
 
     // MARK: - Manager refs (populated by ContentView at construct time)
 
-    static var contentManager: ContentManager?
+    static var contentManager: PageContentManager?
+    static var itemContentManager: ItemContentManager?
     static var pageTypeManager: PageTypeManager?
     static var spaceManager: SpaceManager?
     static var topicManager: TopicManager?

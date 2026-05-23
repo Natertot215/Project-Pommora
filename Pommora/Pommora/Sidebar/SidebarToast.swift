@@ -16,7 +16,7 @@ struct SidebarToast: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
 
     @State private var displayedError: (any Error)? = nil

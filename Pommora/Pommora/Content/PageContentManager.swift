@@ -2,38 +2,36 @@ import Foundation
 import Observation
 import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPages
 
-/// Manages Pages (`.md`) + Items (`.json`) inside a Page Type. The spec allows
-/// Content to live either directly in a Page Type's root folder or inside a
-/// PageCollection sub-folder — both are first-class. PageCollection-scoped state
-/// and type-root-scoped state are kept in parallel dictionaries to avoid nullable
-/// `PageCollection` plumbing through every CRUD signature.
+/// Manages Pages (`.md`) inside a Page Type. The spec allows Pages to live
+/// either directly in a Page Type's root folder or inside a PageCollection
+/// sub-folder — both are first-class. PageCollection-scoped state and
+/// type-root-scoped state are kept in parallel dictionaries to avoid
+/// nullable `PageCollection` plumbing through every CRUD signature.
 ///
 /// PageMeta = lightweight tracking value (no body in memory); full PageFile is
-/// loaded on demand by the editor (post-v0.2). Items load entirely since they're
-/// small row-shaped records.
+/// loaded on demand by the editor (post-v0.2).
 ///
-/// All CRUD methods take the parent `PageType` because Page/Item validation needs
+/// All CRUD methods take the parent `PageType` because Page validation needs
 /// the Type's property schema. Validation runs before every write.
 ///
-/// CRUD methods are split into `ContentManager+CRUD.swift` for legibility —
+/// CRUD methods are split into `PageContentManager+CRUD.swift` for legibility —
 /// this file holds storage + accessors + load paths only.
+///
+/// **ParadigmV2 (Task 5.5):** Items have been moved to a parallel
+/// `ItemContentManager` typed on Item + ItemType + ItemCollection. This type
+/// no longer carries any Item state or methods.
 @MainActor
 @Observable
-final class ContentManager {
+final class PageContentManager {
     /// PageCollection-scoped Pages keyed by PageCollection.id.
     /// Note: relaxed from `private(set)` to internal-set so the
-    /// `ContentManager+CRUD.swift` extension can mutate. Tests + UI still go
-    /// through the accessor methods below; nothing outside the type reaches
+    /// `PageContentManager+CRUD.swift` extension can mutate. Tests + UI still
+    /// go through the accessor methods below; nothing outside the type reaches
     /// into the dictionaries by index.
     var pagesByCollection: [String: [PageMeta]] = [:]
-    /// PageCollection-scoped Items keyed by PageCollection.id.
-    var itemsByCollection: [String: [Item]] = [:]
     /// Page-Type-root Pages (directly inside the Type folder, NOT in a PageCollection)
     /// keyed by PageType.id.
-    var pagesByVaultRoot: [String: [PageMeta]] = [:]
-    /// Page-Type-root Items keyed by PageType.id. Surfaces only in detail-pane
-    /// Tables in v0.2 — sidebar doesn't render Items — but the data layer supports it.
-    var itemsByVaultRoot: [String: [Item]] = [:]
+    var pagesByTypeRoot: [String: [PageMeta]] = [:]
     var pendingError: (any Error)?
 
     // nexus + contextProvider used by the +CRUD extension. Internal (not
@@ -55,16 +53,8 @@ final class ContentManager {
         pagesByCollection[collection.id] ?? []
     }
 
-    func items(in collection: PageCollection) -> [Item] {
-        itemsByCollection[collection.id] ?? []
-    }
-
     func pages(in pageType: PageType) -> [PageMeta] {
-        pagesByVaultRoot[pageType.id] ?? []
-    }
-
-    func items(in pageType: PageType) -> [Item] {
-        itemsByVaultRoot[pageType.id] ?? []
+        pagesByTypeRoot[pageType.id] ?? []
     }
 
     // MARK: - Resolvers
@@ -103,11 +93,11 @@ final class ContentManager {
 
     // MARK: - Load (PageCollection-scoped)
 
-    /// Loads every `.md` Page and `.json` Item inside `collection.folderURL`,
-    /// descending recursively through sub-folders. Sub-folders deeper than
-    /// the locked 2-level Vault/PageCollection model aren't themselves
-    /// PageCollections — their files roll up into this PageCollection
-    /// (Obsidian-parity for adopted folder structures).
+    /// Loads every `.md` Page inside `collection.folderURL`, descending
+    /// recursively through sub-folders. Sub-folders deeper than the locked
+    /// 2-level Vault/PageCollection model aren't themselves PageCollections —
+    /// their files roll up into this PageCollection (Obsidian-parity for
+    /// adopted folder structures).
     ///
     /// Pages use the lenient loader so adopted `.md` files without Pommora
     /// frontmatter still surface; missing `id` is synthesized deterministically
@@ -135,33 +125,18 @@ final class ContentManager {
                 titleKeyPath: \PageMeta.title
             )
 
-            let itemFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
-                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
-            }
-            let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
-            // PageCollections hold Pages only (Items live in ItemCollections under an
-            // ItemType — Phase 5+6). Until that lands, any Items discovered here
-            // fall back to alphabetic ordering.
-            let items = OrderResolver.resolve(
-                unsortedItems,
-                persistedOrder: nil,
-                titleKeyPath: \Item.title
-            )
-
             pagesByCollection[collection.id] = pageMetas
-            itemsByCollection[collection.id] = items
             pendingError = nil
         } catch {
             pagesByCollection[collection.id] = []
-            itemsByCollection[collection.id] = []
             pendingError = error
         }
     }
 
     // MARK: - Load (Page-Type-root)
 
-    /// Scans the Page Type root for `.md` Pages and `.json` Items, recursing into
-    /// every sub-folder EXCEPT those that are themselves PageCollections — those
+    /// Scans the Page Type root for `.md` Pages, recursing into every
+    /// sub-folder EXCEPT those that are themselves PageCollections — those
     /// roll up under `loadAll(for: collection)` instead. Deep sub-folders that
     /// aren't PageCollections (depth ≥ 2) contribute their files to the Type root,
     /// matching Obsidian's "show every `.md` in the vault" semantics.
@@ -174,7 +149,7 @@ final class ContentManager {
         // Discover PageCollection sub-folders by sidecar presence so we exclude
         // their subtrees from the Type-root walk — their files load via
         // `loadAll(for: collection)`, not here. Avoids needing a PageTypeManager
-        // handle inside ContentManager.
+        // handle inside PageContentManager.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
             Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.schemaSidecarFilename))
@@ -203,25 +178,10 @@ final class ContentManager {
                 titleKeyPath: \PageMeta.title
             )
 
-            let itemFiles = try Filesystem.descendantFiles(
-                of: folder,
-                excluding: excludedCollectionFolders
-            ) { url in
-                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
-            }
-            let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
-            let items = OrderResolver.resolve(
-                unsortedItems,
-                persistedOrder: pageType.itemOrder,
-                titleKeyPath: \Item.title
-            )
-
-            pagesByVaultRoot[pageType.id] = pageMetas
-            itemsByVaultRoot[pageType.id] = items
+            pagesByTypeRoot[pageType.id] = pageMetas
             pendingError = nil
         } catch {
-            pagesByVaultRoot[pageType.id] = []
-            itemsByVaultRoot[pageType.id] = []
+            pagesByTypeRoot[pageType.id] = []
             pendingError = error
         }
     }
@@ -255,11 +215,11 @@ final class ContentManager {
         fromOffsets source: IndexSet,
         toOffset destination: Int
     ) {
-        var arr = pagesByVaultRoot[pageType.id] ?? []
+        var arr = pagesByTypeRoot[pageType.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        pagesByVaultRoot[pageType.id] = arr
+        pagesByTypeRoot[pageType.id] = arr
         do {
             try OrderPersister.setPageOrder(arr.map(\.id), inVault: pageType, nexus: nexus)
         } catch {

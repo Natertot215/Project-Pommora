@@ -3,8 +3,12 @@ import Testing
 
 @testable import Pommora
 
+/// PageContentManager.updatePage CRUD tests.
+///
+/// ParadigmV2 (Task 5.5): File-rename to
+/// `PageContentManagerUpdatePageTests.swift` lands in Task 5.6.
 @MainActor
-@Suite("ContentManager.updatePage")
+@Suite("PageContentManager.updatePage")
 struct ContentManagerUpdatePageTests {
 
     @Test("updatePage persists body to disk (PageCollection-scoped)")
@@ -108,7 +112,7 @@ struct ContentManagerUpdatePageTests {
         #expect(manager.pendingError != nil)
     }
 
-    private func setup() async throws -> (Nexus, PageType, PageCollection, ContentManager) {
+    private func setup() async throws -> (Nexus, PageType, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
         let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
@@ -127,7 +131,7 @@ struct ContentManagerUpdatePageTests {
             modifiedAt: Date()
         )
 
-        let manager = ContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         return (nexus, vault, coll, manager)
     }
 }

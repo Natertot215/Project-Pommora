@@ -18,13 +18,18 @@ struct ContentView: View {
     /// inside the detail sub-view.
     @State private var inspectorPresented = false
 
-    // Task 64: full 8-manager environment. TopicManager + ContentManager receive
+    // Task 64: full 8-manager environment. TopicManager + PageContentManager receive
     // real contextProvider closures with live cross-manager lookups (replacing
     // Task 48's NexusContext.empty placeholder).
+    //
+    // ParadigmV2 (Task 5.5): ContentManager split into PageContentManager (Pages)
+    // and ItemContentManager (Items). ItemTypeManager wires in Phase 6.
     @State private var spaceManager: SpaceManager?
     @State private var topicManager: TopicManager?
     @State private var vaultManager: PageTypeManager?
-    @State private var contentManager: ContentManager?
+    @State private var itemTypeManager: ItemTypeManager?
+    @State private var contentManager: PageContentManager?
+    @State private var itemContentManager: ItemContentManager?
     @State private var agendaTaskManager: AgendaTaskManager?
     @State private var agendaEventManager: AgendaEventManager?
     @State private var homepageManager: HomepageManager?
@@ -169,6 +174,7 @@ struct ContentView: View {
             let topicMgr = topicManager,
             let vaultMgr = vaultManager,
             let contentMgr = contentManager,
+            let itemContentMgr = itemContentManager,
             let savedMgr = savedConfigManager
         {
             SidebarView(selection: $sidebarSelection)
@@ -176,6 +182,7 @@ struct ContentView: View {
                 .environment(topicMgr)
                 .environment(vaultMgr)
                 .environment(contentMgr)
+                .environment(itemContentMgr)
                 .environment(savedMgr)
                 .overlay(alignment: .bottom) {
                     if nexusManager.isIndexing {
@@ -220,7 +227,8 @@ struct ContentView: View {
     private var detail: some View {
         if let spaceMgr = spaceManager,
             let vaultMgr = vaultManager,
-            let contentMgr = contentManager
+            let contentMgr = contentManager,
+            let itemContentMgr = itemContentManager
         {
             SidebarDetailView(
                 selection: $sidebarSelection,
@@ -229,6 +237,7 @@ struct ContentView: View {
             .environment(spaceMgr)
             .environment(vaultMgr)
             .environment(contentMgr)
+            .environment(itemContentMgr)
         } else {
             Color.clear
         }
@@ -248,7 +257,9 @@ struct ContentView: View {
             spaceManager = nil
             topicManager = nil
             vaultManager = nil
+            itemTypeManager = nil
             contentManager = nil
+            itemContentManager = nil
             agendaTaskManager = nil
             agendaEventManager = nil
             homepageManager = nil
@@ -259,6 +270,7 @@ struct ContentView: View {
 
         let spaceMgr = SpaceManager(nexus: nexus)
         let vaultMgr = PageTypeManager(nexus: nexus)
+        let itemTypeMgr = ItemTypeManager(nexus: nexus)
 
         // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
         // The outer closure runs on MainActor (per TopicManager's signature) and
@@ -277,10 +289,32 @@ struct ContentView: View {
             )
         }
 
-        // ContentManager needs Space + Topic + Project + Page Type for tier validation.
+        // PageContentManager needs Space + Topic + Project + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on
         // MainActor; inner @Sendable closures use value-type snapshots.
-        let contentMgr: ContentManager = ContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+            let spaces = spaceMgr.spaces
+            let types = vaultMgr.types
+            let topics = topicMgr.topics
+            let projectsByParent = topicMgr.projectsByParent
+            return NexusContext(
+                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupTopic: { id in topics.first { $0.id == id } },
+                lookupProject: { id in
+                    for arr in projectsByParent.values {
+                        if let p = arr.first(where: { $0.id == id }) { return p }
+                    }
+                    return nil
+                },
+                lookupVault: { id in types.first { $0.id == id } }
+            )
+        }
+
+        // ItemContentManager mirrors PageContentManager's NexusContext snapshot
+        // pattern. Item Type Manager wires in Phase 6 — until then ItemContentManager
+        // exists but has no on-disk data to load (`<nexus>/Items/` is materialized
+        // by NexusAdopter in Phase 6).
+        let itemContentMgr: ItemContentManager = ItemContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
             let spaces = spaceMgr.spaces
             let types = vaultMgr.types
             let topics = topicMgr.topics
@@ -310,7 +344,9 @@ struct ContentView: View {
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
+        self.itemTypeManager = itemTypeMgr
         self.contentManager = contentMgr
+        self.itemContentManager = itemContentMgr
         self.agendaTaskManager = agendaTaskMgr
         self.agendaEventManager = agendaEventMgr
         self.homepageManager = homepageMgr
@@ -323,6 +359,7 @@ struct ContentView: View {
         // Publish manager refs so standalone WindowGroup scenes can reach
         // them without restructuring the ContentView dependency graph.
         AppGlobals.contentManager = contentMgr
+        AppGlobals.itemContentManager = itemContentMgr
         AppGlobals.pageTypeManager = vaultMgr
         AppGlobals.spaceManager = spaceMgr
         AppGlobals.topicManager = topicMgr
@@ -331,11 +368,13 @@ struct ContentView: View {
         AppGlobals.mainWindowRouter = router
 
         // Initial load — fire all in parallel.
-        // ContentManager loads per-collection lazily on detail-view appear.
+        // PageContentManager + ItemContentManager load per-collection lazily on
+        // detail-view appear.
         Task {
             async let _ = spaceMgr.loadAll()
             async let _ = topicMgr.loadAll()
             async let _ = vaultMgr.loadAll()
+            async let _ = itemTypeMgr.loadAll()
             async let _ = agendaTaskMgr.loadAll()
             async let _ = agendaEventMgr.loadAll()
             async let _ = homepageMgr.load()

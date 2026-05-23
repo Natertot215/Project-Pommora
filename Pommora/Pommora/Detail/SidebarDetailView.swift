@@ -7,7 +7,7 @@ struct SidebarDetailView: View {
 
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     var body: some View {
         Group {

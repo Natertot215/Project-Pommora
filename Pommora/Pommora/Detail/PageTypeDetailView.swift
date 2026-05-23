@@ -7,7 +7,7 @@ struct PageTypeDetailView: View {
     @Binding var presentedItem: Item?  // drives Item Window popover
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     @State private var tableSelection: Set<String> = []
     @State private var expanded: Set<String> = []  // row IDs
@@ -102,9 +102,14 @@ struct PageTypeDetailView: View {
     // MARK: - Row construction
 
     private var rows: [DetailRow] {
-        // Page-Type-root Pages and Items appear as top-level rows alongside Collections.
+        // Page-Type-root Pages appear as top-level rows alongside Collections.
+        //
+        // ParadigmV2 (Task 5.5): Items have moved to ItemContentManager keyed on
+        // ItemType/ItemCollection. PageType-side Items disappear from this surface
+        // until Phase 6 lands the wrapper-folder layout + ItemTypeManager wiring,
+        // at which point an Items-side detail surface ships in parallel.
         let rootPages = contentManager.pages(in: pageType).map(ContentItem.page)
-        let rootItems = contentManager.items(in: pageType).map(ContentItem.item)
+        let rootItems: [ContentItem] = []  // TODO Phase 6: surface ItemType-root Items
         let rootRows: [DetailRow] = (rootPages + rootItems).map { ci in
             DetailRow(
                 id: ci.id,
@@ -117,7 +122,7 @@ struct PageTypeDetailView: View {
         }
         let collectionRows: [DetailRow] = pageTypeManager.pageCollections(in: pageType).map { coll in
             let pages = contentManager.pages(in: coll).map(ContentItem.page)
-            let items = contentManager.items(in: coll).map(ContentItem.item)
+            let items: [ContentItem] = []  // TODO Phase 6: surface ItemCollection Items
             let kids: [DetailRow] = (pages + items).map { ci in
                 DetailRow(
                     id: ci.id,
@@ -198,9 +203,8 @@ struct PageTypeDetailView: View {
                 return .vaultRoot(pageType)
             }
         case .item:
-            if contentManager.items(in: pageType).contains(where: { $0.id == id }) {
-                return .vaultRoot(pageType)
-            }
+            // TODO Phase 6: route through ItemContentManager + ItemTypeManager.
+            return nil
         case .collection:
             return nil
         }
@@ -212,9 +216,8 @@ struct PageTypeDetailView: View {
                     return .collection(coll, vault: pageType)
                 }
             case .item:
-                if contentManager.items(in: coll).contains(where: { $0.id == id }) {
-                    return .collection(coll, vault: pageType)
-                }
+                // TODO Phase 6: ItemCollection route.
+                return nil
             case .collection:
                 return nil
             }
@@ -272,13 +275,11 @@ struct PageTypeDetailView: View {
                     case .vaultRoot(let t):
                         try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
-                case .item(let i):
-                    switch parent {
-                    case .collection(let coll, let t):
-                        try await contentManager.renameItem(i, to: newName, in: coll, vault: t)
-                    case .vaultRoot(let t):
-                        try await contentManager.renameItem(i, to: newName, inVaultRoot: t)
-                    }
+                case .item:
+                    // TODO Phase 6: route through ItemContentManager.renameItem
+                    // (parent lookup for Items returns nil during Phase 5, so
+                    // this branch is currently unreachable).
+                    break
                 case .collection:
                     break
                 }
@@ -301,13 +302,9 @@ struct PageTypeDetailView: View {
                 case .vaultRoot(let t):
                     try await contentManager.deletePage(p, inVaultRoot: t)
                 }
-            case .item(let i):
-                switch parent {
-                case .collection(let coll, _):
-                    try await contentManager.deleteItem(i, in: coll)
-                case .vaultRoot(let t):
-                    try await contentManager.deleteItem(i, inVaultRoot: t)
-                }
+            case .item:
+                // TODO Phase 6: route through ItemContentManager.deleteItem.
+                break
             case .collection:
                 break
             }

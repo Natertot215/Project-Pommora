@@ -115,16 +115,16 @@ protocol PageSaver: AnyObject, Sendable {
     func save(page: PageMeta, body: String) async throws
 }
 
-/// Production PageSaver — routes to the appropriate ContentManager variant
+/// Production PageSaver — routes to the appropriate PageContentManager variant
 /// based on whether the Page lives inside a Collection or directly in the
 /// Vault root.
 @MainActor
 final class ContentManagerPageSaver: PageSaver {
-    private let contentManager: ContentManager
+    private let contentManager: PageContentManager
     private let vault: PageType
     private let collection: PageCollection?
 
-    init(contentManager: ContentManager, vault: PageType, collection: PageCollection?) {
+    init(contentManager: PageContentManager, vault: PageType, collection: PageCollection?) {
         self.contentManager = contentManager
         self.vault = vault
         self.collection = collection

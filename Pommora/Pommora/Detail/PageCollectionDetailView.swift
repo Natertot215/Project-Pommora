@@ -7,7 +7,7 @@ struct PageCollectionDetailView: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?
 
-    @Environment(ContentManager.self) private var contentManager
+    @Environment(PageContentManager.self) private var contentManager
 
     @State private var tableSelection: Set<String> = []
 
@@ -104,8 +104,11 @@ struct PageCollectionDetailView: View {
     }
 
     private var rows: [DetailRow] {
+        // ParadigmV2 (Task 5.5): Items live in ItemContentManager keyed on
+        // ItemCollection now. PageCollection-side Items disappear until Phase 6
+        // wires the wrapper-folder layout + ItemContentManager surfaces.
         let pages = contentManager.pages(in: collection).map { ContentItem.page($0) }
-        let items = contentManager.items(in: collection).map { ContentItem.item($0) }
+        let items: [ContentItem] = []  // TODO Phase 6: surface ItemCollection Items
         return (pages + items).map { ci in
             DetailRow(
                 id: ci.id,
@@ -188,8 +191,9 @@ struct PageCollectionDetailView: View {
                 switch row.kind {
                 case .page(let p):
                     try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
-                case .item(let i):
-                    try await contentManager.renameItem(i, to: newName, in: collection, vault: vault)
+                case .item:
+                    // TODO Phase 6: route through ItemContentManager.renameItem.
+                    break
                 case .collection:
                     break
                 }
@@ -206,8 +210,9 @@ struct PageCollectionDetailView: View {
             switch row.kind {
             case .page(let p):
                 try await contentManager.deletePage(p, in: collection)
-            case .item(let i):
-                try await contentManager.deleteItem(i, in: collection)
+            case .item:
+                // TODO Phase 6: route through ItemContentManager.deleteItem.
+                break
             case .collection:
                 break
             }
