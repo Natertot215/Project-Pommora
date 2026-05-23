@@ -6,7 +6,7 @@ import Foundation
 /// `children == [...]` → expandable with N nested rows.
 struct DetailRow: Identifiable, Hashable, Sendable {
     enum Kind: Hashable, Sendable {
-        case collection(Pommora.Collection)
+        case collection(PageCollection)
         case page(PageMeta)
         case item(Item)
     }

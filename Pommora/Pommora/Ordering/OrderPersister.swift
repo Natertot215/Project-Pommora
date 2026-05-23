@@ -42,16 +42,16 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    // MARK: - Collection / Page-Type-root Pages + Items (sidecar JSON)
+    // MARK: - PageCollection / Page-Type-root Pages + Items (sidecar JSON)
 
-    static func setCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
+    static func setPageCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
         try mutatePageType(pageType, nexus: nexus) { t in
             t.collectionOrder = order.isEmpty ? nil : order
         }
     }
 
-    static func setPageOrder(_ order: [String], in collection: Pommora.Collection) throws {
-        try mutateCollection(collection) { c in
+    static func setPageOrder(_ order: [String], in collection: PageCollection) throws {
+        try mutatePageCollection(collection) { c in
             c.pageOrder = order.isEmpty ? nil : order
         }
     }
@@ -59,12 +59,6 @@ enum OrderPersister {
     static func setPageOrder(_ order: [String], inVault pageType: PageType, nexus: Nexus) throws {
         try mutatePageType(pageType, nexus: nexus) { t in
             t.pageOrder = order.isEmpty ? nil : order
-        }
-    }
-
-    static func setItemOrder(_ order: [String], in collection: Pommora.Collection) throws {
-        try mutateCollection(collection) { c in
-            c.itemOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -106,12 +100,12 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    private static func mutateCollection(
-        _ collection: Pommora.Collection,
-        _ mutate: (inout Pommora.Collection) -> Void
+    private static func mutatePageCollection(
+        _ collection: PageCollection,
+        _ mutate: (inout PageCollection) -> Void
     ) throws {
         let url = collection.folderURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
-        var updated = try Pommora.Collection.load(from: url)
+        var updated = try PageCollection.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
     }

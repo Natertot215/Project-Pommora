@@ -237,7 +237,7 @@ struct NavDropdownButton: View {
                         onOpen(sel)
                         return
                     }
-                    for col in vm.collections(in: vault) {
+                    for col in vm.pageCollections(in: vault) {
                         await cm.loadAll(for: col)
                         if let sel = SidebarSelection(stateRef: ref) {
                             onOpen(sel)
@@ -259,7 +259,7 @@ struct NavDropdownButton: View {
                 AppGlobals.presentItemAction?(item)
                 return
             }
-            for collection in vm.collections(in: vault) {
+            for collection in vm.pageCollections(in: vault) {
                 if let item = cm.items(in: collection).first(where: { $0.id == ref.id }) {
                     AppGlobals.presentItemAction?(item)
                     return

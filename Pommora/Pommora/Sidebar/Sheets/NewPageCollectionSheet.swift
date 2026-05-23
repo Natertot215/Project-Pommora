@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct NewCollectionSheet: View {
+struct NewPageCollectionSheet: View {
     let vault: PageType
     @Environment(\.dismiss) private var dismiss
     @Environment(PageTypeManager.self) private var vaultManager
@@ -35,16 +35,16 @@ struct NewCollectionSheet: View {
 
     private func create() async {
         do {
-            try await vaultManager.createCollection(name: name, inPageType: vault)
+            try await vaultManager.createPageCollection(name: name, inPageType: vault)
             dismiss()
-        } catch let error as CollectionValidator.ValidationError {
+        } catch let error as PageCollectionValidator.ValidationError {
             errorMessage = friendly(error)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func friendly(_ error: CollectionValidator.ValidationError) -> String {
+    private func friendly(_ error: PageCollectionValidator.ValidationError) -> String {
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"

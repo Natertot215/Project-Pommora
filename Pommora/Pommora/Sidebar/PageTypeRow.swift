@@ -32,8 +32,8 @@ struct PageTypeRow: View {
                     inVault: pageType, fromOffsets: source, toOffset: destination
                 )
             }
-            ForEach(pageTypeManager.collections(in: pageType)) { coll in
-                CollectionRow(
+            ForEach(pageTypeManager.pageCollections(in: pageType)) { coll in
+                PageCollectionRow(
                     collection: coll,
                     parentVault: pageType,
                     selection: $selection,
@@ -43,7 +43,7 @@ struct PageTypeRow: View {
                 )
             }
             .onMove { source, destination in
-                pageTypeManager.reorderCollections(
+                pageTypeManager.reorderPageCollections(
                     in: pageType, fromOffsets: source, toOffset: destination
                 )
             }
@@ -85,7 +85,7 @@ struct PageTypeRow: View {
                 Button("Change Icon") { presentedSheet = .editIcon(.pageType(pageType)) }
                 Divider()
                 Button("Delete", role: .destructive) {
-                    let cols = pageTypeManager.collections(in: pageType).count
+                    let cols = pageTypeManager.pageCollections(in: pageType).count
                     confirmingDelete = .deleteVault(pageType, collectionCount: cols)
                 }
             }

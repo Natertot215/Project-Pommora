@@ -1,6 +1,6 @@
 import Foundation
 
-/// CRUD methods for Pages + Items across both Collection-scoped and
+/// CRUD methods for Pages + Items across both PageCollection-scoped and
 /// vault-root-scoped storage. Split out from `ContentManager.swift` for
 /// legibility (Part 6.4 of the Commit 4 cleanup). `@MainActor` is inherited
 /// from the type declaration; `@Observable` storage is fine across extensions.
@@ -13,10 +13,10 @@ import Foundation
 ///   surfaces a `RenameAtomicityError` (Part 1).
 extension ContentManager {
 
-    // MARK: - Page CRUD (Collection-scoped)
+    // MARK: - Page CRUD (PageCollection-scoped)
 
     @discardableResult
-    func createPage(name: String, in collection: Collection, vault: PageType) async throws -> PageMeta {
+    func createPage(name: String, in collection: PageCollection, vault: PageType) async throws -> PageMeta {
         do {
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
@@ -56,7 +56,7 @@ extension ContentManager {
         }
     }
 
-    func renamePage(_ page: PageMeta, to newName: String, in collection: Collection, vault: PageType) async throws {
+    func renamePage(_ page: PageMeta, to newName: String, in collection: PageCollection, vault: PageType) async throws {
         do {
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
@@ -96,7 +96,7 @@ extension ContentManager {
         }
     }
 
-    func deletePage(_ page: PageMeta, in collection: Collection) async throws {
+    func deletePage(_ page: PageMeta, in collection: PageCollection) async throws {
         do {
             try Filesystem.moveToTrash(page.url, in: nexus)
             var arr = pagesByCollection[collection.id] ?? []
@@ -117,7 +117,7 @@ extension ContentManager {
     /// In-memory cache (pagesByCollection) is mutated AFTER the disk write
     /// succeeds, so a failed write leaves the cache consistent with disk.
     func updatePage(
-        _ page: PageMeta, body: String, in collection: Collection, vault: PageType
+        _ page: PageMeta, body: String, in collection: PageCollection, vault: PageType
     )
         async throws
     {
@@ -278,10 +278,10 @@ extension ContentManager {
         }
     }
 
-    // MARK: - Item CRUD (Collection-scoped)
+    // MARK: - Item CRUD (PageCollection-scoped)
 
     @discardableResult
-    func createItem(name: String, in collection: Collection, vault: PageType) async throws -> Item {
+    func createItem(name: String, in collection: PageCollection, vault: PageType) async throws -> Item {
         do {
             let existing = itemsByCollection[collection.id] ?? []
             try ItemValidator.validate(
@@ -304,9 +304,11 @@ extension ContentManager {
 
             var arr = existing
             arr.append(item)
+            // PageCollections hold Pages only; Item ordering falls back to
+            // alphabetic until ItemCollection lands (Phase 5+6).
             arr = OrderResolver.resolve(
                 arr,
-                persistedOrder: collection.itemOrder,
+                persistedOrder: nil,
                 titleKeyPath: \Item.title
             )
             itemsByCollection[collection.id] = arr
@@ -317,7 +319,7 @@ extension ContentManager {
         }
     }
 
-    func renameItem(_ item: Item, to newName: String, in collection: Collection, vault: PageType) async throws {
+    func renameItem(_ item: Item, to newName: String, in collection: PageCollection, vault: PageType) async throws {
         do {
             let existing = itemsByCollection[collection.id] ?? []
             try ItemValidator.validate(
@@ -352,9 +354,11 @@ extension ContentManager {
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
+                // PageCollections hold Pages only; Item ordering falls back to
+                // alphabetic until ItemCollection lands (Phase 5+6).
                 arr = OrderResolver.resolve(
                     arr,
-                    persistedOrder: collection.itemOrder,
+                    persistedOrder: nil,
                     titleKeyPath: \Item.title
                 )
             }
@@ -367,7 +371,7 @@ extension ContentManager {
         }
     }
 
-    func updateItem(_ item: Item, in collection: Collection, vault: PageType) async throws {
+    func updateItem(_ item: Item, in collection: PageCollection, vault: PageType) async throws {
         do {
             let existing = itemsByCollection[collection.id] ?? []
             try ItemValidator.validate(
@@ -394,7 +398,7 @@ extension ContentManager {
         }
     }
 
-    func deleteItem(_ item: Item, in collection: Collection) async throws {
+    func deleteItem(_ item: Item, in collection: PageCollection) async throws {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
             try Filesystem.moveToTrash(url, in: nexus)

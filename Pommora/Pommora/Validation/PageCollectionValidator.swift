@@ -1,6 +1,6 @@
 import Foundation
 
-enum CollectionValidator {
+enum PageCollectionValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
@@ -9,8 +9,8 @@ enum CollectionValidator {
 
     static func validate(
         title: String,
-        existingInVault: [Collection],
-        excluding: Collection? = nil
+        existingInType: [PageCollection],
+        excluding: PageCollection? = nil
     ) throws {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
@@ -20,7 +20,7 @@ enum CollectionValidator {
             throw ValidationError.invalidTitleCharacters
         }
 
-        let conflict = existingInVault.contains { c in
+        let conflict = existingInType.contains { c in
             c.id != excluding?.id && c.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }

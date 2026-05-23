@@ -9,7 +9,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case topic(Topic)
     case subtopic(Subtopic)
     case pageType(PageType)
-    case collection(Pommora.Collection)
+    case collection(PageCollection)
     case page(PageMeta)
 }
 
@@ -63,7 +63,7 @@ extension SidebarSelection {
         case .collection:
             guard let pm = AppGlobals.pageTypeManager else { return nil }
             for pageType in pm.types {
-                if let c = pm.collections(in: pageType).first(where: { $0.id == stateRef.id }) {
+                if let c = pm.pageCollections(in: pageType).first(where: { $0.id == stateRef.id }) {
                     self = .collection(c)
                     return
                 }

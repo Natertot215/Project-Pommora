@@ -6,7 +6,7 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPageType
 @Observable
 final class PageTypeManager {
     private(set) var types: [PageType] = []
-    private(set) var collectionsByType: [String: [Collection]] = [:]
+    private(set) var pageCollectionsByType: [String: [PageCollection]] = [:]
     var pendingError: (any Error)?
 
     private let nexus: Nexus
@@ -18,8 +18,8 @@ final class PageTypeManager {
         self.nexus = nexus
     }
 
-    func collections(in pageType: PageType) -> [Collection] {
-        collectionsByType[pageType.id] ?? []
+    func pageCollections(in pageType: PageType) -> [PageCollection] {
+        pageCollectionsByType[pageType.id] ?? []
     }
 
     // MARK: - Load
@@ -34,7 +34,7 @@ final class PageTypeManager {
                 .filter { $0.lastPathComponent != ".trash" }
 
             var loadedTypes: [PageType] = []
-            var loadedCols: [String: [Collection]] = [:]
+            var loadedCols: [String: [PageCollection]] = [:]
 
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
@@ -43,19 +43,19 @@ final class PageTypeManager {
                 else { continue }
                 loadedTypes.append(pageType)
 
-                // Discover Collections (sub-folders with schema sidecar; skip _- and .-prefixed)
+                // Discover PageCollections (sub-folders with schema sidecar; skip _- and .-prefixed)
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
-                    .compactMap { folder -> Pommora.Collection? in
+                    .compactMap { folder -> PageCollection? in
                         let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
                         guard Filesystem.fileExists(at: metaURL) else { return nil }
-                        return try? Pommora.Collection.load(from: metaURL)
+                        return try? PageCollection.load(from: metaURL)
                     }
                 loadedCols[pageType.id] = OrderResolver.resolve(
                     cols,
                     persistedOrder: pageType.collectionOrder,
-                    titleKeyPath: \Pommora.Collection.title
+                    titleKeyPath: \PageCollection.title
                 )
             }
 
@@ -64,11 +64,11 @@ final class PageTypeManager {
                 persistedOrder: readPersistedPageTypeOrder(),
                 titleKeyPath: \PageType.title
             )
-            self.collectionsByType = loadedCols
+            self.pageCollectionsByType = loadedCols
             self.pendingError = nil
         } catch {
             self.types = []
-            self.collectionsByType = [:]
+            self.pageCollectionsByType = [:]
             self.pendingError = error
         }
     }
@@ -92,7 +92,7 @@ final class PageTypeManager {
             try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: pageType)
 
             types.append(pageType)
-            collectionsByType[pageType.id] = []
+            pageCollectionsByType[pageType.id] = []
             types = OrderResolver.resolve(
                 types,
                 persistedOrder: readPersistedPageTypeOrder(),
@@ -134,23 +134,22 @@ final class PageTypeManager {
 
             if let i = types.firstIndex(where: { $0.id == pageType.id }) {
                 types[i] = updated
-                // Rebuild Collection in-memory under new parent path (id + vault_id unchanged;
+                // Rebuild PageCollection in-memory under new parent path (id + type_id unchanged;
                 // schema sidecar moved with its folder, just re-derive folderURL).
-                // Preserve pageOrder/itemOrder so a Page Type rename doesn't drop persisted ordering.
-                if let oldCols = collectionsByType[pageType.id] {
-                    let rebuilt = oldCols.map { c -> Pommora.Collection in
+                // Preserve pageOrder so a Page Type rename doesn't drop persisted ordering.
+                if let oldCols = pageCollectionsByType[pageType.id] {
+                    let rebuilt = oldCols.map { c -> PageCollection in
                         let newCollURL = newFolder.appendingPathComponent(c.title, isDirectory: true)
-                        return Pommora.Collection(
+                        return PageCollection(
                             id: c.id,
-                            vaultID: c.vaultID,
+                            typeID: c.typeID,
                             title: c.title,
                             folderURL: newCollURL,
                             modifiedAt: c.modifiedAt,
-                            pageOrder: c.pageOrder,
-                            itemOrder: c.itemOrder
+                            pageOrder: c.pageOrder
                         )
                     }
-                    collectionsByType[pageType.id] = rebuilt
+                    pageCollectionsByType[pageType.id] = rebuilt
                 }
                 types = OrderResolver.resolve(
                     types,
@@ -187,27 +186,27 @@ final class PageTypeManager {
             let folder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
             types.removeAll { $0.id == pageType.id }
-            collectionsByType.removeValue(forKey: pageType.id)
+            pageCollectionsByType.removeValue(forKey: pageType.id)
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    // MARK: - Collection CRUD
+    // MARK: - PageCollection CRUD
 
-    func createCollection(name: String, inPageType pageType: PageType) async throws {
+    func createPageCollection(name: String, inPageType pageType: PageType) async throws {
         do {
-            let existing = collectionsByType[pageType.id] ?? []
-            try CollectionValidator.validate(title: name, existingInVault: existing)
+            let existing = pageCollectionsByType[pageType.id] ?? []
+            try PageCollectionValidator.validate(title: name, existingInType: existing)
 
             let folder = NexusPaths.collectionFolderURL(
                 forTitle: name, inVaultTitled: pageType.title, in: nexus
             )
             let now = Date()
-            let coll = Collection(
+            let coll = PageCollection(
                 id: ULID.generate(),
-                vaultID: pageType.id,
+                typeID: pageType.id,
                 title: name,
                 folderURL: folder,
                 modifiedAt: now
@@ -222,21 +221,21 @@ final class PageTypeManager {
             arr = OrderResolver.resolve(
                 arr,
                 persistedOrder: pageType.collectionOrder,
-                titleKeyPath: \Pommora.Collection.title
+                titleKeyPath: \PageCollection.title
             )
-            collectionsByType[pageType.id] = arr
+            pageCollectionsByType[pageType.id] = arr
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    func renameCollection(_ collection: Pommora.Collection, to newName: String) async throws {
+    func renamePageCollection(_ collection: PageCollection, to newName: String) async throws {
         do {
-            guard let pageType = types.first(where: { $0.id == collection.vaultID }) else { return }
-            let existing = collectionsByType[pageType.id] ?? []
-            try CollectionValidator.validate(
-                title: newName, existingInVault: existing, excluding: collection
+            guard let pageType = types.first(where: { $0.id == collection.typeID }) else { return }
+            let existing = pageCollectionsByType[pageType.id] ?? []
+            try PageCollectionValidator.validate(
+                title: newName, existingInType: existing, excluding: collection
             )
 
             let newURL = NexusPaths.collectionFolderURL(
@@ -245,16 +244,15 @@ final class PageTypeManager {
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
             // Bump modified_at in the sidecar at its new location. Preserve
-            // pageOrder/itemOrder so a rename doesn't drop persisted ordering.
+            // pageOrder so a rename doesn't drop persisted ordering.
             let now = Date()
-            let updated = Pommora.Collection(
+            let updated = PageCollection(
                 id: collection.id,
-                vaultID: collection.vaultID,
+                typeID: collection.typeID,
                 title: newName,
                 folderURL: newURL,
                 modifiedAt: now,
-                pageOrder: collection.pageOrder,
-                itemOrder: collection.itemOrder
+                pageOrder: collection.pageOrder
             )
             let metaURL = newURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
             do {
@@ -276,10 +274,10 @@ final class PageTypeManager {
                 arr = OrderResolver.resolve(
                     arr,
                     persistedOrder: pageType.collectionOrder,
-                    titleKeyPath: \Pommora.Collection.title
+                    titleKeyPath: \PageCollection.title
                 )
             }
-            collectionsByType[pageType.id] = arr
+            pageCollectionsByType[pageType.id] = arr
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -288,12 +286,12 @@ final class PageTypeManager {
         }
     }
 
-    func deleteCollection(_ collection: Pommora.Collection) async throws {
+    func deletePageCollection(_ collection: PageCollection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
-            var arr = collectionsByType[collection.vaultID] ?? []
+            var arr = pageCollectionsByType[collection.typeID] ?? []
             arr.removeAll { $0.id == collection.id }
-            collectionsByType[collection.vaultID] = arr
+            pageCollectionsByType[collection.typeID] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -315,16 +313,16 @@ final class PageTypeManager {
         }
     }
 
-    /// Reorders Collections within `pageType`. New ID order persists to the parent
+    /// Reorders PageCollections within `pageType`. New ID order persists to the parent
     /// Page Type's schema sidecar.
-    func reorderCollections(in pageType: PageType, fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = collectionsByType[pageType.id] ?? []
+    func reorderPageCollections(in pageType: PageType, fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = pageCollectionsByType[pageType.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        collectionsByType[pageType.id] = arr
+        pageCollectionsByType[pageType.id] = arr
         do {
-            try OrderPersister.setCollectionOrder(arr.map(\.id), in: pageType, nexus: nexus)
+            try OrderPersister.setPageCollectionOrder(arr.map(\.id), in: pageType, nexus: nexus)
             // Keep the in-memory PageType's collectionOrder in sync.
             if let i = types.firstIndex(where: { $0.id == pageType.id }) {
                 types[i].collectionOrder = arr.map(\.id)

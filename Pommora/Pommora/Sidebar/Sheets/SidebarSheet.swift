@@ -7,9 +7,9 @@ enum SidebarSheet: Identifiable {
     case newSubtopic(parent: Topic)
     case newPageType
     case newCollection(pageType: PageType)
-    case newPage(collection: Pommora.Collection, pageType: PageType)
+    case newPage(collection: PageCollection, pageType: PageType)
     case newPageInPageType(pageType: PageType)
-    case newItem(collection: Pommora.Collection, pageType: PageType)
+    case newItem(collection: PageCollection, pageType: PageType)
     case editTopicParents(Topic)
     case editIcon(IconTarget)
     case editColor(Space)

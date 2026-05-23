@@ -21,7 +21,7 @@ struct PageEditorHost: View {
 
     @State private var viewModel: PageEditorViewModel?
     @State private var resolvedVault: PageType?
-    @State private var resolvedCollection: Pommora.Collection?
+    @State private var resolvedCollection: PageCollection?
     @State private var loadFailed = false
 
     var body: some View {

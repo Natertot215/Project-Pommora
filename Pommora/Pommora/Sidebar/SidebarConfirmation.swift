@@ -6,7 +6,7 @@ enum SidebarConfirmation: Identifiable {
     case deleteTopic(Topic, subtopicCount: Int)
     case deleteSubtopic(Subtopic)
     case deleteVault(PageType, collectionCount: Int)
-    case deleteCollection(Pommora.Collection)
+    case deleteCollection(PageCollection)
 
     var id: String {
         switch self {

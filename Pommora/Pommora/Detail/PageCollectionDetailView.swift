@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct CollectionDetailView: View {
-    let collection: Pommora.Collection
+struct PageCollectionDetailView: View {
+    let collection: PageCollection
     let vault: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?

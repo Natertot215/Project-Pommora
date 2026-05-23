@@ -27,7 +27,7 @@ struct PageTypeDetailView: View {
         .task(id: pageType.id) {
             // Load Page-Type-root Pages/Items + every Collection's content
             await contentManager.loadAll(for: pageType)
-            for coll in pageTypeManager.collections(in: pageType) {
+            for coll in pageTypeManager.pageCollections(in: pageType) {
                 await contentManager.loadAll(for: coll)
             }
         }
@@ -115,7 +115,7 @@ struct PageTypeDetailView: View {
                 children: nil
             )
         }
-        let collectionRows: [DetailRow] = pageTypeManager.collections(in: pageType).map { coll in
+        let collectionRows: [DetailRow] = pageTypeManager.pageCollections(in: pageType).map { coll in
             let pages = contentManager.pages(in: coll).map(ContentItem.page)
             let items = contentManager.items(in: coll).map(ContentItem.item)
             let kids: [DetailRow] = (pages + items).map { ci in
@@ -205,7 +205,7 @@ struct PageTypeDetailView: View {
             return nil
         }
         // Then every collection.
-        for coll in pageTypeManager.collections(in: pageType) {
+        for coll in pageTypeManager.pageCollections(in: pageType) {
             switch row.kind {
             case .page:
                 if contentManager.pages(in: coll).contains(where: { $0.id == id }) {

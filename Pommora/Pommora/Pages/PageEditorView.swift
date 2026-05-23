@@ -27,7 +27,7 @@ struct PageEditorView: View {
     @Bindable var viewModel: PageEditorViewModel
     let vault: PageType
     /// nil = vault-root Page (no Collection parent)
-    let collection: Pommora.Collection?
+    let collection: PageCollection?
 
     @Environment(ContentManager.self) private var contentManager
 
@@ -46,7 +46,7 @@ struct PageEditorView: View {
     init(
         viewModel: PageEditorViewModel,
         vault: PageType,
-        collection: Pommora.Collection?
+        collection: PageCollection?
     ) {
         self.viewModel = viewModel
         self.vault = vault

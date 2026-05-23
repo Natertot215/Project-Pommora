@@ -103,7 +103,7 @@ struct BackForwardButtons: View {
             if let item = contentManager.items(in: vault).first(where: { $0.id == id }) {
                 return item
             }
-            for collection in vm.collections(in: vault) {
+            for collection in vm.pageCollections(in: vault) {
                 if let item = contentManager.items(in: collection).first(where: { $0.id == id }) {
                     return item
                 }

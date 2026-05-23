@@ -202,9 +202,9 @@ enum NexusAdopter {
             do {
                 try Filesystem.writeMetadataIntoExistingFolder(
                     metadataURL: metaURL,
-                    metadata: Collection(
+                    metadata: PageCollection(
                         id: ULID.generate(),
-                        vaultID: vaultID,
+                        typeID: vaultID,
                         title: planned.title,
                         folderURL: planned.folderURL,
                         modifiedAt: now

@@ -58,7 +58,7 @@ struct SidebarDetailView: View {
             case .collection(let c):
                 // We need the parent Vault here too. Find it via PageTypeManager.
                 if let v = lookupVault(forCollection: c) {
-                    CollectionDetailView(
+                    PageCollectionDetailView(
                         collection: c,
                         vault: v,
                         selection: $selection,
@@ -88,7 +88,7 @@ struct SidebarDetailView: View {
             case .newTopic: NewTopicSheet()
             case .newSubtopic(let t): NewSubtopicSheet(parent: t)
             case .newPageType: NewPageTypeSheet()
-            case .newCollection(let v): NewCollectionSheet(vault: v)
+            case .newCollection(let v): NewPageCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
             case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
             case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
@@ -99,8 +99,8 @@ struct SidebarDetailView: View {
         }
     }
 
-    private func lookupVault(forCollection c: Pommora.Collection) -> PageType? {
-        vaultManager.types.first { $0.id == c.vaultID }
+    private func lookupVault(forCollection c: PageCollection) -> PageType? {
+        vaultManager.types.first { $0.id == c.typeID }
     }
 
     private var emptyState: some View {

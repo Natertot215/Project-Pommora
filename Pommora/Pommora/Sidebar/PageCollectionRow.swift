@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct CollectionRow: View {
-    let collection: Pommora.Collection
+struct PageCollectionRow: View {
+    let collection: PageCollection
     let parentVault: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -115,7 +115,7 @@ struct CollectionRow: View {
         Task {
             defer { isCommitting = false }
             do {
-                try await vaultManager.renameCollection(collection, to: draft)
+                try await vaultManager.renamePageCollection(collection, to: draft)
                 editingID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.

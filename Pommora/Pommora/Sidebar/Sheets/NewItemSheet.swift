@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NewItemSheet: View {
-    let collection: Pommora.Collection
+    let collection: PageCollection
     let vault: PageType
     @Environment(\.dismiss) private var dismiss
     @Environment(ContentManager.self) private var contentManager

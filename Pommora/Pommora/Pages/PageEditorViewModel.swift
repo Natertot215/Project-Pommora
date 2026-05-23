@@ -122,9 +122,9 @@ protocol PageSaver: AnyObject, Sendable {
 final class ContentManagerPageSaver: PageSaver {
     private let contentManager: ContentManager
     private let vault: PageType
-    private let collection: Pommora.Collection?
+    private let collection: PageCollection?
 
-    init(contentManager: ContentManager, vault: PageType, collection: Pommora.Collection?) {
+    init(contentManager: ContentManager, vault: PageType, collection: PageCollection?) {
         self.contentManager = contentManager
         self.vault = vault
         self.collection = collection

@@ -54,7 +54,7 @@ struct SidebarView: View {
             case .newTopic: NewTopicSheet()
             case .newSubtopic(let t): NewSubtopicSheet(parent: t)
             case .newPageType: NewPageTypeSheet()
-            case .newCollection(let v): NewCollectionSheet(vault: v)
+            case .newCollection(let v): NewPageCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
             case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
             case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
@@ -160,7 +160,7 @@ struct SidebarView: View {
         case .deleteCollection(let c):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await vaultManager.deleteCollection(c) } catch
+                    do { try await vaultManager.deletePageCollection(c) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }

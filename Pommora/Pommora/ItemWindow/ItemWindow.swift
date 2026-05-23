@@ -175,7 +175,7 @@ struct ItemWindow: View {
     private func vaultForItem() -> PageType? {
         // Items live in Collections; find the Vault whose Collection holds this Item
         for vault in vaultManager.types {
-            for coll in vaultManager.collections(in: vault) {
+            for coll in vaultManager.pageCollections(in: vault) {
                 if contentManager.items(in: coll).contains(where: { $0.id == item.id }) {
                     return vault
                 }
@@ -191,7 +191,7 @@ struct ItemWindow: View {
         }
         guard
             let coll =
-                (vaultManager.collections(in: vault).first {
+                (vaultManager.pageCollections(in: vault).first {
                     contentManager.items(in: $0).contains(where: { $0.id == item.id })
                 })
         else {
