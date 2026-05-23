@@ -422,8 +422,8 @@ enum NexusAdopter {
 
             // Post-move: rename `_vault.json` → `_schema.json` inside the moved
             // folder if needed (idempotent; no-op when the new name already
-            // exists). Errors swallowed — best-effort, mirrors the auto-heal
-            // pattern at PageTypeManager.migrateLegacySidecarsIfNeeded.
+            // exists). Errors swallowed — best-effort. (Phase 4 rewrites this
+            // path; PageTypeManager no longer carries an in-loader auto-heal.)
             let legacySidecar = migration.destinationFolderURL
                 .appendingPathComponent("_vault.json", isDirectory: false)
             let unifiedSidecar = migration.destinationFolderURL
