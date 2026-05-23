@@ -8,7 +8,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case space(Space)
     case topic(Topic)
     case subtopic(Subtopic)
-    case vault(Vault)
+    case pageType(PageType)
     case collection(Pommora.Collection)
     case page(PageMeta)
 }
@@ -37,10 +37,10 @@ extension SidebarSelection {
             }
             return nil
         case .vault:
-            guard let vm = AppGlobals.vaultManager,
-                let v = vm.vaults.first(where: { $0.id == stateRef.id })
+            guard let pm = AppGlobals.pageTypeManager,
+                let t = pm.types.first(where: { $0.id == stateRef.id })
             else { return nil }
-            self = .vault(v)
+            self = .pageType(t)
         case .space:
             guard let sm = AppGlobals.spaceManager,
                 let s = sm.spaces.first(where: { $0.id == stateRef.id })
@@ -61,9 +61,9 @@ extension SidebarSelection {
             }
             return nil
         case .collection:
-            guard let vm = AppGlobals.vaultManager else { return nil }
-            for vault in vm.vaults {
-                if let c = vm.collections(in: vault).first(where: { $0.id == stateRef.id }) {
+            guard let pm = AppGlobals.pageTypeManager else { return nil }
+            for pageType in pm.types {
+                if let c = pm.collections(in: pageType).first(where: { $0.id == stateRef.id }) {
                     self = .collection(c)
                     return
                 }
@@ -82,7 +82,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case space(String)
     case topic(String)
     case subtopic(String)
-    case vault(String)
+    case pageType(String)
     case collection(String)
     case page(String)
 
@@ -92,7 +92,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case (.space(let id), .space(let s)): return id == s.id
         case (.topic(let id), .topic(let t)): return id == t.id
         case (.subtopic(let id), .subtopic(let st)): return id == st.id
-        case (.vault(let id), .vault(let v)): return id == v.id
+        case (.pageType(let id), .pageType(let t)): return id == t.id
         case (.collection(let id), .collection(let c)): return id == c.id
         case (.page(let id), .page(let p)): return id == p.id
         default: return false

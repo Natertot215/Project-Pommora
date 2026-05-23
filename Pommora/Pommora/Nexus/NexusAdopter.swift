@@ -68,7 +68,7 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
 }
 
 /// Names that are NEVER eligible to become Vaults or Collections, regardless
-/// of contents. Matches the existing `VaultManager.loadAll` filter set plus
+/// of contents. Matches the existing `PageTypeManager.loadAll` filter set plus
 /// well-known cruft folders Pommora should never touch.
 private let adoptionExcludedFolderNames: Set<String> = [
     "node_modules",
@@ -161,7 +161,7 @@ enum NexusAdopter {
             do {
                 try Filesystem.writeMetadataIntoExistingFolder(
                     metadataURL: metaURL,
-                    metadata: Vault(
+                    metadata: PageType(
                         id: vaultID,
                         title: planned.title,
                         icon: nil,
@@ -185,7 +185,7 @@ enum NexusAdopter {
             let vaultID: String
             if let cached = vaultIDByFolder[key] {
                 vaultID = cached
-            } else if let loaded = try? Vault.load(
+            } else if let loaded = try? PageType.load(
                 from: key.appendingPathComponent(
                     NexusPaths.schemaSidecarFilename, isDirectory: false
                 )
@@ -222,7 +222,7 @@ enum NexusAdopter {
 
     // MARK: - Exclusion
 
-    /// Mirrors `VaultManager.loadAll`'s top-level filter exactly so adoption
+    /// Mirrors `PageTypeManager.loadAll`'s top-level filter exactly so adoption
     /// proposes Vaults for the same folders the loader will subsequently see.
     private static func isExcludedTopLevel(_ url: URL) -> Bool {
         let name = url.lastPathComponent

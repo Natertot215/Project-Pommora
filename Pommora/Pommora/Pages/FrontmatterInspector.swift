@@ -8,9 +8,9 @@ import SwiftUI
 /// each vault-schema property key with a "Coming v0.3.0" placeholder value.
 struct FrontmatterInspector: View {
     let page: PageMeta
-    let vault: Vault
+    let vault: PageType
     @Environment(SpaceManager.self) private var spaceManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
 
     var body: some View {
         Form {

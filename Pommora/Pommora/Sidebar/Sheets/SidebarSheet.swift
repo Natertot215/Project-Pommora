@@ -5,11 +5,11 @@ enum SidebarSheet: Identifiable {
     case newSpace
     case newTopic
     case newSubtopic(parent: Topic)
-    case newVault
-    case newCollection(vault: Vault)
-    case newPage(collection: Pommora.Collection, vault: Vault)
-    case newPageInVault(vault: Vault)
-    case newItem(collection: Pommora.Collection, vault: Vault)
+    case newPageType
+    case newCollection(pageType: PageType)
+    case newPage(collection: Pommora.Collection, pageType: PageType)
+    case newPageInPageType(pageType: PageType)
+    case newItem(collection: Pommora.Collection, pageType: PageType)
     case editTopicParents(Topic)
     case editIcon(IconTarget)
     case editColor(Space)
@@ -20,7 +20,7 @@ enum SidebarSheet: Identifiable {
         case space(Space)
         case topic(Topic)
         case subtopic(Subtopic)
-        case vault(Vault)
+        case pageType(PageType)
     }
 
     var id: String {
@@ -28,10 +28,10 @@ enum SidebarSheet: Identifiable {
         case .newSpace: return "newSpace"
         case .newTopic: return "newTopic"
         case .newSubtopic(let t): return "newSubtopic-\(t.id)"
-        case .newVault: return "newVault"
-        case .newCollection(let v): return "newCollection-\(v.id)"
+        case .newPageType: return "newPageType"
+        case .newCollection(let t): return "newCollection-\(t.id)"
         case .newPage(let c, _): return "newPage-\(c.id)"
-        case .newPageInVault(let v): return "newPageInVault-\(v.id)"
+        case .newPageInPageType(let t): return "newPageInPageType-\(t.id)"
         case .newItem(let c, _): return "newItem-\(c.id)"
         case .editTopicParents(let t): return "editTopicParents-\(t.id)"
         case .editIcon(let target):
@@ -39,7 +39,7 @@ enum SidebarSheet: Identifiable {
             case .space(let s): return "editIcon-space-\(s.id)"
             case .topic(let t): return "editIcon-topic-\(t.id)"
             case .subtopic(let s): return "editIcon-subtopic-\(s.id)"
-            case .vault(let v): return "editIcon-vault-\(v.id)"
+            case .pageType(let t): return "editIcon-pageType-\(t.id)"
             }
         case .editColor(let s): return "editColor-\(s.id)"
         }

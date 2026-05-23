@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct NewCollectionSheet: View {
-    let vault: Vault
+    let vault: PageType
     @Environment(\.dismiss) private var dismiss
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var name: String = ""
     @State private var errorMessage: String?
@@ -35,7 +35,7 @@ struct NewCollectionSheet: View {
 
     private func create() async {
         do {
-            try await vaultManager.createCollection(name: name, inVault: vault)
+            try await vaultManager.createCollection(name: name, inPageType: vault)
             dismiss()
         } catch let error as CollectionValidator.ValidationError {
             errorMessage = friendly(error)

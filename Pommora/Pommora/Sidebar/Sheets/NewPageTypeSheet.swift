@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct NewVaultSheet: View {
+struct NewPageTypeSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var pageTypeManager
 
     @State private var name: String = ""
     @State private var icon: String? = "tray.2"
@@ -39,16 +39,16 @@ struct NewVaultSheet: View {
     private func create() async {
         do {
             let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
-            try await vaultManager.createVault(name: name, icon: iconValue)
+            try await pageTypeManager.createPageType(name: name, icon: iconValue)
             dismiss()
-        } catch let error as VaultValidator.ValidationError {
+        } catch let error as PageTypeValidator.ValidationError {
             errorMessage = friendly(error)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func friendly(_ error: VaultValidator.ValidationError) -> String {
+    private func friendly(_ error: PageTypeValidator.ValidationError) -> String {
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"

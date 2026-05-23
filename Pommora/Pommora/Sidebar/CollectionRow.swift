@@ -2,13 +2,13 @@ import SwiftUI
 
 struct CollectionRow: View {
     let collection: Pommora.Collection
-    let parentVault: Vault
+    let parentVault: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ContentManager.self) private var contentManager
 
     @State private var draft: String = ""
@@ -39,7 +39,7 @@ struct CollectionRow: View {
                 isSelected: SelectionTag.collection(collection.id).matches(selection)
             )
         )
-        // Same pattern as VaultRow: load on row appearance so Pages are
+        // Same pattern as PageTypeRow: load on row appearance so Pages are
         // available even when the disclosure is collapsed (count badges,
         // future search, etc.).
         .task {
@@ -62,7 +62,7 @@ struct CollectionRow: View {
             )
             .contextMenu {
                 Button("New Page (in This Collection)") {
-                    presentedSheet = .newPage(collection: collection, vault: parentVault)
+                    presentedSheet = .newPage(collection: collection, pageType: parentVault)
                 }
                 Divider()
                 Button("Rename") { editingID = collection.id }

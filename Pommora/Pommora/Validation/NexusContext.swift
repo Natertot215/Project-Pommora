@@ -10,7 +10,7 @@ struct NexusContext: Sendable {
     var lookupSpace: @Sendable (String) -> Space?
     var lookupTopic: @Sendable (String) -> Topic?
     var lookupSubtopic: @Sendable (String) -> Subtopic?
-    var lookupVault: @Sendable (String) -> Vault?
+    var lookupVault: @Sendable (String) -> PageType?
 
     /// Sentinel context with all lookups returning nil — for tests / standalone validation.
     static let empty = NexusContext(

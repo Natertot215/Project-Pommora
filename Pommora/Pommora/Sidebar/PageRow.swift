@@ -5,7 +5,7 @@ import SwiftUI
 /// detail surface until the editor lands in v0.6.
 ///
 /// Owns its own `.listRowBackground` so it doesn't inherit SelectionChrome
-/// from the enclosing DisclosureGroup (VaultRow/CollectionRow).
+/// from the enclosing DisclosureGroup (PageTypeRow/CollectionRow).
 ///
 /// Parent routing (vault-root vs Collection) goes through `PageParent`, so the
 /// row itself stays unaware of which ContentManager overload is being called.

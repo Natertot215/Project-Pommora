@@ -4,7 +4,7 @@ struct ItemWindow: View {
     let item: Item
     @Environment(\.dismiss) private var dismiss
     @Environment(ContentManager.self) private var contentManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var draftTitle: String = ""
     @State private var draftIcon: String = ""
@@ -172,9 +172,9 @@ struct ItemWindow: View {
         draftProperties = item.properties
     }
 
-    private func vaultForItem() -> Vault? {
+    private func vaultForItem() -> PageType? {
         // Items live in Collections; find the Vault whose Collection holds this Item
-        for vault in vaultManager.vaults {
+        for vault in vaultManager.types {
             for coll in vaultManager.collections(in: vault) {
                 if contentManager.items(in: coll).contains(where: { $0.id == item.id }) {
                     return vault

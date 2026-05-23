@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CollectionDetailView: View {
     let collection: Pommora.Collection
-    let vault: Vault
+    let vault: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?
@@ -85,14 +85,14 @@ struct CollectionDetailView: View {
     private var footer: some View {
         HStack {
             Button {
-                presentedSheet = .newPage(collection: collection, vault: vault)
+                presentedSheet = .newPage(collection: collection, pageType: vault)
             } label: {
                 Label("New Page", systemImage: "plus")
             }
             .buttonStyle(.borderless)
 
             Button {
-                presentedSheet = .newItem(collection: collection, vault: vault)
+                presentedSheet = .newItem(collection: collection, pageType: vault)
             } label: {
                 Label("New Item", systemImage: "plus")
             }

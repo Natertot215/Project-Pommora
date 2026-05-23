@@ -98,8 +98,8 @@ struct BackForwardButtons: View {
     /// SQLite in v0.4.0 will make this instant.
     @MainActor
     private func lookupItem(id: String, contentManager: ContentManager) -> Item? {
-        guard let vm = AppGlobals.vaultManager else { return nil }
-        for vault in vm.vaults {
+        guard let vm = AppGlobals.pageTypeManager else { return nil }
+        for vault in vm.types {
             if let item = contentManager.items(in: vault).first(where: { $0.id == id }) {
                 return item
             }

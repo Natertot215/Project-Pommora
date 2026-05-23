@@ -3,7 +3,7 @@ import Foundation
 /// Resolves the display order of a collection of entities against an optional
 /// persisted-order array of IDs.
 ///
-/// Semantics (used uniformly across SpaceManager / TopicManager / VaultManager /
+/// Semantics (used uniformly across SpaceManager / TopicManager / PageTypeManager /
 /// ContentManager since v0.2.8.0):
 ///
 /// - **No persisted order** (nil): items are sorted by title via

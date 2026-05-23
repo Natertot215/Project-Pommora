@@ -1,12 +1,12 @@
 import SwiftUI
 
-struct VaultDetailView: View {
-    let vault: Vault
+struct PageTypeDetailView: View {
+    let pageType: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?  // drives Item Window popover
 
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(ContentManager.self) private var contentManager
 
     @State private var tableSelection: Set<String> = []
@@ -24,10 +24,10 @@ struct VaultDetailView: View {
             Divider()
             footer
         }
-        .task(id: vault.id) {
-            // Load vault-root Pages/Items + every Collection's content
-            await contentManager.loadAll(for: vault)
-            for coll in vaultManager.collections(in: vault) {
+        .task(id: pageType.id) {
+            // Load Page-Type-root Pages/Items + every Collection's content
+            await contentManager.loadAll(for: pageType)
+            for coll in pageTypeManager.collections(in: pageType) {
                 await contentManager.loadAll(for: coll)
             }
         }
@@ -47,9 +47,9 @@ struct VaultDetailView: View {
     private var header: some View {
         HStack {
             Label {
-                Text(vault.title)
+                Text(pageType.title)
             } icon: {
-                Image(systemName: vault.icon ?? "tray.2")
+                Image(systemName: pageType.icon ?? "tray.2")
             }
             .font(.title2.bold())
             Spacer()
@@ -89,7 +89,7 @@ struct VaultDetailView: View {
     private var footer: some View {
         HStack {
             Button {
-                presentedSheet = .newCollection(vault: vault)
+                presentedSheet = .newCollection(pageType: pageType)
             } label: {
                 Label("New Collection", systemImage: "plus")
             }
@@ -102,9 +102,9 @@ struct VaultDetailView: View {
     // MARK: - Row construction
 
     private var rows: [DetailRow] {
-        // Vault-root Pages and Items appear as top-level rows alongside Collections.
-        let rootPages = contentManager.pages(in: vault).map(ContentItem.page)
-        let rootItems = contentManager.items(in: vault).map(ContentItem.item)
+        // Page-Type-root Pages and Items appear as top-level rows alongside Collections.
+        let rootPages = contentManager.pages(in: pageType).map(ContentItem.page)
+        let rootItems = contentManager.items(in: pageType).map(ContentItem.item)
         let rootRows: [DetailRow] = (rootPages + rootItems).map { ci in
             DetailRow(
                 id: ci.id,
@@ -115,7 +115,7 @@ struct VaultDetailView: View {
                 children: nil
             )
         }
-        let collectionRows: [DetailRow] = vaultManager.collections(in: vault).map { coll in
+        let collectionRows: [DetailRow] = pageTypeManager.collections(in: pageType).map { coll in
             let pages = contentManager.pages(in: coll).map(ContentItem.page)
             let items = contentManager.items(in: coll).map(ContentItem.item)
             let kids: [DetailRow] = (pages + items).map { ci in
@@ -191,29 +191,29 @@ struct VaultDetailView: View {
         case .item(let i): id = i.id
         case .collection: return nil
         }
-        // Vault-root first.
+        // Page-Type-root first.
         switch row.kind {
         case .page:
-            if contentManager.pages(in: vault).contains(where: { $0.id == id }) {
-                return .vaultRoot(vault)
+            if contentManager.pages(in: pageType).contains(where: { $0.id == id }) {
+                return .vaultRoot(pageType)
             }
         case .item:
-            if contentManager.items(in: vault).contains(where: { $0.id == id }) {
-                return .vaultRoot(vault)
+            if contentManager.items(in: pageType).contains(where: { $0.id == id }) {
+                return .vaultRoot(pageType)
             }
         case .collection:
             return nil
         }
         // Then every collection.
-        for coll in vaultManager.collections(in: vault) {
+        for coll in pageTypeManager.collections(in: pageType) {
             switch row.kind {
             case .page:
                 if contentManager.pages(in: coll).contains(where: { $0.id == id }) {
-                    return .collection(coll, vault: vault)
+                    return .collection(coll, vault: pageType)
                 }
             case .item:
                 if contentManager.items(in: coll).contains(where: { $0.id == id }) {
-                    return .collection(coll, vault: vault)
+                    return .collection(coll, vault: pageType)
                 }
             case .collection:
                 return nil
@@ -267,17 +267,17 @@ struct VaultDetailView: View {
                 switch row.kind {
                 case .page(let p):
                     switch parent {
-                    case .collection(let coll, let vault):
-                        try await contentManager.renamePage(p, to: newName, in: coll, vault: vault)
-                    case .vaultRoot(let vault):
-                        try await contentManager.renamePage(p, to: newName, inVaultRoot: vault)
+                    case .collection(let coll, let t):
+                        try await contentManager.renamePage(p, to: newName, in: coll, vault: t)
+                    case .vaultRoot(let t):
+                        try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
                 case .item(let i):
                     switch parent {
-                    case .collection(let coll, let vault):
-                        try await contentManager.renameItem(i, to: newName, in: coll, vault: vault)
-                    case .vaultRoot(let vault):
-                        try await contentManager.renameItem(i, to: newName, inVaultRoot: vault)
+                    case .collection(let coll, let t):
+                        try await contentManager.renameItem(i, to: newName, in: coll, vault: t)
+                    case .vaultRoot(let t):
+                        try await contentManager.renameItem(i, to: newName, inVaultRoot: t)
                     }
                 case .collection:
                     break
@@ -298,15 +298,15 @@ struct VaultDetailView: View {
                 switch parent {
                 case .collection(let coll, _):
                     try await contentManager.deletePage(p, in: coll)
-                case .vaultRoot(let vault):
-                    try await contentManager.deletePage(p, inVaultRoot: vault)
+                case .vaultRoot(let t):
+                    try await contentManager.deletePage(p, inVaultRoot: t)
                 }
             case .item(let i):
                 switch parent {
                 case .collection(let coll, _):
                     try await contentManager.deleteItem(i, in: coll)
-                case .vaultRoot(let vault):
-                    try await contentManager.deleteItem(i, inVaultRoot: vault)
+                case .vaultRoot(let t):
+                    try await contentManager.deleteItem(i, inVaultRoot: t)
                 }
             case .collection:
                 break

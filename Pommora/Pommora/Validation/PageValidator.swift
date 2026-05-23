@@ -16,7 +16,7 @@ enum PageValidator {
         tier1: [String], tier2: [String], tier3: [String],
         properties: [String: PropertyValue],
         createdAt: Date,
-        vault: Vault,
+        vault: PageType,
         existingSiblings: [PageMeta],
         context: NexusContext,
         excluding: PageMeta? = nil

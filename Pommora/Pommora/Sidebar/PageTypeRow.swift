@@ -1,14 +1,14 @@
 import SwiftUI
 
-struct VaultRow: View {
-    let vault: Vault
+struct PageTypeRow: View {
+    let pageType: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @State private var expanded: Bool = false
 
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(ContentManager.self) private var contentManager
 
     @State private var draft: String = ""
@@ -17,25 +17,25 @@ struct VaultRow: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            // Vault-root Pages render ABOVE Collections per spec
-            // (Vaults.md:112-114). PageRow is a leaf — not selectable in v0.2.
-            ForEach(contentManager.pages(in: vault)) { page in
+            // Page-Type-root Pages render ABOVE Collections per spec
+            // (PageTypes.md:112-114). PageRow is a leaf — not selectable in v0.2.
+            ForEach(contentManager.pages(in: pageType)) { page in
                 PageRow(
                     page: page,
-                    parent: .vaultRoot(vault),
+                    parent: .vaultRoot(pageType),
                     selection: $selection,
                     editingID: $editingID
                 )
             }
             .onMove { source, destination in
                 contentManager.reorderPages(
-                    inVault: vault, fromOffsets: source, toOffset: destination
+                    inVault: pageType, fromOffsets: source, toOffset: destination
                 )
             }
-            ForEach(vaultManager.collections(in: vault)) { coll in
+            ForEach(pageTypeManager.collections(in: pageType)) { coll in
                 CollectionRow(
                     collection: coll,
-                    parentVault: vault,
+                    parentVault: pageType,
                     selection: $selection,
                     editingID: $editingID,
                     presentedSheet: $presentedSheet,
@@ -43,8 +43,8 @@ struct VaultRow: View {
                 )
             }
             .onMove { source, destination in
-                vaultManager.reorderCollections(
-                    in: vault, fromOffsets: source, toOffset: destination
+                pageTypeManager.reorderCollections(
+                    in: pageType, fromOffsets: source, toOffset: destination
                 )
             }
         } label: {
@@ -52,41 +52,41 @@ struct VaultRow: View {
         }
         .listRowBackground(
             SelectionChrome(
-                isSelected: SelectionTag.vault(vault.id).matches(selection)
+                isSelected: SelectionTag.pageType(pageType.id).matches(selection)
             )
         )
-        // Load vault-root Pages/Items when the row appears, regardless of
+        // Load Page-Type-root Pages/Items when the row appears, regardless of
         // disclosure state. `.task` fires once on appearance; if it were
         // attached to the disclosure children it would only fire on expand.
         .task {
-            await contentManager.loadAll(for: vault)
+            await contentManager.loadAll(for: pageType)
         }
     }
 
     @ViewBuilder
     private var label: some View {
-        if editingID == vault.id {
+        if editingID == pageType.id {
             renamingRow
         } else {
             SelectableRow(
-                title: vault.title,
-                symbol: vault.icon ?? "tray.2",
-                tag: SelectionTag.vault(vault.id),
+                title: pageType.title,
+                symbol: pageType.icon ?? "tray.2",
+                tag: SelectionTag.pageType(pageType.id),
                 selection: $selection,
                 accent: nil,
-                onSelect: { selection = .vault(vault) }
+                onSelect: { selection = .pageType(pageType) }
             )
             .contextMenu {
-                Button("New Vault") { presentedSheet = .newVault }
-                Button("New Collection (in This Vault)") { presentedSheet = .newCollection(vault: vault) }
-                Button("New Page (in This Vault root)") { presentedSheet = .newPageInVault(vault: vault) }
+                Button("New Vault") { presentedSheet = .newPageType }
+                Button("New Collection (in This Vault)") { presentedSheet = .newCollection(pageType: pageType) }
+                Button("New Page (in This Vault root)") { presentedSheet = .newPageInPageType(pageType: pageType) }
                 Divider()
-                Button("Rename") { editingID = vault.id }
-                Button("Change Icon") { presentedSheet = .editIcon(.vault(vault)) }
+                Button("Rename") { editingID = pageType.id }
+                Button("Change Icon") { presentedSheet = .editIcon(.pageType(pageType)) }
                 Divider()
                 Button("Delete", role: .destructive) {
-                    let cols = vaultManager.collections(in: vault).count
-                    confirmingDelete = .deleteVault(vault, collectionCount: cols)
+                    let cols = pageTypeManager.collections(in: pageType).count
+                    confirmingDelete = .deleteVault(pageType, collectionCount: cols)
                 }
             }
         }
@@ -94,7 +94,7 @@ struct VaultRow: View {
 
     private var renamingRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: vault.icon ?? "tray.2")
+            Image(systemName: pageType.icon ?? "tray.2")
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.primary)
@@ -108,12 +108,12 @@ struct VaultRow: View {
                     return .handled
                 }
                 .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == vault.id {
+                    if !focused && !isCommitting && editingID == pageType.id {
                         cancel()
                     }
                 }
                 .onAppear {
-                    draft = vault.title
+                    draft = pageType.title
                     renameFocused = true
                 }
             Spacer(minLength: 0)
@@ -125,7 +125,7 @@ struct VaultRow: View {
     }
 
     private func commit() {
-        guard draft != vault.title else {
+        guard draft != pageType.title else {
             editingID = nil
             return
         }
@@ -133,7 +133,7 @@ struct VaultRow: View {
         Task {
             defer { isCommitting = false }
             do {
-                try await vaultManager.renameVault(vault, to: draft)
+                try await pageTypeManager.renamePageType(pageType, to: draft)
                 editingID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.

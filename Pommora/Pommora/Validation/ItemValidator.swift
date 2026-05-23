@@ -18,7 +18,7 @@ enum ItemValidator {
         tier1: [String], tier2: [String], tier3: [String],
         description: String = "",
         properties: [String: PropertyValue],
-        vault: Vault,
+        vault: PageType,
         existingSiblings: [Item],
         context: NexusContext,
         excluding: Item? = nil

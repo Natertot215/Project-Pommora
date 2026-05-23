@@ -2,18 +2,18 @@ import Foundation
 import Observation
 import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPages
 
-/// Manages Pages (`.md`) + Items (`.json`) inside a Vault. The spec allows
-/// Content to live either directly in a Vault's root folder or inside a
+/// Manages Pages (`.md`) + Items (`.json`) inside a Page Type. The spec allows
+/// Content to live either directly in a Page Type's root folder or inside a
 /// Collection sub-folder — both are first-class. Collection-scoped state and
-/// vault-root-scoped state are kept in parallel dictionaries to avoid nullable
+/// type-root-scoped state are kept in parallel dictionaries to avoid nullable
 /// `Collection` plumbing through every CRUD signature.
 ///
 /// PageMeta = lightweight tracking value (no body in memory); full PageFile is
 /// loaded on demand by the editor (post-v0.2). Items load entirely since they're
 /// small row-shaped records.
 ///
-/// All CRUD methods take the parent `Vault` because Page/Item validation needs
-/// the Vault's property schema. Validation runs before every write.
+/// All CRUD methods take the parent `PageType` because Page/Item validation needs
+/// the Type's property schema. Validation runs before every write.
 ///
 /// CRUD methods are split into `ContentManager+CRUD.swift` for legibility —
 /// this file holds storage + accessors + load paths only.
@@ -28,11 +28,11 @@ final class ContentManager {
     var pagesByCollection: [String: [PageMeta]] = [:]
     /// Collection-scoped Items keyed by Collection.id.
     var itemsByCollection: [String: [Item]] = [:]
-    /// Vault-root Pages (directly inside the Vault folder, NOT in a Collection)
-    /// keyed by Vault.id.
+    /// Page-Type-root Pages (directly inside the Type folder, NOT in a Collection)
+    /// keyed by PageType.id.
     var pagesByVaultRoot: [String: [PageMeta]] = [:]
-    /// Vault-root Items keyed by Vault.id. Surfaces only in detail-pane Tables
-    /// in v0.2 — sidebar doesn't render Items — but the data layer supports it.
+    /// Page-Type-root Items keyed by PageType.id. Surfaces only in detail-pane
+    /// Tables in v0.2 — sidebar doesn't render Items — but the data layer supports it.
     var itemsByVaultRoot: [String: [Item]] = [:]
     var pendingError: (any Error)?
 
@@ -59,46 +59,46 @@ final class ContentManager {
         itemsByCollection[collection.id] ?? []
     }
 
-    func pages(in vault: Vault) -> [PageMeta] {
-        pagesByVaultRoot[vault.id] ?? []
+    func pages(in pageType: PageType) -> [PageMeta] {
+        pagesByVaultRoot[pageType.id] ?? []
     }
 
-    func items(in vault: Vault) -> [Item] {
-        itemsByVaultRoot[vault.id] ?? []
+    func items(in pageType: PageType) -> [Item] {
+        itemsByVaultRoot[pageType.id] ?? []
     }
 
     // MARK: - Resolvers
 
-    /// Find the Vault (and optionally Collection) that a `PageMeta` lives in.
-    /// Returns `nil` if the Page isn't in any loaded Vault. Used by the editor
+    /// Find the PageType (and optionally Collection) that a `PageMeta` lives in.
+    /// Returns `nil` if the Page isn't in any loaded Page Type. Used by the editor
     /// (inspector + rename + saver construction) when only PageMeta is in hand.
     /// Brute-force O(N+M) walker; SQLite-backed lookup arrives with v0.4.0.
     func resolveParent(
-        for page: PageMeta, vaultManager: VaultManager
+        for page: PageMeta, pageTypeManager: PageTypeManager
     )
-        -> (vault: Vault, collection: Pommora.Collection?)?
+        -> (vault: PageType, collection: Pommora.Collection?)?
     {
-        for vault in vaultManager.vaults {
-            if pages(in: vault).contains(where: { $0.id == page.id }) {
-                return (vault, nil)
+        for pageType in pageTypeManager.types {
+            if pages(in: pageType).contains(where: { $0.id == page.id }) {
+                return (pageType, nil)
             }
-            for collection in vaultManager.collections(in: vault) {
+            for collection in pageTypeManager.collections(in: pageType) {
                 if pages(in: collection).contains(where: { $0.id == page.id }) {
-                    return (vault, collection)
+                    return (pageType, collection)
                 }
             }
         }
         return nil
     }
 
-    // MARK: - Path helpers (vault-root)
+    // MARK: - Path helpers (Page-Type-root)
 
-    /// Vault.folderURL isn't a stored property — it's always derived from the
-    /// nexus root + the vault's title. Centralized here so every vault-root
+    /// PageType.folderURL isn't a stored property — it's always derived from the
+    /// nexus root + the Type's title. Centralized here so every Type-root
     /// CRUD path uses the same derivation. Internal so the +CRUD extension
     /// can call it across the file boundary.
-    func folderURL(for vault: Vault) -> URL {
-        NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
+    func folderURL(for pageType: PageType) -> URL {
+        NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
     }
 
     // MARK: - Load (Collection-scoped)
@@ -155,22 +155,22 @@ final class ContentManager {
         }
     }
 
-    // MARK: - Load (vault-root)
+    // MARK: - Load (Page-Type-root)
 
-    /// Scans the Vault root for `.md` Pages and `.json` Items, recursing into
+    /// Scans the Page Type root for `.md` Pages and `.json` Items, recursing into
     /// every sub-folder EXCEPT those that are themselves Collections — those
     /// roll up under `loadAll(for: collection)` instead. Deep sub-folders that
-    /// aren't Collections (depth ≥ 2) contribute their files to the Vault root,
+    /// aren't Collections (depth ≥ 2) contribute their files to the Type root,
     /// matching Obsidian's "show every `.md` in the vault" semantics.
     ///
     /// Pages use the lenient loader so adopted Markdown surfaces even when
     /// it predates Pommora frontmatter.
-    func loadAll(for vault: Vault) async {
-        let folder = folderURL(for: vault)
+    func loadAll(for pageType: PageType) async {
+        let folder = folderURL(for: pageType)
         let nexusRoot = nexus.rootURL
         // Discover Collection sub-folders by sidecar presence so we exclude
-        // their subtrees from the Vault-root walk — their files load via
-        // `loadAll(for: collection)`, not here. Avoids needing a VaultManager
+        // their subtrees from the Type-root walk — their files load via
+        // `loadAll(for: collection)`, not here. Avoids needing a PageTypeManager
         // handle inside ContentManager.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
@@ -196,7 +196,7 @@ final class ContentManager {
             }
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
-                persistedOrder: vault.pageOrder,
+                persistedOrder: pageType.pageOrder,
                 titleKeyPath: \PageMeta.title
             )
 
@@ -209,16 +209,16 @@ final class ContentManager {
             let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
             let items = OrderResolver.resolve(
                 unsortedItems,
-                persistedOrder: vault.itemOrder,
+                persistedOrder: pageType.itemOrder,
                 titleKeyPath: \Item.title
             )
 
-            pagesByVaultRoot[vault.id] = pageMetas
-            itemsByVaultRoot[vault.id] = items
+            pagesByVaultRoot[pageType.id] = pageMetas
+            itemsByVaultRoot[pageType.id] = items
             pendingError = nil
         } catch {
-            pagesByVaultRoot[vault.id] = []
-            itemsByVaultRoot[vault.id] = []
+            pagesByVaultRoot[pageType.id] = []
+            itemsByVaultRoot[pageType.id] = []
             pendingError = error
         }
     }
@@ -227,7 +227,7 @@ final class ContentManager {
 
     /// Reorders Pages within `collection`. Matches the SwiftUI
     /// `.onMove(perform:)` signature. New ID order persists to the parent
-    /// Collection's `_collection.json` sidecar.
+    /// Collection's `_schema.json` sidecar.
     func reorderPages(
         in collection: Pommora.Collection,
         fromOffsets source: IndexSet,
@@ -245,20 +245,20 @@ final class ContentManager {
         }
     }
 
-    /// Reorders Pages at the root of `vault`. New ID order persists to the
-    /// Vault's `_vault.json` sidecar.
+    /// Reorders Pages at the root of `pageType`. New ID order persists to the
+    /// Page Type's `_schema.json` sidecar.
     func reorderPages(
-        inVault vault: Vault,
+        inVault pageType: PageType,
         fromOffsets source: IndexSet,
         toOffset destination: Int
     ) {
-        var arr = pagesByVaultRoot[vault.id] ?? []
+        var arr = pagesByVaultRoot[pageType.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        pagesByVaultRoot[vault.id] = arr
+        pagesByVaultRoot[pageType.id] = arr
         do {
-            try OrderPersister.setPageOrder(arr.map(\.id), inVault: vault, nexus: nexus)
+            try OrderPersister.setPageOrder(arr.map(\.id), inVault: pageType, nexus: nexus)
         } catch {
             self.pendingError = error
         }

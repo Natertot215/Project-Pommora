@@ -14,7 +14,7 @@ import SwiftUI
 struct SidebarToast: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ContentManager.self) private var contentManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
 

@@ -25,6 +25,21 @@ final class PageEditorViewModel {
         didSet { scheduleSave() }
     }
 
+    /// UI-only fold state: which heading source lines (e.g. `"## Foo"`) are
+    /// currently collapsed in the editor. The set is the convenient handle;
+    /// the canonical store is `page.frontmatter.foldedHeadings` (sorted array,
+    /// nil-on-empty). Mutations propagate to the frontmatter AND schedule a
+    /// save, mirroring the body path — without this, fold-only toggles would
+    /// never hit disk because there's no body change.
+    var foldedHeadings: Set<String> {
+        didSet {
+            let asArray = foldedHeadings.isEmpty ? nil : foldedHeadings.sorted()
+            guard page.frontmatter.foldedHeadings != asArray else { return }
+            page.frontmatter.foldedHeadings = asArray
+            scheduleSave()
+        }
+    }
+
     /// Surfaces save / rename failures to the UI. Cleared via `clearError()`.
     /// On failure, `body` (the user's draft) is NOT rolled back.
     var pendingError: (any Error)?
@@ -37,6 +52,7 @@ final class PageEditorViewModel {
         self.page = page
         self.body = body
         self.saver = saver
+        self.foldedHeadings = Set(page.frontmatter.foldedHeadings ?? [])
     }
 
     /// Cancels any pending debounced save and schedules a new one. Called on
@@ -105,10 +121,10 @@ protocol PageSaver: AnyObject, Sendable {
 @MainActor
 final class ContentManagerPageSaver: PageSaver {
     private let contentManager: ContentManager
-    private let vault: Vault
+    private let vault: PageType
     private let collection: Pommora.Collection?
 
-    init(contentManager: ContentManager, vault: Vault, collection: Pommora.Collection?) {
+    init(contentManager: ContentManager, vault: PageType, collection: Pommora.Collection?) {
         self.contentManager = contentManager
         self.vault = vault
         self.collection = collection

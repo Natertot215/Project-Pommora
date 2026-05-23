@@ -1,6 +1,6 @@
 import Foundation
 
-enum VaultValidator {
+enum PageTypeValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
@@ -9,8 +9,8 @@ enum VaultValidator {
 
     static func validate(
         title: String,
-        existing: [Vault],
-        excluding: Vault? = nil
+        existing: [PageType],
+        excluding: PageType? = nil
     ) throws {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
@@ -20,8 +20,8 @@ enum VaultValidator {
             throw ValidationError.invalidTitleCharacters
         }
 
-        let conflict = existing.contains { v in
-            v.id != excluding?.id && v.title.lowercased() == trimmed.lowercased()
+        let conflict = existing.contains { t in
+            t.id != excluding?.id && t.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
     }

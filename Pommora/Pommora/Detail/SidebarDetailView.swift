@@ -6,7 +6,7 @@ struct SidebarDetailView: View {
     @State private var presentedItem: Item?
 
     @Environment(SpaceManager.self) private var spaceManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ContentManager.self) private var contentManager
 
     var body: some View {
@@ -47,16 +47,16 @@ struct SidebarDetailView: View {
                     supportingLine: "Tier 3 — Sub-topic"
                 )
 
-            case .vault(let v):
-                VaultDetailView(
-                    vault: v,
+            case .pageType(let t):
+                PageTypeDetailView(
+                    pageType: t,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
                     presentedItem: $presentedItem
                 )
 
             case .collection(let c):
-                // We need the parent Vault here too. Find it via VaultManager.
+                // We need the parent Vault here too. Find it via PageTypeManager.
                 if let v = lookupVault(forCollection: c) {
                     CollectionDetailView(
                         collection: c,
@@ -87,10 +87,10 @@ struct SidebarDetailView: View {
             case .newSpace: NewSpaceSheet()
             case .newTopic: NewTopicSheet()
             case .newSubtopic(let t): NewSubtopicSheet(parent: t)
-            case .newVault: NewVaultSheet()
+            case .newPageType: NewPageTypeSheet()
             case .newCollection(let v): NewCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
-            case .newPageInVault(let v): NewPageSheet(parent: .vaultRoot(v))
+            case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
             case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
             case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
@@ -99,8 +99,8 @@ struct SidebarDetailView: View {
         }
     }
 
-    private func lookupVault(forCollection c: Pommora.Collection) -> Vault? {
-        vaultManager.vaults.first { $0.id == c.vaultID }
+    private func lookupVault(forCollection c: Pommora.Collection) -> PageType? {
+        vaultManager.types.first { $0.id == c.vaultID }
     }
 
     private var emptyState: some View {

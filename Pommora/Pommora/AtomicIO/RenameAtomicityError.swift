@@ -6,7 +6,7 @@ import Foundation
 /// matching metadata update. Callers should surface this to the user.
 ///
 /// Used by every `rename*` method across SpaceManager / TopicManager /
-/// VaultManager / ContentManager that does two filesystem ops (rename + save).
+/// PageTypeManager / ContentManager that does two filesystem ops (rename + save).
 struct RenameAtomicityError: LocalizedError {
     let saveError: any Error
     let revertError: any Error

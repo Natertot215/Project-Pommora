@@ -17,10 +17,10 @@ struct PageEditorHost: View {
     let page: PageMeta
 
     @Environment(ContentManager.self) private var contentManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var viewModel: PageEditorViewModel?
-    @State private var resolvedVault: Vault?
+    @State private var resolvedVault: PageType?
     @State private var resolvedCollection: Pommora.Collection?
     @State private var loadFailed = false
 
@@ -57,7 +57,7 @@ struct PageEditorHost: View {
     }
 
     private func loadAndConstruct(for page: PageMeta) async {
-        guard let resolved = contentManager.resolveParent(for: page, vaultManager: vaultManager)
+        guard let resolved = contentManager.resolveParent(for: page, pageTypeManager: vaultManager)
         else {
             viewModel = nil
             resolvedVault = nil

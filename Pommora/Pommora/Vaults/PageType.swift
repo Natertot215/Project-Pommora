@@ -1,15 +1,16 @@
 import Foundation
 
-/// Vault — folder + `_vault.json` schema sidecar that defines the property
-/// schema shared by every Page + Item inside.
+/// Page Type — folder + `_schema.json` sidecar that defines the property
+/// schema shared by every Page inside. The Pages-side schema-bearing container,
+/// parallel to ItemType on the Items side (introduced Phase 5).
 ///
-/// On disk: `<nexus>/<Title>/_vault.json` (folder name = title; no title on disk).
-struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
+/// On disk: `<nexus>/<Title>/_schema.json` (folder name = title; no title on disk).
+struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var title: String  // derived from folder name
     var icon: String?  // SF Symbol name
     var properties: [PropertyDefinition]  // schema shared across Content
-    var views: [VaultView]  // saved views (empty placeholder in v0.2)
+    var views: [SavedView]  // saved views (empty placeholder in v0.2)
     var modifiedAt: Date
 
     // Persisted display order for direct children (v0.2.8.0). All nil until the
@@ -29,7 +30,7 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
 
     init(
         id: String, title: String, icon: String?,
-        properties: [PropertyDefinition], views: [VaultView], modifiedAt: Date,
+        properties: [PropertyDefinition], views: [SavedView], modifiedAt: Date,
         collectionOrder: [String]? = nil,
         pageOrder: [String]? = nil,
         itemOrder: [String]? = nil
@@ -51,7 +52,7 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = ""
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
-        self.views = try c.decodeIfPresent([VaultView].self, forKey: .views) ?? []
+        self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
@@ -71,11 +72,11 @@ struct Vault: Codable, Equatable, Identifiable, Hashable, Sendable {
     }
 }
 
-extension Vault {
-    static func load(from metadataURL: URL) throws -> Vault {
-        var v = try AtomicJSON.decode(Vault.self, from: metadataURL)
-        v.title = metadataURL.deletingLastPathComponent().lastPathComponent
-        return v
+extension PageType {
+    static func load(from metadataURL: URL) throws -> PageType {
+        var t = try AtomicJSON.decode(PageType.self, from: metadataURL)
+        t.title = metadataURL.deletingLastPathComponent().lastPathComponent
+        return t
     }
 
     func save(to metadataURL: URL) throws {

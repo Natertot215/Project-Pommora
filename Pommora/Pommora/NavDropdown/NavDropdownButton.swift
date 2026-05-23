@@ -229,9 +229,9 @@ struct NavDropdownButton: View {
             // v0.4.0 makes this O(1) and removes the walk entirely.)
             Task { @MainActor in
                 guard let cm = AppGlobals.contentManager,
-                    let vm = AppGlobals.vaultManager
+                    let vm = AppGlobals.pageTypeManager
                 else { return }
-                for vault in vm.vaults {
+                for vault in vm.types {
                     await cm.loadAll(for: vault)
                     if let sel = SidebarSelection(stateRef: ref) {
                         onOpen(sel)
@@ -251,10 +251,10 @@ struct NavDropdownButton: View {
 
     private func openItemWindow(_ ref: EntityStateRef) {
         guard let cm = AppGlobals.contentManager,
-            let vm = AppGlobals.vaultManager
+            let vm = AppGlobals.pageTypeManager
         else { return }
         // Brute-force O(N) search across all vaults + collections (SQLite in v0.4.0).
-        for vault in vm.vaults {
+        for vault in vm.types {
             if let item = cm.items(in: vault).first(where: { $0.id == ref.id }) {
                 AppGlobals.presentItemAction?(item)
                 return

@@ -6,7 +6,7 @@ struct AgendaSchema: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
     var properties: [Property]
-    var views: [VaultView]  // reuse Vault's placeholder
+    var views: [SavedView]  // saved view configurations
     var modifiedAt: Date
 
     struct Property: Codable, Equatable, Hashable, Sendable {

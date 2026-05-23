@@ -25,7 +25,7 @@ struct PageEditorView: View {
     // received-from-parent reference preserves the OLD reference across
     // re-renders — the v0.2.7-c5 regression that broke sidebar page switching.
     @Bindable var viewModel: PageEditorViewModel
-    let vault: Vault
+    let vault: PageType
     /// nil = vault-root Page (no Collection parent)
     let collection: Pommora.Collection?
 
@@ -45,7 +45,7 @@ struct PageEditorView: View {
 
     init(
         viewModel: PageEditorViewModel,
-        vault: Vault,
+        vault: PageType,
         collection: Pommora.Collection?
     ) {
         self.viewModel = viewModel
@@ -90,6 +90,7 @@ struct PageEditorView: View {
             // scrollbar stays at the outer edge.
             NativeTextViewWrapper(
                 text: $viewModel.body,
+                foldedHeadings: $viewModel.foldedHeadings,
                 configuration: Self.pommoraEditorConfiguration,
                 fontName: "SF Pro Text",
                 fontSize: 15,

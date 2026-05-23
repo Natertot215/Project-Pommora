@@ -1,12 +1,12 @@
 import Foundation
 import Observation
-import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderVaults/Collections
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPageTypes/Collections
 
 @MainActor
 @Observable
-final class VaultManager {
-    private(set) var vaults: [Vault] = []
-    private(set) var collectionsByVault: [String: [Collection]] = [:]
+final class PageTypeManager {
+    private(set) var types: [PageType] = []
+    private(set) var collectionsByType: [String: [Collection]] = [:]
     var pendingError: (any Error)?
 
     private let nexus: Nexus
@@ -18,30 +18,30 @@ final class VaultManager {
         self.nexus = nexus
     }
 
-    func collections(in vault: Vault) -> [Collection] {
-        collectionsByVault[vault.id] ?? []
+    func collections(in pageType: PageType) -> [Collection] {
+        collectionsByType[pageType.id] ?? []
     }
 
     // MARK: - Load
 
     func loadAll() async {
         do {
-            // Top-level folders inside nexus root that contain _vault.json
+            // Top-level folders inside nexus root that contain a schema sidecar
             let topLevel = try Filesystem.childFolders(of: nexus.rootURL)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
                 .filter { $0.lastPathComponent != "Agenda" }
                 .filter { $0.lastPathComponent != ".trash" }
 
-            var loadedVaults: [Vault] = []
+            var loadedTypes: [PageType] = []
             var loadedCols: [String: [Collection]] = [:]
 
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
-                    let vault = try? Vault.load(from: metaURL)
+                    let pageType = try? PageType.load(from: metaURL)
                 else { continue }
-                loadedVaults.append(vault)
+                loadedTypes.append(pageType)
 
                 // Discover Collections (sub-folders with schema sidecar; skip _- and .-prefixed)
                 let cols = try Filesystem.childFolders(of: folder)
@@ -52,34 +52,34 @@ final class VaultManager {
                         guard Filesystem.fileExists(at: metaURL) else { return nil }
                         return try? Pommora.Collection.load(from: metaURL)
                     }
-                loadedCols[vault.id] = OrderResolver.resolve(
+                loadedCols[pageType.id] = OrderResolver.resolve(
                     cols,
-                    persistedOrder: vault.collectionOrder,
+                    persistedOrder: pageType.collectionOrder,
                     titleKeyPath: \Pommora.Collection.title
                 )
             }
 
-            self.vaults = OrderResolver.resolve(
-                loadedVaults,
-                persistedOrder: readPersistedVaultOrder(),
-                titleKeyPath: \Vault.title
+            self.types = OrderResolver.resolve(
+                loadedTypes,
+                persistedOrder: readPersistedPageTypeOrder(),
+                titleKeyPath: \PageType.title
             )
-            self.collectionsByVault = loadedCols
+            self.collectionsByType = loadedCols
             self.pendingError = nil
         } catch {
-            self.vaults = []
-            self.collectionsByVault = [:]
+            self.types = []
+            self.collectionsByType = [:]
             self.pendingError = error
         }
     }
 
-    // MARK: - Vault CRUD
+    // MARK: - PageType CRUD
 
-    func createVault(name: String, icon: String?) async throws {
+    func createPageType(name: String, icon: String?) async throws {
         do {
-            try VaultValidator.validate(title: name, existing: vaults)
+            try PageTypeValidator.validate(title: name, existing: types)
 
-            let vault = Vault(
+            let pageType = PageType(
                 id: ULID.generate(),
                 title: name,
                 icon: icon,
@@ -89,14 +89,14 @@ final class VaultManager {
             )
             let folder = NexusPaths.vaultFolderURL(forTitle: name, in: nexus)
             let meta = NexusPaths.vaultMetadataURL(forTitle: name, in: nexus)
-            try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: vault)
+            try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: pageType)
 
-            vaults.append(vault)
-            collectionsByVault[vault.id] = []
-            vaults = OrderResolver.resolve(
-                vaults,
-                persistedOrder: readPersistedVaultOrder(),
-                titleKeyPath: \Vault.title
+            types.append(pageType)
+            collectionsByType[pageType.id] = []
+            types = OrderResolver.resolve(
+                types,
+                persistedOrder: readPersistedPageTypeOrder(),
+                titleKeyPath: \PageType.title
             )
         } catch {
             self.pendingError = error
@@ -104,15 +104,15 @@ final class VaultManager {
         }
     }
 
-    func renameVault(_ vault: Vault, to newName: String) async throws {
+    func renamePageType(_ pageType: PageType, to newName: String) async throws {
         do {
-            try VaultValidator.validate(title: newName, existing: vaults, excluding: vault)
+            try PageTypeValidator.validate(title: newName, existing: types, excluding: pageType)
 
-            let oldFolder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
+            let oldFolder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
             let newFolder = NexusPaths.vaultFolderURL(forTitle: newName, in: nexus)
             try Filesystem.renameFolder(from: oldFolder, to: newFolder)
 
-            var updated = vault
+            var updated = pageType
             updated.title = newName
             updated.modifiedAt = Date()
             let newMeta = NexusPaths.vaultMetadataURL(forTitle: newName, in: nexus)
@@ -120,7 +120,7 @@ final class VaultManager {
                 try updated.save(to: newMeta)
             } catch let saveError {
                 // Roll back folder rename. Per spec: do NOT touch
-                // collectionsByVault here — in-memory rebuild only runs on the
+                // collectionsByType here — in-memory rebuild only runs on the
                 // save-success branch below.
                 do {
                     try Filesystem.renameFolder(from: newFolder, to: oldFolder)
@@ -132,12 +132,12 @@ final class VaultManager {
                 }
             }
 
-            if let i = vaults.firstIndex(where: { $0.id == vault.id }) {
-                vaults[i] = updated
+            if let i = types.firstIndex(where: { $0.id == pageType.id }) {
+                types[i] = updated
                 // Rebuild Collection in-memory under new parent path (id + vault_id unchanged;
-                // _collection.json sidecar moved with its folder, just re-derive folderURL).
-                // Preserve pageOrder/itemOrder so a vault rename doesn't drop persisted ordering.
-                if let oldCols = collectionsByVault[vault.id] {
+                // schema sidecar moved with its folder, just re-derive folderURL).
+                // Preserve pageOrder/itemOrder so a Page Type rename doesn't drop persisted ordering.
+                if let oldCols = collectionsByType[pageType.id] {
                     let rebuilt = oldCols.map { c -> Pommora.Collection in
                         let newCollURL = newFolder.appendingPathComponent(c.title, isDirectory: true)
                         return Pommora.Collection(
@@ -150,12 +150,12 @@ final class VaultManager {
                             itemOrder: c.itemOrder
                         )
                     }
-                    collectionsByVault[vault.id] = rebuilt
+                    collectionsByType[pageType.id] = rebuilt
                 }
-                vaults = OrderResolver.resolve(
-                    vaults,
-                    persistedOrder: readPersistedVaultOrder(),
-                    titleKeyPath: \Vault.title
+                types = OrderResolver.resolve(
+                    types,
+                    persistedOrder: readPersistedPageTypeOrder(),
+                    titleKeyPath: \PageType.title
                 )
             }
         } catch {
@@ -166,15 +166,15 @@ final class VaultManager {
         }
     }
 
-    func updateVaultIcon(_ vault: Vault, to icon: String?) async throws {
+    func updatePageTypeIcon(_ pageType: PageType, to icon: String?) async throws {
         do {
-            var updated = vault
+            var updated = pageType
             updated.icon = icon
             updated.modifiedAt = Date()
-            let meta = NexusPaths.vaultMetadataURL(forTitle: vault.title, in: nexus)
+            let meta = NexusPaths.vaultMetadataURL(forTitle: pageType.title, in: nexus)
             try updated.save(to: meta)
-            if let i = vaults.firstIndex(where: { $0.id == vault.id }) {
-                vaults[i] = updated
+            if let i = types.firstIndex(where: { $0.id == pageType.id }) {
+                types[i] = updated
             }
         } catch {
             self.pendingError = error
@@ -182,12 +182,12 @@ final class VaultManager {
         }
     }
 
-    func deleteVault(_ vault: Vault) async throws {
+    func deletePageType(_ pageType: PageType) async throws {
         do {
-            let folder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
+            let folder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
-            vaults.removeAll { $0.id == vault.id }
-            collectionsByVault.removeValue(forKey: vault.id)
+            types.removeAll { $0.id == pageType.id }
+            collectionsByType.removeValue(forKey: pageType.id)
         } catch {
             self.pendingError = error
             throw error
@@ -196,18 +196,18 @@ final class VaultManager {
 
     // MARK: - Collection CRUD
 
-    func createCollection(name: String, inVault vault: Vault) async throws {
+    func createCollection(name: String, inPageType pageType: PageType) async throws {
         do {
-            let existing = collectionsByVault[vault.id] ?? []
+            let existing = collectionsByType[pageType.id] ?? []
             try CollectionValidator.validate(title: name, existingInVault: existing)
 
             let folder = NexusPaths.collectionFolderURL(
-                forTitle: name, inVaultTitled: vault.title, in: nexus
+                forTitle: name, inVaultTitled: pageType.title, in: nexus
             )
             let now = Date()
             let coll = Collection(
                 id: ULID.generate(),
-                vaultID: vault.id,
+                vaultID: pageType.id,
                 title: name,
                 folderURL: folder,
                 modifiedAt: now
@@ -221,10 +221,10 @@ final class VaultManager {
             arr.append(coll)
             arr = OrderResolver.resolve(
                 arr,
-                persistedOrder: vault.collectionOrder,
+                persistedOrder: pageType.collectionOrder,
                 titleKeyPath: \Pommora.Collection.title
             )
-            collectionsByVault[vault.id] = arr
+            collectionsByType[pageType.id] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -233,14 +233,14 @@ final class VaultManager {
 
     func renameCollection(_ collection: Pommora.Collection, to newName: String) async throws {
         do {
-            guard let vault = vaults.first(where: { $0.id == collection.vaultID }) else { return }
-            let existing = collectionsByVault[vault.id] ?? []
+            guard let pageType = types.first(where: { $0.id == collection.vaultID }) else { return }
+            let existing = collectionsByType[pageType.id] ?? []
             try CollectionValidator.validate(
                 title: newName, existingInVault: existing, excluding: collection
             )
 
             let newURL = NexusPaths.collectionFolderURL(
-                forTitle: newName, inVaultTitled: vault.title, in: nexus
+                forTitle: newName, inVaultTitled: pageType.title, in: nexus
             )
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
@@ -275,11 +275,11 @@ final class VaultManager {
                 arr[i] = updated
                 arr = OrderResolver.resolve(
                     arr,
-                    persistedOrder: vault.collectionOrder,
+                    persistedOrder: pageType.collectionOrder,
                     titleKeyPath: \Pommora.Collection.title
                 )
             }
-            collectionsByVault[vault.id] = arr
+            collectionsByType[pageType.id] = arr
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -291,23 +291,23 @@ final class VaultManager {
     func deleteCollection(_ collection: Pommora.Collection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
-            var arr = collectionsByVault[collection.vaultID] ?? []
+            var arr = collectionsByType[collection.vaultID] ?? []
             arr.removeAll { $0.id == collection.id }
-            collectionsByVault[collection.vaultID] = arr
+            collectionsByType[collection.vaultID] = arr
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    /// Reorders Vaults in response to a sidebar drag (v0.2.8.0). Matches the
+    /// Reorders Page Types in response to a sidebar drag (v0.2.8.0). Matches the
     /// SwiftUI `.onMove(perform:)` signature. New full ID order persists to
     /// `.nexus/state.json`.
-    func reorderVaults(fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = vaults
+    func reorderPageTypes(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = types
         arr.move(fromOffsets: source, toOffset: destination)
-        guard arr != vaults else { return }
-        vaults = arr
+        guard arr != types else { return }
+        types = arr
         do {
             try OrderPersister.setVaultOrder(arr.map(\.id), in: nexus)
         } catch {
@@ -315,29 +315,29 @@ final class VaultManager {
         }
     }
 
-    /// Reorders Collections within `vault`. New ID order persists to the parent
-    /// Vault's `_vault.json` sidecar.
-    func reorderCollections(in vault: Vault, fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = collectionsByVault[vault.id] ?? []
+    /// Reorders Collections within `pageType`. New ID order persists to the parent
+    /// Page Type's schema sidecar.
+    func reorderCollections(in pageType: PageType, fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = collectionsByType[pageType.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        collectionsByVault[vault.id] = arr
+        collectionsByType[pageType.id] = arr
         do {
-            try OrderPersister.setCollectionOrder(arr.map(\.id), in: vault, nexus: nexus)
-            // Keep the in-memory Vault's collectionOrder in sync.
-            if let i = vaults.firstIndex(where: { $0.id == vault.id }) {
-                vaults[i].collectionOrder = arr.map(\.id)
+            try OrderPersister.setCollectionOrder(arr.map(\.id), in: pageType, nexus: nexus)
+            // Keep the in-memory PageType's collectionOrder in sync.
+            if let i = types.firstIndex(where: { $0.id == pageType.id }) {
+                types[i].collectionOrder = arr.map(\.id)
             }
         } catch {
             self.pendingError = error
         }
     }
 
-    /// Reads the persisted Vault sibling order from `.nexus/state.json`. Returns
-    /// nil if no state.json exists or no `vaultOrder` has been recorded — the
+    /// Reads the persisted Page Type sibling order from `.nexus/state.json`. Returns
+    /// nil if no state.json exists or no `vault_order` has been recorded — the
     /// resolver falls back to alphabetic in that case.
-    private func readPersistedVaultOrder() -> [String]? {
+    private func readPersistedPageTypeOrder() -> [String]? {
         let url = NexusPaths.nexusStateURL(in: nexus)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return (try? AtomicJSON.decode(NexusState.self, from: url))?.vaultOrder

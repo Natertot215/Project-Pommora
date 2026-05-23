@@ -19,10 +19,10 @@ extension PageRef {
     /// across Vaults.
     @MainActor
     func resolve(
-        vaultManager: VaultManager,
+        vaultManager: PageTypeManager,
         contentManager: ContentManager
-    ) -> (page: PageMeta, vault: Vault, collection: Pommora.Collection?)? {
-        guard let vault = vaultManager.vaults.first(where: { $0.id == vaultID }) else {
+    ) -> (page: PageMeta, vault: PageType, collection: Pommora.Collection?)? {
+        guard let vault = vaultManager.types.first(where: { $0.id == vaultID }) else {
             return nil
         }
         if let collectionID {
@@ -43,14 +43,14 @@ extension PageRef {
     }
 
     /// Construct a PageRef from a resolved PageMeta + its parent Vault/Collection.
-    init(page: PageMeta, in collection: Pommora.Collection, vault: Vault) {
+    init(page: PageMeta, in collection: Pommora.Collection, vault: PageType) {
         self.pageID = page.id
         self.vaultID = vault.id
         self.collectionID = collection.id
     }
 
     /// Construct a PageRef for a vault-root Page (no Collection parent).
-    init(page: PageMeta, inVaultRoot vault: Vault) {
+    init(page: PageMeta, inVaultRoot vault: PageType) {
         self.pageID = page.id
         self.vaultID = vault.id
         self.collectionID = nil

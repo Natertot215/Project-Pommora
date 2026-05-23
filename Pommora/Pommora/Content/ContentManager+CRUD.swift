@@ -16,7 +16,7 @@ extension ContentManager {
     // MARK: - Page CRUD (Collection-scoped)
 
     @discardableResult
-    func createPage(name: String, in collection: Collection, vault: Vault) async throws -> PageMeta {
+    func createPage(name: String, in collection: Collection, vault: PageType) async throws -> PageMeta {
         do {
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
@@ -56,7 +56,7 @@ extension ContentManager {
         }
     }
 
-    func renamePage(_ page: PageMeta, to newName: String, in collection: Collection, vault: Vault) async throws {
+    func renamePage(_ page: PageMeta, to newName: String, in collection: Collection, vault: PageType) async throws {
         do {
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
@@ -117,7 +117,7 @@ extension ContentManager {
     /// In-memory cache (pagesByCollection) is mutated AFTER the disk write
     /// succeeds, so a failed write leaves the cache consistent with disk.
     func updatePage(
-        _ page: PageMeta, body: String, in collection: Collection, vault: Vault
+        _ page: PageMeta, body: String, in collection: Collection, vault: PageType
     )
         async throws
     {
@@ -154,7 +154,7 @@ extension ContentManager {
     // MARK: - Page CRUD (vault-root)
 
     @discardableResult
-    func createPage(name: String, inVaultRoot vault: Vault) async throws -> PageMeta {
+    func createPage(name: String, inVaultRoot vault: PageType) async throws -> PageMeta {
         do {
             let existing = pagesByVaultRoot[vault.id] ?? []
             // PageValidator.existingSiblings is a uniqueness check against
@@ -197,7 +197,7 @@ extension ContentManager {
         }
     }
 
-    func renamePage(_ page: PageMeta, to newName: String, inVaultRoot vault: Vault) async throws {
+    func renamePage(_ page: PageMeta, to newName: String, inVaultRoot vault: PageType) async throws {
         do {
             let existing = pagesByVaultRoot[vault.id] ?? []
             try PageValidator.validate(
@@ -235,7 +235,7 @@ extension ContentManager {
         }
     }
 
-    func deletePage(_ page: PageMeta, inVaultRoot vault: Vault) async throws {
+    func deletePage(_ page: PageMeta, inVaultRoot vault: PageType) async throws {
         do {
             try Filesystem.moveToTrash(page.url, in: nexus)
             var arr = pagesByVaultRoot[vault.id] ?? []
@@ -249,7 +249,7 @@ extension ContentManager {
 
     /// Vault-root variant of `updatePage`. Same contract: body-only write,
     /// frontmatter preserved, atomic, in-memory cache mutated after success.
-    func updatePage(_ page: PageMeta, body: String, inVaultRoot vault: Vault) async throws {
+    func updatePage(_ page: PageMeta, body: String, inVaultRoot vault: PageType) async throws {
         do {
             let existing = pagesByVaultRoot[vault.id] ?? []
             try PageValidator.validate(
@@ -281,7 +281,7 @@ extension ContentManager {
     // MARK: - Item CRUD (Collection-scoped)
 
     @discardableResult
-    func createItem(name: String, in collection: Collection, vault: Vault) async throws -> Item {
+    func createItem(name: String, in collection: Collection, vault: PageType) async throws -> Item {
         do {
             let existing = itemsByCollection[collection.id] ?? []
             try ItemValidator.validate(
@@ -317,7 +317,7 @@ extension ContentManager {
         }
     }
 
-    func renameItem(_ item: Item, to newName: String, in collection: Collection, vault: Vault) async throws {
+    func renameItem(_ item: Item, to newName: String, in collection: Collection, vault: PageType) async throws {
         do {
             let existing = itemsByCollection[collection.id] ?? []
             try ItemValidator.validate(
@@ -367,7 +367,7 @@ extension ContentManager {
         }
     }
 
-    func updateItem(_ item: Item, in collection: Collection, vault: Vault) async throws {
+    func updateItem(_ item: Item, in collection: Collection, vault: PageType) async throws {
         do {
             let existing = itemsByCollection[collection.id] ?? []
             try ItemValidator.validate(
@@ -410,7 +410,7 @@ extension ContentManager {
     // MARK: - Item CRUD (vault-root)
 
     @discardableResult
-    func createItem(name: String, inVaultRoot vault: Vault) async throws -> Item {
+    func createItem(name: String, inVaultRoot vault: PageType) async throws -> Item {
         do {
             let existing = itemsByVaultRoot[vault.id] ?? []
             try ItemValidator.validate(
@@ -446,7 +446,7 @@ extension ContentManager {
         }
     }
 
-    func renameItem(_ item: Item, to newName: String, inVaultRoot vault: Vault) async throws {
+    func renameItem(_ item: Item, to newName: String, inVaultRoot vault: PageType) async throws {
         do {
             let existing = itemsByVaultRoot[vault.id] ?? []
             try ItemValidator.validate(
@@ -495,7 +495,7 @@ extension ContentManager {
         }
     }
 
-    func deleteItem(_ item: Item, inVaultRoot vault: Vault) async throws {
+    func deleteItem(_ item: Item, inVaultRoot vault: PageType) async throws {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: folderURL(for: vault))
             try Filesystem.moveToTrash(url, in: nexus)

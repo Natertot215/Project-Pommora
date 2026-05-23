@@ -9,7 +9,7 @@ import SwiftUI
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
 
     @Binding var selection: SidebarSelection
@@ -53,10 +53,10 @@ struct SidebarView: View {
             case .newSpace: NewSpaceSheet()
             case .newTopic: NewTopicSheet()
             case .newSubtopic(let t): NewSubtopicSheet(parent: t)
-            case .newVault: NewVaultSheet()
+            case .newPageType: NewPageTypeSheet()
             case .newCollection(let v): NewCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
-            case .newPageInVault(let v): NewPageSheet(parent: .vaultRoot(v))
+            case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
             case .newItem(let c, let v): NewItemSheet(collection: c, vault: v)
             case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
@@ -151,7 +151,7 @@ struct SidebarView: View {
         case .deleteVault(let v, _):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await vaultManager.deleteVault(v) } catch
+                    do { try await vaultManager.deletePageType(v) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
@@ -273,15 +273,15 @@ struct VaultsSection: View {
     @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
-    @Environment(VaultManager.self) private var vaultManager
+    @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var expanded: Bool = true
 
     var body: some View {
         Section(isExpanded: $expanded) {
-            ForEach(vaultManager.vaults) { vault in
-                VaultRow(
-                    vault: vault,
+            ForEach(vaultManager.types) { pageType in
+                PageTypeRow(
+                    pageType: pageType,
                     selection: $selection,
                     editingID: $editingID,
                     presentedSheet: $presentedSheet,
@@ -289,11 +289,11 @@ struct VaultsSection: View {
                 )
             }
             .onMove { source, destination in
-                vaultManager.reorderVaults(fromOffsets: source, toOffset: destination)
+                vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
             }
         } header: {
             SectionHeader(title: "Vaults") {
-                presentedSheet = .newVault
+                presentedSheet = .newPageType
             }
         }
     }

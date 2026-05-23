@@ -23,7 +23,7 @@ struct ContentView: View {
     // Task 48's NexusContext.empty placeholder).
     @State private var spaceManager: SpaceManager?
     @State private var topicManager: TopicManager?
-    @State private var vaultManager: VaultManager?
+    @State private var vaultManager: PageTypeManager?
     @State private var contentManager: ContentManager?
     @State private var agendaManager: AgendaManager?
     @State private var homepageManager: HomepageManager?
@@ -205,7 +205,7 @@ struct ContentView: View {
             let spaceMgr = spaceManager,
             let vaultMgr = vaultManager,
             let contentMgr = contentManager,
-            let resolved = contentMgr.resolveParent(for: p, vaultManager: vaultMgr)
+            let resolved = contentMgr.resolveParent(for: p, pageTypeManager: vaultMgr)
         {
             FrontmatterInspector(page: p, vault: resolved.vault)
                 .environment(spaceMgr)
@@ -256,9 +256,9 @@ struct ContentView: View {
         }
 
         let spaceMgr = SpaceManager(nexus: nexus)
-        let vaultMgr = VaultManager(nexus: nexus)
+        let vaultMgr = PageTypeManager(nexus: nexus)
 
-        // TopicManager needs SpaceManager + VaultManager for cross-entity lookups.
+        // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
         // The outer closure runs on MainActor (per TopicManager's signature) and
         // reads live state from the peer managers, then bakes value-type snapshots
         // into the @Sendable NexusContext lookup closures — this is what allows
@@ -266,21 +266,21 @@ struct ContentView: View {
         // @MainActor-isolated and non-Sendable, but `[Space]` / `[Vault]` are.
         let topicMgr = TopicManager(nexus: nexus) { [spaceMgr, vaultMgr] in
             let spaces = spaceMgr.spaces
-            let vaults = vaultMgr.vaults
+            let types = vaultMgr.types
             return NexusContext(
                 lookupSpace: { id in spaces.first { $0.id == id } },
                 lookupTopic: { _ in nil },
                 lookupSubtopic: { _ in nil },
-                lookupVault: { id in vaults.first { $0.id == id } }
+                lookupVault: { id in types.first { $0.id == id } }
             )
         }
 
-        // ContentManager needs Space + Topic + Subtopic + Vault for tier validation.
+        // ContentManager needs Space + Topic + Subtopic + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on
         // MainActor; inner @Sendable closures use value-type snapshots.
         let contentMgr: ContentManager = ContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
             let spaces = spaceMgr.spaces
-            let vaults = vaultMgr.vaults
+            let types = vaultMgr.types
             let topics = topicMgr.topics
             let subsByParent = topicMgr.subtopicsByParent
             return NexusContext(
@@ -292,7 +292,7 @@ struct ContentView: View {
                     }
                     return nil
                 },
-                lookupVault: { id in vaults.first { $0.id == id } }
+                lookupVault: { id in types.first { $0.id == id } }
             )
         }
 
@@ -319,7 +319,7 @@ struct ContentView: View {
         // Publish manager refs so standalone WindowGroup scenes can reach
         // them without restructuring the ContentView dependency graph.
         AppGlobals.contentManager = contentMgr
-        AppGlobals.vaultManager = vaultMgr
+        AppGlobals.pageTypeManager = vaultMgr
         AppGlobals.spaceManager = spaceMgr
         AppGlobals.topicManager = topicMgr
         AppGlobals.recentsManager = recentsMgr

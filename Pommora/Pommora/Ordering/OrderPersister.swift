@@ -2,10 +2,10 @@ import Foundation
 
 /// Writes drag-reorder results to the appropriate sidecar JSON (v0.2.8.0).
 ///
-/// Top-level sidebar order (Spaces / Topics / Vaults) lives on
+/// Top-level sidebar order (Spaces / Topics / Page Types) lives on
 /// `<nexus>/.nexus/state.json` — the same file PinnedManager and RecentsManager
 /// own. Per-container child order lives on each container's own sidecar
-/// (`_vault.json`, `_collection.json`, `_topic.json`).
+/// (`_schema.json` for Page Types + Page Collections; `_topic.json` for Topics).
 ///
 /// Every write is a read-modify-atomic-write round-trip: the file is
 /// re-decoded just before mutation so concurrent writes by sibling managers
@@ -42,11 +42,11 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    // MARK: - Collection / vault-root Pages + Items (_vault.json / _collection.json)
+    // MARK: - Collection / Page-Type-root Pages + Items (sidecar JSON)
 
-    static func setCollectionOrder(_ order: [String], in vault: Vault, nexus: Nexus) throws {
-        try mutateVault(vault, nexus: nexus) { v in
-            v.collectionOrder = order.isEmpty ? nil : order
+    static func setCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
+        try mutatePageType(pageType, nexus: nexus) { t in
+            t.collectionOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -56,9 +56,9 @@ enum OrderPersister {
         }
     }
 
-    static func setPageOrder(_ order: [String], inVault vault: Vault, nexus: Nexus) throws {
-        try mutateVault(vault, nexus: nexus) { v in
-            v.pageOrder = order.isEmpty ? nil : order
+    static func setPageOrder(_ order: [String], inVault pageType: PageType, nexus: Nexus) throws {
+        try mutatePageType(pageType, nexus: nexus) { t in
+            t.pageOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -68,9 +68,9 @@ enum OrderPersister {
         }
     }
 
-    static func setItemOrder(_ order: [String], inVault vault: Vault, nexus: Nexus) throws {
-        try mutateVault(vault, nexus: nexus) { v in
-            v.itemOrder = order.isEmpty ? nil : order
+    static func setItemOrder(_ order: [String], inVault pageType: PageType, nexus: Nexus) throws {
+        try mutatePageType(pageType, nexus: nexus) { t in
+            t.itemOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -95,13 +95,13 @@ enum OrderPersister {
         try AtomicJSON.write(state, to: url)
     }
 
-    private static func mutateVault(
-        _ vault: Vault,
+    private static func mutatePageType(
+        _ pageType: PageType,
         nexus: Nexus,
-        _ mutate: (inout Vault) -> Void
+        _ mutate: (inout PageType) -> Void
     ) throws {
-        let url = NexusPaths.vaultMetadataURL(forTitle: vault.title, in: nexus)
-        var updated = try Vault.load(from: url)
+        let url = NexusPaths.vaultMetadataURL(forTitle: pageType.title, in: nexus)
+        var updated = try PageType.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
     }
