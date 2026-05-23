@@ -93,26 +93,26 @@ extension NativeTextViewCoordinator {
 
     /// Walk the document AST, find every foldable top-level heading, and
     /// rebuild `foldedRanges` from the subset whose keys appear in the
-    /// `foldedHeadings` binding. After updating the range cache, applies
-    /// fold-hide ATTRIBUTES to currently-folded ranges — tiny font + zero
-    /// line-height paragraphStyle + clear foregroundColor — so the layout
-    /// pass naturally produces a near-zero-height fragment frame.
+    /// `foldedHeadings` binding. When the set changes, invalidates layout
+    /// over the union of old + new ranges so the content-storage delegate
+    /// is re-queried and the new fold state is reflected on screen.
     ///
-    /// Why attribute writes (not a `layoutFragmentFrame` getter override):
-    /// `NSTextLayoutFragment.layoutFragmentFrame` is a STORED property; the
-    /// layout manager calls `setLayoutFragmentFrame:` during layout and
-    /// uses the stored value for positioning subsequent fragments. A getter
-    /// override only affects external queries — TextKit 2's internal
-    /// positioning chain doesn't see it, which is why the override approach
-    /// produced asymmetric collapse/expand behavior (expand worked via
-    /// natural overflow propagation, collapse silently kept stale Y
-    /// positions). Same pattern HRVisibility uses for the `---` dashes.
+    /// The content-storage delegate (`textContentStorage(_:textParagraphWith:)`,
+    /// in this same extension) returns an empty `NSTextParagraph` for any
+    /// source range intersecting `foldedRanges`. The layout manager then
+    /// vends no fragments for that range — true zero-height collapse,
+    /// natural propagation to downstream fragment positions, and folded
+    /// content is unreachable to selection/find/spell-check.
     func syncHeadingFolding(in ts: NSTextStorage, textView: NSTextView) {
         // Fast path: no folds requested → guarantee an empty result without
         // walking the AST. Common case for unedited pages.
         if foldedHeadings.isEmpty {
+            let oldRanges = foldedRanges
             if !foldedRanges.isEmpty { foldedRanges = [] }
             lastSyncedFoldedHeadings = []
+            if !oldRanges.isEmpty {
+                invalidateFoldLayout(in: textView, union: oldRanges)
+            }
             return
         }
 
@@ -126,7 +126,7 @@ extension NativeTextViewCoordinator {
         // document with nothing under it) DO get included — the fold-state
         // membership is the source of truth, and the user expects the
         // toggle + chevron icon to register even when there's nothing
-        // visible to collapse. `applyFoldHideAttributes` skips zero-length
+        // visible to collapse. `invalidateFoldLayout` skips zero-length
         // ranges via its `range.length > 0` guard.
         var newRanges: [NSRange] = []
         newRanges.reserveCapacity(headings.count)
@@ -144,9 +144,34 @@ extension NativeTextViewCoordinator {
                 $0.location == $1.location && $0.length == $1.length
             })
         if !unchanged {
+            let oldRanges = foldedRanges
             foldedRanges = newRanges
+            invalidateFoldLayout(in: textView, union: oldRanges + newRanges)
         }
         lastSyncedFoldedHeadings = foldedHeadings
+    }
+
+    /// Compute the NSRange union of `ranges` and invalidate layout over
+    /// the resulting NSTextRange. Triggers the content-storage delegate
+    /// to be re-queried for those source ranges. Shared by
+    /// `applyFoldStateIfChanged` (chevron-click path, via `syncHeadingFolding`)
+    /// and `syncHeadingFolding` itself (restyle path, when text edits
+    /// shifted heading positions).
+    fileprivate func invalidateFoldLayout(in textView: NSTextView, union ranges: [NSRange]) {
+        var minLoc = Int.max
+        var maxEnd = 0
+        for r in ranges where r.length > 0 {
+            minLoc = min(minLoc, r.location)
+            maxEnd = max(maxEnd, r.location + r.length)
+        }
+        guard minLoc != Int.max, maxEnd > minLoc,
+            let tlm = textView.textLayoutManager,
+            let tcs = tlm.textContentManager as? NSTextContentStorage,
+            let startLoc = tcs.location(tcs.documentRange.location, offsetBy: minLoc),
+            let endLoc = tcs.location(tcs.documentRange.location, offsetBy: maxEnd),
+            let textRange = NSTextRange(location: startLoc, end: endLoc)
+        else { return }
+        tlm.invalidateLayout(for: textRange)
     }
 
     // MARK: - Chevron rotation animation
@@ -284,12 +309,28 @@ extension NativeTextViewCoordinator {
     // MARK: - Fold-toggle invalidation
 
     /// Fold-toggle entry: detects a `foldedHeadings` change that didn't
-    /// accompany a text edit (chevron click) and re-runs the AST walk.
-    /// Phase-1 stub — Phase 3 reinstates layout invalidation via
-    /// content-manager elision (Foldable-Headings-Rebuild.md Task 3.3).
+    /// accompany a text edit (chevron click) and routes through
+    /// `syncHeadingFolding`, which rebuilds `foldedRanges` and calls
+    /// `invalidateFoldLayout` when the set changes. The content-storage
+    /// delegate re-queries for the affected range and vends empty
+    /// paragraphs for the newly-folded entries, real paragraphs for the
+    /// newly-unfolded ones. No force-layout chain or attribute writes —
+    /// TextKit 2's standard layout pass handles propagation.
     func applyFoldStateIfChanged(in ts: NSTextStorage, textView: NSTextView) {
         guard foldedHeadings != lastSyncedFoldedHeadings else { return }
         syncHeadingFolding(in: ts, textView: textView)
+
+        // Engine-specific overscroll / scroll-clamp recompute. TextKit 2's
+        // layout-frame propagation handles the visible region naturally; the
+        // engine's bottom-overscroll math (scroll-past-end UX) needs an
+        // explicit kick since it derives from `baseContentHeight` rather
+        // than directly observing the layout manager.
+        if let nativeTV = textView as? NativeTextView,
+            let scrollView = textView.enclosingScrollView
+        {
+            nativeTV.recalcOverscroll(for: scrollView, debugTag: "foldToggle")
+            (scrollView as? ClampedScrollView)?.clampToInsets()
+        }
     }
 
 }
