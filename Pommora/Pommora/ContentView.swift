@@ -38,6 +38,7 @@ struct ContentView: View {
     @State private var recentsManager: RecentsManager?
     @State private var pinnedManager: PinnedManager?
     @State private var mainWindowRouter: MainWindowRouter?
+    @State private var settingsManager: SettingsManager?
 
     var body: some View {
         @Bindable var bindableNexusManager = nexusManager
@@ -52,6 +53,7 @@ struct ContentView: View {
         } detail: {
             detail
         }
+        .tint(currentAccent)
         .sheet(
             item: $bindableNexusManager.pendingAdoption,
             onDismiss: {
@@ -175,7 +177,8 @@ struct ContentView: View {
             let vaultMgr = vaultManager,
             let contentMgr = contentManager,
             let itemContentMgr = itemContentManager,
-            let savedMgr = savedConfigManager
+            let savedMgr = savedConfigManager,
+            let settingsMgr = settingsManager
         {
             SidebarView(selection: $sidebarSelection)
                 .environment(spaceMgr)
@@ -184,6 +187,7 @@ struct ContentView: View {
                 .environment(contentMgr)
                 .environment(itemContentMgr)
                 .environment(savedMgr)
+                .environment(settingsMgr)
                 .overlay(alignment: .bottom) {
                     if nexusManager.isIndexing {
                         IndexingHUD()
@@ -243,6 +247,29 @@ struct ContentView: View {
         }
     }
 
+    /// Per-Nexus accent color resolved from SettingsManager. Returns the
+    /// SwiftUI `Color` mapped from the stored `SettingsAccentColor` enum, or
+    /// the system accent (`.accentColor`) when no override is set or the
+    /// manager hasn't loaded yet. Wired here (not in PommoraApp) because
+    /// SettingsManager is per-Nexus and constructed inside `constructManagers`.
+    private var currentAccent: Color {
+        guard let manager = settingsManager,
+            let color = manager.settings.accentColor
+        else {
+            return .accentColor
+        }
+        switch color {
+        case .red: return .red
+        case .orange: return .orange
+        case .yellow: return .yellow
+        case .green: return .green
+        case .blue: return .blue
+        case .purple: return .purple
+        case .pink: return .pink
+        case .gray: return .gray
+        }
+    }
+
     /// Build NexusContext provider closures for TopicManager and ContentManager validators.
     ///
     /// **Important — this snapshot-closure pattern is one-shot.** The returned NexusContext
@@ -265,6 +292,7 @@ struct ContentView: View {
             homepageManager = nil
             tierConfigManager = nil
             savedConfigManager = nil
+            settingsManager = nil
             return
         }
 
@@ -339,6 +367,7 @@ struct ContentView: View {
         let savedMgr = SavedConfigManager(nexus: nexus)
         let recentsMgr = RecentsManager(nexus: nexus)
         let pinnedMgr = PinnedManager(nexus: nexus)
+        let settingsMgr = SettingsManager(nexus: nexus)
         let router = MainWindowRouter()
 
         self.spaceManager = spaceMgr
@@ -354,6 +383,7 @@ struct ContentView: View {
         self.savedConfigManager = savedMgr
         self.recentsManager = recentsMgr
         self.pinnedManager = pinnedMgr
+        self.settingsManager = settingsMgr
         self.mainWindowRouter = router
 
         // Publish manager refs so standalone WindowGroup scenes can reach
@@ -380,6 +410,7 @@ struct ContentView: View {
             async let _ = homepageMgr.load()
             async let _ = tierMgr.load()
             async let _ = savedMgr.load()
+            async let _ = settingsMgr.loadOrSeed()
             await recentsMgr.load()
             await pinnedMgr.load()
         }
