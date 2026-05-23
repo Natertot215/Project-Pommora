@@ -4,7 +4,7 @@ import Foundation
 enum SidebarSheet: Identifiable {
     case newSpace
     case newTopic
-    case newSubtopic(parent: Topic)
+    case newProject(parent: Topic)
     case newPageType
     case newCollection(pageType: PageType)
     case newPage(collection: PageCollection, pageType: PageType)
@@ -19,7 +19,7 @@ enum SidebarSheet: Identifiable {
     enum IconTarget: Hashable {
         case space(Space)
         case topic(Topic)
-        case subtopic(Subtopic)
+        case project(Project)
         case pageType(PageType)
     }
 
@@ -27,7 +27,7 @@ enum SidebarSheet: Identifiable {
         switch self {
         case .newSpace: return "newSpace"
         case .newTopic: return "newTopic"
-        case .newSubtopic(let t): return "newSubtopic-\(t.id)"
+        case .newProject(let t): return "newProject-\(t.id)"
         case .newPageType: return "newPageType"
         case .newCollection(let t): return "newCollection-\(t.id)"
         case .newPage(let c, _): return "newPage-\(c.id)"
@@ -38,7 +38,7 @@ enum SidebarSheet: Identifiable {
             switch target {
             case .space(let s): return "editIcon-space-\(s.id)"
             case .topic(let t): return "editIcon-topic-\(t.id)"
-            case .subtopic(let s): return "editIcon-subtopic-\(s.id)"
+            case .project(let p): return "editIcon-project-\(p.id)"
             case .pageType(let t): return "editIcon-pageType-\(t.id)"
             }
         case .editColor(let s): return "editColor-\(s.id)"

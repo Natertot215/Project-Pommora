@@ -45,7 +45,7 @@ enum PageValidator {
         for id in tier2 where context.lookupTopic(id) == nil {
             throw ValidationError.tierMismatch(expectedTier: 2, id: id)
         }
-        for id in tier3 where context.lookupSubtopic(id) == nil {
+        for id in tier3 where context.lookupProject(id) == nil {
             throw ValidationError.tierMismatch(expectedTier: 3, id: id)
         }
 

@@ -17,9 +17,9 @@ struct TopicRow: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            ForEach(topicManager.subtopics(in: topic)) { sub in
-                SubtopicRow(
-                    subtopic: sub,
+            ForEach(topicManager.projects(in: topic)) { project in
+                ProjectRow(
+                    project: project,
                     parentTopic: topic,
                     selection: $selection,
                     editingID: $editingID,
@@ -28,7 +28,7 @@ struct TopicRow: View {
                 )
             }
             .onMove { source, destination in
-                topicManager.reorderSubtopics(
+                topicManager.reorderProjects(
                     in: topic, fromOffsets: source, toOffset: destination
                 )
             }
@@ -60,14 +60,14 @@ struct TopicRow: View {
             )
             .contextMenu {
                 Button("New Topic") { presentedSheet = .newTopic }
-                Button("New Sub-topic (in This Topic)") { presentedSheet = .newSubtopic(parent: topic) }
+                Button("New Project (in This Topic)") { presentedSheet = .newProject(parent: topic) }
                 Divider()
                 Button("Rename") { editingID = topic.id }
                 Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }
                 Button("Change Icon") { presentedSheet = .editIcon(.topic(topic)) }
                 Divider()
                 Button("Delete", role: .destructive) {
-                    confirmingDelete = .deleteTopic(topic, subtopicCount: topicManager.subtopics(in: topic).count)
+                    confirmingDelete = .deleteTopic(topic, projectCount: topicManager.projects(in: topic).count)
                 }
             }
         }

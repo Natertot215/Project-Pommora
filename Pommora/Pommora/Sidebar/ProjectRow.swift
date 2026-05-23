@@ -1,7 +1,8 @@
 import SwiftUI
 
-struct SubtopicRow: View {
-    let subtopic: Subtopic
+/// Renamed from `SubtopicRow` per ParadigmV2.
+struct ProjectRow: View {
+    let project: Project
     let parentTopic: Topic
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -16,35 +17,35 @@ struct SubtopicRow: View {
 
     var body: some View {
         Group {
-            if editingID == subtopic.id {
+            if editingID == project.id {
                 renamingRow
             } else {
                 SelectableRow(
-                    title: subtopic.title,
-                    symbol: subtopic.icon ?? "doc.text",
-                    tag: SelectionTag.subtopic(subtopic.id),
+                    title: project.title,
+                    symbol: project.icon ?? "doc.text",
+                    tag: SelectionTag.project(project.id),
                     selection: $selection,
                     accent: nil,
-                    onSelect: { selection = .subtopic(subtopic) }
+                    onSelect: { selection = .project(project) }
                 )
                 .contextMenu {
-                    Button("Rename") { editingID = subtopic.id }
-                    Button("Change Icon") { presentedSheet = .editIcon(.subtopic(subtopic)) }
+                    Button("Rename") { editingID = project.id }
+                    Button("Change Icon") { presentedSheet = .editIcon(.project(project)) }
                     Divider()
                     Button("Delete", role: .destructive) {
-                        confirmingDelete = .deleteSubtopic(subtopic)
+                        confirmingDelete = .deleteProject(project)
                     }
                 }
             }
         }
         .listRowBackground(
-            SelectionChrome(isSelected: SelectionTag.subtopic(subtopic.id).matches(selection))
+            SelectionChrome(isSelected: SelectionTag.project(project.id).matches(selection))
         )
     }
 
     private var renamingRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: subtopic.icon ?? "doc.text")
+            Image(systemName: project.icon ?? "doc.text")
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.primary)
@@ -58,12 +59,12 @@ struct SubtopicRow: View {
                     return .handled
                 }
                 .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == subtopic.id {
+                    if !focused && !isCommitting && editingID == project.id {
                         cancel()
                     }
                 }
                 .onAppear {
-                    draft = subtopic.title
+                    draft = project.title
                     renameFocused = true
                 }
             Spacer(minLength: 0)
@@ -75,7 +76,7 @@ struct SubtopicRow: View {
     }
 
     private func commit() {
-        guard draft != subtopic.title else {
+        guard draft != project.title else {
             editingID = nil
             return
         }
@@ -83,7 +84,7 @@ struct SubtopicRow: View {
         Task {
             defer { isCommitting = false }
             do {
-                try await topicManager.renameSubtopic(subtopic, to: draft)
+                try await topicManager.renameProject(project, to: draft)
                 editingID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.

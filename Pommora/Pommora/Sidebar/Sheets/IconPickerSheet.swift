@@ -50,7 +50,7 @@ struct IconPickerSheet: View {
         switch target {
         case .space(let s): return s.icon
         case .topic(let t): return t.icon
-        case .subtopic(let s): return s.icon
+        case .project(let p): return p.icon
         case .pageType(let t): return t.icon
         }
     }
@@ -64,8 +64,8 @@ struct IconPickerSheet: View {
         case .topic(let t):
             do { try await topicManager.updateTopicIcon(t, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
-        case .subtopic(let s):
-            do { try await topicManager.updateSubtopicIcon(s, to: newIcon) } catch
+        case .project(let p):
+            do { try await topicManager.updateProjectIcon(p, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .pageType(let t):
             do { try await vaultManager.updatePageTypeIcon(t, to: newIcon) } catch

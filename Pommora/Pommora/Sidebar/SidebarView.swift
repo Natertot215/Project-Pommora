@@ -52,7 +52,7 @@ struct SidebarView: View {
             switch sheet {
             case .newSpace: NewSpaceSheet()
             case .newTopic: NewTopicSheet()
-            case .newSubtopic(let t): NewSubtopicSheet(parent: t)
+            case .newProject(let t): NewProjectSheet(parent: t)
             case .newPageType: NewPageTypeSheet()
             case .newCollection(let v): NewPageCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
@@ -82,7 +82,7 @@ struct SidebarView: View {
         switch confirmingDelete {
         case .deleteSpace(let s)?: return "Delete Space \"\(s.title)\"?"
         case .deleteTopic(let t, _)?: return "Delete Topic \"\(t.title)\"?"
-        case .deleteSubtopic(let s)?: return "Delete Sub-topic \"\(s.title)\"?"
+        case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
         case nil: return ""
@@ -94,9 +94,9 @@ struct SidebarView: View {
         case .deleteSpace: return "This action cannot be undone."
         case .deleteTopic(_, let count):
             return count > 0
-                ? "Contains \(count) Sub-topic(s). Promote them or delete all?"
+                ? "Contains \(count) Project(s). Promote them or delete all?"
                 : "This action cannot be undone."
-        case .deleteSubtopic: return "This action cannot be undone."
+        case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
         case .deleteCollection: return "All Pages and Items inside will be deleted."
         }
@@ -115,16 +115,16 @@ struct SidebarView: View {
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         case .deleteTopic(let t, let count):
             if count > 0 {
-                Button("Delete & Promote Sub-topics", role: .destructive) {
+                Button("Delete & Promote Projects", role: .destructive) {
                     Task {
-                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) } catch
+                        do { try await topicManager.deleteTopic(t, promotingProjects: true) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
                     }
                 }
                 Button("Delete All", role: .destructive) {
                     Task {
-                        do { try await topicManager.deleteTopic(t, promotingSubtopics: false) } catch
+                        do { try await topicManager.deleteTopic(t, promotingProjects: false) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
                     }
@@ -132,17 +132,17 @@ struct SidebarView: View {
             } else {
                 Button("Delete", role: .destructive) {
                     Task {
-                        do { try await topicManager.deleteTopic(t, promotingSubtopics: true) } catch
+                        do { try await topicManager.deleteTopic(t, promotingProjects: true) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
                     }
                 }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
-        case .deleteSubtopic(let s):
+        case .deleteProject(let p):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await topicManager.deleteSubtopic(s) } catch
+                    do { try await topicManager.deleteProject(p) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }

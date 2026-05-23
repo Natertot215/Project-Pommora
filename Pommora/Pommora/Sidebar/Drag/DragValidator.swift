@@ -4,7 +4,7 @@ import Foundation
 /// row (v0.2.8.0). V1 is reorder-only: same kind + same container.
 ///
 /// Cross-container moves (Page → different Collection, Collection → different
-/// Vault, Subtopic → different Topic) stay in the right-click "Move to…" menu
+/// Vault, Project → different Topic) stay in the right-click "Move to…" menu
 /// for now; they're not delivered through drag in this ship.
 enum DragValidator {
     /// Target description — the row receiving the drop.

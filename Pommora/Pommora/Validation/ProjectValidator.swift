@@ -1,6 +1,7 @@
 import Foundation
 
-enum SubtopicValidator {
+/// Renamed from `SubtopicValidator` per ParadigmV2.
+enum ProjectValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
@@ -19,9 +20,9 @@ enum SubtopicValidator {
         title: String,
         parents: [String],
         fileLocation: FileLocation,
-        existing: [Subtopic],
+        existing: [Project],
         context: NexusContext,
-        excluding: Subtopic? = nil
+        excluding: Project? = nil
     ) throws {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
@@ -45,8 +46,8 @@ enum SubtopicValidator {
         }
 
         // Duplicate title within same parent
-        let conflict = existing.contains { st in
-            st.id != excluding?.id && st.parents == parents && st.title.lowercased() == trimmed.lowercased()
+        let conflict = existing.contains { p in
+            p.id != excluding?.id && p.parents == parents && p.title.lowercased() == trimmed.lowercased()
         }
         if conflict { throw ValidationError.duplicateTitle }
     }

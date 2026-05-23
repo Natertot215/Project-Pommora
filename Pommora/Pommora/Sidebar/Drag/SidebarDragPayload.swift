@@ -13,7 +13,7 @@ struct SidebarDragPayload: Codable, Sendable, Transferable {
     enum Kind: String, Codable, Sendable {
         case space
         case topic
-        case subtopic
+        case project
         case vault
         case collection
         case page
@@ -23,7 +23,7 @@ struct SidebarDragPayload: Codable, Sendable, Transferable {
     let kind: Kind
     let id: String
     /// Parent container ID — nil for top-tier rows (Space / Topic / Vault).
-    /// For Subtopic this is the parent Topic.id. For Collection this is the
+    /// For Project this is the parent Topic.id. For Collection this is the
     /// parent Vault.id. For a Page nested in a Collection this is the
     /// Collection.id; for a vault-root Page it is the Vault.id with
     /// `isVaultRoot = true`.

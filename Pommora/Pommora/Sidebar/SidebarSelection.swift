@@ -7,7 +7,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case savedKey(String)  // "homepage" | "calendar" | "recents"
     case space(Space)
     case topic(Topic)
-    case subtopic(Subtopic)
+    case project(Project)
     case pageType(PageType)
     case collection(PageCollection)
     case page(PageMeta)
@@ -51,11 +51,11 @@ extension SidebarSelection {
                 let t = tm.topics.first(where: { $0.id == stateRef.id })
             else { return nil }
             self = .topic(t)
-        case .subtopic:
+        case .project:
             guard let tm = AppGlobals.topicManager else { return nil }
-            for subs in tm.subtopicsByParent.values {
-                if let st = subs.first(where: { $0.id == stateRef.id }) {
-                    self = .subtopic(st)
+            for projects in tm.projectsByParent.values {
+                if let p = projects.first(where: { $0.id == stateRef.id }) {
+                    self = .project(p)
                     return
                 }
             }
@@ -81,7 +81,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case savedKey(String)
     case space(String)
     case topic(String)
-    case subtopic(String)
+    case project(String)
     case pageType(String)
     case collection(String)
     case page(String)
@@ -91,7 +91,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case (.savedKey(let k), .savedKey(let s)): return k == s
         case (.space(let id), .space(let s)): return id == s.id
         case (.topic(let id), .topic(let t)): return id == t.id
-        case (.subtopic(let id), .subtopic(let st)): return id == st.id
+        case (.project(let id), .project(let p)): return id == p.id
         case (.pageType(let id), .pageType(let t)): return id == t.id
         case (.collection(let id), .collection(let c)): return id == c.id
         case (.page(let id), .page(let p)): return id == p.id

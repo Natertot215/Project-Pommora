@@ -52,7 +52,7 @@ enum ItemValidator {
             }
         }
         for id in tier3 {
-            if context.lookupSubtopic(id) == nil {
+            if context.lookupProject(id) == nil {
                 throw ValidationError.tierMismatch(expectedTier: 3, id: id)
             }
         }

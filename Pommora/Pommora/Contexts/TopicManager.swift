@@ -1,13 +1,13 @@
 import Foundation
 import Observation
-import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderTopics/Subtopics
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderTopics/Projects
 
 @MainActor
 @Observable
 final class TopicManager {
     private(set) var topics: [Topic] = []
     /// Keyed by parent Topic ID.
-    private(set) var subtopicsByParent: [String: [Subtopic]] = [:]
+    private(set) var projectsByParent: [String: [Project]] = [:]
     var pendingError: (any Error)?
 
     private let nexus: Nexus
@@ -23,8 +23,8 @@ final class TopicManager {
 
     // MARK: - Accessors
 
-    func subtopics(in topic: Topic) -> [Subtopic] {
-        subtopicsByParent[topic.id] ?? []
+    func projects(in topic: Topic) -> [Project] {
+        projectsByParent[topic.id] ?? []
     }
 
     // MARK: - Load
@@ -35,7 +35,7 @@ final class TopicManager {
             try NexusPaths.ensureDirectoryExists(topicsDir)
 
             var loadedTopics: [Topic] = []
-            var loadedSubs: [String: [Subtopic]] = [:]
+            var loadedProjects: [String: [Project]] = [:]
 
             let topicFolders = try Filesystem.childFolders(of: topicsDir)
             for folder in topicFolders {
@@ -44,19 +44,19 @@ final class TopicManager {
                 guard let topic = try? Topic.load(from: metaURL) else { continue }
                 loadedTopics.append(topic)
 
-                let subFiles = try Filesystem.children(of: folder) { url in
-                    url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "subtopic"
+                let projectFiles = try Filesystem.children(of: folder) { url in
+                    url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "project"
                 }
-                let subs = subFiles.compactMap { try? Subtopic.load(from: $0) }
-                    .map { st -> Subtopic in
-                        var copy = st
+                let projects = projectFiles.compactMap { try? Project.load(from: $0) }
+                    .map { p -> Project in
+                        var copy = p
                         copy.parents = [topic.id]  // file-location-derived parent
                         return copy
                     }
-                loadedSubs[topic.id] = OrderResolver.resolve(
-                    subs,
-                    persistedOrder: topic.subtopicOrder,
-                    titleKeyPath: \Subtopic.title
+                loadedProjects[topic.id] = OrderResolver.resolve(
+                    projects,
+                    persistedOrder: topic.projectOrder,
+                    titleKeyPath: \Project.title
                 )
             }
 
@@ -65,11 +65,11 @@ final class TopicManager {
                 persistedOrder: readPersistedTopicOrder(),
                 titleKeyPath: \Topic.title
             )
-            self.subtopicsByParent = loadedSubs
+            self.projectsByParent = loadedProjects
             self.pendingError = nil
         } catch {
             self.topics = []
-            self.subtopicsByParent = [:]
+            self.projectsByParent = [:]
             self.pendingError = error
         }
     }
@@ -96,7 +96,7 @@ final class TopicManager {
             try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: topic)
 
             topics.append(topic)
-            subtopicsByParent[topic.id] = []
+            projectsByParent[topic.id] = []
             topics = OrderResolver.resolve(
                 topics,
                 persistedOrder: readPersistedTopicOrder(),
@@ -194,63 +194,63 @@ final class TopicManager {
         }
     }
 
-    /// Deletes a Topic. If `promotingSubtopics` is true (default), Sub-topics inside
+    /// Deletes a Topic. If `promotingProjects` is true (default), Projects inside
     /// are converted to standalone Topics inheriting the deleted Topic's parents.
     /// On filename collision with an existing top-level Topic, auto-suffixes (2), (3), …
-    func deleteTopic(_ topic: Topic, promotingSubtopics: Bool = true) async throws {
+    func deleteTopic(_ topic: Topic, promotingProjects: Bool = true) async throws {
         do {
-            let subs = subtopicsByParent[topic.id] ?? []
+            let projects = projectsByParent[topic.id] ?? []
 
-            if promotingSubtopics {
-                for sub in subs {
-                    try await promoteSubtopicToTopic(sub, inheritedParents: topic.parents)
+            if promotingProjects {
+                for project in projects {
+                    try await promoteProjectToTopic(project, inheritedParents: topic.parents)
                 }
             }
 
             let folder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
             topics.removeAll { $0.id == topic.id }
-            subtopicsByParent.removeValue(forKey: topic.id)
+            projectsByParent.removeValue(forKey: topic.id)
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    private func promoteSubtopicToTopic(_ sub: Subtopic, inheritedParents: [String]) async throws {
-        var promotedName = sub.title
+    private func promoteProjectToTopic(_ project: Project, inheritedParents: [String]) async throws {
+        var promotedName = project.title
         var suffix = 2
         while topics.contains(where: { $0.title.lowercased() == promotedName.lowercased() }) {
-            promotedName = "\(sub.title) (\(suffix))"
+            promotedName = "\(project.title) (\(suffix))"
             suffix += 1
         }
         let topic = Topic(
-            id: ULID.generate(),  // new identity at tier-2; old Subtopic id is dropped
+            id: ULID.generate(),  // new identity at tier-2; old Project id is dropped
             title: promotedName,
             parents: inheritedParents,
-            icon: sub.icon,
-            blocks: sub.blocks,
+            icon: project.icon,
+            blocks: project.blocks,
             modifiedAt: Date()
         )
         let folder = NexusPaths.topicFolderURL(forTitle: promotedName, in: nexus)
         let meta = NexusPaths.topicMetadataURL(forTitle: promotedName, in: nexus)
         try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: topic)
         topics.append(topic)
-        subtopicsByParent[topic.id] = []
+        projectsByParent[topic.id] = []
     }
 
-    // MARK: - Subtopic CRUD
+    // MARK: - Project CRUD
 
-    func createSubtopic(name: String, inTopic parent: Topic, icon: String?) async throws {
+    func createProject(name: String, inTopic parent: Topic, icon: String?) async throws {
         do {
-            let existing = subtopicsByParent[parent.id] ?? []
+            let existing = projectsByParent[parent.id] ?? []
             let context = NexusContext(
                 lookupSpace: { _ in nil },
                 lookupTopic: { [topics] id in topics.first { $0.id == id } },
-                lookupSubtopic: { _ in nil },
+                lookupProject: { _ in nil },
                 lookupVault: { _ in nil }
             )
-            try SubtopicValidator.validate(
+            try ProjectValidator.validate(
                 title: name,
                 parents: [parent.id],
                 fileLocation: .init(parentFolderTitle: parent.title),
@@ -258,7 +258,7 @@ final class TopicManager {
                 context: context
             )
 
-            let sub = Subtopic(
+            let project = Project(
                 id: ULID.generate(),
                 title: name,
                 parents: [parent.id],
@@ -267,54 +267,54 @@ final class TopicManager {
                 blocks: [],
                 modifiedAt: Date()
             )
-            let url = NexusPaths.subtopicFileURL(
+            let url = NexusPaths.projectFileURL(
                 forTitle: name, inTopicTitled: parent.title, in: nexus
             )
-            try sub.save(to: url)
+            try project.save(to: url)
 
-            var arr = subtopicsByParent[parent.id] ?? []
-            arr.append(sub)
+            var arr = projectsByParent[parent.id] ?? []
+            arr.append(project)
             arr = OrderResolver.resolve(
                 arr,
-                persistedOrder: parent.subtopicOrder,
-                titleKeyPath: \Subtopic.title
+                persistedOrder: parent.projectOrder,
+                titleKeyPath: \Project.title
             )
-            subtopicsByParent[parent.id] = arr
+            projectsByParent[parent.id] = arr
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    func renameSubtopic(_ sub: Subtopic, to newName: String) async throws {
+    func renameProject(_ project: Project, to newName: String) async throws {
         do {
-            guard let parentID = sub.parents.first,
+            guard let parentID = project.parents.first,
                 let parent = topics.first(where: { $0.id == parentID })
-            else { throw SubtopicValidator.ValidationError.missingParent }
+            else { throw ProjectValidator.ValidationError.missingParent }
 
-            let existing = subtopicsByParent[parent.id] ?? []
+            let existing = projectsByParent[parent.id] ?? []
             let context = NexusContext(
                 lookupSpace: { _ in nil },
                 lookupTopic: { [topics] id in topics.first { $0.id == id } },
-                lookupSubtopic: { _ in nil },
+                lookupProject: { _ in nil },
                 lookupVault: { _ in nil }
             )
-            try SubtopicValidator.validate(
+            try ProjectValidator.validate(
                 title: newName,
                 parents: [parent.id],
                 fileLocation: .init(parentFolderTitle: parent.title),
                 existing: existing,
                 context: context,
-                excluding: sub
+                excluding: project
             )
 
-            let oldURL = NexusPaths.subtopicFileURL(
-                forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+            let oldURL = NexusPaths.projectFileURL(
+                forTitle: project.title, inTopicTitled: parent.title, in: nexus
             )
-            let newURL = NexusPaths.subtopicFileURL(
+            let newURL = NexusPaths.projectFileURL(
                 forTitle: newName, inTopicTitled: parent.title, in: nexus
             )
-            var updated = sub
+            var updated = project
             updated.title = newName
             updated.modifiedAt = Date()
             try Filesystem.renameFile(from: oldURL, to: newURL)
@@ -331,16 +331,16 @@ final class TopicManager {
                 }
             }
 
-            var arr = subtopicsByParent[parent.id] ?? []
-            if let i = arr.firstIndex(where: { $0.id == sub.id }) {
+            var arr = projectsByParent[parent.id] ?? []
+            if let i = arr.firstIndex(where: { $0.id == project.id }) {
                 arr[i] = updated
                 arr = OrderResolver.resolve(
                     arr,
-                    persistedOrder: parent.subtopicOrder,
-                    titleKeyPath: \Subtopic.title
+                    persistedOrder: parent.projectOrder,
+                    titleKeyPath: \Project.title
                 )
             }
-            subtopicsByParent[parent.id] = arr
+            projectsByParent[parent.id] = arr
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -349,21 +349,21 @@ final class TopicManager {
         }
     }
 
-    func moveSubtopic(_ sub: Subtopic, toTopic newParent: Topic) async throws {
+    func moveProject(_ project: Project, toTopic newParent: Topic) async throws {
         do {
-            guard let oldParentID = sub.parents.first,
+            guard let oldParentID = project.parents.first,
                 let oldParent = topics.first(where: { $0.id == oldParentID })
-            else { throw SubtopicValidator.ValidationError.missingParent }
+            else { throw ProjectValidator.ValidationError.missingParent }
             guard oldParent.id != newParent.id else { return }
 
-            let oldURL = NexusPaths.subtopicFileURL(
-                forTitle: sub.title, inTopicTitled: oldParent.title, in: nexus
+            let oldURL = NexusPaths.projectFileURL(
+                forTitle: project.title, inTopicTitled: oldParent.title, in: nexus
             )
-            let newURL = NexusPaths.subtopicFileURL(
-                forTitle: sub.title, inTopicTitled: newParent.title, in: nexus
+            let newURL = NexusPaths.projectFileURL(
+                forTitle: project.title, inTopicTitled: newParent.title, in: nexus
             )
 
-            var updated = sub
+            var updated = project
             updated.parents = [newParent.id]
             updated.modifiedAt = Date()
             try Filesystem.renameFile(from: oldURL, to: newURL)
@@ -380,18 +380,18 @@ final class TopicManager {
                 }
             }
 
-            var oldArr = subtopicsByParent[oldParent.id] ?? []
-            oldArr.removeAll { $0.id == sub.id }
-            subtopicsByParent[oldParent.id] = oldArr
+            var oldArr = projectsByParent[oldParent.id] ?? []
+            oldArr.removeAll { $0.id == project.id }
+            projectsByParent[oldParent.id] = oldArr
 
-            var newArr = subtopicsByParent[newParent.id] ?? []
+            var newArr = projectsByParent[newParent.id] ?? []
             newArr.append(updated)
             newArr = OrderResolver.resolve(
                 newArr,
-                persistedOrder: newParent.subtopicOrder,
-                titleKeyPath: \Subtopic.title
+                persistedOrder: newParent.projectOrder,
+                titleKeyPath: \Project.title
             )
-            subtopicsByParent[newParent.id] = newArr
+            projectsByParent[newParent.id] = newArr
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -400,43 +400,43 @@ final class TopicManager {
         }
     }
 
-    func deleteSubtopic(_ sub: Subtopic) async throws {
+    func deleteProject(_ project: Project) async throws {
         do {
-            guard let parentID = sub.parents.first,
+            guard let parentID = project.parents.first,
                 let parent = topics.first(where: { $0.id == parentID })
-            else { throw SubtopicValidator.ValidationError.missingParent }
+            else { throw ProjectValidator.ValidationError.missingParent }
 
-            let url = NexusPaths.subtopicFileURL(
-                forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+            let url = NexusPaths.projectFileURL(
+                forTitle: project.title, inTopicTitled: parent.title, in: nexus
             )
             try Filesystem.moveToTrash(url, in: nexus)
-            var arr = subtopicsByParent[parent.id] ?? []
-            arr.removeAll { $0.id == sub.id }
-            subtopicsByParent[parent.id] = arr
+            var arr = projectsByParent[parent.id] ?? []
+            arr.removeAll { $0.id == project.id }
+            projectsByParent[parent.id] = arr
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    func updateSubtopicIcon(_ sub: Subtopic, to icon: String?) async throws {
+    func updateProjectIcon(_ project: Project, to icon: String?) async throws {
         do {
-            guard let parentID = sub.parents.first,
+            guard let parentID = project.parents.first,
                 let parent = topics.first(where: { $0.id == parentID })
-            else { throw SubtopicValidator.ValidationError.missingParent }
+            else { throw ProjectValidator.ValidationError.missingParent }
 
-            var updated = sub
+            var updated = project
             updated.icon = icon
             updated.modifiedAt = Date()
-            let url = NexusPaths.subtopicFileURL(
-                forTitle: sub.title, inTopicTitled: parent.title, in: nexus
+            let url = NexusPaths.projectFileURL(
+                forTitle: project.title, inTopicTitled: parent.title, in: nexus
             )
             try updated.save(to: url)
-            var arr = subtopicsByParent[parent.id] ?? []
-            if let i = arr.firstIndex(where: { $0.id == sub.id }) {
+            var arr = projectsByParent[parent.id] ?? []
+            if let i = arr.firstIndex(where: { $0.id == project.id }) {
                 arr[i] = updated
             }
-            subtopicsByParent[parent.id] = arr
+            projectsByParent[parent.id] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -458,20 +458,20 @@ final class TopicManager {
         }
     }
 
-    /// Reorders Subtopics within `topic`. New ID order persists to the parent
+    /// Reorders Projects within `topic`. New ID order persists to the parent
     /// Topic's `_topic.json` sidecar.
-    func reorderSubtopics(in topic: Topic, fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = subtopicsByParent[topic.id] ?? []
+    func reorderProjects(in topic: Topic, fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = projectsByParent[topic.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        subtopicsByParent[topic.id] = arr
+        projectsByParent[topic.id] = arr
         do {
-            try OrderPersister.setSubtopicOrder(arr.map(\.id), in: topic, nexus: nexus)
-            // Keep the in-memory Topic's subtopicOrder in sync so subsequent
+            try OrderPersister.setProjectOrder(arr.map(\.id), in: topic, nexus: nexus)
+            // Keep the in-memory Topic's projectOrder in sync so subsequent
             // resolve() calls (after rename, create, etc.) see the latest order.
             if let i = topics.firstIndex(where: { $0.id == topic.id }) {
-                topics[i].subtopicOrder = arr.map(\.id)
+                topics[i].projectOrder = arr.map(\.id)
             }
         } catch {
             self.pendingError = error

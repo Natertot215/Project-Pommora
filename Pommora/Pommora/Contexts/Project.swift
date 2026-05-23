@@ -1,15 +1,17 @@
 import Foundation
 
 /// Tier-3 Context entity — specifics within a Topic.
-/// On disk: `.nexus/topics/<TopicTitle>/<Title>.subtopic.json`.
+/// On disk: `.nexus/topics/<TopicTitle>/<Title>.project.json`.
 /// File-structural parent (the enclosing Topic folder) IS the parent — single-valued.
 /// Additional Context relations live in `linkedRelations`.
-struct Subtopic: Codable, Equatable, Identifiable, Hashable, Sendable {
+///
+/// Renamed from `Subtopic` per ParadigmV2 (tier-3 label is now "Project").
+struct Project: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var tier: Int  // always 3
     var title: String  // derived from filename on load
     var parents: [String]  // exactly one Topic ID; enforced by validator
-    var linkedRelations: [String]  // additional Topic/Space/Subtopic IDs (multi-tier)
+    var linkedRelations: [String]  // additional Topic/Space/Project IDs (multi-tier)
     var icon: String?
     var blocks: [ContextBlock]
     var modifiedAt: Date
@@ -64,12 +66,12 @@ struct Subtopic: Codable, Equatable, Identifiable, Hashable, Sendable {
     }
 }
 
-extension Subtopic {
-    static func load(from url: URL) throws -> Subtopic {
-        var st = try AtomicJSON.decode(Subtopic.self, from: url)
-        // "GTD method.subtopic.json" → strip both extensions → "GTD method"
-        st.title = url.deletingPathExtension().deletingPathExtension().lastPathComponent
-        return st
+extension Project {
+    static func load(from url: URL) throws -> Project {
+        var p = try AtomicJSON.decode(Project.self, from: url)
+        // "GTD method.project.json" → strip both extensions → "GTD method"
+        p.title = url.deletingPathExtension().deletingPathExtension().lastPathComponent
+        return p
     }
 
     func save(to url: URL) throws {

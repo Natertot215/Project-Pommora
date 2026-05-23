@@ -39,12 +39,12 @@ struct SidebarDetailView: View {
                     supportingLine: "Tier 2 — Topic\nParents: \(parentSpaceNames(for: t).joined(separator: ", "))"
                 )
 
-            case .subtopic(let s):
+            case .project(let p):
                 ContextDetailPlaceholder(
-                    title: s.title,
-                    icon: s.icon ?? "doc.text",
+                    title: p.title,
+                    icon: p.icon ?? "doc.text",
                     accent: nil,
-                    supportingLine: "Tier 3 — Sub-topic"
+                    supportingLine: "Tier 3 — Project"
                 )
 
             case .pageType(let t):
@@ -86,7 +86,7 @@ struct SidebarDetailView: View {
             switch sheet {
             case .newSpace: NewSpaceSheet()
             case .newTopic: NewTopicSheet()
-            case .newSubtopic(let t): NewSubtopicSheet(parent: t)
+            case .newProject(let t): NewProjectSheet(parent: t)
             case .newPageType: NewPageTypeSheet()
             case .newCollection(let v): NewPageCollectionSheet(vault: v)
             case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))

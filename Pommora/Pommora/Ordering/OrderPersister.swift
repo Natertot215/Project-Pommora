@@ -33,12 +33,12 @@ enum OrderPersister {
         }
     }
 
-    // MARK: - Subtopic order (_topic.json)
+    // MARK: - Project order (_topic.json)
 
-    static func setSubtopicOrder(_ order: [String], in topic: Topic, nexus: Nexus) throws {
+    static func setProjectOrder(_ order: [String], in topic: Topic, nexus: Nexus) throws {
         let url = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
         var updated = try Topic.load(from: url)
-        updated.subtopicOrder = order.isEmpty ? nil : order
+        updated.projectOrder = order.isEmpty ? nil : order
         try updated.save(to: url)
     }
 

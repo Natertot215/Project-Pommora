@@ -11,7 +11,7 @@ struct EntityStateRef: Codable, Hashable, Sendable {
     let title: String
 
     enum Kind: String {
-        case page, vault, collection, space, topic, subtopic, item, agenda
+        case page, vault, collection, space, topic, project, item, agenda
     }
 
     var typedKind: Kind? { Kind(rawValue: kind) }
@@ -45,7 +45,7 @@ extension EntityStateRef {
         case .pageType(let t): self.init(kind: .vault, id: t.id, title: t.title)
         case .space(let s): self.init(kind: .space, id: s.id, title: s.title)
         case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
-        case .subtopic(let st): self.init(kind: .subtopic, id: st.id, title: st.title)
+        case .project(let p): self.init(kind: .project, id: p.id, title: p.title)
         case .collection(let c): self.init(kind: .collection, id: c.id, title: c.title)
         }
     }

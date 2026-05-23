@@ -1,6 +1,7 @@
 import SwiftUI
 
-struct NewSubtopicSheet: View {
+/// Renamed from `NewSubtopicSheet` per ParadigmV2 (tier-3 label is now "Project").
+struct NewProjectSheet: View {
     let parent: Topic
     @Environment(\.dismiss) private var dismiss
     @Environment(TopicManager.self) private var topicManager
@@ -12,7 +13,7 @@ struct NewSubtopicSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("New Sub-topic in \"\(parent.title)\"")
+            Text("New Project in \"\(parent.title)\"")
                 .font(.headline)
             Form {
                 TextField("Name", text: $name).focused($nameFocused)
@@ -41,20 +42,20 @@ struct NewSubtopicSheet: View {
     private func create() async {
         do {
             let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
-            try await topicManager.createSubtopic(name: name, inTopic: parent, icon: iconValue)
+            try await topicManager.createProject(name: name, inTopic: parent, icon: iconValue)
             dismiss()
-        } catch let error as SubtopicValidator.ValidationError {
+        } catch let error as ProjectValidator.ValidationError {
             errorMessage = friendly(error)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func friendly(_ error: SubtopicValidator.ValidationError) -> String {
+    private func friendly(_ error: ProjectValidator.ValidationError) -> String {
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle: return "A Sub-topic with that name already exists in this Topic."
+        case .duplicateTitle: return "A Project with that name already exists in this Topic."
         case .missingParent, .tooManyParents, .parentNotFound, .fileLocationMismatch:
             return "Internal validation error."
         }

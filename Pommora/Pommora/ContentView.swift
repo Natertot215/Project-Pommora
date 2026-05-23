@@ -25,7 +25,8 @@ struct ContentView: View {
     @State private var topicManager: TopicManager?
     @State private var vaultManager: PageTypeManager?
     @State private var contentManager: ContentManager?
-    @State private var agendaManager: AgendaManager?
+    @State private var agendaTaskManager: AgendaTaskManager?
+    @State private var agendaEventManager: AgendaEventManager?
     @State private var homepageManager: HomepageManager?
     @State private var tierConfigManager: TierConfigManager?
     @State private var savedConfigManager: SavedConfigManager?
@@ -270,25 +271,25 @@ struct ContentView: View {
             return NexusContext(
                 lookupSpace: { id in spaces.first { $0.id == id } },
                 lookupTopic: { _ in nil },
-                lookupSubtopic: { _ in nil },
+                lookupProject: { _ in nil },
                 lookupVault: { id in types.first { $0.id == id } }
             )
         }
 
-        // ContentManager needs Space + Topic + Subtopic + Page Type for tier validation.
+        // ContentManager needs Space + Topic + Project + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on
         // MainActor; inner @Sendable closures use value-type snapshots.
         let contentMgr: ContentManager = ContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
             let spaces = spaceMgr.spaces
             let types = vaultMgr.types
             let topics = topicMgr.topics
-            let subsByParent = topicMgr.subtopicsByParent
+            let projectsByParent = topicMgr.projectsByParent
             return NexusContext(
                 lookupSpace: { id in spaces.first { $0.id == id } },
                 lookupTopic: { id in topics.first { $0.id == id } },
-                lookupSubtopic: { id in
-                    for arr in subsByParent.values {
-                        if let s = arr.first(where: { $0.id == id }) { return s }
+                lookupProject: { id in
+                    for arr in projectsByParent.values {
+                        if let p = arr.first(where: { $0.id == id }) { return p }
                     }
                     return nil
                 },
