@@ -12,7 +12,7 @@ struct ItemTypeTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Errands", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
         let original = ItemType(
             id: "01HITYPE",
@@ -50,7 +50,7 @@ struct ItemTypeTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Shopping", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
         try ItemType(id: "01H", title: "Shopping", icon: nil, properties: [], views: [], modifiedAt: Date())
             .save(to: metaURL)
@@ -64,7 +64,7 @@ struct ItemTypeTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Side Errands", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
         // Save with one in-memory title, then verify load derives from folder.
         try ItemType(
@@ -82,7 +82,7 @@ struct ItemTypeTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("E", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
         try ItemType(
             id: "01H", title: "E", icon: nil,
@@ -104,7 +104,7 @@ struct ItemTypeTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Empty", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
         let t = ItemType(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
         try t.save(to: metaURL)
@@ -122,7 +122,7 @@ struct ItemTypeTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Eq", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
         let original = ItemType(
             id: "01HEQ", title: "Eq", icon: "tag",

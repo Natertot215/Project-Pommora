@@ -33,46 +33,26 @@ struct NexusPathsTests {
         #expect(dir.deletingLastPathComponent().lastPathComponent == ".nexus")
     }
 
-    // MARK: - ParadigmV2 wrapper folders
+    // MARK: - Per-kind sidecar filenames (flatlayout)
 
-    @Test("pagesWrapperDir is rootURL/Pages")
-    func pagesWrapperDirShape() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let dir = NexusPaths.pagesWrapperDir(in: nexus)
-        #expect(dir.lastPathComponent == "Pages")
-        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
-        // URL-form overload matches the Nexus-typed form
-        #expect(NexusPaths.pagesWrapperDir(in: nexus.rootURL) == dir)
-    }
-
-    @Test("itemsWrapperDir is rootURL/Items")
-    func itemsWrapperDirShape() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let dir = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
-        #expect(dir.lastPathComponent == "Items")
-        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
-    }
-
-    @Test("agendaWrapperDir is rootURL/Agenda")
-    func agendaWrapperDirShape() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let dir = NexusPaths.agendaWrapperDir(in: nexus)
-        #expect(dir.lastPathComponent == "Agenda")
-        #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
-        // URL-form overload matches the Nexus-typed form
-        #expect(NexusPaths.agendaWrapperDir(in: nexus.rootURL) == dir)
-    }
-
-    @Test("reservedTopLevelFolderNames contains Pages, Items, and Agenda")
-    func reservedTopLevelFolderNames() throws {
-        let reserved = NexusPaths.reservedTopLevelFolderNames
-        #expect(reserved.contains("Pages"))
-        #expect(reserved.contains("Items"))
-        #expect(reserved.contains("Agenda"))
-        #expect(reserved.count == 3)
+    @Test("per-kind sidecar filenames are stable + distinct")
+    func perKindSidecarFilenames() {
+        #expect(NexusPaths.pageTypeSidecarFilename == "_pagetype.json")
+        #expect(NexusPaths.pageCollectionSidecarFilename == "_pagecollection.json")
+        #expect(NexusPaths.itemTypeSidecarFilename == "_itemtype.json")
+        #expect(NexusPaths.itemCollectionSidecarFilename == "_itemcollection.json")
+        #expect(NexusPaths.taskConfigSidecarFilename == "_taskconfig.json")
+        #expect(NexusPaths.eventConfigSidecarFilename == "_eventconfig.json")
+        // All six should be distinct.
+        let all: Set<String> = [
+            NexusPaths.pageTypeSidecarFilename,
+            NexusPaths.pageCollectionSidecarFilename,
+            NexusPaths.itemTypeSidecarFilename,
+            NexusPaths.itemCollectionSidecarFilename,
+            NexusPaths.taskConfigSidecarFilename,
+            NexusPaths.eventConfigSidecarFilename,
+        ]
+        #expect(all.count == 6)
     }
 
     // MARK: - Agenda singleton discovery (sidecar-driven)

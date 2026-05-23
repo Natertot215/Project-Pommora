@@ -24,7 +24,7 @@ struct ItemTypeManagerTests {
 
         // flatlayout: no `Items/` wrapper is materialized — type folders sit
         // at the Nexus root and the loader walks root directly.
-        let wrapper = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
+        let wrapper = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
         #expect(!FileManager.default.fileExists(atPath: wrapper.path))
     }
 
@@ -43,7 +43,7 @@ struct ItemTypeManagerTests {
         #expect(meta.lastPathComponent == NexusPaths.itemTypeSidecarFilename)
         // flatlayout: no `Items/` wrapper is created as a side effect of the
         // first ItemType.
-        let wrapper = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
+        let wrapper = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
         #expect(!FileManager.default.fileExists(atPath: wrapper.path))
         #expect(manager.types.count == 1)
         #expect(manager.types.first?.title == "Errands")

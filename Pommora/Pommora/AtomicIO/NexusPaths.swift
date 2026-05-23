@@ -4,29 +4,20 @@ import Foundation
 /// No I/O except `ensureDirectoryExists`.
 enum NexusPaths {
 
-    // MARK: - Schema sidecar
+    // MARK: - Per-kind sidecar filenames (flatlayout)
 
+    /// `_pagetype.json` — PageType folder sidecar.
     static let pageTypeSidecarFilename = "_pagetype.json"
+    /// `_pagecollection.json` — PageCollection sub-folder sidecar.
     static let pageCollectionSidecarFilename = "_pagecollection.json"
+    /// `_itemtype.json` — ItemType folder sidecar.
     static let itemTypeSidecarFilename = "_itemtype.json"
+    /// `_itemcollection.json` — ItemCollection sub-folder sidecar.
     static let itemCollectionSidecarFilename = "_itemcollection.json"
+    /// `_taskconfig.json` — Tasks singleton sidecar (AgendaTask schema).
     static let taskConfigSidecarFilename = "_taskconfig.json"
+    /// `_eventconfig.json` — Events singleton sidecar (AgendaEvent schema).
     static let eventConfigSidecarFilename = "_eventconfig.json"
-
-    /// Unified schema sidecar filename — used by Page Types, Page Collections,
-    /// Item Types, Item Collections, AgendaTask schema, AgendaEvent schema.
-    /// Replaces per-kind names per ParadigmV2.
-    // Deprecated: removed in Task 4.3 (NexusAdopter migration code is the last consumer)
-    static let schemaSidecarFilename = "_schema.json"
-
-    // MARK: - Reserved top-level folder names (ParadigmV2 Phase 6)
-
-    /// Reserved top-level folder names inside a Nexus root. These are wrapper
-    /// folders for operational entity kinds (Pages, Items, Agenda) and are
-    /// skipped by NexusAdopter when surveying legacy-shaped root folders for
-    /// PageType adoption. Phase 10's user-data migration owns the relocation
-    /// of legacy root-level type folders into `Pages/`.
-    static let reservedTopLevelFolderNames: Set<String> = ["Pages", "Items", "Agenda"]
 
     // MARK: - .nexus/ subdirectories
 
@@ -83,19 +74,6 @@ enum NexusPaths {
     static let defaultTasksFolderName = "Tasks"
     /// Default folder name for the Events singleton (see `defaultTasksFolderName`).
     static let defaultEventsFolderName = "Events"
-
-    /// `<nexus>/Agenda/` — paradigmV2 wrapper folder. flatlayout drops the
-    /// wrapper from the public path API; this helper survives for NexusAdopter
-    /// (Phase 4) which still needs to detect the paradigmV2 wrapper layout on
-    /// input. Task 4.3 moves it private to the adopter.
-    static func agendaWrapperDir(in nexusRoot: URL) -> URL {
-        nexusRoot.appendingPathComponent("Agenda", isDirectory: true)
-    }
-
-    /// Nexus-typed convenience overload — defers to the URL form.
-    static func agendaWrapperDir(in nexus: Nexus) -> URL {
-        agendaWrapperDir(in: nexus.rootURL)
-    }
 
     /// Discovers a singleton folder by sidecar filename at the nexus root.
     /// Walks immediate children of `nexusRoot`; returns the first folder that
@@ -231,19 +209,7 @@ enum NexusPaths {
             .appendingPathComponent("\(title).project.json", isDirectory: false)
     }
 
-    // MARK: - Pages wrapper / PageType / PageCollection / Content paths (ParadigmV2)
-
-    /// `<nexus>/Pages/` — wrapper folder containing PageType sub-folders.
-    /// PageTypeManager.loadAll surveys under this path; Phase 6 materializes it
-    /// lazily on first load.
-    static func pagesWrapperDir(in nexusRoot: URL) -> URL {
-        nexusRoot.appendingPathComponent("Pages", isDirectory: true)
-    }
-
-    /// Nexus-typed convenience overload.
-    static func pagesWrapperDir(in nexus: Nexus) -> URL {
-        pagesWrapperDir(in: nexus.rootURL)
-    }
+    // MARK: - PageType / PageCollection / Content paths (flatlayout)
 
     /// `<nexus>/<typeFolderName>/` — PageType folder (flatlayout: lives at the
     /// nexus root, no wrapper segment).
@@ -341,15 +307,7 @@ enum NexusPaths {
         collectionFolder.appendingPathComponent("\(title).json", isDirectory: false)
     }
 
-    // MARK: - Items wrapper / ItemType / ItemCollection paths (ParadigmV2)
-
-    /// `<nexus>/Items/` — legacy wrapper folder. flatlayout drops the wrapper
-    /// from the public path API; this helper survives for NexusAdopter (Phase 4)
-    /// which still needs to detect the paradigmV2 wrapper layout on input. Task
-    /// 4.3 moves it private to the adopter.
-    static func itemsWrapperDir(in nexusRoot: URL) -> URL {
-        nexusRoot.appendingPathComponent("Items", isDirectory: true)
-    }
+    // MARK: - ItemType / ItemCollection paths (flatlayout)
 
     /// `<nexus>/<typeFolderName>/` — ItemType folder (flatlayout: lives at the
     /// nexus root, no wrapper segment).
