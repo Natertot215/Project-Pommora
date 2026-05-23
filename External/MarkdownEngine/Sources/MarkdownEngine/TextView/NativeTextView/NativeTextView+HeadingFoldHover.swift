@@ -54,55 +54,57 @@ extension NativeTextView {
         clearHeadingFoldHover()
     }
 
-    // MARK: - Hover update + clear
+    // MARK: - Unified hit-test
 
-    /// Hit-test the layout fragment under the cursor's Y coordinate. When
-    /// the resulting fragment is an ATX heading line (per Stage 0/1/2
-    /// detection), set `hoveredHeadingKey` to its exact source line.
-    /// Otherwise clear hover state.
-    ///
-    /// Y-based (not point-based) so the entire row is the hover zone —
-    /// keeps the chevron stable while the user crosses from text into the
-    /// left gutter to click it.
-    private func updateHeadingFoldHover(at viewPoint: CGPoint) {
-        guard let coordinator = delegate as? NativeTextViewCoordinator,
-            let textLayoutManager = textLayoutManager,
-            let textStorage = textStorage
-        else {
-            clearHeadingFoldHover()
-            return
-        }
+    /// Result of resolving a view-point against a heading row. Hover,
+    /// cursor swap, and click toggle all consume this — previously each
+    /// site recomputed the same fragment lookup + Stage 0/1/2 detection
+    /// + key disambiguation + chevron-rect math from scratch on every
+    /// mouseMoved (~3× duplicate work per pointer motion).
+    struct HeadingHitTest {
+        let fragment: NSTextLayoutFragment
+        let nsRange: NSRange
+        let key: String
+        let chevronRect: CGRect
+    }
+
+    /// Single hit-test consumed by hover, cursor swap, and chevron click.
+    /// Returns `nil` when `viewPoint` doesn't land on a heading row.
+    /// Y-based fragment lookup so the entire row is the hover zone
+    /// including the left gutter where the chevron draws.
+    func headingHitTest(at viewPoint: CGPoint) -> HeadingHitTest? {
+        guard let textLayoutManager = textLayoutManager,
+            let textStorage = textStorage,
+            let coordinator = delegate as? NativeTextViewCoordinator
+        else { return nil }
+
         let containerY = viewPoint.y - textContainerOrigin.y
         guard let fragment = headingFragment(atContainerY: containerY, in: textLayoutManager),
-            let nsRange = fragment.nsRange
-        else {
-            applyHoveredHeadingKey(nil, in: coordinator)
-            return
-        }
+            let nsRange = fragment.nsRange,
+            nsRange.location < textStorage.length
+        else { return nil }
 
         let nsText = textStorage.string as NSString
-        // Use the fragment's own range, not paragraphRange, so we get the
-        // heading line including its `## ` marker as the styler stored it.
-        guard nsRange.location < nsText.length else {
-            applyHoveredHeadingKey(nil, in: coordinator)
-            return
-        }
         let fragmentString = nsText.substring(with: nsRange)
         let insideCodeBlock = coordinator.isFragmentRangeInsideCodeBlock(nsRange)
         guard MarkdownDetection.isHeadingLine(fragmentString, isInsideCodeBlock: insideCodeBlock)
-        else {
-            applyHoveredHeadingKey(nil, in: coordinator)
-            return
-        }
+        else { return nil }
 
-        // Decision 1: ordinal-disambiguated key so duplicate-text headings
-        // are independent fold targets. Renderer's headingKey uses the same
-        // helper so hover state and renderer state agree.
         let lineRange = nsText.lineRange(for: NSRange(location: nsRange.location, length: 0))
         let key = NativeTextViewCoordinator.disambiguatedHeadingKey(
             forLineRange: lineRange, in: nsText
         )
-        applyHoveredHeadingKey(key, in: coordinator)
+        guard let rect = chevronViewRect(for: fragment) else { return nil }
+        return HeadingHitTest(fragment: fragment, nsRange: nsRange, key: key, chevronRect: rect)
+    }
+
+    // MARK: - Hover update + clear
+
+    /// Set `hoveredHeadingKey` to the heading under the cursor (if any),
+    /// or clear it. Pure wrapper around `headingHitTest(at:)`.
+    private func updateHeadingFoldHover(at viewPoint: CGPoint) {
+        guard let coordinator = delegate as? NativeTextViewCoordinator else { return }
+        applyHoveredHeadingKey(headingHitTest(at: viewPoint)?.key, in: coordinator)
     }
 
     private func clearHeadingFoldHover() {
@@ -187,38 +189,15 @@ extension NativeTextView {
     /// line as a side effect of the click).
     func handleHeadingChevronClick(at viewPoint: CGPoint) -> Bool {
         guard let coordinator = delegate as? NativeTextViewCoordinator,
-            let textLayoutManager = textLayoutManager,
-            let textStorage = textStorage
+            let textStorage = textStorage,
+            let hit = headingHitTest(at: viewPoint)
         else { return false }
-        let containerY = viewPoint.y - textContainerOrigin.y
-        guard let fragment = headingFragment(atContainerY: containerY, in: textLayoutManager),
-            let nsRange = fragment.nsRange
-        else { return false }
-        guard nsRange.location < textStorage.length else { return false }
-        let fragmentString = (textStorage.string as NSString).substring(with: nsRange)
-        guard let coordinator = delegate as? NativeTextViewCoordinator else { return false }
-        let insideCodeBlock = coordinator.isFragmentRangeInsideCodeBlock(nsRange)
-        guard
-            MarkdownDetection.isHeadingLine(
-                fragmentString, isInsideCodeBlock: insideCodeBlock)
-        else { return false }
-
-        guard let rect = chevronViewRect(for: fragment) else { return false }
         // 6pt tolerance around the 12pt glyph — keeps the chevron clickable
         // without making the hit zone bleed into the heading text on the
         // right side or onto adjacent rows above/below.
-        let hit = rect.insetBy(dx: -6, dy: -6)
-        guard hit.contains(viewPoint) else { return false }
+        guard hit.chevronRect.insetBy(dx: -6, dy: -6).contains(viewPoint) else { return false }
 
-        // Decision 1: ordinal-disambiguated key so the click resolves to
-        // THIS specific heading's fold target (not the first identical-text
-        // sibling, which would otherwise collide on duplicate `## Notes`
-        // sections in the same Page).
-        let nsText = textStorage.string as NSString
-        let lineRange = nsText.lineRange(for: NSRange(location: nsRange.location, length: 0))
-        let key = NativeTextViewCoordinator.disambiguatedHeadingKey(
-            forLineRange: lineRange, in: nsText
-        )
+        let key = hit.key
         let willBeFolded: Bool
         if coordinator.foldedHeadings.contains(key) {
             coordinator.foldedHeadings.remove(key)
@@ -229,8 +208,10 @@ extension NativeTextView {
         }
 
         // Synchronous fold reconcile so the collapse / expand happens on
-        // the same frame as the click. applyFoldStateIfChanged handles
-        // the attribute-write fold-hide + layout invalidation.
+        // the same frame as the click. applyFoldStateIfChanged routes
+        // through syncHeadingFolding which calls invalidateFoldLayout on
+        // the affected range; the content-storage delegate then vends
+        // empty paragraphs for the newly-folded entries.
         coordinator.applyFoldStateIfChanged(in: textStorage, textView: self)
         // Kick off the 200ms rotation animation for the chevron. Per-tick
         // paragraphStyle nudges drive the heading row's redraw with the
@@ -272,24 +253,10 @@ extension NativeTextView {
     // MARK: - Pointer cursor over the chevron
 
     /// True when `viewPoint` lands inside the chevron hit-zone (the 6pt-
-    /// inflated chevron rect) of the heading row at the cursor's Y.
-    /// Drives the `pointingHand` cursor swap in `mouseMoved`.
+    /// inflated chevron rect). Pure wrapper around `headingHitTest(at:)`.
     private func isPointInsideHeadingChevronHitZone(_ viewPoint: CGPoint) -> Bool {
-        guard let textLayoutManager = textLayoutManager,
-            let textStorage = textStorage
-        else { return false }
-        let containerY = viewPoint.y - textContainerOrigin.y
-        guard let fragment = headingFragment(atContainerY: containerY, in: textLayoutManager),
-            let nsRange = fragment.nsRange
-        else { return false }
-        guard nsRange.location < textStorage.length else { return false }
-        let fragmentString = (textStorage.string as NSString).substring(with: nsRange)
-        guard let coordinator = delegate as? NativeTextViewCoordinator else { return false }
-        let inCodeBlock = coordinator.isFragmentRangeInsideCodeBlock(nsRange)
-        guard MarkdownDetection.isHeadingLine(fragmentString, isInsideCodeBlock: inCodeBlock)
-        else { return false }
-        guard let rect = chevronViewRect(for: fragment) else { return false }
-        return rect.insetBy(dx: -6, dy: -6).contains(viewPoint)
+        guard let hit = headingHitTest(at: viewPoint) else { return false }
+        return hit.chevronRect.insetBy(dx: -6, dy: -6).contains(viewPoint)
     }
 
     /// Set `pointingHand` over the chevron, `iBeam` over the rest of the
