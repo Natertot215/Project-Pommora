@@ -2,7 +2,7 @@
 
 The canonical playbook for any agent touching Pommora's page editor — the vendored `swift-markdown-engine` at `External/MarkdownEngine/`, Pommora's customizations on top of it, the Apple `swift-markdown` parser, and the TextKit 2 substrate. Every rule below is grounded in either (a) shipped engine code, (b) Apple-source documentation, or (c) a paradigm decision Nathan has locked. Anything written from intuition or speculation is flagged as such.
 
-This document supersedes prior ad-hoc lessons scattered across `Handoff.md`, `// Features//PageEditor.md`, `// Planning//Page-Editor-Plan.md`, and Transcripts. When those files repeat anything here, the repeats should eventually be trimmed to a pointer.
+This document supersedes prior ad-hoc lessons scattered across `Handoff.md`, `// Features//PageEditor.md`, and Transcripts. When those files repeat anything here, the repeats should eventually be trimmed to a pointer.
 
 ---
 
@@ -406,7 +406,7 @@ Nathan-locked operating principle for any debugging session. When N speculative 
 
 > "I'm going to pause the planning in the tables and have that be the final thing we do once we learn more from implementing other features into the markdown editor."
 
-Tables work is deferred. The architecture-stress-test work captured in `// Planning//Page-Editor-Plan.md` is preserved as reference, but no Tables coding starts until other markdown editor features ship and we have a better feel for the engine's behavior. The column-alignment question (Strategy A / B / C / hybrid) remains open and will be answered against accumulated experience, not in a vacuum.
+Tables work is deferred. The architecture-stress-test work originally captured in `// Planning//Page-Editor-Plan.md` was folded into `// Features//PageEditor.md → Tables — to be implemented` when the planning doc was retired (2026-05-23). No Tables coding starts until other markdown editor features ship and we have a better feel for the engine's behavior. The column-alignment question (Strategy A / B / C / hybrid) remains open and will be answered against accumulated experience, not in a vacuum.
 
 ##### 9.7 Bullet glyph substitution SHIPPED (v0.2.7.4 — 2026-05-21)
 
@@ -541,9 +541,8 @@ Full per-file table in [`External/MarkdownEngine/NOTICE.md`](../External/Markdow
 
 | Doc | What it carries |
 |---|---|
-| [`// Features//PageEditor.md`](.claude/Features/PageEditor.md) | Editor implementation spec. Shipped v0.2.7.0 feature surface. "Dynamic-syntax pattern" section is the locked architecture statement. |
+| [`// Features//PageEditor.md`](.claude/Features/PageEditor.md) | Editor implementation spec. Shipped v0.2.7.0 feature surface + "Tables — to be implemented" deferred-work spec (folded in from the retired Page-Editor-Plan 2026-05-23). "Dynamic-syntax pattern" section is the locked architecture statement. |
 | [`// Features//Pages.md`](.claude/Features/Pages.md) | On-disk page format, Markdown features in v1, opening behavior, sidebar visibility, wikilinks. |
-| [`// Planning//Page-Editor-Plan.md`](.claude/Planning/Page-Editor-Plan.md) | Active plan — Blockquote in scope, Tables paused. Architecture maps + stress-test results preserved. |
 | [`// Guidelines//Paradigm-Decisions.md`](.claude/Guidelines/Paradigm-Decisions.md) | Confirmation protocol + registry. Editor architecture decision recorded here (superseding the dead WKWebView entry). |
 | `Handoff.md` | Live session state. Most recent lessons (Session 12 HR + Session 13 Lists) preserved in the entry headers. |
 | `History.md` | Locked decision log. Brief — the canonical detail lives in the feature docs. |

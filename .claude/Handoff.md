@@ -62,7 +62,6 @@ The concurrent editor session shipping collapsible-heading work in `External/Mar
 - **Session history (canonical decision + ship log)**: `.claude/History.md`
 - **Editor feature spec**: `.claude/Features/PageEditor.md`
 - **Editor implementation rules**: `.claude/Guidelines/Markdown.md`
-- **Editor planning (active + paused)**: `.claude/Planning/Page-Editor-Plan.md`
 - **NavDropdown feature spec**: `.claude/Features/NavDropdown.md`
 - **Sidebar feature spec**: `.claude/Features/Sidebar.md`
 - **Pages data model**: `.claude/Features/Pages.md`

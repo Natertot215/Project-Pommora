@@ -8,7 +8,8 @@ Active plan documents live here. Completed plans are logged in `History.md` and 
 - **`v0.3.0-Properties-spec.md`** — conceptual spec for v0.3.0 (locked behavior; no implementation detail)
 - **`v0.3.0-Properties-plan.md`** — implementation plan re-derived against post-ParadigmV2 code (5 phases A–E)
 - **`v0.2.8-Drag-Reorder.md`** — sidebar + detail-pane drag-reorder; Phase 1 persistence shipped, Phases 2–5 ahead
-- **`Page-Editor-Plan.md`** — Page editor work: Blockquote shipped v0.2.7.5; Tables paused (preserved as reference)
+
+> **Retired 2026-05-23 — `Page-Editor-Plan.md`**: shipped content (Blockquote v0.2.7.5, HR, Lists) folded into `// Features//PageEditor.md` + `// Guidelines//Markdown.md`; deferred Tables spec (column-alignment open question, Stages 3.A–3.D, risk inventory) moved into `// Features//PageEditor.md → Tables — to be implemented`.
 
 #### Superseded
 
