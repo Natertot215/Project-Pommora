@@ -94,6 +94,7 @@ struct PageTypeDetailView: View {
                 Label("New Collection", systemImage: "plus")
             }
             .buttonStyle(.borderless)
+            .foregroundStyle(.primary)
             Spacer()
         }
         .padding(8)
