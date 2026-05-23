@@ -68,6 +68,38 @@ struct NexusAdopterTests {
         #expect(plan.freshSidecars.first?.kind == .itemType)
     }
 
+    // MARK: - scan: fresh folders don't trigger adoption preview
+
+    @Test("adoptionNoOpOnUnPommoraFoldersAtRoot")
+    func adoptionNoOpOnUnPommoraFoldersAtRoot() async throws {
+        // Given a Nexus root with several non-Pommora folders (no sidecars) —
+        // mimics Nathan's real Nexus shape where Obsidian-managed folders and
+        // personal organization folders live alongside Pommora-recognized
+        // entities.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        for name in ["Inbox", "Reference", "Random Notes", "Project Pommora"] {
+            let folder = nexus.rootURL.appendingPathComponent(name, isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            // Mix some content so the content-sniff picks a kind — these would
+            // otherwise be proposed as fresh PageType candidates on every launch.
+            try FixtureFiles.write(
+                "# Stray", to: folder.appendingPathComponent("Stray.md")
+            )
+        }
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        // Then the plan classifies them as freshSidecars (scan still detects
+        // them — the classification surface is unchanged).
+        #expect(plan.freshSidecars.count > 0)
+
+        // But hasAnythingToAdopt should be FALSE — they're non-Pommora user
+        // folders. Per-folder adoption UI is a future Prospect; bulk
+        // launch-time prompts are too noisy for real Nexus roots.
+        #expect(plan.hasAnythingToAdopt == false)
+    }
+
     // MARK: - scan: legacy v0.2 (in-place rename)
 
     @Test("scan classifies folder with _vault.json as legacy-v0.2 in-place rename")

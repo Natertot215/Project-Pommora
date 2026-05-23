@@ -185,15 +185,21 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
         self.failedFolders = failedFolders
     }
 
-    /// True when any user-visible work is queued. Caller skips the preview
-    /// sheet when this is false — the Nexus is initialized; sidebar simply
-    /// starts empty until the user creates types.
+    /// Fires only for STRUCTURAL migration work (legacy sidecar renames,
+    /// paradigmV2 wrapper unwraps, explicit warnings). Fresh-discoverable
+    /// folders stay invisible — per-folder adoption is a future Prospect, not
+    /// a launch-time bulk prompt. Without this exclusion, every non-Pommora
+    /// folder at Nathan's Nexus root (Obsidian-managed folders, personal
+    /// organization folders, etc.) would be proposed as a fresh PageType
+    /// candidate on every launch — turning the preview into spam.
     var hasAnythingToAdopt: Bool {
-        !freshSidecars.isEmpty
-            || !inPlaceRenames.isEmpty
-            || !unwrapSteps.isEmpty
-            || !skippedTopLevel.isEmpty
-            || !warnings.isEmpty
+        !inPlaceRenames.isEmpty  // legacy v0.2 migration
+            || !unwrapSteps.isEmpty  // paradigmV2 wrapper migration
+            || !warnings.isEmpty  // explicit issues need user attention
+        // freshSidecars deliberately EXCLUDED — non-Pommora folders at root
+        // stay invisible to discovery (per-folder adoption UI is a future
+        // Prospect).
+        // skippedTopLevel deliberately EXCLUDED — same rationale.
     }
 
     /// Equatable conformance ignores `id` (UUID) so two plans built from the
