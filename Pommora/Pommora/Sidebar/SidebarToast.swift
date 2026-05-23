@@ -9,8 +9,9 @@ import SwiftUI
 /// List body itself never changes.
 ///
 /// **Excluded** observers (no UI surface in v0.2 — their `pendingError` can't
-/// fire from user-driven actions yet): AgendaManager, HomepageManager,
-/// TierConfigManager. Add them if user-reachable code paths appear later.
+/// fire from user-driven actions yet): AgendaTaskManager, AgendaEventManager,
+/// HomepageManager, TierConfigManager. Add them if user-reachable code paths
+/// appear later.
 struct SidebarToast: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager

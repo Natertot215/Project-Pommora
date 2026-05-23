@@ -249,7 +249,8 @@ struct ContentView: View {
             topicManager = nil
             vaultManager = nil
             contentManager = nil
-            agendaManager = nil
+            agendaTaskManager = nil
+            agendaEventManager = nil
             homepageManager = nil
             tierConfigManager = nil
             savedConfigManager = nil
@@ -297,7 +298,8 @@ struct ContentView: View {
             )
         }
 
-        let agendaMgr = AgendaManager(nexus: nexus)
+        let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
+        let agendaEventMgr = AgendaEventManager(nexus: nexus)
         let homepageMgr = HomepageManager(nexus: nexus)
         let tierMgr = TierConfigManager(nexus: nexus)
         let savedMgr = SavedConfigManager(nexus: nexus)
@@ -309,7 +311,8 @@ struct ContentView: View {
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
         self.contentManager = contentMgr
-        self.agendaManager = agendaMgr
+        self.agendaTaskManager = agendaTaskMgr
+        self.agendaEventManager = agendaEventMgr
         self.homepageManager = homepageMgr
         self.tierConfigManager = tierMgr
         self.savedConfigManager = savedMgr
@@ -333,7 +336,8 @@ struct ContentView: View {
             async let _ = spaceMgr.loadAll()
             async let _ = topicMgr.loadAll()
             async let _ = vaultMgr.loadAll()
-            async let _ = agendaMgr.loadAll()
+            async let _ = agendaTaskMgr.loadAll()
+            async let _ = agendaEventMgr.loadAll()
             async let _ = homepageMgr.load()
             async let _ = tierMgr.load()
             async let _ = savedMgr.load()

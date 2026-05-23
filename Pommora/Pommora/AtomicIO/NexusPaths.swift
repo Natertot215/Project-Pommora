@@ -99,23 +99,6 @@ enum NexusPaths {
         nexus.rootURL.appendingPathComponent(".trash", isDirectory: true)
     }
 
-    // MARK: - Legacy Agenda paths (pre-ParadigmV2; retired in Task 4.3)
-
-    /// Legacy `<nexus>/Agenda/` dir — kept until the AgendaItem split lands.
-    static func agendaDir(in nexus: Nexus) -> URL {
-        agendaWrapperDir(in: nexus)
-    }
-
-    /// Legacy `<nexus>/Agenda/_agenda.json` — kept until the AgendaItem split lands.
-    static func agendaSchemaURL(in nexus: Nexus) -> URL {
-        agendaDir(in: nexus).appendingPathComponent("_agenda.json", isDirectory: false)
-    }
-
-    /// Legacy `<nexus>/Agenda/<title>.agenda.json` — kept until the AgendaItem split lands.
-    static func agendaItemFileURL(forTitle title: String, in nexus: Nexus) -> URL {
-        agendaDir(in: nexus).appendingPathComponent("\(title).agenda.json", isDirectory: false)
-    }
-
     // MARK: - Contexts file paths
 
     static func spaceFileURL(forTitle title: String, in nexus: Nexus) -> URL {
