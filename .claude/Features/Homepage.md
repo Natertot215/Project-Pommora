@@ -52,7 +52,7 @@ Same block types as Contexts:
   - `link-list` — manually curated links
   - `mini-calendar` — small Agenda view (ships v0.8.0)
 
-All widgets render as **live, fully-editable views of their source** — never read-only snapshots. Edits flow to source files via atomic write. Inline-editing principle → `// Planning//Contexts-Vaults-spec.md`.
+All widgets render as **live, fully-editable views of their source** — never read-only snapshots. Edits flow to source files via atomic write. Inline-editing principle → `// Features//Domain-Model.md`.
 
 ---
 
@@ -90,6 +90,3 @@ The pinned section at the top of the sidebar (heading-less in v0.2; gains "Saved
 
 ---
 
-#### Full specification
-
-Schema + CRUD detail → `// Planning//Contexts-Vaults-spec.md`.

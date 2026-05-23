@@ -119,14 +119,3 @@ User-configurable per Nexus at `.nexus/tier-config.json`:
 - `exposed: false` hides a tier from CRUD/UI without breaking the schema — supports v1 "two tiers only" experimentation if user wants
 - `tagging_style` — `"color"` | `"symbol"` | `"both"` — controls Topic-row tagging visual in the sidebar
 
----
-
-#### Full specification
-
-Complete on-disk schema, validation, sidebar layout, and CRUD scope → `// Planning//Contexts-Vaults-spec.md`.
-
----
-
-#### What changed (ParadigmV2)
-
-- **ParadigmV2 (2026-05-22)** — Tier-3 Contexts renamed from **Sub-topics** to **Projects** throughout the model. On-disk file extension changed from `.subtopic.json` to `.project.json`; folder location is unchanged (`.nexus/topics/<TopicFolder>/<Title>.project.json`). Tier-config default singular/plural labels updated to `Project` / `Projects`. PARA mapping aligns Pommora tier-3 to PARA's "Projects" — same word, intentional. Tier numbers remain load-bearing in code; only labels and the file extension changed.

@@ -8,4 +8,3 @@ For the singleton dashboard surface (the user's general home page that can embed
 
 → `Contexts.md` — full spec for Spaces, Topics, Projects
 → `Homepage.md` — singleton dashboard entity
-→ `// Planning//Contexts-Vaults-spec.md` — complete on-disk schema + CRUD

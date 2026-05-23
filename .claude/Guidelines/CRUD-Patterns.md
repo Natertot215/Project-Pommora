@@ -1,6 +1,6 @@
 ### CRUD Patterns
 
-SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → validation. Derived from `NexusManager` / `NexusIdentity` / `NexusStore` (v0.1a) + swiftui-expert-skill research from the RC-session domain-model revision. Guideline, not enforcement. Full per-entity CRUD scope → `// Planning//Contexts-Vaults-spec.md`.
+SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → validation. Guideline, not enforcement.
 
 ---
 
@@ -421,7 +421,7 @@ Every embedded view (Context page, Homepage) is **a live, fully-editable view of
 - Manager atomically writes the source file
 - File watcher catches the change → SQLite re-indexes → all embedded views refresh live
 
-**No separate "embed-edit path" vs "primary-surface edit path."** Same manager, same methods. One source of truth per entity. Detail → `Planning/Contexts-Vaults-spec.md` "Inline editing in composed-page blocks (Notion-style)."
+**No separate "embed-edit path" vs "primary-surface edit path."** Same manager, same methods. One source of truth per entity. Detail → `Features/Domain-Model.md → Inline editing principle`.
 
 ---
 
