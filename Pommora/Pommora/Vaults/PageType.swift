@@ -1,10 +1,10 @@
 import Foundation
 
-/// Page Type — folder + `_schema.json` sidecar that defines the property
+/// Page Type — folder + `_pagetype.json` sidecar that defines the property
 /// schema shared by every Page inside. The Pages-side schema-bearing container,
 /// parallel to ItemType on the Items side (introduced Phase 5).
 ///
-/// On disk: `<nexus>/<Title>/_schema.json` (folder name = title; no title on disk).
+/// On disk: `<nexus>/<Title>/_pagetype.json` (folder name = title; no title on disk).
 struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var title: String  // derived from folder name
@@ -15,25 +15,23 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
 
     // Persisted display order for direct children (v0.2.8.0). All nil until the
     // user reorders inside that container; missing entries fall through to
-    // OrderResolver's alphabetic tail.
+    // OrderResolver's alphabetic tail. (Post-ParadigmV2 PageTypes hold only
+    // Pages, so there is no `itemOrder` field — Items live under ItemType.)
     var collectionOrder: [String]?
     var pageOrder: [String]?
-    var itemOrder: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
         case modifiedAt = "modified_at"
         case collectionOrder = "collection_order"
         case pageOrder = "page_order"
-        case itemOrder = "item_order"
     }
 
     init(
         id: String, title: String, icon: String?,
         properties: [PropertyDefinition], views: [SavedView], modifiedAt: Date,
         collectionOrder: [String]? = nil,
-        pageOrder: [String]? = nil,
-        itemOrder: [String]? = nil
+        pageOrder: [String]? = nil
     ) {
         self.id = id
         self.title = title
@@ -43,7 +41,6 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = modifiedAt
         self.collectionOrder = collectionOrder
         self.pageOrder = pageOrder
-        self.itemOrder = itemOrder
     }
 
     init(from decoder: any Decoder) throws {
@@ -56,7 +53,6 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
-        self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -68,7 +64,6 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(modifiedAt, forKey: .modifiedAt)
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
-        try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
     }
 }
 

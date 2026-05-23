@@ -4,8 +4,12 @@ import Foundation
 ///
 /// Top-level sidebar order (Spaces / Topics / Page Types) lives on
 /// `<nexus>/.nexus/state.json` — the same file PinnedManager and RecentsManager
-/// own. Per-container child order lives on each container's own sidecar
-/// (`_schema.json` for Page Types + Page Collections; `_topic.json` for Topics).
+/// own. Per-container child order lives on each container's own per-kind
+/// sidecar:
+///   - PageType  → `_pagetype.json`
+///   - PageCollection → `_pagecollection.json`
+///   - ItemCollection → `_itemcollection.json`
+///   - Topic → `_topic.json`
 ///
 /// Every write is a read-modify-atomic-write round-trip: the file is
 /// re-decoded just before mutation so concurrent writes by sibling managers
@@ -42,7 +46,7 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    // MARK: - PageCollection / Page-Type-root Pages + Items (sidecar JSON)
+    // MARK: - PageCollection / Page-Type-root Pages (sidecar JSON)
 
     static func setPageCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
         try mutatePageType(pageType, nexus: nexus) { t in
@@ -62,9 +66,11 @@ enum OrderPersister {
         }
     }
 
-    static func setItemOrder(_ order: [String], inVault pageType: PageType, nexus: Nexus) throws {
-        try mutatePageType(pageType, nexus: nexus) { t in
-            t.itemOrder = order.isEmpty ? nil : order
+    // MARK: - ItemCollection (sidecar JSON)
+
+    static func setItemOrder(_ order: [String], in collection: ItemCollection) throws {
+        try mutateItemCollection(collection) { c in
+            c.itemOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -106,6 +112,16 @@ enum OrderPersister {
     ) throws {
         let url = collection.folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         var updated = try PageCollection.load(from: url)
+        mutate(&updated)
+        try updated.save(to: url)
+    }
+
+    private static func mutateItemCollection(
+        _ collection: ItemCollection,
+        _ mutate: (inout ItemCollection) -> Void
+    ) throws {
+        let url = collection.folderURL.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
+        var updated = try ItemCollection.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
     }
