@@ -1,6 +1,6 @@
 ### Properties
 
-Pommora's property system spec. Referenced from `PommoraPRD.md`. v0.3.0 implementation spec at `// Planning//v0.3.0-Properties-implementation.md`.
+Pommora's property system spec. Referenced from `PommoraPRD.md`. v0.3.0 conceptual spec at `// Planning//v0.3.0-Properties-spec.md`; the pre-ParadigmV2 implementation plan is archived at `// Planning//Superseded//v0.3.0-Properties-implementation.md`.
 
 ---
 
@@ -131,7 +131,7 @@ Each Page, Item, Agenda Task, and Agenda Event carries a per-entity **`panel_hid
 
 #### Content templates (post-v1 reservation)
 
-**v0.3.0 does NOT ship templates.** Type-level templates (schema-seeding at creation) were rejected. Notion-style **content-level templates** (Page/Item templates pre-filling body + properties at creation) are reserved for post-v1. v0.3.0 keeps the scaffold compatible: `<nexus>/.nexus/templates/` reserved; `PageContentManager.createPage(...)` and `ItemContentManager.createItem(...)` accept optional `template: ContentTemplate? = nil` (always nil v0.3.0). A per-Item-Type `template_config` field is reserved on the Item Type's `_schema.json` (always `null` in v0.3.0; see [[Items]] and [[Prospects]]). Full reservation spec at `// Planning//v0.3.0-Properties-implementation.md` "Content templates (post-v1 reservation)".
+**v0.3.0 does NOT ship templates.** Type-level templates (schema-seeding at creation) were rejected. Notion-style **content-level templates** (Page/Item templates pre-filling body + properties at creation) are reserved for post-v1. v0.3.0 keeps the scaffold compatible: `<nexus>/.nexus/templates/` reserved; no manager-method `template:` parameter is added until templates actually ship. A per-Item-Type `template_config` field is reserved on the Item Type's `_schema.json` (always `null` in v0.3.0; see [[Items]] and [[Prospects]]). Reservation summary at `// Planning//v0.3.0-Properties-spec.md` "Type templates rejected; content templates reserved".
 
 #### Relation scope
 
@@ -355,4 +355,4 @@ Enforced at every write to a Type's `_schema.json` (schema-level) and to each me
 
 #### Full specification
 
-Complete v0.3.0 implementation spec — phase-by-phase tasks, file:line citations, transaction model, test coverage — at `// Planning//v0.3.0-Properties-implementation.md`.
+v0.3.0 conceptual spec — locked decisions, catalog, scope rules, Status semantics, atomicity requirement — at `// Planning//v0.3.0-Properties-spec.md`. The post-ParadigmV2 implementation plan (phase-by-phase tasks, file:line citations, transaction class shapes, test coverage) is re-derived on top of the new code post-Phase 11; the pre-ParadigmV2 implementation plan is archived at `// Planning//Superseded//v0.3.0-Properties-implementation.md`.

@@ -130,7 +130,7 @@ v0.3.2 — Page-wikilinks
 v0.3.3 — SQLite + querying
 ```
 
-Full implementation spec → `// Planning//v0.3.0-Properties-implementation.md`.
+Full spec → `// Planning//v0.3.0-Properties-spec.md` (conceptual WHAT only; the post-ParadigmV2 implementation plan is re-derived on top).
 
 ###### v0.3.0 — Properties (post-ParadigmV2 foundation)
 
@@ -244,7 +244,7 @@ No specific phase commitments yet. Catalog at `// Features//Prospects.md` — ad
 
 **Net result:** 7 minor versions remaining to v1.0.0 (v0.3.0 through v0.8.0 + v1.0.0). v0.11/v0.12 dissolved. v0.2.x is the long "infrastructure + Pages + NavDropdown" patch family.
 
-**2026-05-19 RC-session (v0.3.x sub-sequence locked):** The v0.3.x patch family was explicit at: `v0.3.0 = Properties` / `v0.3.1 = Items pane` / `v0.3.2 = Page-wikilinks` / `v0.3.3 = SQLite + querying`. SQLite + Watcher absorbed from v0.4.0 → v0.3.3 (data-layer chapter completes in one minor). Cross-Vault move-strip absorbed from v0.4.0 → v0.3.0 (tightly coupled to property schema). Wikilinks moved from v0.2.10 → v0.3.2 (depends on derived `wikilinks: []` frontmatter mirror which is naturally part of the data-layer chapter). v0.4.0 reduced to Trash UI + cascade-delete refinements. Full v0.3.0 implementation spec at `// Planning//v0.3.0-Properties-implementation.md`.
+**2026-05-19 RC-session (v0.3.x sub-sequence locked):** The v0.3.x patch family was explicit at: `v0.3.0 = Properties` / `v0.3.1 = Items pane` / `v0.3.2 = Page-wikilinks` / `v0.3.3 = SQLite + querying`. SQLite + Watcher absorbed from v0.4.0 → v0.3.3 (data-layer chapter completes in one minor). Cross-Vault move-strip absorbed from v0.4.0 → v0.3.0 (tightly coupled to property schema). Wikilinks moved from v0.2.10 → v0.3.2 (depends on derived `wikilinks: []` frontmatter mirror which is naturally part of the data-layer chapter). v0.4.0 reduced to Trash UI + cascade-delete refinements. Full v0.3.0 spec at `// Planning//v0.3.0-Properties-spec.md` (conceptual; the pre-ParadigmV2 implementation plan is archived at `// Planning//Superseded//v0.3.0-Properties-implementation.md`).
 
 **2026-05-20 (v0.2.7.2 slot assigned + plan locked):** The post-NavDropdown v0.2.7.x patch slot is now planned for page editor fixes (Blockquote Apple-Calendar-event-card chrome + HR auto-transform/cursor-atom + Tables Core-Graphics grid + popover edit + structural context menu). Tables custom grid (previously sketched as a separate v0.2.7.3 patch) is absorbed into v0.2.7.2 Phase 3. NSTextTable rejected as a viable Apple-native alternative — Round-5 research confirmed Apple's own TextEdit downgrades to TextKit 1 to use it, and Apple Notes uses a custom protobuf model. ~7.5h estimate across 3 phases / 4 stages. Full implementation spec at `// Planning//Page-Editor-Plan.md`.
 

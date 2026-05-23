@@ -2270,34 +2270,25 @@ struct ItemTypeRow: View {
 
 - [ ] **Step 4: Commit.**
 
-#### Task 9.2 — Update v0.3.0 Properties implementation spec
+#### Task 9.2 — Re-derive v0.3.0 Properties implementation plan on the post-ParadigmV2 foundation
 
-**Files:**
-- Modify: `.claude/Planning/v0.3.0-Properties-implementation.md`
+> **Supersedes the original Task 9.2** (which rewrote the pre-ParadigmV2 `v0.3.0-Properties-implementation.md` in place). The conceptual WHAT was extracted into a new spec doc at `.claude/Planning/v0.3.0-Properties-spec.md`; the original implementation plan + uncertainty log were archived under `.claude/Planning/Superseded/`. After ParadigmV2 Phases 2–11 ship the post-refactor code, the v0.3.0 implementation plan is authored fresh on top of the new code shape — taking the spec doc as the authoritative WHAT.
 
-- [ ] **Step 1: Rewrite "Vault" references** to "Page Type" / "Item Type" / "Type" as appropriate.
+**Inputs:**
+- Authoritative WHAT: `.claude/Planning/v0.3.0-Properties-spec.md`
+- Archived reference (do NOT modify): `.claude/Planning/Superseded/v0.3.0-Properties-implementation.md`, `.claude/Planning/Superseded/v0.3.0-Properties-uncertainty-log.md`
 
-- [ ] **Step 2: Update RelationScope cases**:
+**Output:** A new implementation plan at `.claude/Planning/v0.3.0-Properties-plan.md` (filename indicative; finalize at authoring time) covering phase ordering, file:line citations against post-ParadigmV2 code (PageTypeManager / ItemTypeManager / PageContentManager / ItemContentManager / AgendaTaskManager / AgendaEventManager / SettingsManager / etc.), transaction primitive shape, test plan, and effort estimate.
 
-```swift
-enum RelationScope: Codable, Equatable, Hashable, Sendable {
-    case pageType(String)
-    case itemType(String)
-    case pageCollection(String)
-    case itemCollection(String)
-    case contextTier(Int)
-}
-```
+- [ ] **Step 1: Confirm the conceptual spec is current** — re-read `v0.3.0-Properties-spec.md` and reconcile any drift introduced by ParadigmV2 Phases 2–11.
 
-- [ ] **Step 3: Rename `VaultSettingsSheet` → `PageTypeSettingsSheet`** in `v0.3.0-Properties-implementation.md`. **Flag for the Properties plan's own decision:** `ItemTypeSettingsSheet` is required for Items-side property-editing parity, but Items-side UI overall is deferred to a follow-up plan after ParadigmV2. The Properties plan owner decides whether to ship `ItemTypeSettingsSheet` in v0.3.0 alongside `PageTypeSettingsSheet` (parity now), or defer it with the rest of Items-side UI. ParadigmV2 does NOT prescribe this — it just renames the Pages-side sheet to use the new type name and surfaces the question.
+- [ ] **Step 2: Inventory post-ParadigmV2 code surface** — Items-side managers, the new SettingsManager, AgendaTask/AgendaEvent split, schema sidecar rename — to ground the implementation plan in actual file:line citations.
 
-- [ ] **Step 4: Update schema CRUD tasks** — methods live on both PageTypeManager and ItemTypeManager.
+- [ ] **Step 3: Decide the open question** — does `ItemTypeSettingsSheet` ship at v0.3.0 alongside `PageTypeSettingsSheet`? The spec captures the default assumption (ship at v0.3.0) but leaves it open; this task confirms or flips.
 
-- [ ] **Step 5: Update Status "Where built-in" section** — AgendaTask only; NOT on AgendaEvent.
+- [ ] **Step 4: Author the new implementation plan** — phase-by-phase tasks, transaction-class shape, test files, validator changes, decision log.
 
-- [ ] **Step 6: Add the AgendaTaskSchema Status seed** (deferred from Phase 4) — when v0.3.0 Phase 0 introduces PropertyDefinition.StatusGroup, extend AgendaTaskSchema.Property with `statusGroups: [PropertyDefinition.StatusGroup]?` + update `defaultSeed()`.
-
-- [ ] **Step 7: Commit.**
+- [ ] **Step 5: Commit.**
 
 #### Task 9.3 — Update Handoff + History
 
