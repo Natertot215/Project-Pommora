@@ -5,8 +5,9 @@
 //  Sheet shown after the user picks a folder. Lists the on-disk migrations the
 //  adopter will perform — fresh sidecar writes (shape #1), legacy-sidecar
 //  in-place renames (shape #2), paradigmV2 wrapper unwraps (shape #3), and
-//  already-flat no-ops (shape #4). Warnings + post-apply failure summary
-//  surface alongside.
+//  already-flat no-ops (shape #4). Warnings surface in a collapsible
+//  disclosure; post-apply per-folder failures flow through NexusManager's
+//  `pendingError` alert (the apply pass runs after the sheet dismisses).
 //
 //  UI vocabulary defaults to the per-side labels from SettingsLabels
 //  (Pages-side: "Vault" / "Collection"; Items-side: "Type" / "Set"). Adoption
@@ -79,23 +80,49 @@ struct AdoptionPreviewView: View {
     }
 
     private var summaryRow: some View {
-        HStack(spacing: 24) {
-            summaryStat(
-                count: pageTypeMigrationCount,
-                label: labels.pageType.singular,
-                systemImage: "folder.fill"
-            )
-            summaryStat(
-                count: itemTypeMigrationCount,
-                label: labels.itemType.singular,
-                systemImage: "tablecells"
-            )
-            summaryStat(
-                count: agendaMigrationCount,
-                label: "Agenda",
-                systemImage: "calendar"
-            )
-            Spacer()
+        VStack(alignment: .leading, spacing: 8) {
+            // Per-side migration counts (entity-oriented).
+            HStack(spacing: 24) {
+                summaryStat(
+                    count: pageTypeMigrationCount,
+                    label: labels.pageType.singular,
+                    systemImage: "folder.fill"
+                )
+                summaryStat(
+                    count: itemTypeMigrationCount,
+                    label: labels.itemType.singular,
+                    systemImage: "tablecells"
+                )
+                summaryStat(
+                    count: agendaMigrationCount,
+                    label: "Agenda",
+                    systemImage: "calendar"
+                )
+                Spacer()
+            }
+            // Pre-flight totals (operation-oriented). Mirrors the post-apply
+            // summary surfaced via NexusManager's `pendingError` for failures
+            // — keeps expectations in front of the user before they commit.
+            HStack(spacing: 16) {
+                Text("\(totalMigrationCount) to migrate")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if plan.alreadyFlat.count > 0 {
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text("\(plan.alreadyFlat.count) already adopted")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if plan.warnings.count > 0 {
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text("\(plan.warnings.count) warning\(plan.warnings.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                Spacer()
+            }
         }
     }
 
@@ -347,6 +374,13 @@ struct AdoptionPreviewView: View {
             .filter { $0.wrapperKind == .agenda }
             .reduce(0) { $0 + $1.moves.count }
         return fresh + unwraps
+    }
+
+    /// Total folders that will be migrated (any shape that produces a write).
+    /// Excludes already-flat folders (no-op) and skipped folders.
+    private var totalMigrationCount: Int {
+        let unwraps = plan.unwrapSteps.reduce(0) { $0 + $1.moves.count }
+        return plan.freshSidecars.count + plan.inPlaceRenames.count + unwraps
     }
 
     private func iconForSidecar(_ kind: AdoptedSidecarKind) -> String {

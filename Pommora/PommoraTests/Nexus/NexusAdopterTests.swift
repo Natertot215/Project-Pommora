@@ -456,22 +456,30 @@ struct NexusAdopterTests {
 
         // Archives at root with only _pagetype.json (legacy orphans deleted).
         let archivesNew = nexus.rootURL.appendingPathComponent("Archives", isDirectory: true)
-        #expect(FileManager.default.fileExists(atPath: archivesNew.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: archivesNew.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
         #expect(!FileManager.default.fileExists(atPath: archivesNew.appendingPathComponent("_vault.json").path))
         #expect(!FileManager.default.fileExists(atPath: archivesNew.appendingPathComponent("_schema.json").path))
 
         // Materials/Planning sub-folder has only _pagecollection.json.
         let materialsNew = nexus.rootURL.appendingPathComponent("Materials", isDirectory: true)
         let planningNew = materialsNew.appendingPathComponent("Planning", isDirectory: true)
-        #expect(FileManager.default.fileExists(atPath: planningNew.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: planningNew.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         #expect(!FileManager.default.fileExists(atPath: planningNew.appendingPathComponent("_collection.json").path))
         #expect(!FileManager.default.fileExists(atPath: planningNew.appendingPathComponent("_schema.json").path))
 
         // Tasks/Events at root with per-kind sidecars.
         let tasksNew = nexus.rootURL.appendingPathComponent("Tasks", isDirectory: true)
         let eventsNew = nexus.rootURL.appendingPathComponent("Events", isDirectory: true)
-        #expect(FileManager.default.fileExists(atPath: tasksNew.appendingPathComponent(NexusPaths.taskConfigSidecarFilename).path))
-        #expect(FileManager.default.fileExists(atPath: eventsNew.appendingPathComponent(NexusPaths.eventConfigSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: tasksNew.appendingPathComponent(NexusPaths.taskConfigSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: eventsNew.appendingPathComponent(NexusPaths.eventConfigSidecarFilename).path))
 
         #expect(result.failedCount == 0)
     }
@@ -505,11 +513,17 @@ struct NexusAdopterTests {
         let result = NexusAdopter.apply(plan)
         #expect(result.failedCount == 0)
         // Fresh got a sidecar.
-        #expect(FileManager.default.fileExists(atPath: fresh.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: fresh.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
         // Legacy renamed.
-        #expect(FileManager.default.fileExists(atPath: legacy.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: legacy.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
         #expect(!FileManager.default.fileExists(atPath: legacy.appendingPathComponent("_vault.json").path))
         // Flat untouched.
-        #expect(FileManager.default.fileExists(atPath: flat.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+        #expect(
+            FileManager.default.fileExists(atPath: flat.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path)
+        )
     }
 }

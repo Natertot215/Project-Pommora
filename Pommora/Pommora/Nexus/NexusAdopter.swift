@@ -501,16 +501,20 @@ enum NexusAdopter {
 
     /// Content-sniff for a fresh folder. Recursive `.md` vs user `.json` count.
     /// Defaults to Pages-side when both signals are zero.
-    private static func contentSniff(_ folder: URL)
+    private static func contentSniff(
+        _ folder: URL
+    )
         -> (kind: AdoptedSidecarKind, detection: ContentDetection)
     {
-        let hasMarkdown = ((try? Filesystem.descendantFiles(of: folder) { url in
-            url.pathExtension == "md"
-        }) ?? []).isEmpty == false
-        let hasUserJSON = ((try? Filesystem.descendantFiles(of: folder) { url in
-            url.pathExtension == "json"
-                && !url.lastPathComponent.hasPrefix("_")
-        }) ?? []).isEmpty == false
+        let hasMarkdown =
+            ((try? Filesystem.descendantFiles(of: folder) { url in
+                url.pathExtension == "md"
+            }) ?? []).isEmpty == false
+        let hasUserJSON =
+            ((try? Filesystem.descendantFiles(of: folder) { url in
+                url.pathExtension == "json"
+                    && !url.lastPathComponent.hasPrefix("_")
+            }) ?? []).isEmpty == false
 
         if hasMarkdown {
             return (.pageType, .markdownChildren)
@@ -794,9 +798,10 @@ enum NexusAdopter {
     /// macOS system-noise files. Best-effort — failures swallowed.
     private static func tryDeleteEmptyWrapper(_ wrapper: URL, fm: FileManager) {
         guard fm.fileExists(atPath: wrapper.path) else { return }
-        let contents = (try? fm.contentsOfDirectory(
-            at: wrapper, includingPropertiesForKeys: nil, options: []
-        )) ?? []
+        let contents =
+            (try? fm.contentsOfDirectory(
+                at: wrapper, includingPropertiesForKeys: nil, options: []
+            )) ?? []
         // Filter out macOS noise — wrapper is "empty" if everything left is noise.
         let meaningfulChildren = contents.filter { url in
             !macOSNoiseFilenames.contains(url.lastPathComponent)
