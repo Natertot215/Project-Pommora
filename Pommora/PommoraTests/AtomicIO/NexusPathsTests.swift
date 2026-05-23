@@ -210,9 +210,9 @@ struct NexusPathsTests {
         )
     }
 
-    // MARK: - ItemType / ItemCollection (rooted at <nexus>/Items/)
+    // MARK: - ItemType / ItemCollection (flatlayout: rooted at the nexus root)
 
-    @Test("itemTypeFolderURL nests inside Items/ wrapper")
+    @Test("itemTypeFolderURL sits at the nexus root (no wrapper)")
     func itemTypeFolderShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -220,17 +220,17 @@ struct NexusPathsTests {
             in: nexus.rootURL, typeFolderName: "Errands"
         )
         #expect(folder.lastPathComponent == "Errands")
-        #expect(folder.deletingLastPathComponent().lastPathComponent == "Items")
-        #expect(folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path)
+        #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
 
+        // metadata URL co-located using the per-kind ItemType sidecar
         let meta = NexusPaths.itemTypeMetadataURL(
             in: nexus.rootURL, typeFolderName: "Errands"
         )
-        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.itemTypeSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 
-    @Test("itemCollectionFolderURL nests inside <Items>/<Type>/<Collection>")
+    @Test("itemCollectionFolderURL nests inside <Type>/<Collection> at root")
     func itemCollectionFolderShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -242,15 +242,16 @@ struct NexusPathsTests {
         #expect(folder.lastPathComponent == "Groceries")
         #expect(folder.deletingLastPathComponent().lastPathComponent == "Errands")
         #expect(
-            folder.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Items"
+            folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
 
+        // metadata sidecar uses the per-kind ItemCollection name
         let meta = NexusPaths.itemCollectionMetadataURL(
             in: nexus.rootURL,
             typeFolderName: "Errands",
             collectionFolderName: "Groceries"
         )
-        #expect(meta.lastPathComponent == NexusPaths.schemaSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.itemCollectionSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 

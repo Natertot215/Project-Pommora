@@ -6,7 +6,7 @@ import Testing
 @Suite("ItemCollectionFile")
 struct ItemCollectionTests {
 
-    @Test("ItemCollection round-trips through _schema.json")
+    @Test("ItemCollection round-trips through _itemcollection.json")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -14,7 +14,7 @@ struct ItemCollectionTests {
             .appendingPathComponent("Errands", isDirectory: true)
             .appendingPathComponent("Groceries", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
 
         let original = ItemCollection(
             id: "01HICOLL",
@@ -41,7 +41,7 @@ struct ItemCollectionTests {
             .appendingPathComponent("T", isDirectory: true)
             .appendingPathComponent("C", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
 
         try ItemCollection(
             id: "01H", typeID: "01HT", title: "C",
@@ -64,7 +64,7 @@ struct ItemCollectionTests {
             .appendingPathComponent("T", isDirectory: true)
             .appendingPathComponent("Side Sets", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
 
         try ItemCollection(
             id: "01H", typeID: "01HT", title: "Side Sets",
@@ -83,7 +83,7 @@ struct ItemCollectionTests {
             .appendingPathComponent("T", isDirectory: true)
             .appendingPathComponent("X", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
 
         try ItemCollection(
             id: "01H", typeID: "01HT", title: "X",
@@ -102,7 +102,7 @@ struct ItemCollectionTests {
             .appendingPathComponent("T", isDirectory: true)
             .appendingPathComponent("Ordered", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
 
         try ItemCollection(
             id: "01H", typeID: "01HT", title: "Ordered",

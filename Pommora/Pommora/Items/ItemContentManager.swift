@@ -55,14 +55,12 @@ final class ItemContentManager {
     // MARK: - Path helpers (Item-Type-root)
 
     /// ItemType.folderURL isn't a stored property — it's always derived from
-    /// the nexus root + the Items wrapper + the Type's title. Centralized
-    /// here so every Type-root CRUD path uses the same derivation. Internal
-    /// so the +CRUD extension can call it across the file boundary.
+    /// the nexus root + the Type's title. Centralized here so every Type-root
+    /// CRUD path uses the same derivation. Internal so the +CRUD extension
+    /// can call it across the file boundary.
     ///
-    /// **Note (Phase 5 / 6 stub):** the Items wrapper folder
-    /// (`<nexus>/Items/`) is materialized on disk by NexusAdopter in Phase 6.
-    /// Until then this derivation returns a URL that doesn't yet exist; CRUD
-    /// methods will surface an I/O error if invoked before the wrapper exists.
+    /// flatlayout: ItemType folders live directly at the Nexus root (no
+    /// wrapper segment).
     func folderURL(for itemType: ItemType) -> URL {
         NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: itemType.title)
     }
@@ -105,7 +103,9 @@ final class ItemContentManager {
         // exclude their subtrees from the Type-root walk.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
-            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.schemaSidecarFilename))
+            Filesystem.fileExists(
+                at: sub.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
+            )
         }
         let excludedCollectionFolders = Set(collectionFolders.map { $0.standardizedFileURL })
         do {

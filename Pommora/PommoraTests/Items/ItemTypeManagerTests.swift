@@ -3,17 +3,16 @@ import Testing
 
 @testable import Pommora
 
-/// Items-side mirror of PageTypeManagerTests (ParadigmV2 — Task 5.6).
+/// Items-side mirror of PageTypeManagerTests (flatlayout — Task 2.3).
 ///
-/// Pre-Phase-6 stub: ItemTypeManager.loadAll bails empty until
-/// `<nexus>/Items/` exists; createItemType auto-creates the wrapper on demand.
-/// These tests pin both behaviors.
+/// flatlayout: ItemType folders live directly at the Nexus root; discovery
+/// filters by `_itemtype.json` sidecar presence.
 @MainActor
 @Suite("ItemTypeManager")
 struct ItemTypeManagerTests {
 
-    @Test("loadAll yields empty when Items wrapper folder doesn't exist")
-    func loadAllEmptyWithoutWrapper() async throws {
+    @Test("loadAll on a fresh nexus yields empty + no wrapper created")
+    func loadAllEmptyOnFreshNexus() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = ItemTypeManager(nexus: nexus)
@@ -23,12 +22,13 @@ struct ItemTypeManagerTests {
         #expect(manager.itemCollectionsByType.isEmpty)
         #expect(manager.pendingError == nil)
 
-        // The wrapper folder must NOT have been auto-created by loadAll.
+        // flatlayout: no `Items/` wrapper is materialized — type folders sit
+        // at the Nexus root and the loader walks root directly.
         let wrapper = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
         #expect(!FileManager.default.fileExists(atPath: wrapper.path))
     }
 
-    @Test("createItemType writes folder + _schema.json (auto-creates Items wrapper)")
+    @Test("createItemType writes folder + _itemtype.json at the Nexus root")
     func createItemType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -36,12 +36,15 @@ struct ItemTypeManagerTests {
         await manager.loadAll()
 
         try await manager.createItemType(name: "Errands", icon: "cart")
-        let wrapper = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
         let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Errands")
         let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "Errands")
-        #expect(FileManager.default.fileExists(atPath: wrapper.path))
         #expect(FileManager.default.fileExists(atPath: folder.path))
         #expect(FileManager.default.fileExists(atPath: meta.path))
+        #expect(meta.lastPathComponent == NexusPaths.itemTypeSidecarFilename)
+        // flatlayout: no `Items/` wrapper is created as a side effect of the
+        // first ItemType.
+        let wrapper = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
+        #expect(!FileManager.default.fileExists(atPath: wrapper.path))
         #expect(manager.types.count == 1)
         #expect(manager.types.first?.title == "Errands")
         #expect(manager.typesByID[manager.types.first!.id]?.title == "Errands")
@@ -120,7 +123,8 @@ struct ItemTypeManagerTests {
         #expect(manager.typesByID[itemType.id] == nil)
 
         // Folder now in .trash, preserving relative path under nexus root
-        let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Items/Errands")
+        // (flatlayout: ItemType folder lives directly at the nexus root).
+        let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Errands")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
@@ -174,8 +178,9 @@ struct ItemTypeManagerTests {
         #expect(manager.itemCollections(in: itemType).isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
+        // (flatlayout: ItemCollection folder lives inside <nexus>/<Type>/).
         let trashFolder = NexusPaths.trashDir(in: nexus)
-            .appendingPathComponent("Items/Errands/Groceries")
+            .appendingPathComponent("Errands/Groceries")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
@@ -209,7 +214,7 @@ struct ItemTypeManagerTests {
         #expect(fresh2.types.first?.icon == nil)
     }
 
-    @Test("loadAll discovers existing ItemTypes after createItemType auto-creates wrapper")
+    @Test("loadAll discovers existing ItemTypes at the Nexus root after createItemType")
     func loadAllAfterCreate() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }

@@ -2,22 +2,19 @@ import Foundation
 import Observation
 import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderItemTypes/Collections
 
-/// Items-side mirror of PageTypeManager (ParadigmV2 — Task 5.3).
+/// Items-side mirror of PageTypeManager (ParadigmV2 — Task 5.3; flatlayout — Task 2.3).
 ///
 /// Owns the in-memory view of every ItemType + its child ItemCollections
-/// inside the active Nexus. Loads from `<nexus>/Items/<TypeFolder>/_schema.json`
-/// and per-collection `<...>/<CollectionFolder>/_schema.json` sidecars.
-/// Title-validation lives in `ItemTypeValidator` + `ItemCollectionValidator`
-/// (Task 5.4).
+/// inside the active Nexus. Loads from `<nexus>/<TypeFolder>/_itemtype.json`
+/// and per-collection `<...>/<CollectionFolder>/_itemcollection.json` sidecars.
+/// Title-validation lives in `ItemTypeValidator` + `ItemCollectionValidator`.
 ///
-/// Pre-Phase-6 stub: ItemTypes/ItemCollections live under `<nexus>/Items/`,
-/// but that wrapper isn't created on disk until Phase 6. Until then,
-/// `loadAll()` returns empty — there's nothing to read yet. CRUD methods
-/// are fully functional so Phase 6 can wire the wrapper-creation path in
-/// without rewriting the manager (stub-and-progressively-replace per
-/// branch quirk #8). Items are brand-new data with no legacy on disk, so
-/// the PageTypeManager-style `_vault.json`/`_collection.json` migration
-/// is intentionally omitted.
+/// flatlayout: ItemTypes sit at the Nexus root (no wrapper segment).
+/// Discovery filters root folders by presence of `_itemtype.json`; folders
+/// carrying any of the other per-kind sidecars (Pages/Agenda/Collection) or
+/// no recognized sidecar are skipped. Items are brand-new data with no legacy
+/// on disk, so the PageTypeManager-style `_vault.json`/`_collection.json`
+/// migration is intentionally omitted.
 @MainActor
 @Observable
 final class ItemTypeManager {
@@ -46,19 +43,14 @@ final class ItemTypeManager {
 
     func loadAll() async {
         do {
-            let wrapper = NexusPaths.itemsWrapperDir(in: nexus.rootURL)
-            // Phase 6 materializes `<nexus>/Items/` on disk. Until then this
-            // bails cleanly with an empty load (no error surfaced) — Task 5.3
-            // ships the manager green standalone per branch quirk #8.
-            guard FileManager.default.fileExists(atPath: wrapper.path) else {
-                self.types = []
-                self.itemCollectionsByType = [:]
-                self.typesByID = [:]
-                self.pendingError = nil
-                return
-            }
+            // flatlayout: ItemType folders sit at the Nexus root. Discovery
+            // filters folders by presence of `_itemtype.json`; folders carrying
+            // any of the other per-kind sidecars (Pages/Agenda/Collection) or
+            // no recognized sidecar are skipped. NexusAdopter handles surfacing
+            // unrecognized folders for adoption (Phase 4).
+            let root = nexus.rootURL
 
-            let topLevel = try Filesystem.childFolders(of: wrapper)
+            let topLevel = try Filesystem.childFolders(of: root)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
 
@@ -66,20 +58,19 @@ final class ItemTypeManager {
             var loadedCols: [String: [ItemCollection]] = [:]
 
             for folder in topLevel {
-                let metaURL = NexusPaths.itemTypeMetadataURL(
-                    in: nexus.rootURL,
-                    typeFolderName: folder.lastPathComponent
-                )
+                let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
                     let itemType = try? ItemType.load(from: metaURL)
                 else { continue }
                 loadedTypes.append(itemType)
 
+                // Discover ItemCollections (sub-folders with `_itemcollection.json`;
+                // skip _- and .-prefixed)
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> ItemCollection? in
-                        let metaURL = sub.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+                        let metaURL = sub.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
                         guard Filesystem.fileExists(at: metaURL) else { return nil }
                         return try? ItemCollection.load(from: metaURL)
                     }
@@ -125,9 +116,8 @@ final class ItemTypeManager {
             )
             let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: name)
             let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: name)
-            // Ensure `<nexus>/Items/` exists. Phase 6 will own wrapper-creation
-            // explicitly; this keeps CRUD functional in the meantime.
-            try NexusPaths.ensureDirectoryExists(NexusPaths.itemsWrapperDir(in: nexus.rootURL))
+            // flatlayout: ItemType folders live directly at the Nexus root;
+            // no wrapper to ensure.
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: meta, metadata: itemType
             )
@@ -316,7 +306,7 @@ final class ItemTypeManager {
                 modifiedAt: now,
                 itemOrder: collection.itemOrder
             )
-            let metaURL = newURL.appendingPathComponent(NexusPaths.schemaSidecarFilename)
+            let metaURL = newURL.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
             do {
                 try updated.save(to: metaURL)
             } catch let saveError {

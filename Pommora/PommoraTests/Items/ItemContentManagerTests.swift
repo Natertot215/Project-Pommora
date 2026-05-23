@@ -88,8 +88,9 @@ struct ItemContentManagerTests {
         #expect(manager.items(in: coll).isEmpty)
         #expect(!FileManager.default.fileExists(atPath: url.path))
         // File now in .trash, preserving relative path under nexus root
+        // (flatlayout: Item file lives at <nexus>/<Type>/<Collection>/).
         let trashFile = NexusPaths.trashDir(in: nexus)
-            .appendingPathComponent("Items/T/C/Buy milk.json")
+            .appendingPathComponent("T/C/Buy milk.json")
         #expect(FileManager.default.fileExists(atPath: trashFile.path))
     }
 
@@ -196,7 +197,7 @@ struct ItemContentManagerTests {
             modifiedAt: Date()
         )
         // Sidecar so type-root walk recognizes Inner as an ItemCollection + skips it
-        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.schemaSidecarFilename))
+        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
         let innerID = ULID.generate()
         try Item(
             id: innerID, title: "InnerItem", icon: nil, description: "",
@@ -284,20 +285,20 @@ struct ItemContentManagerTests {
 
     // MARK: - Setup
 
-    /// Bootstraps a temp nexus with an ItemType + ItemCollection + the wrapper
-    /// folder all materialized on disk, then returns a fresh manager.
+    /// Bootstraps a temp nexus with an ItemType + ItemCollection materialized
+    /// directly at the Nexus root (flatlayout), then returns a fresh manager.
     private func setupCollection() async throws -> (Nexus, ItemType, ItemCollection, ItemContentManager) {
         let nexus = try TempNexus.make()
         let itemType = ItemType(
             id: ULID.generate(), title: "T", icon: nil,
             properties: [], views: [], modifiedAt: Date())
 
-        // Materialize <nexus>/Items/T/ + sidecar
+        // Materialize <nexus>/T/ + per-kind sidecar
         let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
         try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
 
-        // Materialize <nexus>/Items/T/C/ + sidecar
+        // Materialize <nexus>/T/C/ + per-kind sidecar
         let collFolder = NexusPaths.itemCollectionFolderURL(
             in: nexus.rootURL, typeFolderName: "T", collectionFolderName: "C"
         )
@@ -309,7 +310,7 @@ struct ItemContentManagerTests {
             folderURL: collFolder,
             modifiedAt: Date()
         )
-        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.schemaSidecarFilename))
+        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
 
         let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         return (nexus, itemType, coll, manager)

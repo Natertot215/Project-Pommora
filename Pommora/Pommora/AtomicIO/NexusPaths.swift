@@ -266,27 +266,28 @@ enum NexusPaths {
 
     // MARK: - Items wrapper / ItemType / ItemCollection paths (ParadigmV2)
 
-    /// `<nexus>/Items/` — wrapper folder containing ItemType sub-folders.
-    /// Defined for Phase 6; Task 5.3 (Phase 5) only declares the helper —
-    /// ItemTypeManager.loadAll reads under this path and currently returns
-    /// empty until Phase 6 materializes the wrapper on disk. Stub-and-
-    /// progressively-replace per branch quirk #8.
+    /// `<nexus>/Items/` — legacy wrapper folder. flatlayout drops the wrapper
+    /// from the public path API; this helper survives for NexusAdopter (Phase 4)
+    /// which still needs to detect the paradigmV2 wrapper layout on input. Task
+    /// 4.3 moves it private to the adopter.
     static func itemsWrapperDir(in nexusRoot: URL) -> URL {
         nexusRoot.appendingPathComponent("Items", isDirectory: true)
     }
 
-    /// `<nexus>/Items/<typeFolderName>/` — ItemType folder.
+    /// `<nexus>/<typeFolderName>/` — ItemType folder (flatlayout: lives at the
+    /// nexus root, no wrapper segment).
     static func itemTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
-        itemsWrapperDir(in: nexusRoot).appendingPathComponent(typeFolderName, isDirectory: true)
+        nexusRoot.appendingPathComponent(typeFolderName, isDirectory: true)
     }
 
-    /// `<nexus>/Items/<typeFolderName>/_schema.json` — ItemType schema sidecar.
+    /// `<nexus>/<typeFolderName>/_itemtype.json` — ItemType schema sidecar.
     static func itemTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
         itemTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
-            .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+            .appendingPathComponent(itemTypeSidecarFilename, isDirectory: false)
     }
 
-    /// `<nexus>/Items/<typeFolderName>/<collectionFolderName>/` — ItemCollection folder.
+    /// `<nexus>/<typeFolderName>/<collectionFolderName>/` — ItemCollection folder
+    /// (still nested inside its parent ItemType folder).
     static func itemCollectionFolderURL(
         in nexusRoot: URL,
         typeFolderName: String,
@@ -296,7 +297,8 @@ enum NexusPaths {
             .appendingPathComponent(collectionFolderName, isDirectory: true)
     }
 
-    /// `<nexus>/Items/<typeFolderName>/<collectionFolderName>/_schema.json` — ItemCollection schema sidecar.
+    /// `<nexus>/<typeFolderName>/<collectionFolderName>/_itemcollection.json` —
+    /// ItemCollection schema sidecar.
     static func itemCollectionMetadataURL(
         in nexusRoot: URL,
         typeFolderName: String,
@@ -307,7 +309,7 @@ enum NexusPaths {
             typeFolderName: typeFolderName,
             collectionFolderName: collectionFolderName
         )
-        .appendingPathComponent(schemaSidecarFilename, isDirectory: false)
+        .appendingPathComponent(itemCollectionSidecarFilename, isDirectory: false)
     }
 
     // MARK: - Filesystem helper
