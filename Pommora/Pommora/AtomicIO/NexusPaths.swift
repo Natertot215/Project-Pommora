@@ -6,9 +6,17 @@ enum NexusPaths {
 
     // MARK: - Schema sidecar
 
+    static let pageTypeSidecarFilename = "_pagetype.json"
+    static let pageCollectionSidecarFilename = "_pagecollection.json"
+    static let itemTypeSidecarFilename = "_itemtype.json"
+    static let itemCollectionSidecarFilename = "_itemcollection.json"
+    static let taskConfigSidecarFilename = "_taskconfig.json"
+    static let eventConfigSidecarFilename = "_eventconfig.json"
+
     /// Unified schema sidecar filename — used by Page Types, Page Collections,
     /// Item Types, Item Collections, AgendaTask schema, AgendaEvent schema.
     /// Replaces per-kind names per ParadigmV2.
+    // Deprecated: removed in Task 4.3 (NexusAdopter migration code is the last consumer)
     static let schemaSidecarFilename = "_schema.json"
 
     // MARK: - Reserved top-level folder names (ParadigmV2 Phase 6)
