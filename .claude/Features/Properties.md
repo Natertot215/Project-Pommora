@@ -1,17 +1,17 @@
 ### Properties
 
-Pommora's property system spec. Referenced from `PommoraPRD.md`. v0.3.0 conceptual spec at `// Planning//v0.3.0-Properties-spec.md`; the pre-ParadigmV2 implementation plan is archived at `// Planning//Superseded//v0.3.0-Properties-implementation.md`.
+Pommora's property system spec. Referenced from `PommoraPRD.md`. v0.3.0 conceptual spec at `// Planning//v0.3.0-Properties-spec.md`; implementation plan at `// Planning//v0.3.0-Properties-plan.md`.
 
 ---
 
 #### Model
 
 - **Property values** live in YAML frontmatter on each Page, in the `properties` key of each Item's `.json`, in the `properties` key of each Agenda Task's `.task.json`, or in the `properties` key of each Agenda Event's `.event.json` — directly editable by any text editor, tool, or Claude.
-- **Property schemas** live inside each Type's `_schema.json` sidecar (canonical, agent-readable without SQLite) — Page Types at `<nexus>/Pages/<Title>/_schema.json` and Item Types at `<nexus>/Items/<Title>/_schema.json`. Agenda has two parallel schema sidecars: `<nexus>/Agenda/Tasks/_schema.json` (AgendaTask schema) and `<nexus>/Agenda/Events/_schema.json` (AgendaEvent schema). SQLite (v0.3.3) mirrors schemas for fast queries; the JSON file is the source of truth.
+- **Property schemas** live inside each Type's per-kind sidecar (canonical, agent-readable without SQLite) — Page Types at `<nexus>/<Title>/_pagetype.json` and Item Types at `<nexus>/<Title>/_itemtype.json`. Agenda has two parallel singleton sidecars: `_taskconfig.json` inside the Tasks singleton (AgendaTask schema) and `_eventconfig.json` inside the Events singleton (AgendaEvent schema). SQLite (v0.3.3) mirrors schemas for fast queries; the JSON file is the source of truth.
 - **Properties are scoped to a Type** in v1 — every Page inside a Page Type shares that Page Type's schema (across all of its Page Collections); every Item inside an Item Type shares that Item Type's schema (across all of its Item Collections). Same property name in two Types = two independent definitions. Collection-local schema overrides are a post-v1 Prospect.
 - **Same catalog across all entities** — Pages, Items, Agenda Tasks, and Agenda Events share the property type catalog. Storage substrate varies: Pages in YAML frontmatter; Items, Agenda Tasks, and Agenda Events in JSON.
 - **Per-tier multi-relations on operational entities** — Pages / Items / Agenda Tasks / Agenda Events each carry `tier1` / `tier2` / `tier3` multi-valued ID arrays pointing to Contexts. Built-in (not user-defined); edited via the property panel's relation pickers alongside user-defined properties.
-- **Property names are the key.** Renaming triggers a transactional cross-member rewrite (`_schema.json` + every Page's frontmatter + every Item's `properties` block + every Agenda Task / Agenda Event's `properties` block, atomic two-phase commit). Legibility (human-readable frontmatter keys; agent-readable without schema lookup) outweighs the rewrite cost. Stable opaque IDs considered and rejected.
+- **Property names are the key.** Renaming triggers a transactional cross-member rewrite (the relevant per-kind sidecar — `_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json` — plus every Page's frontmatter + every Item's `properties` block + every Agenda Task / Agenda Event's `properties` block, atomic two-phase commit). Legibility (human-readable frontmatter keys; agent-readable without schema lookup) outweighs the rewrite cost. Stable opaque IDs considered and rejected.
 - **Every property can carry an icon.** Optional `icon: String?` (SF Symbol name) on `PropertyDefinition`. Shown next to the name in the schema editor list, property panel rows, and as the column header glyph in detail-pane Table views. Settable via per-property `IconPickerField` (reuses SymbolPicker integration).
 
 #### How Properties Are Created
@@ -28,18 +28,18 @@ Add Property flow:
 2. **Name it** — `Status`, `Due`, `Tags`, etc.
 3. **Pick an icon** (optional) — `IconPickerField` for an SF Symbol
 4. **Pick a type** — opens type-specific config (options for Select, format for Number, scope + reverse name for Relation, 3-group editor for Status, etc.)
-5. **Save** — schema entry written to the Type's `_schema.json`; property appears as empty on every member of that Type (paired Relation properties atomically add the reverse to the target Type)
+5. **Save** — schema entry written to the Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json` depending on side); property appears as empty on every member of that Type (paired Relation properties atomically add the reverse to the target Type)
 6. **Set value** — written to the Page's frontmatter, Item's `properties` block, or Agenda Task / Agenda Event's `properties` block via `PropertyEditorRow` in the inspector / Item Window
 
 Full Type Settings UI spec → [[PageTypes]] "Page Type Settings sheet" (parallel structure applies on the Items side once Item Type settings ship).
 
 #### Property Type Catalog (v0.3.0)
 
-Each type has a fixed config shape stored as JSON inside the property's entry in the Type's `_schema.json` `properties` array (Page Type / Item Type / AgendaTask schema / AgendaEvent schema — same shape across all four). The shape determines edit UI + value display.
+Each type has a fixed config shape stored as JSON inside the property's entry in the Type's per-kind sidecar `properties` array (Page Type's `_pagetype.json` / Item Type's `_itemtype.json` / AgendaTask's `_taskconfig.json` / AgendaEvent's `_eventconfig.json` — same shape across all four; **the property schema lives on FOUR per-kind sidecar carriers, not six** — Page Collection's `_pagecollection.json` and Item Collection's `_itemcollection.json` carry only id + ordering metadata, no property schema). The shape determines edit UI + value display.
 
 **The only pure text property is title** — the filename, not a frontmatter property. All others are typed. Where a Notion-style "text" field would appear, Pommora uses **Select** or **Multi-select** with creatable options.
 
-| Type | Value shape (frontmatter / JSON) | Config shape (`_schema.json`) | UI behavior |
+| Type | Value shape (frontmatter / JSON) | Config shape (in the Type's per-kind sidecar) | UI behavior |
 |---|---|---|---|
 | **Number** | `42` or `3.14` | `{ "number_format": "integer" \| "decimal" \| "percent" \| "currency" }` | Numeric input; rendered with the chosen format. |
 | **Checkbox** | `true` / `false` | `{}` | Toggle. |
@@ -108,7 +108,7 @@ At render time the editor resolves value → option → group, yielding the disp
 
 Built-in **only on the AgendaTask schema** at v0.3.0. Status is NOT auto-seeded on Page Types, Item Types, or the AgendaEvent schema; users add it manually on those Types if wanted.
 
-**AgendaTask schema** (`<nexus>/Agenda/Tasks/_schema.json`) — Status is built-in, required, non-deletable. EventKit sync (v0.6.0) maps the 3 groups to `EKReminder.isCompleted`:
+**AgendaTask schema** (`_taskconfig.json` on the Tasks singleton) — Status is built-in, required, non-deletable. EventKit sync (v0.6.0) maps the 3 groups to `EKReminder.isCompleted`:
 
 | StatusGroup | `EKReminder.isCompleted` |
 |---|---|
@@ -116,7 +116,7 @@ Built-in **only on the AgendaTask schema** at v0.3.0. Status is NOT auto-seeded 
 | `in_progress` | `false` |
 | `done` | `true` |
 
-**AgendaEvent schema** (`<nexus>/Agenda/Events/_schema.json`) — Status is NOT built-in. Completion isn't an event concept; events derive their effective state from `start_at` / `end_at` relative to now. Users can add a Status property manually if a custom workflow is wanted, but no default is seeded.
+**AgendaEvent schema** (`_eventconfig.json` on the Events singleton) — Status is NOT built-in. Completion isn't an event concept; events derive their effective state from `start_at` / `end_at` relative to now. Users can add a Status property manually if a custom workflow is wanted, but no default is seeded.
 
 #### Per-entity property panel visibility (wiring v0.3.0; UI later)
 
@@ -131,7 +131,7 @@ Each Page, Item, Agenda Task, and Agenda Event carries a per-entity **`panel_hid
 
 #### Content templates (post-v1 reservation)
 
-**v0.3.0 does NOT ship templates.** Type-level templates (schema-seeding at creation) were rejected. Notion-style **content-level templates** (Page/Item templates pre-filling body + properties at creation) are reserved for post-v1. v0.3.0 keeps the scaffold compatible: `<nexus>/.nexus/templates/` reserved; no manager-method `template:` parameter is added until templates actually ship. A per-Item-Type `template_config` field is reserved on the Item Type's `_schema.json` (always `null` in v0.3.0; see [[Items]] and [[Prospects]]). Reservation summary at `// Planning//v0.3.0-Properties-spec.md` "Type templates rejected; content templates reserved".
+**v0.3.0 does NOT ship templates.** Type-level templates (schema-seeding at creation) were rejected. Notion-style **content-level templates** (Page/Item templates pre-filling body + properties at creation) are reserved for post-v1. v0.3.0 keeps the scaffold compatible: `<nexus>/.nexus/templates/` reserved; no manager-method `template:` parameter is added until templates actually ship. A per-Item-Type `template_config` field is reserved on the Item Type's `_itemtype.json` (always `null` in v0.3.0; see [[Items]] and [[Prospects]]). Reservation summary at `// Planning//v0.3.0-Properties-spec.md` "Type templates rejected; content templates reserved".
 
 #### Relation scope
 
@@ -176,10 +176,10 @@ Scope options stored in the `relation_scope` JSON object:
 
 | Scope kind | Picker source | Purpose | Bidirectional? |
 |---|---|---|---|
-| `page_type` | All Pages in the specified Page Type | Cross-Type relations on the Pages side (e.g., a Page in `Materials` relates to Pages in `Sources`) | **Required dual** — paired reverse property on the target Page Type's `_schema.json` |
-| `item_type` | All Items in the specified Item Type | Cross-Type relations on the Items side (e.g., an Item in `Bookmarks` relates to Items in `People`) | **Required dual** — paired reverse property on the target Item Type's `_schema.json` |
-| `page_collection` | All Pages in the specified Page Collection | Narrower than Page Type scope | **Required dual** — paired reverse property on the target Page Collection's parent Page Type (`_schema.json`) |
-| `item_collection` | All Items in the specified Item Collection | Narrower than Item Type scope | **Required dual** — paired reverse property on the target Item Collection's parent Item Type (`_schema.json`) |
+| `page_type` | All Pages in the specified Page Type | Cross-Type relations on the Pages side (e.g., a Page in `Materials` relates to Pages in `Sources`) | **Required dual** — paired reverse property on the target Page Type's `_pagetype.json` |
+| `item_type` | All Items in the specified Item Type | Cross-Type relations on the Items side (e.g., an Item in `Bookmarks` relates to Items in `People`) | **Required dual** — paired reverse property on the target Item Type's `_itemtype.json` |
+| `page_collection` | All Pages in the specified Page Collection | Narrower than Page Type scope | **Required dual** — paired reverse property on the target Page Collection's parent Page Type (`_pagetype.json`) |
+| `item_collection` | All Items in the specified Item Collection | Narrower than Item Type scope | **Required dual** — paired reverse property on the target Item Collection's parent Item Type (`_itemtype.json`) |
 | `context_tier` | All Contexts at the specified tier (1=Spaces / 2=Topics / 3=Projects) | Categorical relations to organization-layer entities | **One-way** — no paired property (Contexts have no `properties[]` schema); reverse view derived via query, same as `tier1/2/3` backlinks |
 
 Cross-side relations (Item ↔ Page) are NOT supported at v0.3.0 — Item-side Relation pickers list Item Types / Item Collections only; Page-side pickers list Page Types / Page Collections only. Cross-side promotion + relations are a post-v1 Prospect (see [[Prospects]]).
@@ -201,7 +201,7 @@ Config shape inside the source Relation property:
 }
 ```
 
-The reverse property in the target Type carries the mirror config pointing back. Both are paired by their `dual_property` references. The `synced_property_defined_on_type_id` field always points at a Page Type or Item Type (the parent Type) — never at a Collection directly, since Collection-scoped reverses are stored in the parent Type's `_schema.json`.
+The reverse property in the target Type carries the mirror config pointing back. Both are paired by their `dual_property` references. The `synced_property_defined_on_type_id` field always points at a Page Type or Item Type (the parent Type) — never at a Collection directly, since Collection-scoped reverses are stored in the parent Type's per-kind sidecar (`_pagetype.json` or `_itemtype.json`).
 
 **Lifecycle of a paired relation:**
 
@@ -230,7 +230,7 @@ Example: User in Page Type Y wants to relate to Pages in Page Type X.
 8. Save → atomically creates Page Type Y's "Sources" (relation → X) + Page Type X's "Cited By" (relation → Y).
 ```
 
-Context-tier scope omits step 6 (one-way). Page Collection / Item Collection scopes show (Type, Collection) pairs as targets; the reverse property is stored in the parent Type's `_schema.json`. Pickers stay side-locked — a Pages-side wizard never lists Item Types / Item Collections as targets, and vice versa.
+Context-tier scope omits step 6 (one-way). Page Collection / Item Collection scopes show (Type, Collection) pairs as targets; the reverse property is stored in the parent Type's per-kind sidecar (`_pagetype.json` or `_itemtype.json`). Pickers stay side-locked — a Pages-side wizard never lists Item Types / Item Collections as targets, and vice versa.
 
 #### Managing options (Select / Multi-select / Status)
 
@@ -256,8 +256,8 @@ Two orderings at different layers:
 
 | Ordering | Stored in | Effect | Scope |
 |---|---|---|---|
-| **Schema-level option order** (Edit Properties → drag-reorder options) | `_schema.json.properties[i].select_options[]` (or `status_groups[i].options[]` for Status) | Drives default sort behavior nexus-wide; **changes the property itself** | Schema (all views, all members of the Type) |
-| **View-level group order** (a v0.6.0 saved view's Group By config — drag-reorder group sections in the view editor) | `_schema.json.views[i].group_by.order: [String]` | Reorders section/folder headers IN THIS VIEW only; **doesn't touch the property** | View-only (one saved view at a time) |
+| **Schema-level option order** (Edit Properties → drag-reorder options) | Per-kind sidecar `properties[i].select_options[]` (or `status_groups[i].options[]` for Status) | Drives default sort behavior nexus-wide; **changes the property itself** | Schema (all views, all members of the Type) |
+| **View-level group order** (a v0.6.0 saved view's Group By config — drag-reorder group sections in the view editor) | Per-kind sidecar `views[i].group_by.order: [String]` | Reorders section/folder headers IN THIS VIEW only; **doesn't touch the property** | View-only (one saved view at a time) |
 
 Drag option sections in a Group By view = view-specific preference. Drag-reorder in Edit Properties = canonical schema change (affects every view + every sort). The two never collide — different fields. (Locked RC-2026-05-19.)
 
@@ -291,14 +291,14 @@ v0.3.0 ships sort-by-property in the Pages-side detail-pane Table view (`PageTyp
 - **URL** — alphabetical on `absoluteString`
 - **Relation** — alphabetical on resolved current title of the target
 
-Per-Type default sort persists in the Type's `_schema.json` top-level `default_sort` (added v0.3.0). Full per-view sort with saved-view configs ships v0.6.0. Item Types and the AgendaTask / AgendaEvent schemas carry the same `default_sort` field; the Items-side detail UI lands in a follow-up plan.
+Per-Type default sort persists in the Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json`) as a top-level `default_sort` (added v0.3.0). Full per-view sort with saved-view configs ships v0.6.0. Item Types and the AgendaTask / AgendaEvent schemas carry the same `default_sort` field; the Items-side detail UI lands in a follow-up plan.
 
 #### Column order in views vs property declaration order
 
 Three orderings, three layers:
 
-- **Column order in a Table or List view** is view-level. Drag column headers to rearrange; stored in the view's spec inside `_schema.json` once v0.6.0 ships saved views. **Visual only — no schema effect.** Pre-v0.6.0: matches property declaration order.
-- **Property declaration order in `_schema.json`** is schema-level — the order properties appear in the property panel. Drag-to-reorder lands v0.3.0.
+- **Column order in a Table or List view** is view-level. Drag column headers to rearrange; stored in the view's spec inside the per-kind sidecar once v0.6.0 ships saved views. **Visual only — no schema effect.** Pre-v0.6.0: matches property declaration order.
+- **Property declaration order in the per-kind sidecar** is schema-level — the order properties appear in the property panel. Drag-to-reorder lands v0.3.0.
 - **Option order inside a Select / Multi-select** is schema-level — drives sort. Drag-to-reorder in the option editor.
 
 #### Schema Mutations
@@ -309,7 +309,7 @@ User changes to a property's definition (v0.3.0):
 - **Renaming a property** — schema rename + transactional rewrite across Type members (Page frontmatter / Item `properties` block / Agenda Task + Agenda Event `properties` blocks). Two-phase commit via `SchemaTransaction` in `AtomicIO//SchemaTransaction.swift`: write to `.tmp-<uuid>` siblings, then batch atomic-rename. On failure, rolls back + reports via `pendingError` (v0.2.0 sidebar toast pattern).
 - **Changing a property's type** — only lossless conversions (Date → Date & Time, Select → Multi-select). Otherwise user must confirm; conflicting values are dropped.
 - **Deleting a property** — schema row removed; values removed from every member. No quarantine — Notion-style.
-- **Reordering properties** — drag-to-reorder; updates the Type's `_schema.json` declaration order. No member writes (values are dictionary-keyed).
+- **Reordering properties** — drag-to-reorder; updates the Type's per-kind sidecar declaration order. No member writes (values are dictionary-keyed).
 - **Editing Select / Multi-select options** — add / reorder / rename labels = schema-only. Deleting an option removes that value from members.
 
 #### Moving Content Between Types
@@ -333,12 +333,12 @@ Items, Agenda Tasks, and Agenda Events also carry one built-in field that isn't 
 
 #### Validation
 
-Enforced at every write to a Type's `_schema.json` (schema-level) and to each member file (value-level):
+Enforced at every write to a Type's per-kind sidecar (schema-level) and to each member file (value-level):
 
-**Schema-level (`_schema.json` — Page Type / Item Type / AgendaTask schema / AgendaEvent schema):**
+**Schema-level (Page Type's `_pagetype.json` / Item Type's `_itemtype.json` / AgendaTask's `_taskconfig.json` / AgendaEvent's `_eventconfig.json`):**
 
 1. Property name uniqueness within the Type (case-insensitive)
-2. Property name non-empty, no reserved characters (`/`, `.`, leading underscore — reserves the `_schema.json` filename prefix)
+2. Property name non-empty, no reserved characters (`/`, `.`, leading underscore — reserves the per-kind sidecar filename prefix)
 3. Reserved property names: `id`, `created_at`, `modified_at`, `tier1`, `tier2`, `tier3`, `wikilinks`
 4. Dual relation requires `page_type` / `item_type` / `page_collection` / `item_collection` scope; `context_tier` scope rejected for dual
 5. Relation scope target ULID (Page Type / Item Type / Page Collection / Item Collection) must resolve to a live entity at save time, and must be same-side (Pages-side schemas can't target Item Types / Item Collections, and vice versa)
@@ -355,4 +355,4 @@ Enforced at every write to a Type's `_schema.json` (schema-level) and to each me
 
 #### Full specification
 
-v0.3.0 conceptual spec — locked decisions, catalog, scope rules, Status semantics, atomicity requirement — at `// Planning//v0.3.0-Properties-spec.md`. The post-ParadigmV2 implementation plan (phase-by-phase tasks, file:line citations, transaction class shapes, test coverage) is re-derived on top of the new code post-Phase 11; the pre-ParadigmV2 implementation plan is archived at `// Planning//Superseded//v0.3.0-Properties-implementation.md`.
+v0.3.0 conceptual spec — locked decisions, catalog, scope rules, Status semantics, atomicity requirement — at `// Planning//v0.3.0-Properties-spec.md`. Implementation plan (phase-by-phase tasks, file:line citations, transaction class shapes, test coverage) at `// Planning//v0.3.0-Properties-plan.md`.

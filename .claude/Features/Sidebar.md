@@ -2,7 +2,7 @@
 
 Pommora's leading-edge navigation pane in the three-pane shell. Five top-level groups — a heading-less pinned section at top, then Spaces, Topics, Items, Pages. Locked selection language from v0.0 carries forward.
 
-Per-entity routing rules → [[Domain-Model]]; SwiftUI implementation + CRUD UI → `// Planning//Contexts-Vaults-spec.md`.
+Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelines//CRUD-Patterns.md`.
 
 ---
 
@@ -50,9 +50,15 @@ Items sits above Pages — quicker-capture entities ride higher in the visual hi
 
 No always-visible "+ New" buttons — creation is **right-click first**, complemented by **hover-only `+` buttons** on section headings (visible on hover, hidden at rest). The fuller discoverability layer lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
 
-##### Wrapper-folder visibility
+##### Section grouping (sidecar-driven)
 
-The on-disk wrapper folders `<nexus>/Pages/`, `<nexus>/Items/`, and `<nexus>/Agenda/` are organizational only — they are NOT rendered as sidebar rows. The **section heading** ("Pages" / "Items") IS the visual representation of those wrappers in the sidebar. Agenda has no sidebar visualization at all — the wrapper exists on disk and the data layer ships in v0.3.0, but sidebar surfacing routes through the Calendar pin entry once Calendar UI lands.
+There are no wrapper folders on disk — Page Types, Item Types, and the Agenda singletons all live as siblings at the nexus root. The sidebar groups each root folder by reading its **per-kind sidecar filename**, not by inspecting a wrapper directory:
+
+- Any root folder carrying `_pagetype.json` → grouped under the **Pages** section heading
+- Any root folder carrying `_itemtype.json` → grouped under the **Items** section heading
+- Root folders carrying `_taskconfig.json` (Tasks singleton) and `_eventconfig.json` (Events singleton) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry once Calendar UI lands
+
+The section headings ("Pages" / "Items") are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar are unrecognized and trigger the adopter on next launch.
 
 ---
 

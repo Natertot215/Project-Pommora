@@ -16,9 +16,9 @@ In generic prose discussing properties or queries, the term "Type" covers both P
 
 The Items-side container layer mirrors the Pages-side ([[PageTypes]]) shape.
 
-**Item Type** — a folder under `<nexus>/Items/` carrying a `_schema.json` sidecar. The sidecar defines the property schema shared by every Item inside (the Type itself plus every Item Collection underneath). Folder name = Item Type title; renaming the folder renames the Type. Schema fields: `id`, `icon`, `properties`, `views`, `modified_at`, `collection_order`, `item_order`, `template_config` (reserved — see "Item Templates" below). UI label: **"Type"** by default.
+**Item Type** — a folder at the nexus root carrying an `_itemtype.json` sidecar. The sidecar defines the property schema shared by every Item inside (the Type itself plus every Item Collection underneath). Folder name = Item Type title; renaming the folder renames the Type. Schema fields: `id`, `icon`, `properties`, `views`, `modified_at`, `collection_order`, `item_order`, `template_config` (reserved — see "Item Templates" below). UI label: **"Type"** by default. Discovery is sidecar-driven: any root folder carrying `_itemtype.json` is an Item Type, regardless of folder name.
 
-**Item Collection** — a sub-folder inside an Item Type carrying its own `_schema.json`. The Collection's sidecar holds only `id`, `type_id`, `modified_at`, and `item_order` — properties + views are inherited from the parent Item Type (no per-Collection schema override in v0.3.0). Folder name = Collection title; renaming the folder renames the Collection. UI label: **"Set"** by default.
+**Item Collection** — a sub-folder inside an Item Type carrying its own `_itemcollection.json`. The Collection's sidecar holds only `id`, `type_id`, `modified_at`, and `item_order` — properties + views are inherited from the parent Item Type (no per-Collection schema override in v0.3.0). Folder name = Collection title; renaming the folder renames the Collection. UI label: **"Set"** by default.
 
 **Quick-capture by Type.** New-Item entry points scope to a Type ("New Bookmark"), not to a container ("New Item in X"). The dialog selects an Item Collection (or "directly in Type") at create time.
 
@@ -32,14 +32,15 @@ The Items-side container layer mirrors the Pages-side ([[PageTypes]]) shape.
 
 ```
 <nexus-root>/
-  Items/
-    Bookmarks/                  ← Item Type
-      _schema.json              ← shared schema sidecar
-      Tech/                     ← Item Collection (UI label: "Set")
-        _schema.json            ← per-Collection metadata
-        Swift-evolution.json    ← Item
-      Hacker-News.json          ← Item directly in Item Type root
+  Bookmarks/                    ← Item Type (root folder; identified by sidecar)
+    _itemtype.json              ← shared schema sidecar
+    Tech/                       ← Item Collection (UI label: "Set")
+      _itemcollection.json      ← per-Collection metadata
+      Swift-evolution.json      ← Item
+    Hacker-News.json            ← Item directly in Item Type root
 ```
+
+Item Types are siblings of Page Types and the Agenda singletons at the nexus root — no `Items/` wrapper folder. Sidecar filename alone classifies each root folder.
 
 Renaming in UI renames the file. Inbound relations stay intact (by `id`, not name).
 
@@ -62,7 +63,7 @@ The decision is per-Type, made at creation time (you pick which side's container
 
 - **Item** — row-shaped data without prose: contacts, wishlist, bookmarks, citations, music releases, recipes-as-rows, references. Created inside an Item Type; opens in Item Window popover.
 - **Page** — prose-bearing content: notes, papers, project briefs, journal entries, reading reports. Created inside a Page Type; opens in the main detail pane with the editor.
-- **Agenda Task** / **Agenda Event** — calendar-anchored. Lives under `<nexus>/Agenda/Tasks/` or `<nexus>/Agenda/Events/`, NOT in an Item Type. EventKit-integrable. See [[Agenda]].
+- **Agenda Task** / **Agenda Event** — calendar-anchored. Lives in the Tasks singleton (root folder carrying `_taskconfig.json`) or the Events singleton (root folder carrying `_eventconfig.json`), NOT in an Item Type. EventKit-integrable. See [[Agenda]].
 
 If an Item later needs prose, the user creates a Page under a Page Type and links the two by ID. No in-place promotion in v1 (see [[Prospects]]).
 
@@ -142,17 +143,17 @@ Nathan-sketched 2026-05-17. Supersedes the v0.2 popover at v0.3.1, immediately a
 
 ---
 
-#### Item creation surfacing — lands at v0.3.0 (decided 2026-05-17; re-confirmed RC-2026-05-19)
+#### Item creation surfacing — v0.3.0
 
-Through v0.2.x only `ItemCollectionDetailView`'s footer "+ New Item" exists. Broader surfacing (Item Type detail footer + Item Type / Item Collection row right-click) **ships with Properties at v0.3.0** — an Item without typed properties doesn't yet justify the paradigm.
+Through v0.2.x only `ItemCollectionDetailView`'s footer "+ New Item" exists. Broader surfacing (Item Type detail footer + Item Type / Item Collection row right-click) ships with Properties at v0.3.0 — an Item without typed properties doesn't yet justify the paradigm.
 
-`.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDetailView`; v0.3.0 hangs visible entry points off existing routes. Item Window redesign ships at v0.3.1 so the full Item story completes across v0.3.0 → v0.3.1. Full scope → `// Planning//v0.3.0-Properties-implementation.md`.
+`.newItem(...)` sheet routing is already wired in `SidebarView` + `SidebarDetailView`; v0.3.0 hangs visible entry points off existing routes. Item Window redesign ships at v0.3.1 so the full Item story completes across v0.3.0 → v0.3.1. Full scope → `// Planning//v0.3.0-Properties-plan.md`.
 
 ---
 
 #### Item Templates (reserved for post-v1)
 
-The Item Type `_schema.json` carries a `template_config` field reserved for the post-v1 per-Item-Type template feature. In v0.3.0 the field is always `null`: every Item ships with the standard 250-char description cap and the default Item Window layout. Post-v1, `template_config` will let users customize per-Item-Type window layout, override the character cap, and seed default description text. UI is a Prospect — see [[Prospects]].
+The Item Type `_itemtype.json` sidecar carries a `template_config` field reserved for the post-v1 per-Item-Type template feature. In v0.3.0 the field is always `null`: every Item ships with the standard 250-char description cap and the default Item Window layout. Post-v1, `template_config` will let users customize per-Item-Type window layout, override the character cap, and seed default description text. UI is a Prospect — see [[Prospects]].
 
 ---
 

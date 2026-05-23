@@ -8,9 +8,9 @@ The parallel Items-side entity is the Item — a row-shaped JSON record without 
 
 #### On disk
 
-- A single `.md` file inside a Page Type folder (under `<nexus>/Pages/<PageType>/`).
+- A single `.md` file inside a Page Type folder (a root folder carrying `_pagetype.json`).
 
-- **Page Type membership is determined by location.** A Page inside a Page Type folder (folder containing `_schema.json`) is a Page in that Page Type. Pages can live directly in a Page Type folder or in a Page Collection sub-folder inside the Page Type.
+- **Page Type membership is determined by location.** A Page inside a Page Type folder (folder containing `_pagetype.json`) is a Page in that Page Type. Pages can live directly in a Page Type folder or in a Page Collection sub-folder (carrying `_pagecollection.json`) inside the Page Type.
 
 - Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it within the same Page Type (between Page Collection sub-folders) → no strip; schema is shared.
 

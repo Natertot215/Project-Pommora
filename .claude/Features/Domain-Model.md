@@ -2,7 +2,7 @@
 
 Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Page Types + Item Types + Agenda) holds the actual data. Operational entities relate to organization entities via per-tier multi-relation fields.
 
-Per-entity detail → dedicated docs. Complete on-disk schema + validation + CRUD → `// Planning//Contexts-Vaults-spec.md`.
+Per-entity detail → dedicated docs in `// Features//`.
 
 ---
 
@@ -47,29 +47,29 @@ Detail → `Contexts.md`.
 
 | Entity | Role | On disk | Default UI label |
 |---|---|---|---|
-| **Page Type** | Schema-bearing container for Pages | `<nexus>/Pages/<Title>/_schema.json` | **"Vault"** |
-| **Page Collection** | Organizational sub-folder inside a Page Type | `<nexus>/Pages/<Type>/<Title>/_schema.json` | "Collection" |
-| **Page** | Markdown document with prose + frontmatter | `<nexus>/Pages/<Type>/<Collection>/Page.md` | "Page" |
+| **Page Type** | Schema-bearing container for Pages | `<nexus>/<Title>/_pagetype.json` | **"Vault"** |
+| **Page Collection** | Organizational sub-folder inside a Page Type | `<nexus>/<Type>/<Title>/_pagecollection.json` | "Collection" |
+| **Page** | Markdown document with prose + frontmatter | `<nexus>/<Type>/<Collection>/Page.md` | "Page" |
 
 #### Operational layer — Items
 
 | Entity | Role | On disk | Default UI label |
 |---|---|---|---|
-| **Item Type** | Schema-bearing container for Items | `<nexus>/Items/<Title>/_schema.json` | "Type" |
-| **Item Collection** | Organizational sub-folder inside an Item Type | `<nexus>/Items/<Type>/<Title>/_schema.json` | **"Set"** |
-| **Item** | Row-shaped JSON record with properties + 250-char description | `<nexus>/Items/<Type>/<Collection>/Item.json` | "Item" |
+| **Item Type** | Schema-bearing container for Items | `<nexus>/<Title>/_itemtype.json` | "Type" |
+| **Item Collection** | Organizational sub-folder inside an Item Type | `<nexus>/<Type>/<Title>/_itemcollection.json` | **"Set"** |
+| **Item** | Row-shaped JSON record with properties + 250-char description | `<nexus>/<Type>/<Collection>/Item.json` | "Item" |
 
 #### Operational layer — Agenda
 
 | Entity | Role | On disk | Default UI label |
 |---|---|---|---|
-| **Agenda Task** | EKReminder-shaped: due date, completion, priority | `<nexus>/Agenda/Tasks/_schema.json` + `<title>.task.json` | "Task" |
-| **Agenda Event** | EKEvent-shaped: start + end, location | `<nexus>/Agenda/Events/_schema.json` + `<title>.event.json` | "Event" |
+| **Agenda Task** | EKReminder-shaped: due date, completion, priority | Tasks singleton (root folder carrying `_taskconfig.json`) + `<title>.task.json` | "Task" |
+| **Agenda Event** | EKEvent-shaped: start + end, location | Events singleton (root folder carrying `_eventconfig.json`) + `<title>.event.json` | "Event" |
 
 **Rules:**
 - Page Type schema applies to all Pages inside (including Pages in Page Collections — Collections inherit the parent Type's schema)
 - Item Type schema applies to all Items inside (Item Collections inherit the parent Type's schema)
-- Page Collections and Item Collections in v0.3.0 are organizational only — their `_schema.json` carries `id` + `type_id` + ordering + `modified_at`; properties and views live on the parent Type. Collection-local schema overrides are a post-v1 Prospect
+- Page Collections and Item Collections in v0.3.0 are organizational only — their per-kind sidecar (`_pagecollection.json` / `_itemcollection.json`) carries `id` + `type_id` + ordering + `modified_at`; properties and views live on the parent Type. Collection-local schema overrides are a post-v1 Prospect
 - Move between Page Types (or between Item Types) strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections), no strip — schema is shared
 - Agenda Tasks and Agenda Events are separate kinds with separate schemas — the unified `AgendaItem` is gone
 
@@ -83,7 +83,7 @@ Pommora's domain model has three layers of naming that intentionally diverge:
 | **Docs prose** | "Type" + "Collection" as generic terms; "Page Type" / "Item Type" / etc. when side-specific |
 | **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (Phase 7). |
 
-The on-disk file shape is identical across sides (every typed container has a `_schema.json`); only the UI label and the Swift type differ.
+The on-disk JSON shape is identical across sides (every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json` — and the file inside follows the same schema-carrier shape). Sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON. Only the UI label and the Swift type differ across sides.
 
 Detail → `PageTypes.md` + `Pages.md` + `Items.md` + `Agenda.md`.
 
@@ -139,7 +139,7 @@ Five top-level groups (only four carry a heading; all labels renameable via Sett
 - **Items** — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses its Item Collections (UI label **"Set"**)
 - **Pages** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages (in Type root) + Page Collections (UI label "Collection"); each Collection discloses its Pages
 
-Items sits **above** Pages — quicker-capture entities ride higher in the visual hierarchy. The `<nexus>/Pages/`, `<nexus>/Items/`, and `<nexus>/Agenda/` wrapper folders are **NOT** rendered as sidebar rows — the section headings are the visual representation.
+Items sits **above** Pages — quicker-capture entities ride higher in the visual hierarchy. There are no wrapper folders on disk — Page Types, Item Types, and the Agenda singletons all live as siblings at the nexus root. The sidebar reads each operational folder's **per-kind sidecar filename** to decide which section heading it groups under (Page Types under "Pages", Item Types under "Items"); the section headings themselves are pure UI groupings with no on-disk counterpart.
 
 Agenda has **no** sidebar section. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section (Calendar UI ships in a follow-up plan). Individual Items, Agenda Tasks, and Agenda Events do **not** appear as sidebar leaves — they live in detail-pane Tables under their parent Type.
 
@@ -155,16 +155,4 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in `_schema.json` sidecars on each typed container — one per Page Type, Item Type, AgendaTask, and AgendaEvent. Page Collections + Item Collections carry their own `_schema.json` for id + ordering only; properties + views inherit from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required on AgendaTask schemas, not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection -scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`. Implementation phases → `// Planning//v0.3.0-Properties-implementation.md`.
-
----
-
-#### What changed from the earlier 3-entity model
-
-- Earlier "Spaces" (composed-page `.space.json`) became **tier-1 Contexts** — same shape, different role (anchor, not container)
-- Earlier "Collections" (folder + `_collection.json` typed at creation) became **Vaults** (folder + `_vault.json`) with **Collections** as sub-folders sharing the Vault schema
-- Typed-at-creation distinction (`kind: pages | items`) dropped — Vaults are kind-agnostic
-- **Agenda** new — third operational entity for calendar/task items with EventKit
-- **Homepage** new — singleton dashboard at `.nexus/homepage.json`
-- Per-tier multi-relations (`tier1` / `tier2` / `tier3`) replace the earlier `spaces` multi-relation
-- **ParadigmV2 (2026-05-22)** — Operational layer made symmetric: Page Type + Page Collection on the Pages side; Item Type + Item Collection on the Items side. Agenda split into Tasks + Events (EKReminder vs EKEvent aligned). Schema sidecars unified to `_schema.json` across all typed containers. Sub-topics renamed to Projects. UI label divergence: Item Collections render as "Set" by default (renameable via Settings scaffold). "Pommora" prohibited in on-disk schemas + Swift namespace qualifications.
+Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id + ordering only; properties + views inherit from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required on AgendaTask schemas, not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection -scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`. Implementation plan → `// Planning//v0.3.0-Properties-plan.md`.

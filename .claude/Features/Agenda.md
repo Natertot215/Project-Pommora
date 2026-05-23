@@ -2,12 +2,12 @@
 
 The operational layer's calendar-anchored side. Splits into two distinct entity types:
 
-- **Agenda Tasks** — EKReminder-aligned: due date (optional), completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` inside `<nexus>/Agenda/Tasks/`.
-- **Agenda Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` inside `<nexus>/Agenda/Events/`.
+- **Agenda Tasks** — EKReminder-aligned: due date (optional), completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` inside the Tasks singleton folder at the nexus root.
+- **Agenda Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` inside the Events singleton folder at the nexus root.
 
 Both share the property catalog used elsewhere (Number / Select / Status / Relation / etc.) and both carry `tier1` / `tier2` / `tier3` Context relations.
 
-The split matches EventKit's own API split — separate access permissions, separate predicates, separate data models. EventKit sync at v0.6.0 maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
+The split is **EventKit-aligned, not just structural** — `EKEvent` and `EKReminder` are peer types in EventKit (separate `EKEntityType` buckets, separate `requestFullAccessTo*` access APIs, separate Apple apps — Calendar.app vs Reminders.app). Pommora's UI already collapses Agenda (no Agenda sidebar heading; Calendar pin consolidates), and the disk layout now matches the same peer-relationship: two sibling singleton folders at the nexus root, not nested inside an `Agenda/` wrapper. EventKit sync at v0.6.0 maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
 
 In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions — per the ParadigmV2 "no Pommora.X qualification" rule). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
@@ -19,22 +19,27 @@ UX-wise both entities behave identically to [[Items]] — Item Window popover, t
 
 ```
 <nexus-root>/
-  Agenda/
-    Tasks/
-      _schema.json                          ← AgendaTask schema
-      Submit grant proposal.task.json
-    Events/
-      _schema.json                          ← AgendaEvent schema
-      Team standup.event.json
+  Tasks/                                    ← AgendaTask singleton (folder name renameable; discovered by sidecar)
+    _taskconfig.json                        ← AgendaTask schema
+    Submit grant proposal.task.json
+  Events/                                   ← AgendaEvent singleton (folder name renameable; discovered by sidecar)
+    _eventconfig.json                       ← AgendaEvent schema
+    Team standup.event.json
 ```
 
-`.task.json` and `.event.json` extensions — easy to filter in indexes; agents reading files can immediately identify the kind without opening them.
+Both folders sit at the nexus root as siblings of Page Types and Item Types — no `Agenda/` wrapper. Discovery is sidecar-driven: the Tasks singleton is whichever root folder carries `_taskconfig.json`; the Events singleton is whichever root folder carries `_eventconfig.json`. Renaming the folder in Finder Just Works. If multiple folders carry the same sidecar (pathological), first-found wins with a warning logged.
+
+`_taskconfig.json` / `_eventconfig.json` carry the `config` suffix (asymmetric with the Pages-side / Items-side sidecars) on purpose — the per-entity files use `.task.json` / `.event.json` extensions, so bare `_task.json` / `_event.json` sidecar names would visually clash. Pages-side (`.md` Pages) and Items-side (`.json` Items) don't have this collision, so they get the un-suffixed `_pagetype.json` / `_itemtype.json` / `_pagecollection.json` / `_itemcollection.json` filenames.
+
+`.task.json` and `.event.json` per-entity extensions — easy to filter in indexes; agents reading files can immediately identify the kind without opening them.
+
+Both singleton folders are **eagerly created on launch**. `AgendaTaskManager.loadAll` and `AgendaEventManager.loadAll` ensure the folder exists + seed the appropriate sidecar if absent, so a fresh Nexus shows both folders at root even when empty — predictable for the user, uniform for discovery. Multiple Task / Event types per Nexus remain a post-v1 Prospect.
 
 ---
 
 #### Schema
 
-##### Agenda Task schema (`<nexus>/Agenda/Tasks/_schema.json`)
+##### Agenda Task schema (`_taskconfig.json` inside the Tasks singleton)
 
 Built-in (non-deletable) properties:
 - `type` (Select) — Task type (Task / To-do / Phase / custom)
@@ -52,7 +57,7 @@ Built-in fields (not user-creatable):
 - `alarm_offsets` (Number[]) — negative seconds before due
 - `tier1` / `tier2` / `tier3` — Context relations
 
-##### Agenda Event schema (`<nexus>/Agenda/Events/_schema.json`)
+##### Agenda Event schema (`_eventconfig.json` inside the Events singleton)
 
 Built-in (non-deletable) properties:
 - `type` (Select) — Event type (Event / Meeting / Conference / custom)
@@ -69,7 +74,6 @@ Built-in fields (not user-creatable):
 
 **Note:** Agenda Events do NOT carry `status` — completion isn't an event concept.
 
-Full field-by-field details, recurrence shape, and validation rules live in `// Planning//Contexts-Vaults-spec.md`.
 
 ---
 
@@ -179,20 +183,17 @@ When an AgendaTask's `start_at` and `due_at` would carry the same value, the pro
 Enforced at every file write:
 
 **AgendaTask (`.task.json`):**
-1. Conforms to `<nexus>/Agenda/Tasks/_schema.json` (`type` property cannot be removed; options editable)
+1. Conforms to the Tasks singleton's `_taskconfig.json` (`type` property cannot be removed; options editable)
 2. `due_at` is optional; `start_at` is optional ("not before" hint)
 3. `due_all_day` only meaningful when `due_at` is set
 4. `completed_at` only meaningful when `completed = true`
 5. Filename = title
 
 **AgendaEvent (`.event.json`):**
-1. Conforms to `<nexus>/Agenda/Events/_schema.json` (`type` property cannot be removed; options editable)
+1. Conforms to the Events singleton's `_eventconfig.json` (`type` property cannot be removed; options editable)
 2. `start_at` AND `end_at` both required; `end_at >= start_at`
 3. `all_day` only meaningful when `start_at` is set
 4. Filename = title
 
 ---
 
-#### Full specification
-
-Complete schema details, recurrence shape, EventKit sync conflict resolution, and CRUD scope live in `// Planning//Contexts-Vaults-spec.md` (the v0.3.0 ParadigmV2 plan documents the Task / Event split implementation under Phase 4).
