@@ -8,7 +8,20 @@ Vault becomes Pages-only as Page Type; Item Type introduced as parallel Items-si
 
 **Locked phase sequence (11 phases):** 1) Doc rewrites → 2) PageType + PageCollection renames + `_schema.json` sidecar → 3) Subtopic → Project rename → 4) AgendaItem split → 5) New ItemType + ItemCollection subsystem → 6) Pages/Items/Agenda wrapper folders + NexusAdopter → 7) Settings scaffold → 8) Sidebar / Detail / Sheet UI restructure → 9) Tests consolidation + v0.3.0 Properties spec reconciliation → 10) Nathan's user-data migration (one-shot script) → 11) Cleanup + Framework reconciliation + ship (tag `paradigmV2`).
 
-**Execution status (end of 2026-05-22 session):** Phases 1–7 SHIPPED. Build green, 357 tests passing (baseline 252; +105 across Phases 4–7). Subagent-driven dispatch: each phase ships green standalone via stub-and-progressively-replace (quirk #8). Phase 2/3/4 fanned out in parallel since they touched disjoint files; Phase 5 used wave-based dispatch (5.1+5.2 → 5.3+5.4+5.5 → 5.6); Phase 7 followed the same pattern. **Fix-forward at `2b8ade8` pulls Phase 10's data-migration scope into NexusAdopter** — legacy root-level Vault folders are classified by content sniff (`.md` → Pages-side; user `.json` → Items-side; empty → default Pages-side) and moved into the appropriate wrapper at `apply()`, with collision handling + fresh-sidecar generation for bare folders. Phase 10's separate bash-script scope is now largely subsumed; final-call deferred to when Phase 10 starts. Phases 8–11 remain.
+**Execution status (end of 2026-05-23 session):** Phases 1–9 SHIPPED — all engineering work complete. Build green, 359 tests passing (baseline 252; +107 across Phases 4–9). Subagent-driven dispatch: each phase ships green standalone via stub-and-progressively-replace (quirk #8). Phase 2/3/4 fanned out in parallel since they touched disjoint files; Phase 5 used wave-based dispatch (5.1+5.2 → 5.3+5.4+5.5 → 5.6); Phases 7 + 8 followed the same wave pattern. **Fix-forward at `2b8ade8` pulls Phase 10's data-migration scope into NexusAdopter** — legacy root-level Vault folders are classified by content sniff (`.md` → Pages-side; user `.json` → Items-side; empty → default Pages-side) and moved into the appropriate wrapper at `apply()`, with collision handling + fresh-sidecar generation for bare folders. Phase 10 simplifies to "backup + run adoption + verify"; Phase 11 is the final grep sweep + Framework reconciliation + tag push.
+
+**Phase-by-phase commit ranges:**
+- Phase 1 — Docs: `e6ddc04`
+- Phase 2 — PageType + PageCollection renames: `b86ddf0` → `2da6d5f` → `aba8f0a` → `a0179d1` → `aeb9a35` (+ auto-heal `4df8188`)
+- Phase 3 — Subtopic → Project: `1e1fe77` → `1630586`
+- Phase 4 — AgendaItem split: `5e5b225` → `4a0d88c` → `80e326b` → `a4b497f`
+- Phase 5 — Items-side subsystem: `2e904ec` → `8c05cc3` → `d07d654` → `e4aa1e5` → `1b052bb` → `5dcbb95`
+- Phase 6 — Wrapper folders + adopter: `2eba366` → `fe277c9` → `2686799` + fix-forward `2b8ade8`
+- Phase 7 — Settings scaffold: `331f0e2` → `aad27d6` → `fc9903e` → `6e8349e` → `e299587` → `63fb39d` → `207c3ee` (+ UI fix `7f491f7`)
+- Phase 8 — Sidebar / Detail / Sheet UI restructure: `e976bb4` → `9853121` → `053abe0` → `0bb58e1`
+- Phase 9 — Tests audit + Properties plan re-derive: `54b136b` → `cb97ae2`
+
+**v0.3.0 Properties plan re-derived** (Task 9.2, commit `cb97ae2`). The original implementation plan at `Planning/v0.3.0-Properties-implementation.md` is now archived under `Planning/Superseded/`; the conceptual WHAT lives at `Planning/v0.3.0-Properties-spec.md`; the post-ParadigmV2 HOW lives at `Planning/v0.3.0-Properties-plan.md` (675 lines, 5 phases A–E, `ItemTypeSettingsSheet` locked to ship at v0.3.0 alongside `PageTypeSettingsSheet`).
 
 **UI tint-cascade regression caught during Phase 7.5 ship.** `.tint(currentAccent)` applied to `ContentView`'s `NavigationSplitView` cascaded the accent color into the `.borderless` "New Collection" button in `PageTypeDetailView`'s footer. Fixed with `.foregroundStyle(.primary)` after `.buttonStyle(.borderless)` — keeps the borderless style but opts out of tint inheritance. Same pattern applies to any other inline button that should NOT inherit the accent.
 
