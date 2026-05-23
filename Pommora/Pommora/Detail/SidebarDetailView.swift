@@ -56,7 +56,8 @@ struct SidebarDetailView: View {
                 )
 
             case .collection(let c):
-                // We need the parent Vault here too. Find it via PageTypeManager.
+                // We need the parent Vault here too. Find it via PageTypeManager
+                // (primary: typeID match; fallback: parent-folder-name match).
                 if let v = lookupVault(forCollection: c) {
                     PageCollectionDetailView(
                         collection: c,
@@ -66,8 +67,29 @@ struct SidebarDetailView: View {
                         presentedItem: $presentedItem
                     )
                 } else {
-                    Text("Collection parent vault not found")
-                        .foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Collection parent vault not found")
+                            .foregroundStyle(.red)
+                            .font(.headline)
+                        Text("Collection title: \(c.title)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Collection typeID: \(c.typeID)")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                        Text("Parent folder name: \(c.folderURL.deletingLastPathComponent().lastPathComponent)")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                        Text("Known vault IDs (\(vaultManager.types.count)):")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ForEach(vaultManager.types, id: \.id) { vt in
+                            Text("  \(vt.title): \(vt.id)")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding()
                 }
 
             case .page(let p):
@@ -110,8 +132,24 @@ struct SidebarDetailView: View {
         }
     }
 
+    /// Find the PageType that owns this PageCollection.
+    ///
+    /// Primary: match by `typeID` (the relationship stored on disk in
+    /// `_pagecollection.json`).
+    ///
+    /// Fallback: match by parent folder name. PageCollection sub-folders sit
+    /// directly inside their owning PageType's folder, so `c.folderURL`'s
+    /// parent is the PageType folder. This rescues users whose pre-flatlayout
+    /// `_collection.json` carried a `vault_id` that no longer matches any
+    /// current PageType id (e.g. ID was regenerated during a re-init, or
+    /// the user manually rebuilt the PageType while keeping the Collection
+    /// folder intact).
     private func lookupVault(forCollection c: PageCollection) -> PageType? {
-        vaultManager.types.first { $0.id == c.typeID }
+        if let v = vaultManager.types.first(where: { $0.id == c.typeID }) {
+            return v
+        }
+        let parentFolderName = c.folderURL.deletingLastPathComponent().lastPathComponent
+        return vaultManager.types.first { $0.title == parentFolderName }
     }
 
     private var emptyState: some View {
