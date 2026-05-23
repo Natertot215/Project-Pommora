@@ -133,59 +133,6 @@ extension NativeTextViewCoordinator {
             foldedRanges = newRanges
         }
         lastSyncedFoldedHeadings = foldedHeadings
-
-        // Apply fold-hide attributes to currently-folded ranges. Idempotent
-        // — re-applying the same tiny attrs to an already-folded range
-        // is a no-op cost. Runs on every restyle path so folds survive
-        // text edits (styler re-applies canonical attrs first, this
-        // re-applies fold-hide on top).
-        Self.applyFoldHideAttributes(in: ts, ranges: foldedRanges)
-    }
-
-    // MARK: - Fold-hide attribute writes
-
-    /// Paragraph style for folded content. Zero line height + zero paragraph
-    /// spacing produces line fragments with effectively zero typographic
-    /// bounds, which the layout manager rolls up into a near-zero-height
-    /// fragment frame. Static so we don't allocate a new style per call.
-    nonisolated(unsafe) private static let foldHideParagraphStyle: NSParagraphStyle = {
-        let s = NSMutableParagraphStyle()
-        s.minimumLineHeight = 0.01
-        s.maximumLineHeight = 0.01
-        s.paragraphSpacing = 0
-        s.paragraphSpacingBefore = 0
-        s.lineHeightMultiple = 0
-        return s
-    }()
-
-    /// Tiny font for folded content. 0.01pt produces line-fragment heights
-    /// approaching zero (TextKit clamps to a small positive minimum, which
-    /// is invisible at screen DPI).
-    nonisolated(unsafe) private static let foldHideFont: NSFont = NSFont.systemFont(ofSize: 0.01)
-
-    /// Write the fold-hide attribute trio (tiny font + zero line-height
-    /// paragraph style + clear foreground color) to each range in `ranges`.
-    /// Wrapped in a single `beginEditing`/`endEditing` so the layout
-    /// manager processes one edit cascade for the whole batch, not N.
-    ///
-    /// The attribute writes change the actual layout (line fragments shrink
-    /// to near-zero), so the fold collapse is reflected by TextKit 2's
-    /// standard layout pass on the next render — no `invalidateLayout` or
-    /// `layoutViewport()` follow-up needed. The clear foreground color
-    /// covers the edge case where a tiny-but-nonzero line still renders a
-    /// hairline of text.
-    static func applyFoldHideAttributes(in ts: NSTextStorage, ranges: [NSRange]) {
-        guard !ranges.isEmpty else { return }
-        ts.beginEditing()
-        for range in ranges {
-            guard range.length > 0,
-                range.location + range.length <= ts.length
-            else { continue }
-            ts.addAttribute(.font, value: foldHideFont, range: range)
-            ts.addAttribute(.paragraphStyle, value: foldHideParagraphStyle, range: range)
-            ts.addAttribute(.foregroundColor, value: NSColor.clear, range: range)
-        }
-        ts.endEditing()
     }
 
     // MARK: - Chevron rotation animation
@@ -364,22 +311,21 @@ extension NativeTextViewCoordinator {
             restyleTextView(textView, paragraphCandidates: [clamped])
         }
 
-        // Explicit layout invalidation + viewport relayout. NSTextStorage
-        // attribute edits POST `NSTextStorageDidProcessEditingNotification`
-        // which the layout manager uses to invalidate layout — but the
-        // viewport controller doesn't synchronously re-flow on invalidation.
-        // Without these three calls, the visible result lags until the next
-        // event-driven viewport pass (scroll, selection change, etc.).
+        // Synchronous force-layout. NSTextStorage attribute edits invalidate
+        // layout via the edit cascade, but the layout manager normally
+        // defers recomputation to the next viewport pass — which in
+        // practice only runs when something pumps it (caret move, scroll).
+        // `ensureLayout(for:)` is the documented synchronous API that
+        // forces fragment layouts to be recomputed NOW. Combined with
+        // `layoutViewport()` and `needsDisplay = true`, the fold collapse
+        // becomes visible on the same frame regardless of caret position.
         if let tlm = textView.textLayoutManager,
             let tcs = tlm.textContentManager as? NSTextContentStorage
         {
             let docStart = tcs.documentRange.location
-            // Compute the union of old + new fold ranges + extend to end-
-            // of-document. End-of-doc extension is necessary because layout
-            // height changes propagate to downstream fragments only when the
-            // new layout overflows; on collapse there's no overflow, so
-            // downstream fragments keep stale Y positions without explicit
-            // invalidation of their range.
+            // Union of old + new fold ranges, extended to end-of-document
+            // so downstream fragments re-position correctly on collapse
+            // (height shrinkage doesn't auto-propagate; growth does).
             var minLoc = Int.max
             var maxEnd = 0
             for r in oldRanges + newRanges where r.length >= 0 {
@@ -395,6 +341,7 @@ extension NativeTextViewCoordinator {
                     let textRange = NSTextRange(location: startLoc, end: endLoc)
                 {
                     tlm.invalidateLayout(for: textRange)
+                    tlm.ensureLayout(for: textRange)
                     tlm.textViewportLayoutController.layoutViewport()
                     textView.needsDisplay = true
                 }
@@ -412,12 +359,13 @@ extension NativeTextViewCoordinator {
             (scrollView as? ClampedScrollView)?.clampToInsets()
         }
 
-        // If the toggle just folded the section the caret currently lives in,
-        // drop focus from the text view. Per Nathan: don't relocate the
-        // caret to the next visible line — that feels like the editor
-        // grabbed the cursor mid-thought. Unfocusing leaves the user where
-        // they were mentally; they can click anywhere to re-acquire a caret.
-        unfocusCaretIfInsideFoldedRange(textView)
+        // No caret manipulation here. The chevron click handler in
+        // `+HeadingFoldHover` removes the caret from the page directly
+        // (it's a button-click-style action). External callers of
+        // `applyFoldStateIfChanged` (e.g., SwiftUI binding restore via
+        // `updateNSView`) shouldn't disturb caret state either —
+        // arrow-key navigation past a fold is handled separately via
+        // `skipCaretOutOfFoldedRangesIfNeeded` in `textViewDidChangeSelection`.
     }
 
     // MARK: - Caret skip across folded ranges
