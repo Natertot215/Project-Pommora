@@ -166,14 +166,6 @@ extension NativeTextViewCoordinator {
         guard let tv = notification.object as? NSTextView else { return }
         if isWritingToolsActive { return }
 
-        // Caret-skip across folded ranges. If the new selection lands inside
-        // (or spans into) a folded heading's content, push it past the fold
-        // first — `setSelectedRange` re-fires this delegate method, and the
-        // recursive call sees the corrected selection. Short-circuit the
-        // outer call so downstream logic doesn't run against the stale
-        // pre-skip selection.
-        if skipCaretOutOfFoldedRangesIfNeeded(tv) { return }
-
         let selRange = tv.selectedRange()
         let currentEventType = NSApp.currentEvent?.type
         // Mouse-/Wake-Fokus auf Link: kein Preview, erst Navigation. Gilt für alle Nicht-Key-Events.

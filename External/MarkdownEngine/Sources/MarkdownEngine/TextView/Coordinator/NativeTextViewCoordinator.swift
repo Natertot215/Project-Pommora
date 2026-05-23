@@ -121,12 +121,6 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     /// fold-toggle path compares the live binding against this to decide
     /// whether to re-sync. `syncHeadingFolding` keeps it in lockstep.
     var lastSyncedFoldedHeadings: Set<String> = []
-    /// Reentry guard for the caret-skip path. `NSTextView.setSelectedRange`
-    /// synchronously re-fires `textViewDidChangeSelection`, and the skip
-    /// handler lives at the top of that delegate method — without this
-    /// flag the push would recurse.
-    var isPushingCaretOutOfFold: Bool = false
-
     var cachedCodeBlockTokens: [(index: Int, token: MarkdownToken)] = []
     var cachedParsedText: String?
     var cachedParsedDocument: ParsedDocument?
