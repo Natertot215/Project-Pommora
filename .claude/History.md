@@ -2,9 +2,46 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
-#### flatlayout — Planning entry (2026-05-23)
+#### Flat-Layout refactor (2026-05-23; tag `flatlayout`)
 
-V0.3.0 refinement on top of ParadigmV2 (tag target `flatlayout`, between `paradigmV2` and v0.3.0). Drops the `<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/` wrapper folders so Page Types / Item Types / Tasks singleton / Events singleton live at the nexus root, and splits the unified `_schema.json` sidecar into six per-kind filenames (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). Agenda singletons become sidecar-driven discovery (folder rename via Finder Just Works). Ships before v0.3.0 Properties because Properties' schema-editing operates on these sidecar files. Swift struct names from ParadigmV2 (`PageType` / `PageCollection` / `ItemType` / `ItemCollection` / `AgendaTask` / `AgendaEvent`) unchanged. Plan: `// Planning//v0.3.0-Flat-Layout-Plan.md` (13 locked decisions; 6 phases; Phase 1 → Phase 2 gated on Nathan's approval per locked decision #13). Ship entry lands in Task 6.2 of the plan.
+V0.3.0 refinement on top of ParadigmV2. Drops the `<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/` wrapper folders — Page Types / Item Types / Tasks singleton / Events singleton now live at the nexus root, classified by sidecar filename. Ships between `paradigmV2` and v0.3.0; lands before v0.3.0 Properties because Properties' schema-editing operates on these sidecar files. Plan: `// Planning//v0.3.0-Flat-Layout-Plan.md`.
+
+**13 locked decisions:**
+
+1. Wrapper folders disappear — no `<nexus>/Pages/`, no `<nexus>/Items/`, no `<nexus>/Agenda/`; Types live at root.
+2. Six per-kind sidecar filenames replace the unified `_schema.json`.
+3. Asymmetric `config` suffix on Agenda is intentional — `.task.json` / `.event.json` entity extensions would clash with bare `_task.json`.
+4. Swift struct names unchanged from ParadigmV2 — `PageType` / `PageCollection` / `ItemType` / `ItemCollection` / `AgendaTask` / `AgendaEvent` stay.
+5. Agenda stays singleton via sidecar-driven discovery — folder rename via Finder Just Works.
+6. Sidebar grouping reads sidecar filename, not folder location.
+7. Adopter handles FOUR input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat); mixed states tolerated per-folder.
+8. Pathological case policy: best-effort + log warnings; first-found wins on duplicate sidecars; timestamp-discriminator suffix on collision.
+9. Tasks/Events folders eagerly created on launch (current behavior preserved).
+10. Agenda collapse is EventKit-aligned, not just structural — `EKEvent` and `EKReminder` are peer types.
+11. Adopter atomicity: best-effort + idempotent; no two-phase transaction; re-launch picks up where it left off.
+12. Documentation ships FIRST (Phase 1, before code) so Phase 2–6 subagents read the target spec cleanly.
+13. Phase 1 → Phase 2 gated on Nathan's explicit "proceed" signal (remote-review pattern).
+
+**Six per-kind sidecar filenames:** `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`.
+
+**Wrapper folders dropped:** `<nexus>/Pages/`, `<nexus>/Items/`, `<nexus>/Agenda/`. All operational containers now at nexus root.
+
+**Adopter:** handles four input shapes — fresh (content-sniff), legacy v0.2 (`_vault.json` / `_collection.json` in-place rename), paradigmV2 wrapper (unwrap + sidecar rename), already-flat (no-op). Legacy `_vault.json` / `_collection.json` orphans co-located with new sidecars are cleaned up. `.DS_Store`-tolerant empty-wrapper detection — wrappers containing only macOS system-noise files (`.DS_Store`, `Icon\r`, `.localized`) count as empty for deletion. Mixed input shapes coexist; per-folder failures don't block the rest.
+
+**Per-side sidebar section defaults:** "Vaults" (Pages-side) / "Types" (Items-side) — locked UI-divergence rule. Pages get the distinctive "Vault" + generic "Collection"; Items get the generic "Type" + distinctive "Set". All renameable via Settings.
+
+**Agenda discovery:** sidecar-driven — Tasks/Events folders renameable via Finder; discovery walks root for any folder carrying `_taskconfig.json` or `_eventconfig.json`. Multi-folder pathological case: first-found wins with warning logged.
+
+**Build status:** green. **Test count: 363 passing at ship** (up from 358 at flatlayout start).
+
+**Phase-by-phase commit ranges:**
+- Phase 1 — Docs: `711d570` 1.1 root, `ad59dec` 1.2 Features, `e29f7e3` 1.3 Guidelines [parallel-session anomaly: edits to `Paradigm-Decisions.md` + `Symbols.md` landed in the editor-refactor commit `e29f7e3` instead of a dedicated `flatlayout/1.3` commit — content correct, metadata bundled with editor work], `2e78503` 1.4 Planning, `735a7a9` planning reorganization + carry-forward cleanup, `42c4ce5` mirror-to-Nexus push.
+- Phase 2 — NexusPaths: `f39f541` 2.1 add per-kind sidecar constants, `ffc42ee` 2.2 flatten PageType + PageCollection paths, `da744ab` 2.2.1 sidebar labels follow-up, `6f1add8` 2.3 flatten ItemType + ItemCollection paths, `d4c8a6c` 2.4 Agenda sidecar-driven discovery.
+- Phase 3 — Managers: `97eb523` 3.1 PageTypeManager walks root, `d2061f4` 3.3 ContentManagers per-kind sidecars, `d3825c3` 3.5 OrderPersister branches per-side + drop `PageType.itemOrder`; 3.2 (ItemTypeManager) + 3.4 (Agenda managers) verified clean — no changes required beyond Phase 2.
+- Phase 4 — Adopter: `f0833f6` 4.1+4.2 combined (scan four shapes + apply best-effort + idempotent + legacy-orphan cleanup), `464faf3` 4.3 drop wrapper helpers + `schemaSidecarFilename` + `reservedTopLevelFolderNames`, `35108d1` 4.4 AdoptionPreviewView warnings + summary.
+- Phase 5 — Tests: `fa6b1c0` 5.1 NexusPathsTests rewrite, `249beff` 5.2 NexusAdopterTests four-shapes coverage.
+
+**Outstanding manual step:** Nathan's nexus migration (backup + adopt + verify on real Nexus at `/Users/nathantaichman/The Nexus/`). Engineering ships in flatlayout Phase 4; user-side adoption is one click on next launch — preview describes the migration, apply executes it, idempotent if interrupted.
 
 #### ParadigmV2 — Operational-layer domain model refactor (2026-05-22 plan; SHIPPED 2026-05-23, tag `paradigmV2`)
 

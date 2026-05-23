@@ -4,25 +4,23 @@
 
 #### Current state (2026-05-23)
 
-> **flatlayout refactor in-flight.** Plan at [`Planning/v0.3.0-Flat-Layout-Plan.md`](Planning/v0.3.0-Flat-Layout-Plan.md); code catches up over Phases 2–6; **docs already describe the target state** (flat root layout + six per-kind sidecars — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). Phase 1 (docs) swept first by design so Phase 2–6 subagents read the target spec cleanly. This is the ONE doc that explicitly signals the disk-state lag; everything else describes flat as canonical.
+**flatlayout SHIPPED.** Tag `flatlayout` pushed to origin at the Phase 6.2 ship commit. The on-disk layout is now flat — Page Types / Item Types / Tasks singleton / Events singleton live at the nexus root with six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan cleanup and `.DS_Store`-tolerant empty-wrapper detection. Agenda discovery is sidecar-driven (Tasks/Events folders renameable via Finder).
 
-**ParadigmV2 SHIPPED.** Tag `paradigmV2` pushed to origin at commit `36d48c8`. **Flatlayout Phase 1 (docs) COMPLETE** — 5 commits on local `main` (`711d570` 1.1 root, `ad59dec` 1.2 Features, `e29f7e3` 1.3 Guidelines [edits bundled with parallel-session editor commit; metadata anomaly noted in eventual ship entry], `2e78503` 1.4 Planning, `735a7a9` planning reorganization + carry-forward cleanup). Phase 1 grep gate clean modulo documented exceptions (History.md archived entries, Transcripts, Properties-plan explicit historical references). Phase 2 (NexusPaths foundation) dispatching next.
+Build green via `xcodebuild`, **363 tests passing** at the ship tag. Pre-existing intermittent flake: `PageEditorViewModelTests.debounceCoalescesRapidEdits` (tight 500ms-after-300ms margin) — not blocking.
 
-Build green via `xcodebuild`, **358 tests passing** at the start of flatlayout. Pre-existing intermittent flake: `PageEditorViewModelTests.debounceCoalescesRapidEdits` (tight 500ms-after-300ms margin) — not blocking.
-
-**Next focus: flatlayout Phases 2–6, then v0.3.0 Properties.** Flatlayout plan at [`Planning/v0.3.0-Flat-Layout-Plan.md`](Planning/v0.3.0-Flat-Layout-Plan.md) (6 phases; ships tagged `flatlayout` between `paradigmV2` and v0.3.0). Properties implementation plan at [`Planning/v0.3.0-Properties-plan.md`](Planning/v0.3.0-Properties-plan.md) (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at [`Planning/v0.3.0-Properties-spec.md`](Planning/v0.3.0-Properties-spec.md).
+**Next focus: v0.3.0 Properties.** Implementation plan at [`Planning/v0.3.0-Properties-plan.md`](Planning/v0.3.0-Properties-plan.md) (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at [`Planning/v0.3.0-Properties-spec.md`](Planning/v0.3.0-Properties-spec.md). Properties' schema-editing operates on the per-kind sidecar files that flatlayout just shipped, so this is the natural next step.
 
 **Flatlayout phase status:**
 - ✅ Phase 1 — Documentation sweep (5 commits)
-- ⏭ Phase 2 — NexusPaths foundation (4 sequential tasks; in-flight)
-- ⏸ Phase 3 — Managers (parallel + sequential mix)
-- ⏸ Phase 4 — NexusAdopter rewrite (sequential)
-- ⏸ Phase 5 — Tests audit (parallel)
-- ⏸ Phase 6 — Ship + tag `flatlayout`
+- ✅ Phase 2 — NexusPaths foundation (4 sequential tasks + 1 sidebar-label follow-up)
+- ✅ Phase 3 — Managers (3 commits; 3.2/3.4 verified clean)
+- ✅ Phase 4 — NexusAdopter rewrite (3 commits)
+- ✅ Phase 5 — Tests audit (2 commits)
+- ✅ Phase 6 — Ship + tag `flatlayout` (pushed to origin)
 
 #### Verbatim resume prompt
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **ParadigmV2 SHIPPED** — tag `paradigmV2` pushed to origin at commit `36d48c8`. Build green, 358 tests passing. **flatlayout refactor in-flight** — plan at `.claude/Planning/v0.3.0-Flat-Layout-Plan.md` (6 phases; tag `flatlayout` between `paradigmV2` and v0.3.0; ships before v0.3.0 Properties). Phase 1 docs sweep already updates `.claude/*` to describe the target flat layout (Types at nexus root; six per-kind sidecars `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`); Phases 2–6 catch the code up. Phase 1 → Phase 2 is the explicit gate — wait for Nathan's 'docs look good, proceed' signal before dispatching Phase 2. **Next focus after flatlayout: v0.3.0 Properties** — implementation plan at `.claude/Planning/v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at `.claude/Planning/v0.3.0-Properties-spec.md`. The post-ParadigmV2 code surface — `PageType` + `ItemType` (symmetric containers) + `PageContentManager` + `ItemContentManager` + `SettingsManager` + `AgendaTaskManager` + `AgendaEventManager` — is the foundation flatlayout + Properties build on. Builder subagent for `xcodebuild` calls (quirk #3). FILENAME-form test filter (quirk #1). Parallel session may have collapsible-heading work in `External/MarkdownEngine/` — never bundle into commits (quirk #11)."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **flatlayout SHIPPED** — tag `flatlayout` pushed to origin. Build green, **363 tests passing**. On-disk layout is flat — Types at nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles fresh / legacy v0.2 / paradigmV2-wrapper / already-flat input shapes with legacy-orphan cleanup. **Next focus: v0.3.0 Properties** — implementation plan at `.claude/Planning/v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at `.claude/Planning/v0.3.0-Properties-spec.md`. Properties' schema-editing operates on the per-kind sidecars flatlayout just shipped, so it builds directly on top. The post-flatlayout code surface — `PageType` + `ItemType` (symmetric containers) + `PageContentManager` + `ItemContentManager` + `SettingsManager` + `AgendaTaskManager` + `AgendaEventManager` + flat-aware `NexusPaths` + `NexusAdopter` — is the foundation Properties builds on. Outstanding manual step: Nathan's real-Nexus migration (backup + adopt + verify at `/Users/nathantaichman/The Nexus/`). Builder subagent for `xcodebuild` calls (quirk #3). FILENAME-form test filter (quirk #1). Parallel session may have editor / wireframe work in working tree — never bundle into commits (quirk #11)."
 
 #### Outstanding follow-ups
 
