@@ -141,6 +141,17 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         let layoutDelegate = MarkdownLayoutManagerDelegate()
         context.coordinator.layoutDelegate = layoutDelegate
         textLayoutManager.delegate = layoutDelegate
+
+        // Foldable headings: wire the content-storage delegate so the
+        // initial layout pass already honors `folded_headings` from
+        // frontmatter — no flash of expanded content on cold-open of a
+        // page with pre-existing folds. Must be set BEFORE `textView.string`
+        // is assigned below; otherwise the first paragraph fetch happens
+        // without the delegate and the elision misses.
+        if let tcs = textLayoutManager.textContentManager as? NSTextContentStorage {
+            tcs.delegate = context.coordinator
+        }
+
         textView.configuration = configuration
         textView.overscrollPercent = configuration.overscroll.percent
         textView.maxOverscrollPoints = configuration.overscroll.maxPoints
