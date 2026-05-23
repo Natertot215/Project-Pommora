@@ -269,103 +269,13 @@ extension NativeTextViewCoordinator {
 
     // MARK: - Fold-toggle invalidation
 
-    /// Fold-toggle entry: detect a `foldedHeadings` change that didn't
-    /// accompany a text edit (chevron click), recompute `foldedRanges` +
-    /// apply fold-hide attrs to newly-folded ranges, and restyle newly-
-    /// unfolded ranges to restore canonical attributes. No-op when the
-    /// set hasn't changed.
-    ///
-    /// The fold/unfold visual transition happens through the standard
-    /// NSTextStorage edit cascade triggered by the attribute writes —
-    /// no `invalidateLayout` or viewport plumbing needed. Tiny font +
-    /// zero line-height paragraphStyle naturally produce a near-zero-
-    /// height fragment frame, and TextKit 2 propagates the height change
-    /// to subsequent fragments via its standard layout pass.
+    /// Fold-toggle entry: detects a `foldedHeadings` change that didn't
+    /// accompany a text edit (chevron click) and re-runs the AST walk.
+    /// Phase-1 stub — Phase 3 reinstates layout invalidation via
+    /// content-manager elision (Foldable-Headings-Rebuild.md Task 3.3).
     func applyFoldStateIfChanged(in ts: NSTextStorage, textView: NSTextView) {
         guard foldedHeadings != lastSyncedFoldedHeadings else { return }
-
-        // Snapshot old ranges before sync rebuilds them. Ranges that were
-        // folded but are no longer need their canonical attributes
-        // restored via restyle; sync itself only handles the still-folded
-        // and newly-folded cases.
-        let oldRanges = foldedRanges
         syncHeadingFolding(in: ts, textView: textView)
-        let newRanges = foldedRanges
-
-        // Find ranges that were folded but no longer are. Per-range
-        // equality check via NSEqualRanges since NSRange isn't Equatable
-        // out of the box. Restyle each so canonical heading/body
-        // attributes overwrite the fold-hide trio.
-        for oldRange in oldRanges where !newRanges.contains(where: { NSEqualRanges($0, oldRange) }) {
-            guard oldRange.length > 0 else { continue }
-            let clamped = NSRange(
-                location: min(oldRange.location, ts.length),
-                length: min(oldRange.length, max(0, ts.length - oldRange.location))
-            )
-            guard clamped.length > 0 else { continue }
-            // Scoped restyle runs the full styler over just these
-            // paragraphs. The end-of-restyle hook (`syncHeadingFolding`,
-            // wired up in `+Restyling.swift`) re-runs and applies
-            // fold-hide to currently-folded ranges — idempotent for the
-            // ones already folded, no-op for the just-unfolded one.
-            restyleTextView(textView, paragraphCandidates: [clamped])
-        }
-
-        // Synchronous force-layout. NSTextStorage attribute edits invalidate
-        // layout via the edit cascade, but the layout manager normally
-        // defers recomputation to the next viewport pass — which in
-        // practice only runs when something pumps it (caret move, scroll).
-        // `ensureLayout(for:)` is the documented synchronous API that
-        // forces fragment layouts to be recomputed NOW. Combined with
-        // `layoutViewport()` and `needsDisplay = true`, the fold collapse
-        // becomes visible on the same frame regardless of caret position.
-        if let tlm = textView.textLayoutManager,
-            let tcs = tlm.textContentManager as? NSTextContentStorage
-        {
-            let docStart = tcs.documentRange.location
-            // Union of old + new fold ranges, extended to end-of-document
-            // so downstream fragments re-position correctly on collapse
-            // (height shrinkage doesn't auto-propagate; growth does).
-            var minLoc = Int.max
-            var maxEnd = 0
-            for r in oldRanges + newRanges where r.length >= 0 {
-                minLoc = min(minLoc, r.location)
-                maxEnd = max(maxEnd, r.location + r.length)
-            }
-            if minLoc != Int.max && maxEnd > minLoc {
-                let invalidStart = min(minLoc, ts.length)
-                let invalidEnd = ts.length
-                if invalidEnd > invalidStart,
-                    let startLoc = tcs.location(docStart, offsetBy: invalidStart),
-                    let endLoc = tcs.location(docStart, offsetBy: invalidEnd),
-                    let textRange = NSTextRange(location: startLoc, end: endLoc)
-                {
-                    tlm.invalidateLayout(for: textRange)
-                    tlm.ensureLayout(for: textRange)
-                    tlm.textViewportLayoutController.layoutViewport()
-                    textView.needsDisplay = true
-                }
-            }
-        }
-
-        // Recalc the NSTextView frame to match the new content height — the
-        // attribute-write edit cascade refreshes layout but doesn't resize
-        // the view itself, so without this the scroll view's content size
-        // stays stale until something else triggers a frame recompute.
-        if let nativeTV = textView as? NativeTextView,
-            let scrollView = textView.enclosingScrollView
-        {
-            nativeTV.recalcOverscroll(for: scrollView, debugTag: "foldToggle")
-            (scrollView as? ClampedScrollView)?.clampToInsets()
-        }
-
-        // No caret manipulation here. The chevron click handler in
-        // `+HeadingFoldHover` removes the caret from the page directly
-        // (it's a button-click-style action). External callers of
-        // `applyFoldStateIfChanged` (e.g., SwiftUI binding restore via
-        // `updateNSView`) shouldn't disturb caret state either —
-        // arrow-key navigation past a fold is handled separately via
-        // `skipCaretOutOfFoldedRangesIfNeeded` in `textViewDidChangeSelection`.
     }
 
     // MARK: - Caret skip across folded ranges
