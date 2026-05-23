@@ -3,8 +3,8 @@ import Testing
 
 @testable import Pommora
 
-@Suite("SubtopicValidator")
-struct SubtopicValidatorTests {
+@Suite("ProjectValidator")
+struct ProjectValidatorTests {
 
     @Test("happy path: exactly one parent resolving to a Topic + correct file location")
     func happyPath() throws {
@@ -15,13 +15,13 @@ struct SubtopicValidatorTests {
         let context = NexusContext(
             lookupSpace: { _ in nil },
             lookupTopic: { id in id == topicID ? topic : nil },
-            lookupSubtopic: { _ in nil },
+            lookupProject: { _ in nil },
             lookupVault: { _ in nil }
         )
-        try SubtopicValidator.validate(
+        try ProjectValidator.validate(
             title: "GTD method",
             parents: [topicID],
-            fileLocation: SubtopicValidator.FileLocation(parentFolderTitle: "Productivity"),
+            fileLocation: ProjectValidator.FileLocation(parentFolderTitle: "Productivity"),
             existing: [],
             context: context
         )
@@ -30,8 +30,8 @@ struct SubtopicValidatorTests {
     @Test("title rules apply")
     func titleRules() {
         let context = NexusContext.empty
-        #expect(throws: SubtopicValidator.ValidationError.emptyTitle) {
-            try SubtopicValidator.validate(
+        #expect(throws: ProjectValidator.ValidationError.emptyTitle) {
+            try ProjectValidator.validate(
                 title: "", parents: ["01H"],
                 fileLocation: .init(parentFolderTitle: "P"),
                 existing: [], context: context
@@ -41,8 +41,8 @@ struct SubtopicValidatorTests {
 
     @Test("zero parents throws missingParent")
     func zeroParents() {
-        #expect(throws: SubtopicValidator.ValidationError.missingParent) {
-            try SubtopicValidator.validate(
+        #expect(throws: ProjectValidator.ValidationError.missingParent) {
+            try ProjectValidator.validate(
                 title: "X", parents: [],
                 fileLocation: .init(parentFolderTitle: "P"),
                 existing: [], context: .empty
@@ -52,8 +52,8 @@ struct SubtopicValidatorTests {
 
     @Test("two parents throws tooManyParents")
     func tooManyParents() {
-        #expect(throws: SubtopicValidator.ValidationError.tooManyParents) {
-            try SubtopicValidator.validate(
+        #expect(throws: ProjectValidator.ValidationError.tooManyParents) {
+            try ProjectValidator.validate(
                 title: "X", parents: ["01HA", "01HB"],
                 fileLocation: .init(parentFolderTitle: "P"),
                 existing: [], context: .empty
@@ -63,8 +63,8 @@ struct SubtopicValidatorTests {
 
     @Test("parent ID that doesn't resolve to a Topic throws")
     func parentNotFound() {
-        #expect(throws: SubtopicValidator.ValidationError.parentNotFound("01HZZ")) {
-            try SubtopicValidator.validate(
+        #expect(throws: ProjectValidator.ValidationError.parentNotFound("01HZZ")) {
+            try ProjectValidator.validate(
                 title: "X", parents: ["01HZZ"],
                 fileLocation: .init(parentFolderTitle: "P"),
                 existing: [], context: .empty
@@ -81,11 +81,11 @@ struct SubtopicValidatorTests {
         let context = NexusContext(
             lookupSpace: { _ in nil },
             lookupTopic: { id in id == topicID ? topic : nil },
-            lookupSubtopic: { _ in nil },
+            lookupProject: { _ in nil },
             lookupVault: { _ in nil }
         )
-        #expect(throws: SubtopicValidator.ValidationError.fileLocationMismatch) {
-            try SubtopicValidator.validate(
+        #expect(throws: ProjectValidator.ValidationError.fileLocationMismatch) {
+            try ProjectValidator.validate(
                 title: "X", parents: [topicID],
                 fileLocation: .init(parentFolderTitle: "WrongFolder"),
                 existing: [], context: context
@@ -102,12 +102,12 @@ struct SubtopicValidatorTests {
         let context = NexusContext(
             lookupSpace: { _ in nil },
             lookupTopic: { id in id == topicID ? topic : nil },
-            lookupSubtopic: { _ in nil },
+            lookupProject: { _ in nil },
             lookupVault: { _ in nil }
         )
-        let existing = [makeSubtopic(title: "GTD", parents: [topicID])]
-        #expect(throws: SubtopicValidator.ValidationError.duplicateTitle) {
-            try SubtopicValidator.validate(
+        let existing = [makeProject(title: "GTD", parents: [topicID])]
+        #expect(throws: ProjectValidator.ValidationError.duplicateTitle) {
+            try ProjectValidator.validate(
                 title: "gtd", parents: [topicID],
                 fileLocation: .init(parentFolderTitle: "P"),
                 existing: existing, context: context
@@ -121,8 +121,8 @@ struct SubtopicValidatorTests {
             icon: nil, blocks: [], modifiedAt: Date())
     }
 
-    private func makeSubtopic(title: String, parents: [String]) -> Subtopic {
-        Subtopic(
+    private func makeProject(title: String, parents: [String]) -> Project {
+        Project(
             id: ULID.generate(), title: title, parents: parents,
             linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
     }

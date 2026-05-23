@@ -38,7 +38,7 @@ struct TopicValidatorTests {
         let context = NexusContext(
             lookupSpace: { _ in nil },
             lookupTopic: { _ in nil },
-            lookupSubtopic: { _ in nil },
+            lookupProject: { _ in nil },
             lookupVault: { _ in nil }
         )
         #expect(throws: TopicValidator.ValidationError.parentNotFound("01HZZ")) {
@@ -57,7 +57,7 @@ struct TopicValidatorTests {
         let context = NexusContext(
             lookupSpace: { id in id == spaceID ? space : nil },
             lookupTopic: { _ in nil },
-            lookupSubtopic: { _ in nil },
+            lookupProject: { _ in nil },
             lookupVault: { _ in nil }
         )
         try TopicValidator.validate(

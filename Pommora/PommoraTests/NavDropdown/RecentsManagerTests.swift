@@ -146,7 +146,7 @@ struct RecentsManagerTests {
         await m.load()
         m.record(EntityStateRef(kind: .space, id: "S", title: "Space"))
         m.record(EntityStateRef(kind: .topic, id: "T", title: "Topic"))
-        m.record(EntityStateRef(kind: .subtopic, id: "ST", title: "Sub"))
+        m.record(EntityStateRef(kind: .project, id: "ST", title: "Project"))
         m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
         m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
         #expect(m.entries.isEmpty)
