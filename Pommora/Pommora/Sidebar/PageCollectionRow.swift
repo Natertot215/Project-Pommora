@@ -27,31 +27,13 @@ struct PageCollectionRow: View {
                     editingID: $editingID
                 )
             }
+            .onMove { source, destination in
+                contentManager.reorderPages(
+                    in: collection, fromOffsets: source, toOffset: destination
+                )
+            }
         } label: {
-            // .reorderable wraps the label only so the chevron tap area stays
-            // free for expand/collapse (see PageTypeRow for full rationale).
-            label.reorderable(
-                kind: .collection,
-                id: collection.id,
-                containerID: parentVault.id,
-                nexusID: vaultManager.nexusID,
-                symbol: "folder",
-                title: collection.title,
-                accent: nil,
-                onDrop: { payload, position in
-                    let arr = vaultManager.pageCollections(in: parentVault)
-                    guard
-                        let from = arr.firstIndex(where: { $0.id == payload.id }),
-                        let targetIdx = arr.firstIndex(where: { $0.id == collection.id })
-                    else { return }
-                    let toOffset = position == .above ? targetIdx : targetIdx + 1
-                    vaultManager.reorderPageCollections(
-                        in: parentVault,
-                        fromOffsets: IndexSet(integer: from),
-                        toOffset: toOffset
-                    )
-                }
-            )
+            label
         }
         .listRowBackground(
             SelectionChrome(
@@ -69,7 +51,19 @@ struct PageCollectionRow: View {
     @ViewBuilder
     private var label: some View {
         if editingID == collection.id {
-            renamingRow
+            RenameableRow(
+                symbol: "folder",
+                initialTitle: collection.title,
+                draft: $draft,
+                renameFocused: $renameFocused,
+                onSubmit: { commit() },
+                onCancel: { cancel() },
+                onFocusLoss: {
+                    if !isCommitting && editingID == collection.id {
+                        cancel()
+                    }
+                }
+            )
         } else {
             SelectableRow(
                 title: collection.title,
@@ -92,38 +86,6 @@ struct PageCollectionRow: View {
                 }
             }
         }
-    }
-
-    private var renamingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "folder")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) {
-                    cancel()
-                    return .handled
-                }
-                .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == collection.id {
-                        cancel()
-                    }
-                }
-                .onAppear {
-                    draft = collection.title
-                    renameFocused = true
-                }
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commit() {

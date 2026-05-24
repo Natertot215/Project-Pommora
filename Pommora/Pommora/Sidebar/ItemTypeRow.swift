@@ -21,6 +21,11 @@ struct ItemTypeRow: View {
                     selection: $selection
                 )
             }
+            .onMove { source, destination in
+                itemTypeManager.reorderItemCollections(
+                    in: itemType, fromOffsets: source, toOffset: destination
+                )
+            }
         } label: {
             SelectableRow(
                 title: itemType.title,

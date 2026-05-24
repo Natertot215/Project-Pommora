@@ -28,6 +28,11 @@ struct PageTypeRow: View {
                     editingID: $editingID
                 )
             }
+            .onMove { source, destination in
+                contentManager.reorderPages(
+                    inVault: pageType, fromOffsets: source, toOffset: destination
+                )
+            }
             ForEach(pageTypeManager.pageCollections(in: pageType)) { coll in
                 PageCollectionRow(
                     collection: coll,
@@ -38,31 +43,13 @@ struct PageTypeRow: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
+            .onMove { source, destination in
+                pageTypeManager.reorderPageCollections(
+                    in: pageType, fromOffsets: source, toOffset: destination
+                )
+            }
         } label: {
-            // .reorderable wraps the label only — not the whole DisclosureGroup —
-            // so the chevron tap area stays free for expand/collapse. Applying
-            // .draggable to the outer view swallows chevron clicks as drag-init.
-            label.reorderable(
-                kind: .vault,
-                id: pageType.id,
-                containerID: nil,
-                nexusID: pageTypeManager.nexusID,
-                symbol: pageType.icon ?? "tray.2",
-                title: pageType.title,
-                accent: nil,
-                onDrop: { payload, position in
-                    let arr = pageTypeManager.types
-                    guard
-                        let from = arr.firstIndex(where: { $0.id == payload.id }),
-                        let targetIdx = arr.firstIndex(where: { $0.id == pageType.id })
-                    else { return }
-                    let toOffset = position == .above ? targetIdx : targetIdx + 1
-                    pageTypeManager.reorderPageTypes(
-                        fromOffsets: IndexSet(integer: from),
-                        toOffset: toOffset
-                    )
-                }
-            )
+            label
         }
         .listRowBackground(
             SelectionChrome(
@@ -80,7 +67,19 @@ struct PageTypeRow: View {
     @ViewBuilder
     private var label: some View {
         if editingID == pageType.id {
-            renamingRow
+            RenameableRow(
+                symbol: pageType.icon ?? "tray.2",
+                initialTitle: pageType.title,
+                draft: $draft,
+                renameFocused: $renameFocused,
+                onSubmit: { commit() },
+                onCancel: { cancel() },
+                onFocusLoss: {
+                    if !isCommitting && editingID == pageType.id {
+                        cancel()
+                    }
+                }
+            )
         } else {
             SelectableRow(
                 title: pageType.title,
@@ -110,38 +109,6 @@ struct PageTypeRow: View {
                 }
             }
         }
-    }
-
-    private var renamingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: pageType.icon ?? "tray.2")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) {
-                    cancel()
-                    return .handled
-                }
-                .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == pageType.id {
-                        cancel()
-                    }
-                }
-                .onAppear {
-                    draft = pageType.title
-                    renameFocused = true
-                }
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commit() {

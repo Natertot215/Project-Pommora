@@ -18,7 +18,19 @@ struct ProjectRow: View {
     var body: some View {
         Group {
             if editingID == project.id {
-                renamingRow
+                RenameableRow(
+                    symbol: project.icon ?? "doc.text",
+                    initialTitle: project.title,
+                    draft: $draft,
+                    renameFocused: $renameFocused,
+                    onSubmit: { commit() },
+                    onCancel: { cancel() },
+                    onFocusLoss: {
+                        if !isCommitting && editingID == project.id {
+                            cancel()
+                        }
+                    }
+                )
             } else {
                 SelectableRow(
                     title: project.title,
@@ -41,60 +53,6 @@ struct ProjectRow: View {
         .listRowBackground(
             SelectionChrome(isSelected: SelectionTag.project(project.id).matches(selection))
         )
-        .reorderable(
-            kind: .project,
-            id: project.id,
-            containerID: parentTopic.id,
-            nexusID: topicManager.nexusID,
-            symbol: project.icon ?? "doc.text",
-            title: project.title,
-            accent: nil,
-            onDrop: { payload, position in
-                let arr = topicManager.projects(in: parentTopic)
-                guard
-                    let from = arr.firstIndex(where: { $0.id == payload.id }),
-                    let targetIdx = arr.firstIndex(where: { $0.id == project.id })
-                else { return }
-                let toOffset = position == .above ? targetIdx : targetIdx + 1
-                topicManager.reorderProjects(
-                    in: parentTopic,
-                    fromOffsets: IndexSet(integer: from),
-                    toOffset: toOffset
-                )
-            }
-        )
-    }
-
-    private var renamingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: project.icon ?? "doc.text")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) {
-                    cancel()
-                    return .handled
-                }
-                .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == project.id {
-                        cancel()
-                    }
-                }
-                .onAppear {
-                    draft = project.title
-                    renameFocused = true
-                }
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commit() {

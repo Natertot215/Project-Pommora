@@ -16,7 +16,20 @@ struct SpaceRow: View {
     var body: some View {
         Group {
             if editingID == space.id {
-                renamingRow
+                RenameableRow(
+                    symbol: space.icon ?? "circle.fill",
+                    symbolForeground: space.color?.swiftUIColor ?? .primary,
+                    initialTitle: space.title,
+                    draft: $draft,
+                    renameFocused: $renameFocused,
+                    onSubmit: { commit() },
+                    onCancel: { cancel() },
+                    onFocusLoss: {
+                        if !isCommitting && editingID == space.id {
+                            cancel()
+                        }
+                    }
+                )
             } else {
                 SelectableRow(
                     title: space.title,
@@ -42,61 +55,6 @@ struct SpaceRow: View {
         .listRowBackground(
             SelectionChrome(isSelected: SelectionTag.space(space.id).matches(selection))
         )
-        .reorderable(
-            kind: .space,
-            id: space.id,
-            containerID: nil,
-            nexusID: spaceManager.nexusID,
-            symbol: space.icon ?? "circle.fill",
-            title: space.title,
-            accent: space.color?.swiftUIColor,
-            onDrop: { payload, position in
-                let arr = spaceManager.spaces
-                guard
-                    let from = arr.firstIndex(where: { $0.id == payload.id }),
-                    let targetIdx = arr.firstIndex(where: { $0.id == space.id })
-                else { return }
-                let toOffset = position == .above ? targetIdx : targetIdx + 1
-                spaceManager.reorderSpaces(
-                    fromOffsets: IndexSet(integer: from),
-                    toOffset: toOffset
-                )
-            }
-        )
-    }
-
-    /// Mirrors SelectableRow's HStack shape (icon + text slot + trailing spacer)
-    /// so the row doesn't visually jump when entering/exiting rename mode.
-    private var renamingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: space.icon ?? "circle.fill")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(space.color?.swiftUIColor ?? .primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) {
-                    cancel()
-                    return .handled
-                }
-                .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == space.id {
-                        cancel()
-                    }
-                }
-                .onAppear {
-                    draft = space.title
-                    renameFocused = true
-                }
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func startRename() {

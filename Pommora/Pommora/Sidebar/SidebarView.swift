@@ -240,9 +240,9 @@ struct SpacesSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            // Reorder is wired per-row via `.reorderable` (v0.2.8 Phase 2);
-            // `.onMove` is omitted on purpose so List doesn't draw its native
-            // blue insertion line. See `Sidebar/Drag/ReorderableRow.swift`.
+            .onMove { source, destination in
+                spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
+            }
         } header: {
             SectionHeader(title: "Spaces") {
                 presentedSheet = .newSpace
@@ -271,7 +271,9 @@ struct TopicsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
+            .onMove { source, destination in
+                topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
+            }
         } header: {
             SectionHeader(title: "Topics") {
                 presentedSheet = .newTopic
@@ -296,6 +298,9 @@ struct ItemsSection: View {
                     itemType: itemType,
                     selection: $selection
                 )
+            }
+            .onMove { source, destination in
+                itemTypeManager.reorderItemTypes(fromOffsets: source, toOffset: destination)
             }
         } header: {
             // Phase 8 stub: literal "Items" label (no SettingsManager read yet —
@@ -329,7 +334,9 @@ struct VaultsSection: View {
                     confirmingDelete: $confirmingDelete
                 )
             }
-            // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
+            .onMove { source, destination in
+                vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
+            }
         } header: {
             // Section header text comes from SettingsManager
             // (`sidebar_sections.pages`, default "Vaults" per the Pages-side
@@ -381,28 +388,30 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
-                .frame(width: 16, height: 16, alignment: .center)
-            Text(title)
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
-                .brightness(isSelected ? 0.10 : 0)
-            Spacer(minLength: 0)
-            trailing()
+        // `Button(.plain)` wraps the row content so SwiftUI coordinates the tap
+        // gesture with the underlying NSOutlineView drag-gesture chain. Tap
+        // selects from anywhere on the row; drag (List `.onMove`) also fires
+        // from anywhere on the row. Visual is identical to a bare HStack.
+        Button(action: onSelect) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .symbolRenderingMode(.monochrome)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
+                    .frame(width: 16, height: 16, alignment: .center)
+                Text(title)
+                    .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                    .brightness(isSelected ? 0.10 : 0)
+                Spacer(minLength: 0)
+                trailing()
+            }
+            .padding(.leading, 4)
+            .padding(.trailing, 0)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(.leading, 4)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        // .simultaneousGesture instead of .onTapGesture so taps don't claim
-        // mouse-down exclusively — leaves the row edges available as drag
-        // initiation zones for List.onMove. Partial fix: drag works on the
-        // outer margins of each row, not on the label content itself.
-        .simultaneousGesture(TapGesture().onEnded { onSelect() })
+        .buttonStyle(.plain)
         .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
     }
 }
