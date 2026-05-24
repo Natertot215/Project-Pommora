@@ -6,7 +6,7 @@ Phased plan; no dates. Order is the only commitment.
 
 #### Vision
 
-A Markdown-canonical, SQLite-indexed personal management platform that combines Obsidian's local-first openness with Notion's database and view capabilities. Built around a **2-layer domain model** with PARA-aligned naming (ParadigmV2 refactor 2026-05-22):
+A Markdown-canonical, SQLite-indexed personal management platform that combines Obsidian's local-first openness with Notion's database and view capabilities. Built around a **2-layer domain model** with PARA-aligned naming:
 
 - **Organization layer — Contexts** (Spaces / Topics / **Projects**) — categorical anchors that things relate *to*
 - **Operational layer — symmetric Pages + Items + Agenda**:
@@ -37,7 +37,7 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**`flatlayout` SHIPPED + post-ship hardening cluster landed** (tag `flatlayout` at `049df19`, between `paradigmV2` and v0.3.0). On-disk layout is flat — Types live at the nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`); Agenda Tasks + Events are sidecar-driven singletons at root. `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan + co-located sidecar cleanup. Five post-ship hardening commits on `main`: adoption-preview gate (non-Pommora folders stay invisible), drag-to-reorder Phase 2 UX (v0.2.8), `lookupVault` folder-name fallback + diagnostics, co-located per-kind sidecar orphan cleanup, and a cosmetic `var` → `let`. Build green, **366 tests passing**. Nathan's real-nexus migration is complete.
+**On-disk layout is flat.** Types live at the nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`); Agenda Tasks + Events are sidecar-driven singletons at root. `NexusAdopter` handles legacy + already-flat input shapes with legacy-orphan + co-located sidecar cleanup. Build green, 366 tests passing. Nathan's real-nexus migration is complete.
 
 **Next: v0.3.0 Properties** begins on the flat-layout foundation — implementation plan at `// Planning//v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Detailed ship log in `History.md`.
 
@@ -52,7 +52,7 @@ Post-Pages-editor capability iterations on top of the v0.2.7.0 TextKit-2 baselin
 - ✅ **v0.2.7.5** — Blockquote chrome (always-show overlay; renderer-drawn rounded card + vertical pill bar). One visual TBD (horizontal positioning) in Handoff.
 - **Remaining page editor fixes** — code & quote `Enter}` auto-completion; code block → red text bug.
 - **Tables** (queued — ~10-15h realistic estimate; spec at `// Features//PageEditor.md → Tables — to be implemented`) — Core Graphics inline grid overlay + drag-resize columns + `pommora_table_widths` frontmatter persistence + double-click popover editor + right-click structural context menu. NSTextTable explicitly rejected.
-- ✅ **Sidebar drag-to-reorder Phase 2 — v0.2.8** — Phase 1 persistence shipped `5a264f0`; Phase 2 UX shipped `9cd8cd1` (Pages-side + Contexts rows: PageType / Topic / Space / Page / PageCollection / Project). Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (ParadigmV2 stubs), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
+- ✅ **Sidebar drag-to-reorder Phase 2 — v0.2.8** — Phase 1 persistence shipped `5a264f0`; Phase 2 UX shipped `9cd8cd1` (Pages-side + Contexts rows: PageType / Topic / Space / Page / PageCollection / Project). Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (stubs), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
 - **PreviewWindow primitive** (queued) — cross-feature standalone-window surface. Project-wide contract at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
 - **Directives + heading fold + slash menu** (formerly v0.2.9) — unscheduled; page editor is functional without them.
 
@@ -64,7 +64,7 @@ Single-branch effort that scaffolded the entire locked paradigm in one pass (`pa
 
 ##### v0.2.x — Path from v0.2.0 to v0.3.0 (touch-ups + infrastructure + Pages + NavDropdown)
 
-Each patch ships green standalone. The infrastructure patches (.1 – .5) should land before the writable-Pommora patches (Pages + NavDropdown + their additions). **Order between Pages and NavDropdown is interchangeable** (Nathan locked 2026-05-17: "Pages or Tabs could land in any patch; just have to get done before v0.3.0 is started" — quote pre-dates the 2026-05-18 Tabs → NavDropdown pivot but the ordering principle holds). Directives + wikilinks are Pages-editor additions and naturally come after Pages itself.
+Each patch ships green standalone. The infrastructure patches (.1 – .5) land before the writable-Pommora patches (Pages + NavDropdown + their additions). Order between Pages and NavDropdown is interchangeable. Directives + wikilinks are Pages-editor additions and naturally come after Pages itself.
 
 **Shipped on `main` (end of 2026-05-18):**
 
@@ -86,27 +86,34 @@ End of v0.2.x: `main` has formatter + trash + a fully usable Pages editor with N
 
 ##### v0.3.x — Properties + Items pane + Wikilinks + SQLite (data-layer chapter)
 
-The other half of the data model — until v0.3.0, Pages and Items load + save their property frontmatter but have no UI for editing it. The four-patch sub-sequence at v0.3.x closes the data layer entirely, ending at indexed cross-document linking + queryable storage. **Sub-sequence refined 2026-05-23 brainstorm:**
+The other half of the data model. Until v0.3.0, Pages and Items load + save their property frontmatter but have no UI for editing it. The four-patch sub-sequence at v0.3.x closes the data layer entirely, ending at indexed cross-document linking + queryable storage with file-watcher reconciliation:
 
 ```
-v0.3.0 — Properties data layer + minimum-viable placeholder UI
+v0.3.0 — Properties data layer + SQLite scaffolding + minimum-viable placeholder UI
 v0.3.1 — Properties Pulldown + Panel UI (Figma-driven fast-follow)
-v0.3.2 — Page-wikilinks
-v0.3.3 — SQLite + querying
+v0.3.2 — Page-wikilinks (indexed via the v0.3.0 SQLite layer)
+v0.3.3 — File watcher + FTS5 wiring + external-edit detection
 ```
 
 Item Window redesign, Claude chat main-window inspector, and PreviewWindow primitive are separate v0.3.x patches with TBD timing — independent of the 4-patch sequence above.
 
 Conceptual spec → `// Planning//v0.3.0-Properties-spec.md`; implementation plan → `// Planning//v0.3.0-Properties-plan.md`.
 
-###### v0.3.0 — Properties (data layer + placeholder UI)
+###### v0.3.0 — Properties (data layer + SQLite scaffolding + placeholder UI)
 
-**Scope split (locked 2026-05-23):** v0.3.0 ships the **data layer + minimum-viable placeholder UI** to verify the data layer works. Real Properties Pulldown + Property Panel ships in a fast-follow patch (alongside v0.3.0 or v0.3.1, Figma-driven). Broader inspector architecture (Claude chat main-window inspector, PreviewWindow primitive, Item Window redesign w/ pinned chips) ships in later v0.3.x patches whenever designed.
+v0.3.0 ships the data layer + SQLite scaffolding + minimum-viable placeholder UI. The polished Properties Pulldown + Property Panel ships in a fast-follow patch (Figma-driven). Broader inspector architecture (Claude chat main-window inspector, PreviewWindow primitive, Item Window redesign with pinned chips) ships in later v0.3.x patches when designed.
 
-- **Data layer (full ship):** PropertyType extensions (`lastEditedTime`, `status`), PropertyValue (`.status`), PropertyDefinition (discriminated `RelationScope`, `dual_property`, `statusGroups`, `icon`, `allowsMultiple`), AgendaTaskSchema + AgendaEventSchema Property struct parity. SchemaTransaction primitive (compound mode for dual relations). Manager schema CRUD on all 4 managers. StatusOptionMutations helper (kind-agnostic). A.7.5 load-path migrations (AgendaTask Status injection + `type` removal, RelationScope decode shim, `.status` decode promotion). PropertyDefinitionValidator + ItemValidator rewire. `default_sort` field on all 4 sidecars. Move-strip primitive + cross-Type move methods.
-- **Placeholder UI (disposable):** Extend existing `FrontmatterInspector` (Pages-side) and `ItemWindow`'s `PropertyEditorRow` (Items-side) to handle all 10 property types. Minimum-viable Type Settings sheet (Edit Properties + Sort sections only) on both sides. Native SwiftUI move-strip confirmation dialog. **No design polish** — gets replaced when the real Property Panel SwiftUI component ships in the fast-follow patch.
+- **Data layer:** 11 property types (Number, Checkbox, Date, Date & Time, Select, Multi-select, Status, URL, Relation, Last Edited Time, File / Attachment). PropertyDefinition extensions (`id` ULID, `name`, discriminated `RelationScope` with 5 cases, `dual_property`, `statusGroups`, `icon`, `allowsMultiple`, `accept` for file MIME-type whitelist). AgendaTaskSchema + AgendaEventSchema Property struct parity. Status built-in on both AgendaTask AND AgendaEvent (3 fixed EventKit-aligned groups). Cross-side relations supported. SchemaTransaction primitive (compound mode for dual relations). Manager schema CRUD on all 4 schema-bearing managers. Load-path migrations (Status injection on both Agenda kinds, property-ID synthesis for existing nexuses, RelationScope decode shim). PropertyDefinitionValidator + ItemValidator rewire. `default_sort` field on all 4 sidecars. Move-strip primitive + cross-Type move methods. File-attachment copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/`. `_itemcollection.json.pinned_properties` field.
+- **SQLite scaffolding:** GRDB.swift dependency. `Pommora/Pommora/Index/` folder (PommoraIndex, IndexBuilder, IndexUpdater, IndexQuery). Per-nexus DB at `<nexus>/.nexus/index.db`. Tables for page_types / item_types / page_collections / item_collections / pages / items / agenda_tasks / agenda_events / contexts / relations / tier_links / property_definitions. Property values stored via JSON1 columns. Initialized in NexusManager open paths after adoption. Every manager mutation calls IndexUpdater post-commit. Powers relation pickers + move-strip "affected count" + sort/filter at scale.
+- **Placeholder UI:** Extends `FrontmatterInspector` (Pages-side) and `PropertyEditorRow` (Items-side) to handle all 11 property types. Vault / Type Settings sheet with Edit Properties + Templates sections (Pages-side + Items-side). Native SwiftUI move-strip confirmation dialog. Cross-side relation picker. Status grouped picker. File-attachment drag-drop editor. Pinned-property chips above Item Window title. Live red-border value-edit validation. Polished Figma-driven UI replaces this in fast-follow patches.
 
-End of v0.3.0: data layer correct end-to-end; placeholder UI exercises every property type so users can verify Pages + Items + Agenda Tasks + Agenda Events all read/write properties correctly.
+**Entity identity:** every entity carries a stable ULID (`id`); filename is the renameable display title (not the ID). Duplicate titles allowed in same container; filesystem auto-disambiguates colliding filenames. Wikilink disk format: `[[Title|ULID]]`.
+
+**Property identity:** every property carries a stable ULID (`id`) in the schema sidecar; frontmatter / JSON keys reference the property ID. Renames are schema-only.
+
+**Render modes:** Pages-main-view Pulldown is lazy (populated-only + "+ Add property" picker); Inspectors (Page Preview, Item Window) are eager (full schema visible, void-or-fill inline).
+
+End of v0.3.0: data layer correct end-to-end; SQLite index live and reproducible; placeholder UI exercises every property type so users can verify Pages + Items + Agenda Tasks + Agenda Events all read/write properties correctly.
 
 ###### v0.3.1 — Properties Pulldown + Property Panel (Figma-driven fast-follow)
 
@@ -136,17 +143,17 @@ Body-text wikilinks (`[[Title]]`) with autocomplete + click routing + rename cas
 - **Derived `wikilinks: [<id>, ...]` frontmatter mirror** — auto-maintained from body scan on save; queryable via index at v0.3.3
 - **NOT a creatable property type** — schema editor doesn't offer Wikilink
 
-###### v0.3.3 — SQLite + querying
+###### v0.3.3 — File watcher + FTS5 wiring + external-edit detection
 
-Indexed lookup swaps in transparently behind the existing manager APIs:
-- **SQLite indexer (GRDB.swift v7.5+)** — rebuilt from files on launch; six-table schema from PRD (`pages` / `items` / `agenda` / `vaults` / `tiers` / `links`). Per-nexus DB at `~/Library/Application Support/Pommora/nexuses/<nexus-id>/nexus.db`.
-- **File watcher (FSEventStream)** — external changes update SQLite + sidebar live
-- **Wikilink rename cascade upgrade** — v0.3.2's naive body-scan rewrite gets replaced with indexed lookup
-- **Relation picker performance** — naive manager scan replaced with indexed query
-- **External-edit detection on Page save** — prompt before overwriting drifted mtime
-- **FTS5 tables wired** — schema only, no UI; ⌘K palette ships at v0.8.0
+SQLite indexer itself shipped at v0.3.0 — v0.3.3 adds the runtime affordances on top:
 
-End of v0.3.x: data layer is complete. Pages editable + Items paradigm closed + cross-document linking live + storage indexed.
+- **File watcher (FSEventStream)** — external changes update SQLite + sidebar live; reconciles disk state against the index per-file on touch.
+- **External-edit detection on Page save** — prompt before overwriting drifted mtime (lost-update protection for cases where Obsidian / external editor mutates a file Pommora has in memory).
+- **External-edit detection on Item / Agenda Task / Agenda Event save** — extends Page-save detection to other entity kinds.
+- **FTS5 tables wired** — schema only, no UI; ⌘K palette ships at v0.8.0. (FTS5 is an SQLite extension; adds full-text-search columns to the index DB schema for Page body / Item description / Agenda title content.)
+- **Wikilink resolution polish** — Page wikilinks (v0.3.2) already index on creation via the v0.3.0 SQLite indexer; v0.3.3 adds the broken-link warning surface + per-Type Page-wikilink count UI affordances.
+
+End of v0.3.x: data layer is complete. Pages editable + Items paradigm closed + cross-document linking live + storage indexed + external-edit lost-update protection in place.
 
 ##### v0.4.0 — Trash UI + cascade-delete refinements
 
@@ -166,14 +173,14 @@ End of v0.5.0: Page Types + Item Types stop being just "lists of files in a fold
 
 ##### v0.6.0 — EventKit + Agenda UI + Hardening + accessibility + performance + onboarding
 
-The "polish + integration" version. Agenda's full UI ships **hand-in-hand with EventKit** (Nathan-locked: they go together — see Paradigm-Decisions.md). Combines previously-scattered concerns:
+The polish + integration version. Agenda's full UI ships hand-in-hand with EventKit (see `// Guidelines//Paradigm-Decisions.md`):
 
-- **Agenda Task / Agenda Event Windows** — reuse the Item Window UX pattern (popover with inspector toggle + Property Panel + pinned chips), but **separate code per entity** (different EventKit semantics, different built-in fields). Time-field handling: AgendaTask single "When?" input when due / start collapse; AgendaEvent always shows start + end. Per-side schema property panel reading from `AgendaTaskSchema` / `AgendaEventSchema` (same `PropertyEditorRow` dispatch as Items).
+- **Agenda Task / Agenda Event Windows** — reuse the Item Window UX pattern (popover with inspector toggle + Property Panel + pinned chips), separate code per entity (different EventKit semantics, different built-in fields). Time-field handling: AgendaTask single "When?" input when due / start collapse; AgendaEvent always shows start + end. Per-side schema property panel reading from `AgendaTaskSchema` / `AgendaEventSchema` (same `PropertyEditorRow` dispatch as Items).
 - **Agenda creation surfacing** — sidebar context-menu entries; menu-bar Quick Capture for fast event entry.
 - **Calendar view over Agenda** — date-anchored grid replacing the placeholder Saved → Calendar entry; can be embedded in Contexts/Homepage post-v0.7.0.
-- **EventKit bridge** — Sandbox entitlement (`com.apple.security.personal-information.calendars`) + Info.plist usage description keys + modern `requestFullAccessTo*` APIs. **Opt-in via Settings.** Bidirectional mirroring (`EKEvent` for items with `start_at` + `end_at`; `EKReminder` for items with `due_at` or unscheduled).
-- **Settings scene scaffold** (`⌘,`) — Tier-config editor (per-tier singular + plural labels; `tagging_style`; `exposed` toggle); Saved-section labels editor (Homepage / Calendar / Recents renaming); EventKit sync opt-in toggle; **accent color + font size customization** (was previously a standalone v0.12.0 — folded in here since this is the natural home for user-overridable surface).
-- **Accessibility checkpoint** — VoiceOver labels + focus order + Dynamic Type respect verified across all v0.2.0-v0.5.0 surfaces.
+- **EventKit bridge** — Sandbox entitlement (`com.apple.security.personal-information.calendars`) + Info.plist usage description keys + modern `requestFullAccessTo*` APIs. Opt-in via Settings. Bidirectional mirroring (`EKEvent` for items with `start_at` + `end_at`; `EKReminder` for items with `due_at` or unscheduled).
+- **Settings scene scaffold** (`⌘,`) — Tier-config editor (per-tier singular + plural labels; `tagging_style`; `exposed` toggle); Saved-section labels editor (Homepage / Calendar / Recents renaming); EventKit sync opt-in toggle; accent color + font size customization.
+- **Accessibility checkpoint** — VoiceOver labels + focus order + Dynamic Type respect verified across all v0.2.0–v0.5.0 surfaces.
 - **Performance budgets verified** — "open a Page in <X ms," "render N-row sidebar without jank," "Page Type / Item Type Table view with 1000 rows scrolls smoothly." Sets a baseline before v0.7.0 stacks more on top.
 - **First-launch UX** — empty-state copy across sidebar sections + detail pane; nexus-picker flow polish; menu-bar `+ New` Quick Capture entry as the discoverable counterpart to right-click-only creation.
 - **Saved section content fills in** — Recents (full-frame view backed by NavDropdown's `RecentsManager`, sharing the v0.2.7.1 store); Calendar (with EventKit mirror visible if opt-in).

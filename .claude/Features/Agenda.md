@@ -9,7 +9,7 @@ Both share the property catalog used elsewhere (Number / Select / Status / Relat
 
 The split is **EventKit-aligned, not just structural** — `EKEvent` and `EKReminder` are peer types in EventKit (separate `EKEntityType` buckets, separate `requestFullAccessTo*` access APIs, separate Apple apps — Calendar.app vs Reminders.app). Pommora's UI already collapses Agenda (no Agenda sidebar heading; Calendar pin consolidates), and the disk layout now matches the same peer-relationship: two sibling singleton folders at the nexus root, not nested inside an `Agenda/` wrapper. EventKit sync at v0.6.0 maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
 
-In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions — per the ParadigmV2 "no Pommora.X qualification" rule). UI labels remain "Task" and "Event" by default (renameable via Settings).
+In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
 UX-wise both entities behave identically to [[Items]] — Item Window popover, tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
 
@@ -41,38 +41,35 @@ Both singleton folders are **eagerly created on launch**. `AgendaTaskManager.loa
 
 ##### Agenda Task schema (`_taskconfig.json` inside the Tasks singleton)
 
-Built-in (non-deletable) properties:
-- `type` (Select) — Task type (Task / To-do / Phase / custom)
-- `status` (Status, ships v0.3.0) — 3-group EventKit-aligned (Upcoming / In Progress / Done)
+Built-in (non-deletable) property:
+- `status` (Status) — 3-group EventKit-aligned (Upcoming / In Progress / Done)
 
 Built-in fields (not user-creatable):
-- `due_at` (Date & Time, optional) — EKReminder.dueDateComponents
+- `due_at` (Date & Time, optional) — `EKReminder.dueDateComponents`
 - `due_floating` (Bool) — true = no timezone
 - `due_all_day` (Bool) — true = strip hour/minute/second
 - `start_at` (Date & Time, optional) — EKReminder "not before"
-- `completed` (Bool) — EKReminder.isCompleted
-- `completed_at` (Date & Time, optional) — EKReminder.completionDate
-- `priority` (Number 0-9) — EKReminder.priority
-- `recurrence` — EKRecurrenceRule mirror
+- `completed` (Bool) — `EKReminder.isCompleted`
+- `completed_at` (Date & Time, optional) — `EKReminder.completionDate`
+- `priority` (Number 0–9) — `EKReminder.priority`
+- `recurrence` — `EKRecurrenceRule` mirror
 - `alarm_offsets` (Number[]) — negative seconds before due
 - `tier1` / `tier2` / `tier3` — Context relations
 
 ##### Agenda Event schema (`_eventconfig.json` inside the Events singleton)
 
-Built-in (non-deletable) properties:
-- `type` (Select) — Event type (Event / Meeting / Conference / custom)
+Built-in (non-deletable) property:
+- `status` (Status) — 3-group EventKit-aligned (Upcoming / In Progress / Done). Same shape as AgendaTask; user-set, decoupled from `start_at` / `end_at` date math.
 
 Built-in fields (not user-creatable):
-- `start_at` (Date & Time, required) — EKEvent.startDate
-- `end_at` (Date & Time, required) — EKEvent.endDate
+- `start_at` (Date & Time, required) — `EKEvent.startDate`
+- `end_at` (Date & Time, required) — `EKEvent.endDate`
 - `all_day` (Bool) — strip time
-- `location` (String) — EKEvent.location
-- `recurrence` — EKRecurrenceRule mirror
+- `location` (String) — `EKEvent.location`
+- `recurrence` — `EKRecurrenceRule` mirror
 - `alarm_offsets` (Number[]) — negative seconds before start
 - `alarm_absolute` (Date & Time[]) — fixed-time alarms
 - `tier1` / `tier2` / `tier3` — Context relations
-
-**Note:** Agenda Events do NOT carry `status` — completion isn't an event concept.
 
 
 ---
@@ -80,9 +77,9 @@ Built-in fields (not user-creatable):
 #### Built-in properties
 
 - **AgendaTask** — required built-in **`status`** Status property (3 EventKit-aligned groups: Upcoming / In Progress / Done; non-deletable; bridges to `EKReminder.isCompleted`). All other AgendaTask properties are user-defined.
-- **AgendaEvent** — no built-in properties. Events derive their effective state from `start_at` / `end_at` relative to now (completion isn't an event concept). All properties on the AgendaEvent schema are user-defined; users may add Status manually if a custom workflow is wanted.
+- **AgendaEvent** — required built-in **`status`** Status property. Same 3 EventKit-aligned groups as AgendaTask. User-set (decoupled from `start_at` / `end_at` date math) — the user marks status to track their own engagement with the event ("Upcoming" before, "In Progress" during, "Done" after attending). EventKit mapping for AgendaEvent ships at v0.6.0; through v0.3.0 the field round-trips on disk and edits via the Item Window inspector. All other AgendaEvent properties are user-defined.
 
-A previously-planned built-in `type` Select (Task / To-do / Phase on AgendaTask; Event / Meeting / Conference on AgendaEvent) was dropped in the 2026-05-23 Properties brainstorm — Status replaced it as the sole built-in on AgendaTask (two built-in workflow indicators would compete). Users who want a `type` taxonomy can add it via the schema editor like any other Select. A.7.5 plan task documents the load-path migration for existing nexuses (idempotent removal of legacy `type` if `builtin: true`).
+Users who want a `type` taxonomy can add it via the schema editor like any other Select — neither Agenda kind ships a built-in `type` field (Status is the sole built-in workflow indicator).
 
 ---
 
@@ -108,7 +105,7 @@ EventKit mapping when v0.6.0 sync ships:
 
 **The 3-slot structure is structural — not user-configurable.** Adding a 4th group would break EventKit compatibility (no clean mapping target). Customization happens by adding options within groups.
 
-AgendaEvent has no `status` field — events don't have a completion concept. EKEvent status (`.tentative` / `.confirmed`) is not surfaced as a Pommora property in v0.3.0.
+AgendaEvent also carries built-in `status`. Same 3 EventKit-aligned groups (Upcoming / In Progress / Done). User-set, decoupled from `start_at` / `end_at` date math — tracks the user's engagement with the event. EKEvent's own status field (`.tentative` / `.confirmed`) is a separate EventKit concept; the v0.6.0 sync layer chooses how to bridge Pommora's Status as the design evolves.
 
 Full spec → [[Properties]].
 

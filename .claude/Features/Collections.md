@@ -1,6 +1,6 @@
 ### Collections — see [[PageTypes|Page Types]] (for Pages) or [[Items]] (for Items)
 
-Post-ParadigmV2, "Collection" is a generic prose term — the on-disk concept splits per side:
+"Collection" is a generic prose term — the on-disk concept splits per side:
 
 - **Page Collections** — Pages-side organizational sub-folders inside a Page Type. UI label "Collection" by default. Full spec → [[PageTypes]].
 - **Item Collections** — Items-side organizational sub-folders inside an Item Type. UI label **"Set"** by default. Full spec → [[Items]].
@@ -9,7 +9,7 @@ Both share the on-disk shape (sub-folder + per-kind sidecar carrying `id` + `typ
 
 In generic prose discussing schema mechanics, ordering, or queries, the term "Collection" covers both. Use "Page Collection" or "Item Collection" when side-specific.
 
-This doc is retained as a stub redirect — there is no standalone Collection entity post-ParadigmV2. The pre-existing "Collections as standalone typed-at-creation entities" model is gone.
+There is no standalone "Collection" entity at the file-shape level — Collections always live inside a parent Type and inherit its schema.
 
 → [[PageTypes]] — Pages-side container layer (Page Types + Page Collections)
 → [[Items]] — Items-side container layer (Item Types + Item Collections)

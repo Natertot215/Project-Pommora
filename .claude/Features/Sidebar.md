@@ -190,7 +190,7 @@ Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `t
 
 #### Drag-reorder status (v0.2.8)
 
-Phase 1 (persistence — `OrderResolver` + `OrderPersister` + per-sidecar order fields) shipped `5a264f0`. Phase 2 (UX wiring via `.reorderable(...)`) shipped `9cd8cd1` on the following rows: **PageType / Topic / Space / Page / PageCollection / Project**. Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (ParadigmV2 stubs — light up when the designed Items UI lands), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
+Phase 1 (persistence — `OrderResolver` + `OrderPersister` + per-sidecar order fields) shipped `5a264f0`. Phase 2 (UX wiring via `.reorderable(...)`) shipped `9cd8cd1` on the following rows: **PageType / Topic / Space / Page / PageCollection / Project**. Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (stubs — light up when the designed Items UI lands), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
 
 ---
 

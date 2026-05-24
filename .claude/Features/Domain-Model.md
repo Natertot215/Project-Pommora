@@ -111,11 +111,24 @@ Each tier filled independently. An Agenda Task can link to a Space, a Topic, and
 
 ---
 
+#### Entity identity vs title
+
+Every entity carries two independent identifiers:
+
+- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (wikilinks, relation values, tier links, the future SQLite index).
+- **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else. Cross-references are NOT rewritten on rename — they're ID-keyed and resolve to the current title at render time.
+
+**Duplicate titles allowed within the same container** — two Pages named "Meeting Notes" in the same Page Type / Page Collection is fine because their IDs are distinct. Filesystem may auto-disambiguate (append `(2)` etc.) but the displayed title stays the user-typed value. The prior strict-reject duplicate-title validator behavior is dropped.
+
+Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks".
+
+---
+
 #### Linking model
 
 | Link | Stored as | Purpose |
 |---|---|---|
-| Page → Page (wikilink) | `[[Page Name]]` in body or relation property value | Inline reference or structured relation |
+| Page → Page (wikilink) | `[[Page Name\|01HXYZ...]]` in body (title for display, ULID for resolution) | Inline reference |
 | Page → Context (tier N) | `tierN: [<id>]` in frontmatter | Categorical assignment |
 | Item → Context (tier N) | `tierN: [<id>]` in `.json` | Categorical assignment |
 | Agenda Task → Context (tier N) | `tierN: [<id>]` in `.task.json` | Categorical assignment |
@@ -155,4 +168,4 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id + ordering only; properties + views inherit from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. v0.3.0 catalog: 10 types (number, checkbox, date, datetime, select, multi-select, URL, relation, status, last edited time). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required on AgendaTask schemas, not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection -scoped relations are MANDATORY dual** — paired reverse property auto-created on target. Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`. Implementation plan → `// Planning//v0.3.0-Properties-plan.md`.
+Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id + ordering only; properties + views inherit from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. **11 property types in v1:** Number, Checkbox, Date, Date & Time, Select, Multi-select, Status, URL, Relation, Last Edited Time, File / Attachment. **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection-scoped relations are mandatory dual** — paired reverse property auto-created on target. Cross-side relations supported (Item ↔ Page). Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`.

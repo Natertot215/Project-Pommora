@@ -4,9 +4,7 @@ Pommora's primary navigation-history surface — a **Liquid Glass dropdown butto
 
 ![NavDropdown visual reference](assets/NavDropdown-mockup.png)
 
-**Status: SHIPPED at v0.2.7.1 (end of 2026-05-19).** Functional layer + click model + context-menu Pin + detail-view context menus working. 226 unit tests pass; build green; lint exit 0.
-
-> **Version note:** v0.2.7.2 was the first ship attempt (Session 10 first half, 2026-05-19) — standalone-window preview + hover-heart favorites + 22 commits of UIX iteration Nathan was unhappy with. v0.2.7.1 simplification (Session 10 second half) supersedes: standalone windows removed (deferred to PreviewWindow primitive), hover-heart → right-click Pin context menu, Favorites → Pinned throughout, single = select / double = open, plus detail-view context menus on Page + Item rows. v0.2.7.2 tag stays in git; v0.2.7.1 is canonical.
+**Status: SHIPPED at v0.2.7.1.** Functional layer + click model + context-menu Pin + detail-view context menus working.
 
 ---
 
@@ -79,7 +77,7 @@ Window title suppressed (`.windowToolbarStyle(.unified(showsTitle: false))`).
 - Height: `minHeight: 300, maxHeight: 400`
 - **Segmented picker** at top with "Pinned" and "Recents" tabs (`PanelMode.pinned` is the default)
 - **Row separators**: hairline (`.listRowSeparator(.visible)`)
-- **Reference**: `assets/NavDropdown-mockup.png` (dark-mode Figma export, locked 2026-05-19)
+- **Reference**: `assets/NavDropdown-mockup.png` (dark-mode Figma export)
 
 Panel is a fixed envelope around a scrollable list — scrolling doesn't expand it.
 

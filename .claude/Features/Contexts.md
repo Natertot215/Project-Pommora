@@ -2,7 +2,7 @@
 
 The organization layer. Three tiers — Spaces (1), Topics (2), Projects (3) — that act as categorical anchors other entities relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
 
-Replaces the earlier `Spaces.md`. All three tiers share the same shape; differences called out below.
+All three tiers share the same shape; differences called out below.
 
 ---
 

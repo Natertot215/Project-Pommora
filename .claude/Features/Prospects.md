@@ -51,7 +51,7 @@ What carries either way (subject to destination schema): properties, `icon`, `ti
 The `template_config` field is reserved in v0.3.0 so the on-disk shape is forward-compatible — adding per-Type templates later is additive (existing Items with `null` continue to render the standard Item Window). Editing UI ships post-v1 alongside the broader Settings UI work.
 
 #### Full Settings UI
-**Description:** The Settings scaffold (Phase 7 of ParadigmV2) ships in v0.3.0 with storage + label wiring only — `.nexus/settings.json` persists the user-overridable UI labels and accent color, and the SettingsManager threads those labels into the sidebar, sheets, and detail panes. There is no editing UI in v0.3.0; defaults are baked in and overrides must be edited by hand in the JSON file.
+**Description:** The Settings scaffold ships at v0.3.0 with storage + label wiring only — `.nexus/settings.json` persists the user-overridable UI labels and accent color, and `SettingsManager` threads those labels into the sidebar, sheets, and detail panes. There is no editing UI in v0.3.0; defaults are baked in and overrides must be edited by hand in the JSON file.
 
 The full Settings UI ships v0.6.0 and brings:
 
@@ -73,8 +73,8 @@ Slotted v0.6.0 alongside the quick-capture / design-system customization batch.
 #### Custom color picker for Select / Multi-select properties
 **Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work in v0.6.0.
 
-#### Show-empty-properties toggle in the property panel — NEW 2026-05-23
-**Description:** v1 hides empty schema entries by default (lazy-properties model in the Properties Pulldown — see [[Properties]] § "Where Properties Live"). A setting-toggleable mode that SHOWS every schema property (even unset) would help users explore the full schema without opening the "+ Add property" picker — useful for densely-populated databases where the user wants to fill in many properties per page. Inverse of the original hide-empty proposal. Post-v1.
+#### Pulldown "show empty schema entries" toggle
+**Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (Page Preview, Item Window) are eager in v1 (already show every schema property). A per-Type setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Page Types where the user wants to fill in many properties per Page without opening the picker. Post-v1.
 
 #### Drag-to-reorder schema-level property declarations
 **Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).

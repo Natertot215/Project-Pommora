@@ -118,7 +118,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 }
 ```
 
-Title = folder name. Schema applies to **every** Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort (data ships v0.3.0; consumed when detail-pane property columns / saved views ship). `hidden_properties` (per-Type column visibility) and `panel_hidden_properties` (per-entity hide-list) are **both deferred from v0.3.0** — lazy-properties model in the Properties Pulldown auto-hides empty schema entries. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively.
+Title = folder name. Schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `hidden_properties` (per-Type column visibility) and `panel_hidden_properties` (per-entity hide-list) are deferred from v0.3.0 — the Pages Pulldown's lazy mode handles "hide empty" implicitly there; Inspectors are eager, so explicit `panel_hidden_properties` ships post-v0.3.0 if users need to exclude properties from inspector visibility. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively.
 
 **Paired relation properties** — the `sources` Relation above (`relation_scope.kind: "page_type"` + `dual_property`) is one half of a paired relation. The target Page Type (`01HMATERIALSPAGETYPE...`) carries the reverse `"Cited By"` in its own `_pagetype.json`:
 
@@ -142,37 +142,31 @@ Both properties are created in a single SchemaTransaction two-phase commit. Sett
 
 #### Page Type Settings sheet
 
-Central edit surface — schema editing + per-Type default sort. **v0.3.0 ships a minimum-viable two-section placeholder** (Edit Properties + Sort); the full seven-section design (Property Visibility / Filter / Group By / Layout / Templates) ships with the real Type Settings sheet redesign in a later v0.3.x patch.
-
-**UI label note:** This section uses the doc term "Page Type Settings". The sheet's rendered title in the Pommora app reads **"Vault Settings…"** by default (the UI label for Page Type is "Vault"; both renameable via the Settings scaffold).
+The schema editor for a Page Type. UI label: "Vault Settings…" by default (renameable via the Settings scaffold).
 
 ##### Reaching Page Type Settings
 
 - **PageTypeDetailView toolbar** — gear (`gearshape`) at top-right
-- **Page Type row right-click** in sidebar — "Vault Settings…" (default UI label)
-- **"+" column header in Table view** — deferred (Table column UI ships with view-shape redesign)
-- **Column header right-click → "Edit property…"** — deferred (same)
+- **Page Type row right-click** in sidebar — "Vault Settings…"
+- **"+" column header in Table view** — opens Edit Properties + Add Property flow
+- **Column header right-click → "Edit property…"** — jumps to the relevant row
 
-##### v0.3.0 minimum-viable sections
+##### Sections
 
-| Section | v0.3.0 status | Editable settings |
-|---|---|---|
-| **Edit Properties** | Fully functional | Add / rename / delete / reorder properties; per-property icon (`IconPickerField`); per-type config (options, scope, dual reverse name, status groups, etc.) |
-| **Sort** | Functional (single criterion) | Pick property + direction; persists to `_pagetype.json.default_sort`. Multi-criterion sort arrives v0.6.0 with saved views. |
+| Section | Contents |
+|---|---|
+| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, scope, dual reverse name, status groups, etc.). |
+| **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
-##### Deferred sections (ship with real Type Settings sheet redesign)
-
-- **Property Visibility** — per-Type column show/hide; ships when detail-pane property columns ship
-- **Filter** — WHERE-style criteria; ships v0.6.0 with saved views
-- **Group By** — single-value-type grouping; ships v0.6.0
-- **Layout** — view type picker (Table / Board / List / Cards / Gallery); ships v0.6.0
-- **Templates** — content templates pre-filling body + properties; post-v1
+Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings**, which ships at v0.6.0 alongside saved views. A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.
 
 ##### Properties section detail
 
 Schema editor. Each row: icon (if set) + name, type badge, per-property menu (Rename / Change Type / Edit Options or Groups / Delete / Move Up-Down).
 
-"+ Add property" opens the type picker → per-type config sub-view. Relation creation triggers `RelationPropertyWizard` (scope kind → target → name here → reverse name → allow multiple). Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status; etc.).
+"+ Add property" opens the type picker → per-type config sub-view. Relation creation triggers `RelationPropertyWizard` (scope kind → target → name here → reverse name → allow multiple). Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status).
+
+Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
 
 ##### Settings JSON shape
 
@@ -180,25 +174,22 @@ Page Type Settings reads/writes these `_pagetype.json` fields:
 
 ```json
 {
-  "properties": [ ... ],
+  "properties": [ /* schema; see Properties.md for full shape */ ],
   "default_sort": {
-    "property": "last_edited_time",
+    "property_id": "_modified_at",
     "direction": "descending"
   },
-  "hidden_properties": [],
-  "filter": null,
-  "group_by": null,
-  "layout": "table"
+  "template_config": null
 }
 ```
 
-`filter` / `group_by` / `layout` are written as `null` / `"table"` defaults v0.3.0; v0.6.0 expands their shapes. (All fields persist inside the same `_pagetype.json` sidecar; the Items-side equivalents persist inside `_itemtype.json`.)
+Saved views (with their own filter / group_by / layout / property_visibility) live in `views[]`, populated at v0.6.0 when the saved-views system ships.
 
 ---
 
 #### No Page Type templates
 
-Page Type creation does NOT seed default properties. `NewPageTypeSheet` stays as v0.2.0 shipped — name + icon, no template toggles. Users add Status (or anything else) manually via Page Type Settings → Edit Properties → "+ Add property". **Status is built-in only on Agenda** (where EventKit needs it); on user-created Page Types, Status is opt-in.
+Page Type creation does NOT seed default properties — name + icon only. Users add Status (or anything else) manually via Page Type Settings → Edit Properties → "+ Add property". Status is built-in on both AgendaTask and AgendaEvent (where EventKit needs it); on user-created Page Types and Item Types, Status is opt-in.
 
 Future **content-level templates** (Page, Notion-style pre-fill at creation) are reserved for post-v1; v0.3.0 keeps the scaffold compatible. Property type catalog, scope shapes, Status groups, dual-relation semantics → [[Properties]]. Implementation plan → `// Planning//v0.3.0-Properties-plan.md`.
 
@@ -208,7 +199,7 @@ Future **content-level templates** (Page, Notion-style pre-fill at creation) are
 
 Pages — `.md` files with YAML frontmatter; prose-bearing. See [[Pages]].
 
-Items are NOT inside Page Types — they live on the Items side inside an [[Items|Item Type]] (the parallel schema-bearing container). The kind-agnostic Vault model from pre-ParadigmV2 is gone.
+Items are NOT inside Page Types — they live on the Items side inside an [[Items|Item Type]] (the parallel schema-bearing container).
 
 Tasks and Events live in the Tasks singleton and Events singleton respectively (root folders identified by `_taskconfig.json` / `_eventconfig.json`) — see [[Agenda]].
 
@@ -283,13 +274,13 @@ Enforced at every file write:
 
 #### Adopting existing folders
 
-Opening any folder as a Nexus — including pre-existing user folders that have never seen Pommora — runs an idempotent scan. The adopter classifies each root folder independently and tolerates mixed states: fresh folders, pre-ParadigmV2 legacy sidecars, the ParadigmV2 wrapper layout, and the already-flat target state can all coexist in one Nexus, and each folder is migrated on its own.
+Opening any folder as a Nexus — including pre-existing user folders that have never seen Pommora — runs an idempotent scan. The adopter classifies each root folder independently and tolerates mixed states: fresh folders, legacy sidecars from earlier shapes, the wrapper layout from a prior refactor, and the already-flat target state can all coexist in one Nexus, and each folder is migrated on its own.
 
 Shape detection per root folder:
 
 - **Fresh** — no recognized sidecar. Content-sniff (recursive `.md` vs `.json` count): `.md` dominant → Page Type candidate; `.json` dominant → Item Type candidate; empty → default Page Type.
-- **Pre-ParadigmV2 legacy** — folder carries the old Pages-side Type sidecar (the deprecated `_vault` filename); renamed in place to `_pagetype.json`. Any sub-folder carrying the old Collection sidecar (`_collection`) is renamed to `_pagecollection.json`.
-- **ParadigmV2 wrapper layout** — folder is one of the legacy wrappers the ParadigmV2 ship used (`Pages` / `Items` / `Agenda` at root, each containing children with a unified `_schema` sidecar). The adopter unwraps each child up to the nexus root and renames the legacy unified sidecar to the appropriate per-kind name based on parent + depth — Page Type children become `_pagetype.json`, their nested Collections become `_pagecollection.json`, the Items wrapper's children become `_itemtype.json` / `_itemcollection.json`, the Agenda wrapper's `Tasks` child becomes the Tasks singleton with `_taskconfig.json`, and the Agenda wrapper's `Events` child becomes the Events singleton with `_eventconfig.json`.
+- **Legacy Vault sidecar** — folder carries the deprecated `_vault` filename; renamed in place to `_pagetype.json`. Any sub-folder carrying the old `_collection` sidecar is renamed to `_pagecollection.json`.
+- **Legacy wrapper layout** — folder is one of the legacy wrappers (`Pages` / `Items` / `Agenda` at root, each containing children with a unified `_schema` sidecar). The adopter unwraps each child up to the nexus root and renames the legacy unified sidecar to the appropriate per-kind name based on parent + depth — Page Type children become `_pagetype.json`, their nested Collections become `_pagecollection.json`, the Items wrapper's children become `_itemtype.json` / `_itemcollection.json`, the Agenda wrapper's `Tasks` child becomes the Tasks singleton with `_taskconfig.json`, and the Agenda wrapper's `Events` child becomes the Events singleton with `_eventconfig.json`.
 - **Already flat (target)** — folder carries one of the six per-kind sidecars at the right depth. No-op (with a cleanup pass to delete any co-located legacy orphan sidecars).
 
 A preview sheet shows counts + a warnings list (ambiguous classifications, collisions, etc.). Adopt applies each folder's migration as a self-atomic step (no two-phase transaction across folders) — a single failure doesn't block the rest, and re-launching after an interruption is safe (already-migrated folders are recognized as "already flat" and skipped). Fully-flat Nexuses skip the sheet silently.

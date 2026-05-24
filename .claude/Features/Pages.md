@@ -15,6 +15,7 @@ The parallel Items-side entity is the Item — a row-shaped JSON record without 
 - Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it within the same Page Type (between Page Collection sub-folders) → no strip; schema is shared.
 
 - YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Page Type's schema. **No `page_type` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
+- **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (wikilinks, relation values, tier links) resolve via `id`, never by filename. Duplicate titles within the same Page Type / Page Collection are allowed — each Page has a unique ULID. Filesystem auto-disambiguates colliding filenames with `(2)` suffix; the displayed title stays the user-typed value.
 
 - Properties on a Page must conform to the Page Type's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
 
@@ -88,7 +89,7 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 **Editor implementation — shipped at v0.2.7.0 on native TextKit 2.** Pommora uses Apple `swift-markdown` 0.8.0 + vendored `swift-markdown-engine` (at `External/MarkdownEngine/`, Apache 2.0) + a Pommora-side `AppleASTSupplementalStyler` layered on top. Full implementation spec lives at `PageEditor.md`. The three-options inventory used during v0.2.7 prep (Native Swift / JS-editor in WKWebView / Pallepadehat fork) has been resolved — historical context preserved in git history.
 
-**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. The Pages-side content manager's `updatePage(_:in:pageType:)` + `(_:inPageTypeRoot:)` write path is the Swift-side surface (renames land in Phase 2 of ParadigmV2).
+**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. The Pages-side content manager's `updatePage(_:in:pageType:)` + `(_:inPageTypeRoot:)` write path is the Swift-side surface.
 
 **Pommora-specific surface behavior:**
 
@@ -105,7 +106,7 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 #### Properties Pulldown — to-be-implemented (fast-follow patch)
 
-For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy properties** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties. Per-page drag-reorder like NavDropdown favorites. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. **Title is NOT included** (filename plays that role). For Pages opened in a Page Preview window, the same lazy-properties content model lives in the preview's inspector panel (toggle, default closed). Ships in fast-follow patch (alongside v0.3.0 or v0.3.1, Figma-driven); v0.3.0 placeholder UI uses the existing FrontmatterInspector. Canonical architecture: [[Properties]] § "Where Properties Live".
+For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy rendering** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties on this Page. Per-page drag-reorder like NavDropdown favorites. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. Title is NOT included (filename plays that role). For Pages opened in a Page Preview window, the property panel inside the inspector uses **eager rendering** — all schema properties visible, void-or-fill from there. Pulldown stays lazy; only the Inspector is eager. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Property surface rendering modes".
 
 ---
 
@@ -144,9 +145,9 @@ Right-click on a Page row in the sidebar gives Rename / Delete. Right-click in a
 
 #### Wikilinks
 
-- `[[Page Name]]` resolves by basename match (Obsidian-style).
-- If two Pages share a basename, disambiguation uses path: `[[Notes// Roadmap]]` vs `[[Personal// Roadmap]]`.
-- Renaming a Page that has ambiguous siblings updates only the references that resolve to it.
-- Wikilinks render as **styled colored inline text** (Obsidian-style hyperlink), not as Notion-style chips/pills.
-
-Full rename + wikilink-rewrite algorithm lives in [[PommoraPRD]] ("File Renames and Wikilink Updates").
+- **Disk format: `[[Page Name|01HXYZ...]]`** — the title is the human-readable label, the ULID after the pipe is the unambiguous reference.
+- Resolution is ID-keyed. The displayed title updates automatically when the target is renamed — resolution happens at render time via the ULID, never via the stored label.
+- Renames never break wikilinks. No cross-file body-scan rewrite is needed on rename.
+- **Untargeted `[[Page Name]]`** (typed without going through autocomplete, or pasted from another tool) resolves by current basename match. If multiple Pages share that name, the editor underlines it as ambiguous and the autocomplete picker prompts for disambiguation at insertion.
+- Wikilinks render as styled colored inline text (Obsidian-style hyperlink), not as Notion-style chips/pills.
+- Obsidian-compat degrades gracefully — Obsidian sees `[[Page Name|01HXYZ...]]` and renders the title as the alias; just loses Pommora's rename-safety guarantees outside Pommora.
