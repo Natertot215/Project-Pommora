@@ -40,8 +40,9 @@ The earlier session in the same calendar day was a planning pass: spec direction
 
 ##### Decisions locked this session (in addition to plan-doc locks)
 
-- **Status value encoding is `{"$status": value}` tagged-object form**, matching the existing `{"$rel": id}` pattern for relations. Properties.md illustrates Status values as bare strings, but pure shape-sniff at the Codable layer cannot disambiguate `.status` from `.select` (both single strings). Tagged form is round-trip-stable AND more agent-legible (load-bearing constraint #3). **If Nathan wants bare-string on-disk, the manager layer would need schema-aware encode/decode** — flag for review at next session start before Phase D wires manager value writes.
+- **Status value encoding is `{"$status": value}` tagged-object form** — LOCKED. Matches the existing `{"$rel": id}` pattern for relations. Properties.md updated 2026-05-24 to reflect the actual on-disk shape; the bare-string illustration in earlier doc was illustrative shorthand. Pure shape-sniff at the Codable layer cannot disambiguate `.status` from `.select` (both single strings); tagged form is round-trip-stable AND more agent-legible (load-bearing constraint #3).
 - **7 test-fixture call sites patched with `id: ""` prefix** when Phase A.5+6's PropertyDefinition init gained the required `id` parameter (stub-and-progressively-replace per paradigm decision #4). The `id: ""` empty values get backfilled to minted ULIDs by Phase C.3's adoption-scan migration.
+- **Phase J gate: parallel-session 4 Swift mods must be resolved before Phase J starts.** The Pages-side detail-view + manager auto-sidecar logic in the parallel session's working tree (`PageCollectionDetailView.swift`, `ItemTypeManager.swift`, `NexusAdopter.swift`, `PageTypeManager.swift`) collides with Phase J UI work + Phase D manager work. Either commit upstream first or coordinate explicitly.
 
 #### Active branch quirks (all still in force)
 
