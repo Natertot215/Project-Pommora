@@ -4,7 +4,7 @@
 
 #### Current state (2026-05-24 late session — v0.3.0 implementation underway)
 
-**Branch:** `v0.3.0-properties` (created from `main` this session). **8 commits shipped.** Build green; full unit suite ~206 unique tests passing with only the 2 known pre-existing failures (`NexusAdopterTests/applyNathansActualShape` from parallel-session work + `PageEditorViewModelTests/debounceCoalescesRapidEdits` flaky timing).
+**Branch:** `v0.3.0-properties` (created from `main` this session). **13 commits shipped.** Build green; full unit suite passing with only the 2 known pre-existing failures (`NexusAdopterTests/applyNathansActualShape` from parallel-session work + `PageEditorViewModelTests/debounceCoalescesRapidEdits` flaky timing).
 
 The earlier session in the same calendar day was a planning pass: spec direction-shifts locked, `Features/Properties.md` consolidated as single source of truth, implementation plan written at `// Planning//v0.3.0-Properties-plan.md` via the `superpowers:writing-plans` skill. That doc commit (`0dc47f4`) opens this session. The session then started executing the plan task-by-task per `superpowers:subagent-driven-development`.
 
@@ -20,12 +20,17 @@ The earlier session in the same calendar day was a planning pass: spec direction
 | `1f85548` | A.5+6 | `PropertyDefinition` stored `id` + config fields + `StatusGroup` / `StatusOption` / `StatusGroupID` / `DualPropertyConfig` nested types |
 | `f31bda0` | B.1 | `SchemaTransaction` atomic multi-file commit primitive (`Pommora/Pommora/AtomicIO/SchemaTransaction.swift`) |
 | `d69fd97` | C.1 | `PageFrontmatter.modifiedAt` field (optional; legacy decode yields nil) |
+| `32309e1` | docs | Mid-session Handoff — Phase A + B + C.1 shipped |
+| `704a34a` | docs | Lock `{$status: value}` encoding in Properties.md + Phase J parallel-session gate |
+| `8ff9dc9` | C.4 | `schema_version: 1` on 4 non-Agenda sidecars (PageType, PageCollection, ItemType, ItemCollection; legacy decode → 0) |
+| `3afeec9` | C.3 | `PropertyIDMigration` post-adoption pass — mints `prop_<ulid>` IDs for empty properties + rekeys member files via SchemaTransaction; idempotent. Hooked from NexusManager (NOT NexusAdopter) to avoid touching parallel-session file. `AtomicYAMLMarkdown` split into `encode(…) → Data` + `write(…)` to support SchemaTransaction Page staging. |
+| `c60fe48` | C.3 fix | Migration now runs on EVERY nexus open (not only when adoption is also needed) |
 
 ##### Phases complete
 
-- ✅ **Phase A — Foundation types + reserved-ID prefixes** (all 6 sub-tasks shipped). Full property catalog (11 types), `RelationScope` 5 cases, `PropertyDefinition` with stored ULID `id` + all spec config fields, Status types, dual-relation config type.
-- ✅ **Phase B — `SchemaTransaction` primitive** (1 task shipped). Atomic multi-file commit with two-phase commit + idempotent stale-temp cleanup. Used by Phase C/D/G/H.
-- 🟡 **Phase C — Migration** (1 of 5 sub-tasks shipped). Only C.1 (`PageFrontmatter.modifiedAt`) landed. **C.3 (NexusAdopter property-ID rewrite migration) + C.4 (schema_version field on all 6 sidecars) + C.5 (AdoptionPreview migration counts) are the next session's first tasks** — they ship together because schema_version is the "this needs migration" signal C.3 reads, and AdoptionPreview surface needs C.3's count output.
+- ✅ **Phase A — Foundation types + reserved-ID prefixes** (all 6 sub-tasks shipped).
+- ✅ **Phase B — `SchemaTransaction` primitive** (1 task shipped).
+- 🟡 **Phase C — Migration** (4 of 5 sub-tasks shipped: C.1, C.3, C.3-fix, C.4). **C.5 (AdoptionPreview surfacing migration counts) is deferred to next session** — it requires refactoring `PropertyIDMigration.runIfNeeded` into a `scan() -> Plan` + `apply(plan)` two-phase API so the AdoptionPreviewView sheet can show counts BEFORE the user confirms commit. The current C.3 implementation runs migration unconditionally post-adoption with no preview UI — works correctly but informs less. Roughly 30-45 Claude-min of refactor + tests + UI threading.
 
 ##### Phases pending
 
@@ -42,7 +47,11 @@ The earlier session in the same calendar day was a planning pass: spec direction
 
 - **Status value encoding is `{"$status": value}` tagged-object form** — LOCKED. Matches the existing `{"$rel": id}` pattern for relations. Properties.md updated 2026-05-24 to reflect the actual on-disk shape; the bare-string illustration in earlier doc was illustrative shorthand. Pure shape-sniff at the Codable layer cannot disambiguate `.status` from `.select` (both single strings); tagged form is round-trip-stable AND more agent-legible (load-bearing constraint #3).
 - **7 test-fixture call sites patched with `id: ""` prefix** when Phase A.5+6's PropertyDefinition init gained the required `id` parameter (stub-and-progressively-replace per paradigm decision #4). The `id: ""` empty values get backfilled to minted ULIDs by Phase C.3's adoption-scan migration.
-- **Phase J gate: parallel-session 4 Swift mods must be resolved before Phase J starts.** The Pages-side detail-view + manager auto-sidecar logic in the parallel session's working tree (`PageCollectionDetailView.swift`, `ItemTypeManager.swift`, `NexusAdopter.swift`, `PageTypeManager.swift`) collides with Phase J UI work + Phase D manager work. Either commit upstream first or coordinate explicitly.
+- **Phase J gate: parallel-session Swift mods MUST be resolved before Phase J starts.** Originally flagged as 4 files; **the parallel session has shipped a substantial sidebar drag-to-reorder refactor since** — working tree now carries 19 Swift mods + 1 untracked new file:
+  - **Modified:** `Detail/PageCollectionDetailView.swift`, `Items/ItemTypeManager.swift`, `NavDropdown/NexusState.swift`, `Nexus/NexusAdopter.swift`, `Ordering/OrderPersister.swift`, `Ordering/OrderResolver.swift`, `Sidebar/ItemTypeRow.swift`, `Sidebar/PageCollectionRow.swift`, `Sidebar/PageRow.swift`, `Sidebar/PageTypeRow.swift`, `Sidebar/ProjectRow.swift`, `Sidebar/SidebarView.swift`, `Sidebar/SpaceRow.swift`, `Sidebar/TopicRow.swift`, `Vaults/PageTypeManager.swift`
+  - **Deleted:** `Sidebar/Drag/DragValidator.swift`, `Sidebar/Drag/ReorderableRow.swift`, `Sidebar/Drag/SidebarDragPayload.swift`, `Sidebar/Drag/SidebarDragPreview.swift`
+  - **Untracked:** `Sidebar/RenameableRow.swift`
+  - This appears to be the locked drag-to-reorder regression fix (per Handoff outstanding follow-up). Will collide HARD with Phase D (manager schema CRUD touches PageTypeManager + ItemTypeManager) and Phase J (UI work touches every sidebar row + adds context-menu entries). **Coordinate with the parallel-session author before Phase D/E/J begins.** Build remained green across all 13 of this session's commits despite the mods, but any new mutation in Phase D/E/J risks conflict.
 
 #### Active branch quirks (all still in force)
 
@@ -76,7 +85,7 @@ v0.3.3 — File watcher + FTS5 wiring + external-edit detection
 
 #### Verbatim resume prompt
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. On branch `v0.3.0-properties` — 8 commits shipped this session (`0dc47f4` docs + `cd61ed4` A.1 + `953ba39` A.2 + `8358ebf` A.3 + `23a2aa5` A.4 + `1f85548` A.5+6 + `f31bda0` B.1 + `d69fd97` C.1 + this Handoff commit). Phase A foundation types done (11-case PropertyType + PropertyValue + FileRef + ReservedPropertyID + 5-case RelationScope + PropertyDefinition with stored id + StatusGroup/StatusOption/StatusGroupID/DualPropertyConfig). Phase B SchemaTransaction primitive done. Phase C.1 modified_at on PageFrontmatter done. **Resume at Phase C.3 + C.4 + C.5 (migration suite — they ship together):** C.4 adds `schema_version: 1` to all 6 sidecar Codable types (PageType, PageCollection, ItemType, ItemCollection, AgendaTaskSchema, AgendaEventSchema — legacy decode defaults to 0); C.3 extends NexusAdopter with `migratePropertyIDsIfNeeded` that walks every schema sidecar (mints `prop_<ulid>` for empty `id`s), then walks every member file (rekeys `properties:` from name to ID via the per-Type name→id map), commits per-Type via SchemaTransaction; C.5 surfaces migration counts in AdoptionPreviewView. Then Phase D (Schema CRUD on managers + validators + EC4 drift defense). Plan at `.claude/Planning/v0.3.0-Properties-plan.md`. Critical context: quirk #11 parallel-session 4-file working-tree mods MUST stay untouched; quirk #3 SourceKit squiggles are stale (every session task hits them) — always builder-verify; new quirk #13 use `Agent run_in_background: true` for builder verifications (Nathan doesn't want xcodebuild focus-grab); test-fixture call sites with empty `id: \"\"` get backfilled by Phase C.3 migration. **Open decision flagged for review:** Status PropertyValue encoding chose `{\"$status\": value}` tagged form (matches `$rel` pattern) over Properties.md's illustrative bare-string shape — disambiguates `.status` from `.select` at Codable layer. If Nathan wants bare-string on disk, manager layer needs schema-aware encode/decode."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. On branch `v0.3.0-properties` — 13 commits shipped across two sessions today (`0dc47f4` docs/plan + `cd61ed4` A.1 + `953ba39` A.2 + `8358ebf` A.3 + `23a2aa5` A.4 + `1f85548` A.5+6 + `f31bda0` B.1 + `d69fd97` C.1 + `32309e1` handoff + `704a34a` status-encoding-lock + `8ff9dc9` C.4 + `3afeec9` C.3 + `c60fe48` C.3-fix + this final handoff commit). Phase A foundation types done. Phase B SchemaTransaction primitive done. Phase C.1 (PageFrontmatter modified_at), C.3 (PropertyIDMigration on every nexus open, hooked from NexusManager — NOT NexusAdopter — to avoid parallel-session file), and C.4 (schema_version: 1 on PageType/PageCollection/ItemType/ItemCollection) all shipped. AtomicYAMLMarkdown split into `encode(...) → Data` + `write(...)` for SchemaTransaction Page staging. **Resume options for next session:** (1) Phase C.5 — refactor PropertyIDMigration into `scan() -> Plan` + `apply(plan)` so AdoptionPreviewView can show counts before commit (~30-45 Claude-min); (2) skip C.5 and start Phase D — Schema CRUD on PageType/ItemType/AgendaTask/AgendaEvent managers + PropertyDefinitionValidator (8 rules) + drop duplicateTitle from PageValidator/ItemValidator + SchemaConflictDialog for EC4 schema-drift defense. **CRITICAL parallel-session gate:** the parallel-session author has now shipped a much larger sidebar drag-to-reorder refactor into the working tree (19 modified files + 1 untracked + 4 deletions in `Sidebar/Drag/`); coordinate with them before Phase D (which touches PageTypeManager + ItemTypeManager) or Phase J UI work (which touches every sidebar row + adds 'Vault Settings…' / 'Type Settings…' context menus). Build is green across this session's 13 commits despite the mods, but any new mutation in those file paths risks conflict. Locked decisions: `{$status: value}` tagged encoding LOCKED (Properties.md updated); `{$rel: id}` pattern preserved; tier1/2/3 stay as root-level frontmatter; reserved IDs `_id`/`_status`/`_tier1/2/3`/`_wikilinks` enforced. Plan at `.claude/Planning/v0.3.0-Properties-plan.md`. Quirks #1 FILENAME-form test filter; #3 SourceKit squiggles are stale (every task hits them — always builder-verify); #11 parallel-session UNTOUCHED in commits; #13 use `Agent run_in_background: true` for builder verifications."
 
 #### Open questions still queued
 
@@ -92,7 +101,7 @@ Of the 6 must-fix areas + 3 net-new areas the prior session's audit flagged, thi
 
 | Audit item | Status |
 |---|---|
-| **1. Property identity = ID not name** (D2 CRITICAL) | ✅ DONE via Phase A.5 — stored `id` field; legacy decode synthesises empty; Phase C.3 migration backfills |
+| **1. Property identity = ID not name** (D2 CRITICAL) | ✅ DONE via Phase A.5 (stored `id` field) + Phase C.3 (PropertyIDMigration backfills empty IDs + rekeys member files on every nexus open) |
 | **2. Drop `duplicateTitle` validation** (D3 CRITICAL) | ⏳ Phase D.6 — drops `PageValidator.swift:37-40` + `ItemValidator.swift:34-37` |
 | **3. RelationScope incomplete** (D5 HIGH) | ✅ DONE via Phase A.4 — 5 cases, custom Codable |
 | **4. Status built-in seed missing** (D6 CRITICAL) | ⏳ Phase G.1+G.2 — `defaultSeed()` injects `_status` on AgendaTask/AgendaEvent schemas |
@@ -102,6 +111,8 @@ Of the 6 must-fix areas + 3 net-new areas the prior session's audit flagged, thi
 | **Net-new: D9 SQLite indexer** | ⏳ Phase E.1-7 — GRDB.swift dep, `Pommora/Pommora/Index/` folder, full filter query API |
 | **Net-new: D10 File attachment + copy-on-attach** | ⏳ Phase F.1 |
 | **Bonus: PageFrontmatter `modified_at`** (found during audit) | ✅ DONE via Phase C.1 |
+| **Bonus: SchemaTransaction multi-file atomic primitive** | ✅ DONE via Phase B.1 (used by Phase C.3 ID-rekey migration; used by Phase D paired-relation create/delete + type-change-drop, by Phase G dual lifecycle, by Phase H move-strip) |
+| **Bonus: schema_version on sidecars** (EC2) | ✅ DONE via Phase C.4 (4 non-Agenda sidecars; Agenda already had it pre-existing) |
 
 #### Outstanding follow-ups
 
