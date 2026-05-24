@@ -30,7 +30,7 @@ struct ItemValidatorTests {
             id: ULID.generate(), title: "V", icon: nil,
             properties: [
                 PropertyDefinition(
-                    name: "status", type: .select,
+                    id: "", name: "status", type: .select,
                     selectOptions: [PropertyDefinition.SelectOption(value: "Active", label: "Active", color: nil)])
             ],
             views: [], modifiedAt: Date()
@@ -70,7 +70,7 @@ struct ItemValidatorTests {
     @Test("property value of wrong type throws")
     func wrongPropertyType() {
         let vault = makeVault(properties: [
-            PropertyDefinition(name: "count", type: .number)
+            PropertyDefinition(id: "", name: "count", type: .number)
         ])
         #expect(throws: ItemValidator.ValidationError.propertyTypeMismatch(name: "count")) {
             try ItemValidator.validate(

@@ -20,14 +20,14 @@ struct PageTypeFileTests {
             icon: "folder",
             properties: [
                 PropertyDefinition(
-                    name: "status",
+                    id: "", name: "status",
                     type: .select,
                     selectOptions: [
                         PropertyDefinition.SelectOption(value: "active", label: "Active", color: .green),
                         PropertyDefinition.SelectOption(value: "done", label: "Done", color: .gray),
                     ]
                 ),
-                PropertyDefinition(name: "due", type: .date, dateIncludesTime: false),
+                PropertyDefinition(id: "", name: "due", type: .date, dateIncludesTime: false),
             ],
             views: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)
