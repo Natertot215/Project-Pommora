@@ -285,6 +285,20 @@ final class NexusManager {
                 "Adoption completed with \(result.failedCount) failures (\(preview))."
             )
         }
+
+        // v0.3.0 Phase C.3: post-adoption property-ID synthesis migration.
+        // Best-effort + idempotent (same shape as adopter.apply); per-Type
+        // failures isolated. Skipped silently when no Type needs migration
+        // (every property has an id AND schema_version >= 1).
+        let migration = PropertyIDMigration.runIfNeeded(at: url)
+        if !migration.failedTypes.isEmpty {
+            let preview = migration.failedTypes.prefix(3)
+                .map { "\($0.typeFolderURL.lastPathComponent): \($0.message)" }
+                .joined(separator: "; ")
+            pendingError = .initFailed(
+                "Property-ID migration completed with \(migration.failedTypes.count) failures (\(preview))."
+            )
+        }
     }
 
     /// Publishes `plan` for ContentView's sheet to pick up, then suspends

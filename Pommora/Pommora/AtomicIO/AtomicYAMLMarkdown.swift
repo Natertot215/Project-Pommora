@@ -44,12 +44,22 @@ enum AtomicYAMLMarkdown {
     }
 
     static func write<T: Codable>(frontmatter: T, body: String, to url: URL) throws {
+        let data = try encode(frontmatter: frontmatter, body: body)
+        try data.write(to: url, options: [.atomic])
+    }
+
+    /// Encodes a frontmatter + body pair into the YAML-envelope `Data` shape
+    /// that `write` persists. Exposed for callers (e.g. SchemaTransaction
+    /// staging) that need to batch a Page write into a multi-file atomic
+    /// commit: encode here, stage the returned Data via
+    /// `SchemaTransaction.stage(payload:to:)`.
+    static func encode<T: Codable>(frontmatter: T, body: String) throws -> Data {
         let fmText = try YAMLEncoder().encode(frontmatter)
         let combined = "---\n\(fmText)---\n\n\(body)"
         guard let data = combined.data(using: .utf8) else {
             throw AtomicYAMLMarkdownError.utf8EncodingFailed
         }
-        try data.write(to: url, options: [.atomic])
+        return data
     }
 
     // MARK: - Internal split
