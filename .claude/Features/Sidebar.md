@@ -1,6 +1,6 @@
 ### Sidebar
 
-Pommora's leading-edge navigation pane in the three-pane shell. Five top-level groups — a heading-less pinned section at top, then Spaces, Topics, Items, Pages. Locked selection language from v0.0 carries forward.
+Pommora's leading-edge navigation pane in the three-pane shell. Five top-level groups — a heading-less pinned section at top, then Spaces, Topics, Types, Vaults. Locked selection language from v0.0 carries forward.
 
 Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelines//CRUD-Patterns.md`.
 
@@ -12,10 +12,10 @@ Five top-level groups (all labels renameable via Settings scaffold — Phase 7):
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
 - **Spaces** — flat rows for tier-1 Contexts
 - **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
-- **Items** (default label) — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set")
-- **Pages** (default label) — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection")
+- **Types** (default label — Items-side) — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set"). Per `SidebarSectionLabels.defaults()`, section header defaults to the Items-side container-plural — "Types".
+- **Vaults** (default label — Pages-side) — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection"). Per `SidebarSectionLabels.defaults()`, section header defaults to the Pages-side signature plural — "Vaults".
 
-Items sits above Pages — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. Calendar wires the Agenda data layer in a follow-up plan.
+Types sits above Vaults — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. Calendar wires the Agenda data layer in a follow-up plan.
 
 ```
 [Sidebar]
@@ -34,11 +34,11 @@ Items sits above Pages — quicker-capture entities ride higher in the visual hi
       GTD method
       Time-blocking
   ▸ Side Projects  [tagged: blue]
-─ Items ────────────────────────
+─ Types ────────────────────────              ← section header (Items-side default)
   ▾ Bookmarks                              ← Item Type row (UI label: "Type")
       Tech                                 ← Item Collection row (UI label: "Set")
   ▸ Books
-─ Pages ────────────────────────
+─ Vaults ───────────────────────              ← section header (Pages-side default)
   ▾ Assignments                            ← Page Type row (UI label: "Vault")
       📄 README                            ← Page directly in Page Type root
       ▾ Spring 2026                        ← Page Collection row (UI label: "Collection")
@@ -54,11 +54,11 @@ No always-visible "+ New" buttons — creation is **right-click first**, complem
 
 There are no wrapper folders on disk — Page Types, Item Types, and the Agenda singletons all live as siblings at the nexus root. The sidebar groups each root folder by reading its **per-kind sidecar filename**, not by inspecting a wrapper directory:
 
-- Any root folder carrying `_pagetype.json` → grouped under the **Pages** section heading
-- Any root folder carrying `_itemtype.json` → grouped under the **Items** section heading
+- Any root folder carrying `_pagetype.json` → grouped under the **Vaults** section heading (Pages-side default)
+- Any root folder carrying `_itemtype.json` → grouped under the **Types** section heading (Items-side default)
 - Root folders carrying `_taskconfig.json` (Tasks singleton) and `_eventconfig.json` (Events singleton) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry once Calendar UI lands
 
-The section headings ("Pages" / "Items") are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar are unrecognized and trigger the adopter on next launch.
+The section headings ("Vaults" / "Types") are pure UI groupings with no on-disk counterpart, defaulted via `SidebarSectionLabels.defaults()` and renameable via Settings. Folders without a recognized sidecar are unrecognized and trigger the adopter on next launch (only when there's something to migrate — fresh non-Pommora folders stay invisible to discovery per `2d42d63`).
 
 ---
 
@@ -99,7 +99,7 @@ Chevron-disclosure rows. Each Topic expands to show file-nested Projects (tier-3
 
 Topic rows carry **tagging indicators inherited from parent Space(s)**. Multi-Space Topics show multiple indicators side by side (e.g. blue + green dots for a Topic that belongs to both Personal and Work). Clicking a Topic or Project opens its composed-blocks page.
 
-##### Items
+##### Types (Items-side; default label)
 
 Chevron-disclosure rows. **Each Item Type discloses its Item Collections** as children. The default UI label for Item Type rows is "Type"; for Item Collection rows is **"Set"** (both renameable via Settings).
 
@@ -107,7 +107,7 @@ Items themselves do **NOT** appear as leaves in the sidebar — they live in det
 
 Item Types don't display tagging (operational, not categorical). Clicking an Item Type opens its Items Table; clicking an Item Collection opens a scoped view.
 
-##### Pages
+##### Vaults (Pages-side; default label)
 
 Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages use the `doc.text` icon; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
 
@@ -123,8 +123,8 @@ Canonical creation pattern. No always-visible "+ New" buttons; right-click the r
 |---|---|---|
 | Spaces section area (empty / on heading) | New Space | — |
 | Topics section area | New Topic | — |
-| Items section area | New Item Type | — |
-| Pages section area | New Page Type | — |
+| Types section area (Items-side) | New Item Type | — |
+| Vaults section area (Pages-side) | New Page Type | — |
 | Space row | New Space | Rename / Change Color / Change Icon / Delete |
 | Topic row (when disclosed) | New Project *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
 | Project row | — | Rename / Change Icon / Delete |
@@ -172,7 +172,7 @@ When adjusting sidebar geometry, the mechanism depends on what's being adjusted 
 
 #### Section ordering
 
-User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Items / Pages** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
+User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Types / Vaults** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
 
 ---
 
@@ -188,4 +188,10 @@ Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `t
 
 ---
 
-> **v0.3.0 status:** The Pages-side ships fully designed per this spec — Page Type rows (labeled "Vault" by default), Page Collection rows, context menus, sheet wiring. The Items-side ships as minimal stubs: `ItemTypeRow` + `ItemCollectionRow` render as plain selectable rows (no context menus, no quick-actions). Click-through lands on a `ContentUnavailableView` placeholder; the Items table UI lands in a follow-up plan. Agenda has no sidebar section — Agenda Tasks + Agenda Events surface via the Calendar pin entry (data layer ships in v0.3.0; Calendar UI is a follow-up plan).
+#### Drag-reorder status (v0.2.8)
+
+Phase 1 (persistence — `OrderResolver` + `OrderPersister` + per-sidecar order fields) shipped `5a264f0`. Phase 2 (UX wiring via `.reorderable(...)`) shipped `9cd8cd1` on the following rows: **PageType / Topic / Space / Page / PageCollection / Project**. Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (ParadigmV2 stubs — light up when the designed Items UI lands), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
+
+---
+
+> **v0.3.0 status:** The Pages-side ships fully designed per this spec — Page Type rows (labeled "Vault" by default), Page Collection rows, context menus, sheet wiring, drag-reorder. The Items-side ships as minimal stubs: `ItemTypeRow` + `ItemCollectionRow` render as plain selectable rows (no context menus, no quick-actions, no drag wiring). Click-through lands on a `ContentUnavailableView` placeholder; the Items table UI lands in a follow-up plan. Agenda has no sidebar section — Agenda Tasks + Agenda Events surface via the Calendar pin entry (data layer ships in v0.3.0; Calendar UI is a follow-up plan).

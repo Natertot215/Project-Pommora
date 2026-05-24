@@ -37,7 +37,9 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**ParadigmV2 SHIPPED** (tag `paradigmV2`, between v0.2.8 and v0.3.0). Operational-layer domain model refactor — symmetric Page/Item containers, AgendaItem split into AgendaTask + AgendaEvent, Settings scaffold, UI label divergence (Pages-side "Vault"/"Collection"; Items-side "Type"/"Set"). **`flatlayout` refactor follows ParadigmV2** (tag `flatlayout`, between `paradigmV2` and v0.3.0; ships before Properties): drops the Pages/Items/Agenda wrapper folders so Types live at the nexus root, splits the unified sidecar into six per-kind filenames (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`); Agenda Tasks + Events become sidecar-driven singletons at root. Plan: `// Planning//v0.3.0-Flat-Layout-Plan.md`. v0.3.0 Properties begins on the flat-layout foundation — implementation plan at `// Planning//v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Detailed ship log in `History.md`.
+**`flatlayout` SHIPPED + post-ship hardening cluster landed** (tag `flatlayout` at `049df19`, between `paradigmV2` and v0.3.0). On-disk layout is flat — Types live at the nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`); Agenda Tasks + Events are sidecar-driven singletons at root. `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan + co-located sidecar cleanup. Five post-ship hardening commits on `main`: adoption-preview gate (non-Pommora folders stay invisible), drag-to-reorder Phase 2 UX (v0.2.8), `lookupVault` folder-name fallback + diagnostics, co-located per-kind sidecar orphan cleanup, and a cosmetic `var` → `let`. Build green, **366 tests passing**. Nathan's real-nexus migration is complete.
+
+**Next: v0.3.0 Properties** begins on the flat-layout foundation — implementation plan at `// Planning//v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Detailed ship log in `History.md`.
 
 ##### v0.2.7.x — Page editor patch family
 
@@ -50,7 +52,7 @@ Post-Pages-editor capability iterations on top of the v0.2.7.0 TextKit-2 baselin
 - ✅ **v0.2.7.5** — Blockquote chrome (always-show overlay; renderer-drawn rounded card + vertical pill bar). One visual TBD (horizontal positioning) in Handoff.
 - **Remaining page editor fixes** — code & quote `Enter}` auto-completion; code block → red text bug.
 - **Tables** (queued — ~10-15h realistic estimate; spec at `// Features//PageEditor.md → Tables — to be implemented`) — Core Graphics inline grid overlay + drag-resize columns + `pommora_table_widths` frontmatter persistence + double-click popover editor + right-click structural context menu. NSTextTable explicitly rejected.
-- **Sidebar drag-to-reorder Phase 2** (queued) — Phase 1 persistence shipped v0.2.8. Phase 2 lights up full row-content drag per `Planning/v0.2.8-Drag-Reorder.md`.
+- ✅ **Sidebar drag-to-reorder Phase 2 — v0.2.8** — Phase 1 persistence shipped `5a264f0`; Phase 2 UX shipped `9cd8cd1` (Pages-side + Contexts rows: PageType / Topic / Space / Page / PageCollection / Project). Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (ParadigmV2 stubs), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
 - **PreviewWindow primitive** (queued) — cross-feature standalone-window surface. Project-wide contract at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
 - **Directives + heading fold + slash menu** (formerly v0.2.9) — unscheduled; page editor is functional without them.
 

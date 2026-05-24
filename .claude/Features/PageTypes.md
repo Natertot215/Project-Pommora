@@ -236,7 +236,7 @@ Page Collections don't carry their own `properties` or `views` — schema is inh
 
 #### Sidebar treatment
 
-- Page Types appear as chevron-disclosure rows directly under the `Pages` section heading (the heading itself is a pure UI grouping — there is no `Pages/` wrapper folder on disk). The sidebar groups under "Pages" any root folder whose sidecar filename is `_pagetype.json`.
+- Page Types appear as chevron-disclosure rows directly under the `Vaults` section heading (default label per `SidebarSectionLabels.defaults()`; the heading itself is a pure UI grouping — there is no `Pages/` wrapper folder on disk). The sidebar groups under "Vaults" any root folder whose sidecar filename is `_pagetype.json`.
 - **A Page Type's disclosure children**: Pages directly in the Type's root + Page Collection sub-folders (Pages above Collections in v1). Pages = `doc.text`; Collections = `folder`
 - **A Page Collection's disclosure children**: its Pages (`doc.text`)
 - **Items, Agenda Tasks, Agenda Events do NOT appear in the sidebar** — Items live in detail-pane Tables under their Item Type; Tasks + Events surface via the Calendar pin entry

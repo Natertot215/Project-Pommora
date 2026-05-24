@@ -4,11 +4,13 @@
 
 #### Current state (2026-05-23)
 
-**flatlayout SHIPPED.** Tag `flatlayout` pushed to origin at the Phase 6 ship cluster (`5ceca94` 6.2 Handoff/History snapshot → `f2d42fe` 6.3 lint cleanup → tag self-reference fixup). The on-disk layout is now flat — Page Types / Item Types / Tasks singleton / Events singleton live at the nexus root with six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan cleanup and `.DS_Store`-tolerant empty-wrapper detection. Agenda discovery is sidecar-driven (Tasks/Events folders renameable via Finder).
+**flatlayout SHIPPED + post-ship hardening cluster landed.** Tag `flatlayout` was pushed to origin at the Phase 6 ship cluster (`049df19`). Since the tag, **5 follow-up commits** landed on `main` addressing issues Nathan found running the app post-ship on his real nexus — adoption preview noise on non-Pommora folders, drag-to-reorder UX wiring (Phase 2), folder-name fallback + diagnostics in `SidebarDetailView.lookupVault`, co-located per-kind sidecar orphan cleanup, and a cosmetic `var` → `let` warning silence. Build green, **366 tests passing** (+3 from the ship tag's 363).
 
-Build green via `xcodebuild`, **363 tests passing** at the ship tag. Pre-existing intermittent flake: `PageEditorViewModelTests.debounceCoalescesRapidEdits` (tight 500ms-after-300ms margin) — not blocking.
+The on-disk layout is flat — Page Types / Item Types / Tasks singleton / Events singleton live at the nexus root with six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles four input shapes (fresh / legacy v0.2 / paradigmV2-wrapper / already-flat) with legacy-orphan + co-located sidecar cleanup, and `.DS_Store`-tolerant empty-wrapper detection. Agenda discovery is sidecar-driven (Tasks/Events folders renameable via Finder).
 
-**Next focus: v0.3.0 Properties.** Implementation plan at [`Planning/v0.3.0-Properties-plan.md`](Planning/v0.3.0-Properties-plan.md) (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at [`Planning/v0.3.0-Properties-spec.md`](Planning/v0.3.0-Properties-spec.md). Properties' schema-editing operates on the per-kind sidecar files that flatlayout just shipped, so this is the natural next step.
+**Nathan's real-nexus migration is complete** — `/Users/nathantaichman/The Nexus/` is now flat with all 8 vaults (`Archives` / `Assets` / `Claude` / `Databases` / `Knowledge` / `Materials` / `Pommora` / `Systems`) at root, plus `Tasks/` + `Events/` singletons. Migration verified end-to-end on production data.
+
+**Next focus: v0.3.0 Properties.** Implementation plan at [`Planning/v0.3.0-Properties-plan.md`](Planning/v0.3.0-Properties-plan.md) (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at [`Planning/v0.3.0-Properties-spec.md`](Planning/v0.3.0-Properties-spec.md). Properties' schema-editing operates on the per-kind sidecar files flatlayout just shipped, so this is the natural next step.
 
 **Flatlayout phase status:**
 - ✅ Phase 1 — Documentation sweep (5 commits)
@@ -16,38 +18,36 @@ Build green via `xcodebuild`, **363 tests passing** at the ship tag. Pre-existin
 - ✅ Phase 3 — Managers (3 commits; 3.2/3.4 verified clean)
 - ✅ Phase 4 — NexusAdopter rewrite (3 commits)
 - ✅ Phase 5 — Tests audit (2 commits)
-- ✅ Phase 6 — Ship + tag `flatlayout` (pushed to origin)
+- ✅ Phase 6 — Ship + tag `flatlayout` (pushed to origin at `049df19`)
+- ✅ Post-flatlayout hardening cluster (5 commits: `2d42d63` adoption-preview gate / `9cd8cd1` drag-reorder Phase 2 UX / `9c3820c` lookup fallback + diagnostics / `5234f78` co-located orphan cleanup / `5f0e11d` `var` → `let` cleanup)
 
 #### Verbatim resume prompt
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **flatlayout SHIPPED** — tag `flatlayout` pushed to origin. Build green, **363 tests passing**. On-disk layout is flat — Types at nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles fresh / legacy v0.2 / paradigmV2-wrapper / already-flat input shapes with legacy-orphan cleanup. **Next focus: v0.3.0 Properties** — implementation plan at `.claude/Planning/v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at `.claude/Planning/v0.3.0-Properties-spec.md`. Properties' schema-editing operates on the per-kind sidecars flatlayout just shipped, so it builds directly on top. The post-flatlayout code surface — `PageType` + `ItemType` (symmetric containers) + `PageContentManager` + `ItemContentManager` + `SettingsManager` + `AgendaTaskManager` + `AgendaEventManager` + flat-aware `NexusPaths` + `NexusAdopter` — is the foundation Properties builds on. Outstanding manual step: Nathan's real-Nexus migration (backup + adopt + verify at `/Users/nathantaichman/The Nexus/`). Builder subagent for `xcodebuild` calls (quirk #3). FILENAME-form test filter (quirk #1). Parallel session may have editor / wireframe work in working tree — never bundle into commits (quirk #11)."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **flatlayout SHIPPED** — tag `flatlayout` pushed to origin at `049df19`; 5 post-ship hardening commits on `main` since (adoption-preview gate / drag-reorder Phase 2 UX / lookup fallback + diagnostics / co-located orphan cleanup / `var` → `let`). Build green, **366 tests passing**. On-disk layout is flat — Types at nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). `NexusAdopter` handles fresh / legacy v0.2 / paradigmV2-wrapper / already-flat input shapes with legacy-orphan + co-located sidecar cleanup. Nathan's real-nexus migration is complete (flat, 8 vaults at root). **Next focus: v0.3.0 Properties** — implementation plan at `.claude/Planning/v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Conceptual spec at `.claude/Planning/v0.3.0-Properties-spec.md`. Properties' schema-editing operates on the per-kind sidecars flatlayout just shipped, so it builds directly on top. The post-flatlayout code surface — `PageType` + `ItemType` (symmetric containers) + `PageContentManager` + `ItemContentManager` + `SettingsManager` + `AgendaTaskManager` + `AgendaEventManager` + flat-aware `NexusPaths` + `NexusAdopter` — is the foundation Properties builds on. Builder subagent for `xcodebuild` calls (quirk #3). FILENAME-form test filter (quirk #1). Parallel session may have editor / wireframe work in working tree — never bundle into commits (quirk #11)."
 
 #### Outstanding follow-ups
 
-##### Nathan's manual data migration (one adoption pass — post-flatlayout)
+##### Known outstanding state
 
-Flatlayout's Phase 4 rewrites `NexusAdopter` to handle four input shapes in a single pass and land directly at the flat target (no intermediate wrapper-unwrap step from the user's side). When the refactor ships, Nathan's path on his real Nexus is:
-
-1. **Backup first** — `cp -R "/Users/nathantaichman/The Nexus" "/Users/nathantaichman/The Nexus.pre-flatlayout-backup"`.
-2. **Launch Pommora** pointed at the real nexus.
-3. **Click adopt** when the preview appears. Preview describes the migration in target-shape terms (per-folder action counts: `N` unwraps from `Pages/`, `M` from `Agenda/`, empty wrapper deletions, legacy sidecar deletions inside moved folders) — no separate user-facing "unwrap" intermediate state.
-4. **Apply.** Sidebar populates: Pinned / Spaces / Topics / Items / Pages. Items section reads from root folders carrying `_itemtype.json`; Pages section from root folders carrying `_pagetype.json`.
-5. **Spot-check the Nexus root** in Finder — should be flat: `Archives/ Assets/ Claude/ Databases/ … Tasks/ Events/` (no `Pages/` / `Items/` / `Agenda/` wrappers remaining).
-6. **If something surfaces** that the adopter doesn't handle on Nathan's specific data shape — fix-forward in `NexusAdopter.swift` and re-launch (adoption is idempotent per locked decision #11; already-flat folders skip cleanly).
+- **Collision-suffixed singleton folders on Nathan's nexus.** `Tasks.20260523-224558-760F/` and `Events.20260523-224558-46F1/` sit at `/Users/nathantaichman/The Nexus/` root — artifacts of the original adoption-pass folder-name collision (when `Tasks/` and `Events/` already existed pre-migration). The authoritative `Tasks/` + `Events/` singletons (carrying `_taskconfig.json` + `_eventconfig.json`) are in place; the timestamped siblings are inert. Nathan can `rm -rf` them manually if empty / confirmed-uninteresting.
 
 ##### Known debt (not blocking next focus)
 
 - **Blockquote horizontal-positioning visual** (v0.2.7.5 carryover) — card highlight starts at body text rather than extending into the hidden `>` syntax gap. Fix paths in History.md Session 15B.
-- **NavDropdown Pinned drag-to-reorder** — lands with drag-reorder Phase 2.
+- **NavDropdown Pinned drag-to-reorder** — queued behind v0.2.8 Phase 2 (which shipped Pages-side + Contexts only).
+- **Drag-to-reorder — Items-side rows** — still queued (Items ParadigmV2 sidebar rows are stubs; lights up when the designed Items UI lands).
+- **Drag-to-reorder — cross-container drag** — out of scope for v1 per `Planning/v0.2.8-Drag-Reorder.md`.
+- **Drag-to-reorder — detail-pane Tables** — Phase 4 of the v0.2.8 plan; not started.
 - **NavDropdown polish** — type chip removal, segmented picker opacity/contrast.
 - **In-app Trash window** — `.trash/` data layer shipped v0.2.5; UI surface at v0.4.0.
 - **`do { try await … } catch { … }` rewrap** in SidebarView.swift + IconPickerSheet.swift — cosmetic.
 - **PommoraWikiLinkResolver** — Pommora-side conforming to engine's `WikiLinkResolver`; v0.3.2 dependency.
-- **Items section header label** — Phase 8.3 left "Items" as a literal string; SettingsManager-driven wiring lands when the real Items UI ships (Properties plan Phase C.3/C.7).
+- **Items section header label** — Phase 8.3 left "Items" as a literal string; SettingsManager-driven wiring lands when the real Items UI ships (Properties plan Phase C.3/C.7). (Default is now "Types" per `SidebarSectionLabels.defaults()`.)
+- **Per-folder adoption UI** — Prospect. Today `AdoptionPlan.hasAnythingToAdopt` only triggers on structural migration (legacy renames / wrapper unwraps / explicit warnings); non-Pommora folders at root stay invisible to discovery. A future surface could let users opt non-Pommora folders into the Pommora vocabulary on a per-folder basis.
 
 #### Parallel session
 
-The concurrent editor session shipping collapsible-heading work in `External/MarkdownEngine/` has been landing commits in parallel on `main` throughout the flatlayout doc-sweep dispatches (recent ones: `f6a0661`, `806de93`, `325232a`, `8a81b3a`, `596d89d`, `e29f7e3`, `5c66be8`, etc.). Per Nathan's direction, those commits ARE included in `main` and will be in the eventual `flatlayout` tag push. Interleaving caused one metadata anomaly — `e29f7e3` incidentally absorbed the 1.3 doc-sweep edits to `Paradigm-Decisions.md` + `Symbols.md`; content is correct in HEAD, ship entry should note this.
+The concurrent editor session shipping collapsible-heading work in `External/MarkdownEngine/` continues to land commits on `main` interleaved with this work. Per Nathan's direction, those commits are included in `main`. Working tree at this snapshot has unattributed edits to `External/MarkdownEngine/Sources/MarkdownEngine/TextView/...` files + `.claude/Features/PageEditor.md` + `.claude/Features/Pages.md` — not bundled into the post-flatlayout hardening docs commit.
 
 #### Open questions
 
