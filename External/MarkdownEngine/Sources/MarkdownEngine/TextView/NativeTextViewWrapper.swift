@@ -74,6 +74,13 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
     /// Fires when the set of visible code blocks changes, so embedders can
     /// overlay copy buttons (see ``CodeBlockButton``).
     public var onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)?
+    /// Fires whenever the scroll view's vertical scroll offset changes. The
+    /// value is normalized so 0 = at-rest top position (regardless of the
+    /// scroll view's `contentInsets.top`), positive = scrolled down by that
+    /// many points. Lets embedders position SwiftUI overlays (e.g. a page
+    /// title above the body) that scroll in sync with body content without
+    /// participating in the AppKit scroll view itself.
+    public var onScrollOffsetChange: ((CGFloat) -> Void)?
 
     public init(
         text: Binding<String>,
@@ -89,7 +96,8 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         onLinkClick: ((String) -> Void)? = nil,
         onCaretRectChange: ((CGRect) -> Void)? = nil,
         onInlineSelectionChange: ((InlineSelectionState?) -> Void)? = nil,
-        onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)? = nil
+        onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)? = nil,
+        onScrollOffsetChange: ((CGFloat) -> Void)? = nil
     ) {
         self._text = text
         self._isWikiLinkActive = isWikiLinkActive
@@ -105,6 +113,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         self.onCaretRectChange = onCaretRectChange
         self.onInlineSelectionChange = onInlineSelectionChange
         self.onCodeBlockSelectionChange = onCodeBlockSelectionChange
+        self.onScrollOffsetChange = onScrollOffsetChange
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -202,6 +211,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         context.coordinator.onCaretRectChange = onCaretRectChange
         context.coordinator.onInlineSelectionChange = onInlineSelectionChange
         context.coordinator.onCodeBlockSelectionChange = onCodeBlockSelectionChange
+        context.coordinator.onScrollOffsetChange = onScrollOffsetChange
 
         textView.recalcOverscroll(for: scrollView)
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -230,6 +240,14 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
             scrollView.clampToInsets()
             context.coordinator.refreshActiveLinkCaretRect()
             context.coordinator.updateCodeBlockSelection(textView: textView)
+            // Notify embedders of the normalized scroll offset (0 = at rest,
+            // positive = scrolled down). The clipView's bounds origin is
+            // `-contentInsets.top` at rest, so add the inset back to recover
+            // the "scrolled-from-top" position.
+            if let scrollCallback = context.coordinator.onScrollOffsetChange {
+                let scrollY = scrollView.contentView.bounds.origin.y + scrollView.contentInsets.top
+                scrollCallback(max(0, scrollY))
+            }
         }
         return scrollView
     }
@@ -373,6 +391,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         context.coordinator.onCaretRectChange = onCaretRectChange
         context.coordinator.onInlineSelectionChange = onInlineSelectionChange
         context.coordinator.onCodeBlockSelectionChange = onCodeBlockSelectionChange
+        context.coordinator.onScrollOffsetChange = onScrollOffsetChange
         context.coordinator.didInitialFormatting = true
     }
 

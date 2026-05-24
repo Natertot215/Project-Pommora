@@ -42,6 +42,30 @@ struct PageEditorView: View {
     /// over to the body NSTextView (which doesn't participate in SwiftUI's
     /// FocusState graph — we makeFirstResponder it directly).
     @FocusState private var titleFocused: Bool
+    /// Normalized scroll offset of the body editor's scroll view (0 at rest,
+    /// positive while scrolled down). Drives the title overlay's `.offset`
+    /// so the title scrolls in sync with body content — at-rest the title
+    /// sits over the body's reserved top safe-area; scrolling moves it
+    /// upward off-screen. The body editor's `safeAreaInsets.top` equals
+    /// `titleAreaHeight` so body content visually butts the title-area
+    /// divider at rest.
+    @State private var scrollOffset: CGFloat = 0
+
+    /// Top padding of the body editor's text container, sized to leave room
+    /// for the title overlay + a 14pt equidistant gap below the divider.
+    /// Natural title height: `padding(.top, 24)` + 28pt bold TextField line
+    /// (~34pt) + `padding(.bottom, 14)` + 1pt Divider ≈ 73pt. Add 14pt gap +
+    /// a small safety margin → 90pt.
+    ///
+    /// Used in two places that MUST agree:
+    ///   1. The body editor's `textInsets.vertical` (reserves the empty zone
+    ///      at the top of the text container — this scrolls with body
+    ///      content unlike `safeAreaInsets`, which is a fixed scroll-view
+    ///      padding that doesn't move on scroll).
+    ///   2. The `.offset(y: -min(scrollOffset, titleAreaHeight))` clamp on
+    ///      the title overlay (lets the overlay scroll up off-screen and
+    ///      stay there once fully scrolled past).
+    private static let titleAreaHeight: CGFloat = 90
 
     init(
         viewModel: PageEditorViewModel,
@@ -55,29 +79,7 @@ struct PageEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Title banner — editable; matches macOS Notes' large title line.
-            // Submitting renames the on-disk .md file via ContentManager.renamePage.
-            TextField("Untitled", text: $titleDraft)
-                .textFieldStyle(.plain)
-                .font(.system(size: 28, weight: .bold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 20)
-                .background(Color.clear)
-                .focused($titleFocused)
-                .onSubmit {
-                    // Drop SwiftUI focus FIRST so the title field deselects
-                    // (otherwise macOS NSTextField's default Enter behavior
-                    // is to select-all). Then move AppKit firstResponder to
-                    // the body editor. Rename runs in parallel — doesn't
-                    // need to block focus shift.
-                    titleFocused = false
-                    focusBodyEditor()
-                    Task { await commitRename() }
-                }
-
+        ZStack(alignment: .topLeading) {
             // Body editor — TextKit-2 native via vendored MarkdownEngine.
             // The wrapper binds two-way to viewModel.body; every keystroke
             // flows through the VM's 300ms debounced save pipeline.
@@ -88,15 +90,69 @@ struct PageEditorView: View {
             // .padding(.horizontal, 24). Applied INSIDE the NSTextView
             // (textContainerInset) rather than as SwiftUI padding so the
             // scrollbar stays at the outer edge.
+            //
+            // `safeAreaInsets.top = titleAreaHeight` reserves the top
+            // `titleAreaHeight` points of the scroll view for the title
+            // overlay — at rest the body's first line sits immediately
+            // below the title-area divider; the inset zone scrolls
+            // naturally so the title can move up off-screen via offset.
+            //
+            // `onScrollOffsetChange` fires on every scroll-view bounds
+            // change with the normalized scroll Y (0 at rest, positive
+            // when scrolled down). We mirror it to `scrollOffset` so the
+            // overlay can track it via `.offset`.
             NativeTextViewWrapper(
                 text: $viewModel.body,
                 foldedHeadings: $viewModel.foldedHeadings,
                 configuration: Self.pommoraEditorConfiguration,
                 fontName: "SF Pro Text",
                 fontSize: 15,
-                documentId: viewModel.page.id
+                documentId: viewModel.page.id,
+                onScrollOffsetChange: { newOffset in
+                    if abs(scrollOffset - newOffset) > 0.5 {
+                        scrollOffset = newOffset
+                    }
+                }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Title + divider overlay. Sits on top of the body editor's
+            // reserved safe-area zone at rest. Tracks the body editor's
+            // vertical scroll via `.offset(y: -scrollOffset)` so it scrolls
+            // in sync with body content — when fully scrolled past, the
+            // entire title region is off-screen above the viewport and the
+            // body fills the visible area.
+            //
+            // Submitting renames the on-disk .md file via
+            // ContentManager.renamePage. The 28pt bold matches macOS Notes'
+            // large title line.
+            VStack(spacing: 0) {
+                TextField("Untitled", text: $titleDraft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 28, weight: .bold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 14)
+                    .focused($titleFocused)
+                    .onSubmit {
+                        // Drop SwiftUI focus FIRST so the title field
+                        // deselects (otherwise macOS NSTextField's default
+                        // Enter behavior is to select-all). Then move
+                        // AppKit firstResponder to the body editor. Rename
+                        // runs in parallel — doesn't need to block focus
+                        // shift.
+                        titleFocused = false
+                        focusBodyEditor()
+                        Task { await commitRename() }
+                    }
+
+                Rectangle()
+                    .fill(Color(NSColor.separatorColor))
+                    .frame(height: 1)
+                    .padding(.horizontal, 24)
+            }
+            .offset(y: -min(max(0, scrollOffset), Self.titleAreaHeight))
         }
         .onAppear {
             AppGlobals.register(viewModel)
@@ -130,12 +186,27 @@ struct PageEditorView: View {
         }
     }
 
-    /// Pommora's editor configuration. Text insets match the title's 24pt
-    /// horizontal padding so body content aligns under the title rather
-    /// than butting against the sidebar divider.
+    /// Pommora's editor configuration. Horizontal text insets match the
+    /// title's 24pt horizontal padding so body content aligns under the
+    /// title rather than butting against the sidebar divider.
+    ///
+    /// Vertical inset = `titleAreaHeight` (90pt) reserves the top of the
+    /// text container for the title overlay + 14pt gap below the divider.
+    /// `textContainerInset` is INSIDE the documentView, so this empty zone
+    /// scrolls naturally with body content as the user scrolls down —
+    /// allowing the title overlay (positioned in SwiftUI ZStack coords) to
+    /// track via `.offset(y: -scrollOffset)` and disappear off-screen in
+    /// sync. (NSScrollView's `contentInsets` would NOT work here — those
+    /// are fixed padding that doesn't scroll with content; the inset zone
+    /// would stay at top while body slid behind a static overlay.)
+    ///
+    /// Symmetric: the bottom of the document gets the same 90pt padding
+    /// above the scroll overscroll region. Trailing whitespace below the
+    /// final body line is acceptable and matches the visual treatment most
+    /// long-form editors use.
     private static let pommoraEditorConfiguration: MarkdownEditorConfiguration = {
         var config = MarkdownEditorConfiguration.default
-        config.textInsets = TextInsets(horizontal: 24, vertical: 0)
+        config.textInsets = TextInsets(horizontal: 24, vertical: titleAreaHeight)
         return config
     }()
 

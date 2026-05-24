@@ -325,6 +325,38 @@ struct MarkdownLists {
     static func handleInsertion(textView: NSTextView, affectedCharRange: NSRange, replacementString: String?) -> Bool {
         guard let replacementString = replacementString else { return true }
 
+        // Em-dash auto-format: `--<non-dash>` → `—<non-dash>`. Triggers on any
+        // single non-dash character typed after `--`. Skipped when char N-3 is
+        // also `-` (preserves `---` HR, YAML frontmatter delim, 4+ dash HRs)
+        // and inside fenced/inline code. Runs BEFORE the fast-path filter so
+        // letter/digit keystrokes after `--` aren't short-circuited.
+        if replacementString.count == 1,
+            let ch = replacementString.first, ch != "-",
+            affectedCharRange.length == 0,
+            affectedCharRange.location >= 2
+        {
+            let nsText = textView.string as NSString
+            let insertLoc = affectedCharRange.location
+            let prev1 = nsText.substring(with: NSRange(location: insertLoc - 1, length: 1))
+            let prev2 = nsText.substring(with: NSRange(location: insertLoc - 2, length: 1))
+            if prev1 == "-" && prev2 == "-" {
+                let hrConflict: Bool =
+                    insertLoc >= 3
+                    && nsText.substring(with: NSRange(location: insertLoc - 3, length: 1)) == "-"
+                if !hrConflict {
+                    let inCode = textView.string.contains("`")
+                        ? MarkdownDetection.isInsideCodeBlock(location: insertLoc, in: textView.string)
+                        : false
+                    if !inCode {
+                        let replaceRange = NSRange(location: insertLoc - 2, length: 2)
+                        MarkdownLists.performEdit(textView, replace: replaceRange, with: "—" + replacementString)
+                        textView.setSelectedRange(NSRange(location: insertLoc, length: 0))
+                        return false
+                    }
+                }
+            }
+        }
+
         // Fast path: skip the expensive isInsideCodeBlock scan for ordinary typing.
         // `-` is included so the `<-` arrow auto-transform can inspect previousChar.
         if replacementString.count == 1,
@@ -396,6 +428,69 @@ struct MarkdownLists {
                 MarkdownLists.performEdit(textView, replace: previousCharRange, with: "←")
                 textView.setSelectedRange(NSRange(location: insertionLocation, length: 0))
                 return false
+            }
+        }
+
+        // En-dash → em-dash promotion. Typing `-` immediately adjacent to an
+        // existing `–` (en-dash) upgrades it to `—` (em-dash) and consumes the
+        // typed `-`. Fires on either side of the en-dash so the user can
+        // promote regardless of where the caret was parked.
+        if replacementString == "-" && affectedCharRange.length == 0 && !isInCodeBlock {
+            let insertionLocation = affectedCharRange.location
+            let nsText = textView.string as NSString
+            if insertionLocation > 0 {
+                let prevRange = NSRange(location: insertionLocation - 1, length: 1)
+                if nsText.substring(with: prevRange) == "–" {
+                    MarkdownLists.performEdit(textView, replace: prevRange, with: "—")
+                    textView.setSelectedRange(NSRange(location: insertionLocation, length: 0))
+                    return false
+                }
+            }
+            if insertionLocation < nsText.length {
+                let nextRange = NSRange(location: insertionLocation, length: 1)
+                if nsText.substring(with: nextRange) == "–" {
+                    MarkdownLists.performEdit(textView, replace: nextRange, with: "—")
+                    textView.setSelectedRange(NSRange(location: insertionLocation + 1, length: 0))
+                    return false
+                }
+            }
+        }
+
+        // En-dash auto-format: ` - <space>` → ` – <space>`. Triggers on the
+        // SECOND space (the one after the `-`). Skipped when the line has only
+        // whitespace before the `-` (preserves top-level + nested bullets),
+        // inside fenced/inline code, or inside an open `[[...]]` wikilink
+        // target where ` - ` may appear in a filename.
+        if replacementString == " " && affectedCharRange.length == 0 && !isInCodeBlock {
+            let insertionLocation = affectedCharRange.location
+            if insertionLocation >= 2 {
+                let nsText = textView.string as NSString
+                let dashPosition = insertionLocation - 1
+                let prev1 = nsText.substring(with: NSRange(location: dashPosition, length: 1))
+                let prev2 = nsText.substring(with: NSRange(location: insertionLocation - 2, length: 1))
+                if prev1 == "-" && prev2 == " " {
+                    let lineStart = nsText.lineRange(
+                        for: NSRange(location: insertionLocation, length: 0)
+                    ).location
+                    if dashPosition > lineStart {
+                        let beforeDash = nsText.substring(
+                            with: NSRange(location: lineStart, length: dashPosition - lineStart)
+                        )
+                        let hasContent = beforeDash.contains { !$0.isWhitespace }
+                        if hasContent,
+                            !MarkdownDetection.isInsideWikilink(
+                                location: insertionLocation, in: textView.string
+                            )
+                        {
+                            let replaceRange = NSRange(location: dashPosition, length: 1)
+                            MarkdownLists.performEdit(textView, replace: replaceRange, with: "– ")
+                            textView.setSelectedRange(
+                                NSRange(location: insertionLocation + 1, length: 0)
+                            )
+                            return false
+                        }
+                    }
+                }
             }
         }
 

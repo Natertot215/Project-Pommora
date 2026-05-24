@@ -356,6 +356,39 @@ public enum MarkdownDetection {
         isInsideCodeBlock(range: NSRange(location: location, length: 0), codeTokens: codeTokens)
     }
 
+    // MARK: - Wikilink Detection
+
+    /// Returns true when `location` falls inside an open `[[...]]` wikilink
+    /// target on the same line. Scoped to the current line — wikilinks don't
+    /// span lines in CommonMark/Obsidian-style usage. Used by typing-time
+    /// transforms (em-/en-dash auto-format) to skip substitutions inside
+    /// wikilink targets, where users sometimes include literal ` - ` or `--`
+    /// as filename separators that must not be rewritten on disk.
+    static func isInsideWikilink(location: Int, in text: String) -> Bool {
+        let nsText = text as NSString
+        guard location > 0 && location <= nsText.length else { return false }
+        let lineRange = nsText.lineRange(for: NSRange(location: location, length: 0))
+        let scanStart = lineRange.location
+        let scanEnd = min(location, lineRange.location + lineRange.length)
+        guard scanStart < scanEnd else { return false }
+
+        var depth = 0
+        var i = scanStart
+        while i < scanEnd - 1 {
+            let pair = nsText.substring(with: NSRange(location: i, length: 2))
+            if pair == "[[" {
+                depth += 1
+                i += 2
+            } else if pair == "]]" {
+                depth = max(0, depth - 1)
+                i += 2
+            } else {
+                i += 1
+            }
+        }
+        return depth > 0
+    }
+
     // MARK: - LaTeX Detection
 
     static func isInsideLatex(location: Int, in text: String) -> Bool {

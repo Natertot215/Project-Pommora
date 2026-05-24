@@ -73,6 +73,7 @@ struct ContentView: View {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
 
+                .toolbarBackground(.hidden, for: .windowToolbar)
                 .toolbar {
                     // Back/Forward navigation arrows in the leading toolbar area.
                     ToolbarItemGroup(placement: .navigation) {
@@ -90,10 +91,6 @@ struct ContentView: View {
                                 NavDropdownButton(asSegment: true) { sel in
                                     sidebarSelection = sel
                                 }
-
-                                Rectangle()
-                                    .fill(.secondary)
-                                    .frame(width: 1, height: 14)
 
                                 Button {
                                     withAnimation(.smooth(duration: 0.25)) {

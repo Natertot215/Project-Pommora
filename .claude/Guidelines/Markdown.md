@@ -522,6 +522,33 @@ Stable per-heading IDs (UUIDs in a `heading_ids:` map) is the v2 escalation if t
 
 Full per-file table in [`External/MarkdownEngine/NOTICE.md`](../External/MarkdownEngine/NOTICE.md).
 
+##### 9.12 Dash auto-format — em / en via input-time lookbehind (v0.2.7.7)
+
+**Status:** ✅ SHIPPED. Typed `--<non-dash>` → `—` (em-dash); typed ` - <space>` → ` – ` (en-dash); typed `-` adjacent to an existing `–` → `—` (en→em promotion). All three live in `MarkdownLists.handleInsertion` ([`Input/MarkdownListHandler.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift)) alongside the arrow auto-formats (`<-` → `←`, `->` → `→`, `<->` → `↔`), mirroring their pattern — defer the substitution to the *next* character so collisions resolve before the conversion fires.
+
+###### Pattern: input-time lookbehind with single-char collision guards
+
+This is the second instance of the input-time-transform pattern in the engine. The locked shape:
+
+1. **Trigger on the *next* character, not on the marker chars themselves.** Em-dash fires when a non-dash is typed after `--`; en-dash fires when the second space is typed in the ` - ` pattern. Deferring the conversion until the user's intent reveals itself avoids stomping `---` (HR) for em-dash and avoids stomping bullets / wikilinks for en-dash.
+2. **Use a single-character lookbehind for collision avoidance.** Em-dash checks `text[N-3] != "-"` (preserves `---` HR / YAML frontmatter / 4+ dash HR). En-dash checks "line has non-whitespace before the `-`" (preserves top-level + nested bullets).
+3. **Inherit per-construct skip guards.** Both gate on `MarkdownDetection.isInsideCodeBlock(location:in:)`; en-dash additionally gates on the new `MarkdownDetection.isInsideWikilink(location:in:)` (line-scoped `[[ / ]]` depth counter) so filenames containing ` - ` aren't rewritten on disk.
+4. **Wrap the write in `MarkdownLists.performEdit`** — sets `isProgrammaticEdit = true` for the duration, calls `shouldChangeText` + `replaceCharacters` + `didChangeText` in sequence, and respects the styler pipeline.
+
+###### Why this trigger set (not iA Writer's `--` → `–`)
+
+The `--<non-dash>` → en-dash convention (iA Writer / Ulysses) is a keyboard mnemonic; the ` - <space>` trigger maps onto en-dash's actual typographic role — spaced ranges and named-pair separators (`Monday – Friday`, `9 – 5`, `Paris – Berlin`). The earlier `~~` → en-dash proposal was rejected because `~~` is GFM strikethrough syntax (shipped feature with theme color at [`MarkdownEditorTheme.swift:74`](../External/MarkdownEngine/Sources/MarkdownEngine/Configuration/MarkdownEditorTheme.swift#L74), context-menu insertion at [`ContextMenu.swift:31`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/ContextMenu.swift#L31), and AST styler at [`AppleASTSupplementalStyler.swift:163`](../External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift#L163)) — auto-converting `~~` would silently kill strikethrough on typed input, paste, and the right-click "Strikethrough" command. Apple's `NSTextView.isAutomaticDashSubstitutionEnabled` is forced `false` at [`NativeTextViewWrapper.swift:181`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextViewWrapper.swift#L181) and [`+Services.swift:185`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+Services.swift#L185), so the engine has full control over dash transforms with no native AppKit race.
+
+###### En→em promotion — closing the path back to em-dash
+
+The auto-formatted `–` is a *typographically correct* substitution for ` - ` ranges, but Pommora can't read the user's mind on whether they actually wanted en-dash or em-dash there. Without a promotion path, the only way back to em-dash is delete-and-retype `--`. The promotion rule fixes that: typing `-` immediately adjacent to a `–` (on EITHER side) replaces the en-dash with `—` and consumes the typed hyphen. Two-sided so users don't have to remember which side of the en-dash they parked the caret. Skips inside code blocks for consistency with the other dash transforms; intentionally does NOT skip inside `[[...]]` wikilink targets (the en-dash-skip-in-wikilinks rule protects the AUTO-FORMAT trigger from accidentally firing while typing filenames; the promotion rule is an explicit user gesture, so the user wants it to fire).
+
+###### Out of scope (v1)
+
+- **Paste-time substitution.** Both auto-format branches gate on `replacementString.count == 1`; multi-char paste strings preserve `--` / ` - ` literally. Phase 2 follow-up could walk pasted strings applying the same per-char rules.
+- **Discrete undo for the substitution.** `MarkdownLists.performEdit` doesn't register a paired undo action; `Cmd+Z` undoes the storage write + the original typed character together as one step. Matches AppKit's native dash-substitution undo behavior.
+- **Em→en demotion.** Em-dash is the higher-prominence form; users rarely want to go BACK to en-dash from an em-dash, and there's no obvious keystroke pattern that disambiguates "demote this dash" from "type a literal hyphen here." Standard manual edit (select + Option+Hyphen) is the path.
+
 ---
 
 #### 10. Reference index — where things actually live
