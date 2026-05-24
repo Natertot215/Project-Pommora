@@ -298,6 +298,23 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
             }
             return
         }
+        // Refresh the foldedHeadings two-way bridge on EVERY updateNSView,
+        // not just at coordinator-init time. `@Binding` stored on a class
+        // goes stale across SwiftUI re-renders: the captured `@Bindable`
+        // proxy is from the original wrapper render, and subsequent reads
+        // return stale values while a freshly-constructed wrapper-side
+        // binding correctly returns the mutated value. We use a plain
+        // stored property on the coordinator + a callback closure that
+        // captures THIS render's $foldedHeadings binding, so click-handler
+        // mutations always push through the freshest available binding.
+        if context.coordinator.foldedHeadings != foldedHeadings {
+            context.coordinator.foldedHeadings = foldedHeadings
+        }
+        let freshFoldedHeadingsBinding = $foldedHeadings
+        context.coordinator.onFoldedHeadingsChanged = { newValue in
+            freshFoldedHeadingsBinding.wrappedValue = newValue
+        }
+
         if context.coordinator.didInitialFormatting
             && context.coordinator.lastSyncedText == text
             && !fontChanged {
@@ -367,7 +384,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
             isWikiLinkActive: $isWikiLinkActive,
             onLinkClick: onLinkClick,
             onInlineSelectionChange: onInlineSelectionChange,
-            foldedHeadings: $foldedHeadings
+            initialFoldedHeadings: foldedHeadings
         )
         coordinator.documentId = documentId
         coordinator.configuration = configuration

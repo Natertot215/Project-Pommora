@@ -123,16 +123,16 @@ extension NativeTextViewCoordinator {
 
     /// Walk the document AST, find every foldable top-level heading, and
     /// rebuild `foldedRanges` from the subset whose keys appear in the
-    /// `foldedHeadings` binding. When the set changes, invalidates layout
-    /// over the union of old + new ranges so the content-storage delegate
-    /// is re-queried and the new fold state is reflected on screen.
+    /// `foldedHeadings` set. When the set changes, invalidates layout over
+    /// the union of old + new ranges so the content-manager re-enumerates
+    /// elements and our `shouldEnumerate` filter takes effect.
     ///
-    /// The content-storage delegate (`textContentStorage(_:textParagraphWith:)`,
-    /// in this same extension) returns an empty `NSTextParagraph` for any
-    /// source range intersecting `foldedRanges`. The layout manager then
-    /// vends no fragments for that range — true zero-height collapse,
-    /// natural propagation to downstream fragment positions, and folded
-    /// content is unreachable to selection/find/spell-check.
+    /// Elision mechanism: `NSTextContentManagerDelegate.shouldEnumerateTextElement:`
+    /// (this same extension) returns `false` for elements whose source range
+    /// intersects any `foldedRanges` entry. The layout manager vends no
+    /// fragments for skipped elements — true zero-height collapse, natural
+    /// propagation to downstream fragment positions, and folded content is
+    /// unreachable to selection / find / spell-check by construction.
     func syncHeadingFolding(in ts: NSTextStorage, textView: NSTextView) {
         // Fast path: no folds requested → guarantee an empty result without
         // walking the AST. Common case for unedited pages.
@@ -176,32 +176,89 @@ extension NativeTextViewCoordinator {
         if !unchanged {
             let oldRanges = foldedRanges
             foldedRanges = newRanges
+            // Move caret out of any newly-folded range BEFORE invalidating.
+            // The layout manager refuses to elide elements containing the
+            // active selection point — without this, folding a section the
+            // caret is sitting inside takes no visual effect until the user
+            // moves their cursor elsewhere.
+            moveSelectionOutOfFoldedRanges(textView)
             invalidateFoldLayout(in: textView, union: oldRanges + newRanges)
+        } else {
         }
         lastSyncedFoldedHeadings = foldedHeadings
     }
 
-    /// Compute the NSRange union of `ranges` and invalidate layout over
-    /// the resulting NSTextRange. Triggers the content-storage delegate
-    /// to be re-queried for those source ranges. Shared by
-    /// `applyFoldStateIfChanged` (chevron-click path, via `syncHeadingFolding`)
-    /// and `syncHeadingFolding` itself (restyle path, when text edits
-    /// shifted heading positions).
+    /// If the text view's current selection's leading edge sits inside any
+    /// of the current `foldedRanges`, collapse the selection to the position
+    /// just before that range starts (end of the heading line above).
+    /// Called from `syncHeadingFolding` right before `invalidateFoldLayout`
+    /// so the layout pass that follows sees no active selection inside the
+    /// to-be-elided content.
+    fileprivate func moveSelectionOutOfFoldedRanges(_ textView: NSTextView) {
+        guard !foldedRanges.isEmpty else { return }
+        let sel = textView.selectedRange()
+        let selStart = sel.location
+        for folded in foldedRanges {
+            if selStart >= folded.location, selStart < folded.location + folded.length {
+                let safeLocation = max(0, folded.location - 1)
+                textView.setSelectedRange(NSRange(location: safeLocation, length: 0))
+                return
+            }
+        }
+    }
+
+    /// Invalidate layout from the earliest affected fold position through
+    /// the end of the document, then force the layout cascade to run
+    /// immediately. Shared by `applyFoldStateIfChanged` (chevron-click path,
+    /// via `syncHeadingFolding`) and `syncHeadingFolding` itself (restyle
+    /// path, when text edits shifted heading positions).
+    ///
+    /// Why fold-start-through-document-end (not just the fold range): when
+    /// content shrinks (folding) every fragment BELOW the fold needs to
+    /// reposition upward. `invalidateLayout(for:)` only invalidates the
+    /// fragments INSIDE its range; fragments after the range keep their
+    /// cached Y positions. Without invalidating to document-end, folding
+    /// produces zero visible effect because the layout below the fold
+    /// stays where it was, leaving a hole that the folded content used to
+    /// fill (but visually the hole appears NOT to close — content stays
+    /// "visible" via the cached fragments).
+    ///
+    /// The four-step sequence: invalidate stale layout, ensureLayout to
+    /// force immediate re-iteration via `enumerateTextElements` (where our
+    /// `shouldEnumerate` delegate filters folded elements), viewport
+    /// layout controller to re-tile visible fragments, and `needsDisplay`
+    /// to schedule the AppKit redraw.
     fileprivate func invalidateFoldLayout(in textView: NSTextView, union ranges: [NSRange]) {
         var minLoc = Int.max
-        var maxEnd = 0
         for r in ranges where r.length > 0 {
             minLoc = min(minLoc, r.location)
-            maxEnd = max(maxEnd, r.location + r.length)
         }
-        guard minLoc != Int.max, maxEnd > minLoc,
+        guard minLoc != Int.max,
             let tlm = textView.textLayoutManager,
             let tcs = tlm.textContentManager as? NSTextContentStorage,
             let startLoc = tcs.location(tcs.documentRange.location, offsetBy: minLoc),
-            let endLoc = tcs.location(tcs.documentRange.location, offsetBy: maxEnd),
-            let textRange = NSTextRange(location: startLoc, end: endLoc)
-        else { return }
+            let textRange = NSTextRange(
+                location: startLoc, end: tcs.documentRange.endLocation)
+        else {
+            return
+        }
+
         tlm.invalidateLayout(for: textRange)
+        tlm.ensureLayout(for: textRange)
+
+        // Force the hit-test layout discovery that super.mouseDown would
+        // normally trigger. Without this, our chevron-click path short-
+        // circuits NSTextView's internal layout cascade (super.mouseDown is
+        // skipped to prevent the caret from jumping to the click point), and
+        // `shouldEnumerate` only gets consulted on unrelated subsequent
+        // events. `textLayoutFragment(for:)` is the same call NSTextView's
+        // mouseDown makes internally to find which fragment the click landed
+        // in — and the side effect of that lookup is the full element
+        // re-iteration we need.
+        _ = tlm.textLayoutFragment(for: startLoc)
+
+        tlm.textViewportLayoutController.layoutViewport()
+        textView.needsDisplay = true
     }
 
     // MARK: - Chevron rotation animation
@@ -367,8 +424,29 @@ extension NativeTextViewCoordinator {
     /// newly-unfolded ones. No force-layout chain or attribute writes —
     /// TextKit 2's standard layout pass handles propagation.
     func applyFoldStateIfChanged(in ts: NSTextStorage, textView: NSTextView) {
-        guard foldedHeadings != lastSyncedFoldedHeadings else { return }
+        guard foldedHeadings != lastSyncedFoldedHeadings else {
+            return
+        }
         syncHeadingFolding(in: ts, textView: textView)
+
+        // The layout pass `syncHeadingFolding` just ran will silently
+        // override `shouldEnumerate == false` for the one element that
+        // currently hosts the caret — AppKit force-lays it out so the
+        // caret has a fragment to render in. Result: the fold appears to
+        // not take effect when the user clicked the chevron while their
+        // caret was inside the section being folded. Once the caret moves
+        // out (a manual click elsewhere, or any natural layout pass),
+        // the elision finally takes hold.
+        //
+        // Fix: if the post-toggle caret would land inside an elided
+        // range, drop first-responder AND re-invalidate over the current
+        // fold ranges. The second pass runs with no selection anchoring
+        // inside the elided region, so `shouldEnumerate == false` is
+        // honored cleanly. Cheap — the second invalidate only does work
+        // when an unfocus actually happened.
+        if unfocusCaretIfInsideFoldedRange(textView), !foldedRanges.isEmpty {
+            invalidateFoldLayout(in: textView, union: foldedRanges)
+        }
 
         // Engine-specific overscroll / scroll-clamp recompute. TextKit 2's
         // layout-frame propagation handles the visible region naturally; the
@@ -385,26 +463,86 @@ extension NativeTextViewCoordinator {
 
 }
 
-// MARK: - NSTextContentStorageDelegate (paragraph elision)
+// MARK: - NSTextContentStorageDelegate / NSTextContentManagerDelegate
+//
+// Content-layer elision for folded ranges. Apple's `NSTextContentManager.h`
+// documents two relevant primitives:
+//
+//   1. `textContentStorage:textParagraphWithRange:` — paragraph *substitution*.
+//      The returned paragraph's attributedString MUST have `range.length`
+//      (header line 120). We do NOT use this for folding — empty-paragraph
+//      substitution crashes `enumerateTextElementsFromLocation:` in
+//      `setParagraphSeparatorRange:` because the content storage indexes
+//      characters by the source range while the substituted paragraph has
+//      zero length. We return nil from this method (default behavior).
+//
+//   2. `textContentManager:shouldEnumerateTextElement:options:` — element
+//      *omission*. Returning false skips the element from layout enumeration
+//      (header line 40 + 112-113: "it can skip a range… or hide some elements
+//      from the layout. Returning NO indicates textElement to be skipped from
+//      the enumeration"). The layout manager never sees skipped elements:
+//      zero space allocated, no fragments constructed, no draw — and
+//      selection / find / spell-check naturally route through the same
+//      enumeration, so folded content is unreachable to them too.
+//
+// `NSTextContentStorageDelegate` inherits from `NSTextContentManagerDelegate`
+// (header line 118), so our existing single conformance declaration carries
+// both protocols. We implement (2) for actual folding and leave (1) as a
+// no-op nil-return.
 
 extension NativeTextViewCoordinator: NSTextContentStorageDelegate {
-    /// Returns an empty `NSTextParagraph` for source ranges that intersect
-    /// the current `foldedRanges`. The layout manager then sees zero
-    /// content for that range — no fragments created, no layout space,
-    /// and selection/find/spell-check route through the content manager
-    /// so the elided range is unreachable to all of them.
+    /// Element-level omission for folded ranges. Apple's documented
+    /// mechanism for "hide some elements from the layout."
     ///
-    /// Returning `nil` for non-folded ranges hands control back to the
-    /// default `NSTextContentStorage` behavior (vend the real paragraph).
+    /// Skipped elements are invisible to the layout manager (no fragment
+    /// construction, no vertical space) AND to the selection / find /
+    /// spell-check paths, which iterate through the same enumeration.
+    /// Folded content becomes naturally unreachable — no caret-skip
+    /// patches needed.
+    ///
+    /// Headings themselves are NEVER in `foldedRanges` (fold range starts
+    /// at the end of the heading line and ends at the start of the next
+    /// equal-or-higher heading), so the heading row stays enumerated and
+    /// the chevron + heading text continue to render normally.
+    public func textContentManager(
+        _ textContentManager: NSTextContentManager,
+        shouldEnumerate textElement: NSTextElement,
+        options: NSTextContentManager.EnumerationOptions = []
+    ) -> Bool {
+        guard !foldedRanges.isEmpty else {
+            return true
+        }
+        guard let elementTextRange = textElement.elementRange else {
+            return true
+        }
+        let documentLocation = textContentManager.documentRange.location
+        let startOffset = textContentManager.offset(
+            from: documentLocation, to: elementTextRange.location)
+        let endOffset = textContentManager.offset(
+            from: documentLocation, to: elementTextRange.endLocation)
+        guard startOffset != NSNotFound, endOffset != NSNotFound,
+            endOffset >= startOffset
+        else {
+            return true
+        }
+        let elementNSRange = NSRange(location: startOffset, length: endOffset - startOffset)
+        for folded in foldedRanges {
+            if NSIntersectionRange(folded, elementNSRange).length > 0 {
+                return false
+            }
+        }
+        return true
+    }
+
+    /// Kept as a no-op. The paragraph-substitution contract requires the
+    /// returned paragraph's attributedString to match `range.length` exactly
+    /// (header line 120); returning an empty paragraph for a non-empty
+    /// range crashes the storage. All folding goes through
+    /// `shouldEnumerate` above.
     public func textContentStorage(
         _ textContentStorage: NSTextContentStorage,
         textParagraphWith range: NSRange
     ) -> NSTextParagraph? {
-        guard !foldedRanges.isEmpty else { return nil }
-        let intersects = foldedRanges.contains { folded in
-            NSIntersectionRange(folded, range).length > 0
-        }
-        guard intersects else { return nil }
-        return NSTextParagraph(attributedString: NSAttributedString(string: ""))
+        return nil
     }
 }

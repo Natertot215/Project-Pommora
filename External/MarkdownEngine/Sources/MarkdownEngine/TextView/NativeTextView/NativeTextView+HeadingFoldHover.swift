@@ -191,11 +191,15 @@ extension NativeTextView {
         guard let coordinator = delegate as? NativeTextViewCoordinator,
             let textStorage = textStorage,
             let hit = headingHitTest(at: viewPoint)
-        else { return false }
+        else {
+            return false
+        }
         // 6pt tolerance around the 12pt glyph — keeps the chevron clickable
         // without making the hit zone bleed into the heading text on the
         // right side or onto adjacent rows above/below.
-        guard hit.chevronRect.insetBy(dx: -6, dy: -6).contains(viewPoint) else { return false }
+        guard hit.chevronRect.insetBy(dx: -6, dy: -6).contains(viewPoint) else {
+            return false
+        }
 
         let key = hit.key
         let willBeFolded: Bool
@@ -206,12 +210,25 @@ extension NativeTextView {
             coordinator.foldedHeadings.insert(key)
             willBeFolded = true
         }
+        // Propagate the new value through the FRESH binding to viewModel
+        // (the callback was installed by the most recent `updateNSView`
+        // call so it closes over the current render's $foldedHeadings).
+        // Without this, the click-handler mutation stays local to the
+        // coordinator and never reaches the view model or frontmatter.
+        coordinator.onFoldedHeadingsChanged?(coordinator.foldedHeadings)
 
         // Synchronous fold reconcile so the collapse / expand happens on
         // the same frame as the click. applyFoldStateIfChanged routes
         // through syncHeadingFolding which calls invalidateFoldLayout on
-        // the affected range; the content-storage delegate then vends
-        // empty paragraphs for the newly-folded entries.
+        // the affected range; the content-manager `shouldEnumerate`
+        // delegate then skips elements that intersect `foldedRanges`.
+        // Decision 2 unfocus + a second-pass invalidate (when the caret
+        // sat inside the freshly-folded range) live inside
+        // `applyFoldStateIfChanged` itself — without that second pass,
+        // the first invalidate runs with the caret anchoring the element
+        // and AppKit overrides `shouldEnumerate` to keep the caret's
+        // fragment alive, defeating the fold until the caret naturally
+        // moves out.
         coordinator.applyFoldStateIfChanged(in: textStorage, textView: self)
         // Kick off the 200ms rotation animation for the chevron. Per-tick
         // paragraphStyle nudges drive the heading row's redraw with the
@@ -219,13 +236,6 @@ extension NativeTextView {
         coordinator.startChevronAnimation(
             forHeadingKey: key, toFolded: willBeFolded, textView: self
         )
-        // Decision 2: drop first-responder only when the post-toggle caret
-        // would otherwise land inside a freshly-folded range (no fragment
-        // to render it because content-manager elision vends an empty
-        // paragraph there). In every other case the user's caret +
-        // selection are preserved so chevron clicks don't interrupt
-        // active editing.
-        coordinator.unfocusCaretIfInsideFoldedRange(self)
         return true
     }
 

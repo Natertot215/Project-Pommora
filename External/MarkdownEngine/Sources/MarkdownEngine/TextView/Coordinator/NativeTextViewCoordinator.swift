@@ -29,11 +29,21 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     @Binding var isWikiLinkActive: Bool
     /// UI-only fold state for the editor surface. Keys are exact heading
     /// source lines (e.g. `"## Foo"`); each present key means the content
-    /// under that heading is collapsed. The HeadingFolding service is the
-    /// sole consumer; it derives the runtime `foldedRanges` from this set
-    /// + the current document AST. Defaults to `.constant([])` when the
-    /// embedder doesn't supply a binding.
-    @Binding var foldedHeadings: Set<String>
+    /// under that heading is collapsed. Plain stored property — the prior
+    /// `@Binding` form went stale across SwiftUI re-renders (binding's
+    /// captured @Bindable proxy was from the first wrapper render and
+    /// returned stale `[]` reads while a fresh wrapper-side binding
+    /// correctly returned the mutated value). The wrapper's `updateNSView`
+    /// now syncs FROM viewModel into this property when they differ, and
+    /// `onFoldedHeadingsChanged` is set on every `updateNSView` to push
+    /// click-handler mutations BACK to viewModel through a fresh binding.
+    var foldedHeadings: Set<String> = []
+    /// Set by `NativeTextViewWrapper.updateNSView` on every call so the
+    /// callback always closes over the CURRENT render's `$foldedHeadings`
+    /// binding (which the @Bindable proxy is freshly attached to). Click
+    /// handler calls this after mutating `foldedHeadings` to propagate the
+    /// new value to viewModel + frontmatter + save pipeline.
+    var onFoldedHeadingsChanged: ((Set<String>) -> Void)?
     var fontName: String
     var fontSize: CGFloat
     var configuration: MarkdownEditorConfiguration = .default {
@@ -171,13 +181,13 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         isWikiLinkActive: Binding<Bool>,
         onLinkClick: ((String) -> Void)?,
         onInlineSelectionChange: ((InlineSelectionState?) -> Void)?,
-        foldedHeadings: Binding<Set<String>> = .constant([])
+        initialFoldedHeadings: Set<String> = []
     ) {
         _text = text
         self.fontName = fontName
         self.fontSize = fontSize
         _isWikiLinkActive = isWikiLinkActive
-        _foldedHeadings = foldedHeadings
+        self.foldedHeadings = initialFoldedHeadings
         self.onLinkClick = onLinkClick
         self.onCaretRectChange = nil
         self.onInlineSelectionChange = onInlineSelectionChange
