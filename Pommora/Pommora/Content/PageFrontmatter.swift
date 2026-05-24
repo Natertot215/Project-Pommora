@@ -3,6 +3,12 @@ import Foundation
 /// YAML frontmatter for `.md` Page files. Mirrors Item shape minus `description`
 /// (Pages put long-form text in the body) plus `created_at` (Items have it; Pages
 /// gain it for parity per Handoff "Known Spec Gaps").
+///
+/// Per L6: `modifiedAt` (`modified_at`) ships at v0.3.0 for parity with Items
+/// and to power the spec's "Last Edited Time" virtual property + the per-Type
+/// default sort. Legacy decode (Pages without the field) yields `nil` —
+/// `PageContentManager.load` backfills from the file's mtime + the next save
+/// writes the now-present field through.
 struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var id: String
     var icon: String?
@@ -11,6 +17,11 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var tier3: [String]
     var properties: [String: PropertyValue]
     var createdAt: Date
+    /// ISO-8601 timestamp updated on any frontmatter or body edit. Optional on the
+    /// type so legacy `.md` files (pre-v0.3.0) decode without it; manager load path
+    /// backfills from file mtime and the next save persists the field. Per the spec,
+    /// surfaces in the property panel as the "Last Edited Time" virtual property.
+    var modifiedAt: Date?
     /// Per-Page editor display state: exact heading source lines (e.g. `"## Foo"`)
     /// whose content is currently collapsed in the editor. Nil/missing = no folds.
     /// UI-only — never reflected in the body Markdown. See
@@ -21,6 +32,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, icon, tier1, tier2, tier3, properties
         case createdAt = "created_at"
+        case modifiedAt = "modified_at"
         case foldedHeadings = "folded_headings"
     }
 
@@ -29,6 +41,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         tier1: [String], tier2: [String], tier3: [String],
         properties: [String: PropertyValue],
         createdAt: Date,
+        modifiedAt: Date? = nil,
         foldedHeadings: [String]? = nil
     ) {
         self.id = id
@@ -38,6 +51,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.tier3 = tier3
         self.properties = properties
         self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
         self.foldedHeadings = foldedHeadings
     }
 
@@ -53,6 +67,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.tier3 = try c.decodeIfPresent([String].self, forKey: .tier3) ?? []
         self.properties = try c.decodeIfPresent([String: PropertyValue].self, forKey: .properties) ?? [:]
         self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date(timeIntervalSince1970: 0)
+        self.modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt)
         self.foldedHeadings = try c.decodeIfPresent([String].self, forKey: .foldedHeadings)
     }
 
@@ -65,6 +80,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         try c.encode(tier3, forKey: .tier3)
         try c.encode(properties, forKey: .properties)
         try c.encode(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(modifiedAt, forKey: .modifiedAt)
         // Encode-if-present-and-non-empty so an empty array doesn't pollute the
         // YAML with `folded_headings: []`. The editor caller is expected to set
         // the field to nil when emptied, but defending in depth here is cheap.
