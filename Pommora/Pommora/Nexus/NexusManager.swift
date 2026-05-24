@@ -261,35 +261,38 @@ final class NexusManager {
             return
         }
 
-        guard plan.hasAnythingToAdopt else { return }
+        if plan.hasAnythingToAdopt {
+            // The sheet should be visible WITHOUT the indexing HUD competing for
+            // attention behind it. Drop the indexing flag before awaiting the
+            // user's decision, then re-raise it only while `apply` is writing
+            // sidecars.
+            isIndexing = false
+            let confirmed = await presentAdoptionPreview(plan)
+            guard confirmed else { return }
 
-        // The sheet should be visible WITHOUT the indexing HUD competing for
-        // attention behind it. Drop the indexing flag before awaiting the
-        // user's decision, then re-raise it only while `apply` is writing
-        // sidecars.
-        isIndexing = false
-        let confirmed = await presentAdoptionPreview(plan)
-        guard confirmed else { return }
-
-        isIndexing = true
-        // Adopter apply is best-effort + idempotent (decision #11) — it never
-        // throws. Per-folder failures land in `result.failedFolders`; surface
-        // a summary error to the user if any occurred so the migration's
-        // completeness is visible.
-        let result = NexusAdopter.apply(plan)
-        if result.failedCount > 0 {
-            let preview = result.failedFolders.prefix(3)
-                .map { "\($0.folderURL.lastPathComponent): \($0.message)" }
-                .joined(separator: "; ")
-            pendingError = .initFailed(
-                "Adoption completed with \(result.failedCount) failures (\(preview))."
-            )
+            isIndexing = true
+            // Adopter apply is best-effort + idempotent (decision #11) — it
+            // never throws. Per-folder failures land in `result.failedFolders`;
+            // surface a summary error to the user if any occurred so the
+            // migration's completeness is visible.
+            let result = NexusAdopter.apply(plan)
+            if result.failedCount > 0 {
+                let preview = result.failedFolders.prefix(3)
+                    .map { "\($0.folderURL.lastPathComponent): \($0.message)" }
+                    .joined(separator: "; ")
+                pendingError = .initFailed(
+                    "Adoption completed with \(result.failedCount) failures (\(preview))."
+                )
+            }
         }
 
-        // v0.3.0 Phase C.3: post-adoption property-ID synthesis migration.
-        // Best-effort + idempotent (same shape as adopter.apply); per-Type
-        // failures isolated. Skipped silently when no Type needs migration
-        // (every property has an id AND schema_version >= 1).
+        // v0.3.0 Phase C.3: property-ID synthesis migration.
+        // Runs on every nexus open regardless of whether adoption was needed
+        // — an already-fully-adopted nexus can still carry legacy name-keyed
+        // schemas that need rekeying. Best-effort + idempotent (skips Types
+        // whose properties all have non-empty `id` AND schema_version >= 1);
+        // per-Type failures isolated in `migration.failedTypes` and surfaced
+        // via the pending-error toast.
         let migration = PropertyIDMigration.runIfNeeded(at: url)
         if !migration.failedTypes.isEmpty {
             let preview = migration.failedTypes.prefix(3)
