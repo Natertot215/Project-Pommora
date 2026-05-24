@@ -10,6 +10,8 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     var title: String  // derived from folder name on load (not persisted)
     var folderURL: URL  // runtime only (not persisted)
     var modifiedAt: Date
+    /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. Per EC2.
+    var schemaVersion: Int
 
     // Persisted display order for direct child Pages (v0.2.8.0). Nil until the
     // user reorders inside this PageCollection; missing entries fall through to
@@ -20,6 +22,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case id
         case typeID = "type_id"
         case modifiedAt = "modified_at"
+        case schemaVersion = "schema_version"
         case pageOrder = "page_order"
         // Pre-ParadigmV2 `_collection.json` used `vault_id`. Auto-migrated
         // sidecars renamed to `_pagecollection.json` still carry the old key
@@ -34,6 +37,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         title: String,
         folderURL: URL,
         modifiedAt: Date,
+        schemaVersion: Int = 1,
         pageOrder: [String]? = nil
     ) {
         self.id = id
@@ -41,6 +45,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = title
         self.folderURL = folderURL
         self.modifiedAt = modifiedAt
+        self.schemaVersion = schemaVersion
         self.pageOrder = pageOrder
     }
 
@@ -58,6 +63,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = ""  // caller (load(from:)) overwrites from folder name
         self.folderURL = URL(fileURLWithPath: "/")  // caller overwrites
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
     }
 
@@ -66,6 +72,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(id, forKey: .id)
         try c.encode(typeID, forKey: .typeID)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
     }
 }

@@ -13,6 +13,8 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     var title: String  // derived from folder name on load (not persisted)
     var folderURL: URL  // runtime only (not persisted)
     var modifiedAt: Date
+    /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. Per EC2.
+    var schemaVersion: Int
 
     // Persisted display order for direct child Items. Nil until the user
     // reorders inside this ItemCollection; missing entries fall through to
@@ -23,6 +25,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case id
         case typeID = "type_id"
         case modifiedAt = "modified_at"
+        case schemaVersion = "schema_version"
         case itemOrder = "item_order"
     }
 
@@ -32,6 +35,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         title: String,
         folderURL: URL,
         modifiedAt: Date,
+        schemaVersion: Int = 1,
         itemOrder: [String]? = nil
     ) {
         self.id = id
@@ -39,6 +43,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = title
         self.folderURL = folderURL
         self.modifiedAt = modifiedAt
+        self.schemaVersion = schemaVersion
         self.itemOrder = itemOrder
     }
 
@@ -49,6 +54,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = ""  // caller (load(from:)) overwrites from folder name
         self.folderURL = URL(fileURLWithPath: "/")  // caller overwrites
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
     }
 
@@ -57,6 +63,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(id, forKey: .id)
         try c.encode(typeID, forKey: .typeID)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
     }
 }
