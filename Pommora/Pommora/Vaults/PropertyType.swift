@@ -9,6 +9,9 @@ enum PropertyType: String, Codable, CaseIterable, Hashable, Sendable {
     case datetime  // date + time + timezone
     case select  // single choice from options
     case multiSelect = "multi_select"
-    case relation  // points to another entity by ID
+    case status  // single choice with workflow semantics
     case url
+    case relation  // points to another entity by ID
+    case lastEditedTime = "last_edited_time"  // auto-managed timestamp
+    case file  // file attachment(s)
 }

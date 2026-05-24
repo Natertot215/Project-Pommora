@@ -33,6 +33,8 @@ struct PropertyEditorRow: View {
             Text("Relation editor coming v0.3.0").font(.caption).foregroundStyle(.tertiary)
         case .url:
             urlEditor
+        case .status, .lastEditedTime, .file:
+            Text("Editor coming v0.3.0").font(.caption).foregroundStyle(.tertiary)
         }
     }
 
