@@ -107,7 +107,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three. Editing in the property panel (Item Window, Page property panel) via type-to-search relation pickers.
+Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three. Editing happens via type-to-search relation pickers in whichever property surface the entity uses (pulldown / inspector panel / Item Window — see [[Properties]] § "Where Properties Live").
 
 ---
 

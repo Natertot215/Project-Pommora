@@ -2,6 +2,47 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### v0.3.0 Properties scope redirection + editor patches (2026-05-23 EOD)
+
+Three shipped threads + a Properties scope brainstorm. Build green, **365/365 tests passing** (one timing flake in `PageEditorViewModelTests/debounceCoalescesRapidEdits` re-runs clean; unrelated to scope).
+
+**Editor patches (parallel session):**
+
+1. **Foldable headings toggle — fixed.** Heading chevron-on-hover + collapse mechanism now works correctly; frontmatter persistence via `folded_headings` round-trips. Resolves the long-running toggle bug in `External/MarkdownEngine/`.
+2. **Em-dash / en-dash auto-syntax.** Trivial editor add: `--` → en-dash (`–`), `---` → em-dash (`—`). Ships with the heading-fold work.
+
+**Properties scope redirection (brainstorm session — supersedes prior implementation plan):**
+
+3. **v0.3.0 scope narrowed: data layer + minimum-viable placeholder UI only.** Real Properties Pulldown + Property Panel UI redirected to v0.3.1 (Figma-driven fast-follow). Broader inspector architecture (Claude chat as main-window inspector, PreviewWindow primitive, Item Window redesign with pinned chips) ships as separate v0.3.x patches with TBD timing. Effort estimate dropped from ~7.5 sessions to ~5.5 sessions. Items dropped from v0.3.0: `panel_hidden_properties` data field, `_itemcollection.json` `pinned_properties` field, seven-section Type Settings sheet (collapses to Edit Properties + Sort only), SchemaEditorRouter, concurrent-open guard, MultiSelectChips color refactor, all detail-pane property-column work, all right-click cross-surface routing.
+
+4. **Surface architecture locked.** Properties live in three context-specific surfaces:
+   - **Pages in main window** → NavDropdown-style pulldown at top of content (v0.3.1)
+   - **Page Preview** → property panel in window's own inspector (toggle, default closed); ships with PreviewWindow primitive
+   - **Item Window** → property panel in popover's own inspector + pinned-property chips above title (saved at Item Collection level); ships with Item Window redesign
+   - **Main window inspector** → Claude chat (CLI subprocess bridge; ships independently); properties NEVER live here
+
+5. **Six conceptual decisions locked** (added as decisions #21-#26 in spec):
+   - Lazy properties: "+ Add property" picker only lists EXISTING schema properties not yet populated on this entity. Brand-new schema entries go through Type Settings.
+   - Per-Type property order: drag-reorder in any surface writes to the parent Type's per-kind sidecar declaration order (affects every entity of that Type). No per-entity override at v0.3.0.
+   - Empty surface state: "No properties" message + "+ Add property" affordance. Surface stays visible.
+   - Pinning: right-click property row → "Pin Property" / right-click chip → "Unpin Property". Per-Item-Collection scope (shared across all Items in Collection).
+   - Status universal: addable to PageType / ItemType / AgendaEvent manually. EventKit relevance is silent on non-Agenda Types — agent-readable as informational data shape.
+   - Live red-border validation: invalid values render red as user types; failed saves silently revert.
+
+6. **AgendaTaskSchema `defaultSeed()` rewritten in plan** — drops the placeholder `type` Select (`[Task, To-Do, Phase]`); Status becomes the sole built-in (per spec § Status property type). A.7.5 plan task documents load-path migration for existing nexuses (idempotent removal of legacy `type` if `builtin: true`; injection of Status if missing).
+
+7. **`SchemaTransaction` shape extended to compound mode** (`schemaWrites: [SchemaWrite]`) — dual-relation create/delete rides one transaction; no `try? src.rollback()` orchestration needed. Resolved the rollback API inconsistency from the earlier audit.
+
+8. **Properties.md + spec + plan + PRD + Framework + Pages.md + Items.md + PageTypes.md + Prospects.md doc sweep.** Properties.md gains canonical "Where Properties Live" section. Pages.md gains "Properties Pulldown — to-be-implemented" section. Items.md gains "Inspector Panel + Pinned Chips — to-be-implemented" section. Prospects.md retires "Property panel placement options" + promotes "Claude chat in inspector" out of Prospects (now in roadmap). PRD's three-pane shell description rewritten to reflect Claude-as-inspector direction. AgendaTask + AgendaEvent kind descriptions in PRD lose stale `type` Select reference.
+
+**Sidebar bugfixes + UX tightening:**
+
+9. **Sidebar disclosure-click bug — fixed (introduced drag regression).** Vault / Topic / PageCollection rows weren't expanding to show their children. Root cause: `.draggable` (inside `.reorderable(...)`) was applied to the entire DisclosureGroup, swallowing chevron clicks as drag-init gestures. Fix: moved `.reorderable(...)` from outer modifier into the DisclosureGroup's `label:` closure on PageTypeRow / PageCollectionRow / TopicRow — drag source stays the label area only, chevron tap area free for expand/collapse. **Side effect:** drag-to-reorder hit zones shrunk to label area only, and `rowHeight` measurement broke (label height ≠ full row height → above/below drop position calc is off). Drag feels non-functional. **Queued for follow-up:** split drag source from drop destination — `.draggable` on label only, `.dropDestination` on full row. See Handoff "Sidebar drag-to-reorder REGRESSION."
+
+10. **Sidebar header label "Pages" → "Vaults"** — Nathan's `.nexus/settings.json` carried stale `sidebar_sections.pages = "Pages"` from before `SidebarSectionLabels.defaults()` was updated to `"Vaults"` / `"Types"` (`da744ab` 2026-05-23 morning). Direct file edit on Nathan's nexus. SidebarView code comment updated to reflect new defaults. **Settings migration shim queued** as Open Question #9 in Handoff (for future users with same stale state).
+
+11. **PageType context menu cleanup** — verbose action labels stripped: "New Vault" / "New Collection" / "New Page". Direct-page-to-vault path was already wired via `NewPageSheet(parent: .vaultRoot(v))`; just relabeled cleanly.
+
 #### Post-flatlayout hardening cluster (2026-05-23)
 
 Five follow-up commits on `main` after the `flatlayout` tag (`049df19`), addressing issues Nathan found running the app post-ship on his real nexus. Each shipped green standalone; build green at cluster close, **366 tests passing** (+3 from the ship tag's 363).

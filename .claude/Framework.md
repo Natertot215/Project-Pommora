@@ -86,38 +86,46 @@ End of v0.2.x: `main` has formatter + trash + a fully usable Pages editor with N
 
 ##### v0.3.x — Properties + Items pane + Wikilinks + SQLite (data-layer chapter)
 
-The other half of the data model — until v0.3.0, Pages and Items load + save their property frontmatter but have no UI for editing it. The four-patch sub-sequence at v0.3.x closes the data layer entirely, ending at indexed cross-document linking + queryable storage. **Sub-sequence locked RC-2026-05-19**:
+The other half of the data model — until v0.3.0, Pages and Items load + save their property frontmatter but have no UI for editing it. The four-patch sub-sequence at v0.3.x closes the data layer entirely, ending at indexed cross-document linking + queryable storage. **Sub-sequence refined 2026-05-23 brainstorm:**
 
 ```
-v0.3.0 — Properties
-v0.3.1 — Items pane (Item Window redesign)
+v0.3.0 — Properties data layer + minimum-viable placeholder UI
+v0.3.1 — Properties Pulldown + Panel UI (Figma-driven fast-follow)
 v0.3.2 — Page-wikilinks
 v0.3.3 — SQLite + querying
 ```
 
+Item Window redesign, Claude chat main-window inspector, and PreviewWindow primitive are separate v0.3.x patches with TBD timing — independent of the 4-patch sequence above.
+
 Conceptual spec → `// Planning//v0.3.0-Properties-spec.md`; implementation plan → `// Planning//v0.3.0-Properties-plan.md`.
 
-###### v0.3.0 — Properties (post-ParadigmV2 foundation)
+###### v0.3.0 — Properties (data layer + placeholder UI)
 
-- **Property panel UI** — separate SwiftUI surface (in the Pages inspector pane + Item Window) showing each property in the parent Type's schema (Page Type or Item Type), dispatched to per-type controls (TextField / Toggle / DatePicker / Picker / `MultiSelectChips` — most already wired from v0.2.0's `PropertyEditorRow`). 7 of 8 property types already wired; v0.3.0 adds the Relation editor (currently stubbed at `PropertyEditorRow.swift:33`) + scope-aware pickers (Page Type / Item Type / Page Collection / Item Collection / Context-tier).
-- **Last Edited Time property type** — promoted from collapsed `modified_at` footer to first-class sortable property; v0.3.0 default sort on Type Table views is descending.
-- **`tier1` / `tier2` / `tier3` multi-select chip relation editor** — type-to-search relation pickers backed by Space / Topic / Project managers (shared `ContextTierPicker` component).
-- **Per-Type property-schema editor** — `NewPropertySheet` opened from the Type Table view's rightmost "+ Property" column header (Notion pattern) + Type row right-click → "Edit Schema…". Name + type picker → per-type config (options for Select, scope for Relation, dual toggle for Relation, etc.). Edits the Type's per-kind sidecar (`_pagetype.json` or `_itemtype.json`) `properties[]` atomically via `SchemaTransaction` (new two-phase commit infrastructure in `AtomicIO//`). Implemented in parallel for Page Types and Item Types.
-- **Schema mutations** — add / rename / type-change (lossless only) / delete / reorder; cross-member rewrite for renames using `SchemaTransaction`.
-- **Dual relations** — Notion-parity: setting a dual Relation on Type A pointing at Type B auto-creates a reverse property on B; values mirror automatically. Applies across all four container/sub-folder scopes (`page_type` / `item_type` / `page_collection` / `item_collection`). Context-tier scopes are inherently one-way (Contexts don't have a per-tier `properties[]`); UI grays out the dual toggle for those.
-- **Cross-Type move-strip** — pulled forward from v0.4.0; tightly coupled to property schema. Move dialog lists props that'll be stripped before commit. Page across Page Types or Item across Item Types triggers the strip; cross-side promotion (Item ↔ Page) remains a post-v1 Prospect.
-- **Item creation surfacing** — Item creation paths land in the designed Items-side UI (post-ParadigmV2 stub replacement plan). v0.3.0 ships data layer end-to-end; the designed Items-side sidebar UI lands in a follow-up plan after ParadigmV2's stub-and-progressively-replace foundation.
-- **Sort by property** in Type Table views — type-aware comparators (Select option-order, Date chronological, Last Edited Time descending default, etc.). Per-Type default-sort persists in the Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) under `default_sort` (new field). Full per-view sort + saved configurations land at v0.6.0.
+**Scope split (locked 2026-05-23):** v0.3.0 ships the **data layer + minimum-viable placeholder UI** to verify the data layer works. Real Properties Pulldown + Property Panel ships in a fast-follow patch (alongside v0.3.0 or v0.3.1, Figma-driven). Broader inspector architecture (Claude chat main-window inspector, PreviewWindow primitive, Item Window redesign w/ pinned chips) ships in later v0.3.x patches whenever designed.
 
-End of v0.3.0: Items paradigm closes. Pages + Items both have body + properties + tier relations editable in-app.
+- **Data layer (full ship):** PropertyType extensions (`lastEditedTime`, `status`), PropertyValue (`.status`), PropertyDefinition (discriminated `RelationScope`, `dual_property`, `statusGroups`, `icon`, `allowsMultiple`), AgendaTaskSchema + AgendaEventSchema Property struct parity. SchemaTransaction primitive (compound mode for dual relations). Manager schema CRUD on all 4 managers. StatusOptionMutations helper (kind-agnostic). A.7.5 load-path migrations (AgendaTask Status injection + `type` removal, RelationScope decode shim, `.status` decode promotion). PropertyDefinitionValidator + ItemValidator rewire. `default_sort` field on all 4 sidecars. Move-strip primitive + cross-Type move methods.
+- **Placeholder UI (disposable):** Extend existing `FrontmatterInspector` (Pages-side) and `ItemWindow`'s `PropertyEditorRow` (Items-side) to handle all 10 property types. Minimum-viable Type Settings sheet (Edit Properties + Sort sections only) on both sides. Native SwiftUI move-strip confirmation dialog. **No design polish** — gets replaced when the real Property Panel SwiftUI component ships in the fast-follow patch.
 
-###### v0.3.1 — Items pane (Item Window redesign)
+End of v0.3.0: data layer correct end-to-end; placeholder UI exercises every property type so users can verify Pages + Items + Agenda Tasks + Agenda Events all read/write properties correctly.
 
-Reshape the Item Window around the now-filled property panel per Nathan's WIP sketch (`// Features//Items.md` "Item window — design evolution"):
-- Modal `WindowGroup(for: ItemRef.self)` — standalone window, side-by-side editing possible
-- Two-column body: description left (60%), properties right (40%)
-- Delete (red, edit-mode-only) + Save footer
-- Same view doubles as create + edit by passing mode
+###### v0.3.1 — Properties Pulldown + Property Panel (Figma-driven fast-follow)
+
+Real property UI ships right after v0.3.0:
+- **Properties Pulldown** for Pages in the main window (NavDropdown-style; populated-only; "+ Add property" picker; lazy properties; auto-managed at bottom in divider-separated section; title excluded). Full spec in `// Features//Pages.md` § "Properties Pulldown — to-be-implemented".
+- **Property Panel** SwiftUI component — host-agnostic, slots into any inspector container. Used by the future Page Preview inspector + Item Window inspector. MultiSelectChips color refactor + caller-site sweep. SchemaEditorRouter for cross-surface routing (right-click → "Edit options…" jumps to Type Settings).
+
+###### v0.3.x — Item Window redesign + PreviewWindow primitive (timing TBD)
+
+Reshape the Item Window around the Property Panel + add inspector toggle + pinned chips per Nathan's WIP sketch (`// Features//Items.md` § "Inspector Panel + Pinned Chips"):
+- Inspector toggle in popover top-right (default closed); reveals Property Panel as a panel to the right of the body
+- Pinned-property chips above title; saved at Item Collection level (`_itemcollection.json.pinned_properties: [String]`)
+- Eventually a true `WindowGroup(for: ItemRef.self)` standalone window (depends on cross-feature PreviewWindow primitive)
+- Same window doubles as create + edit by passing mode
+- AgendaTask + AgendaEvent reuse the Item Window UX pattern (separate code per entity); ship alongside the Item Window redesign
+
+###### v0.3.x — Claude chat as main-window inspector (timing TBD)
+
+Main-window inspector slot becomes the Claude chat (CLI subprocess bridge — frontend to Nathan's local CLI, not API integration). Properties never live in the main-window inspector under the locked direction — they live in the Pulldown / Page Preview inspector / Item Window inspector instead.
 
 ###### v0.3.2 — Page-wikilinks
 
@@ -160,7 +168,7 @@ End of v0.5.0: Page Types + Item Types stop being just "lists of files in a fold
 
 The "polish + integration" version. Agenda's full UI ships **hand-in-hand with EventKit** (Nathan-locked: they go together — see Paradigm-Decisions.md). Combines previously-scattered concerns:
 
-- **Agenda Item Window (Task + Event variants)** — parallel to Item Window; time-field handling (AgendaTask single "When?" input when due / start collapse; AgendaEvent always shows start + end); per-side schema property panel reading from `AgendaTaskSchema` / `AgendaEventSchema` (same `PropertyEditorRow` dispatch as Items).
+- **Agenda Task / Agenda Event Windows** — reuse the Item Window UX pattern (popover with inspector toggle + Property Panel + pinned chips), but **separate code per entity** (different EventKit semantics, different built-in fields). Time-field handling: AgendaTask single "When?" input when due / start collapse; AgendaEvent always shows start + end. Per-side schema property panel reading from `AgendaTaskSchema` / `AgendaEventSchema` (same `PropertyEditorRow` dispatch as Items).
 - **Agenda creation surfacing** — sidebar context-menu entries; menu-bar Quick Capture for fast event entry.
 - **Calendar view over Agenda** — date-anchored grid replacing the placeholder Saved → Calendar entry; can be embedded in Contexts/Homepage post-v0.7.0.
 - **EventKit bridge** — Sandbox entitlement (`com.apple.security.personal-information.calendars`) + Info.plist usage description keys + modern `requestFullAccessTo*` APIs. **Opt-in via Settings.** Bidirectional mirroring (`EKEvent` for items with `start_at` + `end_at`; `EKReminder` for items with `due_at` or unscheduled).

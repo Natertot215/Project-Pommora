@@ -77,14 +77,12 @@ Built-in fields (not user-creatable):
 
 ---
 
-#### Built-in `type` property
+#### Built-in properties
 
-Each schema includes a built-in `type` Select with side-appropriate defaults:
+- **AgendaTask** — required built-in **`status`** Status property (3 EventKit-aligned groups: Upcoming / In Progress / Done; non-deletable; bridges to `EKReminder.isCompleted`). All other AgendaTask properties are user-defined.
+- **AgendaEvent** — no built-in properties. Events derive their effective state from `start_at` / `end_at` relative to now (completion isn't an event concept). All properties on the AgendaEvent schema are user-defined; users may add Status manually if a custom workflow is wanted.
 
-- **AgendaTask** — defaults `[Task, To-do, Phase]`
-- **AgendaEvent** — defaults `[Event, Meeting, Conference]`
-
-`builtin: true` (cannot be deleted); options user-editable (rename, add custom values, recolor). Other properties on each schema are user-defined — same property/view editor used elsewhere; no special panel.
+A previously-planned built-in `type` Select (Task / To-do / Phase on AgendaTask; Event / Meeting / Conference on AgendaEvent) was dropped in the 2026-05-23 Properties brainstorm — Status replaced it as the sole built-in on AgendaTask (two built-in workflow indicators would compete). Users who want a `type` taxonomy can add it via the schema editor like any other Select. A.7.5 plan task documents the load-path migration for existing nexuses (idempotent removal of legacy `type` if `builtin: true`).
 
 ---
 

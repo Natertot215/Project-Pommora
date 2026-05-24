@@ -171,8 +171,8 @@ Three-tier organization layer; all three are composed-blocks surfaces. Tier-1 Sp
 
 Calendar-anchored items split into two distinct entities (ParadigmV2):
 
-- **Agenda Tasks** — `.task.json` files inside the Tasks singleton folder at the nexus root (the root folder carrying `_taskconfig.json`; default name `Tasks/`, renameable via Finder). EKReminder-aligned: `due_at` (optional), `start_at` (optional "not before"), `completed`, `priority` (0–9), `recurrence`, `alarm_offsets`, built-in `type` Select + required `status` Status (EventKit-aligned 3-group).
-- **Agenda Events** — `.event.json` files inside the Events singleton folder at the nexus root (the root folder carrying `_eventconfig.json`; default name `Events/`, renameable via Finder). EKEvent-aligned: required `start_at` + `end_at`, optional `location`, `all_day`, `recurrence`, `alarm_offsets`, `alarm_absolute`, built-in `type` Select. NO `status` (completion is not an event concept).
+- **Agenda Tasks** — `.task.json` files inside the Tasks singleton folder at the nexus root (the root folder carrying `_taskconfig.json`; default name `Tasks/`, renameable via Finder). EKReminder-aligned: `due_at` (optional), `start_at` (optional "not before"), `completed`, `priority` (0–9), `recurrence`, `alarm_offsets`, required **built-in `status` Status** (EventKit-aligned 3-group; non-deletable; bridges to `EKReminder.isCompleted`).
+- **Agenda Events** — `.event.json` files inside the Events singleton folder at the nexus root (the root folder carrying `_eventconfig.json`; default name `Events/`, renameable via Finder). EKEvent-aligned: required `start_at` + `end_at`, optional `location`, `all_day`, `recurrence`, `alarm_offsets`, `alarm_absolute`. No built-in Status (events derive effective state from `start_at` / `end_at` relative to now — completion isn't an event concept). Users may add Status manually if useful.
 
 Schemas live in per-side per-kind sidecars: the Tasks singleton's `_taskconfig.json` (AgendaTask schema) and the Events singleton's `_eventconfig.json` (AgendaEvent schema). Sidecar-driven discovery — first root folder found carrying each sidecar wins; if no folder carries the sidecar on a brand-new nexus, managers eagerly seed `Tasks/` + `Events/` at the root on launch. Swift type names are `AgendaTask` and `AgendaEvent` (prefixed to avoid `_Concurrency.Task` and `Event` stdlib collisions; the "no `Pommora.X` qualification" rule rejects `Pommora.Task`). UI labels remain "Task" / "Event" (renameable via Settings).
 
@@ -233,7 +233,7 @@ CREATE TABLE agenda_tasks (
   priority INTEGER NOT NULL,          -- 0-9 (EKReminder.priority)
   eventkit_uuid TEXT,                 -- nullable; populated when synced to EKEventStore
   calendar_id TEXT,                   -- EKCalendar identifier; nullable
-  properties JSON NOT NULL,           -- includes built-in `type` Select + required `status` Status
+  properties JSON NOT NULL,           -- includes required built-in `status` Status (EventKit-bridged)
   tier1 JSON NOT NULL,
   tier2 JSON NOT NULL,
   tier3 JSON NOT NULL,
@@ -252,7 +252,7 @@ CREATE TABLE agenda_events (
   location TEXT,                      -- EKEvent.location; nullable
   eventkit_uuid TEXT,                 -- nullable
   calendar_id TEXT,                   -- nullable
-  properties JSON NOT NULL,           -- includes built-in `type` Select (NO `status`)
+  properties JSON NOT NULL,           -- user-defined only; no built-in fields (events derive state from start_at/end_at)
   tier1 JSON NOT NULL,
   tier2 JSON NOT NULL,
   tier3 JSON NOT NULL,
@@ -384,13 +384,19 @@ Items, Agenda Tasks, and Agenda Events do NOT appear in the sidebar — they liv
 
 **Creation is right-click-only.** No "+ New" buttons; right-click headings/rows/sections opens a context menu with "New X" options auto-scoped to the cursor location. Pages-side rows ship designed at v0.3.0 (New Vault / New Collection / New Page / Rename / Delete); Items-side rows ship as minimal stubs at v0.3.0 (designed UI lands in a follow-up plan). Quick-capture (Cmd+Shift+N or menu-bar; pre-v1) is the discoverable counterpart for global creation. Collapsed-by-default disclosure is the general default for hierarchical UI. Full spec → `// Features//Sidebar.md`.
 
-##### Three-Pane Shell + Property Panel
+##### Three-Pane Shell + Property Surfaces
 
-Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes drag-resizable from v0.0; widths persist across launches. Default window 1200×800; minimum 960×560. Inspector's default view is the property panel for the active Page in v1; an AI chat interface (frontend to Nathan's existing local CLI, not an API integration) is planned post-v1 (see `// Features//Prospects.md`). Items don't use the inspector — they open in an Item window.
+Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes drag-resizable from v0.0; widths persist across launches. Default window 1200×800; minimum 960×560.
+
+**Main-window inspector hosts the Claude chat** (frontend to Nathan's local CLI, not an API integration; subprocess bridge) — ships in a v0.3.x patch, whenever designed. **Properties do NOT live in the main-window inspector.** They live in three different surfaces depending on context (locked 2026-05-23 brainstorm — full spec at [[Properties]] § "Where Properties Live"):
+
+| Surface | Property home |
+|---|---|
+| **Page in main window** | NavDropdown-style pulldown at top of content (populated-only + "+ Add property" picker; lazy properties) |
+| **Page Preview** (standalone window, PreviewWindow primitive) | Property panel inside the window's own inspector (toggle, default closed) |
+| **Item Window** (popover) | Property panel inside the popover's own inspector (toggle, default closed) + pinned-property chips above title, saved at Item Collection level |
 
 **Window chrome — macOS unified title bar.** No separate Pommora title bar. Traffic-lights render OS-rendered in the sidebar pane's column. A single unified toolbar (`.windowToolbarStyle(.unified(showsTitle: false))`) holds sidebar toggle, back/forward arrows, NavDropdown trigger, and inspector toggle, all in the same row as traffic-lights. No second toolbar row. Pattern: Mail / Notes / Finder.
-
-Below-heading and page-bottom property-panel placements are post-v1 Prospects.
 
 Built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with inspector attached via `.inspector(isPresented:)` (macOS 14+) — Apple's idiomatic pattern (Mail, Notes, Pages). Width via `.inspectorColumnWidth(min:ideal:max:)`; toolbar toggle via `InspectorCommands`. The three-column `NavigationSplitView` variant was rejected — that column is for selected-item drill-down (Mail's list → message-list → message), not a contextual supplementary panel.
 
@@ -455,7 +461,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - **Page Types + Page Collections + Pages** (Pages side) and **Item Types + Item Collections + Items** (Items side) — symmetric container layers (ParadigmV2). Each Type carries its per-kind sidecar (`_pagetype.json` / `_itemtype.json`); Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` / `_itemcollection.json` carries id + type_id + ordering only). UI labels: Pages get "Vault" + "Collection"; Items get "Type" + "Set" (renameable via Settings).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
 - **Items** — `.json`. Filename = title; conform to parent Item Type's schema; `id`, `icon`, `description` (250-char), `tier1/2/3`, timestamps. Open in Item Window popover, not a tab.
-- **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Built-in `type` Select on both; required `status` Status on Agenda Tasks only. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
+- **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on Agenda Tasks (built-in, non-deletable, EventKit-bridged); not auto-seeded on Agenda Events. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
 - **Settings scaffold** (ParadigmV2 v0.3.0) — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.6.0; v0.3.0 ships storage + label-read plumbing + Cmd+, stub scene.
 - Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all v1 types (10) incl. Status with EventKit-aligned groups; per-Type Settings sheet centralizes schema editing + sort + property visibility (filter/group/layout placeholders fill in at v0.6.0).

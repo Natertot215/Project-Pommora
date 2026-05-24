@@ -95,10 +95,16 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 - Markdown round-trip on disk — body is what's saved; frontmatter handled separately in Swift.
 - Dynamic syntax — markers shrink to near-invisible when caret leaves an AST node (Bear / iA Writer pattern). Locked architecture rules + anti-patterns + lessons live at [`// Guidelines//Markdown.md`](../Guidelines/Markdown.md); the feature spec for what the editor currently ships lives at [`PageEditor.md`](PageEditor.md).
 - Apple-native styling in the canvas — system font stack, system caret, accent-derived selection color; brand values via direct `NSAttributedString` attributes.
-- Frontmatter never reaches the editor canvas; property panel is a separate SwiftUI surface (v0.3.0 Properties).
+- Frontmatter never reaches the editor canvas; property surface is separate from the page body. See § "Properties Pulldown" below for the Pages-side property surface.
 - Standalone-window previews are queued behind the cross-feature **PreviewWindow primitive** (see `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`); `⌥⌘O` is reserved for that ship and not currently bound.
 
 > If pivoting to React, see `// ReactInfo//Editor.md` for the React-side approach (Tiptap directly, no WKWebView wrapper).
+
+---
+
+#### Properties Pulldown — to-be-implemented (fast-follow patch)
+
+For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy properties** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties. Per-page drag-reorder like NavDropdown favorites. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. **Title is NOT included** (filename plays that role). For Pages opened in a Page Preview window, the same lazy-properties content model lives in the preview's inspector panel (toggle, default closed). Ships in fast-follow patch (alongside v0.3.0 or v0.3.1, Figma-driven); v0.3.0 placeholder UI uses the existing FrontmatterInspector. Canonical architecture: [[Properties]] § "Where Properties Live".
 
 ---
 

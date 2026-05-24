@@ -61,11 +61,11 @@ The full Settings UI ships v0.6.0 and brings:
 
 Slotted v0.6.0 alongside the quick-capture / design-system customization batch.
 
-#### Property panel placement options
-**Description:** v1 puts the property panel in the right inspector pane. Two alternate placements are nice-to-haves for later: below the page heading (Notion-style) and at the page bottom. Setting-toggleable per user. Doesn't block v1 — the inspector is the natural starting point — but the placements have different feel for different writing modes (top = reference-while-writing, inspector = reference-while-navigating).
+#### Property panel placement options — RETIRED 2026-05-23
+**Status:** Superseded by the locked surface architecture (see [[Properties]] § "Where Properties Live"). Properties live in the NavDropdown-style pulldown for Pages in the main window, and in the inspector panel for Page Preview / Item Window. Alternate placements (below page heading, page bottom) are no longer being considered as toggleable user preferences.
 
-#### AI chat interface in the inspector
-**Description:** Second view in the right inspector pane (toggled or tabbed alongside the property panel). **Frontend to Nathan's local CLI, not an API integration** — chat UI sends to a CLI subprocess and renders streamed output. No model hosting, no API keys, no per-token costs. Nathan already runs this pattern on Obsidian; ports cleanly. Inspector dimensions (narrow, vertical, persistent) fit chat well, and it's already attached to the active Page. Implementation: chat-UI component + subprocess bridge. Slots in post-v1 without shell changes.
+#### Claude chat interface as main-window inspector — IN ROADMAP 2026-05-23
+**Status:** Promoted out of Prospects. Becomes the main-window inspector under the locked surface architecture (Properties live in pulldown / preview inspectors; main-window inspector is Claude chat). Frontend to Nathan's local CLI, not an API integration — chat UI sends to a CLI subprocess and renders streamed output. No model hosting, no API keys, no per-token costs. Ships in a v0.3.x patch, whenever designed.
 
 #### Sidebar Collection-kind indicator toggle
 **Description:** A setting that adds a small per-row icon distinguishing Page Collections from Item Collections in the sidebar. The default v1 sidebar already separates the two via the Pages / Items section split + the "Vault" / "Collection" vs "Type" / "Set" UI labels; this is a power-user detail for users who want an extra glance-level signal at the row level.
@@ -73,8 +73,8 @@ Slotted v0.6.0 alongside the quick-capture / design-system customization batch.
 #### Custom color picker for Select / Multi-select properties
 **Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work in v0.6.0.
 
-#### Hide-empty-properties toggle in the property panel
-**Description:** v1 shows every property from the Page Type's schema in the property panel (Notion-style), even when the value is unset. A setting-toggleable mode that hides unset properties would reduce visual noise on Pages with many schema properties but few values per entry — useful for sparsely-populated databases. Post-v1.
+#### Show-empty-properties toggle in the property panel — NEW 2026-05-23
+**Description:** v1 hides empty schema entries by default (lazy-properties model in the Properties Pulldown — see [[Properties]] § "Where Properties Live"). A setting-toggleable mode that SHOWS every schema property (even unset) would help users explore the full schema without opening the "+ Add property" picker — useful for densely-populated databases where the user wants to fill in many properties per page. Inverse of the original hide-empty proposal. Post-v1.
 
 #### Drag-to-reorder schema-level property declarations
 **Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).

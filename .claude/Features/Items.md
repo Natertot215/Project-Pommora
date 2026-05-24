@@ -87,22 +87,28 @@ Item Collections are organizational only — they do not carry their own propert
 
 #### Item Window
 
-Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. Not a tab, not a full page, not the inspector. Contains:
+Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. Not a tab, not a full page, not part of the main-window inspector (which is Claude chat). The Item Window has **its own** inspector — toggle button in the popover's top-right; default closed — that hosts the property panel when opened. Contains:
 
 - **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
 - **Icon** — optional SF Symbol, editable via TextField (curated SymbolPicker UI deferred to a polish pass; current sheet supports manual entry).
 - **Properties** — typed inputs for each property in the parent Item Type's schema (via `PropertyEditorRow` dispatching to per-type controls: TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select; relation editor + tier1/2/3 chip pickers land v0.3.0).
 - **Description** — plain-text field, **hard cap 250 characters**. Sized to fit the window without scrolling; keeps the JSON file small and cloud-sync-friendly.
-- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2; full relation picker UI lands v0.3.0 (shared `ContextTierPicker` component with Pages inspector).
+- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2; full relation picker UI lands v0.3.0 (shared `ContextTierPicker` component with the Pages-side property surface — pulldown / Page Preview inspector).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem` (with a `renameItem` pre-step if the title changed). No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
 
 ---
 
-#### Item Window — design evolution (v0.3.1)
+#### Inspector Panel + Pinned Chips — to-be-implemented (v0.3.x patch)
 
-Nathan-sketched 2026-05-17. Supersedes the v0.2 popover at v0.3.1, immediately after v0.3.0 Properties. v0.3.0 ships properties into the existing popover; v0.3.1 reshapes around them.
+The Item Window has its own inspector — toggle in the popover's top-right corner, **default closed** — that hosts a Property Panel when opened. Same lazy-properties model as Pages: populated properties only, "+ Add property" picker over the Item Type's schema. **Pinned-property chips** sit above the title in the popover, providing always-on access to a subset of properties without opening the inspector. Pinned set is saved at the **Item Collection level** (`_itemcollection.json.pinned_properties: [String]`) — all Items in a Collection share the chip layout, cohabiting with the future Item Templates feature (both Collection-scoped UI prefs). Right-click any property row in the inspector → "Pin to chips"; right-click chip → "Unpin". Title (filename) is NOT included in the property surface — it's the popover's title bar. Ships in v0.3.x patch alongside the Item Window redesign; v0.3.0 placeholder UI uses the existing popover with extended PropertyEditorRow. Canonical architecture: [[Properties]] § "Where Properties Live".
+
+---
+
+#### Item Window — design evolution (v0.3.x, timing TBD)
+
+Nathan-sketched 2026-05-17, refined 2026-05-23 brainstorm. Supersedes the v0.2 popover in a later v0.3.x patch. v0.3.0 ships properties into the existing popover (placeholder UI); the redesigned Item Window with inspector toggle + pinned-property chips ships when designed.
 
 **Layout:** modal window (not popover) with a `New Item` / item-title header, two-column body, footer with Delete + Save.
 
@@ -133,13 +139,13 @@ Nathan-sketched 2026-05-17. Supersedes the v0.2 popover at v0.3.1, immediately a
 - **Delete (red, destructive)** — edit mode only; confirms via `SidebarConfirmation`.
 - **Save (blue, primary)** — commits via `ItemContentManager.updateItem` / `createItem`. Disabled until title non-empty + schema-valid.
 
-**Why this waits for v0.3.1:** design assumes the v0.3.0 property panel. Shipping the shell before properties exist would leave the right column empty.
+**Why this waits:** design assumes the fast-follow Property Panel SwiftUI component (host-agnostic; slots into the popover's inspector). Until that ships, the v0.3.0 placeholder UI uses the existing popover with extended PropertyEditorRow.
 
-**v0.3.1 implementation notes:**
+**Implementation notes (timing TBD):**
 - Window becomes a true `WindowGroup(for: ItemRef.self)` — clicking an Item opens a separate macOS window. Depends on the cross-feature PreviewWindow primitive (`Guidelines/CRUD-Patterns.md`); the earlier `EntityRef` machinery from v0.2.7.2 was deleted at v0.2.7.1 and won't be revived.
 - Same view doubles as create + edit via `mode: .create | .edit(Item)`. Create flow hides Delete.
-- Two-column `HStack` — body 60% / properties 40% (revisit at implementation).
-- Existing `ItemWindow.swift` popover stays as compact / inspector mode if wanted.
+- Inspector toggle in top-right corner (alongside exit button) — default closed; reveals property panel as a panel to the right of the body.
+- **Pinned-property chips** above the title — saved at the Item Collection level (`_itemcollection.json.pinned_properties: [String]`) so all Items in a Collection share the chip set. Right-click any property row in the inspector → "Pin to chips" to add; right-click chip → "Unpin" to remove. Cohabits with future Item Templates feature (both Collection-scoped UI prefs).
 
 ---
 

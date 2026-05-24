@@ -4,6 +4,25 @@ Pommora's property system spec. Referenced from `PommoraPRD.md`. v0.3.0 conceptu
 
 ---
 
+#### Where Properties Live (surface architecture)
+
+Properties live in **three different surfaces** depending on context. Locked direction (2026-05-23 brainstorm); UI design + visual specifics deferred to Figma.
+
+| Context | Property home | Timing |
+|---|---|---|
+| **Page in main window** | NavDropdown-style pulldown at top of content (populated-only — empty schema entries don't render; "+ Add property" picker over schema) | Real UI: v0.3.0 fast-follow / v0.3.1 |
+| **Page Preview** (standalone window) | Property panel inside the window's inspector (toggle, **default closed**) | Ships when PreviewWindow primitive ships (v0.3.x) |
+| **Item Window** (popover) | Property panel inside the popover's inspector (toggle, **default closed**) + **pinned-property chips** above title, saved at the Item Collection level (shared across all Items in that Collection) | Ships when Item Window redesign ships (v0.3.x) |
+| **Main window inspector** | Claude chat (CLI subprocess bridge). Property panel NEVER lives in the main-window inspector under the new direction. | Ships independently, whenever |
+
+**Lazy properties** is the unifying model — surfaces show populated properties only. Adding a property = picking from the parent Type's schema via "+ Add property" and setting a value. Empty schema entries are invisible by default.
+
+**Title is excluded** from every property surface (filename plays the title role; edited at the title position, not as a property row). **Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section** (collapsed by default); **`modified_at`** appears in the main list as **Last Edited Time** for sortability.
+
+**v0.3.0 ships data layer + minimum-viable placeholder UI** to verify the data layer works. Real Properties Pulldown + Property Panel ships in fast-follow patch (alongside v0.3.0 or v0.3.1). Broader inspector architecture (Claude chat, PreviewWindow, Item Window redesign) ships in later v0.3.x patches whenever designed. See `// Planning//v0.3.0-Properties-spec.md` § "Surface architecture" for canonical scope split.
+
+---
+
 #### Model
 
 - **Property values** live in YAML frontmatter on each Page, in the `properties` key of each Item's `.json`, in the `properties` key of each Agenda Task's `.task.json`, or in the `properties` key of each Agenda Event's `.event.json` — directly editable by any text editor, tool, or Claude.
@@ -16,22 +35,19 @@ Pommora's property system spec. Referenced from `PommoraPRD.md`. v0.3.0 conceptu
 
 #### How Properties Are Created
 
-Properties are created from the **Type Settings sheet** — six sections (Edit Properties / Sort / Filter / Group By / Layout / Property Visibility); the Properties section hosts the schema editor. Reached from:
+Properties are created from the **Type Settings sheet**. v0.3.0 ships a minimum-viable two-section form: **Edit Properties** (schema editor) + **Sort** (per-Type default sort). The full seven-section design (adding Property Visibility / Filter / Group By / Layout / Templates) ships with the real Type Settings sheet redesign in a later v0.3.x patch. Reached from:
 - Type detail view toolbar gear button (PageTypeDetailView for Page Types; ItemTypeDetailView for Item Types)
-- Type row right-click → "Type Settings…" (UI label varies per side: "Vault Settings…" on Page Types; "Type Settings…" on Item Types — labels renameable via the Settings scaffold, Phase 7)
+- Type row right-click → "Type Settings…" (UI label varies per side: "Vault Settings…" on Page Types; "Type Settings…" on Item Types — labels renameable via the Settings scaffold)
 - "+ Property" column header in the detail-pane Table view (jumps to Edit Properties + "Add property" flow)
 - Column header right-click in detail-pane Table → "Edit property…" (jumps to the relevant row)
 
 Add Property flow:
 
-1. **Add property** — "+ Add property" in Type Settings → Edit Properties, OR "+" column header in detail-pane Table view
-2. **Name it** — `Status`, `Due`, `Tags`, etc.
-3. **Pick an icon** (optional) — `IconPickerField` for an SF Symbol
-4. **Pick a type** — opens type-specific config (options for Select, format for Number, scope + reverse name for Relation, 3-group editor for Status, etc.)
-5. **Save** — schema entry written to the Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json` depending on side); property appears as empty on every member of that Type (paired Relation properties atomically add the reverse to the target Type)
-6. **Set value** — written to the Page's frontmatter, Item's `properties` block, or Agenda Task / Agenda Event's `properties` block via `PropertyEditorRow` in the inspector / Item Window
+1. **Define a NEW schema property** — Type Settings → Edit Properties → "+ Add property". Name + icon + type + per-type config. Saves to the Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json`). Paired Relation properties atomically add the reverse to the target Type.
+2. **POPULATE an existing schema property on a specific entity** — "+ Add property" picker inside any property surface (pulldown / inspector panel / Item Window). Lists schema properties NOT yet populated on this entity. Selecting one populates it (empty / default value, ready to edit) — lazy-properties model means empty schema entries are invisible until populated this way.
+3. **Set value** — live-save (Notion-style). Pickers commit on click; text inputs debounce-save after typing stops. Invalid values render with a red border. Values write to the Page's frontmatter, Item's `properties` block, or Agenda Task / Agenda Event's `properties` block via `PropertyEditorRow`.
 
-Full Type Settings UI spec → [[PageTypes]] "Page Type Settings sheet" (parallel structure applies on the Items side once Item Type settings ship).
+Full Type Settings UI spec → [[PageTypes]] "Page Type Settings sheet" (parallel structure applies on the Items side; both sheets ship v0.3.0).
 
 #### Property Type Catalog (v0.3.0)
 
@@ -47,12 +63,12 @@ Each type has a fixed config shape stored as JSON inside the property's entry in
 | **Date & Time** | `"2026-06-15T14:30:00Z"` (ISO-8601 with timezone) | `{}` | Date + time picker. |
 | **Select** | `"Active"` (option's `value`) | `{ "select_options": [{ "value": "active", "label": "Active", "color": "blue" }, ...] }` | Dropdown over existing options, colored pills. `value` immutable post-create; `label` renamable freely. Option order user-defined (drag in option editor) defines sort — see "Property options and sort order". **Options NOT created by typing into the value picker** — see "Managing options". |
 | **Multi-select** | `["planning", "frontend"]` (option `value`s) | `{ "select_options": [...] }` (same shape as Select) | Tag-style multi-pick via `MultiSelectChips`; **each chip in option's color** (same 9-color Notion palette); same option-order-defines-sort. **Options NOT created by typing.** |
-| **Status** | `"in_progress"` (option's canonical `value`) | `{ "status_groups": [{ "id": "awaiting", "label": "Awaiting", "color": "gray", "options": [...] }, ...] }` (3 fixed groups: `awaiting` / `in_progress` / `done`; user-editable options inside) | **Notion-parity workflow property.** Grouped picker popover, 3 sections; single-pick. Pill color resolves option override > group default. Group LABELS user-renamable; SLOTS structurally fixed. Sort = group position first, then option order. **Options NOT created by typing.** See "Status property type". |
+| **Status** | `"in_progress"` (option's canonical `value`) | `{ "status_groups": [{ "id": "upcoming", "label": "Upcoming", "color": "gray", "options": [...] }, ...] }` (3 EventKit-aligned fixed groups: `upcoming` / `in_progress` / `done`; user-editable options inside) | **EventKit-bridged workflow property.** Grouped picker popover, 3 sections; single-pick. Pill color resolves option override > group default. Group LABELS user-renamable; SLOTS structurally fixed (preserves EventKit compatibility). Sort = group position first, then option order. **Options NOT created by typing.** See "Status property type". |
 | **URL** | `"https://..."` | `{}` | URL input; clickable link with favicon. |
 | **Relation** | `{"$rel": "01HXYZ..."}` (single) or `[{"$rel": "01H..."}, ...]` (multi) | `{ "relation_scope": {...}, "allows_multiple": true \| false, "dual_property": {...}? }` | Scope-aware picker popover — see "Relation scope" + "Dual relations". **Stored as tagged JSON object** `{"$rel": "<ULID>"}` so external agents + graph-view indexer can identify cross-entity edges from any file without consulting schema. **Displayed as the target's current title** — styled colored inline text (wikilink look). Renames update automatically. |
 | **Last Edited Time** | *(not stored)* | `{}` | Derived from `modified_at`. Read-only, sortable. v0.3.0 default sort. |
 
-**Status is a first-class type** (Status-as-distinct-type locked RC-2026-05-19; previously folded into Select). With Status carrying the 3-group workflow structure, Selects are now exclusively free-form labels. Use Status for any "where in a process is this?" property.
+**Status is a first-class type — distinct from Select.** Status carries the 3-group EventKit-aligned workflow structure (`upcoming` / `in_progress` / `done`); Select is free-form labels. Use Status for any "where in a process is this?" property; use Select for any other categorical label.
 
 **Wikilinks are NOT a property type.** Body-text wikilinks (`[[Title]]`) ship at v0.3.2 with their own derived `wikilinks: [...]` frontmatter mirror — derived from body scan, not schema-editable.
 
@@ -118,16 +134,11 @@ Built-in **only on the AgendaTask schema** at v0.3.0. Status is NOT auto-seeded 
 
 **AgendaEvent schema** (`_eventconfig.json` on the Events singleton) — Status is NOT built-in. Completion isn't an event concept; events derive their effective state from `start_at` / `end_at` relative to now. Users can add a Status property manually if a custom workflow is wanted, but no default is seeded.
 
-#### Per-entity property panel visibility (wiring v0.3.0; UI later)
+#### Per-entity property panel visibility — deferred
 
-Each Page, Item, Agenda Task, and Agenda Event carries a per-entity **`panel_hidden_properties: [String]`** field controlling which Type-schema properties show in THIS entity's inspector / Item Window panel. Distinct from the Type's wide column visibility setting.
+Was originally scoped as v0.3.0 data scaffolding (`panel_hidden_properties` field on PageFrontmatter / Item / AgendaTask / AgendaEvent). **Deferred** under the lazy-properties model — populated-only filtering in the Properties Pulldown auto-hides empty schema entries, subsuming most of the use case. Explicit hide-when-populated may return as a follow-up if needed; the data field doesn't ship at v0.3.0.
 
-| Scope | Field | Effect |
-|---|---|---|
-| **Per-Type** | `<Type>.hidden_properties: [String]` (Type Settings → Property Visibility — set on PageType / ItemType / AgendaTaskSchema / AgendaEventSchema) | Hides column in the Type's detail-pane Table view |
-| **Per-Entity** | `<entity>.panel_hidden_properties: [String]` (per-Page / per-Item / per-Agenda Task / per-Agenda Event — UI post-v0.3.0) | Hides property row in THIS entity's inspector / Item Window only |
-
-**v0.3.0 ships the wiring; UI lands later.** Data model fields (`panel_hidden_properties` on PageFrontmatter / Item / AgendaTask / AgendaEvent), manager signatures (`PageContentManager.updatePageFrontmatter(_:, panelHiddenProperties: [String]?)` and parallels for ItemContentManager / AgendaTaskManager / AgendaEventManager), and validators are in place. The right-click "Hide property" + panel-footer "+ Add property" picker (lists currently-hidden to un-hide, plus "New property…" entry that opens the schema editor) lands in a follow-up patch. Hidden properties still exist on the entity, still hold values, still appear in the Table — per-entity hidden is purely a UI preference.
+Per-Type column visibility (`<Type>.hidden_properties: [String]`) also doesn't ship at v0.3.0 — comes back online when the detail-pane view shape gets reimagined (v0.6.0 alongside the five view types).
 
 #### Content templates (post-v1 reservation)
 
@@ -239,7 +250,7 @@ Option creation, renaming, recoloring, deletion, and reorder happen **only via t
 Three paths to the option editor:
 
 1. **Type Settings → Edit Properties → expand property → option list** — canonical. Drag-reorder, "+ Add option", per-option color picker, rename TextField, delete.
-2. **Right-click a property value (pill / chip / status indicator)** in Page inspector / Item Window / detail-pane Table cell → "Edit options…".
+2. **Right-click a property value (pill / chip / status indicator)** in any property surface (pulldown / inspector panel / Item Window) → "Edit options…". Ships with real Properties Pulldown / Panel patch; placeholder UI v0.3.0 doesn't include this affordance.
 3. **Right-click a Table column header** → "Edit property…" — same destination.
 
 For Status, the editor also exposes per-group label TextFields + drag-between-groups across Upcoming / In Progress / Done. Value pickers display existing options only; each has a "**Manage options…**" link routing to Type Settings → Edit Properties.
@@ -323,7 +334,9 @@ On every Page (frontmatter), Item (JSON), Agenda Task (JSON), and Agenda Event (
 - `id` — ULID assigned at creation, never changes
 - `created_at`, `modified_at` — ISO-8601 timestamps maintained by Pommora
 
-`id` and `created_at` appear at the bottom of the property panel (collapsed by default). `modified_at` is exposed as **Last Edited Time** at the top for sortability — same value, two surfacings.
+**Title is NOT a property surface entry.** The filename plays the title role — it's edited inline at the page title position (Pages) or as the Item Window's title field (Items). The pulldown / inspector panel surfaces never list "title" as a row.
+
+**Auto-managed properties sit at the bottom of every property surface, in a separate section divided by a horizontal divider** (Pages-side pulldown, Item Window inspector, Page Preview inspector). The bottom section holds `id` and `created_at` (read-only, collapsed by default). `modified_at` is exposed alongside user-defined properties at the top of the surface as **Last Edited Time** for sortability — same value, two surfacings.
 
 Items, Agenda Tasks, and Agenda Events also carry one built-in field that isn't a property:
 
