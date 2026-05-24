@@ -73,4 +73,51 @@ struct PropertyValueTests {
             Issue.record("expected .date case after decode, got \(decoded)")
         }
     }
+
+    // MARK: - Phase A.2: status / file / lastEditedTime
+
+    @Test func roundTripStatusValue() throws {
+        let value: PropertyValue = .status("not_started")
+        let encoded = try JSONEncoder().encode(value)
+        let decoded = try JSONDecoder().decode(PropertyValue.self, from: encoded)
+        #expect(decoded == .status("not_started"))
+    }
+
+    @Test func roundTripFileValue() throws {
+        let ref = FileRef(
+            path: ".nexus/attachments/01HABC/foo.pdf",
+            originalName: "foo.pdf",
+            addedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            mimeType: "application/pdf"
+        )
+        let value: PropertyValue = .file([ref])
+        let encoded = try JSONEncoder().encode(value)
+        let decoded = try JSONDecoder().decode(PropertyValue.self, from: encoded)
+        #expect(decoded == .file([ref]))
+    }
+
+    @Test func fileRefSnakeCaseEncoding() throws {
+        let ref = FileRef(
+            path: "p", originalName: "o.pdf",
+            addedAt: Date(timeIntervalSince1970: 0),
+            mimeType: "application/pdf"
+        )
+        let data = try JSONEncoder().encode(ref)
+        let s = String(data: data, encoding: .utf8)!
+        // JSONEncoder escapes `/` as `\/`; assert key presence only, not full MIME literal.
+        #expect(s.contains(#""original_name":"o.pdf""#))
+        #expect(s.contains(#""added_at""#))
+        #expect(s.contains(#""mime_type""#))
+        // Round-trip the MIME value to confirm correctness without literal-shape coupling.
+        let decoded = try JSONDecoder().decode(FileRef.self, from: data)
+        #expect(decoded.mimeType == "application/pdf")
+    }
+
+    @Test func lastEditedTimeEncodingThrows() throws {
+        // .lastEditedTime is virtual — never stored. Encoding should throw.
+        let value: PropertyValue = .lastEditedTime
+        #expect(throws: EncodingError.self) {
+            _ = try JSONEncoder().encode(value)
+        }
+    }
 }
