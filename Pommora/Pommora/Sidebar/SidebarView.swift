@@ -331,9 +331,9 @@ struct VaultsSection: View {
             }
             // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
         } header: {
-            // Task 7.3 — section header text comes from SettingsManager
-            // (`sidebar_sections.pages`, default "Pages"). Items section header
-            // wires identically when Phase 8.1 ships ItemsSection.
+            // Section header text comes from SettingsManager
+            // (`sidebar_sections.pages`, default "Vaults" per the Pages-side
+            // signature plural; renameable per nexus via settings.json).
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.pages) {
                 presentedSheet = .newPageType
             }
