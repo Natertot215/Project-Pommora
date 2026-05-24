@@ -154,6 +154,12 @@ struct PageEditorView: View {
             }
             .offset(y: -min(max(0, scrollOffset), Self.titleAreaHeight))
         }
+        // Clip the ZStack so the title overlay's offset doesn't bleed up
+        // past the editor's top edge into the toolbar region — SwiftUI's
+        // `.offset` shifts rendering without clipping at the parent
+        // boundary, so without this the title appears to "hit the top"
+        // partially visible instead of fully disappearing on scroll.
+        .clipped()
         .onAppear {
             AppGlobals.register(viewModel)
         }
