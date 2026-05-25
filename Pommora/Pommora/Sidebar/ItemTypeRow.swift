@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Stub row for an Item Type. Disclosure-style to nest `ItemCollection`s; no
-/// rename, context menu, or settings-label reads yet.
 struct ItemTypeRow: View {
     let itemType: ItemType
     @Binding var selection: SidebarSelection
+    let nexus: Nexus
+    let index: PommoraIndex?
     @State private var expanded: Bool = false
+    @State private var showingTypeSettings: Bool = false
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -33,11 +35,27 @@ struct ItemTypeRow: View {
                 selection: $selection,
                 accent: nil
             )
+            .contextMenu {
+                let typeLabel = settingsManager.settings.labels.itemType.singular
+                Button("\(typeLabel) Settings…") {
+                    showingTypeSettings = true
+                }
+            }
         }
         .listRowBackground(
             SelectionChrome(
                 isSelected: SelectionTag.itemType(itemType.id).matches(selection)
             )
         )
+        .sheet(isPresented: $showingTypeSettings) {
+            TypeSettingsSheet(
+                itemType: itemType,
+                itemTypeManager: itemTypeManager,
+                nexus: nexus,
+                index: index,
+                onDismiss: { showingTypeSettings = false }
+            )
+            .interactiveDismissDisabled()
+        }
     }
 }
