@@ -14,34 +14,54 @@ struct ItemWindow: View {
     @State private var errorMessage: String?
 
     /// The ItemType schema captured at open time — the baseline for drift detection.
-    /// Resolved once on `.onAppear` by scanning ItemTypeManager state.
     @State private var originalItemType: ItemType?
 
     /// Set when drift is detected on save; drives the SchemaConflictDialog sheet.
     @State private var schemaConflict: SchemaConflictPayload?
 
+    // J.12: inspector panel state
+    @State private var inspectorOpen: Bool = false
+
+    /// The ItemCollection that contains this item (nil = type-root item).
+    @State private var parentCollection: ItemCollection?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            // J.12: pinned chips above title — only when in a collection and chips exist
+            if let collection = parentCollection, !collection.pinnedProperties.isEmpty {
+                pinnedChipsBar(collection: collection)
+            }
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    titleSection
-                    iconSection
-                    descriptionSection
-                    Divider()
-                    propertiesSection
-                    Divider()
-                    relationsSection
-                    Divider()
-                    metaSection
+            HStack(alignment: .top, spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        titleSection
+                        iconSection
+                        descriptionSection
+                        Divider()
+                        propertiesSection
+                        Divider()
+                        relationsSection
+                        Divider()
+                        metaSection
+                    }
+                    .padding()
                 }
-                .padding()
+                // J.12: inspector side panel
+                if inspectorOpen, let resolved = originalItemType {
+                    Divider()
+                    inspectorPanel(itemType: resolved)
+                }
             }
             Divider()
             footer
         }
-        .frame(width: 480, height: 580)
+        .frame(
+            width: inspectorOpen ? 760 : 480,
+            height: 580
+        )
+        .animation(.easeInOut(duration: 0.2), value: inspectorOpen)
         .onAppear {
             hydrate()
             guard let recents = AppGlobals.recentsManager else { return }
@@ -70,16 +90,107 @@ struct ItemWindow: View {
         }
     }
 
+    // MARK: - Header
+
     private var header: some View {
         HStack {
             Image(systemName: draftIcon.isEmpty ? "list.bullet.rectangle" : draftIcon)
                 .font(.system(size: 20))
             Text(draftTitle).font(.headline)
             Spacer()
+            // J.12: inspector toggle button
+            Button {
+                inspectorOpen.toggle()
+            } label: {
+                Image(systemName: inspectorOpen ? "sidebar.right" : "sidebar.right")
+                    .symbolVariant(inspectorOpen ? .fill : .none)
+                    .foregroundStyle(inspectorOpen ? Color.accentColor : .secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(inspectorOpen ? "Close Inspector" : "Open Inspector")
+            .disabled(originalItemType == nil)
             Button("Done") { dismiss() }
         }
         .padding()
     }
+
+    // MARK: - Pinned chips bar (J.12)
+
+    private func pinnedChipsBar(collection: ItemCollection) -> some View {
+        let validPinned = collection.pinnedProperties.filter { propID in
+            originalItemType?.properties.first(where: { $0.id == propID }) != nil
+        }
+        return Group {
+            if !validPinned.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(validPinned, id: \.self) { propID in
+                            PinnedPropertyChip(
+                                propID: propID,
+                                schema: originalItemType?.properties ?? [],
+                                values: draftProperties,
+                                onUnpin: { unpin(propID: propID, from: collection) }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                }
+                .background(Color(.windowBackgroundColor).opacity(0.5))
+            }
+        }
+    }
+
+    // MARK: - Inspector side panel (J.12)
+
+    private func inspectorPanel(itemType: ItemType) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Properties")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if itemType.properties.isEmpty {
+                        Text("No properties defined.")
+                            .font(.callout)
+                            .foregroundStyle(.tertiary)
+                            .padding(12)
+                    } else {
+                        ForEach(itemType.properties) { def in
+                            PropertyEditorRow(
+                                definition: def,
+                                value: Binding(
+                                    get: { draftProperties[def.id] ?? .null },
+                                    set: { draftProperties[def.id] = $0 }
+                                )
+                            )
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            // J.12: right-click for "Pin to chips" — only in a collection
+                            .contextMenu {
+                                if let collection = parentCollection {
+                                    Button {
+                                        pin(propID: def.id, to: collection)
+                                    } label: {
+                                        Label("Pin to Chips", systemImage: "pin")
+                                    }
+                                }
+                            }
+                            Divider()
+                                .padding(.horizontal, 12)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(width: 260)
+    }
+
+    // MARK: - Main form sections
 
     private var titleSection: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -200,20 +311,15 @@ struct ItemWindow: View {
         draftDescription = item.description
         draftProperties = item.properties
         originalItemType = resolveItemType()
+        parentCollection = resolveParentCollection()
     }
 
-    /// Scans ItemTypeManager to find the ItemType that contains this item.
-    /// Matches by checking the item's ID against each type's loaded items
-    /// in the content manager. Falls back to nil if not found (e.g., type
-    /// was deleted while the window was in the sheet queue).
     private func resolveItemType() -> ItemType? {
         for type_ in itemTypeManager.types {
-            // Check type-root items.
             let rootItems = itemContentManager.items(in: type_)
             if rootItems.contains(where: { $0.id == item.id }) {
                 return type_
             }
-            // Check collection-scoped items.
             for collection in itemTypeManager.itemCollections(in: type_) {
                 let collItems = itemContentManager.items(in: collection)
                 if collItems.contains(where: { $0.id == item.id }) {
@@ -222,6 +328,51 @@ struct ItemWindow: View {
             }
         }
         return nil
+    }
+
+    /// Returns the ItemCollection this item lives in, or nil if it's at type root.
+    private func resolveParentCollection() -> ItemCollection? {
+        for type_ in itemTypeManager.types {
+            for collection in itemTypeManager.itemCollections(in: type_) {
+                let collItems = itemContentManager.items(in: collection)
+                if collItems.contains(where: { $0.id == item.id }) {
+                    return collection
+                }
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Pin / Unpin (J.12)
+
+    /// Adds `propID` to `parentCollection.pinnedProperties` and persists to disk.
+    private func pin(propID: String, to collection: ItemCollection) {
+        guard !collection.pinnedProperties.contains(where: { $0 == propID }) else { return }
+        var updated = collection
+        updated.pinnedProperties.append(propID)
+        persistCollection(updated)
+    }
+
+    /// Removes `propID` from `parentCollection.pinnedProperties` and persists.
+    private func unpin(propID: String, from collection: ItemCollection) {
+        var updated = collection
+        updated.pinnedProperties.removeAll { $0 == propID }
+        persistCollection(updated)
+    }
+
+    private func persistCollection(_ updated: ItemCollection) {
+        guard let original = originalItemType else { return }
+        let metaURL = NexusPaths.itemCollectionMetadataURL(
+            in: itemContentManager.nexus.rootURL,
+            typeFolderName: original.title,
+            collectionFolderName: updated.title
+        )
+        do {
+            try updated.save(to: metaURL)
+            parentCollection = updated
+        } catch {
+            errorMessage = "Could not save collection: \(error.localizedDescription)"
+        }
     }
 
     // MARK: - Save with schema drift guard (EC4)
@@ -237,7 +388,6 @@ struct ItemWindow: View {
             return
         }
 
-        // 1. Re-fetch the current ItemType schema from disk.
         let metaURL = NexusPaths.itemTypeMetadataURL(
             in: itemContentManager.nexus.rootURL, typeFolderName: original.title
         )
@@ -249,14 +399,12 @@ struct ItemWindow: View {
             return
         }
 
-        // 2. Detect drift vs the user's pending edits.
         let drift = SchemaConflictDetector.detectDrift(
             editingProperties: draftProperties,
             freshSchema: freshType.properties,
             originalSchema: original.properties
         )
 
-        // 3. If drift detected, surface the conflict dialog and return early.
         guard drift.removed.isEmpty && drift.typeChanged.isEmpty else {
             schemaConflict = SchemaConflictPayload(
                 removed: drift.removed,
@@ -265,11 +413,9 @@ struct ItemWindow: View {
             return
         }
 
-        // 4. No drift — write the item.
         await commitSave(properties: draftProperties)
     }
 
-    /// Called by the "Save valid subset" dialog action.
     private func saveValidSubset() async {
         guard let original = originalItemType else { return }
 
@@ -285,7 +431,6 @@ struct ItemWindow: View {
         await commitSave(properties: filtered)
     }
 
-    /// Reload the item and schema from disk, replacing the editor's draft state.
     private func reloadFromDisk() {
         guard let original = originalItemType else { return }
         let folder = NexusPaths.itemTypeFolderURL(
@@ -298,7 +443,6 @@ struct ItemWindow: View {
         draftDescription = reloadedItem.description
         draftProperties = reloadedItem.properties
 
-        // Also refresh the originalItemType to the latest schema.
         let metaURL = NexusPaths.itemTypeMetadataURL(
             in: itemContentManager.nexus.rootURL, typeFolderName: original.title
         )
@@ -308,7 +452,6 @@ struct ItemWindow: View {
         errorMessage = nil
     }
 
-    /// Writes the item to disk using `ItemContentManager`.
     private func commitSave(properties: [String: PropertyValue]) async {
         var updated = item
         updated.title = draftTitle.trimmingCharacters(in: .whitespaces)
@@ -323,7 +466,6 @@ struct ItemWindow: View {
             return
         }
 
-        // Determine whether the item lives in a collection or at the type root.
         let collections = itemTypeManager.itemCollections(in: original)
         if let parentCollection = collections.first(where: { collection in
             itemContentManager.items(in: collection).contains { $0.id == item.id }
@@ -352,6 +494,84 @@ struct ItemWindow: View {
         case .tierMismatch: return "Internal: tier reference invalid."
         case .unknownProperty(let id): return "Unknown property '\(id)' for this Item Type."
         case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
+        }
+    }
+}
+
+// MARK: - PinnedPropertyChip
+
+/// Individual chip rendered in the pinned-properties bar. Right-click → Unpin.
+private struct PinnedPropertyChip: View {
+    let propID: String
+    let schema: [PropertyDefinition]
+    let values: [String: PropertyValue]
+    let onUnpin: () -> Void
+
+    private var definition: PropertyDefinition? {
+        schema.first(where: { $0.id == propID })
+    }
+
+    var body: some View {
+        Group {
+            if let def = definition {
+                chipView(def: def)
+            }
+        }
+    }
+
+    private func chipView(def: PropertyDefinition) -> some View {
+        HStack(spacing: 4) {
+            Text(def.name)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            chipValue(def: def)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(.controlBackgroundColor))
+                .strokeBorder(Color(.separatorColor), lineWidth: 0.5)
+        )
+        .contextMenu {
+            Button(role: .destructive) {
+                onUnpin()
+            } label: {
+                Label("Unpin", systemImage: "pin.slash")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chipValue(def: PropertyDefinition) -> some View {
+        let val = values[def.id] ?? .null
+        switch val {
+        case .null:
+            Text("—").font(.caption).foregroundStyle(.tertiary)
+        case .checkbox(let b):
+            Image(systemName: b ? "checkmark.square.fill" : "square")
+                .font(.caption)
+                .foregroundStyle(b ? Color.accentColor : .secondary)
+        case .number(let n):
+            Text(n.formatted()).font(.caption)
+        case .select(let s):
+            Text(s.isEmpty ? "—" : s).font(.caption)
+        case .status(let s):
+            Text(s.isEmpty ? "—" : s).font(.caption).foregroundStyle(.secondary)
+        case .date(let d):
+            Text(d.formatted(date: .abbreviated, time: .omitted)).font(.caption)
+        case .datetime(let d):
+            Text(d.formatted(date: .abbreviated, time: .shortened)).font(.caption)
+        case .multiSelect(let xs):
+            Text(xs.isEmpty ? "—" : xs.joined(separator: ", ")).font(.caption).lineLimit(1)
+        case .url(let u):
+            Text(u.host ?? u.absoluteString).font(.caption).lineLimit(1)
+        case .relation:
+            Text("→").font(.caption).foregroundStyle(.secondary)
+        case .file(let refs):
+            Text("\(refs.count) file(s)").font(.caption).foregroundStyle(.secondary)
+        case .lastEditedTime:
+            Text("auto").font(.caption).foregroundStyle(.tertiary)
         }
     }
 }
