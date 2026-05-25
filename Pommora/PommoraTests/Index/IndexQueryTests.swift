@@ -250,15 +250,19 @@ struct IndexQueryTests {
         try await idx.dbQueue.write { db in
             try db.execute(sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_SRC', 'Source', '2026-05-24T00:00:00Z')")
             try db.execute(sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_DST', 'Dest', '2026-05-24T00:00:00Z')")
-            // Source has prop_A, prop_B, prop_C. Dest has prop_B, prop_D.
-            // Strip = {prop_A, prop_C} (source-only properties).
+            // Property IDs are globally unique. Move-strip identifies "shared"
+            // properties by NAME (a Page keeps property values where the
+            // destination has a property of the same name), not by ID.
+            // Source has Alpha/Beta/Gamma; Dest has Beta/Delta. "Beta" is
+            // shared by name (distinct IDs prop_B_SRC vs prop_B_DST).
+            // Strip = {prop_A_SRC, prop_C_SRC} (source-only by name).
             try db.execute(sql: """
                 INSERT INTO property_definitions(id, owning_type_id, owning_type_kind, name, type, modified_at) VALUES
-                ('prop_A', 'PT_SRC', 'page_type', 'Alpha', 'select', '2026-05-24T00:00:00Z'),
-                ('prop_B', 'PT_SRC', 'page_type', 'Beta',  'select', '2026-05-24T00:00:00Z'),
-                ('prop_C', 'PT_SRC', 'page_type', 'Gamma', 'select', '2026-05-24T00:00:00Z'),
-                ('prop_B', 'PT_DST', 'page_type', 'Beta',  'select', '2026-05-24T00:00:00Z'),
-                ('prop_D', 'PT_DST', 'page_type', 'Delta', 'select', '2026-05-24T00:00:00Z')
+                ('prop_A_SRC', 'PT_SRC', 'page_type', 'Alpha', 'select', '2026-05-24T00:00:00Z'),
+                ('prop_B_SRC', 'PT_SRC', 'page_type', 'Beta',  'select', '2026-05-24T00:00:00Z'),
+                ('prop_C_SRC', 'PT_SRC', 'page_type', 'Gamma', 'select', '2026-05-24T00:00:00Z'),
+                ('prop_B_DST', 'PT_DST', 'page_type', 'Beta',  'select', '2026-05-24T00:00:00Z'),
+                ('prop_D_DST', 'PT_DST', 'page_type', 'Delta', 'select', '2026-05-24T00:00:00Z')
             """)
         }
 
@@ -270,7 +274,7 @@ struct IndexQueryTests {
         )
 
         let strippedIDs = Set(report.strippedPropertyIDs)
-        #expect(strippedIDs == ["prop_A", "prop_C"])
+        #expect(strippedIDs == ["prop_A_SRC", "prop_C_SRC"])
         #expect(report.strippedPropertyNames.count == 2)
         let strippedNames = Set(report.strippedPropertyNames)
         #expect(strippedNames == ["Alpha", "Gamma"])

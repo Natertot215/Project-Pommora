@@ -65,7 +65,12 @@ struct IndexQuery: Sendable {
 
     // MARK: - Move-strip preview
 
-    /// Returns the property IDs that exist on source but NOT on destination.
+    /// Returns the source properties whose `name` does not exist on the destination type.
+    /// Move-strip matches by NAME, not ID — property IDs are globally unique
+    /// per `property_definitions.id PRIMARY KEY`, so cross-type matching by ID
+    /// is structurally impossible. A source property whose name appears on the
+    /// destination is preserved (value migrates by name); source-only-by-name
+    /// properties are stripped.
     func moveStripCount(
         sourceID: String,
         sourceKind: EntityKind,
@@ -79,11 +84,11 @@ struct IndexQuery: Sendable {
             let sourceRows = try Row.fetchAll(db,
                 sql: "SELECT id, name FROM property_definitions WHERE owning_type_id = ? AND owning_type_kind = ?",
                 arguments: [sourceID, srcKindStr])
-            let destIDSet = Set(try String.fetchAll(db,
-                sql: "SELECT id FROM property_definitions WHERE owning_type_id = ? AND owning_type_kind = ?",
+            let destNameSet = Set(try String.fetchAll(db,
+                sql: "SELECT name FROM property_definitions WHERE owning_type_id = ? AND owning_type_kind = ?",
                 arguments: [destTypeID, dstKindStr]))
 
-            let stripped = sourceRows.filter { !destIDSet.contains($0["id"] as String) }
+            let stripped = sourceRows.filter { !destNameSet.contains($0["name"] as String) }
             return StripReport(
                 strippedPropertyIDs: stripped.map { $0["id"] },
                 strippedPropertyNames: stripped.map { $0["name"] }
@@ -391,7 +396,7 @@ enum TargetRef: Sendable {
 
 struct StripReport: Sendable {
     let strippedPropertyIDs: [String]
-    let strippedPropertyNames: [String]  // resolved from destination's property_definitions
+    let strippedPropertyNames: [String]  // source property names not present on destination
 }
 
 struct BrokenLinkReport: Sendable {
