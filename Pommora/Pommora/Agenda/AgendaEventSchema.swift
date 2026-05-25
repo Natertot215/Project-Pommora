@@ -2,10 +2,11 @@ import Foundation
 
 /// `_eventconfig.json` for the Events singleton folder (default
 /// `<nexus>/Events/`; folder is renameable per Settings). Defines built-in
-/// `type` Select property + user-defined additions + saved views.
+/// `_status` Status property + user-defined additions + saved views.
 ///
-/// Parallel to AgendaTaskSchema but carries NO Status — events have no
-/// completion concept (EKEvent has no `isCompleted` field).
+/// Parallel to AgendaTaskSchema. As of Phase G.2 the schema starts with
+/// exactly one built-in property: `_status` (Status type). The legacy `_type`
+/// Select property has been retired from the default seed.
 struct AgendaEventSchema: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
@@ -84,17 +85,11 @@ struct AgendaEventSchema: Codable, Equatable, Hashable, Sendable {
             icon: "calendar",
             properties: [
                 PropertyDefinition(
-                    id: "_type",
-                    name: "type",
-                    type: .select,
-                    selectOptions: [
-                        PropertyDefinition.SelectOption(value: "Event", label: "Event", color: .green),
-                        PropertyDefinition.SelectOption(value: "Meeting", label: "Meeting", color: .blue),
-                        PropertyDefinition.SelectOption(
-                            value: "Appointment", label: "Appointment", color: .purple),
-                    ]
+                    id: "_status",
+                    name: "Status",
+                    type: .status,
+                    statusGroups: PropertyDefinition.StatusGroup.defaultSeed()
                 )
-                // No Status — events have no completion concept (EKEvent has no isCompleted)
             ],
             views: [],
             modifiedAt: Date()

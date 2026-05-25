@@ -49,7 +49,24 @@ final class AgendaEventManager {
 
             let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
             if Filesystem.fileExists(at: schemaURL) {
-                schema = try AtomicJSON.decode(AgendaEventSchema.self, from: schemaURL)
+                var loaded = try AtomicJSON.decode(AgendaEventSchema.self, from: schemaURL)
+                // G.3: backfill _status if the existing sidecar pre-dates Phase G.
+                // Prepend so _status appears first in the schema; write atomically
+                // via SchemaTransaction so a partial write doesn't corrupt the sidecar.
+                if loaded.properties.first(where: { $0.id == "_status" }) == nil {
+                    let statusDef = PropertyDefinition(
+                        id: "_status",
+                        name: "Status",
+                        type: .status,
+                        statusGroups: PropertyDefinition.StatusGroup.defaultSeed()
+                    )
+                    loaded.properties.insert(statusDef, at: 0)
+                    loaded.modifiedAt = Date()
+                    let tx = SchemaTransaction()
+                    try tx.stage(loaded, to: schemaURL)
+                    try tx.commit()
+                }
+                schema = loaded
             } else {
                 schema = AgendaEventSchema.defaultSeed()
                 try AtomicJSON.write(schema, to: schemaURL)
@@ -303,16 +320,14 @@ extension AgendaEventManager {
 
     // MARK: - Delete property
 
-    /// Deletes a property from the Events singleton schema. Built-in property
-    /// (`_type`) cannot be deleted — throws `cannotDeleteBuiltinProperty`.
-    /// Events have NO `_status` concept. Atomically removes the schema entry and
-    /// strips the corresponding key from every `.event.json` member file via
-    /// `SchemaTransaction`.
+    /// Deletes a property from the Events singleton schema. Built-in properties
+    /// (`_type`, `_status`) cannot be deleted — throws `cannotDeleteBuiltinProperty`.
+    /// Atomically removes the schema entry and strips the corresponding key from
+    /// every `.event.json` member file via `SchemaTransaction`.
     func deleteProperty(id propertyID: String) async throws {
         do {
             // Block deletion of built-in reserved properties.
-            // _type non-deletable as core select. Events have no _status.
-            let builtinIDs: Set<String> = ["_type"]
+            let builtinIDs: Set<String> = ["_type", "_status"]
             guard !builtinIDs.contains(propertyID) else {
                 throw AgendaEventManagerError.cannotDeleteBuiltinProperty
             }
