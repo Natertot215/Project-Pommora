@@ -307,4 +307,309 @@ extension PageContentManager {
             throw error
         }
     }
+
+    // MARK: - Move (same-Type, between PageCollections)
+
+    /// Moves `page` from one PageCollection to another within the SAME PageType.
+    /// No property strip — both Collections share the same Type schema.
+    /// Atomically rewrites the page file at the destination path; on failure the
+    /// source remains untouched.
+    func movePageBetweenCollections(
+        _ page: PageMeta,
+        from source: PageCollection,
+        to destination: PageCollection,
+        in vault: PageType
+    ) async throws {
+        do {
+            let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: destination.folderURL)
+
+            // Load source body so we can rewrite at the new location.
+            let pageFile = try PageFile.load(from: page.url)
+
+            // Stage the write at the destination, then move atomically.
+            let tx = SchemaTransaction()
+            let payload = try AtomicYAMLMarkdown.encode(
+                frontmatter: pageFile.frontmatter,
+                body: pageFile.body
+            )
+            tx.stage(payload: payload, to: destURL)
+            try tx.commit()
+
+            // Remove source after commit succeeds (SchemaTransaction doesn't delete).
+            try Filesystem.deleteFile(at: page.url)
+
+            var updated = page
+            updated.url = destURL
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: destination.id)
+                } catch {
+                    self.pendingError = error
+                }
+            }
+
+            // Update in-memory caches.
+            var srcArr = pagesByCollection[source.id] ?? []
+            srcArr.removeAll { $0.id == page.id }
+            pagesByCollection[source.id] = srcArr
+
+            var dstArr = pagesByCollection[destination.id] ?? []
+            dstArr.append(updated)
+            dstArr = OrderResolver.resolve(
+                dstArr,
+                persistedOrder: destination.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
+            pagesByCollection[destination.id] = dstArr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Move (cross-Type, with property strip + paired-relation back-ref clear)
+
+    /// Moves `page` from one PageType (and optional PageCollection) to a different
+    /// PageType (and optional PageCollection). Performs:
+    ///
+    /// 1. **Strip:** property values whose property NAMES don't exist on
+    ///    `destination` are removed from the page's frontmatter.
+    /// 2. **Paired-relation back-ref clear:** for each relation property with a
+    ///    `dualProperty` config that is being stripped (or that points to a
+    ///    different Type), the reverse entries on target entities are cleared.
+    /// 3. **Atomic commit:** all writes (page rewrite + back-ref clears) go through
+    ///    a single `SchemaTransaction`. Any failure rolls the entire set back.
+    ///
+    /// If `source.id == destination.id`, callers should use
+    /// `movePageBetweenCollections` instead (this method enforces the distinction).
+    func movePageAcrossTypes(
+        _ page: PageMeta,
+        from source: PageType,
+        fromCollection: PageCollection?,
+        to destination: PageType,
+        toCollection: PageCollection?
+    ) async throws {
+        precondition(
+            source.id != destination.id,
+            "movePageAcrossTypes requires distinct source and destination PageTypes."
+        )
+        do {
+            // 1. Determine strip set by name comparison.
+            let destNames = Set(destination.properties.map { $0.name })
+            let strippedDefs = source.properties.filter { !destNames.contains($0.name) }
+            let strippedIDs = Set(strippedDefs.map { $0.id })
+
+            // 2. Load the page file (frontmatter + body).
+            let pageFile = try PageFile.load(from: page.url)
+            var updatedFrontmatter = pageFile.frontmatter
+
+            // 3. Strip property values for stripped IDs.
+            for id in strippedIDs {
+                updatedFrontmatter.properties.removeValue(forKey: id)
+            }
+
+            // 4. Compute destination URL.
+            let destFolder = toCollection?.folderURL ?? folderURL(for: destination)
+            let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: destFolder)
+
+            // 5. Stage the rewritten page at destination.
+            let tx = SchemaTransaction()
+            let pagePayload = try AtomicYAMLMarkdown.encode(
+                frontmatter: updatedFrontmatter,
+                body: pageFile.body
+            )
+            tx.stage(payload: pagePayload, to: destURL)
+
+            // 6. Stage paired-relation back-ref clears for every relation property
+            //    that is being stripped and has a dualProperty config.
+            for def in strippedDefs where def.type == .relation {
+                guard let dual = def.dualProperty else { continue }
+                // The reverse property lives on the target Type (page type or item type).
+                // Pull the current value from the page's frontmatter (pre-strip).
+                guard let value = pageFile.frontmatter.properties[def.id] else { continue }
+                // Relation values: single `.relation(id)` or `.multiSelect([id,...])`.
+                let targetIDs = Self.extractRelationIDs(from: value)
+                guard !targetIDs.isEmpty else { continue }
+
+                // Clear this page's id from each target's reverse property.
+                try Self.stageBackRefClear(
+                    sourcePageID: page.id,
+                    reversePropertyID: dual.syncedPropertyID,
+                    onTypeID: dual.syncedPropertyDefinedOnTypeID,
+                    targetEntityIDs: targetIDs,
+                    tx: tx,
+                    nexus: nexus
+                )
+            }
+
+            // 7. Commit the whole batch atomically.
+            try tx.commit()
+
+            // 8. Remove the source file (SchemaTransaction only writes new files).
+            try Filesystem.deleteFile(at: page.url)
+
+            // 9. Update index.
+            var updated = page
+            updated.url = destURL
+            updated.frontmatter = updatedFrontmatter
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(
+                        updated,
+                        pageTypeID: destination.id,
+                        pageCollectionID: toCollection?.id
+                    )
+                } catch {
+                    self.pendingError = error
+                }
+            }
+
+            // 10. Update in-memory caches — remove from source bucket, add to destination.
+            if let srcColl = fromCollection {
+                var arr = pagesByCollection[srcColl.id] ?? []
+                arr.removeAll { $0.id == page.id }
+                pagesByCollection[srcColl.id] = arr
+            } else {
+                var arr = pagesByTypeRoot[source.id] ?? []
+                arr.removeAll { $0.id == page.id }
+                pagesByTypeRoot[source.id] = arr
+            }
+
+            if let dstColl = toCollection {
+                var arr = pagesByCollection[dstColl.id] ?? []
+                arr.append(updated)
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: dstColl.pageOrder,
+                    titleKeyPath: \PageMeta.title
+                )
+                pagesByCollection[dstColl.id] = arr
+            } else {
+                var arr = pagesByTypeRoot[destination.id] ?? []
+                arr.append(updated)
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: destination.pageOrder,
+                    titleKeyPath: \PageMeta.title
+                )
+                pagesByTypeRoot[destination.id] = arr
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Private move helpers
+
+    /// Extracts target entity IDs from a relation property value.
+    /// Handles `.relation(id)` (single) and `.multiSelect([ids])` (multi-pick).
+    private static func extractRelationIDs(from value: PropertyValue) -> [String] {
+        switch value {
+        case .relation(let id): return [id]
+        case .multiSelect(let ids): return ids
+        default: return []
+        }
+    }
+
+    /// Stages back-ref clears on files owned by the Type identified by `onTypeID`.
+    /// Walks every `.md` (PageType) or `.json` (ItemType) file under that type's
+    /// folder and removes `sourcePageID` from the `reversePropertyID` value on
+    /// any file whose id appears in `targetEntityIDs`.
+    ///
+    /// The type is identified purely by folder walk — we don't need a live manager
+    /// reference because we're staging filesystem ops, not mutating in-memory state.
+    private static func stageBackRefClear(
+        sourcePageID: String,
+        reversePropertyID: String,
+        onTypeID: String,
+        targetEntityIDs: [String],
+        tx: SchemaTransaction,
+        nexus: Nexus
+    ) throws {
+        let targetSet = Set(targetEntityIDs)
+
+        // Walk all PageType folders looking for the matching type (by sidecar id).
+        let nexusRoot = nexus.rootURL
+        let allDirs = (try? FileManager.default.contentsOfDirectory(
+            at: nexusRoot,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+
+        for dir in allDirs {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir),
+                  isDir.boolValue
+            else { continue }
+
+            // Check for PageType sidecar.
+            let ptSidecar = dir.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            if FileManager.default.fileExists(atPath: ptSidecar.path) {
+                if let pt = try? AtomicJSON.decode(PageType.self, from: ptSidecar),
+                   pt.id == onTypeID
+                {
+                    // Found the target PageType folder — walk .md files.
+                    let mdFiles = (try? Filesystem.descendantFiles(
+                        of: dir,
+                        where: { $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_") }
+                    )) ?? []
+                    for mdURL in mdFiles {
+                        var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: mdURL)
+                        guard targetSet.contains(fm.id),
+                              let val = fm.properties[reversePropertyID]
+                        else { continue }
+                        let cleared = removeID(sourcePageID, from: val)
+                        fm.properties[reversePropertyID] = cleared
+                        let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
+                        tx.stage(payload: data, to: mdURL)
+                    }
+                    return
+                }
+            }
+
+            // Check for ItemType sidecar.
+            let itSidecar = dir.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
+            if FileManager.default.fileExists(atPath: itSidecar.path) {
+                if let it = try? AtomicJSON.decode(ItemType.self, from: itSidecar),
+                   it.id == onTypeID
+                {
+                    // Found the target ItemType folder — walk .json item files.
+                    let jsonFiles = (try? Filesystem.descendantFiles(
+                        of: dir,
+                        where: {
+                            $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_")
+                        }
+                    )) ?? []
+                    for jsonURL in jsonFiles {
+                        var item = try AtomicJSON.decode(Item.self, from: jsonURL)
+                        guard targetSet.contains(item.id),
+                              let val = item.properties[reversePropertyID]
+                        else { continue }
+                        let cleared = removeID(sourcePageID, from: val)
+                        item.properties[reversePropertyID] = cleared
+                        tx.stage(payload: try AtomicJSON.encode(item), to: jsonURL)
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    /// Removes `idToRemove` from a relation property value.
+    /// - `.relation(id)` where id matches → `.null`
+    /// - `.multiSelect([ids])` → `.multiSelect` with the id filtered out (nil if empty)
+    /// - Other cases → value unchanged
+    private static func removeID(_ idToRemove: String, from value: PropertyValue) -> PropertyValue? {
+        switch value {
+        case .relation(let id):
+            return id == idToRemove ? .null : value
+        case .multiSelect(let ids):
+            let filtered = ids.filter { $0 != idToRemove }
+            return filtered.isEmpty ? .null : .multiSelect(filtered)
+        default:
+            return value
+        }
+    }
 }
