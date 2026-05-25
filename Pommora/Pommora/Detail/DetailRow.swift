@@ -9,6 +9,7 @@ struct DetailRow: Identifiable, Hashable, Sendable {
         case collection(PageCollection)
         case page(PageMeta)
         case item(Item)
+        case itemCollection(ItemCollection)
     }
 
     let id: String
@@ -23,6 +24,7 @@ struct DetailRow: Identifiable, Hashable, Sendable {
         case .collection: return "Collection"
         case .page: return "Page"
         case .item: return "Item"
+        case .itemCollection: return "Set"
         }
     }
 }

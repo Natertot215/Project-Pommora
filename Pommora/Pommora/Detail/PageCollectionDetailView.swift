@@ -77,7 +77,7 @@ struct PageCollectionDetailView: View {
         switch row.kind {
         case .item(let i): presentedItem = i
         case .page(let p): selection = .page(p)
-        case .collection: break
+        case .collection, .itemCollection: break
         }
     }
 
@@ -132,7 +132,7 @@ struct PageCollectionDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .collection:
+        case .collection, .itemCollection:
             EmptyView()
         }
     }
@@ -141,7 +141,7 @@ struct PageCollectionDetailView: View {
         switch row.kind {
         case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
         case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .collection: return nil
+        case .collection, .itemCollection: return nil
         }
     }
 
@@ -179,7 +179,7 @@ struct PageCollectionDetailView: View {
                     try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
                 case .item:
                     break  // Items rename via Item Window
-                case .collection:
+                case .collection, .itemCollection:
                     break
                 }
             } catch {
@@ -195,7 +195,7 @@ struct PageCollectionDetailView: View {
                 try await contentManager.deletePage(p, in: collection)
             case .item:
                 break
-            case .collection:
+            case .collection, .itemCollection:
                 break
             }
         } catch {

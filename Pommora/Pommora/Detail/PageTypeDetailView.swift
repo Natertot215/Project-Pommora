@@ -172,6 +172,8 @@ struct PageTypeDetailView: View {
             presentedItem = i
         case .page(let p):
             selection = .page(p)
+        case .itemCollection:
+            break  // never appears in PageTypeDetailView context
         }
     }
 
@@ -189,7 +191,7 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .collection:
+        case .collection, .itemCollection:
             EmptyView()
         }
     }
@@ -204,7 +206,7 @@ struct PageTypeDetailView: View {
         switch row.kind {
         case .page(let p): id = p.id
         case .item(let i): id = i.id
-        case .collection: return nil
+        case .collection, .itemCollection: return nil
         }
         // Page-Type-root first.
         switch row.kind {
@@ -215,7 +217,7 @@ struct PageTypeDetailView: View {
         case .item:
             // TODO Phase 6: route through ItemContentManager + ItemTypeManager.
             return nil
-        case .collection:
+        case .collection, .itemCollection:
             return nil
         }
         // Then every collection.
@@ -228,7 +230,7 @@ struct PageTypeDetailView: View {
             case .item:
                 // TODO Phase 6: ItemCollection route.
                 return nil
-            case .collection:
+            case .collection, .itemCollection:
                 return nil
             }
         }
@@ -241,7 +243,7 @@ struct PageTypeDetailView: View {
         switch row.kind {
         case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
         case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .collection: return nil
+        case .collection, .itemCollection: return nil
         }
     }
 
@@ -290,7 +292,7 @@ struct PageTypeDetailView: View {
                     // (parent lookup for Items returns nil during Phase 5, so
                     // this branch is currently unreachable).
                     break
-                case .collection:
+                case .collection, .itemCollection:
                     break
                 }
             } catch {
@@ -315,7 +317,7 @@ struct PageTypeDetailView: View {
             case .item:
                 // TODO Phase 6: route through ItemContentManager.deleteItem.
                 break
-            case .collection:
+            case .collection, .itemCollection:
                 break
             }
         } catch {

@@ -96,10 +96,12 @@ struct SidebarDetailView: View {
                 PageEditorHost(page: p)
 
             case .itemType(let t):
-                // ParadigmV2 (Task 8.4): Routing wired; detail view is a
-                // ContentUnavailableView stub. Real Items-table surface ships
-                // in a follow-up plan.
-                ItemTypeDetailView(type: t)
+                ItemTypeDetailView(
+                    type: t,
+                    selection: $selection,
+                    presentedSheet: $presentedSheet,
+                    presentedItem: $presentedItem
+                )
 
             case .itemCollection(let c):
                 ItemCollectionDetailView(collection: c)
