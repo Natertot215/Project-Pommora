@@ -23,7 +23,7 @@ struct AgendaTaskManagerTests {
         #expect(schemaURL.lastPathComponent == NexusPaths.taskConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
         let loaded = try AtomicJSON.decode(AgendaTaskSchema.self, from: schemaURL)
-        #expect(loaded.properties.contains { $0.id == "_type" && $0.name == "type" })
+        #expect(loaded.properties.contains { $0.id == "_status" && $0.name == "Status" })
     }
 
     @Test("loadAll reuses a renamed Tasks singleton discovered by _taskconfig.json")

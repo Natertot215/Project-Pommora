@@ -2,10 +2,11 @@ import Foundation
 
 /// `_taskconfig.json` for the Tasks singleton folder (default
 /// `<nexus>/Tasks/`; folder is renameable per Settings). Defines built-in
-/// `type` Select property + user-defined additions + saved views.
+/// `_status` Status property + user-defined additions + saved views.
 ///
-/// Status property seeding deferred to Phase 9.2 (v0.3.0 reconciliation) once
-/// PropertyDefinition.StatusGroup exists.
+/// As of Phase G.1 the schema starts with exactly one built-in property:
+/// `_status` (Status type, `PropertyDefinition.StatusGroup.defaultSeed()`).
+/// The legacy `_type` Select property has been retired from the default seed.
 struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
@@ -84,16 +85,11 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
             icon: "checkmark.circle",
             properties: [
                 PropertyDefinition(
-                    id: "_type",
-                    name: "type",
-                    type: .select,
-                    selectOptions: [
-                        PropertyDefinition.SelectOption(value: "Task", label: "Task", color: .blue),
-                        PropertyDefinition.SelectOption(value: "To-Do", label: "To-Do", color: .yellow),
-                        PropertyDefinition.SelectOption(value: "Phase", label: "Phase", color: .purple),
-                    ]
+                    id: "_status",
+                    name: "Status",
+                    type: .status,
+                    statusGroups: PropertyDefinition.StatusGroup.defaultSeed()
                 )
-                // Status seeding deferred to Phase 9.2 (v0.3.0 reconciliation)
             ],
             views: [],
             modifiedAt: Date()

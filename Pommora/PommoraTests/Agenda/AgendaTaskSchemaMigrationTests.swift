@@ -59,22 +59,30 @@ struct AgendaTaskSchemaMigrationTests {
         #expect(priorityProp?.type == .number)
     }
 
-    // MARK: - Test 2: defaultSeed() produces _type for the built-in Select
+    // MARK: - Test 2: defaultSeed() injects exactly one property — _status
 
-    /// Verifies that `defaultSeed()` produces a `PropertyDefinition` with `id == "_type"`
-    /// for the built-in type Select property.
-    @Test("defaultSeed produces PropertyDefinition with id '_type'")
-    func builtinTypePropertyKeepsIDType() {
+    /// G.1: `defaultSeed()` now returns a schema with exactly one property:
+    /// `_status` (id), `"Status"` (name), `.status` (type),
+    /// `PropertyDefinition.StatusGroup.defaultSeed()` (statusGroups).
+    @Test("defaultSeed returns exactly one property: _status with Status type and defaultSeed groups")
+    func defaultSeedInjectsStatusProperty() {
         let schema = AgendaTaskSchema.defaultSeed()
-        let typeProp = schema.properties.first { $0.id == "_type" }
-        #expect(typeProp != nil)
-        #expect(typeProp?.name == "type")
-        #expect(typeProp?.type == .select)
-        let options: [PropertyDefinition.SelectOption] = typeProp?.selectOptions ?? []
-        let values = options.map(\.value)
-        #expect(values.contains("Task"))
-        #expect(values.contains("To-Do"))
-        #expect(values.contains("Phase"))
+
+        // Exactly one property — no legacy _type
+        #expect(schema.properties.count == 1)
+        #expect(schema.properties.contains { $0.id == "_type" } == false)
+
+        let statusProp = schema.properties.first
+        #expect(statusProp?.id == "_status")
+        #expect(statusProp?.name == "Status")
+        #expect(statusProp?.type == .status)
+
+        // StatusGroups must be present and match the default seed
+        let expected = PropertyDefinition.StatusGroup.defaultSeed()
+        let actual = statusProp?.statusGroups ?? []
+        #expect(actual.count == expected.count)
+        #expect(actual.map(\.id) == expected.map(\.id))
+        #expect(actual.map(\.label) == expected.map(\.label))
     }
 
     // MARK: - Test 3: round-trip preserves the new shape

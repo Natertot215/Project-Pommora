@@ -26,7 +26,7 @@ struct AgendaTaskManagerSchemaCRUDTests {
         let def = PropertyDefinition(id: "", name: "Priority", type: .number)
         try await manager.addProperty(def)
 
-        // In-memory: defaultSeed has 1 builtin (_type) + the new one.
+        // In-memory: defaultSeed has 1 builtin (_status) + the new one.
         let userProps = manager.schema.properties.filter { $0.id.hasPrefix("prop_") }
         #expect(userProps.count == 1)
         let stored = userProps[0]
@@ -166,18 +166,18 @@ struct AgendaTaskManagerSchemaCRUDTests {
         #expect(reloadedTask.properties[storedPropID] == nil)
     }
 
-    // MARK: - Test 5: delete _type built-in property throws
+    // MARK: - Test 5: delete _status built-in property throws
 
-    @Test("deleteProperty on _type built-in throws cannotDeleteBuiltinProperty")
-    func deleteTypePropertyThrows() async throws {
+    @Test("deleteProperty on _status built-in throws cannotDeleteBuiltinProperty")
+    func deleteStatusPropertyThrows() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 
-        // _type is seeded by defaultSeed() and must not be deletable.
+        // _status is seeded by defaultSeed() and must not be deletable.
         await #expect(throws: AgendaTaskManagerError.cannotDeleteBuiltinProperty) {
-            try await manager.deleteProperty(id: "_type")
+            try await manager.deleteProperty(id: "_status")
         }
     }
 }
