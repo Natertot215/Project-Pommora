@@ -188,27 +188,127 @@ struct SidebarView: View {
 
 // MARK: - Sections
 
+// MARK: - CalendarPinViewModel
+
+/// Extracted view-model for the Calendar pin row context menu.
+/// Holds mutable creation-result state so tests can verify callbacks
+/// without constructing SwiftUI views (J.5/J.11/K.1 pattern).
+@MainActor
+@Observable
+final class CalendarPinViewModel {
+    var lastCreatedTask: AgendaTask?
+    var lastCreatedEvent: AgendaEvent?
+    var pendingError: (any Error)?
+
+    func createTask(using manager: AgendaTaskManager) async {
+        let now = Date()
+        let task = AgendaTask(
+            id: ULID.generate(),
+            title: "New Task",
+            icon: nil,
+            description: "",
+            dueAt: nil,
+            dueFloating: false,
+            dueAllDay: false,
+            startAt: nil,
+            completed: false,
+            completedAt: nil,
+            priority: 0,
+            recurrence: nil,
+            alarmOffsets: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now,
+            modifiedAt: now,
+            properties: [:]
+        )
+        do {
+            try await manager.createTask(task)
+            lastCreatedTask = task
+        } catch {
+            pendingError = error
+        }
+    }
+
+    func createEvent(using manager: AgendaEventManager) async {
+        let now = Date()
+        let event = AgendaEvent(
+            id: ULID.generate(),
+            title: "New Event",
+            icon: nil,
+            description: "",
+            startAt: now,
+            endAt: now.addingTimeInterval(3600),
+            allDay: false,
+            location: nil,
+            recurrence: nil,
+            alarmOffsets: [],
+            alarmAbsolute: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now,
+            modifiedAt: now,
+            properties: [:]
+        )
+        do {
+            try await manager.createEvent(event)
+            lastCreatedEvent = event
+        } catch {
+            pendingError = error
+        }
+    }
+}
+
+// MARK: - SavedSection
+
 struct SavedSection: View {
     @Binding var selection: SidebarSelection
     @Environment(SavedConfigManager.self) private var savedConfigManager
+    @Environment(AgendaTaskManager.self) private var agendaTaskManager
+    @Environment(AgendaEventManager.self) private var agendaEventManager
+    @Environment(SettingsManager.self) private var settingsManager
+
+    @State private var calendarPinVM: CalendarPinViewModel = CalendarPinViewModel()
 
     var body: some View {
         Section {
             ForEach(savedConfigManager.config.items) { item in
-                SelectableRow(
-                    title: item.label,
-                    symbol: iconFor(item.key),
-                    tag: SelectionTag.savedKey(item.key),
-                    selection: $selection,
-                    accent: nil
-                )
-                .listRowBackground(
-                    SelectionChrome(
-                        isSelected: SelectionTag.savedKey(item.key).matches(selection)
-                    )
-                )
-                .tag(SelectionTag.savedKey(item.key))
+                calendarAwareRow(for: item)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func calendarAwareRow(for item: SavedConfig.Item) -> some View {
+        let row = SelectableRow(
+            title: item.label,
+            symbol: iconFor(item.key),
+            tag: SelectionTag.savedKey(item.key),
+            selection: $selection,
+            accent: nil
+        )
+        .listRowBackground(
+            SelectionChrome(
+                isSelected: SelectionTag.savedKey(item.key).matches(selection)
+            )
+        )
+        .tag(SelectionTag.savedKey(item.key))
+
+        if item.key == "calendar" {
+            row.contextMenu {
+                let taskLabel = settingsManager.settings.labels.agendaTask.singular
+                let eventLabel = settingsManager.settings.labels.agendaEvent.singular
+                Button("New \(taskLabel)") {
+                    Task { await calendarPinVM.createTask(using: agendaTaskManager) }
+                }
+                Button("New \(eventLabel)") {
+                    Task { await calendarPinVM.createEvent(using: agendaEventManager) }
+                }
+            }
+        } else {
+            row
         }
     }
 
@@ -228,6 +328,7 @@ struct SpacesSection: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(SpaceManager.self) private var spaceManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -249,7 +350,7 @@ struct SpacesSection: View {
                 }
             }
         } header: {
-            SectionHeader(title: "Spaces") {
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.spaces) {
                 presentedSheet = .newSpace
             }
         }
@@ -262,6 +363,7 @@ struct TopicsSection: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(TopicManager.self) private var topicManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -283,7 +385,7 @@ struct TopicsSection: View {
                 }
             }
         } header: {
-            SectionHeader(title: "Topics") {
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.topics) {
                 presentedSheet = .newTopic
             }
         }
@@ -294,6 +396,8 @@ struct ItemsSection: View {
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(NexusManager.self) private var nexusManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -302,7 +406,9 @@ struct ItemsSection: View {
             ForEach(itemTypeManager.types) { itemType in
                 ItemTypeRow(
                     itemType: itemType,
-                    selection: $selection
+                    selection: $selection,
+                    nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
+                    index: nexusManager.currentIndex
                 )
                 .tag(SelectionTag.itemType(itemType.id))
             }
@@ -312,7 +418,7 @@ struct ItemsSection: View {
                 }
             }
         } header: {
-            SectionHeader(title: "Items") {
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.items) {
                 presentedSheet = .newItemType
             }
         }
@@ -326,6 +432,7 @@ struct VaultsSection: View {
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(SettingsManager.self) private var settingsManager
+    @Environment(NexusManager.self) private var nexusManager
 
     @State private var expanded: Bool = true
 
@@ -337,7 +444,9 @@ struct VaultsSection: View {
                     selection: $selection,
                     editingID: $editingID,
                     presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
+                    confirmingDelete: $confirmingDelete,
+                    nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
+                    index: nexusManager.currentIndex
                 )
                 .tag(SelectionTag.pageType(pageType.id))
             }

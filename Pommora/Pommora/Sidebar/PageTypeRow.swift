@@ -6,6 +6,8 @@ struct PageTypeRow: View {
     @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
+    let nexus: Nexus
+    let index: PommoraIndex?
     @State private var expanded: Bool = false
 
     @Environment(PageTypeManager.self) private var pageTypeManager
@@ -15,6 +17,7 @@ struct PageTypeRow: View {
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
+    @State private var showingVaultSettings: Bool = false
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -68,6 +71,16 @@ struct PageTypeRow: View {
         .task {
             await contentManager.loadAll(for: pageType)
         }
+        .sheet(isPresented: $showingVaultSettings) {
+            VaultSettingsSheet(
+                pageType: pageType,
+                pageTypeManager: pageTypeManager,
+                nexus: nexus,
+                index: index,
+                onDismiss: { showingVaultSettings = false }
+            )
+            .interactiveDismissDisabled()
+        }
     }
 
     @ViewBuilder
@@ -103,6 +116,10 @@ struct PageTypeRow: View {
                 }
                 Button("New Page") {
                     presentedSheet = .newPageInPageType(pageType: pageType)
+                }
+                Divider()
+                Button("\(pageTypeLabel) Settings…") {
+                    showingVaultSettings = true
                 }
                 Divider()
                 Button("Rename") { editingID = pageType.id }
