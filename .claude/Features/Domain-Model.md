@@ -81,7 +81,7 @@ Pommora's domain model has three layers of naming that intentionally diverge:
 |---|---|
 | **Code + data** | `PageType` / `PageCollection` / `ItemType` / `ItemCollection` — always exact, side-prefixed, unambiguous. JSON keys, sidecar fields, file references all use these literal names. |
 | **Docs prose** | "Type" + "Collection" as generic terms; "Page Type" / "Item Type" / etc. when side-specific |
-| **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (Phase 7). |
+| **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (v0.3.0). |
 
 The on-disk JSON shape is identical across sides (every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json` — and the file inside follows the same schema-carrier shape). Sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON. Only the UI label and the Swift type differ across sides.
 
@@ -144,7 +144,7 @@ Relations are stored by ID (rename-safe); body wikilinks reference by name and r
 
 #### Sidebar shape
 
-Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — Phase 7):
+Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — v0.3.0 storage / v0.6.0 editing UI):
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Spaces** — flat rows for tier-1 Contexts
