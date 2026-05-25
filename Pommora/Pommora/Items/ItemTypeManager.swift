@@ -385,3 +385,265 @@ final class ItemTypeManager {
         typesByID = Dictionary(uniqueKeysWithValues: types.map { ($0.id, $0) })
     }
 }
+// MARK: - Schema CRUD errors
+
+enum ItemTypeManagerError: Error, Equatable {
+    case typeNotFound
+    case propertyNotFound
+    case lossyChangeRequiresConfirmation
+    case indexOutOfBounds
+}
+
+// MARK: - Schema CRUD methods
+
+extension ItemTypeManager {
+
+    // MARK: - Add property
+
+    /// Adds a property definition to an Item Type's schema. If `definition.id` is empty,
+    /// a new user-property ID (`prop_<ulid>`) is minted. Validates against existing
+    /// properties via `PropertyDefinitionValidator`. Schema-only write (member files
+    /// are not touched — identity is stored by ID).
+    func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+
+            var def = definition
+            if def.id.isEmpty {
+                def.id = ReservedPropertyID.mintUserPropertyID()
+            }
+
+            try PropertyDefinitionValidator.validate(def, in: types[i].properties)
+
+            var updated = types[i]
+            updated.properties.append(def)
+            updated.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try updated.save(to: meta)
+
+            types[i] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Rename property
+
+    /// Renames a property by its stable ID. Schema-only write — member files keyed by
+    /// `id` are not touched (rename-safe by design per the domain model).
+    func renameProperty(id propertyID: String, in typeID: String, to newName: String) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var renamedDef = types[typeIndex].properties[propIndex]
+            renamedDef.name = newName
+
+            // Build the schema with the renamed definition substituted in, so validation
+            // can check name-uniqueness against the rest of the schema (excluding itself).
+            var otherProps = types[typeIndex].properties
+            otherProps.remove(at: propIndex)
+            // Validate name only — borrow the validator but supply a def with a fresh
+            // temp-unique ID so the duplicate-ID rule doesn't fire. We only care about
+            // the name-uniqueness check here.
+            var validationDef = renamedDef
+            validationDef.id = ReservedPropertyID.mintUserPropertyID()
+            try PropertyDefinitionValidator.validate(validationDef, in: otherProps)
+
+            var updated = types[typeIndex]
+            updated.properties[propIndex] = renamedDef
+            updated.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try updated.save(to: meta)
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Delete property
+
+    /// Deletes a property from the schema. Atomically removes the schema entry and
+    /// strips the corresponding key from every member Item's `properties` dictionary
+    /// via `SchemaTransaction`.
+    func deleteProperty(id propertyID: String, in typeID: String) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var updated = types[typeIndex]
+            updated.properties.remove(at: propIndex)
+            updated.modifiedAt = Date()
+
+            let tx = SchemaTransaction()
+
+            // Stage updated schema sidecar.
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try tx.stage(updated, to: meta)
+
+            // Stage member-file rewrites: strip the property key from every Item's properties dict.
+            let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: updated.title)
+            let itemFiles = try Filesystem.descendantFiles(
+                of: typeFolder,
+                where: { url in
+                    url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                })
+            for itemURL in itemFiles {
+                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                guard item.properties[propertyID] != nil else { continue }
+                item.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
+            }
+
+            try tx.commit()
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Reorder property
+
+    /// Moves a property to a new index within the schema's `properties` array.
+    /// Schema-only write — member files are not touched.
+    func reorderProperty(id propertyID: String, in typeID: String, toIndex newIndex: Int) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var props = types[typeIndex].properties
+            let clampedIndex = min(max(newIndex, 0), props.count - 1)
+            guard clampedIndex != propIndex else { return }
+
+            guard clampedIndex >= 0 && clampedIndex < props.count else {
+                throw ItemTypeManagerError.indexOutOfBounds
+            }
+
+            props.move(
+                fromOffsets: IndexSet(integer: propIndex),
+                toOffset: clampedIndex > propIndex ? clampedIndex + 1 : clampedIndex)
+
+            var updated = types[typeIndex]
+            updated.properties = props
+            updated.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try updated.save(to: meta)
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Change property type
+
+    /// Changes the type of an existing property.
+    ///
+    /// **Lossless path** (`oldType == newType`): updates the schema sidecar only.
+    ///
+    /// **Lossy path** (`oldType != newType`):
+    /// - `dropConflictingValues == false` → throws `.lossyChangeRequiresConfirmation`
+    ///   so the caller can surface a confirmation dialog.
+    /// - `dropConflictingValues == true` → atomically updates the schema sidecar and
+    ///   strips the property's value from every member Item's properties dict via
+    ///   `SchemaTransaction`.
+    func changeType(
+        of propertyID: String,
+        in typeID: String,
+        to newType: PropertyType,
+        dropConflictingValues: Bool = false
+    ) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            let oldType = types[typeIndex].properties[propIndex].type
+
+            if oldType == newType {
+                // Lossless: schema-only write to bump modifiedAt.
+                var updated = types[typeIndex]
+                updated.properties[propIndex].type = newType
+                updated.modifiedAt = Date()
+                let meta = NexusPaths.itemTypeMetadataURL(
+                    in: nexus.rootURL, typeFolderName: updated.title)
+                try updated.save(to: meta)
+                types[typeIndex] = updated
+                rebuildTypesByID()
+                return
+            }
+
+            // Lossy cross-type change.
+            guard dropConflictingValues else {
+                throw ItemTypeManagerError.lossyChangeRequiresConfirmation
+            }
+
+            var updated = types[typeIndex]
+            updated.properties[propIndex].type = newType
+            updated.modifiedAt = Date()
+
+            let tx = SchemaTransaction()
+
+            // Stage updated schema sidecar.
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try tx.stage(updated, to: meta)
+
+            // Stage member-file rewrites: strip the conflicting property value from
+            // every Item's properties dict so no stale cross-type value lingers.
+            let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: updated.title)
+            let itemFiles = try Filesystem.descendantFiles(
+                of: typeFolder,
+                where: { url in
+                    url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                })
+            for itemURL in itemFiles {
+                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                guard item.properties[propertyID] != nil else { continue }
+                item.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
+            }
+
+            try tx.commit()
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+}
