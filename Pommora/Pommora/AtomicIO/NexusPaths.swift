@@ -175,6 +175,18 @@ enum NexusPaths {
             .appendingPathComponent("\(title).\(eventFileExtension)", isDirectory: false)
     }
 
+    // MARK: - Attachments
+
+    /// `<nexus>/.nexus/attachments/<entityID>/` — per-entity attachment folder.
+    /// The directory is created lazily by `AttachmentManager.attach`; this
+    /// helper only computes the URL.
+    static func attachmentsDir(for entityID: String, in nexusRoot: URL) -> URL {
+        nexusRoot
+            .appendingPathComponent(".nexus", isDirectory: true)
+            .appendingPathComponent("attachments", isDirectory: true)
+            .appendingPathComponent(entityID, isDirectory: true)
+    }
+
     // MARK: - Trash (per-nexus recoverable deletes)
 
     /// Per-nexus trash folder at `<nexus-root>/.trash/`.
