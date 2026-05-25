@@ -159,7 +159,7 @@ Modifying recurrence requires constructing a new `EKRecurrenceRule` and reassign
 
 Access via:
 
-- The Calendar row in the Pinned section (data layer ships v0.3.0; Calendar UI lands in a follow-up plan)
+- The Calendar row in the Pinned section opens `CalendarDetailView` (Tasks list above, Events list below). Right-click the Calendar pin → "New Task" / "New Event" for quick capture.
 - From within a Context's composed-blocks surface (embedded "agenda items linked to this Topic" view; v0.6.0+)
 - Direct file access in Finder
 

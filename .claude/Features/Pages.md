@@ -104,9 +104,9 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 ---
 
-#### Properties Pulldown — to-be-implemented (fast-follow patch)
+#### Properties Pulldown
 
-For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy rendering** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties on this Page. Per-page drag-reorder like NavDropdown favorites. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. Title is NOT included (filename plays that role). For Pages opened in a Page Preview window, the property panel inside the inspector uses **eager rendering** — all schema properties visible, void-or-fill from there. Pulldown stays lazy; only the Inspector is eager. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Property surface rendering modes".
+For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy rendering** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties on this Page. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. Title is NOT included (filename plays that role). For Pages opened in a Page Preview window, the property panel inside the inspector uses **eager rendering** — all schema properties visible, void-or-fill from there. Pulldown stays lazy; only the Inspector is eager. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Property surface rendering modes".
 
 ---
 
