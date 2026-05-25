@@ -90,6 +90,7 @@ struct PageCollectionDetailView: View {
                 Label("New Page", systemImage: "plus")
             }
             .buttonStyle(.borderless)
+            .foregroundStyle(.primary)
 
             // ParadigmV2 (Task 8.1): The vestigial "New Item in PageCollection"
             // button was retired — Items live under ItemCollections (Items-side),

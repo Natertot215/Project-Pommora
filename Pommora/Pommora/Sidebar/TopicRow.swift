@@ -27,11 +27,14 @@ struct TopicRow: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.project(project.id))
             }
             .onMove { source, destination in
-                topicManager.reorderProjects(
-                    in: topic, fromOffsets: source, toOffset: destination
-                )
+                withAnimation(.snappy) {
+                    topicManager.reorderProjects(
+                        in: topic, fromOffsets: source, toOffset: destination
+                    )
+                }
             }
         } label: {
             label
@@ -69,7 +72,6 @@ struct TopicRow: View {
                 tag: SelectionTag.topic(topic.id),
                 selection: $selection,
                 accent: nil,
-                onSelect: { selection = .topic(topic) },
                 trailing: {
                     ParentSpaceTags(topic: topic, spaceManager: spaceManager)
                 }

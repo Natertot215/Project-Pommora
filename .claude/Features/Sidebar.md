@@ -176,7 +176,7 @@ User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned
 
 ---
 
-#### Inline-chevron experiment (Finder pattern)
+#### Flat Detail Spec (Cool Experiment)
 
 Captured intent from v0.0 spike (not committed): hand-rolling chevron + member ForEach in Page Collection rows gives Finder-style flush-left flat rows. Verified in v0.0. Revisit once Page Type → Page Collection → Page chain is observed against real data.
 
@@ -185,12 +185,6 @@ Captured intent from v0.0 spike (not committed): hand-rolling chevron + member F
 #### Open until content lands
 
 Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `tagging_style` default, and Page-row icon hover behavior — all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.
-
----
-
-#### Drag-reorder status (v0.2.8)
-
-Phase 1 (persistence — `OrderResolver` + `OrderPersister` + per-sidecar order fields) shipped `5a264f0`. Phase 2 (UX wiring via `.reorderable(...)`) shipped `9cd8cd1` on the following rows: **PageType / Topic / Space / Page / PageCollection / Project**. Still queued in `Planning/v0.2.8-Drag-Reorder.md`: Items-side rows (stubs — light up when the designed Items UI lands), NavDropdown Pinned reorder, cross-container drag (out-of-scope v1), detail-pane Table reorder (Phase 4).
 
 ---
 

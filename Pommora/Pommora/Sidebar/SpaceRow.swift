@@ -36,8 +36,7 @@ struct SpaceRow: View {
                     symbol: space.icon ?? "circle.fill",
                     tag: SelectionTag.space(space.id),
                     selection: $selection,
-                    accent: space.color?.swiftUIColor,
-                    onSelect: { selection = .space(space) }
+                    accent: space.color?.swiftUIColor
                 )
                 .contextMenu {
                     Button("New Space") { presentedSheet = .newSpace }

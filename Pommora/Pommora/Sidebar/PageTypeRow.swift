@@ -19,7 +19,7 @@ struct PageTypeRow: View {
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             // Page-Type-root Pages render ABOVE Collections per spec
-            // (PageTypes.md:112-114). PageRow is a leaf — not selectable in v0.2.
+            // (PageTypes.md:112-114).
             ForEach(contentManager.pages(in: pageType)) { page in
                 PageRow(
                     page: page,
@@ -27,11 +27,14 @@ struct PageTypeRow: View {
                     selection: $selection,
                     editingID: $editingID
                 )
+                .tag(SelectionTag.page(page.id))
             }
             .onMove { source, destination in
-                contentManager.reorderPages(
-                    inVault: pageType, fromOffsets: source, toOffset: destination
-                )
+                withAnimation(.snappy) {
+                    contentManager.reorderPages(
+                        inVault: pageType, fromOffsets: source, toOffset: destination
+                    )
+                }
             }
             ForEach(pageTypeManager.pageCollections(in: pageType)) { coll in
                 PageCollectionRow(
@@ -42,11 +45,14 @@ struct PageTypeRow: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.collection(coll.id))
             }
             .onMove { source, destination in
-                pageTypeManager.reorderPageCollections(
-                    in: pageType, fromOffsets: source, toOffset: destination
-                )
+                withAnimation(.snappy) {
+                    pageTypeManager.reorderPageCollections(
+                        in: pageType, fromOffsets: source, toOffset: destination
+                    )
+                }
             }
         } label: {
             label
@@ -86,8 +92,7 @@ struct PageTypeRow: View {
                 symbol: pageType.icon ?? "tray.2",
                 tag: SelectionTag.pageType(pageType.id),
                 selection: $selection,
-                accent: nil,
-                onSelect: { selection = .pageType(pageType) }
+                accent: nil
             )
             .contextMenu {
                 let pageTypeLabel = settingsManager.settings.labels.pageType.singular

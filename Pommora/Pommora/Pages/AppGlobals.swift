@@ -22,6 +22,7 @@ enum AppGlobals {
     static var contentManager: PageContentManager?
     static var itemContentManager: ItemContentManager?
     static var pageTypeManager: PageTypeManager?
+    static var itemTypeManager: ItemTypeManager?
     static var spaceManager: SpaceManager?
     static var topicManager: TopicManager?
     static var recentsManager: RecentsManager?

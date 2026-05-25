@@ -26,11 +26,14 @@ struct PageCollectionRow: View {
                     selection: $selection,
                     editingID: $editingID
                 )
+                .tag(SelectionTag.page(page.id))
             }
             .onMove { source, destination in
-                contentManager.reorderPages(
-                    in: collection, fromOffsets: source, toOffset: destination
-                )
+                withAnimation(.snappy) {
+                    contentManager.reorderPages(
+                        in: collection, fromOffsets: source, toOffset: destination
+                    )
+                }
             }
         } label: {
             label
@@ -70,8 +73,7 @@ struct PageCollectionRow: View {
                 symbol: "folder",
                 tag: SelectionTag.collection(collection.id),
                 selection: $selection,
-                accent: nil,
-                onSelect: { selection = .collection(collection) }
+                accent: nil
             )
             .contextMenu {
                 let collectionLabel = settingsManager.settings.labels.pageCollection.singular

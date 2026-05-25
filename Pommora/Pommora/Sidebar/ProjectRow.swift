@@ -37,8 +37,7 @@ struct ProjectRow: View {
                     symbol: project.icon ?? "doc.text",
                     tag: SelectionTag.project(project.id),
                     selection: $selection,
-                    accent: nil,
-                    onSelect: { selection = .project(project) }
+                    accent: nil
                 )
                 .contextMenu {
                     Button("Rename") { editingID = project.id }

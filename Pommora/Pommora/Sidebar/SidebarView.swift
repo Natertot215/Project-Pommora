@@ -1,22 +1,9 @@
-//
-//  SidebarView.swift
-//  Pommora
-//
-
-/// Selection chrome painted via `.listRowBackground` at the row-file level so
-/// the fill covers the full List row (including any DisclosureGroup chevron
-/// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
-/// edges by default for flat rows. DisclosureGroup-wrapped rows pass
-/// `.disclosure` style to flush the leading edge so chrome covers the chevron.
 import SwiftUI
 
-/// Five-section sidebar: Saved (pinned-headerless) / Spaces / Topics / Items / Pages. Rows extracted to *Row.swift files; sheets at Sheets/*Sheet.swift.
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
-    @Environment(SavedConfigManager.self) private var savedConfigManager
 
     @Binding var selection: SidebarSelection
 
@@ -24,13 +11,14 @@ struct SidebarView: View {
     @State private var presentedSheet: SidebarSheet? = nil
     @State private var confirmingDelete: SidebarConfirmation? = nil
 
+    // Drives the AppKit drag/select gesture chain via `List(selection:)`.
+    @State private var selectedTag: SelectionTag? = nil
+
     var body: some View {
         VStack(spacing: 0) {
-            // Toast surfaces CRUD failures via each manager's pendingError.
-            // Lives ABOVE the List so it doesn't touch the load-bearing
-            // Section / SectionHeader layout inside.
+            // Outside the List so it doesn't touch Section layout (quirk #9).
             SidebarToast()
-            List {
+            List(selection: $selectedTag) {
                 SavedSection(selection: $selection)
                 SpacesSection(
                     selection: $selection,
@@ -46,9 +34,7 @@ struct SidebarView: View {
                 )
                 ItemsSection(
                     selection: $selection,
-                    editingID: $editingID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
+                    presentedSheet: $presentedSheet
                 )
                 VaultsSection(
                     selection: $selection,
@@ -59,6 +45,22 @@ struct SidebarView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .onChange(of: selectedTag) { _, newTag in
+                if let newTag, let resolved = SidebarSelection(tag: newTag) {
+                    if selection != resolved { selection = resolved }
+                } else if newTag == nil, selection != .none {
+                    selection = .none
+                }
+            }
+            .onChange(of: selection) { _, newSelection in
+                let derivedTag = SelectionTag(newSelection)
+                if derivedTag != selectedTag { selectedTag = derivedTag }
+            }
+            .onAppear {
+                let derivedTag = SelectionTag(selection)
+                if derivedTag != selectedTag { selectedTag = derivedTag }
+            }
+            .background(NSTableSelectionStyleSuppressor()) // Nathan's Note: This is what prevents the double-accent fill and allows for the finder-like quartenary opacity.
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
@@ -198,14 +200,14 @@ struct SavedSection: View {
                     symbol: iconFor(item.key),
                     tag: SelectionTag.savedKey(item.key),
                     selection: $selection,
-                    accent: nil,
-                    onSelect: { selection = .savedKey(item.key) }
+                    accent: nil
                 )
                 .listRowBackground(
                     SelectionChrome(
                         isSelected: SelectionTag.savedKey(item.key).matches(selection)
                     )
                 )
+                .tag(SelectionTag.savedKey(item.key))
             }
         }
     }
@@ -239,9 +241,12 @@ struct SpacesSection: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.space(space.id))
             }
             .onMove { source, destination in
-                spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
+                withAnimation(.snappy) {
+                    spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
+                }
             }
         } header: {
             SectionHeader(title: "Spaces") {
@@ -270,9 +275,12 @@ struct TopicsSection: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.topic(topic.id))
             }
             .onMove { source, destination in
-                topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
+                withAnimation(.snappy) {
+                    topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
+                }
             }
         } header: {
             SectionHeader(title: "Topics") {
@@ -284,9 +292,7 @@ struct TopicsSection: View {
 
 struct ItemsSection: View {
     @Binding var selection: SidebarSelection
-    @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
-    @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(ItemTypeManager.self) private var itemTypeManager
 
     @State private var expanded: Bool = true
@@ -298,14 +304,14 @@ struct ItemsSection: View {
                     itemType: itemType,
                     selection: $selection
                 )
+                .tag(SelectionTag.itemType(itemType.id))
             }
             .onMove { source, destination in
-                itemTypeManager.reorderItemTypes(fromOffsets: source, toOffset: destination)
+                withAnimation(.snappy) {
+                    itemTypeManager.reorderItemTypes(fromOffsets: source, toOffset: destination)
+                }
             }
         } header: {
-            // Phase 8 stub: literal "Items" label (no SettingsManager read yet —
-            // Items-side label wiring lands with the real Items UI plan, per
-            // Task 8.5 spec).
             SectionHeader(title: "Items") {
                 presentedSheet = .newItemType
             }
@@ -333,14 +339,14 @@ struct VaultsSection: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.pageType(pageType.id))
             }
             .onMove { source, destination in
-                vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
+                withAnimation(.snappy) {
+                    vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
+                }
             }
         } header: {
-            // Section header text comes from SettingsManager
-            // (`sidebar_sections.pages`, default "Vaults" per the Pages-side
-            // signature plural; renameable per nexus via settings.json).
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.pages) {
                 presentedSheet = .newPageType
             }
@@ -362,7 +368,6 @@ struct SelectableRow<Trailing: View>: View {
     let tag: SelectionTag
     @Binding var selection: SidebarSelection
     let accent: Color?
-    let onSelect: () -> Void
     @ViewBuilder let trailing: () -> Trailing
 
     init(
@@ -371,7 +376,6 @@ struct SelectableRow<Trailing: View>: View {
         tag: SelectionTag,
         selection: Binding<SidebarSelection>,
         accent: Color?,
-        onSelect: @escaping () -> Void,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
     ) {
         self.title = title
@@ -379,7 +383,6 @@ struct SelectableRow<Trailing: View>: View {
         self.tag = tag
         self._selection = selection
         self.accent = accent
-        self.onSelect = onSelect
         self.trailing = trailing
     }
 
@@ -388,30 +391,25 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var body: some View {
-        // `Button(.plain)` wraps the row content so SwiftUI coordinates the tap
-        // gesture with the underlying NSOutlineView drag-gesture chain. Tap
-        // selects from anywhere on the row; drag (List `.onMove`) also fires
-        // from anywhere on the row. Visual is identical to a bare HStack.
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .symbolRenderingMode(.monochrome)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
-                    .frame(width: 16, height: 16, alignment: .center)
-                Text(title)
-                    .foregroundStyle(isSelected ? Color.accentColor : .primary)
-                    .brightness(isSelected ? 0.10 : 0)
-                Spacer(minLength: 0)
-                trailing()
-            }
-            .padding(.leading, 4)
-            .padding(.trailing, 0)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+        // Pure content — tap + drag are driven by `List(selection:)` +
+        // `.onMove` at the SidebarView level via the row's `.tag(...)`.
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
+                .frame(width: 16, height: 16, alignment: .center)
+            Text(title)
+                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .brightness(isSelected ? 0.10 : 0)
+            Spacer(minLength: 0)
+            trailing()
         }
-        .buttonStyle(.plain)
+        .padding(.leading, 4)
+        .padding(.trailing, 0)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
     }
 }
@@ -435,7 +433,6 @@ struct SelectionChrome: View {
     var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                // This forces the permanent native gray sidebar selection
                 .fill(Color(nsColor: .quaternarySystemFill))
                 .padding(style.insets)
         } else {

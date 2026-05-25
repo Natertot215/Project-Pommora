@@ -482,6 +482,14 @@ enum NexusAdopter {
             )
         }
 
+        // A wrapper folder with no children to migrate (e.g. a stale `Agenda/`
+        // carrying only a pre-ParadigmV2 `_agenda.json` after Tasks/Events were
+        // already unwrapped) has nothing to adopt. Without this guard the empty
+        // unwrap step still trips `hasAnythingToAdopt`, re-showing the adoption
+        // sheet on every launch. The leftover wrapper stays on disk inert; the
+        // user can delete it manually.
+        guard !moves.isEmpty else { return }
+
         unwrapSteps.append(
             PlannedUnwrap(wrapperURL: wrapper, wrapperKind: kind, moves: moves)
         )
