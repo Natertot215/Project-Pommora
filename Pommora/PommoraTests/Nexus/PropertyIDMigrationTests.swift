@@ -259,4 +259,126 @@ import Testing
         #expect(report.failedTypes.isEmpty)
         #expect(report.memberFilesRewritten == 0)
     }
+
+    // MARK: - Phase C.5 scan/apply two-phase API
+
+    @Test func scanEmptyNexusReturnsEmptyPlan() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+        let plan = PropertyIDMigration.scan(at: nexus)
+        #expect(!plan.hasAnyMigration)
+        #expect(plan.totalTypes == 0)
+        #expect(plan.totalPropertiesToMint == 0)
+        #expect(plan.totalMemberFileCandidates == 0)
+        #expect(plan.pageTypeMigrations.isEmpty)
+        #expect(plan.itemTypeMigrations.isEmpty)
+    }
+
+    @Test func scanReportsAccurateCountsBeforeApply() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let pageFolder = try Self.makeLegacyPageType(
+            in: nexus, title: "Notes",
+            properties: [("Status", .select), ("Tags", .multiSelect)])
+        try Self.writeLegacyPage(
+            at: pageFolder.appendingPathComponent("Page-1.md"),
+            id: "01HPAGE1", properties: ["Status": .select("active")])
+        try Self.writeLegacyPage(
+            at: pageFolder.appendingPathComponent("Page-2.md"),
+            id: "01HPAGE2", properties: ["Status": .select("done")])
+
+        let itemFolder = try Self.makeLegacyItemType(
+            in: nexus, title: "Bookmarks", properties: [("Stage", .select)])
+        try Self.writeLegacyItem(
+            at: itemFolder.appendingPathComponent("Book-1.json"),
+            id: "01HBOOK1", properties: ["Stage": .select("queue")])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+        #expect(plan.hasAnyMigration)
+        #expect(plan.totalTypes == 2)
+        #expect(plan.totalPropertiesToMint == 3)  // Status + Tags + Stage
+        #expect(plan.totalMemberFileCandidates == 3)  // 2 pages + 1 item
+
+        // Per-Type accuracy
+        #expect(plan.pageTypeMigrations.count == 1)
+        #expect(plan.pageTypeMigrations[0].propertiesToMint == 2)
+        #expect(plan.pageTypeMigrations[0].memberFileCandidates == 2)
+        #expect(plan.pageTypeMigrations[0].typeTitle == "Notes")
+        #expect(plan.itemTypeMigrations.count == 1)
+        #expect(plan.itemTypeMigrations[0].propertiesToMint == 1)
+        #expect(plan.itemTypeMigrations[0].memberFileCandidates == 1)
+        #expect(plan.itemTypeMigrations[0].typeTitle == "Bookmarks")
+    }
+
+    @Test func scanIsPureNoDiskWrites() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let pageFolder = try Self.makeLegacyPageType(
+            in: nexus, title: "Notes", properties: [("Status", .select)])
+        let pageURL = pageFolder.appendingPathComponent("P.md")
+        try Self.writeLegacyPage(
+            at: pageURL, id: "01HP", properties: ["Status": .select("v")])
+
+        // Snapshot file contents before scan
+        let pageContentBefore = try String(contentsOf: pageURL, encoding: .utf8)
+        let sidecarURL = pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecarContentBefore = try String(contentsOf: sidecarURL, encoding: .utf8)
+
+        // Scan twice — both should be pure
+        _ = PropertyIDMigration.scan(at: nexus)
+        _ = PropertyIDMigration.scan(at: nexus)
+
+        let pageContentAfter = try String(contentsOf: pageURL, encoding: .utf8)
+        let sidecarContentAfter = try String(contentsOf: sidecarURL, encoding: .utf8)
+        #expect(pageContentBefore == pageContentAfter)
+        #expect(sidecarContentBefore == sidecarContentAfter)
+    }
+
+    @Test func applyExecutesScanPlan() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let pageFolder = try Self.makeLegacyPageType(
+            in: nexus, title: "Notes", properties: [("Status", .select)])
+        let pageURL = pageFolder.appendingPathComponent("P.md")
+        try Self.writeLegacyPage(
+            at: pageURL, id: "01HP", properties: ["Status": .select("active")])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+        let report = PropertyIDMigration.apply(plan)
+
+        #expect(report.pageTypesScanned == 1)
+        #expect(report.typesMigrated == 1)
+        #expect(report.propertiesMinted == 1)
+        #expect(report.memberFilesRewritten == 1)
+
+        // Same end state as runIfNeeded would produce
+        let pt = try PageType.load(from: pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        #expect(pt.schemaVersion == 1)
+        let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
+        let pf = try PageFile.load(from: pageURL)
+        #expect(pf.frontmatter.properties[statusID] == .select("active"))
+    }
+
+    @Test func scanAfterApplyIsEmpty() throws {
+        // Apply migration via scan/apply; the next scan should return empty
+        // (idempotent semantics preserved in the two-phase API).
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let folder = try Self.makeLegacyPageType(
+            in: nexus, title: "X", properties: [("S", .select)])
+        try Self.writeLegacyPage(
+            at: folder.appendingPathComponent("P.md"),
+            id: "01HX", properties: ["S": .select("v")])
+
+        let plan1 = PropertyIDMigration.scan(at: nexus)
+        _ = PropertyIDMigration.apply(plan1)
+
+        let plan2 = PropertyIDMigration.scan(at: nexus)
+        #expect(!plan2.hasAnyMigration)
+        #expect(plan2.totalTypes == 0)
+    }
 }

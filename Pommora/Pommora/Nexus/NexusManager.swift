@@ -38,6 +38,12 @@ final class NexusManager {
     /// `resolveAdoption(_:)`.
     var pendingAdoption: AdoptionPlan?
 
+    /// Property-ID migration plan computed alongside the adoption scan (Phase
+    /// C.5). Bundled with `pendingAdoption` so the preview sheet can surface
+    /// migration counts in the same UI; resolved by the same
+    /// `resolveAdoption(_:)` callback. Nil when no migration is needed.
+    var pendingMigrationPlan: PropertyIDMigration.Plan?
+
     /// True while the adoption scan is walking the Nexus folder. ContentView
     /// shows an "Indexing…" HUD over the sidebar while this is set so the
     /// user knows the brief stall on open is intentional. Obsidian-parity.
@@ -261,20 +267,30 @@ final class NexusManager {
             return
         }
 
-        if plan.hasAnythingToAdopt {
-            // The sheet should be visible WITHOUT the indexing HUD competing for
-            // attention behind it. Drop the indexing flag before awaiting the
-            // user's decision, then re-raise it only while `apply` is writing
-            // sidecars.
-            isIndexing = false
-            let confirmed = await presentAdoptionPreview(plan)
-            guard confirmed else { return }
+        // v0.3.0 Phase C.5: scan property-ID migration alongside adoption so
+        // the preview sheet can show counts for both. Migration scan is pure
+        // (no disk writes); cost is one directory enumeration + decode per
+        // Type sidecar — fast even on large nexuses.
+        let migrationPlan = PropertyIDMigration.scan(at: url)
 
-            isIndexing = true
-            // Adopter apply is best-effort + idempotent (decision #11) — it
-            // never throws. Per-folder failures land in `result.failedFolders`;
-            // surface a summary error to the user if any occurred so the
-            // migration's completeness is visible.
+        // Present the preview if EITHER adoption or migration has work to do.
+        // The sheet renders the union — when only one side has work, the
+        // other section is empty.
+        let needsPreview = plan.hasAnythingToAdopt || migrationPlan.hasAnyMigration
+        guard needsPreview else { return }
+
+        // The sheet should be visible WITHOUT the indexing HUD competing for
+        // attention behind it. Drop the indexing flag before awaiting the
+        // user's decision, then re-raise it only while `apply` is writing
+        // sidecars.
+        isIndexing = false
+        let confirmed = await presentAdoptionPreview(plan, migrationPlan: migrationPlan)
+        guard confirmed else { return }
+
+        isIndexing = true
+        // Adoption apply: best-effort + idempotent (decision #11) — never
+        // throws. Skipped when nothing to adopt.
+        if plan.hasAnythingToAdopt {
             let result = NexusAdopter.apply(plan)
             if result.failedCount > 0 {
                 let preview = result.failedFolders.prefix(3)
@@ -286,29 +302,33 @@ final class NexusManager {
             }
         }
 
-        // v0.3.0 Phase C.3: property-ID synthesis migration.
-        // Runs on every nexus open regardless of whether adoption was needed
-        // — an already-fully-adopted nexus can still carry legacy name-keyed
-        // schemas that need rekeying. Best-effort + idempotent (skips Types
-        // whose properties all have non-empty `id` AND schema_version >= 1);
-        // per-Type failures isolated in `migration.failedTypes` and surfaced
-        // via the pending-error toast.
-        let migration = PropertyIDMigration.runIfNeeded(at: url)
-        if !migration.failedTypes.isEmpty {
-            let preview = migration.failedTypes.prefix(3)
-                .map { "\($0.typeFolderURL.lastPathComponent): \($0.message)" }
-                .joined(separator: "; ")
-            pendingError = .initFailed(
-                "Property-ID migration completed with \(migration.failedTypes.count) failures (\(preview))."
-            )
+        // Property-ID migration apply: same best-effort + idempotent contract.
+        // Per-Type failures isolated in `migration.failedTypes`; surface a
+        // summary via the pending-error toast.
+        if migrationPlan.hasAnyMigration {
+            let migration = PropertyIDMigration.apply(migrationPlan)
+            if !migration.failedTypes.isEmpty {
+                let preview = migration.failedTypes.prefix(3)
+                    .map { "\($0.typeFolderURL.lastPathComponent): \($0.message)" }
+                    .joined(separator: "; ")
+                pendingError = .initFailed(
+                    "Property-ID migration completed with \(migration.failedTypes.count) failures (\(preview))."
+                )
+            }
         }
     }
 
-    /// Publishes `plan` for ContentView's sheet to pick up, then suspends
-    /// until `resolveAdoption(_:)` resumes with the user's decision.
-    private func presentAdoptionPreview(_ plan: AdoptionPlan) async -> Bool {
+    /// Publishes `plan` (and an optional `migrationPlan`) for ContentView's
+    /// sheet to pick up, then suspends until `resolveAdoption(_:)` resumes
+    /// with the user's decision. Returns the boolean confirmation for BOTH
+    /// adoption + migration apply (Phase C.5 unified preview).
+    private func presentAdoptionPreview(
+        _ plan: AdoptionPlan,
+        migrationPlan: PropertyIDMigration.Plan
+    ) async -> Bool {
         await withCheckedContinuation { continuation in
             adoptionContinuation = continuation
+            pendingMigrationPlan = migrationPlan.hasAnyMigration ? migrationPlan : nil
             pendingAdoption = plan
         }
     }
@@ -322,6 +342,7 @@ final class NexusManager {
         let cont = adoptionContinuation
         adoptionContinuation = nil
         pendingAdoption = nil
+        pendingMigrationPlan = nil
         cont?.resume(returning: confirmed)
     }
 

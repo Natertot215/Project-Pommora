@@ -20,6 +20,10 @@ import SwiftUI
 
 struct AdoptionPreviewView: View {
     let plan: AdoptionPlan
+    /// Optional Phase C.5 migration plan — surfaces alongside adoption work
+    /// so the user can preview both before committing. Nil when no
+    /// migration is needed; the sheet still presents adoption-only.
+    let migrationPlan: PropertyIDMigration.Plan?
     let onResolve: (Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -28,6 +32,16 @@ struct AdoptionPreviewView: View {
     /// we go through SettingsLabels' default seed (the seed values are the
     /// canonical per-side defaults; per-Nexus overrides land later).
     private let labels = SettingsLabels.defaults()
+
+    init(
+        plan: AdoptionPlan,
+        migrationPlan: PropertyIDMigration.Plan? = nil,
+        onResolve: @escaping (Bool) -> Void
+    ) {
+        self.plan = plan
+        self.migrationPlan = migrationPlan
+        self.onResolve = onResolve
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,6 +55,7 @@ struct AdoptionPreviewView: View {
                     unwrapsSection
                     inPlaceRenamesSection
                     freshSidecarsSection
+                    propertyMigrationSection
                     alreadyFlatSection
                     warningsSection
                     skippedSection
@@ -243,6 +258,55 @@ struct AdoptionPreviewView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var propertyMigrationSection: some View {
+        if let migrationPlan, migrationPlan.hasAnyMigration {
+            sectionHeader(
+                "Migrate property IDs (\(migrationPlan.totalTypes) \(migrationPlan.totalTypes == 1 ? "Type" : "Types"))",
+                detail:
+                    "Pre-v0.3.0 schemas use property name as identity. v0.3.0 introduces stable ULID property IDs — "
+                    + "\(migrationPlan.totalPropertiesToMint) new property "
+                    + "ID\(migrationPlan.totalPropertiesToMint == 1 ? "" : "s") will be minted; up to "
+                    + "\(migrationPlan.totalMemberFileCandidates) member "
+                    + "file\(migrationPlan.totalMemberFileCandidates == 1 ? "" : "s") may be rewritten "
+                    + "to key properties by ID. Orphan property values preserved."
+            )
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(migrationPlan.pageTypeMigrations.enumerated()), id: \.offset) { _, m in
+                    propertyMigrationRow(m)
+                }
+                ForEach(Array(migrationPlan.itemTypeMigrations.enumerated()), id: \.offset) { _, m in
+                    propertyMigrationRow(m)
+                }
+            }
+        }
+    }
+
+    private func propertyMigrationRow(_ m: PropertyIDMigration.TypeMigration) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: m.kind == .pageType ? "folder.fill" : "tablecells")
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(m.typeTitle)
+                    .font(.callout)
+                HStack(spacing: 6) {
+                    Text("\(m.propertiesToMint) propert\(m.propertiesToMint == 1 ? "y" : "ies") to mint")
+                    if m.memberFileCandidates > 0 {
+                        Text("·").foregroundStyle(.tertiary)
+                        Text(
+                            "\(m.memberFileCandidates) member "
+                            + "file\(m.memberFileCandidates == 1 ? "" : "s")"
+                        )
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            }
+            Spacer()
         }
     }
 

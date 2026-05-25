@@ -65,7 +65,10 @@ struct ContentView: View {
                 nexusManager.resolveAdoption(false)
             }
         ) { plan in
-            AdoptionPreviewView(plan: plan) { confirmed in
+            AdoptionPreviewView(
+                plan: plan,
+                migrationPlan: nexusManager.pendingMigrationPlan
+            ) { confirmed in
                 nexusManager.resolveAdoption(confirmed)
             }
         }
@@ -390,6 +393,7 @@ struct ContentView: View {
         AppGlobals.contentManager = contentMgr
         AppGlobals.itemContentManager = itemContentMgr
         AppGlobals.pageTypeManager = vaultMgr
+        AppGlobals.itemTypeManager = itemTypeMgr
         AppGlobals.spaceManager = spaceMgr
         AppGlobals.topicManager = topicMgr
         AppGlobals.recentsManager = recentsMgr
