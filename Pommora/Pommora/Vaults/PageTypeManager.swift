@@ -413,6 +413,14 @@ extension PageTypeManager {
     /// a new user-property ID (`prop_<ulid>`) is minted. Validates against existing
     /// properties via `PropertyDefinitionValidator`. Schema-only write (member files
     /// are not touched — identity is stored by ID).
+    ///
+    /// **Paired relations** (`definition.type == .relation && definition.dualProperty != nil`):
+    /// Routed through `DualRelationCoordinator.createPairedRelation` which writes both
+    /// Type sidecars atomically. `definition.dualProperty.syncedPropertyDefinedOnTypeID`
+    /// identifies the target type (PageType only in this manager — cross-side pairing goes
+    /// via ItemTypeManager). `definition.dualProperty.syncedPropertyID` is used as the
+    /// reverse property display name (caller convention at add-time; replaced by the minted
+    /// ID after creation).
     func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
         do {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
@@ -422,6 +430,58 @@ extension PageTypeManager {
             var def = definition
             if def.id.isEmpty {
                 def.id = ReservedPropertyID.mintUserPropertyID()
+            }
+
+            // Paired relation: route through DualRelationCoordinator.
+            if def.type == .relation, let dualConfig = def.dualProperty {
+                let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
+                guard let scope = def.relationScope else {
+                    throw PageTypeManagerError.propertyNotFound
+                }
+                // Locate the target PageType in-memory (same manager, same nexus).
+                guard let targetType = types.first(where: { $0.id == targetTypeID }) else {
+                    throw PageTypeManagerError.typeNotFound
+                }
+                let sourceKind = DualRelationCoordinator.TypeKind.pageType(types[i])
+                let targetKind = DualRelationCoordinator.TypeKind.pageType(targetType)
+                // Reverse scope points back to source Type.
+                let targetScope = PropertyDefinition.RelationScope.pageType(types[i].id)
+                // Reverse name: caller puts desired reverse name in syncedPropertyID at add-time.
+                let reverseName = dualConfig.syncedPropertyID.isEmpty ? def.name : dualConfig.syncedPropertyID
+
+                let (srcID, _) = try DualRelationCoordinator.createPairedRelation(
+                    source: sourceKind,
+                    sourcePropertyName: def.name,
+                    sourceScope: scope,
+                    target: targetKind,
+                    targetPropertyName: reverseName,
+                    targetScope: targetScope,
+                    nexus: nexus
+                )
+                // Reload source type from disk so in-memory reflects the coordinator's write.
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+                if let reloaded = try? PageType.load(from: meta) {
+                    types[i] = reloaded
+                }
+                // Also reload target type if it's a different type.
+                if targetTypeID != typeID, let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                    let targetMeta = NexusPaths.vaultMetadataURL(forTitle: targetType.title, in: nexus)
+                    if let reloaded = try? PageType.load(from: targetMeta) {
+                        types[j] = reloaded
+                    }
+                }
+                if let updater = indexUpdater {
+                    if let addedDef = types[i].properties.first(where: { $0.id == srcID }) {
+                        let position = types[i].properties.count - 1
+                        do {
+                            try updater.upsertPropertyDefinition(
+                                addedDef, owningTypeID: typeID, owningTypeKind: "page_type",
+                                position: position
+                            )
+                        } catch { self.pendingError = error }
+                    }
+                }
+                return
             }
 
             try PropertyDefinitionValidator.validate(def, in: types[i].properties)
@@ -496,6 +556,10 @@ extension PageTypeManager {
     /// Deletes a property from the schema. Atomically removes the schema entry and
     /// strips the corresponding key from every member Page's frontmatter
     /// `properties` dictionary via `SchemaTransaction`.
+    ///
+    /// **Paired relations** (`property.dualProperty != nil`): routed through
+    /// `DualRelationCoordinator.deletePair` which cascades the delete to both
+    /// Type sidecars and strips all values from member files on each side.
     func deleteProperty(id propertyID: String, in typeID: String) async throws {
         do {
             guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
@@ -504,6 +568,42 @@ extension PageTypeManager {
             guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
             else {
                 throw PageTypeManagerError.propertyNotFound
+            }
+
+            let prop = types[typeIndex].properties[propIndex]
+
+            // Paired relation: route through DualRelationCoordinator (cascades both sides).
+            if prop.type == .relation, let dualConfig = prop.dualProperty {
+                let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
+                let ownerKind = DualRelationCoordinator.TypeKind.pageType(types[typeIndex])
+                // Locate reverse Type (PageType-to-PageType).
+                if let targetType = types.first(where: { $0.id == targetTypeID }) {
+                    let reverseKind = DualRelationCoordinator.TypeKind.pageType(targetType)
+                    try DualRelationCoordinator.deletePair(
+                        propertyID: propertyID,
+                        owner: ownerKind,
+                        reverse: reverseKind,
+                        nexus: nexus
+                    )
+                    // Reload both types in-memory.
+                    let meta = NexusPaths.vaultMetadataURL(forTitle: types[typeIndex].title, in: nexus)
+                    if let reloaded = try? PageType.load(from: meta) {
+                        types[typeIndex] = reloaded
+                    }
+                    if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                        let tMeta = NexusPaths.vaultMetadataURL(forTitle: targetType.title, in: nexus)
+                        if let reloaded = try? PageType.load(from: tMeta) {
+                            types[j] = reloaded
+                        }
+                    }
+                    if let updater = indexUpdater {
+                        do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+                        do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch { self.pendingError = error }
+                    }
+                    return
+                }
+                // Target not found in-memory: fall through to simple delete of source only.
+                _ = ownerKind
             }
 
             var updated = types[typeIndex]
