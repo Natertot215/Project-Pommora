@@ -11,6 +11,7 @@ enum ReservedPropertyID {
     static let all: Set<String> = [
         "_id", "_created_at", "_modified_at",
         "_status",
+        "_type",
         "_tier1", "_tier2", "_tier3",
         "_wikilinks",
     ]

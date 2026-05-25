@@ -29,14 +29,18 @@ enum AgendaTaskValidator {
         // EKReminder-style time-field consistency: due_all_day requires due_at.
         if dueAllDay && dueAt == nil { throw ValidationError.dueAllDayWithoutDue }
 
-        // type property required + value must be one of schema's type-Select options
+        // type property required + value must be one of schema's type-Select options.
+        // NOTE: `properties` is keyed by property NAME for now (member files use name keys).
+        // When frontmatter migration to ID-keyed values lands across Tasks/Events, this
+        // lookup changes to `properties["_type"]`. Schema identity is already ID-based at
+        // the schema layer; only the member-file key remains name-based through v0.3.0.
         guard case .select(let typeValue)? = properties["type"] else {
             throw ValidationError.missingTypeProperty
         }
-        guard let typeProp = schema.properties.first(where: { $0.name == "type" }) else {
+        guard let typeProp = schema.properties.first(where: { $0.id == "_type" }) else {
             throw ValidationError.missingTypeProperty
         }
-        let allowed = Set((typeProp.options ?? []).map(\.value))
+        let allowed = Set((typeProp.selectOptions ?? []).map(\.value))
         guard allowed.contains(typeValue) else {
             throw ValidationError.unknownTypeValue(typeValue)
         }
