@@ -89,12 +89,21 @@ struct PageTypeDetailView: View {
     private var footer: some View {
         HStack {
             Button {
+                presentedSheet = .newPageInPageType(pageType: pageType)
+            } label: {
+                Label("New Page", systemImage: "plus")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.primary)
+
+            Button {
                 presentedSheet = .newCollection(pageType: pageType)
             } label: {
                 Label("New Collection", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
+
             Spacer()
         }
         .padding(8)
