@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderProperty
 
 /// Owns the in-memory AgendaEvent collection + the `_eventconfig.json` sidecar
 /// for the Events singleton folder (discovered by sidecar presence at the nexus
@@ -163,6 +164,252 @@ final class AgendaEventManager {
             let url = NexusPaths.eventFileURL(forTitle: event.title, in: nexus)
             try Filesystem.moveToTrash(url, in: nexus)
             events.removeAll { $0.id == event.id }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+}
+
+// MARK: - Schema CRUD errors
+
+enum AgendaEventManagerError: Error, Equatable {
+    case propertyNotFound
+    /// Thrown when attempting to delete a built-in property (`_type`) that Pommora
+    /// manages and requires for core functionality. Events have no `_status`.
+    case cannotDeleteBuiltinProperty
+    case lossyChangeRequiresConfirmation
+    case indexOutOfBounds
+}
+
+// MARK: - Schema CRUD methods
+
+extension AgendaEventManager {
+
+    // MARK: - Add property
+
+    /// Adds a property definition to the Events singleton schema. If `definition.id` is
+    /// empty, a new user-property ID (`prop_<ulid>`) is minted. Validates against
+    /// existing properties via `PropertyDefinitionValidator`. Schema-only write (member
+    /// files are not touched — identity is stored by ID).
+    func addProperty(_ definition: PropertyDefinition) async throws {
+        do {
+            var def = definition
+            if def.id.isEmpty {
+                def.id = ReservedPropertyID.mintUserPropertyID()
+            }
+
+            try PropertyDefinitionValidator.validate(def, in: schema.properties)
+
+            var updated = schema
+            updated.properties.append(def)
+            updated.modifiedAt = Date()
+
+            let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+            try AtomicJSON.write(updated, to: schemaURL)
+
+            schema = updated
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Rename property
+
+    /// Renames a property by its stable ID. Schema-only write — member files keyed by
+    /// name are not touched (rename-safe by design per the domain model).
+    func renameProperty(id propertyID: String, to newName: String) async throws {
+        do {
+            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw AgendaEventManagerError.propertyNotFound
+            }
+
+            var renamedDef = schema.properties[propIndex]
+            renamedDef.name = newName
+
+            // Build the schema with the renamed definition substituted in, so validation
+            // can check name-uniqueness against the rest of the schema (excluding itself).
+            var otherProps = schema.properties
+            otherProps.remove(at: propIndex)
+            // Validate name only — supply a fresh temp-unique ID so the duplicate-ID
+            // rule doesn't fire. We only care about the name-uniqueness check here.
+            var validationDef = renamedDef
+            validationDef.id = ReservedPropertyID.mintUserPropertyID()
+            try PropertyDefinitionValidator.validate(validationDef, in: otherProps)
+
+            var updated = schema
+            updated.properties[propIndex] = renamedDef
+            updated.modifiedAt = Date()
+
+            let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+            try AtomicJSON.write(updated, to: schemaURL)
+
+            schema = updated
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Delete property
+
+    /// Deletes a property from the Events singleton schema. Built-in property
+    /// (`_type`) cannot be deleted — throws `cannotDeleteBuiltinProperty`.
+    /// Events have NO `_status` concept. Atomically removes the schema entry and
+    /// strips the corresponding key from every `.event.json` member file via
+    /// `SchemaTransaction`.
+    func deleteProperty(id propertyID: String) async throws {
+        do {
+            // Block deletion of built-in reserved properties.
+            // _type non-deletable as core select. Events have no _status.
+            let builtinIDs: Set<String> = ["_type"]
+            guard !builtinIDs.contains(propertyID) else {
+                throw AgendaEventManagerError.cannotDeleteBuiltinProperty
+            }
+
+            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw AgendaEventManagerError.propertyNotFound
+            }
+
+            var updated = schema
+            updated.properties.remove(at: propIndex)
+            updated.modifiedAt = Date()
+
+            let tx = SchemaTransaction()
+
+            // Stage updated schema sidecar.
+            let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+            try tx.stage(updated, to: schemaURL)
+
+            // Stage member-file rewrites: strip the property key from every event file.
+            let dir = NexusPaths.eventsDir(in: nexus)
+            let eventFiles = try Filesystem.children(of: dir) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
+            }
+            for eventURL in eventFiles {
+                var event = try AtomicJSON.decode(AgendaEvent.self, from: eventURL)
+                guard event.properties[propertyID] != nil else { continue }
+                event.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(event), to: eventURL)
+            }
+
+            try tx.commit()
+
+            schema = updated
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Reorder property
+
+    /// Moves a property to a new index within the schema's `properties` array.
+    /// Schema-only write — member files are not touched.
+    func reorderProperty(id propertyID: String, toIndex newIndex: Int) async throws {
+        do {
+            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw AgendaEventManagerError.propertyNotFound
+            }
+
+            var props = schema.properties
+            let clampedIndex = min(max(newIndex, 0), props.count - 1)
+            guard clampedIndex != propIndex else { return }
+
+            guard clampedIndex >= 0 && clampedIndex < props.count else {
+                throw AgendaEventManagerError.indexOutOfBounds
+            }
+
+            props.move(
+                fromOffsets: IndexSet(integer: propIndex),
+                toOffset: clampedIndex > propIndex ? clampedIndex + 1 : clampedIndex
+            )
+
+            var updated = schema
+            updated.properties = props
+            updated.modifiedAt = Date()
+
+            let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+            try AtomicJSON.write(updated, to: schemaURL)
+
+            schema = updated
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Change property type
+
+    /// Changes the type of an existing property.
+    ///
+    /// **Lossless path** (`oldType == newType`): updates the schema sidecar only.
+    ///
+    /// **Lossy path** (`oldType != newType`):
+    /// - `dropConflictingValues == false` → throws `.lossyChangeRequiresConfirmation`
+    ///   so the caller can surface a confirmation dialog.
+    /// - `dropConflictingValues == true` → atomically updates the schema sidecar and
+    ///   strips the property's value from every `.event.json` member file via
+    ///   `SchemaTransaction`.
+    func changeType(
+        of propertyID: String,
+        to newType: PropertyType,
+        dropConflictingValues: Bool = false
+    ) async throws {
+        do {
+            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw AgendaEventManagerError.propertyNotFound
+            }
+
+            let oldType = schema.properties[propIndex].type
+
+            if oldType == newType {
+                // Lossless: schema-only write to bump modifiedAt.
+                var updated = schema
+                updated.properties[propIndex].type = newType
+                updated.modifiedAt = Date()
+                let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+                try AtomicJSON.write(updated, to: schemaURL)
+                schema = updated
+                return
+            }
+
+            // Lossy cross-type change.
+            guard dropConflictingValues else {
+                throw AgendaEventManagerError.lossyChangeRequiresConfirmation
+            }
+
+            var updated = schema
+            updated.properties[propIndex].type = newType
+            updated.modifiedAt = Date()
+
+            let tx = SchemaTransaction()
+
+            // Stage updated schema sidecar.
+            let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
+            try tx.stage(updated, to: schemaURL)
+
+            // Stage member-file rewrites: strip the conflicting property value from
+            // every event file so no stale cross-type value lingers.
+            let dir = NexusPaths.eventsDir(in: nexus)
+            let eventFiles = try Filesystem.children(of: dir) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
+            }
+            for eventURL in eventFiles {
+                var event = try AtomicJSON.decode(AgendaEvent.self, from: eventURL)
+                guard event.properties[propertyID] != nil else { continue }
+                event.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(event), to: eventURL)
+            }
+
+            try tx.commit()
+
+            schema = updated
         } catch {
             self.pendingError = error
             throw error
