@@ -22,6 +22,10 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     // Item Types hold Items, not Pages.)
     var collectionOrder: [String]?
     var itemOrder: [String]?
+    /// Persisted default sort for this Item Type's list view. Nil → callers
+    /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
+    /// Phase J wires this to column-header sort persistence.
+    var defaultSort: DefaultSortConfig?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
@@ -30,6 +34,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         case schemaVersion = "schema_version"
         case collectionOrder = "collection_order"
         case itemOrder = "item_order"
+        case defaultSort = "default_sort"
     }
 
     init(
@@ -42,7 +47,8 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         modifiedAt: Date,
         schemaVersion: Int = 1,
         collectionOrder: [String]? = nil,
-        itemOrder: [String]? = nil
+        itemOrder: [String]? = nil,
+        defaultSort: DefaultSortConfig? = nil
     ) {
         self.id = id
         self.title = title
@@ -54,6 +60,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = schemaVersion
         self.collectionOrder = collectionOrder
         self.itemOrder = itemOrder
+        self.defaultSort = defaultSort
     }
 
     init(from decoder: any Decoder) throws {
@@ -68,6 +75,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
+        self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -81,6 +89,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
+        try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
     }
 }
 

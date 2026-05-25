@@ -12,10 +12,15 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
     var properties: [PropertyDefinition]
     var views: [SavedView]  // saved view configurations
     var modifiedAt: Date
+    /// Persisted default sort for the Tasks list view. Nil → callers fall back
+    /// to `DefaultSortConfig.legacyDefault` (`_modified_at desc`). Phase J
+    /// wires this to column-header sort persistence.
+    var defaultSort: DefaultSortConfig?
 
     enum CodingKeys: String, CodingKey {
         case schemaVersion, icon, properties, views
         case modifiedAt = "modified_at"
+        case defaultSort = "default_sort"
     }
 
     // MARK: - Custom Codable (legacy migration)
@@ -35,6 +40,7 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
         self.modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
+        self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
 
         // Attempt legacy decode first: if the raw JSON has `builtin` fields (old shape),
         // `LegacyProperty` decoding succeeds and we migrate to `[PropertyDefinition]`.
@@ -67,6 +73,7 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
         try c.encode(properties, forKey: .properties)
         try c.encode(views, forKey: .views)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
     }
 
     // MARK: - Default seed
@@ -100,13 +107,15 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
         icon: String?,
         properties: [PropertyDefinition],
         views: [SavedView],
-        modifiedAt: Date
+        modifiedAt: Date,
+        defaultSort: DefaultSortConfig? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.icon = icon
         self.properties = properties
         self.views = views
         self.modifiedAt = modifiedAt
+        self.defaultSort = defaultSort
     }
 }
 

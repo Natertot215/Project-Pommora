@@ -23,6 +23,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     // Pages, so there is no `itemOrder` field — Items live under ItemType.)
     var collectionOrder: [String]?
     var pageOrder: [String]?
+    /// Persisted default sort for this Page Type's list view. Nil → callers
+    /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
+    /// Phase J wires this to column-header sort persistence.
+    var defaultSort: DefaultSortConfig?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
@@ -30,6 +34,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         case schemaVersion = "schema_version"
         case collectionOrder = "collection_order"
         case pageOrder = "page_order"
+        case defaultSort = "default_sort"
     }
 
     init(
@@ -37,7 +42,8 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         properties: [PropertyDefinition], views: [SavedView], modifiedAt: Date,
         schemaVersion: Int = 1,
         collectionOrder: [String]? = nil,
-        pageOrder: [String]? = nil
+        pageOrder: [String]? = nil,
+        defaultSort: DefaultSortConfig? = nil
     ) {
         self.id = id
         self.title = title
@@ -48,6 +54,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = schemaVersion
         self.collectionOrder = collectionOrder
         self.pageOrder = pageOrder
+        self.defaultSort = defaultSort
     }
 
     init(from decoder: any Decoder) throws {
@@ -61,6 +68,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -73,6 +81,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
     }
 }
 
