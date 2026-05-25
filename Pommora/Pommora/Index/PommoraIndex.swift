@@ -55,10 +55,11 @@ final class PommoraIndex {
             return try open(at: nexusRoot)
         }
 
-        // 4. File is new: open, bootstrap meta table + write schema_version.
+        // 4. File is new: open, bootstrap meta table + write schema_version, apply schema.
         let dbQueue = try DatabaseQueue(path: dbURL.path)
         try dbQueue.write { db in
             try bootstrapMeta(db)
+            try IndexSchema.apply(to: db)
         }
 
         // 5. Return (index, needsRebuild). needsRebuild = true on fresh-create.

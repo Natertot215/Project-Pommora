@@ -59,6 +59,24 @@ struct PommoraIndexTests {
 
     // MARK: - Test 4: corruptedFileTriggersRebuild
 
+    @Test func allTablesExistAfterOpen() throws {
+        let root = tempNexusRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (index, _) = try PommoraIndex.open(at: root)
+        let expected: [String] = [
+            "meta", "page_types", "item_types", "page_collections", "item_collections",
+            "pages", "items", "agenda_tasks", "agenda_events", "contexts",
+            "relations", "tier_links", "property_definitions"
+        ]
+        let actual = try index.dbQueue.read { db -> Set<String> in
+            let names = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table'")
+            return Set(names)
+        }
+        for table in expected {
+            #expect(actual.contains(table), "Missing table: \(table)")
+        }
+    }
+
     @Test func corruptedFileTriggersRebuild() throws {
         let root = tempNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
