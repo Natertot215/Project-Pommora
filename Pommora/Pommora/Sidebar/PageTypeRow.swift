@@ -6,6 +6,8 @@ struct PageTypeRow: View {
     @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
+    let nexus: Nexus
+    let index: PommoraIndex?
     @State private var expanded: Bool = false
 
     @Environment(PageTypeManager.self) private var pageTypeManager
@@ -15,11 +17,12 @@ struct PageTypeRow: View {
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
+    @State private var showingVaultSettings: Bool = false
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             // Page-Type-root Pages render ABOVE Collections per spec
-            // (PageTypes.md:112-114). PageRow is a leaf — not selectable in v0.2.
+            // (PageTypes.md:112-114).
             ForEach(contentManager.pages(in: pageType)) { page in
                 PageRow(
                     page: page,
@@ -27,6 +30,14 @@ struct PageTypeRow: View {
                     selection: $selection,
                     editingID: $editingID
                 )
+                .tag(SelectionTag.page(page.id))
+            }
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    contentManager.reorderPages(
+                        inVault: pageType, fromOffsets: source, toOffset: destination
+                    )
+                }
             }
             ForEach(pageTypeManager.pageCollections(in: pageType)) { coll in
                 PageCollectionRow(
@@ -37,32 +48,17 @@ struct PageTypeRow: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.collection(coll.id))
             }
-        } label: {
-            // .reorderable wraps the label only — not the whole DisclosureGroup —
-            // so the chevron tap area stays free for expand/collapse. Applying
-            // .draggable to the outer view swallows chevron clicks as drag-init.
-            label.reorderable(
-                kind: .vault,
-                id: pageType.id,
-                containerID: nil,
-                nexusID: pageTypeManager.nexusID,
-                symbol: pageType.icon ?? "tray.2",
-                title: pageType.title,
-                accent: nil,
-                onDrop: { payload, position in
-                    let arr = pageTypeManager.types
-                    guard
-                        let from = arr.firstIndex(where: { $0.id == payload.id }),
-                        let targetIdx = arr.firstIndex(where: { $0.id == pageType.id })
-                    else { return }
-                    let toOffset = position == .above ? targetIdx : targetIdx + 1
-                    pageTypeManager.reorderPageTypes(
-                        fromOffsets: IndexSet(integer: from),
-                        toOffset: toOffset
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    pageTypeManager.reorderPageCollections(
+                        in: pageType, fromOffsets: source, toOffset: destination
                     )
                 }
-            )
+            }
+        } label: {
+            label
         }
         .listRowBackground(
             SelectionChrome(
@@ -75,20 +71,41 @@ struct PageTypeRow: View {
         .task {
             await contentManager.loadAll(for: pageType)
         }
+        .sheet(isPresented: $showingVaultSettings) {
+            VaultSettingsSheet(
+                pageType: pageType,
+                pageTypeManager: pageTypeManager,
+                nexus: nexus,
+                index: index,
+                onDismiss: { showingVaultSettings = false }
+            )
+            .interactiveDismissDisabled()
+        }
     }
 
     @ViewBuilder
     private var label: some View {
         if editingID == pageType.id {
-            renamingRow
+            RenameableRow(
+                symbol: pageType.icon ?? "tray.2",
+                initialTitle: pageType.title,
+                draft: $draft,
+                renameFocused: $renameFocused,
+                onSubmit: { commit() },
+                onCancel: { cancel() },
+                onFocusLoss: {
+                    if !isCommitting && editingID == pageType.id {
+                        cancel()
+                    }
+                }
+            )
         } else {
             SelectableRow(
                 title: pageType.title,
                 symbol: pageType.icon ?? "tray.2",
                 tag: SelectionTag.pageType(pageType.id),
                 selection: $selection,
-                accent: nil,
-                onSelect: { selection = .pageType(pageType) }
+                accent: nil
             )
             .contextMenu {
                 let pageTypeLabel = settingsManager.settings.labels.pageType.singular
@@ -101,6 +118,10 @@ struct PageTypeRow: View {
                     presentedSheet = .newPageInPageType(pageType: pageType)
                 }
                 Divider()
+                Button("\(pageTypeLabel) Settings…") {
+                    showingVaultSettings = true
+                }
+                Divider()
                 Button("Rename") { editingID = pageType.id }
                 Button("Change Icon") { presentedSheet = .editIcon(.pageType(pageType)) }
                 Divider()
@@ -110,38 +131,6 @@ struct PageTypeRow: View {
                 }
             }
         }
-    }
-
-    private var renamingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: pageType.icon ?? "tray.2")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) {
-                    cancel()
-                    return .handled
-                }
-                .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == pageType.id {
-                        cancel()
-                    }
-                }
-                .onAppear {
-                    draft = pageType.title
-                    renameFocused = true
-                }
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commit() {

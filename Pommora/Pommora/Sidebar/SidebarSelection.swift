@@ -77,6 +77,82 @@ extension SidebarSelection {
     }
 }
 
+extension SidebarSelection {
+    /// Bridge `SelectionTag` → `SidebarSelection` by resolving entities via
+    /// AppGlobals. Used by `SidebarView`'s `.onChange(of: selectedTag)` to keep
+    /// the entity-bearing `SidebarSelection` binding in sync with the List's
+    /// native `selection:` mechanism.
+    @MainActor
+    init?(tag: SelectionTag) {
+        switch tag {
+        case .savedKey(let key):
+            self = .savedKey(key)
+        case .space(let id):
+            guard let sm = AppGlobals.spaceManager,
+                let s = sm.spaces.first(where: { $0.id == id })
+            else { return nil }
+            self = .space(s)
+        case .topic(let id):
+            guard let tm = AppGlobals.topicManager,
+                let t = tm.topics.first(where: { $0.id == id })
+            else { return nil }
+            self = .topic(t)
+        case .project(let id):
+            guard let tm = AppGlobals.topicManager else { return nil }
+            for projects in tm.projectsByParent.values {
+                if let p = projects.first(where: { $0.id == id }) {
+                    self = .project(p)
+                    return
+                }
+            }
+            return nil
+        case .pageType(let id):
+            guard let pm = AppGlobals.pageTypeManager,
+                let t = pm.types.first(where: { $0.id == id })
+            else { return nil }
+            self = .pageType(t)
+        case .collection(let id):
+            guard let pm = AppGlobals.pageTypeManager else { return nil }
+            for pageType in pm.types {
+                if let c = pm.pageCollections(in: pageType).first(where: { $0.id == id }) {
+                    self = .collection(c)
+                    return
+                }
+            }
+            return nil
+        case .page(let id):
+            guard let cm = AppGlobals.contentManager else { return nil }
+            for pages in cm.pagesByCollection.values {
+                if let page = pages.first(where: { $0.id == id }) {
+                    self = .page(page)
+                    return
+                }
+            }
+            for pages in cm.pagesByTypeRoot.values {
+                if let page = pages.first(where: { $0.id == id }) {
+                    self = .page(page)
+                    return
+                }
+            }
+            return nil
+        case .itemType(let id):
+            guard let itm = AppGlobals.itemTypeManager,
+                let t = itm.types.first(where: { $0.id == id })
+            else { return nil }
+            self = .itemType(t)
+        case .itemCollection(let id):
+            guard let itm = AppGlobals.itemTypeManager else { return nil }
+            for itemType in itm.types {
+                if let c = itm.itemCollections(in: itemType).first(where: { $0.id == id }) {
+                    self = .itemCollection(c)
+                    return
+                }
+            }
+            return nil
+        }
+    }
+}
+
 /// Used by SelectableRow to compare against the current SidebarSelection
 /// for highlight state. Each case carries the entity's ULID.
 enum SelectionTag: Equatable, Hashable, Sendable {
@@ -102,6 +178,24 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case (.itemType(let id), .itemType(let t)): return id == t.id
         case (.itemCollection(let id), .itemCollection(let c)): return id == c.id
         default: return false
+        }
+    }
+
+    /// Derive the tag from a `SidebarSelection`. Used by `SidebarView` to keep
+    /// the List's native `selection:` state in sync when `SidebarSelection` is
+    /// mutated externally (recents jump, programmatic selection after CRUD).
+    init?(_ selection: SidebarSelection) {
+        switch selection {
+        case .none: return nil
+        case .savedKey(let k): self = .savedKey(k)
+        case .space(let s): self = .space(s.id)
+        case .topic(let t): self = .topic(t.id)
+        case .project(let p): self = .project(p.id)
+        case .pageType(let t): self = .pageType(t.id)
+        case .collection(let c): self = .collection(c.id)
+        case .page(let p): self = .page(p.id)
+        case .itemType(let t): self = .itemType(t.id)
+        case .itemCollection(let c): self = .itemCollection(c.id)
         }
     }
 }

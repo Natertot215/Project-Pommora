@@ -20,14 +20,14 @@ struct ItemTypeTests {
             icon: "cart",
             properties: [
                 PropertyDefinition(
-                    name: "status",
+                    id: "", name: "status",
                     type: .select,
                     selectOptions: [
                         PropertyDefinition.SelectOption(value: "todo", label: "To do", color: .blue),
                         PropertyDefinition.SelectOption(value: "done", label: "Done", color: .gray),
                     ]
                 ),
-                PropertyDefinition(name: "due", type: .date, dateIncludesTime: false),
+                PropertyDefinition(id: "", name: "due", type: .date, dateIncludesTime: false),
             ],
             views: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)
@@ -126,7 +126,7 @@ struct ItemTypeTests {
 
         let original = ItemType(
             id: "01HEQ", title: "Eq", icon: "tag",
-            properties: [PropertyDefinition(name: "p", type: .number)],
+            properties: [PropertyDefinition(id: "", name: "p", type: .number)],
             views: [], modifiedAt: Date(timeIntervalSince1970: 1716480000)
         )
         try original.save(to: metaURL)

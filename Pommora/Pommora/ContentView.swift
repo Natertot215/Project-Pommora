@@ -65,7 +65,10 @@ struct ContentView: View {
                 nexusManager.resolveAdoption(false)
             }
         ) { plan in
-            AdoptionPreviewView(plan: plan) { confirmed in
+            AdoptionPreviewView(
+                plan: plan,
+                migrationPlan: nexusManager.pendingMigrationPlan
+            ) { confirmed in
                 nexusManager.resolveAdoption(confirmed)
             }
         }
@@ -176,7 +179,9 @@ struct ContentView: View {
             let contentMgr = contentManager,
             let itemContentMgr = itemContentManager,
             let savedMgr = savedConfigManager,
-            let settingsMgr = settingsManager
+            let settingsMgr = settingsManager,
+            let agendaTaskMgr = agendaTaskManager,
+            let agendaEventMgr = agendaEventManager
         {
             SidebarView(selection: $sidebarSelection)
                 .environment(spaceMgr)
@@ -187,6 +192,8 @@ struct ContentView: View {
                 .environment(itemContentMgr)
                 .environment(savedMgr)
                 .environment(settingsMgr)
+                .environment(agendaTaskMgr)
+                .environment(agendaEventMgr)
                 .overlay(alignment: .bottom) {
                     if nexusManager.isIndexing {
                         IndexingHUD()
@@ -369,6 +376,18 @@ struct ContentView: View {
         let settingsMgr = SettingsManager(nexus: nexus)
         let router = MainWindowRouter()
 
+        // Phase E.7.5: wire IndexUpdater into all 6 CRUD managers before publishing.
+        // IndexUpdater is Sendable — a single value can be shared across all 6.
+        // If currentIndex is nil (degraded mode), updater stays nil and every
+        // manager's `if let updater = indexUpdater` guard skips index writes.
+        let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
+        vaultMgr.indexUpdater = updater
+        itemTypeMgr.indexUpdater = updater
+        contentMgr.indexUpdater = updater
+        itemContentMgr.indexUpdater = updater
+        agendaTaskMgr.indexUpdater = updater
+        agendaEventMgr.indexUpdater = updater
+
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
@@ -390,6 +409,7 @@ struct ContentView: View {
         AppGlobals.contentManager = contentMgr
         AppGlobals.itemContentManager = itemContentMgr
         AppGlobals.pageTypeManager = vaultMgr
+        AppGlobals.itemTypeManager = itemTypeMgr
         AppGlobals.spaceManager = spaceMgr
         AppGlobals.topicManager = topicMgr
         AppGlobals.recentsManager = recentsMgr

@@ -44,24 +44,4 @@ enum OrderResolver {
         let appended: [T] = items.filter { !knownIDs.contains($0.id) }.sorted(by: alphabetic)
         return known + appended
     }
-
-    /// Repositions the element identified by `draggedID` to land `position` of
-    /// the element identified by `overID`. Pure function — returns the original
-    /// array if either ID isn't found or `draggedID == overID`.
-    static func repositioning<T>(
-        _ items: [T],
-        draggedID: String,
-        overID: String,
-        position: DropPosition
-    ) -> [T] where T: Identifiable, T.ID == String {
-        var arr = items
-        guard draggedID != overID,
-            let fromIdx = arr.firstIndex(where: { $0.id == draggedID })
-        else { return items }
-        let dragged = arr.remove(at: fromIdx)
-        guard let toIdx = arr.firstIndex(where: { $0.id == overID }) else { return items }
-        let insertAt = position == .above ? toIdx : toIdx + 1
-        arr.insert(dragged, at: insertAt)
-        return arr
-    }
 }

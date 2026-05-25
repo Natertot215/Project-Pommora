@@ -39,6 +39,10 @@ final class PageContentManager {
     let nexus: Nexus
     let contextProvider: @MainActor () -> NexusContext
 
+    /// Injected by NexusManager in Phase E.7. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    var indexUpdater: IndexUpdater?
+
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 

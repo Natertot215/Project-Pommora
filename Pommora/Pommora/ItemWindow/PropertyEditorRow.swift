@@ -33,6 +33,12 @@ struct PropertyEditorRow: View {
             Text("Relation editor coming v0.3.0").font(.caption).foregroundStyle(.tertiary)
         case .url:
             urlEditor
+        case .status:
+            statusEditor
+        case .lastEditedTime:
+            lastEditedTimeEditor
+        case .file:
+            fileEditor
         }
     }
 
@@ -105,6 +111,38 @@ struct PropertyEditorRow: View {
             ),
             allowsAddingOptions: false  // schema edit is its own concern
         )
+    }
+
+    private var statusEditor: some View {
+        let currentValue: String = {
+            if case .status(let s) = value { return s }
+            return ""
+        }()
+        return Text("Status: \(currentValue)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private var lastEditedTimeEditor: some View {
+        let formatted: String = {
+            if case .lastEditedTime = value {
+                return DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
+            }
+            return "—"
+        }()
+        return Text(formatted)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private var fileEditor: some View {
+        let count: Int = {
+            if case .file(let refs) = value { return refs.count }
+            return 0
+        }()
+        return Text("\(count) file(s)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     private var urlEditor: some View {

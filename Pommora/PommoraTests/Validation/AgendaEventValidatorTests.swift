@@ -6,6 +6,20 @@ import Testing
 @Suite("AgendaEventValidator")
 struct AgendaEventValidatorTests {
 
+    /// A schema that mimics a legacy sidecar still carrying a `_type` Select
+    /// property. Used for tests that exercise the conditional `_type` branch.
+    private static func legacySchema() -> AgendaEventSchema {
+        let typeProp = PropertyDefinition(
+            id: "_type",
+            name: "Type",
+            type: .select,
+            selectOptions: [PropertyDefinition.SelectOption(value: "Event", label: "Event")]
+        )
+        var schema = AgendaEventSchema.defaultSeed()
+        schema.properties.append(typeProp)
+        return schema
+    }
+
     @Test("event with start <= end passes")
     func validEvent() throws {
         try AgendaEventValidator.validate(
@@ -13,7 +27,7 @@ struct AgendaEventValidatorTests {
             startAt: Date(timeIntervalSince1970: 100),
             endAt: Date(timeIntervalSince1970: 200),
             properties: ["type": .select("Event")],
-            schema: AgendaEventSchema.defaultSeed()
+            schema: Self.legacySchema()
         )
     }
 
@@ -25,7 +39,7 @@ struct AgendaEventValidatorTests {
             startAt: t,
             endAt: t,
             properties: ["type": .select("Event")],
-            schema: AgendaEventSchema.defaultSeed()
+            schema: Self.legacySchema()
         )
     }
 
@@ -68,7 +82,7 @@ struct AgendaEventValidatorTests {
         }
     }
 
-    @Test("missing type property throws missingTypeProperty")
+    @Test("missing _type value throws missingTypeProperty on legacy schemas")
     func missingType() {
         #expect(throws: AgendaEventValidator.ValidationError.missingTypeProperty) {
             try AgendaEventValidator.validate(
@@ -76,12 +90,12 @@ struct AgendaEventValidatorTests {
                 startAt: Date(timeIntervalSince1970: 100),
                 endAt: Date(timeIntervalSince1970: 200),
                 properties: [:],
-                schema: AgendaEventSchema.defaultSeed()
+                schema: Self.legacySchema()
             )
         }
     }
 
-    @Test("type value not in schema options throws unknownTypeValue")
+    @Test("_type value not in schema options throws unknownTypeValue on legacy schemas")
     func unknownTypeValue() {
         #expect(throws: AgendaEventValidator.ValidationError.unknownTypeValue("Madeup")) {
             try AgendaEventValidator.validate(
@@ -89,7 +103,7 @@ struct AgendaEventValidatorTests {
                 startAt: Date(timeIntervalSince1970: 100),
                 endAt: Date(timeIntervalSince1970: 200),
                 properties: ["type": .select("Madeup")],
-                schema: AgendaEventSchema.defaultSeed()
+                schema: Self.legacySchema()
             )
         }
     }

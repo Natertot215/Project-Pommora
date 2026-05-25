@@ -4,11 +4,10 @@ enum ItemValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
-        case duplicateTitle
         case descriptionTooLong
         case tierMismatch(expectedTier: Int, id: String)
-        case unknownProperty(name: String)
-        case propertyTypeMismatch(name: String)
+        case unknownProperty(id: String)
+        case propertyTypeMismatch(id: String)
     }
 
     static let maxDescriptionLength = 250
@@ -19,9 +18,7 @@ enum ItemValidator {
         description: String = "",
         properties: [String: PropertyValue],
         vault: PageType,
-        existingSiblings: [Item],
-        context: NexusContext,
-        excluding: Item? = nil
+        context: NexusContext
     ) throws {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
@@ -30,11 +27,6 @@ enum ItemValidator {
         guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
             throw ValidationError.invalidTitleCharacters
         }
-
-        let conflict = existingSiblings.contains { i in
-            i.id != excluding?.id && i.title.lowercased() == trimmed.lowercased()
-        }
-        if conflict { throw ValidationError.duplicateTitle }
 
         guard description.count <= maxDescriptionLength else {
             throw ValidationError.descriptionTooLong
@@ -57,20 +49,20 @@ enum ItemValidator {
             }
         }
 
-        // properties must be in schema + type match
-        let schemaByName = Dictionary(uniqueKeysWithValues: vault.properties.map { ($0.name, $0) })
-        for (name, value) in properties {
-            guard let def = schemaByName[name] else {
-                throw ValidationError.unknownProperty(name: name)
+        // properties must be in schema + type match (keyed by property ID)
+        let schemaByID = Dictionary(uniqueKeysWithValues: vault.properties.map { ($0.id, $0) })
+        for (propertyID, value) in properties {
+            guard let def = schemaByID[propertyID] else {
+                throw ValidationError.unknownProperty(id: propertyID)
             }
-            try validateType(value, against: def.type, name: name)
+            try validateType(value, against: def.type, id: propertyID)
         }
     }
 
     private static func validateType(
         _ value: PropertyValue,
         against type: PropertyType,
-        name: String
+        id: String
     ) throws {
         switch (value, type) {
         case (.number, .number),
@@ -84,7 +76,7 @@ enum ItemValidator {
             (.null, _):
             return
         default:
-            throw ValidationError.propertyTypeMismatch(name: name)
+            throw ValidationError.propertyTypeMismatch(id: id)
         }
     }
 }

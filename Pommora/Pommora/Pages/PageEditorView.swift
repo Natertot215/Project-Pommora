@@ -79,6 +79,44 @@ struct PageEditorView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            // J.13: PropertiesPulldown — lazy property surface above the editor.
+            // Binds to the page's frontmatter properties / tiers through the viewModel.
+            // Edits mutate frontmatter in-place then call scheduleSave() so the 300ms
+            // debounced pipeline picks them up just like body edits.
+            PropertiesPulldown(
+                schema: vault.properties,
+                values: Binding(
+                    get: { viewModel.page.frontmatter.properties },
+                    set: { viewModel.page.frontmatter.properties = $0 }
+                ),
+                tier1: Binding(
+                    get: { viewModel.page.frontmatter.tier1 },
+                    set: { viewModel.page.frontmatter.tier1 = $0 }
+                ),
+                tier2: Binding(
+                    get: { viewModel.page.frontmatter.tier2 },
+                    set: { viewModel.page.frontmatter.tier2 = $0 }
+                ),
+                tier3: Binding(
+                    get: { viewModel.page.frontmatter.tier3 },
+                    set: { viewModel.page.frontmatter.tier3 = $0 }
+                ),
+                autoManaged: AutoManagedFields(
+                    id: viewModel.page.frontmatter.id,
+                    createdAt: viewModel.page.frontmatter.createdAt,
+                    modifiedAt: viewModel.page.frontmatter.modifiedAt ?? viewModel.page.frontmatter.createdAt
+                ),
+                index: nil,  // wired when IndexQuery is plumbed through PageEditorHost
+                onValueChange: { _, _ in viewModel.scheduleSave() },
+                onTierChange: { _, _ in viewModel.scheduleSave() }
+            )
+            Divider()
+            editorZStack
+        }
+    }
+
+    private var editorZStack: some View {
         ZStack(alignment: .topLeading) {
             // Body editor — TextKit-2 native via vendored MarkdownEngine.
             // The wrapper binds two-way to viewModel.body; every keystroke

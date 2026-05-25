@@ -27,31 +27,17 @@ struct TopicRow: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.project(project.id))
             }
-        } label: {
-            // .reorderable wraps the label only so the chevron tap area stays
-            // free for expand/collapse (see PageTypeRow for full rationale).
-            label.reorderable(
-                kind: .topic,
-                id: topic.id,
-                containerID: nil,
-                nexusID: topicManager.nexusID,
-                symbol: topic.icon ?? "folder",
-                title: topic.title,
-                accent: nil,
-                onDrop: { payload, position in
-                    let arr = topicManager.topics
-                    guard
-                        let from = arr.firstIndex(where: { $0.id == payload.id }),
-                        let targetIdx = arr.firstIndex(where: { $0.id == topic.id })
-                    else { return }
-                    let toOffset = position == .above ? targetIdx : targetIdx + 1
-                    topicManager.reorderTopics(
-                        fromOffsets: IndexSet(integer: from),
-                        toOffset: toOffset
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    topicManager.reorderProjects(
+                        in: topic, fromOffsets: source, toOffset: destination
                     )
                 }
-            )
+            }
+        } label: {
+            label
         }
         .listRowBackground(
             SelectionChrome(
@@ -63,7 +49,22 @@ struct TopicRow: View {
     @ViewBuilder
     private var label: some View {
         if editingID == topic.id {
-            renamingRow
+            RenameableRow(
+                symbol: topic.icon ?? "folder",
+                initialTitle: topic.title,
+                draft: $draft,
+                renameFocused: $renameFocused,
+                onSubmit: { commit() },
+                onCancel: { cancel() },
+                onFocusLoss: {
+                    if !isCommitting && editingID == topic.id {
+                        cancel()
+                    }
+                },
+                trailing: {
+                    ParentSpaceTags(topic: topic, spaceManager: spaceManager)
+                }
+            )
         } else {
             SelectableRow(
                 title: topic.title,
@@ -71,7 +72,6 @@ struct TopicRow: View {
                 tag: SelectionTag.topic(topic.id),
                 selection: $selection,
                 accent: nil,
-                onSelect: { selection = .topic(topic) },
                 trailing: {
                     ParentSpaceTags(topic: topic, spaceManager: spaceManager)
                 }
@@ -90,42 +90,6 @@ struct TopicRow: View {
                 }
             }
         }
-    }
-
-    /// Mirrors SelectableRow's HStack shape — icon stays visible, trailing
-    /// ParentSpaceTags dots stay visible for visual stability across rename
-    /// mode. Only the text slot becomes a TextField.
-    private var renamingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: topic.icon ?? "folder")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 16, height: 16, alignment: .center)
-            TextField("", text: $draft)
-                .textFieldStyle(.plain)
-                .focused($renameFocused)
-                .onSubmit { commit() }
-                .onKeyPress(.escape) {
-                    cancel()
-                    return .handled
-                }
-                .onChange(of: renameFocused) { _, focused in
-                    if !focused && !isCommitting && editingID == topic.id {
-                        cancel()
-                    }
-                }
-                .onAppear {
-                    draft = topic.title
-                    renameFocused = true
-                }
-            Spacer(minLength: 0)
-            ParentSpaceTags(topic: topic, spaceManager: spaceManager)
-        }
-        .padding(.leading, 2)
-        .padding(.trailing, 0)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commit() {

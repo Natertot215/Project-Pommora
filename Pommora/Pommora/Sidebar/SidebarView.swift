@@ -1,22 +1,9 @@
-//
-//  SidebarView.swift
-//  Pommora
-//
-
-/// Selection chrome painted via `.listRowBackground` at the row-file level so
-/// the fill covers the full List row (including any DisclosureGroup chevron
-/// gutter). Inset per locked spec — 11pt horizontal + 2pt vertical from row
-/// edges by default for flat rows. DisclosureGroup-wrapped rows pass
-/// `.disclosure` style to flush the leading edge so chrome covers the chevron.
 import SwiftUI
 
-/// Five-section sidebar: Saved (pinned-headerless) / Spaces / Topics / Items / Pages. Rows extracted to *Row.swift files; sheets at Sheets/*Sheet.swift.
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
-    @Environment(SavedConfigManager.self) private var savedConfigManager
 
     @Binding var selection: SidebarSelection
 
@@ -24,13 +11,14 @@ struct SidebarView: View {
     @State private var presentedSheet: SidebarSheet? = nil
     @State private var confirmingDelete: SidebarConfirmation? = nil
 
+    // Drives the AppKit drag/select gesture chain via `List(selection:)`.
+    @State private var selectedTag: SelectionTag? = nil
+
     var body: some View {
         VStack(spacing: 0) {
-            // Toast surfaces CRUD failures via each manager's pendingError.
-            // Lives ABOVE the List so it doesn't touch the load-bearing
-            // Section / SectionHeader layout inside.
+            // Outside the List so it doesn't touch Section layout (quirk #9).
             SidebarToast()
-            List {
+            List(selection: $selectedTag) {
                 SavedSection(selection: $selection)
                 SpacesSection(
                     selection: $selection,
@@ -46,9 +34,7 @@ struct SidebarView: View {
                 )
                 ItemsSection(
                     selection: $selection,
-                    editingID: $editingID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
+                    presentedSheet: $presentedSheet
                 )
                 VaultsSection(
                     selection: $selection,
@@ -59,6 +45,22 @@ struct SidebarView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .onChange(of: selectedTag) { _, newTag in
+                if let newTag, let resolved = SidebarSelection(tag: newTag) {
+                    if selection != resolved { selection = resolved }
+                } else if newTag == nil, selection != .none {
+                    selection = .none
+                }
+            }
+            .onChange(of: selection) { _, newSelection in
+                let derivedTag = SelectionTag(newSelection)
+                if derivedTag != selectedTag { selectedTag = derivedTag }
+            }
+            .onAppear {
+                let derivedTag = SelectionTag(selection)
+                if derivedTag != selectedTag { selectedTag = derivedTag }
+            }
+            .background(NSTableSelectionStyleSuppressor()) // Nathan's Note: This is what prevents the double-accent fill and allows for the finder-like quartenary opacity.
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
@@ -186,27 +188,127 @@ struct SidebarView: View {
 
 // MARK: - Sections
 
+// MARK: - CalendarPinViewModel
+
+/// Extracted view-model for the Calendar pin row context menu.
+/// Holds mutable creation-result state so tests can verify callbacks
+/// without constructing SwiftUI views (J.5/J.11/K.1 pattern).
+@MainActor
+@Observable
+final class CalendarPinViewModel {
+    var lastCreatedTask: AgendaTask?
+    var lastCreatedEvent: AgendaEvent?
+    var pendingError: (any Error)?
+
+    func createTask(using manager: AgendaTaskManager) async {
+        let now = Date()
+        let task = AgendaTask(
+            id: ULID.generate(),
+            title: "New Task",
+            icon: nil,
+            description: "",
+            dueAt: nil,
+            dueFloating: false,
+            dueAllDay: false,
+            startAt: nil,
+            completed: false,
+            completedAt: nil,
+            priority: 0,
+            recurrence: nil,
+            alarmOffsets: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now,
+            modifiedAt: now,
+            properties: [:]
+        )
+        do {
+            try await manager.createTask(task)
+            lastCreatedTask = task
+        } catch {
+            pendingError = error
+        }
+    }
+
+    func createEvent(using manager: AgendaEventManager) async {
+        let now = Date()
+        let event = AgendaEvent(
+            id: ULID.generate(),
+            title: "New Event",
+            icon: nil,
+            description: "",
+            startAt: now,
+            endAt: now.addingTimeInterval(3600),
+            allDay: false,
+            location: nil,
+            recurrence: nil,
+            alarmOffsets: [],
+            alarmAbsolute: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now,
+            modifiedAt: now,
+            properties: [:]
+        )
+        do {
+            try await manager.createEvent(event)
+            lastCreatedEvent = event
+        } catch {
+            pendingError = error
+        }
+    }
+}
+
+// MARK: - SavedSection
+
 struct SavedSection: View {
     @Binding var selection: SidebarSelection
     @Environment(SavedConfigManager.self) private var savedConfigManager
+    @Environment(AgendaTaskManager.self) private var agendaTaskManager
+    @Environment(AgendaEventManager.self) private var agendaEventManager
+    @Environment(SettingsManager.self) private var settingsManager
+
+    @State private var calendarPinVM: CalendarPinViewModel = CalendarPinViewModel()
 
     var body: some View {
         Section {
             ForEach(savedConfigManager.config.items) { item in
-                SelectableRow(
-                    title: item.label,
-                    symbol: iconFor(item.key),
-                    tag: SelectionTag.savedKey(item.key),
-                    selection: $selection,
-                    accent: nil,
-                    onSelect: { selection = .savedKey(item.key) }
-                )
-                .listRowBackground(
-                    SelectionChrome(
-                        isSelected: SelectionTag.savedKey(item.key).matches(selection)
-                    )
-                )
+                calendarAwareRow(for: item)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func calendarAwareRow(for item: SavedConfig.Item) -> some View {
+        let row = SelectableRow(
+            title: item.label,
+            symbol: iconFor(item.key),
+            tag: SelectionTag.savedKey(item.key),
+            selection: $selection,
+            accent: nil
+        )
+        .listRowBackground(
+            SelectionChrome(
+                isSelected: SelectionTag.savedKey(item.key).matches(selection)
+            )
+        )
+        .tag(SelectionTag.savedKey(item.key))
+
+        if item.key == "calendar" {
+            row.contextMenu {
+                let taskLabel = settingsManager.settings.labels.agendaTask.singular
+                let eventLabel = settingsManager.settings.labels.agendaEvent.singular
+                Button("New \(taskLabel)") {
+                    Task { await calendarPinVM.createTask(using: agendaTaskManager) }
+                }
+                Button("New \(eventLabel)") {
+                    Task { await calendarPinVM.createEvent(using: agendaEventManager) }
+                }
+            }
+        } else {
+            row
         }
     }
 
@@ -226,6 +328,7 @@ struct SpacesSection: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(SpaceManager.self) private var spaceManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -239,12 +342,15 @@ struct SpacesSection: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.space(space.id))
             }
-            // Reorder is wired per-row via `.reorderable` (v0.2.8 Phase 2);
-            // `.onMove` is omitted on purpose so List doesn't draw its native
-            // blue insertion line. See `Sidebar/Drag/ReorderableRow.swift`.
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
+                }
+            }
         } header: {
-            SectionHeader(title: "Spaces") {
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.spaces) {
                 presentedSheet = .newSpace
             }
         }
@@ -257,6 +363,7 @@ struct TopicsSection: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(TopicManager.self) private var topicManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -270,10 +377,15 @@ struct TopicsSection: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                .tag(SelectionTag.topic(topic.id))
             }
-            // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
+                }
+            }
         } header: {
-            SectionHeader(title: "Topics") {
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.topics) {
                 presentedSheet = .newTopic
             }
         }
@@ -282,10 +394,10 @@ struct TopicsSection: View {
 
 struct ItemsSection: View {
     @Binding var selection: SidebarSelection
-    @Binding var editingID: String?
     @Binding var presentedSheet: SidebarSheet?
-    @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(NexusManager.self) private var nexusManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
 
@@ -294,14 +406,19 @@ struct ItemsSection: View {
             ForEach(itemTypeManager.types) { itemType in
                 ItemTypeRow(
                     itemType: itemType,
-                    selection: $selection
+                    selection: $selection,
+                    nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
+                    index: nexusManager.currentIndex
                 )
+                .tag(SelectionTag.itemType(itemType.id))
+            }
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    itemTypeManager.reorderItemTypes(fromOffsets: source, toOffset: destination)
+                }
             }
         } header: {
-            // Phase 8 stub: literal "Items" label (no SettingsManager read yet —
-            // Items-side label wiring lands with the real Items UI plan, per
-            // Task 8.5 spec).
-            SectionHeader(title: "Items") {
+            SectionHeader(title: settingsManager.settings.labels.sidebarSections.items) {
                 presentedSheet = .newItemType
             }
         }
@@ -315,6 +432,7 @@ struct VaultsSection: View {
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(SettingsManager.self) private var settingsManager
+    @Environment(NexusManager.self) private var nexusManager
 
     @State private var expanded: Bool = true
 
@@ -326,14 +444,18 @@ struct VaultsSection: View {
                     selection: $selection,
                     editingID: $editingID,
                     presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
+                    confirmingDelete: $confirmingDelete,
+                    nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
+                    index: nexusManager.currentIndex
                 )
+                .tag(SelectionTag.pageType(pageType.id))
             }
-            // Reorder wired per-row via `.reorderable` (v0.2.8 Phase 2).
+            .onMove { source, destination in
+                withAnimation(.snappy) {
+                    vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
+                }
+            }
         } header: {
-            // Section header text comes from SettingsManager
-            // (`sidebar_sections.pages`, default "Vaults" per the Pages-side
-            // signature plural; renameable per nexus via settings.json).
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.pages) {
                 presentedSheet = .newPageType
             }
@@ -355,7 +477,6 @@ struct SelectableRow<Trailing: View>: View {
     let tag: SelectionTag
     @Binding var selection: SidebarSelection
     let accent: Color?
-    let onSelect: () -> Void
     @ViewBuilder let trailing: () -> Trailing
 
     init(
@@ -364,7 +485,6 @@ struct SelectableRow<Trailing: View>: View {
         tag: SelectionTag,
         selection: Binding<SidebarSelection>,
         accent: Color?,
-        onSelect: @escaping () -> Void,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
     ) {
         self.title = title
@@ -372,7 +492,6 @@ struct SelectableRow<Trailing: View>: View {
         self.tag = tag
         self._selection = selection
         self.accent = accent
-        self.onSelect = onSelect
         self.trailing = trailing
     }
 
@@ -381,6 +500,8 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var body: some View {
+        // Pure content — tap + drag are driven by `List(selection:)` +
+        // `.onMove` at the SidebarView level via the row's `.tag(...)`.
         HStack(spacing: 8) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
@@ -398,11 +519,6 @@ struct SelectableRow<Trailing: View>: View {
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        // .simultaneousGesture instead of .onTapGesture so taps don't claim
-        // mouse-down exclusively — leaves the row edges available as drag
-        // initiation zones for List.onMove. Partial fix: drag works on the
-        // outer margins of each row, not on the label content itself.
-        .simultaneousGesture(TapGesture().onEnded { onSelect() })
         .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
     }
 }
@@ -426,7 +542,6 @@ struct SelectionChrome: View {
     var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                // This forces the permanent native gray sidebar selection
                 .fill(Color(nsColor: .quaternarySystemFill))
                 .padding(style.insets)
         } else {

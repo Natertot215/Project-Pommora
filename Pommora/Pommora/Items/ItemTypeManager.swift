@@ -31,6 +31,10 @@ final class ItemTypeManager {
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 
+    /// Injected by NexusManager in Phase E.7. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -65,14 +69,29 @@ final class ItemTypeManager {
                 loadedTypes.append(itemType)
 
                 // Discover ItemCollections (sub-folders with `_itemcollection.json`;
-                // skip _- and .-prefixed)
+                // skip _- and .-prefixed). A sub-folder inside an already-flat ItemType
+                // can only be an ItemCollection, so if the sidecar is missing (folder
+                // created by hand in Finder, or pre-existing before adoption), write
+                // a fresh one in place. Best-effort: a write failure falls through
+                // to the existing nil-skip behavior.
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> ItemCollection? in
-                        let metaURL = sub.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-                        guard Filesystem.fileExists(at: metaURL) else { return nil }
-                        return try? ItemCollection.load(from: metaURL)
+                        let collMetaURL = sub.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
+                        if !Filesystem.fileExists(at: collMetaURL) {
+                            let fresh = ItemCollection(
+                                id: ULID.generate(),
+                                typeID: itemType.id,
+                                title: sub.lastPathComponent,
+                                folderURL: sub,
+                                modifiedAt: Date()
+                            )
+                            try? Filesystem.writeMetadataIntoExistingFolder(
+                                metadataURL: collMetaURL, metadata: fresh
+                            )
+                        }
+                        return try? ItemCollection.load(from: collMetaURL)
                     }
                 loadedCols[itemType.id] = OrderResolver.resolve(
                     cols,
@@ -81,12 +100,9 @@ final class ItemTypeManager {
                 )
             }
 
-            // Sibling order persistence for ItemTypes lands with later phases;
-            // for Task 5.3 we fall through to OrderResolver's alphabetic tail
-            // (no persisted-order field on NexusState yet).
             self.types = OrderResolver.resolve(
                 loadedTypes,
-                persistedOrder: nil,
+                persistedOrder: readPersistedItemTypeOrder(),
                 titleKeyPath: \ItemType.title
             )
             self.itemCollectionsByType = loadedCols
@@ -122,11 +138,15 @@ final class ItemTypeManager {
                 folderURL: folder, metadataURL: meta, metadata: itemType
             )
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItemType(itemType) } catch { self.pendingError = error }
+            }
+
             types.append(itemType)
             itemCollectionsByType[itemType.id] = []
             types = OrderResolver.resolve(
                 types,
-                persistedOrder: nil,
+                persistedOrder: readPersistedItemTypeOrder(),
                 titleKeyPath: \ItemType.title
             )
             rebuildTypesByID()
@@ -170,6 +190,10 @@ final class ItemTypeManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItemType(updated) } catch { self.pendingError = error }
+            }
+
             if let i = types.firstIndex(where: { $0.id == itemType.id }) {
                 types[i] = updated
                 // Rebuild ItemCollection in-memory under new parent path
@@ -192,7 +216,7 @@ final class ItemTypeManager {
                 }
                 types = OrderResolver.resolve(
                     types,
-                    persistedOrder: nil,
+                    persistedOrder: readPersistedItemTypeOrder(),
                     titleKeyPath: \ItemType.title
                 )
                 rebuildTypesByID()
@@ -214,6 +238,9 @@ final class ItemTypeManager {
                 in: nexus.rootURL, typeFolderName: itemType.title
             )
             try updated.save(to: meta)
+            if let updater = indexUpdater {
+                do { try updater.upsertItemType(updated) } catch { self.pendingError = error }
+            }
             if let i = types.firstIndex(where: { $0.id == itemType.id }) {
                 types[i] = updated
                 rebuildTypesByID()
@@ -230,6 +257,9 @@ final class ItemTypeManager {
                 in: nexus.rootURL, typeFolderName: itemType.title
             )
             try Filesystem.moveToTrash(folder, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteItemType(id: itemType.id) } catch { self.pendingError = error }
+            }
             types.removeAll { $0.id == itemType.id }
             itemCollectionsByType.removeValue(forKey: itemType.id)
             typesByID.removeValue(forKey: itemType.id)
@@ -267,6 +297,10 @@ final class ItemTypeManager {
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: metaURL, metadata: coll
             )
+
+            if let updater = indexUpdater {
+                do { try updater.upsertItemCollection(coll) } catch { self.pendingError = error }
+            }
 
             var arr = existing
             arr.append(coll)
@@ -320,6 +354,10 @@ final class ItemTypeManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItemCollection(updated) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == collection.id }) {
                 arr[i] = updated
@@ -341,6 +379,9 @@ final class ItemTypeManager {
     func deleteItemCollection(_ collection: ItemCollection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteItemCollection(id: collection.id) } catch { self.pendingError = error }
+            }
             var arr = itemCollectionsByType[collection.typeID] ?? []
             arr.removeAll { $0.id == collection.id }
             itemCollectionsByType[collection.typeID] = arr
@@ -350,23 +391,26 @@ final class ItemTypeManager {
         }
     }
 
-    // MARK: - Reorder (in-memory only for Task 5.3)
-    //
-    // Top-level ItemType sibling order persistence + per-ItemType
-    // collectionOrder persistence land in a later wave (NexusState gains
-    // `itemTypeOrder`; OrderPersister gains `setItemTypeOrder` +
-    // `setItemCollectionOrder`). For now these mutate in-memory only so
-    // SwiftUI `.onMove(perform:)` wires through without crashing; the
-    // alphabetic resolver is the source of truth on reload.
+    // MARK: - Reorder
 
+    /// Reorders Item Types in response to a sidebar drag. Matches the SwiftUI
+    /// `.onMove(perform:)` signature. New full ID order persists to
+    /// `.nexus/state.json`.
     func reorderItemTypes(fromOffsets source: IndexSet, toOffset destination: Int) {
         var arr = types
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != types else { return }
         types = arr
         rebuildTypesByID()
+        do {
+            try OrderPersister.setItemTypeOrder(arr.map(\.id), in: nexus)
+        } catch {
+            self.pendingError = error
+        }
     }
 
+    /// Reorders ItemCollections within `itemType`. New ID order persists to the
+    /// parent Item Type's schema sidecar.
     func reorderItemCollections(
         in itemType: ItemType,
         fromOffsets source: IndexSet,
@@ -377,11 +421,422 @@ final class ItemTypeManager {
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
         itemCollectionsByType[itemType.id] = arr
+        do {
+            try OrderPersister.setItemCollectionOrder(arr.map(\.id), in: itemType, nexus: nexus)
+            // Keep the in-memory ItemType's collectionOrder in sync.
+            if let i = types.firstIndex(where: { $0.id == itemType.id }) {
+                types[i].collectionOrder = arr.map(\.id)
+                rebuildTypesByID()
+            }
+        } catch {
+            self.pendingError = error
+        }
     }
 
     // MARK: - Private helpers
 
     private func rebuildTypesByID() {
         typesByID = Dictionary(uniqueKeysWithValues: types.map { ($0.id, $0) })
+    }
+
+    /// Reads the persisted Item Type sibling order from `.nexus/state.json`.
+    /// Returns nil when there's no state file or no `item_type_order` recorded —
+    /// the resolver falls back to alphabetic in that case.
+    private func readPersistedItemTypeOrder() -> [String]? {
+        let url = NexusPaths.nexusStateURL(in: nexus)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return (try? AtomicJSON.decode(NexusState.self, from: url))?.itemTypeOrder
+    }
+}
+
+// MARK: - Schema CRUD errors
+
+enum ItemTypeManagerError: Error, Equatable {
+    case typeNotFound
+    case propertyNotFound
+    case lossyChangeRequiresConfirmation
+    case indexOutOfBounds
+}
+
+// MARK: - Schema CRUD methods
+
+extension ItemTypeManager {
+
+    // MARK: - Add property
+
+    /// Adds a property definition to an Item Type's schema. If `definition.id` is empty,
+    /// a new user-property ID (`prop_<ulid>`) is minted. Validates against existing
+    /// properties via `PropertyDefinitionValidator`. Schema-only write (member files
+    /// are not touched — identity is stored by ID).
+    ///
+    /// **Paired relations** (`definition.type == .relation && definition.dualProperty != nil`):
+    /// Routed through `DualRelationCoordinator.createPairedRelation` which writes both
+    /// Type sidecars atomically. Target must be another ItemType in this manager
+    /// (`dualProperty.syncedPropertyDefinedOnTypeID`). Cross-side pairing (ItemType →
+    /// PageType) is a post-v1 Prospect.
+    func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+
+            var def = definition
+            if def.id.isEmpty {
+                def.id = ReservedPropertyID.mintUserPropertyID()
+            }
+
+            // Paired relation: route through DualRelationCoordinator.
+            if def.type == .relation, let dualConfig = def.dualProperty {
+                let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
+                guard let scope = def.relationScope else {
+                    throw ItemTypeManagerError.propertyNotFound
+                }
+                guard let targetType = types.first(where: { $0.id == targetTypeID }) else {
+                    throw ItemTypeManagerError.typeNotFound
+                }
+                let sourceKind = DualRelationCoordinator.TypeKind.itemType(types[i])
+                let targetKind = DualRelationCoordinator.TypeKind.itemType(targetType)
+                let targetScope = PropertyDefinition.RelationScope.itemType(types[i].id)
+                let reverseName = dualConfig.syncedPropertyID.isEmpty ? def.name : dualConfig.syncedPropertyID
+
+                let (srcID, _) = try DualRelationCoordinator.createPairedRelation(
+                    source: sourceKind,
+                    sourcePropertyName: def.name,
+                    sourceScope: scope,
+                    target: targetKind,
+                    targetPropertyName: reverseName,
+                    targetScope: targetScope,
+                    nexus: nexus
+                )
+                // Reload source type from disk.
+                let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[i].title)
+                if let reloaded = try? ItemType.load(from: meta) {
+                    types[i] = reloaded
+                    rebuildTypesByID()
+                }
+                // Reload target type if different.
+                if targetTypeID != typeID, let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                    let tMeta = NexusPaths.itemTypeMetadataURL(
+                        in: nexus.rootURL, typeFolderName: targetType.title)
+                    if let reloaded = try? ItemType.load(from: tMeta) {
+                        types[j] = reloaded
+                        rebuildTypesByID()
+                    }
+                }
+                if let updater = indexUpdater {
+                    if let addedDef = types[i].properties.first(where: { $0.id == srcID }) {
+                        let position = types[i].properties.count - 1
+                        do {
+                            try updater.upsertPropertyDefinition(
+                                addedDef, owningTypeID: typeID, owningTypeKind: "item_type",
+                                position: position
+                            )
+                        } catch { self.pendingError = error }
+                    }
+                }
+                return
+            }
+
+            try PropertyDefinitionValidator.validate(def, in: types[i].properties)
+
+            var updated = types[i]
+            updated.properties.append(def)
+            updated.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                let position = updated.properties.count - 1
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: position) } catch { self.pendingError = error }
+            }
+
+            types[i] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Rename property
+
+    /// Renames a property by its stable ID. Schema-only write — member files keyed by
+    /// `id` are not touched (rename-safe by design per the domain model).
+    func renameProperty(id propertyID: String, in typeID: String, to newName: String) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var renamedDef = types[typeIndex].properties[propIndex]
+            renamedDef.name = newName
+
+            // Build the schema with the renamed definition substituted in, so validation
+            // can check name-uniqueness against the rest of the schema (excluding itself).
+            var otherProps = types[typeIndex].properties
+            otherProps.remove(at: propIndex)
+            // Validate name only — borrow the validator but supply a def with a fresh
+            // temp-unique ID so the duplicate-ID rule doesn't fire. We only care about
+            // the name-uniqueness check here.
+            var validationDef = renamedDef
+            validationDef.id = ReservedPropertyID.mintUserPropertyID()
+            try PropertyDefinitionValidator.validate(validationDef, in: otherProps)
+
+            var updated = types[typeIndex]
+            updated.properties[propIndex] = renamedDef
+            updated.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+            }
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Delete property
+
+    /// Deletes a property from the schema. Atomically removes the schema entry and
+    /// strips the corresponding key from every member Item's `properties` dictionary
+    /// via `SchemaTransaction`.
+    ///
+    /// **Paired relations** (`property.dualProperty != nil`): routed through
+    /// `DualRelationCoordinator.deletePair` which cascades the delete to both
+    /// Type sidecars and strips all values from member files on each side.
+    func deleteProperty(id propertyID: String, in typeID: String) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            let prop = types[typeIndex].properties[propIndex]
+
+            // Paired relation: route through DualRelationCoordinator (cascades both sides).
+            if prop.type == .relation, let dualConfig = prop.dualProperty {
+                let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
+                let ownerKind = DualRelationCoordinator.TypeKind.itemType(types[typeIndex])
+                if let targetType = types.first(where: { $0.id == targetTypeID }) {
+                    let reverseKind = DualRelationCoordinator.TypeKind.itemType(targetType)
+                    try DualRelationCoordinator.deletePair(
+                        propertyID: propertyID,
+                        owner: ownerKind,
+                        reverse: reverseKind,
+                        nexus: nexus
+                    )
+                    // Reload both types in-memory.
+                    let meta = NexusPaths.itemTypeMetadataURL(
+                        in: nexus.rootURL, typeFolderName: types[typeIndex].title)
+                    if let reloaded = try? ItemType.load(from: meta) {
+                        types[typeIndex] = reloaded
+                        rebuildTypesByID()
+                    }
+                    if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                        let tMeta = NexusPaths.itemTypeMetadataURL(
+                            in: nexus.rootURL, typeFolderName: targetType.title)
+                        if let reloaded = try? ItemType.load(from: tMeta) {
+                            types[j] = reloaded
+                            rebuildTypesByID()
+                        }
+                    }
+                    if let updater = indexUpdater {
+                        do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+                        do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch { self.pendingError = error }
+                    }
+                    return
+                }
+                // Target not found in-memory: fall through to simple delete of source only.
+                _ = ownerKind
+            }
+
+            var updated = types[typeIndex]
+            updated.properties.remove(at: propIndex)
+            updated.modifiedAt = Date()
+
+            let tx = SchemaTransaction()
+
+            // Stage updated schema sidecar.
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try tx.stage(updated, to: meta)
+
+            // Stage member-file rewrites: strip the property key from every Item's properties dict.
+            let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: updated.title)
+            let itemFiles = try Filesystem.descendantFiles(
+                of: typeFolder,
+                where: { url in
+                    url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                })
+            for itemURL in itemFiles {
+                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                guard item.properties[propertyID] != nil else { continue }
+                item.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
+            }
+
+            try tx.commit()
+
+            if let updater = indexUpdater {
+                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+            }
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Reorder property
+
+    /// Moves a property to a new index within the schema's `properties` array.
+    /// Schema-only write — member files are not touched.
+    func reorderProperty(id propertyID: String, in typeID: String, toIndex newIndex: Int) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var props = types[typeIndex].properties
+            let clampedIndex = min(max(newIndex, 0), props.count - 1)
+            guard clampedIndex != propIndex else { return }
+
+            guard clampedIndex >= 0 && clampedIndex < props.count else {
+                throw ItemTypeManagerError.indexOutOfBounds
+            }
+
+            props.move(
+                fromOffsets: IndexSet(integer: propIndex),
+                toOffset: clampedIndex > propIndex ? clampedIndex + 1 : clampedIndex)
+
+            var updated = types[typeIndex]
+            updated.properties = props
+            updated.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                for (pos, def) in updated.properties.enumerated() {
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: pos) } catch { self.pendingError = error }
+                }
+            }
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Change property type
+
+    /// Changes the type of an existing property.
+    ///
+    /// **Lossless path** (`oldType == newType`): updates the schema sidecar only.
+    ///
+    /// **Lossy path** (`oldType != newType`):
+    /// - `dropConflictingValues == false` → throws `.lossyChangeRequiresConfirmation`
+    ///   so the caller can surface a confirmation dialog.
+    /// - `dropConflictingValues == true` → atomically updates the schema sidecar and
+    ///   strips the property's value from every member Item's properties dict via
+    ///   `SchemaTransaction`.
+    func changeType(
+        of propertyID: String,
+        in typeID: String,
+        to newType: PropertyType,
+        dropConflictingValues: Bool = false
+    ) async throws {
+        do {
+            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            let oldType = types[typeIndex].properties[propIndex].type
+
+            if oldType == newType {
+                // Lossless: schema-only write to bump modifiedAt.
+                var updated = types[typeIndex]
+                updated.properties[propIndex].type = newType
+                updated.modifiedAt = Date()
+                let meta = NexusPaths.itemTypeMetadataURL(
+                    in: nexus.rootURL, typeFolderName: updated.title)
+                try updated.save(to: meta)
+                if let updater = indexUpdater {
+                    let def = updated.properties[propIndex]
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+                }
+                types[typeIndex] = updated
+                rebuildTypesByID()
+                return
+            }
+
+            // Lossy cross-type change.
+            guard dropConflictingValues else {
+                throw ItemTypeManagerError.lossyChangeRequiresConfirmation
+            }
+
+            var updated = types[typeIndex]
+            updated.properties[propIndex].type = newType
+            updated.modifiedAt = Date()
+
+            let tx = SchemaTransaction()
+
+            // Stage updated schema sidecar.
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
+            try tx.stage(updated, to: meta)
+
+            // Stage member-file rewrites: strip the conflicting property value from
+            // every Item's properties dict so no stale cross-type value lingers.
+            let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: updated.title)
+            let itemFiles = try Filesystem.descendantFiles(
+                of: typeFolder,
+                where: { url in
+                    url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                })
+            for itemURL in itemFiles {
+                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                guard item.properties[propertyID] != nil else { continue }
+                item.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
+            }
+
+            try tx.commit()
+
+            if let updater = indexUpdater {
+                let def = updated.properties[propIndex]
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+            }
+
+            types[typeIndex] = updated
+            rebuildTypesByID()
+        } catch {
+            self.pendingError = error
+            throw error
+        }
     }
 }

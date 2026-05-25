@@ -23,7 +23,7 @@ struct AgendaTaskManagerTests {
         #expect(schemaURL.lastPathComponent == NexusPaths.taskConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
         let loaded = try AtomicJSON.decode(AgendaTaskSchema.self, from: schemaURL)
-        #expect(loaded.properties.contains { $0.name == "type" && $0.builtin })
+        #expect(loaded.properties.contains { $0.id == "_status" && $0.name == "Status" })
     }
 
     @Test("loadAll reuses a renamed Tasks singleton discovered by _taskconfig.json")
@@ -83,10 +83,27 @@ struct AgendaTaskManagerTests {
         #expect(manager.tasks.count == 1)
     }
 
-    @Test("createTask with invalid type throws")
+    @Test("createTask with invalid _type value throws on legacy schemas that still carry _type")
     func invalidType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
+
+        // Pre-seed a legacy schema that still carries a _type Select property so
+        // the validator's conditional _type branch fires. The manager will discover
+        // and load this schema on loadAll() rather than writing the default seed.
+        let tasksDir = nexus.rootURL.appendingPathComponent("Tasks", isDirectory: true)
+        try FileManager.default.createDirectory(at: tasksDir, withIntermediateDirectories: true)
+        let legacyTypeProp = PropertyDefinition(
+            id: "_type",
+            name: "Type",
+            type: .select,
+            selectOptions: [PropertyDefinition.SelectOption(value: "Task", label: "Task")]
+        )
+        var legacySchema = AgendaTaskSchema.defaultSeed()
+        legacySchema.properties.append(legacyTypeProp)
+        let schemaURL = tasksDir.appendingPathComponent(NexusPaths.taskConfigSidecarFilename)
+        try AtomicJSON.write(legacySchema, to: schemaURL)
+
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 

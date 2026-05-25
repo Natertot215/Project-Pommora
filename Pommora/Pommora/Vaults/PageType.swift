@@ -12,6 +12,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var properties: [PropertyDefinition]  // schema shared across Content
     var views: [SavedView]  // saved views (empty placeholder in v0.2)
     var modifiedAt: Date
+    /// Forward-compat: pre-v0.3.0 sidecars decode as `0` (signal for migration).
+    /// New sidecars write `1`. Phase C.3 migration bumps existing sidecars to 1
+    /// when it rewrites them with synthesised PropertyDefinition `id`s. Per EC2.
+    var schemaVersion: Int
 
     // Persisted display order for direct children (v0.2.8.0). All nil until the
     // user reorders inside that container; missing entries fall through to
@@ -19,19 +23,27 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     // Pages, so there is no `itemOrder` field — Items live under ItemType.)
     var collectionOrder: [String]?
     var pageOrder: [String]?
+    /// Persisted default sort for this Page Type's list view. Nil → callers
+    /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
+    /// Phase J wires this to column-header sort persistence.
+    var defaultSort: DefaultSortConfig?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
         case modifiedAt = "modified_at"
+        case schemaVersion = "schema_version"
         case collectionOrder = "collection_order"
         case pageOrder = "page_order"
+        case defaultSort = "default_sort"
     }
 
     init(
         id: String, title: String, icon: String?,
         properties: [PropertyDefinition], views: [SavedView], modifiedAt: Date,
+        schemaVersion: Int = 1,
         collectionOrder: [String]? = nil,
-        pageOrder: [String]? = nil
+        pageOrder: [String]? = nil,
+        defaultSort: DefaultSortConfig? = nil
     ) {
         self.id = id
         self.title = title
@@ -39,8 +51,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.properties = properties
         self.views = views
         self.modifiedAt = modifiedAt
+        self.schemaVersion = schemaVersion
         self.collectionOrder = collectionOrder
         self.pageOrder = pageOrder
+        self.defaultSort = defaultSort
     }
 
     init(from decoder: any Decoder) throws {
@@ -51,8 +65,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -62,8 +78,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(properties, forKey: .properties)
         try c.encode(views, forKey: .views)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
     }
 }
 

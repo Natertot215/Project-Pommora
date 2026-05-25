@@ -42,6 +42,8 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
 // they're dormant in v0.3.0 (no sidebar Agenda section per Phase 8.3).
 
 struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
+    var spaces: String
+    var topics: String
     var pages: String
     var items: String
     // No `agenda` field — Agenda has no sidebar section. Agenda Tasks + Agenda Events
@@ -53,7 +55,30 @@ struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
         // Items-side signature is "Set", but the section heading names the
         // CONTAINER concept ("Types") not the sub-container — Items-side
         // plural pageType-equivalent is "Types".
-        SidebarSectionLabels(pages: "Vaults", items: "Types")
+        SidebarSectionLabels(spaces: "Spaces", topics: "Topics", pages: "Vaults", items: "Types")
+    }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case spaces, topics, pages, items
+    }
+
+    init(spaces: String, topics: String, pages: String, items: String) {
+        self.spaces = spaces
+        self.topics = topics
+        self.pages = pages
+        self.items = items
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // Legacy files lack `spaces` / `topics` — decode with defaults for
+        // backward compatibility. Users who customized will re-apply the label.
+        spaces = (try? c.decode(String.self, forKey: .spaces)) ?? "Spaces"
+        topics = (try? c.decode(String.self, forKey: .topics)) ?? "Topics"
+        pages = try c.decode(String.self, forKey: .pages)
+        items = try c.decode(String.self, forKey: .items)
     }
 }
 

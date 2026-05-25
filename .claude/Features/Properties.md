@@ -40,7 +40,7 @@ Page Collections and Item Collections do not carry their own schemas — they in
 | **Date & Time** | `"2026-06-15T14:30:00Z"` | `{}` | Date + time picker. |
 | **Select** | `"<option value>"` | `{ "select_options": [{ "value", "label", "color" }, ...] }` | Single-pick colored pill. Option `value` immutable post-create; `label` renameable. Option order defines sort. Options are NOT created by typing into the value picker. |
 | **Multi-select** | `["<value>", ...]` | `{ "select_options": [...] }` (same shape as Select) | Tag-style multi-pick. Each chip in its option's color. Option order defines sort. Options NOT created by typing. |
-| **Status** | `"<option value>"` | `{ "status_groups": [{ "id", "label", "color", "options" }, ...] }` (3 fixed groups: `upcoming` / `in_progress` / `done`) | Grouped picker popover, 3 sections, single-pick. Pill color resolves option override > group default. Group labels renameable; 3 group slots fixed. Sort = group position first, then option order. Options NOT created by typing. |
+| **Status** | `{"$status": "<option value>"}` (tagged object) | `{ "status_groups": [{ "id", "label", "color", "options" }, ...] }` (3 fixed groups: `upcoming` / `in_progress` / `done`) | Grouped picker popover, 3 sections, single-pick. Pill color resolves option override > group default. Group labels renameable; 3 group slots fixed. Sort = group position first, then option order. Options NOT created by typing. Stored as tagged object (mirrors `$rel` pattern) so external agents can identify status values from any file without consulting the schema; bare-string would shape-collide with Select. |
 | **URL** | `"https://..."` | `{}` | URL input; clickable link with favicon. |
 | **Relation** | `{"$rel": "01HXYZ..."}` (single) or `[{"$rel": "..."}, ...]` (multi) | `{ "relation_scope": {...}, "allows_multiple": bool, "dual_property": {...}? }` | Scope-aware picker. Stored as tagged JSON object so external agents can identify cross-entity edges from any file without consulting schema. Displayed as the target's current title — styled colored inline text (wikilink look). Renames update automatically. |
 | **Last Edited Time** | *(not stored — derived from `modified_at`)* | `{}` | Read-only, sortable. Default sort, descending. |
@@ -90,11 +90,14 @@ On-disk shape:
 # Page frontmatter — property values keyed by property ID
 id: 01HPAGE...
 created_at: 2026-05-24T...
+modified_at: 2026-05-24T...
 icon: doc.text
 tier1: [01HSPACE...]
 tier2: [01HTOPIC...]
-prop_01HXY...: "active"                 # display name: "Status"
-prop_01HAB...: ["research", "frontend"]  # display name: "Tags"
+prop_01HXY...: { $status: active }       # display name: "Status" — tagged-object form
+prop_01HAB...: ["research", "frontend"]  # display name: "Tags"  (Multi-select stays bare-array)
+prop_01HSEL...: "in_review"              # display name: "Stage" (Select stays bare-string)
+prop_01HREL...: { $rel: 01HTARGET... }   # display name: "Project" (Relation, single)
 ```
 
 ```json
@@ -102,11 +105,14 @@ prop_01HAB...: ["research", "frontend"]  # display name: "Tags"
 {
   "id": "01HITEM...",
   "properties": {
-    "prop_01HXY...": "active",
-    "prop_01HAB...": ["research", "frontend"]
+    "prop_01HXY...": { "$status": "active" },
+    "prop_01HAB...": ["research", "frontend"],
+    "prop_01HREL...": { "$rel": "01HTARGET..." }
   }
 }
 ```
+
+Status + Relation both use a tagged-object on-disk shape (`$status` / `$rel`) so external agents can identify the value type from any single file without consulting the schema sidecar — satisfies the agent-legibility load-bearing constraint (`Architecture.md`). Select stays bare-string and Multi-select stays bare-array because their shapes are unambiguous (no other type collides at the value layer).
 
 Schema sidecar shape:
 

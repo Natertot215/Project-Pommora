@@ -29,16 +29,17 @@ enum AgendaTaskValidator {
         // EKReminder-style time-field consistency: due_all_day requires due_at.
         if dueAllDay && dueAt == nil { throw ValidationError.dueAllDayWithoutDue }
 
-        // type property required + value must be one of schema's type-Select options
-        guard case .select(let typeValue)? = properties["type"] else {
-            throw ValidationError.missingTypeProperty
-        }
-        guard let typeProp = schema.properties.first(where: { $0.name == "type" }) else {
-            throw ValidationError.missingTypeProperty
-        }
-        let allowed = Set((typeProp.options ?? []).map(\.value))
-        guard allowed.contains(typeValue) else {
-            throw ValidationError.unknownTypeValue(typeValue)
+        // _type Select validation: only enforce if the schema still carries _type.
+        // As of Phase G.1 the default seed uses _status instead of _type; existing
+        // schemas that retain _type still get validated. Skip entirely when absent.
+        if let typeProp = schema.properties.first(where: { $0.id == "_type" }) {
+            guard case .select(let typeValue)? = properties["type"] else {
+                throw ValidationError.missingTypeProperty
+            }
+            let allowed = Set((typeProp.selectOptions ?? []).map(\.value))
+            guard allowed.contains(typeValue) else {
+                throw ValidationError.unknownTypeValue(typeValue)
+            }
         }
     }
 }

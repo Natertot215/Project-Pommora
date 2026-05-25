@@ -13,6 +13,8 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var views: [SavedView]  // saved views (empty placeholder in v0.2)
     var templateConfig: ItemTemplateConfig?  // reserved for post-v1 templates
     var modifiedAt: Date
+    /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. Per EC2.
+    var schemaVersion: Int
 
     // Persisted display order for direct children. Nil until the user reorders
     // inside that container; missing entries fall through to OrderResolver's
@@ -20,13 +22,19 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     // Item Types hold Items, not Pages.)
     var collectionOrder: [String]?
     var itemOrder: [String]?
+    /// Persisted default sort for this Item Type's list view. Nil → callers
+    /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
+    /// Phase J wires this to column-header sort persistence.
+    var defaultSort: DefaultSortConfig?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
         case templateConfig = "template_config"
         case modifiedAt = "modified_at"
+        case schemaVersion = "schema_version"
         case collectionOrder = "collection_order"
         case itemOrder = "item_order"
+        case defaultSort = "default_sort"
     }
 
     init(
@@ -37,8 +45,10 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         views: [SavedView],
         templateConfig: ItemTemplateConfig? = nil,
         modifiedAt: Date,
+        schemaVersion: Int = 1,
         collectionOrder: [String]? = nil,
-        itemOrder: [String]? = nil
+        itemOrder: [String]? = nil,
+        defaultSort: DefaultSortConfig? = nil
     ) {
         self.id = id
         self.title = title
@@ -47,8 +57,10 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.views = views
         self.templateConfig = templateConfig
         self.modifiedAt = modifiedAt
+        self.schemaVersion = schemaVersion
         self.collectionOrder = collectionOrder
         self.itemOrder = itemOrder
+        self.defaultSort = defaultSort
     }
 
     init(from decoder: any Decoder) throws {
@@ -60,8 +72,10 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
         self.templateConfig = try c.decodeIfPresent(ItemTemplateConfig.self, forKey: .templateConfig)
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
+        self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -72,8 +86,10 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(views, forKey: .views)
         try c.encodeIfPresent(templateConfig, forKey: .templateConfig)
         try c.encode(modifiedAt, forKey: .modifiedAt)
+        try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
+        try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
     }
 }
 
