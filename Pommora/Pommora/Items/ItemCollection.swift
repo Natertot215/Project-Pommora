@@ -21,12 +21,20 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     // OrderResolver's alphabetic tail.
     var itemOrder: [String]?
 
+    /// Property IDs (from the parent ItemType schema) that are pinned to appear
+    /// in the row preview for items in this collection. Empty by default.
+    /// Encoded as `pinned_properties` (snake_case). Legacy sidecars missing the
+    /// field decode as `[]` — no migration needed; the user-visible default is
+    /// "no pinned properties".
+    var pinnedProperties: [String]
+
     enum CodingKeys: String, CodingKey {
         case id
         case typeID = "type_id"
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
         case itemOrder = "item_order"
+        case pinnedProperties = "pinned_properties"
     }
 
     init(
@@ -36,7 +44,8 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         folderURL: URL,
         modifiedAt: Date,
         schemaVersion: Int = 1,
-        itemOrder: [String]? = nil
+        itemOrder: [String]? = nil,
+        pinnedProperties: [String] = []
     ) {
         self.id = id
         self.typeID = typeID
@@ -45,6 +54,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = modifiedAt
         self.schemaVersion = schemaVersion
         self.itemOrder = itemOrder
+        self.pinnedProperties = pinnedProperties
     }
 
     init(from decoder: any Decoder) throws {
@@ -56,6 +66,8 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
+        // Legacy decode: field absent in pre-J.2 sidecars → default to empty.
+        self.pinnedProperties = (try? c.decode([String].self, forKey: .pinnedProperties)) ?? []
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -65,6 +77,9 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(modifiedAt, forKey: .modifiedAt)
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(itemOrder, forKey: .itemOrder)
+        // Always encode pinnedProperties (even when empty) so the field is
+        // always present in freshly-written sidecars — makes later reads unambiguous.
+        try c.encode(pinnedProperties, forKey: .pinnedProperties)
     }
 }
 
