@@ -38,7 +38,8 @@ struct CalendarPinContextMenuTests {
 
     @Test("createTask calls AgendaTaskManager and sets lastCreatedTask")
     func createTaskCallsManager() async throws {
-        let (taskManager, _) = try await makeManagers()
+        let (taskManager, _, nexus) = try await makeManagers()
+        defer { TempNexus.cleanup(nexus) }
         let vm = CalendarPinViewModel()
 
         await vm.createTask(using: taskManager)
@@ -53,7 +54,8 @@ struct CalendarPinContextMenuTests {
 
     @Test("createEvent calls AgendaEventManager and sets lastCreatedEvent")
     func createEventCallsManager() async throws {
-        let (_, eventManager) = try await makeManagers()
+        let (_, eventManager, nexus) = try await makeManagers()
+        defer { TempNexus.cleanup(nexus) }
         let vm = CalendarPinViewModel()
 
         await vm.createEvent(using: eventManager)
@@ -68,7 +70,8 @@ struct CalendarPinContextMenuTests {
 
     @Test("Created task has 'New Task' title and completed = false")
     func createdTaskHasDefaults() async throws {
-        let (taskManager, _) = try await makeManagers()
+        let (taskManager, _, nexus) = try await makeManagers()
+        defer { TempNexus.cleanup(nexus) }
         let vm = CalendarPinViewModel()
 
         await vm.createTask(using: taskManager)
@@ -83,7 +86,8 @@ struct CalendarPinContextMenuTests {
 
     @Test("Created event has 'New Event' title and 1-hour duration")
     func createdEventHasDefaults() async throws {
-        let (_, eventManager) = try await makeManagers()
+        let (_, eventManager, nexus) = try await makeManagers()
+        defer { TempNexus.cleanup(nexus) }
         let vm = CalendarPinViewModel()
 
         await vm.createEvent(using: eventManager)
@@ -99,7 +103,8 @@ struct CalendarPinContextMenuTests {
 
     @Test("Sequential createTask calls produce distinct tasks in the manager")
     func multipleCreateTasksAreDistinct() async throws {
-        let (taskManager, _) = try await makeManagers()
+        let (taskManager, _, nexus) = try await makeManagers()
+        defer { TempNexus.cleanup(nexus) }
         let vm = CalendarPinViewModel()
 
         await vm.createTask(using: taskManager)
