@@ -47,8 +47,6 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
 
 - **Inline editing principle.** Every embedded view in a composed-blocks surface (Context, Homepage) is a live, fully-editable view of its source — never a read-only snapshot. Full inline editing of a referenced Page's body (Notion synced blocks) is post-v1.
 
-- **Move-strip rule.** Moving a Page across Page Types, or an Item across Item Types, strips properties not in the destination schema — Notion-style; no quarantine. Confirmation warning lists what's stripped. Within the same Page Type (between Page Collections) or same Item Type (between Item Collections), no strip — schema is shared. Cross-side promotion (Item ↔ Page) is a post-v1 Prospect.
-
 - **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for the module name (`Pommora` Swift module), app branding, and documentation. NOT allowed in:
   - On-disk JSON field names (no `pommora_*` keys)
   - Swift type qualifications used as a discriminator pattern (no `Pommora.X` workarounds for stdlib collisions; use side-prefixed names like `AgendaTask` instead of `Pommora.Task`)
@@ -59,8 +57,6 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
  Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView / TextKit 2 for the Page editor, NSSplitView for splitter polish). 
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
-
-- **React pairing.** When meaningful Swift implementation work lands — something big OR something with an obvious React-side equivalent worth recording — add a paired note in the relevant `// ReactInfo// <topic>.md` file. Skip for trivial work. See `// ReactInfo//Contingency.md` for translation patterns.
 
 #### Document Map
 
