@@ -49,7 +49,24 @@ final class AgendaTaskManager {
 
             let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
             if Filesystem.fileExists(at: schemaURL) {
-                schema = try AtomicJSON.decode(AgendaTaskSchema.self, from: schemaURL)
+                var loaded = try AtomicJSON.decode(AgendaTaskSchema.self, from: schemaURL)
+                // G.3: backfill _status if the existing sidecar pre-dates Phase G.
+                // Prepend so _status appears first in the schema; write atomically
+                // via SchemaTransaction so a partial write doesn't corrupt the sidecar.
+                if loaded.properties.first(where: { $0.id == "_status" }) == nil {
+                    let statusDef = PropertyDefinition(
+                        id: "_status",
+                        name: "Status",
+                        type: .status,
+                        statusGroups: PropertyDefinition.StatusGroup.defaultSeed()
+                    )
+                    loaded.properties.insert(statusDef, at: 0)
+                    loaded.modifiedAt = Date()
+                    let tx = SchemaTransaction()
+                    try tx.stage(loaded, to: schemaURL)
+                    try tx.commit()
+                }
+                schema = loaded
             } else {
                 schema = AgendaTaskSchema.defaultSeed()
                 try AtomicJSON.write(schema, to: schemaURL)
