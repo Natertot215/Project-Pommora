@@ -308,6 +308,282 @@ extension ItemContentManager {
             try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
         }
     }
+
+    // MARK: - Move (same-Type, between ItemCollections)
+
+    /// Moves `item` from one ItemCollection to another within the SAME ItemType.
+    /// No property strip — both Collections share the same Type schema.
+    /// Atomically rewrites the item file at the destination path.
+    func moveItemBetweenCollections(
+        _ item: Item,
+        from source: ItemCollection,
+        to destination: ItemCollection,
+        in itemType: ItemType
+    ) async throws {
+        do {
+            let srcURL = NexusPaths.itemFileURL(forTitle: item.title, in: source.folderURL)
+            let destURL = NexusPaths.itemFileURL(forTitle: item.title, in: destination.folderURL)
+
+            let tx = SchemaTransaction()
+            try tx.stage(item, to: destURL)
+            try tx.commit()
+
+            try Filesystem.deleteFile(at: srcURL)
+
+            var updated = item
+            // `Item.url` isn't stored — URL is always derived from title+folder; no field to patch.
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: destination.id)
+                } catch {
+                    self.pendingError = error
+                }
+            }
+
+            var srcArr = itemsByCollection[source.id] ?? []
+            srcArr.removeAll { $0.id == item.id }
+            itemsByCollection[source.id] = srcArr
+
+            var dstArr = itemsByCollection[destination.id] ?? []
+            dstArr.append(updated)
+            dstArr = OrderResolver.resolve(
+                dstArr,
+                persistedOrder: destination.itemOrder,
+                titleKeyPath: \Item.title
+            )
+            itemsByCollection[destination.id] = dstArr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Move (cross-Type, with property strip + paired-relation back-ref clear)
+
+    /// Moves `item` from one ItemType (and optional ItemCollection) to a different
+    /// ItemType (and optional ItemCollection). Performs:
+    ///
+    /// 1. **Strip:** property values whose property NAMES don't exist on
+    ///    `destination` are removed from the item's properties dict.
+    /// 2. **Paired-relation back-ref clear:** for each relation property with a
+    ///    `dualProperty` config that is being stripped, the reverse entries on
+    ///    target entities are cleared.
+    /// 3. **Atomic commit:** all writes go through a single `SchemaTransaction`.
+    ///
+    /// If `source.id == destination.id`, use `moveItemBetweenCollections` instead.
+    func moveItemAcrossTypes(
+        _ item: Item,
+        from source: ItemType,
+        fromCollection: ItemCollection?,
+        to destination: ItemType,
+        toCollection: ItemCollection?
+    ) async throws {
+        precondition(
+            source.id != destination.id,
+            "moveItemAcrossTypes requires distinct source and destination ItemTypes."
+        )
+        do {
+            // 1. Strip set by name comparison.
+            let destNames = Set(destination.properties.map { $0.name })
+            let strippedDefs = source.properties.filter { !destNames.contains($0.name) }
+            let strippedIDs = Set(strippedDefs.map { $0.id })
+
+            // 2. Build updated item with stripped properties removed.
+            var updatedItem = item
+            for id in strippedIDs {
+                updatedItem.properties.removeValue(forKey: id)
+            }
+            updatedItem.modifiedAt = Date()
+
+            // 3. Compute destination URL.
+            let destFolder: URL
+            if let dstColl = toCollection {
+                destFolder = dstColl.folderURL
+            } else {
+                destFolder = folderURL(for: destination)
+            }
+            let destURL = NexusPaths.itemFileURL(forTitle: item.title, in: destFolder)
+
+            // 4. Stage the rewritten item at destination.
+            let tx = SchemaTransaction()
+            try tx.stage(updatedItem, to: destURL)
+
+            // 5. Stage paired-relation back-ref clears for stripped relations.
+            for def in strippedDefs where def.type == .relation {
+                guard let dual = def.dualProperty else { continue }
+                guard let value = item.properties[def.id] else { continue }
+                let targetIDs = Self.extractRelationIDs(from: value)
+                guard !targetIDs.isEmpty else { continue }
+
+                try Self.stageBackRefClear(
+                    sourceEntityID: item.id,
+                    reversePropertyID: dual.syncedPropertyID,
+                    onTypeID: dual.syncedPropertyDefinedOnTypeID,
+                    targetEntityIDs: targetIDs,
+                    tx: tx,
+                    nexus: nexus
+                )
+            }
+
+            // 6. Atomic commit.
+            try tx.commit()
+
+            // 7. Remove source file.
+            let srcFolder: URL
+            if let srcColl = fromCollection {
+                srcFolder = srcColl.folderURL
+            } else {
+                srcFolder = folderURL(for: source)
+            }
+            let srcURL = NexusPaths.itemFileURL(forTitle: item.title, in: srcFolder)
+            try Filesystem.deleteFile(at: srcURL)
+
+            // 8. Update index.
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertItem(
+                        updatedItem,
+                        itemTypeID: destination.id,
+                        itemCollectionID: toCollection?.id
+                    )
+                } catch {
+                    self.pendingError = error
+                }
+            }
+
+            // 9. Update in-memory caches.
+            if let srcColl = fromCollection {
+                var arr = itemsByCollection[srcColl.id] ?? []
+                arr.removeAll { $0.id == item.id }
+                itemsByCollection[srcColl.id] = arr
+            } else {
+                var arr = itemsByTypeRoot[source.id] ?? []
+                arr.removeAll { $0.id == item.id }
+                itemsByTypeRoot[source.id] = arr
+            }
+
+            if let dstColl = toCollection {
+                var arr = itemsByCollection[dstColl.id] ?? []
+                arr.append(updatedItem)
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: dstColl.itemOrder,
+                    titleKeyPath: \Item.title
+                )
+                itemsByCollection[dstColl.id] = arr
+            } else {
+                var arr = itemsByTypeRoot[destination.id] ?? []
+                arr.append(updatedItem)
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: destination.itemOrder,
+                    titleKeyPath: \Item.title
+                )
+                itemsByTypeRoot[destination.id] = arr
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    // MARK: - Private move helpers
+
+    private static func extractRelationIDs(from value: PropertyValue) -> [String] {
+        switch value {
+        case .relation(let id): return [id]
+        case .multiSelect(let ids): return ids
+        default: return []
+        }
+    }
+
+    /// Stages back-ref clears on files owned by the Type identified by `onTypeID`.
+    /// Walks `.md` (PageType) or `.json` (ItemType) files and removes `sourceEntityID`
+    /// from the `reversePropertyID` value on matching entities.
+    private static func stageBackRefClear(
+        sourceEntityID: String,
+        reversePropertyID: String,
+        onTypeID: String,
+        targetEntityIDs: [String],
+        tx: SchemaTransaction,
+        nexus: Nexus
+    ) throws {
+        let targetSet = Set(targetEntityIDs)
+        let nexusRoot = nexus.rootURL
+
+        let allDirs = (try? FileManager.default.contentsOfDirectory(
+            at: nexusRoot,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+
+        for dir in allDirs {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir),
+                  isDir.boolValue
+            else { continue }
+
+            // Check for PageType sidecar.
+            let ptSidecar = dir.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            if FileManager.default.fileExists(atPath: ptSidecar.path) {
+                if let pt = try? AtomicJSON.decode(PageType.self, from: ptSidecar),
+                   pt.id == onTypeID
+                {
+                    let mdFiles = (try? Filesystem.descendantFiles(
+                        of: dir,
+                        where: { $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_") }
+                    )) ?? []
+                    for mdURL in mdFiles {
+                        var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: mdURL)
+                        guard targetSet.contains(fm.id),
+                              let val = fm.properties[reversePropertyID]
+                        else { continue }
+                        fm.properties[reversePropertyID] = removeID(sourceEntityID, from: val)
+                        let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
+                        tx.stage(payload: data, to: mdURL)
+                    }
+                    return
+                }
+            }
+
+            // Check for ItemType sidecar.
+            let itSidecar = dir.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
+            if FileManager.default.fileExists(atPath: itSidecar.path) {
+                if let it = try? AtomicJSON.decode(ItemType.self, from: itSidecar),
+                   it.id == onTypeID
+                {
+                    let jsonFiles = (try? Filesystem.descendantFiles(
+                        of: dir,
+                        where: {
+                            $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_")
+                        }
+                    )) ?? []
+                    for jsonURL in jsonFiles {
+                        var targetItem = try AtomicJSON.decode(Item.self, from: jsonURL)
+                        guard targetSet.contains(targetItem.id),
+                              let val = targetItem.properties[reversePropertyID]
+                        else { continue }
+                        targetItem.properties[reversePropertyID] = removeID(sourceEntityID, from: val)
+                        tx.stage(payload: try AtomicJSON.encode(targetItem), to: jsonURL)
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    private static func removeID(_ idToRemove: String, from value: PropertyValue) -> PropertyValue? {
+        switch value {
+        case .relation(let id):
+            return id == idToRemove ? .null : value
+        case .multiSelect(let ids):
+            let filtered = ids.filter { $0 != idToRemove }
+            return filtered.isEmpty ? .null : .multiSelect(filtered)
+        default:
+            return value
+        }
+    }
 }
 
 /// Errors surfaced by `ItemContentManager` CRUD methods during the
