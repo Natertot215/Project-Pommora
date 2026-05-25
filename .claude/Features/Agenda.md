@@ -83,7 +83,7 @@ Users who want a `type` taxonomy can add it via the schema editor like any other
 
 ---
 
-#### Built-in `status` property (AgendaTask only, v0.3.0)
+#### Built-in `_status` property (AgendaTask + AgendaEvent)
 
 Pommora's Status type with **3 EventKit-aligned fixed groups: Upcoming / In Progress / Done**. Group IDs (`upcoming` / `in_progress` / `done`) map cleanly onto EventKit semantics — the v0.6.0 sync layer doesn't need translation logic.
 
@@ -178,14 +178,14 @@ When an AgendaTask's `start_at` and `due_at` would carry the same value, the pro
 Enforced at every file write:
 
 **AgendaTask (`.task.json`):**
-1. Conforms to the Tasks singleton's `_taskconfig.json` (`type` property cannot be removed; options editable)
+1. Conforms to the Tasks singleton's `_taskconfig.json` (`_status` property cannot be removed; options editable)
 2. `due_at` is optional; `start_at` is optional ("not before" hint)
 3. `due_all_day` only meaningful when `due_at` is set
 4. `completed_at` only meaningful when `completed = true`
 5. Filename = title
 
 **AgendaEvent (`.event.json`):**
-1. Conforms to the Events singleton's `_eventconfig.json` (`type` property cannot be removed; options editable)
+1. Conforms to the Events singleton's `_eventconfig.json` (`_status` property cannot be removed; options editable)
 2. `start_at` AND `end_at` both required; `end_at >= start_at`
 3. `all_day` only meaningful when `start_at` is set
 4. Filename = title

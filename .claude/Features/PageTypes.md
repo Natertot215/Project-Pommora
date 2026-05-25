@@ -2,7 +2,7 @@
 
 The operational layer's **Pages-side** schema-bearing container. A Page Type is a folder containing a `_pagetype.json` sidecar that defines the property schema shared by every Page inside. Page Collections are organizational sub-folders within a Page Type carrying their own `_pagecollection.json` sidecar (sharing the Type's schema; no properties of their own).
 
-**UI label divergence:** Page Types render as **"Vault"** in the Pommora app by default; Page Collections render as **"Collection"**. (Doc prose continues to say "Page Type" / "Page Collection" for conceptual clarity — only the UI label diverges.) Both labels renameable via the Settings scaffold (Phase 7).
+**UI label divergence:** Page Types render as **"Vault"** in the Pommora app by default; Page Collections render as **"Collection"**. (Doc prose continues to say "Page Type" / "Page Collection" for conceptual clarity — only the UI label diverges.) Both labels renameable via the Settings scaffold (v0.3.0 storage / v0.6.0 editing UI).
 
 Items have a parallel structure on the Items side — see [[Items]] for **Item Type** (UI: "Type") and **Item Collection** (UI: "Set"). Each side has one signature UI word + one shared UI word — Pages get the distinctive "Vault" + generic "Collection"; Items get the generic "Type" + distinctive "Set". In generic prose discussing properties or queries, the term "Type" covers both; "Collection" covers both.
 
@@ -107,7 +107,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
       "allows_multiple": true
     }
   ],
-  "default_sort": { "property": "last_edited_time", "direction": "descending" },
+  "default_sort": { "property_id": "_modified_at", "direction": "descending" },
   "hidden_properties": [],
   "views": [
     /* per-view saved configurations (table / board / list / cards / gallery) — ships v0.6.0 */
