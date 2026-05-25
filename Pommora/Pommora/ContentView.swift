@@ -179,7 +179,9 @@ struct ContentView: View {
             let contentMgr = contentManager,
             let itemContentMgr = itemContentManager,
             let savedMgr = savedConfigManager,
-            let settingsMgr = settingsManager
+            let settingsMgr = settingsManager,
+            let agendaTaskMgr = agendaTaskManager,
+            let agendaEventMgr = agendaEventManager
         {
             SidebarView(selection: $sidebarSelection)
                 .environment(spaceMgr)
@@ -190,6 +192,8 @@ struct ContentView: View {
                 .environment(itemContentMgr)
                 .environment(savedMgr)
                 .environment(settingsMgr)
+                .environment(agendaTaskMgr)
+                .environment(agendaEventMgr)
                 .overlay(alignment: .bottom) {
                     if nexusManager.isIndexing {
                         IndexingHUD()
