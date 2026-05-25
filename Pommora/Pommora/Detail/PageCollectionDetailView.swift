@@ -12,6 +12,10 @@ struct PageCollectionDetailView: View {
     @State private var tableSelection: Set<String> = []
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
+    /// Session-local row order override. Nil → fall back to manager order.
+    /// Resets on entity change (.task(id:)) per spec. Independent of the
+    /// sidebar's persistent reorder system.
+    @State private var sessionOrder: [String]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,6 +26,7 @@ struct PageCollectionDetailView: View {
             footer
         }
         .task(id: collection.id) {
+            sessionOrder = nil
             await contentManager.loadAll(for: collection)
         }
         .alert("Rename", isPresented: renameAlertBinding) {
@@ -60,6 +65,10 @@ struct PageCollectionDetailView: View {
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { handleDoubleTap(row) }
                 .contextMenu { menuItems(for: row) }
+                .draggable(DetailRowDragPayload(rowID: row.id, zone: .collectionItem))
+                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
+                    handleDrop(payloads: payloads, ontoRowID: row.id)
+                }
             }
             TableColumn("Kind") { row in
                 Text(row.kindLabel).foregroundStyle(.secondary)
@@ -71,6 +80,18 @@ struct PageCollectionDetailView: View {
             }
             .width(min: 140, ideal: 180, max: 240)
         }
+    }
+
+    /// Drop handler — session-only. Same-zone only. Updates `sessionOrder`,
+    /// which the `rows` computed honors. Never calls a manager API.
+    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
+        guard let payload = payloads.first else { return false }
+        guard payload.zone == .collectionItem else { return false }
+        let currentIDs = rows.map(\.id)
+        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
+        guard next != currentIDs else { return false }
+        sessionOrder = next
+        return true
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
@@ -101,7 +122,7 @@ struct PageCollectionDetailView: View {
         // future plan surfaces cross-side embedding (out of scope here).
         let pages = contentManager.pages(in: collection).map { ContentItem.page($0) }
         let items: [ContentItem] = []
-        return (pages + items).map { ci in
+        let baseRows: [DetailRow] = (pages + items).map { ci in
             DetailRow(
                 id: ci.id,
                 title: ci.title,
@@ -111,6 +132,13 @@ struct PageCollectionDetailView: View {
                 children: nil
             )
         }
+        guard let sessionOrder else { return baseRows }
+        let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
+        // Honor session order for known rows; append any newly added rows at the end.
+        let ordered = sessionOrder.compactMap { byID[$0] }
+        let known = Set(sessionOrder)
+        let appended = baseRows.filter { !known.contains($0.id) }
+        return ordered + appended
     }
 
     private func detailKind(_ ci: ContentItem) -> DetailRow.Kind {
