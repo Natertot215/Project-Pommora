@@ -10,7 +10,7 @@ struct AgendaEventManagerSchemaCRUDTests {
     // MARK: - Helper
 
     private func makeTextProp(name: String = "Notes") -> PropertyDefinition {
-        PropertyDefinition(id: "", name: name, type: .select)
+        PropertyDefinition(id: "", name: name, type: .url)
     }
 
     private func makeEvent(title: String, startAt: Date, endAt: Date) -> AgendaEvent {
@@ -45,7 +45,7 @@ struct AgendaEventManagerSchemaCRUDTests {
         await manager.loadAll()
 
         // Pass id: "" — addProperty should mint a new ID.
-        let def = PropertyDefinition(id: "", name: "Venue", type: .select)
+        let def = PropertyDefinition(id: "", name: "Venue", type: .url)
         try await manager.addProperty(def)
 
         // In-memory: defaultSeed has 1 builtin (_type) + the new one.
