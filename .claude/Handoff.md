@@ -2,7 +2,7 @@
 
 > **Read this first at session start.** Snapshot of where things stand + what to pick up next. Detailed shipped history lives in `History.md`.
 
-#### Current state (2026-05-24 EOD — v0.3.0 Phases A–G shipped)
+#### Current state (2026-05-25 — v0.3.0 Properties FEATURE-COMPLETE; merge to main + smoke test pending)
 
 **Branch:** `v0.3.0-properties` (off `main`). **44 commits** ahead of main. Tip: `71ce2da` (Phase G validator regression fix). Build green; full unit suite passing except 2 known pre-existing failures (`NexusAdopterTests/applyNathansActualShape` — broken by parallel-session NexusAdopter working-tree change; `PageEditorViewModelTests/debounceCoalescesRapidEdits` — timing flake under full-suite load, passes in isolation).
 
