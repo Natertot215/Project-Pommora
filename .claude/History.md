@@ -2,6 +2,39 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### v0.3.0 Properties — Phases A–G shipped on `v0.3.0-properties` (2026-05-24 EOD)
+
+44 commits on branch (off `main`). Build green; full unit suite passing with two known pre-existing failures (`NexusAdopterTests/applyNathansActualShape` from parallel-session NexusAdopter working-tree change + `PageEditorViewModelTests/debounceCoalescesRapidEdits` flake under full-suite load).
+
+**Phases shipped (in commit order):**
+
+| Phase | Scope | Commit |
+|---|---|---|
+| A.1–A.6 | Foundation types: 11-case `PropertyType`; `PropertyValue` + `FileRef`; `ReservedPropertyID` + `mintUserPropertyID`; 5-case `RelationScope` (tagged-object on-disk); `PropertyDefinition` stored `id` + config fields + `StatusGroup`/`StatusOption`/`StatusGroupID` + `DualPropertyConfig` nested | `cd61ed4`–`1f85548` |
+| B.1 | `SchemaTransaction` atomic multi-file commit primitive | `f31bda0` |
+| C.1, C.3, C.4, C.5 | Migration suite: `PageFrontmatter.modifiedAt` + `schema_version: 1` on every sidecar + `PropertyIDMigration` two-phase scan/apply API runs every nexus open + `AdoptionPreviewView` surfaces migration counts before commit | `d69fd97`, `3afeec9`, `8ff9dc9`, `87dcf76` (+ fix `c60fe48`) |
+| D.1–D.8 | Schema CRUD on all 4 schema-bearing managers (`addProperty`/`renameProperty`/`changeType`/`deleteProperty`/`reorderProperty`); `PropertyDefinitionValidator` 8 rules; `schemaByID` rewire + drop `duplicateTitle`; `default_sort` on every sidecar; `SchemaConflictDialog` EC4 drift defense | `5e6a0de`–`516e2e5` |
+| E.1–E.7.5 | SQLite index live end-to-end: GRDB.swift SPM dep; `PommoraIndex.open(at:)` lifecycle with schema-version recovery; 12-table schema; `IndexBuilder` two-phase populate (MainActor walk → `Sendable` snapshot → single GRDB transaction); `IndexUpdater` wired into all 6 managers; `IndexQuery` Notion-style filter+sort+broken-links; `NexusManager` opens/rebuilds index; `ContentView.constructManagers` plumbs `IndexUpdater` so mid-session mutations propagate | `064f8dc`–`0b629bc` (+ name-match fixup `ef43eb9`) |
+| F.1–F.2 | `AttachmentManager` copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/` with MIME accept-list (wildcard support), 50 MB warn / 500 MB hard cap, collision-safe filename suffixing; cascade-delete to trash on entity delete across all 4 entity managers | `d696100`, `7bb883d` |
+| G.1–G.5 | AgendaTask + AgendaEvent schema defaults inject `_status` Status property; load-path backfill for pre-existing schemas via SchemaTransaction; `DualRelationCoordinator` manages paired-relation lifecycle (create/value-mirror/rename/delete); wired into `PageTypeManager` + `ItemTypeManager.addProperty`/`deleteProperty` to route paired relations through coordinator | `9edb2db`–`13af10f` (+ validator regression fix `71ce2da`) |
+
+**Locked decisions this branch:**
+
+1. **Status value on-disk encoding = `{"$status": value}` tagged-object form.** Matches the `{"$rel": id}` relation pattern. Pure shape-sniff at the Codable layer can't disambiguate `.status` from `.select` (both single strings); tagged form is round-trip-stable AND agent-legible.
+2. **Move-strip matches by NAME, not ID.** Property IDs are globally unique per `property_definitions.id PRIMARY KEY`, so ID-based cross-type matching was structurally impossible. `IndexQuery.moveStripCount` filters by name; a Page keeps property values where the destination has a property of the same name.
+3. **Reserved property IDs:** `_id`, `_created_at`, `_modified_at`, `_status`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`. User-defined properties mint `prop_<ulid>`.
+4. **`schema_version: 1` on every sidecar.** Legacy decode → 0 = needs migration. Index DB carries its own `schema_version` in `meta` table; mismatch triggers delete + rebuild.
+5. **Property-ID migration runs on EVERY nexus open** (not only when adoption is also needed). Idempotent. Preview sheet shows per-Type counts before commit.
+6. **Tier1/2/3 are root-level frontmatter fields**, not nested under `properties:`. Reserved IDs `_tier1`/`_tier2`/`_tier3` block user collisions.
+7. **`AgendaTaskSchema` + `AgendaEventSchema` default seed = single `_status` Status property.** Legacy `type` Select removed. Load-path migration injects on existing schemas via `SchemaTransaction`.
+8. **`DualRelationCoordinator` is the lifecycle owner of paired relations.** Manager `addProperty`/`deleteProperty` route paired-relation work through it; container-scoped relations get atomic dual creation, value mirroring on set/clear, atomic delete-with-value-cascade.
+
+**Parallel-session state:** sidebar drag-reorder native `.onMove` rebuild + `RenameableRow` extraction merged into branch as `c98ecd6` during C.5. End-of-day working tree carries ~15 uncommitted sidebar/manager mods + 1 untracked `Sidebar/NSTableSelectionStyleSuppressor.swift` + 1 untracked plan doc from a continuing parallel sidebar-color iteration — quirk #11 (hands-off).
+
+**Next session opens at:** Phase H (move-strip primitive + cross-Type move methods on `PageContentManager` + `ItemContentManager` using `SchemaTransaction`). Then I (settings scaffold + auto-migration), J (placeholder UI suite, ~15 sub-tasks), K (Calendar pinned list view). After J + K land, v0.3.0 is shippable end-to-end.
+
+---
+
 #### v0.3.0 Properties scope redirection + editor patches (2026-05-23 EOD)
 
 Three shipped threads + a Properties scope brainstorm. Build green, **365/365 tests passing** (one timing flake in `PageEditorViewModelTests/debounceCoalescesRapidEdits` re-runs clean; unrelated to scope).

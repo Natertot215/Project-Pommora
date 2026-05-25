@@ -37,9 +37,17 @@ Sandboxed picker, security-scoped bookmark persistence, `.nexus/` folder init fl
 
 ##### Current Focus
 
-**On-disk layout is flat.** Types live at the nexus root + six per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`); Agenda Tasks + Events are sidecar-driven singletons at root. `NexusAdopter` handles legacy + already-flat input shapes with legacy-orphan + co-located sidecar cleanup. Build green, 366 tests passing. Nathan's real-nexus migration is complete.
+**v0.3.0 Properties — data layer complete, UI placeholder suite remaining.** Branch `v0.3.0-properties`. The full plan at `.claude/Planning/v0.3.0-Properties-plan.md` is 11 phases A–K; Phases A–G are shipped end-to-end:
 
-**Next: v0.3.0 Properties** begins on the flat-layout foundation — implementation plan at `// Planning//v0.3.0-Properties-plan.md` (5 phases A–E; `ItemTypeSettingsSheet` ships at v0.3.0). Detailed ship log in `History.md`.
+- ✅ A foundation types (PropertyType 11-case, PropertyValue + FileRef, ReservedPropertyID, RelationScope 5-case, PropertyDefinition with stored ULID `id`, StatusGroup/Option/ID, DualPropertyConfig)
+- ✅ B SchemaTransaction (atomic multi-file commit primitive)
+- ✅ C migration suite (PageFrontmatter.modifiedAt, `schema_version: 1` on every sidecar, PropertyIDMigration scan/apply two-phase API runs every nexus open, AdoptionPreviewView surfaces migration counts before commit)
+- ✅ D schema CRUD on all 4 schema-bearing managers + PropertyDefinitionValidator (8 rules) + `default_sort` field on every sidecar + SchemaConflictDialog (EC4 drift defense)
+- ✅ E SQLite index live end-to-end (GRDB.swift dep, 12-table schema, IndexBuilder filesystem walk, IndexUpdater wired into all 6 managers, Notion-style IndexQuery filter+sort+broken-links API, NexusManager opens + rebuilds on schema bump, ContentView wires IndexUpdater into managers so mid-session mutations propagate)
+- ✅ F file attachments (AttachmentManager copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/`, 50 MB warn / 500 MB hard cap, MIME accept-list with wildcard support, cascade-delete to trash on entity delete)
+- ✅ G status seed + dual-relation lifecycle (AgendaTask/AgendaEvent schemas seed `_status`, load-path backfill for legacy schemas, DualRelationCoordinator manages paired-relation create/value-mirror/rename/delete via SchemaTransaction)
+
+**Remaining for v0.3.0 ship:** H move-strip primitive + cross-Type move methods · I settings scaffold (`.nexus/settings.json` + auto-migration of stale defaults) · J placeholder UI suite (~15 sub-tasks — PropertyEditorRow dispatchers, Pulldown, PropertyPanel, schema editor sheets, Status/Relation/File pickers, pinned chips, move-strip dialog, column-header sort) · K Calendar placeholder UI (pinned list view).
 
 ##### v0.2.7.x — Page editor patch family
 
