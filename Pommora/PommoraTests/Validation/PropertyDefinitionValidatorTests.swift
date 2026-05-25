@@ -12,17 +12,17 @@ struct PropertyDefinitionValidatorTests {
         id: String = "prop_abc",
         name: String = "My Property",
         type: PropertyType = .number,
+        selectOptions: [PropertyDefinition.SelectOption]? = nil,
         relationScope: PropertyDefinition.RelationScope? = nil,
-        dualProperty: PropertyDefinition.DualPropertyConfig? = nil,
-        selectOptions: [PropertyDefinition.SelectOption]? = nil
+        dualProperty: PropertyDefinition.DualPropertyConfig? = nil
     ) -> PropertyDefinition {
         PropertyDefinition(
             id: id,
             name: name,
             type: type,
+            selectOptions: selectOptions,
             relationScope: relationScope,
-            dualProperty: dualProperty,
-            selectOptions: selectOptions
+            dualProperty: dualProperty
         )
     }
 
