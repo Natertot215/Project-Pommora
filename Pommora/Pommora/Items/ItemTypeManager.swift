@@ -31,6 +31,10 @@ final class ItemTypeManager {
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 
+    /// Injected by NexusManager in Phase E.7. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -122,6 +126,10 @@ final class ItemTypeManager {
                 folderURL: folder, metadataURL: meta, metadata: itemType
             )
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItemType(itemType) } catch { self.pendingError = error }
+            }
+
             types.append(itemType)
             itemCollectionsByType[itemType.id] = []
             types = OrderResolver.resolve(
@@ -170,6 +178,10 @@ final class ItemTypeManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItemType(updated) } catch { self.pendingError = error }
+            }
+
             if let i = types.firstIndex(where: { $0.id == itemType.id }) {
                 types[i] = updated
                 // Rebuild ItemCollection in-memory under new parent path
@@ -214,6 +226,9 @@ final class ItemTypeManager {
                 in: nexus.rootURL, typeFolderName: itemType.title
             )
             try updated.save(to: meta)
+            if let updater = indexUpdater {
+                do { try updater.upsertItemType(updated) } catch { self.pendingError = error }
+            }
             if let i = types.firstIndex(where: { $0.id == itemType.id }) {
                 types[i] = updated
                 rebuildTypesByID()
@@ -230,6 +245,9 @@ final class ItemTypeManager {
                 in: nexus.rootURL, typeFolderName: itemType.title
             )
             try Filesystem.moveToTrash(folder, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteItemType(id: itemType.id) } catch { self.pendingError = error }
+            }
             types.removeAll { $0.id == itemType.id }
             itemCollectionsByType.removeValue(forKey: itemType.id)
             typesByID.removeValue(forKey: itemType.id)
@@ -267,6 +285,10 @@ final class ItemTypeManager {
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: metaURL, metadata: coll
             )
+
+            if let updater = indexUpdater {
+                do { try updater.upsertItemCollection(coll) } catch { self.pendingError = error }
+            }
 
             var arr = existing
             arr.append(coll)
@@ -320,6 +342,10 @@ final class ItemTypeManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItemCollection(updated) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == collection.id }) {
                 arr[i] = updated
@@ -341,6 +367,9 @@ final class ItemTypeManager {
     func deleteItemCollection(_ collection: ItemCollection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteItemCollection(id: collection.id) } catch { self.pendingError = error }
+            }
             var arr = itemCollectionsByType[collection.typeID] ?? []
             arr.removeAll { $0.id == collection.id }
             itemCollectionsByType[collection.typeID] = arr
@@ -424,6 +453,11 @@ extension ItemTypeManager {
             let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
             try updated.save(to: meta)
 
+            if let updater = indexUpdater {
+                let position = updated.properties.count - 1
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: position) } catch { self.pendingError = error }
+            }
+
             types[i] = updated
             rebuildTypesByID()
         } catch {
@@ -466,6 +500,10 @@ extension ItemTypeManager {
 
             let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
             try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+            }
 
             types[typeIndex] = updated
             rebuildTypesByID()
@@ -516,6 +554,10 @@ extension ItemTypeManager {
 
             try tx.commit()
 
+            if let updater = indexUpdater {
+                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+            }
+
             types[typeIndex] = updated
             rebuildTypesByID()
         } catch {
@@ -556,6 +598,12 @@ extension ItemTypeManager {
 
             let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updated.title)
             try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                for (pos, def) in updated.properties.enumerated() {
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: pos) } catch { self.pendingError = error }
+                }
+            }
 
             types[typeIndex] = updated
             rebuildTypesByID()
@@ -602,6 +650,10 @@ extension ItemTypeManager {
                 let meta = NexusPaths.itemTypeMetadataURL(
                     in: nexus.rootURL, typeFolderName: updated.title)
                 try updated.save(to: meta)
+                if let updater = indexUpdater {
+                    let def = updated.properties[propIndex]
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+                }
                 types[typeIndex] = updated
                 rebuildTypesByID()
                 return
@@ -638,6 +690,11 @@ extension ItemTypeManager {
             }
 
             try tx.commit()
+
+            if let updater = indexUpdater {
+                let def = updated.properties[propIndex]
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+            }
 
             types[typeIndex] = updated
             rebuildTypesByID()

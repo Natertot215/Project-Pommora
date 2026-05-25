@@ -43,6 +43,10 @@ extension PageContentManager {
             try page.save(to: url)
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
+            if let updater = indexUpdater {
+                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: collection.id) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             arr.append(meta)
             arr = OrderResolver.resolve(
@@ -80,6 +84,10 @@ extension PageContentManager {
             updated.title = newName
             updated.url = newURL
 
+            if let updater = indexUpdater {
+                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: collection.id) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
                 arr[i] = updated
@@ -99,6 +107,9 @@ extension PageContentManager {
     func deletePage(_ page: PageMeta, in collection: PageCollection) async throws {
         do {
             try Filesystem.moveToTrash(page.url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
+            }
             var arr = pagesByCollection[collection.id] ?? []
             arr.removeAll { $0.id == page.id }
             pagesByCollection[collection.id] = arr
@@ -135,6 +146,10 @@ extension PageContentManager {
 
             let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)
             try pageFile.save(to: page.url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: collection.id) } catch { self.pendingError = error }
+            }
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
@@ -176,6 +191,10 @@ extension PageContentManager {
             try page.save(to: url)
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
+            if let updater = indexUpdater {
+                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: nil) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             arr.append(meta)
             arr = OrderResolver.resolve(
@@ -211,6 +230,10 @@ extension PageContentManager {
             updated.title = newName
             updated.url = newURL
 
+            if let updater = indexUpdater {
+                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: nil) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
                 arr[i] = updated
@@ -230,6 +253,9 @@ extension PageContentManager {
     func deletePage(_ page: PageMeta, inVaultRoot vault: PageType) async throws {
         do {
             try Filesystem.moveToTrash(page.url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
+            }
             var arr = pagesByTypeRoot[vault.id] ?? []
             arr.removeAll { $0.id == page.id }
             pagesByTypeRoot[vault.id] = arr
@@ -256,6 +282,10 @@ extension PageContentManager {
 
             let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)
             try pageFile.save(to: page.url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: nil) } catch { self.pendingError = error }
+            }
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {

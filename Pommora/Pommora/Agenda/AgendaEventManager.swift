@@ -34,6 +34,10 @@ final class AgendaEventManager {
 
     private let nexus: Nexus
 
+    /// Injected by NexusManager in Phase E.7. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -75,6 +79,11 @@ final class AgendaEventManager {
             try NexusPaths.ensureDirectoryExists(dir)
             let url = NexusPaths.eventFileURL(forTitle: event.title, in: nexus)
             try event.save(to: url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertAgendaEvent(event) } catch { self.pendingError = error }
+            }
+
             events.append(event)
             events.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         } catch {
@@ -104,6 +113,11 @@ final class AgendaEventManager {
             updated.modifiedAt = Date()
             let url = NexusPaths.eventFileURL(forTitle: event.title, in: nexus)
             try updated.save(to: url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertAgendaEvent(updated) } catch { self.pendingError = error }
+            }
+
             if let i = events.firstIndex(where: { $0.id == event.id }) {
                 events[i] = updated
             }
@@ -147,6 +161,10 @@ final class AgendaEventManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertAgendaEvent(updated) } catch { self.pendingError = error }
+            }
+
             if let i = events.firstIndex(where: { $0.id == event.id }) {
                 events[i] = updated
                 events.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
@@ -163,6 +181,9 @@ final class AgendaEventManager {
         do {
             let url = NexusPaths.eventFileURL(forTitle: event.title, in: nexus)
             try Filesystem.moveToTrash(url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteAgendaEvent(id: event.id) } catch { self.pendingError = error }
+            }
             events.removeAll { $0.id == event.id }
         } catch {
             self.pendingError = error
@@ -208,6 +229,17 @@ extension AgendaEventManager {
             let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
             try AtomicJSON.write(updated, to: schemaURL)
 
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPropertyDefinition(
+                        def,
+                        owningTypeID: "agenda_events",
+                        owningTypeKind: "agenda_event_schema",
+                        position: updated.properties.count - 1
+                    )
+                } catch { self.pendingError = error }
+            }
+
             schema = updated
         } catch {
             self.pendingError = error
@@ -245,6 +277,17 @@ extension AgendaEventManager {
 
             let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
             try AtomicJSON.write(updated, to: schemaURL)
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPropertyDefinition(
+                        renamedDef,
+                        owningTypeID: "agenda_events",
+                        owningTypeKind: "agenda_event_schema",
+                        position: propIndex
+                    )
+                } catch { self.pendingError = error }
+            }
 
             schema = updated
         } catch {
@@ -298,6 +341,10 @@ extension AgendaEventManager {
 
             try tx.commit()
 
+            if let updater = indexUpdater {
+                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+            }
+
             schema = updated
         } catch {
             self.pendingError = error
@@ -335,6 +382,19 @@ extension AgendaEventManager {
 
             let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
             try AtomicJSON.write(updated, to: schemaURL)
+
+            if let updater = indexUpdater {
+                for (pos, def) in updated.properties.enumerated() {
+                    do {
+                        try updater.upsertPropertyDefinition(
+                            def,
+                            owningTypeID: "agenda_events",
+                            owningTypeKind: "agenda_event_schema",
+                            position: pos
+                        )
+                    } catch { self.pendingError = error }
+                }
+            }
 
             schema = updated
         } catch {
@@ -375,6 +435,17 @@ extension AgendaEventManager {
                 updated.modifiedAt = Date()
                 let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
                 try AtomicJSON.write(updated, to: schemaURL)
+                if let updater = indexUpdater {
+                    let def = updated.properties[propIndex]
+                    do {
+                        try updater.upsertPropertyDefinition(
+                            def,
+                            owningTypeID: "agenda_events",
+                            owningTypeKind: "agenda_event_schema",
+                            position: propIndex
+                        )
+                    } catch { self.pendingError = error }
+                }
                 schema = updated
                 return
             }
@@ -408,6 +479,18 @@ extension AgendaEventManager {
             }
 
             try tx.commit()
+
+            if let updater = indexUpdater {
+                let def = updated.properties[propIndex]
+                do {
+                    try updater.upsertPropertyDefinition(
+                        def,
+                        owningTypeID: "agenda_events",
+                        owningTypeKind: "agenda_event_schema",
+                        position: propIndex
+                    )
+                } catch { self.pendingError = error }
+            }
 
             schema = updated
         } catch {

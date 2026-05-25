@@ -58,6 +58,10 @@ extension ItemContentManager {
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
             try item.save(to: url)
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItem(item, itemTypeID: itemType.id, itemCollectionID: collection.id) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             arr.append(item)
             arr = OrderResolver.resolve(
@@ -101,6 +105,10 @@ extension ItemContentManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: collection.id) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
@@ -131,6 +139,10 @@ extension ItemContentManager {
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
             try updated.save(to: url)
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: collection.id) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
@@ -147,6 +159,9 @@ extension ItemContentManager {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
             try Filesystem.moveToTrash(url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteItem(id: item.id) } catch { self.pendingError = error }
+            }
             var arr = itemsByCollection[collection.id] ?? []
             arr.removeAll { $0.id == item.id }
             itemsByCollection[collection.id] = arr
@@ -174,6 +189,10 @@ extension ItemContentManager {
             )
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: folderURL(for: itemType))
             try item.save(to: url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertItem(item, itemTypeID: itemType.id, itemCollectionID: nil) } catch { self.pendingError = error }
+            }
 
             var arr = existing
             arr.append(item)
@@ -216,6 +235,10 @@ extension ItemContentManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: nil) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
@@ -245,6 +268,10 @@ extension ItemContentManager {
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: folderURL(for: itemType))
             try updated.save(to: url)
 
+            if let updater = indexUpdater {
+                do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: nil) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
                 arr[i] = updated
@@ -260,6 +287,9 @@ extension ItemContentManager {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: folderURL(for: itemType))
             try Filesystem.moveToTrash(url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteItem(id: item.id) } catch { self.pendingError = error }
+            }
             var arr = itemsByTypeRoot[itemType.id] ?? []
             arr.removeAll { $0.id == item.id }
             itemsByTypeRoot[itemType.id] = arr

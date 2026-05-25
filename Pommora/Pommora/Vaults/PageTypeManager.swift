@@ -14,6 +14,10 @@ final class PageTypeManager {
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 
+    /// Injected by NexusManager in Phase E.7. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -113,6 +117,10 @@ final class PageTypeManager {
             let meta = NexusPaths.vaultMetadataURL(forTitle: name, in: nexus)
             try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: pageType)
 
+            if let updater = indexUpdater {
+                do { try updater.upsertPageType(pageType) } catch { self.pendingError = error }
+            }
+
             types.append(pageType)
             pageCollectionsByType[pageType.id] = []
             types = OrderResolver.resolve(
@@ -152,6 +160,10 @@ final class PageTypeManager {
                     self.pendingError = combined
                     throw combined
                 }
+            }
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPageType(updated) } catch { self.pendingError = error }
             }
 
             if let i = types.firstIndex(where: { $0.id == pageType.id }) {
@@ -194,6 +206,9 @@ final class PageTypeManager {
             updated.modifiedAt = Date()
             let meta = NexusPaths.vaultMetadataURL(forTitle: pageType.title, in: nexus)
             try updated.save(to: meta)
+            if let updater = indexUpdater {
+                do { try updater.upsertPageType(updated) } catch { self.pendingError = error }
+            }
             if let i = types.firstIndex(where: { $0.id == pageType.id }) {
                 types[i] = updated
             }
@@ -207,6 +222,9 @@ final class PageTypeManager {
         do {
             let folder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deletePageType(id: pageType.id) } catch { self.pendingError = error }
+            }
             types.removeAll { $0.id == pageType.id }
             pageCollectionsByType.removeValue(forKey: pageType.id)
         } catch {
@@ -237,6 +255,10 @@ final class PageTypeManager {
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: metaURL, metadata: coll
             )
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPageCollection(coll) } catch { self.pendingError = error }
+            }
 
             var arr = existing
             arr.append(coll)
@@ -290,6 +312,10 @@ final class PageTypeManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertPageCollection(updated) } catch { self.pendingError = error }
+            }
+
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == collection.id }) {
                 arr[i] = updated
@@ -311,6 +337,9 @@ final class PageTypeManager {
     func deletePageCollection(_ collection: PageCollection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deletePageCollection(id: collection.id) } catch { self.pendingError = error }
+            }
             var arr = pageCollectionsByType[collection.typeID] ?? []
             arr.removeAll { $0.id == collection.id }
             pageCollectionsByType[collection.typeID] = arr
@@ -404,6 +433,11 @@ extension PageTypeManager {
             let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
             try updated.save(to: meta)
 
+            if let updater = indexUpdater {
+                let position = updated.properties.count - 1
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: position) } catch { self.pendingError = error }
+            }
+
             types[i] = updated
         } catch {
             self.pendingError = error
@@ -445,6 +479,10 @@ extension PageTypeManager {
 
             let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
             try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex) } catch { self.pendingError = error }
+            }
 
             types[typeIndex] = updated
         } catch {
@@ -495,6 +533,10 @@ extension PageTypeManager {
 
             try tx.commit()
 
+            if let updater = indexUpdater {
+                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+            }
+
             types[typeIndex] = updated
         } catch {
             self.pendingError = error
@@ -534,6 +576,12 @@ extension PageTypeManager {
 
             let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
             try updated.save(to: meta)
+
+            if let updater = indexUpdater {
+                for (pos, def) in updated.properties.enumerated() {
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: pos) } catch { self.pendingError = error }
+                }
+            }
 
             types[typeIndex] = updated
         } catch {
@@ -578,6 +626,10 @@ extension PageTypeManager {
                 updated.modifiedAt = Date()
                 let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
                 try updated.save(to: meta)
+                if let updater = indexUpdater {
+                    let def = updated.properties[propIndex]
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex) } catch { self.pendingError = error }
+                }
                 types[typeIndex] = updated
                 return
             }
@@ -614,6 +666,11 @@ extension PageTypeManager {
             }
 
             try tx.commit()
+
+            if let updater = indexUpdater {
+                let def = updated.properties[propIndex]
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex) } catch { self.pendingError = error }
+            }
 
             types[typeIndex] = updated
         } catch {

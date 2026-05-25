@@ -34,6 +34,10 @@ final class AgendaTaskManager {
 
     private let nexus: Nexus
 
+    /// Injected by NexusManager in Phase E.7. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -75,6 +79,9 @@ final class AgendaTaskManager {
             try NexusPaths.ensureDirectoryExists(dir)
             let url = NexusPaths.taskFileURL(forTitle: task.title, in: nexus)
             try task.save(to: url)
+            if let updater = indexUpdater {
+                do { try updater.upsertAgendaTask(task) } catch { self.pendingError = error }
+            }
             tasks.append(task)
             tasks.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         } catch {
@@ -104,6 +111,9 @@ final class AgendaTaskManager {
             updated.modifiedAt = Date()
             let url = NexusPaths.taskFileURL(forTitle: task.title, in: nexus)
             try updated.save(to: url)
+            if let updater = indexUpdater {
+                do { try updater.upsertAgendaTask(updated) } catch { self.pendingError = error }
+            }
             if let i = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[i] = updated
             }
@@ -147,6 +157,10 @@ final class AgendaTaskManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertAgendaTask(updated) } catch { self.pendingError = error }
+            }
+
             if let i = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[i] = updated
                 tasks.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
@@ -163,6 +177,9 @@ final class AgendaTaskManager {
         do {
             let url = NexusPaths.taskFileURL(forTitle: task.title, in: nexus)
             try Filesystem.moveToTrash(url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deleteAgendaTask(id: task.id) } catch { self.pendingError = error }
+            }
             tasks.removeAll { $0.id == task.id }
         } catch {
             self.pendingError = error
@@ -208,6 +225,11 @@ extension AgendaTaskManager {
             let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
             try AtomicJSON.write(updated, to: schemaURL)
 
+            if let updater = indexUpdater {
+                let position = updated.properties.count - 1
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: position) } catch { self.pendingError = error }
+            }
+
             schema = updated
         } catch {
             self.pendingError = error
@@ -245,6 +267,10 @@ extension AgendaTaskManager {
 
             let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
             try AtomicJSON.write(updated, to: schemaURL)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: propIndex) } catch { self.pendingError = error }
+            }
 
             schema = updated
         } catch {
@@ -297,6 +323,10 @@ extension AgendaTaskManager {
 
             try tx.commit()
 
+            if let updater = indexUpdater {
+                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+            }
+
             schema = updated
         } catch {
             self.pendingError = error
@@ -334,6 +364,12 @@ extension AgendaTaskManager {
 
             let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
             try AtomicJSON.write(updated, to: schemaURL)
+
+            if let updater = indexUpdater {
+                for (pos, def) in updated.properties.enumerated() {
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: pos) } catch { self.pendingError = error }
+                }
+            }
 
             schema = updated
         } catch {
@@ -374,6 +410,10 @@ extension AgendaTaskManager {
                 updated.modifiedAt = Date()
                 let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
                 try AtomicJSON.write(updated, to: schemaURL)
+                if let updater = indexUpdater {
+                    let def = updated.properties[propIndex]
+                    do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: propIndex) } catch { self.pendingError = error }
+                }
                 schema = updated
                 return
             }
@@ -407,6 +447,11 @@ extension AgendaTaskManager {
             }
 
             try tx.commit()
+
+            if let updater = indexUpdater {
+                let def = updated.properties[propIndex]
+                do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: propIndex) } catch { self.pendingError = error }
+            }
 
             schema = updated
         } catch {
