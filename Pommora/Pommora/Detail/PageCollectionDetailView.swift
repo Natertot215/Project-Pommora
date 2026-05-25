@@ -1,5 +1,105 @@
 import SwiftUI
 
+// MARK: - Sort State
+
+/// The columns that can be sorted in PageCollectionDetailView.
+enum PageCollectionSortColumn: String, CaseIterable, Sendable {
+    case name
+    case kind
+    case modified
+}
+
+/// Encapsulates click-to-sort state for `PageCollectionDetailView`.
+/// Cycle: nil → ascending → descending → nil (back to default).
+/// Switching columns resets to ascending on the new column.
+///
+/// Extracted for direct unit-test access (J.5/J.11/K.1 pattern).
+@MainActor
+@Observable
+final class PageCollectionDetailViewModel {
+
+    var sortColumn: PageCollectionSortColumn?
+    var sortAscending: Bool = true
+
+    /// Advance sort state on column tap.
+    func tapColumn(_ column: PageCollectionSortColumn) {
+        if sortColumn == column {
+            if sortAscending {
+                // ascending → descending
+                sortAscending = false
+            } else {
+                // descending → clear
+                sortColumn = nil
+                sortAscending = true
+            }
+        } else {
+            // New column → ascending
+            sortColumn = column
+            sortAscending = true
+        }
+    }
+
+    /// Returns the indicator string for the given column (▲ / ▼ / nil).
+    func indicator(for column: PageCollectionSortColumn) -> String? {
+        guard sortColumn == column else { return nil }
+        return sortAscending ? "▲" : "▼"
+    }
+
+    /// Sort `rows` according to current sort state.
+    /// When sortColumn is nil, original order is preserved (default sort).
+    func sorted(_ rows: [DetailRow]) -> [DetailRow] {
+        guard let col = sortColumn else { return rows }
+        return rows.sorted { lhs, rhs in
+            let ascending: Bool
+            switch col {
+            case .name:
+                ascending = lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+            case .kind:
+                ascending = lhs.kindLabel.localizedStandardCompare(rhs.kindLabel) == .orderedAscending
+            case .modified:
+                ascending = lhs.modifiedAt < rhs.modifiedAt
+            }
+            return sortAscending ? ascending : !ascending
+        }
+    }
+}
+
+// MARK: - SortHeaderButton
+
+/// A single clickable sort-column header button. Renders label + optional
+/// sort indicator (▲ / ▼). Lives outside PageCollectionDetailView so it can
+/// be used independently if needed.
+struct SortHeaderButton: View {
+    let label: String
+    let indicator: String?
+    var maxWidth: CGFloat? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                if let ind = indicator {
+                    Text(ind)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: maxWidth ?? .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - PageCollectionDetailView
+
 struct PageCollectionDetailView: View {
     let collection: PageCollection
     let vault: PageType
@@ -10,6 +110,7 @@ struct PageCollectionDetailView: View {
     @Environment(PageContentManager.self) private var contentManager
 
     @State private var tableSelection: Set<String> = []
+    @State private var sortVM: PageCollectionDetailViewModel = PageCollectionDetailViewModel()
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -31,7 +132,7 @@ struct PageCollectionDetailView: View {
             Button("Cancel", role: .cancel) { renameTarget = nil }
         } message: {
             if let row = renameTarget {
-                Text("Rename \(row.kindLabel.lowercased()) “\(row.title)”")
+                Text("Rename \(row.kindLabel.lowercased()) \"\(row.title)\"")
             }
         }
     }
@@ -50,28 +151,59 @@ struct PageCollectionDetailView: View {
     }
 
     private var table: some View {
-        Table(rows, children: \.children, selection: $tableSelection) {
-            TableColumn("Name") { row in
-                Label {
-                    Text(row.title)
-                } icon: {
-                    Image(systemName: row.iconName)
+        VStack(spacing: 0) {
+            // Clickable column-header strip (sort bar). Sits above the Table
+            // rows and visually mimics a Table header. `Table(children:)` does
+            // not expose a `sortOrder` binding so we implement the header
+            // interaction layer here, matching the spec's "click sorts ascending;
+            // second click reverses; third returns to default" requirement.
+            sortHeaderBar
+            Table(sortedRows, children: \.children, selection: $tableSelection) {
+                TableColumn("Name") { row in
+                    Label {
+                        Text(row.title)
+                    } icon: {
+                        Image(systemName: row.iconName)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 2) { handleDoubleTap(row) }
+                    .contextMenu { menuItems(for: row) }
+                }
+                TableColumn("Kind") { row in
+                    Text(row.kindLabel).foregroundStyle(.secondary)
+                }
+                .width(min: 80, ideal: 100, max: 140)
+                TableColumn("Modified") { row in
+                    Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
                         .foregroundStyle(.secondary)
                 }
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) { handleDoubleTap(row) }
-                .contextMenu { menuItems(for: row) }
+                .width(min: 140, ideal: 180, max: 240)
             }
-            TableColumn("Kind") { row in
-                Text(row.kindLabel).foregroundStyle(.secondary)
-            }
-            .width(min: 80, ideal: 100, max: 140)
-            TableColumn("Modified") { row in
-                Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 140, ideal: 180, max: 240)
         }
+    }
+
+    /// Horizontally-laid-out header buttons that drive `sortVM`. Proportions
+    /// roughly match the Table column widths — not pixel-perfect, but functional.
+    private var sortHeaderBar: some View {
+        HStack(spacing: 0) {
+            SortHeaderButton(
+                label: "Name",
+                indicator: sortVM.indicator(for: .name)
+            ) { sortVM.tapColumn(.name) }
+            SortHeaderButton(
+                label: "Kind",
+                indicator: sortVM.indicator(for: .kind),
+                maxWidth: 120
+            ) { sortVM.tapColumn(.kind) }
+            SortHeaderButton(
+                label: "Modified",
+                indicator: sortVM.indicator(for: .modified),
+                maxWidth: 200
+            ) { sortVM.tapColumn(.modified) }
+        }
+        .background(Color(.windowBackgroundColor).opacity(0.7))
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
@@ -102,7 +234,7 @@ struct PageCollectionDetailView: View {
         .padding(8)
     }
 
-    private var rows: [DetailRow] {
+    private var unsortedRows: [DetailRow] {
         // ParadigmV2 (Task 5.5): Items live in ItemContentManager keyed on
         // ItemCollection now. PageCollection-side Items disappear until Phase 6
         // wires the wrapper-folder layout + ItemContentManager surfaces.
@@ -118,6 +250,10 @@ struct PageCollectionDetailView: View {
                 children: nil  // v1 Collections are flat; nil = leaf row (no disclosure)
             )
         }
+    }
+
+    private var sortedRows: [DetailRow] {
+        sortVM.sorted(unsortedRows)
     }
 
     private func detailKind(_ ci: ContentItem) -> DetailRow.Kind {
