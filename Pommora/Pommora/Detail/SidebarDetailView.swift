@@ -104,7 +104,12 @@ struct SidebarDetailView: View {
                 )
 
             case .itemCollection(let c):
-                ItemCollectionDetailView(collection: c)
+                ItemCollectionDetailView(
+                    collection: c,
+                    selection: $selection,
+                    presentedSheet: $presentedSheet,
+                    presentedItem: $presentedItem
+                )
             }
         }
         .sheet(item: $presentedItem) { item in
