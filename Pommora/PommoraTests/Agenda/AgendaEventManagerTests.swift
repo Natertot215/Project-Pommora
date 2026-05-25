@@ -52,7 +52,7 @@ struct AgendaEventManagerTests {
         #expect(schemaURL.lastPathComponent == NexusPaths.eventConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
         let loaded = try AtomicJSON.decode(AgendaEventSchema.self, from: schemaURL)
-        #expect(loaded.properties.contains { $0.name == "type" && $0.id.hasPrefix("_") })
+        #expect(loaded.properties.contains { $0.id == "_status" && $0.name == "Status" })
     }
 
     @Test("loadAll reuses a renamed Events singleton discovered by _eventconfig.json")
@@ -88,10 +88,26 @@ struct AgendaEventManagerTests {
         #expect(manager.events.count == 1)
     }
 
-    @Test("createEvent with invalid type throws")
+    @Test("createEvent with invalid _type value throws on legacy schemas that still carry _type")
     func invalidType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
+
+        // Pre-seed a legacy schema that still carries a _type Select property so
+        // the validator's conditional _type branch fires.
+        let eventsDir = nexus.rootURL.appendingPathComponent("Events", isDirectory: true)
+        try FileManager.default.createDirectory(at: eventsDir, withIntermediateDirectories: true)
+        let legacyTypeProp = PropertyDefinition(
+            id: "_type",
+            name: "Type",
+            type: .select,
+            selectOptions: [PropertyDefinition.SelectOption(value: "Event", label: "Event")]
+        )
+        var legacySchema = AgendaEventSchema.defaultSeed()
+        legacySchema.properties.append(legacyTypeProp)
+        let schemaURL = eventsDir.appendingPathComponent(NexusPaths.eventConfigSidecarFilename)
+        try AtomicJSON.write(legacySchema, to: schemaURL)
+
         let manager = AgendaEventManager(nexus: nexus)
         await manager.loadAll()
 

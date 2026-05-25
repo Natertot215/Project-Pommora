@@ -30,20 +30,17 @@ enum AgendaEventValidator {
         // EKEvent-style time-field consistency: end_at must not precede start_at.
         if endAt < startAt { throw ValidationError.endBeforeStart }
 
-        // type property required + value must be one of schema's type-Select options.
-        // NOTE: `properties` is keyed by property NAME for now (member files use name keys).
-        // When frontmatter migration to ID-keyed values lands across Tasks/Events, this
-        // lookup changes to `properties["_type"]`. Schema identity is already ID-based at
-        // the schema layer; only the member-file key remains name-based through v0.3.0.
-        guard case .select(let typeValue)? = properties["type"] else {
-            throw ValidationError.missingTypeProperty
-        }
-        guard let typeProp = schema.properties.first(where: { $0.id == "_type" }) else {
-            throw ValidationError.missingTypeProperty
-        }
-        let allowed = Set((typeProp.selectOptions ?? []).map(\.value))
-        guard allowed.contains(typeValue) else {
-            throw ValidationError.unknownTypeValue(typeValue)
+        // _type Select validation: only enforce if the schema still carries _type.
+        // As of Phase G.2 the default seed uses _status instead of _type; existing
+        // schemas that retain _type still get validated. Skip entirely when absent.
+        if let typeProp = schema.properties.first(where: { $0.id == "_type" }) {
+            guard case .select(let typeValue)? = properties["type"] else {
+                throw ValidationError.missingTypeProperty
+            }
+            let allowed = Set((typeProp.selectOptions ?? []).map(\.value))
+            guard allowed.contains(typeValue) else {
+                throw ValidationError.unknownTypeValue(typeValue)
+            }
         }
     }
 }
