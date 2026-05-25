@@ -28,6 +28,11 @@ final class NexusManager {
     /// user picks a folder.
     var currentNexus: Nexus?
 
+    /// The per-nexus SQLite index, opened alongside `currentNexus`. `nil` when
+    /// no nexus is open or when index init failed (degraded mode — index-dependent
+    /// surfaces show empty until the next launch rebuilds successfully).
+    var currentIndex: PommoraIndex?
+
     /// Last non-fatal error. UI presentation is deferred to the design pass;
     /// for now the property is just observable state.
     var pendingError: NexusError?
@@ -119,6 +124,7 @@ final class NexusManager {
             NexusBookmark.stopAccessing(url)
             accessingURL = nil
         }
+        currentIndex = nil
         currentNexus = nil
     }
     #endif
@@ -174,7 +180,9 @@ final class NexusManager {
         // sheet doesn't appear.
         await runAdoptionIfNeeded(at: url)
 
-        currentNexus = Nexus(id: identity.id, rootURL: url)
+        let nexus = Nexus(id: identity.id, rootURL: url)
+        await openIndex(for: nexus)
+        currentNexus = nexus
     }
 
     /// Routes a freshly-picked URL through init (empty/silent or non-empty/confirm)
@@ -247,7 +255,9 @@ final class NexusManager {
             pendingError = .appSupportFailed(error.localizedDescription)
         }
 
-        currentNexus = Nexus(id: identity.id, rootURL: url)
+        let nexus = Nexus(id: identity.id, rootURL: url)
+        await openIndex(for: nexus)
+        currentNexus = nexus
     }
 
     /// Scans the freshly-initialized Nexus root for adoptable folders. If
@@ -347,6 +357,25 @@ final class NexusManager {
     }
 
     // MARK: - Helpers
+
+    /// Opens the per-nexus SQLite index and (if needed) triggers a full rebuild
+    /// via `IndexBuilder`. On any failure the index is left nil and a
+    /// `.initFailed` error is surfaced — the nexus remains usable without it
+    /// (degraded mode). Internal so tests can call directly.
+    func openIndex(for nexus: Nexus) async {
+        do {
+            let (idx, needsRebuild) = try PommoraIndex.open(at: nexus.rootURL)
+            self.currentIndex = idx
+            if needsRebuild {
+                isIndexing = true
+                defer { isIndexing = false }
+                try await IndexBuilder.populate(index: idx, from: nexus)
+            }
+        } catch {
+            currentIndex = nil
+            pendingError = .initFailed("Index init failed: \(error.localizedDescription)")
+        }
+    }
 
     private func nexusIdentityURL(in nexusURL: URL) -> URL {
         nexusURL
