@@ -117,6 +117,11 @@ extension PageContentManager {
             self.pendingError = error
             throw error
         }
+        // Best-effort cascade: move the entity's attachments folder to trash.
+        let attachmentsURL = NexusPaths.attachmentsDir(for: page.id, in: nexus.rootURL)
+        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
+            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
+        }
     }
 
     /// Re-write a Page's body to disk, preserving its frontmatter verbatim.
@@ -262,6 +267,11 @@ extension PageContentManager {
         } catch {
             self.pendingError = error
             throw error
+        }
+        // Best-effort cascade: move the entity's attachments folder to trash.
+        let attachmentsURL = NexusPaths.attachmentsDir(for: page.id, in: nexus.rootURL)
+        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
+            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
         }
     }
 

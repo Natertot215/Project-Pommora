@@ -169,6 +169,11 @@ extension ItemContentManager {
             self.pendingError = error
             throw error
         }
+        // Best-effort cascade: move the entity's attachments folder to trash.
+        let attachmentsURL = NexusPaths.attachmentsDir(for: item.id, in: nexus.rootURL)
+        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
+            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
+        }
     }
 
     // MARK: - Item CRUD (Item-Type-root)
@@ -296,6 +301,11 @@ extension ItemContentManager {
         } catch {
             self.pendingError = error
             throw error
+        }
+        // Best-effort cascade: move the entity's attachments folder to trash.
+        let attachmentsURL = NexusPaths.attachmentsDir(for: item.id, in: nexus.rootURL)
+        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
+            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
         }
     }
 }

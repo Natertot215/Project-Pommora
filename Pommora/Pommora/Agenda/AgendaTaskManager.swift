@@ -185,6 +185,11 @@ final class AgendaTaskManager {
             self.pendingError = error
             throw error
         }
+        // Best-effort cascade: move the entity's attachments folder to trash.
+        let attachmentsURL = NexusPaths.attachmentsDir(for: task.id, in: nexus.rootURL)
+        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
+            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
+        }
     }
 }
 
