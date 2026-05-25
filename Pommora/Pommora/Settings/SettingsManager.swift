@@ -27,7 +27,14 @@ final class SettingsManager {
         let url = NexusPaths.settingsFileURL(in: nexus)
         if FileManager.default.fileExists(atPath: url.path) {
             do {
-                self.settings = try AtomicJSON.decode(Settings.self, from: url)
+                let decoded = try AtomicJSON.decode(Settings.self, from: url)
+                let migrated = Settings.migrate(decoded)
+                self.settings = migrated
+                // Re-persist only when migration actually changed something so
+                // the file mtime stays stable across launches on current defaults.
+                if migrated != decoded {
+                    try AtomicJSON.write(migrated, to: url)
+                }
             } catch {
                 self.pendingError = error
                 self.settings = .defaultSeed()
