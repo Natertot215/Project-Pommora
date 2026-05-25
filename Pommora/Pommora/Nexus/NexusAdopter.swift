@@ -340,13 +340,22 @@ enum NexusAdopter {
         // Shape #3 first — wrapper layout supersedes any sidecars at the
         // wrapper level itself (they shouldn't exist; if they do we treat the
         // folder as wrapper and warn).
+        // Guard: only treat the folder as a ParadigmV2 wrapper when it
+        // actually has wrapper-shaped children (sub-folders carrying one of
+        // the pre-flat legacy sidecars: `_schema.json`, `_vault.json`, or
+        // `_collection.json`). A user-created folder that happens to be named
+        // "Pages", "Items", or "Agenda" but contains regular `.md` / `.json`
+        // content must NOT trigger the destructive wrapper-unwrap path.
         if name == "Pages" || name == "Items" || name == "Agenda" {
-            try classifyWrapperFolder(
-                folder,
-                unwrapSteps: &unwrapSteps,
-                warnings: &warnings
-            )
-            return
+            if folderHasWrapperShapedChildren(folder) {
+                try classifyWrapperFolder(
+                    folder,
+                    unwrapSteps: &unwrapSteps,
+                    warnings: &warnings
+                )
+                return
+            }
+            // else: fall through to the regular shape #2 / #1 flow.
         }
 
         // Inspect the folder's top-level sidecars.
@@ -853,6 +862,34 @@ enum NexusAdopter {
     }
 
     // MARK: - Helpers
+
+    /// Returns `true` when at least one non-hidden child folder of `folder`
+    /// carries one of the pre-flat legacy sidecar files: `_schema.json`
+    /// (ParadigmV2 unified sidecar), `_vault.json` (pre-ParadigmV2 PageType
+    /// sidecar), or `_collection.json` (pre-ParadigmV2 Collection sidecar).
+    ///
+    /// This is the structural guard that prevents user-created folders named
+    /// "Pages", "Items", or "Agenda" from being mistakenly treated as
+    /// ParadigmV2 wrappers and having their contents destructively unwrapped.
+    /// A real wrapper has children that look like Types or Agenda singletons;
+    /// a user folder with ordinary `.md` / `.json` content does not.
+    private static func folderHasWrapperShapedChildren(_ folder: URL) -> Bool {
+        let children = (try? Filesystem.childFolders(of: folder)) ?? []
+        let legacySidecarCandidates = [
+            paradigmV2UnifiedSidecarFilename,   // "_schema.json"
+            legacyVaultSidecarFilename,          // "_vault.json"
+            legacyCollectionSidecarFilename,     // "_collection.json"
+        ]
+        for child in children where !isHiddenOrExcludedSub(child) {
+            for filename in legacySidecarCandidates {
+                let sidecarURL = child.appendingPathComponent(filename, isDirectory: false)
+                if Filesystem.fileExists(at: sidecarURL) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
 
     private static func isHidden(_ url: URL) -> Bool {
         let name = url.lastPathComponent

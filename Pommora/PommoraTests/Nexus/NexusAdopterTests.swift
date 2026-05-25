@@ -173,13 +173,19 @@ struct NexusAdopterTests {
         #expect(move.collectionSidecar == .pageCollection)
     }
 
-    @Test("scan classifies Items/ folder as wrapper-unwrap")
+    @Test("scan classifies Items/ folder as wrapper-unwrap when child has _schema.json")
     func scanItemsWrapper() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let wrapper = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
         let child = wrapper.appendingPathComponent("Errands", isDirectory: true)
         try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        // Child must carry a legacy sidecar so the structural guard recognizes
+        // this as a real wrapper (not a user folder named "Items").
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HVIT","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: child.appendingPathComponent("_schema.json")
+        )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         let unwrap = try #require(plan.unwrapSteps.first)
@@ -197,6 +203,16 @@ struct NexusAdopterTests {
         let events = wrapper.appendingPathComponent("Events", isDirectory: true)
         try FileManager.default.createDirectory(at: tasks, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: events, withIntermediateDirectories: true)
+        // Children must carry _schema.json so the structural guard recognizes
+        // this as a real ParadigmV2 Agenda wrapper.
+        try FixtureFiles.writeJSON(
+            #"{"schema_version":1,"properties":[],"views":[],"modified_at":"2026-05-01T00:00:00Z"}"#,
+            to: tasks.appendingPathComponent("_schema.json")
+        )
+        try FixtureFiles.writeJSON(
+            #"{"schema_version":1,"properties":[],"views":[],"modified_at":"2026-05-01T00:00:00Z"}"#,
+            to: events.appendingPathComponent("_schema.json")
+        )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         let unwrap = try #require(plan.unwrapSteps.first)
@@ -430,6 +446,12 @@ struct NexusAdopterTests {
         let wrapper = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
         let child = wrapper.appendingPathComponent("Recipes", isDirectory: true)
         try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        // _schema.json is required so the structural guard recognizes this as
+        // a real ParadigmV2 wrapper (not a user-named folder).
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HVREC","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: child.appendingPathComponent("_schema.json")
+        )
         try FixtureFiles.write("# Soup", to: child.appendingPathComponent("Soup.md"))
         // ...but a pre-existing folder already sits there.
         let collision = nexus.rootURL.appendingPathComponent("Recipes", isDirectory: true)
@@ -495,7 +517,10 @@ struct NexusAdopterTests {
             #"{"id":"01HCNEW","type_id":"01HVMAT","modified_at":"2026-05-01T00:00:00Z"}"#,
             to: planning.appendingPathComponent("_schema.json")
         )
-        // Empty Items/ wrapper with only .DS_Store noise.
+        // Empty Items/ folder with only .DS_Store noise — no wrapper-shaped
+        // children, so after the structural-guard fix it is treated as a fresh
+        // PageType rather than unwrapped (the old pure-name-match behaviour was
+        // the bug being fixed here).
         let items = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
         try FileManager.default.createDirectory(at: items, withIntermediateDirectories: true)
         try FixtureFiles.write("noise", to: items.appendingPathComponent(".DS_Store"))
@@ -517,10 +542,16 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         let result = NexusAdopter.apply(plan)
 
-        // Wrappers gone.
+        // Real wrappers (with wrapper-shaped children) gone.
         #expect(!FileManager.default.fileExists(atPath: pages.path))
-        #expect(!FileManager.default.fileExists(atPath: items.path))
         #expect(!FileManager.default.fileExists(atPath: agenda.path))
+        // The empty Items/ folder had no wrapper-shaped children, so the
+        // structural guard correctly left it as a fresh PageType — it stays
+        // on disk and receives a _pagetype.json sidecar.
+        #expect(FileManager.default.fileExists(atPath: items.path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: items.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
 
         // Archives at root with only _pagetype.json (legacy orphans deleted).
         let archivesNew = nexus.rootURL.appendingPathComponent("Archives", isDirectory: true)
@@ -593,5 +624,155 @@ struct NexusAdopterTests {
         #expect(
             FileManager.default.fileExists(atPath: flat.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path)
         )
+    }
+
+    // MARK: - wrapper detection: structural guard (Fix A)
+
+    @Test("user-named Pages/ folder without legacy child sidecars is not unwrapped")
+    func userNamedPagesFolderIsNotUnwrapped() throws {
+        // A user folder coincidentally named "Pages" that carries only regular
+        // .md content must NOT be destructively unwrapped. The structural guard
+        // checks for _schema.json / _vault.json / _collection.json in children;
+        // none present here → falls through to fresh PageType classification.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let pages = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
+        let sub = pages.appendingPathComponent("MySubfolder", isDirectory: true)
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        try FixtureFiles.write("# Essay", to: sub.appendingPathComponent("Essay.md"))
+        try FixtureFiles.write("# Other", to: pages.appendingPathComponent("OtherEssay.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.unwrapSteps.isEmpty, "user Pages/ must not be unwrapped")
+        let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Pages" }
+        #expect(fresh != nil, "Pages/ should be classified as a fresh candidate")
+        #expect(fresh?.kind == .pageType)
+    }
+
+    @Test("user-named Items/ folder without legacy child sidecars is not unwrapped")
+    func userNamedItemsFolderIsNotUnwrapped() throws {
+        // A user folder named "Items" with regular .json content (no legacy
+        // child sidecars) must fall through to fresh ItemType classification.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let items = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
+        try FileManager.default.createDirectory(at: items, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HI"}"#,
+            to: items.appendingPathComponent("Buy milk.json")
+        )
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.unwrapSteps.isEmpty, "user Items/ must not be unwrapped")
+        let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Items" }
+        #expect(fresh != nil)
+        #expect(fresh?.kind == .itemType)
+    }
+
+    @Test("user-named Agenda/ folder without legacy child sidecars is not unwrapped")
+    func userNamedAgendaFolderIsNotUnwrapped() throws {
+        // A user folder named "Agenda" with .md content (no _schema.json etc.
+        // in any child) must fall through to fresh PageType classification.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let agenda = nexus.rootURL.appendingPathComponent("Agenda", isDirectory: true)
+        try FileManager.default.createDirectory(at: agenda, withIntermediateDirectories: true)
+        try FixtureFiles.write("# Meeting notes", to: agenda.appendingPathComponent("Notes.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.unwrapSteps.isEmpty, "user Agenda/ must not be unwrapped")
+        let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Agenda" }
+        #expect(fresh != nil)
+        #expect(fresh?.kind == .pageType)
+    }
+
+    @Test("real ParadigmV2 Pages/ wrapper with _schema.json child still unwraps")
+    func realParadigmV2WrapperStillUnwraps() throws {
+        // The structural guard must not break real wrapper detection. A Pages/
+        // folder whose child carries _schema.json is a genuine ParadigmV2
+        // wrapper and must produce an unwrap step.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let wrapper = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
+        let child = wrapper.appendingPathComponent("MyVault", isDirectory: true)
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HVV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: child.appendingPathComponent("_schema.json")
+        )
+        try FixtureFiles.write("# SomePage", to: child.appendingPathComponent("SomePage.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.unwrapSteps.count == 1, "real wrapper must produce an unwrap step")
+        let unwrap = try #require(plan.unwrapSteps.first)
+        #expect(unwrap.wrapperKind == .pages)
+        #expect(unwrap.moves.first?.sourceURL.lastPathComponent == "MyVault")
+        // Pages/ itself must NOT appear in freshSidecars.
+        #expect(!plan.freshSidecars.contains(where: { $0.folderURL.lastPathComponent == "Pages" }))
+    }
+
+    @Test("empty user-named Pages/ folder with no children treated as fresh PageType")
+    func emptyUserNamedPagesFolderTreatedAsFresh() throws {
+        // An empty folder named "Pages" (no children at all) has no
+        // wrapper-shaped children → structural guard returns false → fresh
+        // PageType via emptyFolderDefaultsToPages. Must NOT be an unwrap.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let pages = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
+        try FileManager.default.createDirectory(at: pages, withIntermediateDirectories: true)
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        #expect(plan.unwrapSteps.isEmpty, "empty Pages/ must not be unwrapped")
+        let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Pages" }
+        #expect(fresh != nil)
+        #expect(fresh?.kind == .pageType)
+    }
+
+    @Test("Pages/ with one legacy-shaped child AND one loose file triggers unwrap; loose file fate documented")
+    func mixedPagesFolderUserPlusLegacy() throws {
+        // Edge case: Pages/ contains MyVault/_schema.json (wrapper-shaped) AND
+        // a loose RandomEssay.md at the Pages/ level. The presence of
+        // _schema.json in a child is enough for folderHasWrapperShapedChildren
+        // to return true, so the folder is treated as a wrapper.
+        // The loose RandomEssay.md is NOT a folder — classifyWrapperFolder only
+        // iterates childFolders — so it stays inside the Pages/ folder and is
+        // NOT moved. After apply, Pages/ is deleted only if empty of meaningful
+        // content; with RandomEssay.md still inside it will not be deleted.
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let wrapper = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
+        let child = wrapper.appendingPathComponent("MyVault", isDirectory: true)
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HVV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
+            to: child.appendingPathComponent("_schema.json")
+        )
+        // Loose .md file directly inside Pages/ (not in a sub-folder).
+        try FixtureFiles.write("# Random", to: wrapper.appendingPathComponent("RandomEssay.md"))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
+
+        // Wrapper is recognized (legacy child present) and scheduled for unwrap.
+        #expect(plan.unwrapSteps.count == 1)
+        let unwrap = try #require(plan.unwrapSteps.first)
+        #expect(unwrap.wrapperKind == .pages)
+        #expect(unwrap.moves.first?.sourceURL.lastPathComponent == "MyVault")
+
+        let result = NexusAdopter.apply(plan)
+        #expect(result.failedCount == 0)
+
+        // MyVault was moved to root.
+        let movedVault = nexus.rootURL.appendingPathComponent("MyVault", isDirectory: true)
+        #expect(FileManager.default.fileExists(atPath: movedVault.path))
+
+        // Pages/ is NOT deleted — RandomEssay.md kept it non-empty.
+        #expect(FileManager.default.fileExists(atPath: wrapper.path),
+            "Pages/ stays on disk because RandomEssay.md prevents empty-wrapper deletion")
+        #expect(FileManager.default.fileExists(atPath: wrapper.appendingPathComponent("RandomEssay.md").path))
     }
 }
