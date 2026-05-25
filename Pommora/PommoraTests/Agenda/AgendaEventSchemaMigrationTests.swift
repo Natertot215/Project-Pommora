@@ -31,7 +31,7 @@ struct AgendaEventSchemaMigrationTests {
                     },
                     {
                         "name": "location-tag",
-                        "type": "text",
+                        "type": "select",
                         "builtin": false
                     }
                 ],
@@ -56,7 +56,7 @@ struct AgendaEventSchemaMigrationTests {
         let locationProp = schema.properties.first { $0.name == "location-tag" }
         #expect(locationProp != nil)
         #expect(locationProp?.id.hasPrefix("prop_") == true)
-        #expect(locationProp?.type == .text)
+        #expect(locationProp?.type == .select)
     }
 
     // MARK: - Test 2: defaultSeed() produces _type for the built-in Select

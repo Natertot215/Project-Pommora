@@ -52,7 +52,7 @@ struct AgendaEventManagerTests {
         #expect(schemaURL.lastPathComponent == NexusPaths.eventConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
         let loaded = try AtomicJSON.decode(AgendaEventSchema.self, from: schemaURL)
-        #expect(loaded.properties.contains { $0.name == "type" && $0.builtin })
+        #expect(loaded.properties.contains { $0.name == "type" && $0.id.hasPrefix("_") })
     }
 
     @Test("loadAll reuses a renamed Events singleton discovered by _eventconfig.json")
