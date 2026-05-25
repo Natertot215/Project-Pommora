@@ -533,9 +533,9 @@ Three orderings, three layers:
 
 ---
 
-#### Scope at v0.3.0
+#### Scope at v0.3.0 (ship boundary)
 
-v0.3.0 ships the **complete data layer** for every property type in the catalog, plus **placeholder UI** for every interaction that needs UI. The placeholder UI is not polished — final Figma-driven UI replaces it in fast-follow patches — but every data field has a working UI path so behavior is verifiable end-to-end.
+v0.3.0 is the ship boundary for the full Properties data layer + placeholder UI for every interaction. The placeholder UI is not polished — final Figma-driven UI replaces it in fast-follow patches — but every data field has a working UI path so behavior is verifiable end-to-end.
 
 ##### In scope at v0.3.0
 

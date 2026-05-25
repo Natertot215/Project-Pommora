@@ -93,22 +93,22 @@ Items open in a popover-style floating surface anchored to the trigger (row clic
 - **Icon** — optional SF Symbol, editable via TextField (curated SymbolPicker UI deferred to a polish pass; current sheet supports manual entry).
 - **Properties** — typed inputs for each property in the parent Item Type's schema (via `PropertyEditorRow` dispatching to per-type controls: TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select; relation editor + tier1/2/3 chip pickers land v0.3.0).
 - **Description** — plain-text body field, **hard cap 250 characters**. Sized to fit the Item Window without scrolling; keeps the JSON file small and cloud-sync-friendly. This IS Items' body field (Items don't have Markdown bodies; description fills that role at a deliberately short size).
-- **Tier 1 / Tier 2 / Tier 3 relations** — read-only ULID display in v0.2; full relation picker UI lands v0.3.0 (shared `ContextTierPicker` component with the Pages-side property surface — pulldown / Page Preview inspector).
+- **Tier 1 / Tier 2 / Tier 3 relations** — edited via the shared `ContextTierPicker` component (same surface as the Pages-side property pulldown / Page Preview inspector).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem` (with a `renameItem` pre-step if the title changed). No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
 
 ---
 
-#### Inspector Panel + Pinned Chips — to-be-implemented (v0.3.x patch)
+#### Inspector Panel + Pinned Chips
 
-The Item Window has its own inspector — toggle in the popover's top-right corner, **default closed** — that hosts a Property Panel when opened. Eager rendering: the inspector shows ALL properties from the parent Item Type's schema regardless of fill state. Each row renders the property's current value if populated or an empty/void input ready to fill. User voids or fills any property directly inline. **Pinned-property chips** sit above the title in the popover, providing always-on access to a subset of properties without opening the inspector. Pinned set is saved at the Item Collection level (`_itemcollection.json.pinned_properties: [PropertyID]`) — all Items in a Collection share the chip layout. Right-click any property row in the inspector → "Pin to chips"; right-click chip → "Unpin". Title (filename) is NOT included in the property surface — it's the popover's title bar. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Property surface rendering modes".
+The Item Window has its own inspector — toggle in the popover's top-right corner, **default closed** — hosting a Property Panel when opened. Eager rendering: the inspector shows ALL properties from the parent Item Type's schema regardless of fill state. Each row renders the property's current value if populated or an empty/void input ready to fill. User voids or fills any property directly inline. **Pinned-property chips** sit above the title in the popover, providing always-on access to a subset of properties without opening the inspector. Pinned set is saved at the Item Collection level (`_itemcollection.json.pinned_properties: [PropertyID]`) — all Items in a Collection share the chip layout. Items in Type root (no Collection) do not get pinning controls. Right-click any property row in the inspector → "Pin to chips"; right-click chip → "Unpin". Stale property IDs in the pinned list (referencing deleted schema properties) are filtered on render. Title (filename) is NOT included in the property surface — it's the popover's title bar. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Property surface rendering modes".
 
 ---
 
-#### Item Window — redesigned shape (ships v0.3.x)
+#### Item Window — redesigned shape (Figma-driven polish, v0.3.x)
 
-The redesigned Item Window replaces the v0.2 popover in a v0.3.x patch (Figma-driven). v0.3.0 ships properties into the existing popover as placeholder UI; the redesigned Item Window with inspector toggle + pinned-property chips ships when designed.
+The redesigned modal-window shape is a Figma-driven polish pass on the popover already shipped. The popover carries the full Property Panel inspector + pinned chips today; the redesign restructures the layout (modal window with two-column body) once design lands.
 
 **Layout:** modal window (not popover) with a `New Item` / item-title header, two-column body, footer with Delete + Save.
 

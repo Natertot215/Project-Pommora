@@ -83,7 +83,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. Edited via type-to-search relation pickers in the property panel.
+Each tier filled independently. Edited via `ContextTierPicker` in the property panel (Pulldown / Inspector / Item Window). User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — these stay one-way (Contexts have no `properties[]` schema, so no reverse property is created; the reverse view is SQLite-query-derived via `IndexQuery.entitiesByScope(.contextTier(N))`).
 
 ---
 

@@ -48,7 +48,7 @@ Same block types as Contexts:
 - Widgets:
   - `embedded-collection-view` — saved Vault view, rendered inline (editable)
   - `embedded-context-view` — auto-collected linked-content from a Context
-  - `linked-pages` — Pages whose `tierN` includes a specified Context
+  - `linked-pages` — Pages whose `tierN` includes a specified Context (queried via `IndexQuery.entitiesByScope(.contextTier(N))`)
   - `link-list` — manually curated links
   - `mini-calendar` — small Agenda view (ships v0.8.0)
 

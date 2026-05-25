@@ -8,14 +8,14 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 
 #### Layout
 
-Five top-level groups (all labels renameable via Settings scaffold — Phase 7):
+Five top-level groups (all labels renameable via Settings scaffold — v0.3.0 storage + label-threading / v0.6.0 editing UI):
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
 - **Spaces** — flat rows for tier-1 Contexts
 - **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
 - **Types** (default label — Items-side) — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set"). Per `SidebarSectionLabels.defaults()`, section header defaults to the Items-side container-plural — "Types".
 - **Vaults** (default label — Pages-side) — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection"). Per `SidebarSectionLabels.defaults()`, section header defaults to the Pages-side signature plural — "Vaults".
 
-Types sits above Vaults — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. Calendar wires the Agenda data layer in a follow-up plan.
+Types sits above Vaults — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens `CalendarDetailView` (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
 
 ```
 [Sidebar]
@@ -56,7 +56,7 @@ There are no wrapper folders on disk — Page Types, Item Types, and the Agenda 
 
 - Any root folder carrying `_pagetype.json` → grouped under the **Vaults** section heading (Pages-side default)
 - Any root folder carrying `_itemtype.json` → grouped under the **Types** section heading (Items-side default)
-- Root folders carrying `_taskconfig.json` (Tasks singleton) and `_eventconfig.json` (Events singleton) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry once Calendar UI lands
+- Root folders carrying `_taskconfig.json` (Tasks singleton) and `_eventconfig.json` (Events singleton) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry (CalendarDetailView)
 
 The section headings ("Vaults" / "Types") are pure UI groupings with no on-disk counterpart, defaulted via `SidebarSectionLabels.defaults()` and renameable via Settings. Folders without a recognized sidecar are unrecognized and trigger the adopter on next launch (only when there's something to migrate — fresh non-Pommora folders stay invisible to discovery per `2d42d63`).
 
@@ -84,7 +84,7 @@ Stored in `.nexus/saved-config.json`:
 Each item's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
 
 - `homepage` opens the Homepage singleton (see [[Homepage]])
-- `calendar` opens a calendar view over Agenda Tasks + Agenda Events + EventKit-mirrored entries (see [[Agenda]]); Calendar UI lands in a follow-up plan, data layer ships v0.3.0
+- `calendar` opens `CalendarDetailView` — Tasks list above, Events list below (see [[Agenda]]). Right-click the pin entry → "New Task" / "New Event" for quick capture. EventKit-mirrored entries appear once sync opt-in ships at v0.6.0.
 - `recents` shows the NavDropdown's Recents store as a full-frame view; ships at v0.6.0 per [[NavDropdown]]
 
 **User-pinning of arbitrary entities is post-v1** — section gets its "Saved" heading + "+" affordance then; the three defaults become movable / removable.
@@ -128,15 +128,15 @@ Canonical creation pattern. No always-visible "+ New" buttons; right-click the r
 | Space row | New Space | Rename / Change Color / Change Icon / Delete |
 | Topic row (when disclosed) | New Project *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
 | Project row | — | Rename / Change Icon / Delete |
-| Item Type row | — *(no menu in v0.3.0 — stub row)* | — *(designed UI in follow-up plan)* |
-| Item Collection row | — *(no menu in v0.3.0 — stub row)* | — *(designed UI in follow-up plan)* |
-| Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Page Type Settings…** (opens schema editor + sort + property visibility) / Rename / Change Icon / Delete |
+| Item Type row | New Set + New Item *(scoped to THIS Item Type)* | **Type Settings…** (opens schema editor) / Rename / Change Icon / Delete |
+| Item Collection row | New Item *(in THIS Set)* | Rename / Delete |
+| Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Vault Settings…** (opens schema editor) / Rename / Change Icon / Delete |
 | Page Collection row | New Page *(in THIS Collection)* | Rename / Delete |
 | Page row | — | Rename / Delete (Page editor shipped v0.2.7.0) |
 
 Location scoping is load-bearing — right-clicking on a Page Collection produces "New Page" that creates IN that Page Collection. Matches Finder + Notion + Obsidian.
 
-No Agenda menu rows in the sidebar at all — Agenda surfaces via the Calendar pin entry; Agenda Task and Agenda Event creation runs through the Calendar UI when it lands.
+No Agenda menu rows in the sidebar at all — Agenda surfaces via the Calendar pin entry. Right-click the Calendar pin → "New Task" / "New Event" handles quick capture.
 
 #### Discoverable creation: hover-icon "+" + quick-capture
 
@@ -188,4 +188,4 @@ Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `t
 
 ---
 
-> **v0.3.0 status:** The Pages-side ships fully designed per this spec — Page Type rows (labeled "Vault" by default), Page Collection rows, context menus, sheet wiring, drag-reorder. The Items-side ships as minimal stubs: `ItemTypeRow` + `ItemCollectionRow` render as plain selectable rows (no context menus, no quick-actions, no drag wiring). Click-through lands on a `ContentUnavailableView` placeholder; the Items table UI lands in a follow-up plan. Agenda has no sidebar section — Agenda Tasks + Agenda Events surface via the Calendar pin entry (data layer ships in v0.3.0; Calendar UI is a follow-up plan).
+> **As shipped at v0.3.0:** Both Pages-side and Items-side rows ship designed per this spec — context menus (Vault Settings… / Type Settings…), sheet wiring (`VaultSettingsSheet` / `TypeSettingsSheet`), drag-reorder. The Items-side table UI fills in beyond a `ContentUnavailableView` placeholder in a v0.3.x patch. Agenda surfaces via the Calendar pin entry (`CalendarDetailView` + right-click quick-create).
