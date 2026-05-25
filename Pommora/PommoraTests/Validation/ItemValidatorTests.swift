@@ -11,6 +11,7 @@ struct ItemValidatorTests {
         let spaceID = ULID.generate()
         let topicID = ULID.generate()
         let projectID = ULID.generate()
+        let propID = "prop_status_001"
         let space = Space(
             id: spaceID, title: "S", color: .blue, icon: nil,
             blocks: [], modifiedAt: Date())
@@ -30,7 +31,7 @@ struct ItemValidatorTests {
             id: ULID.generate(), title: "V", icon: nil,
             properties: [
                 PropertyDefinition(
-                    id: "", name: "status", type: .select,
+                    id: propID, name: "status", type: .select,
                     selectOptions: [PropertyDefinition.SelectOption(value: "Active", label: "Active", color: nil)])
             ],
             views: [], modifiedAt: Date()
@@ -38,9 +39,8 @@ struct ItemValidatorTests {
         try ItemValidator.validate(
             title: "Buy groceries",
             tier1: [spaceID], tier2: [topicID], tier3: [projectID],
-            properties: ["status": .select("Active")],
+            properties: [propID: .select("Active")],
             vault: vault,
-            existingSiblings: [],
             context: context
         )
     }
@@ -62,35 +62,49 @@ struct ItemValidatorTests {
             try ItemValidator.validate(
                 title: "X", tier1: [topicID], tier2: [], tier3: [],
                 properties: [:], vault: vault,
-                existingSiblings: [], context: context
+                context: context
             )
         }
     }
 
-    @Test("property value of wrong type throws")
+    @Test("property value of wrong type throws .propertyTypeMismatch(id:)")
     func wrongPropertyType() {
+        let propID = "prop_count_001"
         let vault = makeVault(properties: [
-            PropertyDefinition(id: "", name: "count", type: .number)
+            PropertyDefinition(id: propID, name: "count", type: .number)
         ])
-        #expect(throws: ItemValidator.ValidationError.propertyTypeMismatch(name: "count")) {
+        #expect(throws: ItemValidator.ValidationError.propertyTypeMismatch(id: propID)) {
             try ItemValidator.validate(
                 title: "X", tier1: [], tier2: [], tier3: [],
-                properties: ["count": .checkbox(true)],  // wrong type
+                properties: [propID: .checkbox(true)],  // wrong type
                 vault: vault,
-                existingSiblings: [], context: .empty
+                context: .empty
             )
         }
     }
 
-    @Test("property not in vault schema throws")
+    @Test("property not in vault schema throws .unknownProperty(id:)")
     func unknownProperty() {
         let vault = makeVault(properties: [])
-        #expect(throws: ItemValidator.ValidationError.unknownProperty(name: "phantom")) {
+        #expect(throws: ItemValidator.ValidationError.unknownProperty(id: "phantom")) {
             try ItemValidator.validate(
                 title: "X", tier1: [], tier2: [], tier3: [],
                 properties: ["phantom": .select("a")],
                 vault: vault,
-                existingSiblings: [], context: .empty
+                context: .empty
+            )
+        }
+    }
+
+    @Test("unknown property ID carries the ID in the error")
+    func unknownPropertyIDThrowsWithIDInError() {
+        let vault = makeVault(properties: [])
+        #expect(throws: ItemValidator.ValidationError.unknownProperty(id: "prop_abc_999")) {
+            try ItemValidator.validate(
+                title: "X", tier1: [], tier2: [], tier3: [],
+                properties: ["prop_abc_999": .select("a")],
+                vault: vault,
+                context: .empty
             )
         }
     }

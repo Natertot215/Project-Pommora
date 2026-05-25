@@ -28,7 +28,6 @@ extension PageContentManager {
                 properties: [:],
                 createdAt: Date(),
                 vault: vault,
-                existingSiblings: existing,
                 context: contextProvider()
             )
 
@@ -68,9 +67,7 @@ extension PageContentManager {
                 properties: page.frontmatter.properties,
                 createdAt: page.frontmatter.createdAt,
                 vault: vault,
-                existingSiblings: existing,
-                context: contextProvider(),
-                excluding: page
+                context: contextProvider()
             )
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: collection.folderURL)
@@ -133,9 +130,7 @@ extension PageContentManager {
                 properties: page.frontmatter.properties,
                 createdAt: page.frontmatter.createdAt,
                 vault: vault,
-                existingSiblings: existing,
-                context: contextProvider(),
-                excluding: page
+                context: contextProvider()
             )
 
             let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)
@@ -160,16 +155,12 @@ extension PageContentManager {
     func createPage(name: String, inVaultRoot vault: PageType) async throws -> PageMeta {
         do {
             let existing = pagesByTypeRoot[vault.id] ?? []
-            // PageValidator.existingSiblings is a uniqueness check against
-            // whatever sibling list the caller passes — passing the Type-root
-            // Pages here is correct semantics for a Type-root create.
             try PageValidator.validate(
                 title: name,
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
                 createdAt: Date(),
                 vault: vault,
-                existingSiblings: existing,
                 context: contextProvider()
             )
 
@@ -209,9 +200,7 @@ extension PageContentManager {
                 properties: page.frontmatter.properties,
                 createdAt: page.frontmatter.createdAt,
                 vault: vault,
-                existingSiblings: existing,
-                context: contextProvider(),
-                excluding: page
+                context: contextProvider()
             )
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: folderURL(for: vault))
@@ -262,9 +251,7 @@ extension PageContentManager {
                 properties: page.frontmatter.properties,
                 createdAt: page.frontmatter.createdAt,
                 vault: vault,
-                existingSiblings: existing,
-                context: contextProvider(),
-                excluding: page
+                context: contextProvider()
             )
 
             let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)

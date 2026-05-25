@@ -17,7 +17,6 @@ struct PageValidatorTests {
             properties: [:],
             createdAt: Date(timeIntervalSince1970: 1716000000),
             vault: vault,
-            existingSiblings: [],
             context: .empty
         )
     }
@@ -34,42 +33,46 @@ struct PageValidatorTests {
                 properties: [:],
                 createdAt: Date(timeIntervalSince1970: 0),
                 vault: vault,
-                existingSiblings: [],
                 context: .empty
             )
         }
     }
 
-    @Test("duplicate title in same PageCollection throws")
-    func duplicate() throws {
+    @Test("property with unknown ID throws .unknownProperty(id:)")
+    func unknownPropertyIDThrowsWithIDInError() {
         let vault = PageType(
             id: "01HV", title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        let existing = [makePageMeta(title: "Notes")]
-        #expect(throws: PageValidator.ValidationError.duplicateTitle) {
+        #expect(throws: PageValidator.ValidationError.unknownProperty(id: "prop_unknown_123")) {
             try PageValidator.validate(
-                title: "NOTES",
+                title: "Notes",
                 tier1: [], tier2: [], tier3: [],
-                properties: [:],
-                createdAt: Date(timeIntervalSince1970: 1),
+                properties: ["prop_unknown_123": .select("A")],
+                createdAt: Date(timeIntervalSince1970: 1716000000),
                 vault: vault,
-                existingSiblings: existing,
                 context: .empty
             )
         }
     }
 
-    private func makePageMeta(title: String) -> PageMeta {
-        PageMeta(
-            id: ULID.generate(),
-            title: title,
-            url: URL(fileURLWithPath: "/tmp/x/\(title).md"),
-            frontmatter: PageFrontmatter(
-                id: ULID.generate(), icon: nil,
+    @Test("property value of wrong type throws .propertyTypeMismatch(id:)")
+    func wrongPropertyTypeMismatch() {
+        let propID = "prop_count_001"
+        let vault = PageType(
+            id: "01HV", title: "V", icon: nil,
+            properties: [
+                PropertyDefinition(id: propID, name: "count", type: .number)
+            ],
+            views: [], modifiedAt: Date())
+        #expect(throws: PageValidator.ValidationError.propertyTypeMismatch(id: propID)) {
+            try PageValidator.validate(
+                title: "Notes",
                 tier1: [], tier2: [], tier3: [],
-                properties: [:],
-                createdAt: Date(timeIntervalSince1970: 1)
+                properties: [propID: .checkbox(true)],
+                createdAt: Date(timeIntervalSince1970: 1716000000),
+                vault: vault,
+                context: .empty
             )
-        )
+        }
     }
 }

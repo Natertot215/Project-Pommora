@@ -204,11 +204,10 @@ struct ItemWindow: View {
         switch error {
         case .emptyTitle: return "Title can't be empty."
         case .invalidTitleCharacters: return "Title can't contain / \\ :"
-        case .duplicateTitle: return "Another Item already has that name in this Collection."
         case .descriptionTooLong: return "Description over 250 characters."
         case .tierMismatch: return "Internal: tier reference invalid."
-        case .unknownProperty(let n): return "Unknown property '\(n)' for this Vault."
-        case .propertyTypeMismatch(let n): return "Property '\(n)' has wrong type."
+        case .unknownProperty(let id): return "Unknown property '\(id)' for this Vault."
+        case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
         }
     }
 }

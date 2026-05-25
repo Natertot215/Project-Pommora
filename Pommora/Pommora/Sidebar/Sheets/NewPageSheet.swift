@@ -62,15 +62,10 @@ struct NewPageSheet: View {
         switch error {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
-        case .duplicateTitle:
-            switch parent {
-            case .collection: return "A Page with that name already exists in this Collection."
-            case .vaultRoot: return "A Page with that name already exists in this Vault's root."
-            }
         case .missingCreatedAt: return "Internal: created_at not set."
         case .tierMismatch: return "Internal: tier reference invalid."
-        case .unknownProperty(let n): return "Property '\(n)' not in Vault schema."
-        case .propertyTypeMismatch(let n): return "Property '\(n)' has wrong type."
+        case .unknownProperty(let id): return "Property '\(id)' not in Vault schema."
+        case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
         }
     }
 }
