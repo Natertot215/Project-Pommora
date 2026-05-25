@@ -145,4 +145,25 @@ struct PageTypeManagerTests {
             .appendingPathComponent("Planner/Tasks")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
+
+    @Test("reorderPageCollections swaps order in the manager")
+    func reorderPageCollections() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = PageTypeManager(nexus: nexus)
+        await manager.loadAll()
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Alpha", inPageType: pageType)
+        try await manager.createPageCollection(name: "Beta", inPageType: pageType)
+
+        let before = manager.pageCollections(in: pageType).map(\.title)
+        // move Beta (index 1) above Alpha (index 0)
+        manager.reorderPageCollections(in: pageType, fromOffsets: IndexSet(integer: 1), toOffset: 0)
+        let after = manager.pageCollections(in: pageType).map(\.title)
+
+        #expect(before != after)
+        #expect(after.first == "Beta")
+        #expect(after.last == "Alpha")
+    }
 }

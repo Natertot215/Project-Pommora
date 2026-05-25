@@ -1,5 +1,26 @@
 import SwiftUI
 
+// MARK: - Unified disclosure item
+
+/// Combines PageCollections and Pages into a single ordered list for the
+/// PageType disclosure body. Collections render ABOVE Pages (Nathan's directive
+/// 2026-05-25). A single ForEach + .onMove handles both, avoiding the
+/// dual-ForEach SwiftUI bug where only the first ForEach's .onMove binding
+/// is honoured.
+private enum VaultDisclosureItem: Identifiable {
+    case collection(PageCollection)
+    case page(PageMeta)
+
+    var id: String {
+        switch self {
+        case .collection(let c): return "c:\(c.id)"
+        case .page(let p): return "p:\(p.id)"
+        }
+    }
+}
+
+// MARK: - PageTypeRow
+
 struct PageTypeRow: View {
     let pageType: PageType
     @Binding var selection: SidebarSelection
@@ -19,43 +40,41 @@ struct PageTypeRow: View {
     @FocusState private var renameFocused: Bool
     @State private var showingVaultSettings: Bool = false
 
+    // Collections first, then vault-root pages. A single ForEach with one
+    // .onMove works around the SwiftUI bug where only the first sibling
+    // ForEach's .onMove is honoured inside a DisclosureGroup body.
+    private var disclosureItems: [VaultDisclosureItem] {
+        pageTypeManager.pageCollections(in: pageType).map { .collection($0) }
+            + contentManager.pages(in: pageType).map { .page($0) }
+    }
+
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            // Page-Type-root Pages render ABOVE Collections per spec
-            // (PageTypes.md:112-114).
-            ForEach(contentManager.pages(in: pageType)) { page in
-                PageRow(
-                    page: page,
-                    parent: .vaultRoot(pageType),
-                    selection: $selection,
-                    editingID: $editingID
-                )
-                .tag(SelectionTag.page(page.id))
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    contentManager.reorderPages(
-                        inVault: pageType, fromOffsets: source, toOffset: destination
+            // Collections render ABOVE Pages per Nathan's directive 2026-05-25.
+            ForEach(disclosureItems) { item in
+                switch item {
+                case .collection(let coll):
+                    PageCollectionRow(
+                        collection: coll,
+                        parentVault: pageType,
+                        selection: $selection,
+                        editingID: $editingID,
+                        presentedSheet: $presentedSheet,
+                        confirmingDelete: $confirmingDelete
                     )
+                    .tag(SelectionTag.collection(coll.id))
+                case .page(let page):
+                    PageRow(
+                        page: page,
+                        parent: .vaultRoot(pageType),
+                        selection: $selection,
+                        editingID: $editingID
+                    )
+                    .tag(SelectionTag.page(page.id))
                 }
             }
-            ForEach(pageTypeManager.pageCollections(in: pageType)) { coll in
-                PageCollectionRow(
-                    collection: coll,
-                    parentVault: pageType,
-                    selection: $selection,
-                    editingID: $editingID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
-                )
-                .tag(SelectionTag.collection(coll.id))
-            }
             .onMove { source, destination in
-                withAnimation(.snappy) {
-                    pageTypeManager.reorderPageCollections(
-                        in: pageType, fromOffsets: source, toOffset: destination
-                    )
-                }
+                reorder(fromOffsets: source, toOffset: destination)
             }
         } label: {
             label
@@ -153,5 +172,45 @@ struct PageTypeRow: View {
 
     private func cancel() {
         editingID = nil
+    }
+
+    /// Routes a drag-reorder to the correct manager.
+    ///
+    /// Cross-set drags (a collection dragged into the pages zone, or vice
+    /// versa) are silently rejected — v0.3.0 doesn't support interleaving.
+    /// Same-set drags are translated back to per-set offsets before
+    /// forwarding to the manager.
+    private func reorder(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let items = disclosureItems
+        let collectionCount = pageTypeManager.pageCollections(in: pageType).count
+
+        // Determine which set all source indices belong to.
+        let allCollections = source.allSatisfy { $0 < collectionCount }
+        let allPages = source.allSatisfy { $0 >= collectionCount }
+
+        guard allCollections || allPages else { return }   // cross-set drag — reject
+
+        withAnimation(.snappy) {
+            if allCollections {
+                // Clamp destination to the collections zone (indices 0..<collectionCount).
+                let clampedDestination = min(destination, collectionCount)
+                pageTypeManager.reorderPageCollections(
+                    in: pageType,
+                    fromOffsets: source,
+                    toOffset: clampedDestination
+                )
+            } else {
+                // Translate unified-list offsets to page-local offsets.
+                let localSource = IndexSet(source.map { $0 - collectionCount })
+                let pageCount = items.count - collectionCount
+                let rawLocal = destination - collectionCount
+                let localDestination = min(max(rawLocal, 0), pageCount)
+                contentManager.reorderPages(
+                    inVault: pageType,
+                    fromOffsets: localSource,
+                    toOffset: localDestination
+                )
+            }
+        }
     }
 }
