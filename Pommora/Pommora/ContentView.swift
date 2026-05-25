@@ -372,6 +372,18 @@ struct ContentView: View {
         let settingsMgr = SettingsManager(nexus: nexus)
         let router = MainWindowRouter()
 
+        // Phase E.7.5: wire IndexUpdater into all 6 CRUD managers before publishing.
+        // IndexUpdater is Sendable — a single value can be shared across all 6.
+        // If currentIndex is nil (degraded mode), updater stays nil and every
+        // manager's `if let updater = indexUpdater` guard skips index writes.
+        let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
+        vaultMgr.indexUpdater = updater
+        itemTypeMgr.indexUpdater = updater
+        contentMgr.indexUpdater = updater
+        itemContentMgr.indexUpdater = updater
+        agendaTaskMgr.indexUpdater = updater
+        agendaEventMgr.indexUpdater = updater
+
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
