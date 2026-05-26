@@ -50,8 +50,22 @@ final class PageTypeManager {
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
-                    let pageType = try? PageType.load(from: metaURL)
+                    var pageType = try? PageType.load(from: metaURL)
                 else { continue }
+
+                // Default-view migration (Task 5, Phase A — v0.3.1). If the
+                // PageType has no saved views, mint a Table view that exposes
+                // every user-defined property as a column. Idempotent — the
+                // `views.isEmpty` gate is the only mutation trigger. Best-
+                // effort save: failures fall through and the next loadAll
+                // tries again (no user data lost; matches quirk #15's
+                // defensive-on-load pattern).
+                if pageType.views.isEmpty {
+                    pageType.views = [
+                        SavedView.defaultTable(visiblePropertyIDs: pageType.properties.map(\.id))
+                    ]
+                    try? pageType.save(to: metaURL)
+                }
                 loadedTypes.append(pageType)
 
                 // Discover PageCollections (sub-folders with `_pagecollection.json`; skip _- and .-prefixed).
@@ -59,6 +73,7 @@ final class PageTypeManager {
                 // so if the sidecar is missing (folder created by hand in Finder, or pre-existing
                 // before adoption), write a fresh one in place. Best-effort: a write failure
                 // falls through to the existing nil-skip behavior.
+                let parentPropertyIDs = pageType.properties.map(\.id)
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
@@ -76,7 +91,20 @@ final class PageTypeManager {
                                 metadataURL: collMetaURL, metadata: fresh
                             )
                         }
-                        return try? PageCollection.load(from: collMetaURL)
+                        guard var collection = try? PageCollection.load(from: collMetaURL) else {
+                            return nil
+                        }
+                        // Default-view migration on the Collection. Each
+                        // Collection is INDEPENDENT (locked decision) — its
+                        // own default Table seeded with the parent's
+                        // visible-property ordering as the starting set.
+                        if collection.views.isEmpty {
+                            collection.views = [
+                                SavedView.defaultTable(visiblePropertyIDs: parentPropertyIDs)
+                            ]
+                            try? collection.save(to: collMetaURL)
+                        }
+                        return collection
                     }
                 loadedCols[pageType.id] = OrderResolver.resolve(
                     cols,

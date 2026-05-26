@@ -72,8 +72,19 @@ final class ItemTypeManager {
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
-                    let itemType = try? ItemType.load(from: metaURL)
+                    var itemType = try? ItemType.load(from: metaURL)
                 else { continue }
+
+                // Default-view migration (Task 5, Phase A — v0.3.1). Mirrors
+                // PageTypeManager.loadAll's pass. Idempotent (`views.isEmpty`
+                // is the only mutation trigger); best-effort save (failures
+                // re-try on next load).
+                if itemType.views.isEmpty {
+                    itemType.views = [
+                        SavedView.defaultTable(visiblePropertyIDs: itemType.properties.map(\.id))
+                    ]
+                    try? itemType.save(to: metaURL)
+                }
                 loadedTypes.append(itemType)
 
                 // Discover ItemCollections (sub-folders with `_itemcollection.json`;
@@ -82,6 +93,7 @@ final class ItemTypeManager {
                 // created by hand in Finder, or pre-existing before adoption), write
                 // a fresh one in place. Best-effort: a write failure falls through
                 // to the existing nil-skip behavior.
+                let parentPropertyIDs = itemType.properties.map(\.id)
                 let cols = try Filesystem.childFolders(of: folder)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
@@ -99,7 +111,20 @@ final class ItemTypeManager {
                                 metadataURL: collMetaURL, metadata: fresh
                             )
                         }
-                        return try? ItemCollection.load(from: collMetaURL)
+                        guard var collection = try? ItemCollection.load(from: collMetaURL) else {
+                            return nil
+                        }
+                        // Default-view migration on the Collection. Each
+                        // Collection is INDEPENDENT (locked decision) — its
+                        // own default Table seeded with the parent ItemType's
+                        // visible-property ordering as the starting set.
+                        if collection.views.isEmpty {
+                            collection.views = [
+                                SavedView.defaultTable(visiblePropertyIDs: parentPropertyIDs)
+                            ]
+                            try? collection.save(to: collMetaURL)
+                        }
+                        return collection
                     }
                 loadedCols[itemType.id] = OrderResolver.resolve(
                     cols,

@@ -93,6 +93,22 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         try c.encodeIfPresent(filter, forKey: .filter)
         try c.encodeIfPresent(group, forKey: .group)
     }
+
+    /// Default Table view minted by `loadAll` migrations when a container's
+    /// `views` array is empty (per quirk #15 defensive-on-load pattern).
+    /// `visiblePropertyIDs` carries the parent Type's `properties.map(\.id)`
+    /// so every user-defined column is visible by default; the migration
+    /// gives users a sensible starting view they can then customize.
+    static func defaultTable(visiblePropertyIDs: [String]) -> SavedView {
+        SavedView(
+            id: "view_\(ULID.generate())",
+            name: "Table",
+            icon: "tablecells",
+            type: .table,
+            visibleProperties: visiblePropertyIDs,
+            hiddenProperties: []
+        )
+    }
 }
 
 /// View renderer kind. Only `.table` is wired at v0.3.1; the remaining cases
