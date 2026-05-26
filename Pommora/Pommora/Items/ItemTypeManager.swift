@@ -663,6 +663,54 @@ extension ItemTypeManager {
     /// **Paired relations** (`property.dualProperty != nil`): routed through
     /// `DualRelationCoordinator.deletePair` which cascades the delete to both
     /// Type sidecars and strips all values from member files on each side.
+    // MARK: - Update property (transform-based per-config edit)
+
+    /// Apply an in-place transform to a PropertyDefinition's per-config
+    /// fields. Mirrors PageTypeManager.updateProperty — see that file for
+    /// the full rationale. Used by EditPropertyPane (Task 11).
+    func updateProperty(
+        id propertyID: String,
+        in typeID: String,
+        transform: (inout PropertyDefinition) -> Void
+    ) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let j = types[i].properties.firstIndex(where: { $0.id == propertyID }) else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var updatedDef = types[i].properties[j]
+            transform(&updatedDef)
+
+            var siblings = types[i].properties
+            siblings.remove(at: j)
+            try PropertyDefinitionValidator.validate(updatedDef, in: siblings)
+
+            var updatedType = types[i]
+            updatedType.properties[j] = updatedDef
+            updatedType.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updatedType.title)
+            try updatedType.save(to: meta)
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPropertyDefinition(
+                        updatedDef, owningTypeID: typeID, owningTypeKind: "item_type", position: j
+                    )
+                } catch { self.pendingError = error }
+            }
+
+            types[i] = updatedType
+            typesByID[typeID] = updatedType
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     func deleteProperty(id propertyID: String, in typeID: String) async throws {
         do {
             guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
