@@ -116,6 +116,21 @@ final class ItemTypeManager {
             self.itemCollectionsByType = loadedCols
             self.typesByID = Dictionary(uniqueKeysWithValues: self.types.map { ($0.id, $0) })
             self.pendingError = nil
+
+            // Defensive index sync — mirrors PageTypeManager.loadAll's
+            // post-load upsert pass. See that file for the full rationale.
+            // tl;dr: entities arriving outside CRUD (adoption / external
+            // folder creation) aren't in the DB; subsequent createItem /
+            // updateItem call sites FK-fail. INSERT OR REPLACE makes this
+            // idempotent; index is regeneratable so failures are swallowed.
+            if let updater = indexUpdater {
+                for itemType in self.types {
+                    try? updater.upsertItemType(itemType)
+                    for collection in self.itemCollectionsByType[itemType.id] ?? [] {
+                        try? updater.upsertItemCollection(collection)
+                    }
+                }
+            }
         } catch {
             self.types = []
             self.itemCollectionsByType = [:]

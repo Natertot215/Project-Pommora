@@ -92,6 +92,24 @@ final class PageTypeManager {
             )
             self.pageCollectionsByType = loadedCols
             self.pendingError = nil
+
+            // Defensive index sync. The architecture's quiet contract is "DB
+            // stays in sync via incremental CRUD upserts after IndexBuilder
+            // runs once." That contract breaks when entities arrive outside
+            // CRUD (adopted folders, externally-added folders, post-adoption
+            // state, etc.) — subsequent updatePage / createPage call sites
+            // pass vault.id / collection.id that aren't in the DB and FK
+            // constraints fire. INSERT OR REPLACE makes this loop idempotent;
+            // zero harm if a row's already there. Failures swallowed: index
+            // is regeneratable, no user data lost.
+            if let updater = indexUpdater {
+                for pageType in self.types {
+                    try? updater.upsertPageType(pageType)
+                    for collection in self.pageCollectionsByType[pageType.id] ?? [] {
+                        try? updater.upsertPageCollection(collection)
+                    }
+                }
+            }
         } catch {
             self.types = []
             self.pageCollectionsByType = [:]
