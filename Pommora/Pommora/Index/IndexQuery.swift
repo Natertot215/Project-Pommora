@@ -371,7 +371,7 @@ enum FilterCriterion: Sendable {
     case or([FilterCriterion])
 }
 
-enum SortDirection: String, Sendable { case ascending, descending }
+enum SortDirection: String, Codable, Equatable, Hashable, Sendable { case ascending, descending }
 
 enum EntityKind: String, Codable, Sendable {
     case page, item, agendaTask, agendaEvent, pageType, itemType,
