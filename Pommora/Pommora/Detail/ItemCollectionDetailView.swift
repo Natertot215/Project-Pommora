@@ -89,6 +89,20 @@ struct ItemCollectionDetailView: View {
         .padding()
     }
 
+    /// User-defined property columns derived from `collection.views[0]` +
+    /// parent ItemType's schema. Empty when the SavedView has no
+    /// visibleProperties — collapses to legacy Title/Modified shape.
+    private var userPropertyColumns: [PropertyDefinition] {
+        guard let view = collection.views.first,
+              let parent = itemTypeManager.parentItemType(for: collection)
+        else { return [] }
+        let cols = PropertyColumnBuilder.columns(view: view, schema: parent.properties)
+        return cols.compactMap { col in
+            if case .userProperty(let def) = col.kind { return def }
+            return nil
+        }
+    }
+
     private var table: some View {
         Table(rows, selection: $tableSelection) {
             TableColumn("Title") { row in
@@ -106,11 +120,30 @@ struct ItemCollectionDetailView: View {
                     handleDrop(payloads: payloads, ontoRowID: row.id)
                 }
             }
+            TableColumnForEach(userPropertyColumns, id: \.id) { def in
+                TableColumn(def.name) { row in
+                    PropertyCellDisplay(
+                        definition: def,
+                        value: propertyValue(for: row, propertyID: def.id),
+                        relationResolver: { _ in nil }
+                    )
+                }
+                .width(min: 90, ideal: 120, max: 220)
+            }
             TableColumn("Modified") { row in
                 Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        }
+    }
+
+    private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
+        switch row.kind {
+        case .item(let item):
+            return item.properties[propertyID]
+        case .page, .collection, .itemCollection:
+            return nil
         }
     }
 
