@@ -26,13 +26,43 @@ struct PropertiesListPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            inlineHeader
+            Divider()
             propertyList
+                .frame(maxHeight: .infinity)
             Divider()
             footer
         }
         .frame(width: 300, height: 360)
-        .navigationTitle("Edit Properties")
-        .navigationBarBackButtonHidden(false)
+        .toolbar(.hidden)  // suppress NavigationStack's dark-material chrome on macOS
+    }
+
+    // MARK: - Inline header (matches StorageMenuRoot styling)
+
+    @ViewBuilder
+    private var inlineHeader: some View {
+        HStack(spacing: 8) {
+            Button {
+                if !path.isEmpty { path.removeLast() }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Back")
+
+            Text("Edit Properties")
+                .font(.headline)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 14)
+        .padding(.bottom, 8)
     }
 
     // MARK: - List
@@ -40,11 +70,11 @@ struct PropertiesListPane: View {
     @ViewBuilder
     private var propertyList: some View {
         let props = filteredProperties()
-        ScrollView {
-            VStack(spacing: 0) {
-                if props.isEmpty {
-                    emptyState
-                } else {
+        if props.isEmpty {
+            emptyState
+        } else {
+            ScrollView {
+                VStack(spacing: 0) {
                     ForEach(props, id: \.id) { def in
                         PropertyRow(definition: def) {
                             // Reserved properties are non-interactive; only
@@ -57,7 +87,6 @@ struct PropertiesListPane: View {
                 }
             }
         }
-        .searchable(text: $searchQuery, placement: .toolbar, prompt: "Find a property")
     }
 
     private func filteredProperties() -> [PropertyDefinition] {
@@ -86,16 +115,22 @@ struct PropertiesListPane: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Image(systemName: "list.bullet.rectangle")
-                .font(.system(size: 22))
+                .font(.system(size: 26))
                 .foregroundStyle(.tertiary)
             Text(searchQuery.isEmpty ? "No properties yet" : "No matches")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            if searchQuery.isEmpty {
+                Text("Use **+ New property** below to add the first one.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Footer
