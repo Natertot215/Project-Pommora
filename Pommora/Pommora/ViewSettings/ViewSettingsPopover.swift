@@ -1,39 +1,102 @@
 import SwiftUI
 
-/// View Settings popover content — chrome-only placeholder slice.
+/// View Settings popover content.
 ///
-/// At v0.3.1.x this is an empty Liquid Glass shell at a fixed 300x360pt size,
-/// to validate the chrome before pane content lands. In v0.3.1 this gets
-/// replaced by a NavigationStack with real panes (Layout / Property Visibility
-/// / Sort / Filter / Group / Edit Properties).
+/// Storage scopes (PageType / PageCollection / ItemType / ItemCollection)
+/// render `StorageMenuRoot` — a Notion-style root menu with active Edit
+/// Properties + Property Visibility rows plus muted Layout / Sort / Filter /
+/// Group rows pointing at upcoming v0.3.1.x patches. Non-storage scopes
+/// (Spaces / Topics / Projects / Pages / Calendar / none) keep the empty
+/// 300x360pt shell from the v0.3.0.5 chrome slice; their View Settings
+/// surfaces ship in later versions.
+///
+/// NavigationStack drives the per-route push: root menu rows append routes
+/// to `path`; `.navigationDestination(for:)` resolves each route to a
+/// pushed pane. v0.3.1 panes (PropertiesListPane / PropertyTypePickerPane /
+/// EditPropertyPane / EditOptionPane / PropertyVisibilityPane) replace
+/// these placeholders in-place at Tasks 9-12 per quirk #8.
 ///
 /// Liquid Glass background is auto-applied by the toolbar-anchored popover
 /// (WWDC25 #323). Do NOT apply .background(.regularMaterial) or
 /// .glassEffect() — Apple drives the chrome.
 ///
 /// Dismissal: outside-click and ESC are SwiftUI's defaults for popovers; no
-/// in-popover close affordance needed at this slice.
+/// in-popover close affordance needed.
 struct ViewSettingsPopover: View {
-    /// Which surface the popover currently reflects. Unused at this slice;
-    /// kept so the static-button / adaptive-content wiring ships intact and
-    /// follow-up slices only have to swap the body.
     let scope: ViewSettingsScope
 
+    @State private var path: [ViewSettingsRoute] = []
+
     var body: some View {
-        Color.clear
-            .frame(width: 300, height: 360)
+        NavigationStack(path: $path) {
+            rootContent
+                .navigationDestination(for: ViewSettingsRoute.self) { route in
+                    destination(for: route)
+                }
+        }
+        .frame(width: 300, height: 360)
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        switch scope {
+        case .pageType, .pageCollection, .itemType, .itemCollection:
+            StorageMenuRoot(scope: scope, path: $path)
+        default:
+            // Non-storage scopes: empty 300x360 shell retained from chrome slice.
+            // Per-scope panes for those surfaces ship in later versions.
+            Color.clear
+        }
+    }
+
+    /// Pushed-pane destinations. Task 7 ships placeholder rows; Tasks 9-12
+    /// replace each in-place with the real pane.
+    @ViewBuilder
+    private func destination(for route: ViewSettingsRoute) -> some View {
+        switch route {
+        case .editProperties:
+            placeholder(title: "Edit Properties", note: "PropertiesListPane lands at Task 9")
+        case .propertyTypePicker:
+            placeholder(title: "+ New Property", note: "PropertyTypePickerPane lands at Task 10")
+        case .editProperty(let id):
+            placeholder(title: "Edit Property", note: "EditPropertyPane lands at Task 11 (id: \(id))")
+        case .editOption(let pid, let opt):
+            placeholder(title: "Edit Option", note: "EditOptionPane lands at Task 11b (\(pid).\(opt))")
+        case .propertyVisibility:
+            placeholder(title: "Property Visibility", note: "PropertyVisibilityPane lands at Task 12")
+        }
+    }
+
+    private func placeholder(title: String, note: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+            Text(note)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .navigationTitle(title)
     }
 }
 
 #if DEBUG
-    #Preview("Empty shell") {
+    #Preview("Popover — PageType scope") {
         ViewSettingsPopover(
             scope: .pageType(
                 PageType(
-                    id: "01HPT", title: "Notes", icon: nil,
+                    id: "01HPT", title: "Notes", icon: "note.text",
                     properties: [], views: [], modifiedAt: Date()
                 )
             )
         )
+    }
+
+    #Preview("Popover — none scope (empty shell)") {
+        ViewSettingsPopover(scope: .none)
     }
 #endif
