@@ -67,17 +67,17 @@ struct ViewSettingsScopeMappingTests {
         #expect(scope == .project)
     }
 
-    @Test("pageType selection maps to .pageType scope")
+    @Test("pageType selection maps to .pageType scope carrying the entity")
     func pageTypeMapsToPageType() {
         let t = PageType(
             id: "01HPT", title: "Notes", icon: nil, properties: [],
             views: [], modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .pageType(t))
-        #expect(scope == .pageType)
+        #expect(scope == .pageType(t))
     }
 
-    @Test("collection (PageCollection) selection maps to .pageCollection scope")
+    @Test("collection (PageCollection) selection maps to .pageCollection scope carrying the entity")
     func collectionMapsToPageCollection() {
         let c = PageCollection(
             id: "01HPC", typeID: "01HPT", title: "Drafts",
@@ -85,7 +85,7 @@ struct ViewSettingsScopeMappingTests {
             modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .collection(c))
-        #expect(scope == .pageCollection)
+        #expect(scope == .pageCollection(c))
     }
 
     @Test("page selection maps to .page scope")
@@ -105,17 +105,17 @@ struct ViewSettingsScopeMappingTests {
         #expect(scope == .page)
     }
 
-    @Test("itemType selection maps to .itemType scope")
+    @Test("itemType selection maps to .itemType scope carrying the entity")
     func itemTypeMapsToItemType() {
         let t = ItemType(
             id: "01HIT", title: "Books", icon: nil, properties: [],
             views: [], modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .itemType(t))
-        #expect(scope == .itemType)
+        #expect(scope == .itemType(t))
     }
 
-    @Test("itemCollection selection maps to .itemCollection scope")
+    @Test("itemCollection selection maps to .itemCollection scope carrying the entity")
     func itemCollectionMapsToItemCollection() {
         let c = ItemCollection(
             id: "01HIC", typeID: "01HIT", title: "Want to read",
@@ -123,6 +123,6 @@ struct ViewSettingsScopeMappingTests {
             modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .itemCollection(c))
-        #expect(scope == .itemCollection)
+        #expect(scope == .itemCollection(c))
     }
 }

@@ -27,6 +27,13 @@ struct ViewSettingsPopover: View {
 
 #if DEBUG
     #Preview("Empty shell") {
-        ViewSettingsPopover(scope: .pageType)
+        ViewSettingsPopover(
+            scope: .pageType(
+                PageType(
+                    id: "01HPT", title: "Notes", icon: nil,
+                    properties: [], views: [], modifiedAt: Date()
+                )
+            )
+        )
     }
 #endif

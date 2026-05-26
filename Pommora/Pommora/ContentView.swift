@@ -59,16 +59,16 @@ struct ContentView: View {
             return .topic
         case .project:
             return .project
-        case .pageType:
-            return .pageType
-        case .collection:
-            return .pageCollection
+        case .pageType(let t):
+            return .pageType(t)
+        case .collection(let c):
+            return .pageCollection(c)
         case .page:
             return .page
-        case .itemType:
-            return .itemType
-        case .itemCollection:
-            return .itemCollection
+        case .itemType(let t):
+            return .itemType(t)
+        case .itemCollection(let c):
+            return .itemCollection(c)
         }
     }
 

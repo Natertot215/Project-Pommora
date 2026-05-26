@@ -36,7 +36,14 @@ struct ViewSettingsButton: View {
 
 #if DEBUG
     #Preview("Button (pageType scope)") {
-        ViewSettingsButton(scope: .pageType)
-            .padding()
+        ViewSettingsButton(
+            scope: .pageType(
+                PageType(
+                    id: "01HPT", title: "Notes", icon: nil,
+                    properties: [], views: [], modifiedAt: Date()
+                )
+            )
+        )
+        .padding()
     }
 #endif

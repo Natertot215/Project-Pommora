@@ -2,13 +2,13 @@ import Foundation
 
 /// Tags which surface the View Settings popover is currently reflecting.
 ///
-/// At v0.3.1.x chrome slice this enum is case-only — the placeholder popover
-/// body doesn't read entity state. In v0.3.1 (first real pane) the cases
-/// gain associated values carrying the concrete entity (PageType, PageCollection,
-/// ItemType, ItemCollection, PageMeta, Space, Topic, Project). Adding associated
-/// values is a source-compatible change for code that doesn't destructure the
-/// cases (the only consumer at this slice is the placeholder popover, which
-/// only checks `case .none`).
+/// The four storage cases carry their concrete entity so the popover body
+/// can render schema-aware content (Edit Properties pane reads the parent
+/// Type's `properties: [PropertyDefinition]`; Property Visibility pane reads
+/// `views[0].visibleProperties`; etc.). Other cases stay case-only — they
+/// don't have a schema-bearing entity to populate from. Task 6 (v0.3.1)
+/// gained the associated values; the chrome slice (v0.3.0.5) shipped this
+/// as case-only.
 ///
 /// Mirrors `SidebarSelection`'s shape one-to-one with two adjustments:
 ///   - `.savedKey("calendar")` collapses to `.calendar` (saved-key strings
@@ -18,10 +18,10 @@ import Foundation
 ///     collapse to `.none` — they aren't view-settings surfaces.
 enum ViewSettingsScope: Equatable, Sendable {
     case none
-    case pageType
-    case pageCollection
-    case itemType
-    case itemCollection
+    case pageType(PageType)
+    case pageCollection(PageCollection)
+    case itemType(ItemType)
+    case itemCollection(ItemCollection)
     case page
     case space
     case topic
