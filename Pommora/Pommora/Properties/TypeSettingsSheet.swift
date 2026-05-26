@@ -480,13 +480,13 @@ private struct TypeSettingsNewPropertyConfig: View {
             if let type = vm.pendingNewType {
                 switch type {
                 case .select, .multiSelect:
-                    TypeSelectOptionsEditor(options: $vm.pendingSelectOptions)
+                    SelectOptionsEditor(options: $vm.pendingSelectOptions)
                 case .status:
-                    TypeStatusGroupsEditor(groups: $vm.pendingStatusGroups)
+                    StatusGroupsEditor(groups: $vm.pendingStatusGroups)
                 case .number:
-                    TypeNumberFormatPicker(format: $vm.pendingNumberFormat)
+                    NumberFormatPicker(format: $vm.pendingNumberFormat)
                 case .file:
-                    TypeFileAcceptEditor(accept: $vm.pendingAccept)
+                    FileAcceptEditor(accept: $vm.pendingAccept)
                 default:
                     EmptyView()
                 }
@@ -549,180 +549,11 @@ private struct TypeSettingsNewPropertyConfig: View {
     }
 }
 
-// MARK: - TypeSelectOptionsEditor
-
-private struct TypeSelectOptionsEditor: View {
-    @Binding var options: [PropertyDefinition.SelectOption]
-    @State private var newOptionLabel: String = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Options")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ForEach(options) { option in
-                TypeSelectOptionsRow(
-                    option: option,
-                    onDelete: { options.removeAll { $0.value == option.value } }
-                )
-            }
-
-            HStack {
-                TextField("New option…", text: $newOptionLabel)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.callout)
-                Button("Add") {
-                    let label = newOptionLabel.trimmingCharacters(in: .whitespaces)
-                    guard !label.isEmpty else { return }
-                    let value = label.lowercased().replacingOccurrences(of: " ", with: "_")
-                    options.append(PropertyDefinition.SelectOption(value: value, label: label, color: nil))
-                    newOptionLabel = ""
-                }
-                .buttonStyle(.borderless)
-                .disabled(newOptionLabel.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-    }
-}
-
-private struct TypeSelectOptionsRow: View {
-    let option: PropertyDefinition.SelectOption
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack {
-            Text(option.label)
-                .font(.callout)
-            Spacer()
-            Button(role: .destructive) { onDelete() } label: {
-                Image(systemName: "minus.circle")
-                    .foregroundStyle(.red)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 2)
-    }
-}
-
-// MARK: - TypeStatusGroupsEditor
-
-private struct TypeStatusGroupsEditor: View {
-    @Binding var groups: [PropertyDefinition.StatusGroup]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Status Groups")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ForEach($groups) { $group in
-                TypeStatusGroupEditor(group: $group)
-            }
-        }
-    }
-}
-
-private struct TypeStatusGroupEditor: View {
-    @Binding var group: PropertyDefinition.StatusGroup
-    @State private var newOptionLabel: String = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                TextField("Group label", text: $group.label)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.callout)
-                Text(group.id.rawValue)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-
-            ForEach($group.options) { $option in
-                HStack {
-                    TextField("Option label", text: $option.label)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.caption)
-                    Button(role: .destructive) {
-                        group.options.removeAll { $0.value == option.value }
-                    } label: {
-                        Image(systemName: "minus.circle")
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.leading, 12)
-            }
-
-            HStack {
-                TextField("New option…", text: $newOptionLabel)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.caption)
-                    .padding(.leading, 12)
-                Button("Add") {
-                    let label = newOptionLabel.trimmingCharacters(in: .whitespaces)
-                    guard !label.isEmpty else { return }
-                    let value = "\(group.id.rawValue)_\(label.lowercased().replacingOccurrences(of: " ", with: "_"))"
-                    group.options.append(PropertyDefinition.StatusOption(
-                        value: value, label: label, color: nil, groupID: group.id
-                    ))
-                    newOptionLabel = ""
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-                .disabled(newOptionLabel.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-        .padding(8)
-        .background(Color(.windowBackgroundColor).opacity(0.4))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-}
-
-// MARK: - TypeNumberFormatPicker
-
-private struct TypeNumberFormatPicker: View {
-    @Binding var format: PropertyDefinition.NumberFormat
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Format")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Picker("Format", selection: $format) {
-                ForEach(PropertyDefinition.NumberFormat.allCases, id: \.self) { fmt in
-                    TypeNumberFormatLabel(format: fmt).tag(fmt)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-    }
-}
-
-private struct TypeNumberFormatLabel: View {
-    let format: PropertyDefinition.NumberFormat
-
-    var body: some View {
-        Text(format.rawValue.capitalized)
-    }
-}
-
-// MARK: - TypeFileAcceptEditor
-
-private struct TypeFileAcceptEditor: View {
-    @Binding var accept: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Allowed MIME types (comma-separated, leave blank for any)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextField("e.g. application/pdf, image/*", text: $accept)
-                .textFieldStyle(.roundedBorder)
-                .font(.callout)
-        }
-    }
-}
+// Per-type editor sub-views (SelectOptionsEditor / StatusGroupsEditor /
+// NumberFormatPicker / FileAcceptEditor) extracted to
+// `Pommora/Properties/Editor/` (Task 8). Both this sheet and VaultSettingsSheet
+// now share the same definitions; future View Settings popover panes reuse
+// them too.
 
 // MARK: - TypeSettingsTemplatesPlaceholder
 
