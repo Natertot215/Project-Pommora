@@ -18,6 +18,8 @@ import SwiftUI
 /// Container lookup: PageType/ItemType scopes write to the Type's
 /// `views[0]`; Collection scopes write to the Collection's own `views[0]`
 /// (locked: each Collection's view is INDEPENDENT of the parent Type's).
+///
+/// Chrome routed through shared `PaneHeader` + `PUI` tokens.
 struct PropertyVisibilityPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
@@ -28,19 +30,25 @@ struct PropertyVisibilityPane: View {
     @State private var commitError: String?
 
     var body: some View {
-        Group {
-            if let view = currentView() {
-                rows(for: view)
-            } else {
-                ContentUnavailableView(
-                    "No view configured",
-                    systemImage: "rectangle.and.text.magnifyingglass",
-                    description: Text("loadAll should have minted a default Table view; reopen the popover.")
-                )
-            }
+        VStack(spacing: 0) {
+            PaneHeader(path: $path, title: "Property Visibility")
+            content
         }
-        .frame(width: 300, height: 360)
-        .navigationTitle("Property Visibility")
+        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .navigationBarBackButtonHidden(true)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let view = currentView() {
+            rows(for: view)
+        } else {
+            ContentUnavailableView(
+                "No view configured",
+                systemImage: "rectangle.and.text.magnifyingglass",
+                description: Text("loadAll should have minted a default Table view; reopen the popover.")
+            )
+        }
     }
 
     @ViewBuilder
@@ -65,7 +73,6 @@ struct PropertyVisibilityPane: View {
                         isVisible: !hiddenSet.contains(def.id),
                         onToggle: { Task { await toggle(def.id, currentlyVisible: !hiddenSet.contains(def.id)) } }
                     )
-                    Divider().padding(.leading, 40)
                 }
                 ForEach(hiddenOrdered, id: \.id) { def in
                     PropertyVisibilityRow(
@@ -73,14 +80,13 @@ struct PropertyVisibilityPane: View {
                         isVisible: false,
                         onToggle: { Task { await toggle(def.id, currentlyVisible: false) } }
                     )
-                    Divider().padding(.leading, 40)
                 }
                 if let err = commitError {
                     Text(err)
-                        .font(.caption)
+                        .font(PUI.Typography.caption)
                         .foregroundStyle(.red)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, PUI.Row.paddingHorizontal)
+                        .padding(.vertical, PUI.Row.paddingVertical)
                 }
             }
         }
@@ -193,14 +199,14 @@ private struct PropertyVisibilityRow: View {
 
     var body: some View {
         Button(action: onToggle) {
-            HStack(spacing: 10) {
+            HStack(spacing: PUI.Row.interSpacing) {
                 Image(systemName: definition.icon ?? definition.type.pickerIcon)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(PUI.Icon.leading)
                     .foregroundStyle(isVisible ? .primary : .tertiary)
-                    .frame(width: 18)
+                    .frame(width: PUI.Icon.leadingFrame)
 
                 Text(definition.name)
-                    .font(.callout)
+                    .font(PUI.Typography.row)
                     .foregroundStyle(isVisible ? .primary : .tertiary)
                     .strikethrough(!isVisible, color: .secondary)
                     .lineLimit(1)
@@ -209,17 +215,17 @@ private struct PropertyVisibilityRow: View {
 
                 if isModifiedAt {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 9))
+                        .font(PUI.Icon.lock)
                         .foregroundStyle(.tertiary)
                         .help("Always visible — default sort criterion")
                 } else {
                     Image(systemName: isVisible ? "eye" : "eye.slash")
-                        .font(.system(size: 11))
+                        .font(PUI.Icon.visibility)
                         .foregroundStyle(.tertiary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, PUI.Row.paddingHorizontal)
+            .padding(.vertical, PUI.Row.paddingVertical)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

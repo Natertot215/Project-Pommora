@@ -34,28 +34,32 @@ struct EditPropertyPane: View {
     @State private var commitError: String?
 
     var body: some View {
-        Group {
-            if let def = currentDefinition() {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        headerRow(def: def)
-                        typeRow(def: def)
-                        middleSection(for: def)
-                        footer(def: def)
+        VStack(spacing: 0) {
+            PaneHeader(path: $path, title: "Edit Property")
+
+            Group {
+                if let def = currentDefinition() {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: PUI.Spacing.xxl) {
+                            headerRow(def: def)
+                            typeRow(def: def)
+                            middleSection(for: def)
+                            footer(def: def)
+                        }
+                        .padding(.horizontal, PUI.Pane.contentPadding)
+                        .padding(.vertical, PUI.Pane.contentPadding)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
+                } else {
+                    ContentUnavailableView(
+                        "Property not found",
+                        systemImage: "questionmark.circle",
+                        description: Text("The property may have been deleted in another window.")
+                    )
                 }
-            } else {
-                ContentUnavailableView(
-                    "Property not found",
-                    systemImage: "questionmark.circle",
-                    description: Text("The property may have been deleted in another window.")
-                )
             }
         }
-        .frame(width: 300, height: 360)
-        .navigationTitle("Edit Property")
+        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .navigationBarBackButtonHidden(true)
         .onAppear {
             if let def = currentDefinition() { draftName = def.name }
         }
@@ -346,6 +350,13 @@ struct EditPropertyPane: View {
 
     private func commitDelete() async {
         guard let typeID = parentTypeID(), let side else { return }
+        // Pop FIRST, then await the disk delete. If we awaited delete first,
+        // the manager's `types` array mutates while this pane is still
+        // mounted; the body re-renders against `currentDefinition() == nil`
+        // and SwiftUI flashes "Property not found" before the pop unmounts
+        // the pane. Pop-first sidesteps the dangling render entirely — the
+        // disk delete completes off-screen.
+        if !path.isEmpty { path.removeLast() }
         do {
             switch side {
             case .pages:
@@ -353,9 +364,9 @@ struct EditPropertyPane: View {
             case .items:
                 try await itemTypeManager.deleteProperty(id: propertyID, in: typeID)
             }
-            // Pop back to the Properties list.
-            if !path.isEmpty { path.removeLast() }
         } catch {
+            // Pane is already unmounted; surface the error via the manager's
+            // pendingError toast pathway (set by deleteProperty on failure).
             commitError = String(describing: error)
         }
     }

@@ -12,9 +12,8 @@ import SwiftUI
 /// scopes the pane resolves the parent Type via the manager (PageType /
 /// ItemType manager looked up from @Environment).
 ///
-/// Task 9 ships the list + lock-badge rendering + searchable + + New property
-/// footer push. Search filtering of long lists is good-to-have; reserved-
-/// property rendering is required.
+/// Chrome routed through shared `PaneHeader` + `PUI` tokens for uniformity
+/// with every other View Settings sub-pane.
 struct PropertiesListPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
@@ -26,47 +25,14 @@ struct PropertiesListPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            inlineHeader
-            Divider()
+            PaneHeader(path: $path, title: "Edit Properties")
             propertyList
                 .frame(maxHeight: .infinity)
             Divider()
             footer
         }
-        .frame(width: 300, height: 360)
+        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
         .navigationBarBackButtonHidden(true)
-        // NOTE: `.toolbar(.hidden)` was tried first but on macOS suppresses the
-        // entire pushed pane, not just the chrome. Dropped; dark navigation-bar
-        // band returns briefly. Full chrome unification slated for next-session
-        // redesign.
-    }
-
-    // MARK: - Inline header (matches StorageMenuRoot styling)
-
-    @ViewBuilder
-    private var inlineHeader: some View {
-        HStack(spacing: 8) {
-            Button {
-                if !path.isEmpty { path.removeLast() }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Back")
-
-            Text("Edit Properties")
-                .font(.headline)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 14)
-        .padding(.bottom, 8)
     }
 
     // MARK: - List
@@ -86,7 +52,6 @@ struct PropertiesListPane: View {
                             guard !ReservedPropertyID.isReserved(def.id) else { return }
                             path.append(.editProperty(propertyID: def.id))
                         }
-                        Divider().padding(.leading, 40)
                     }
                 }
             }
@@ -119,7 +84,7 @@ struct PropertiesListPane: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: PUI.Spacing.lg) {
             Image(systemName: "list.bullet.rectangle")
                 .font(.system(size: 26))
                 .foregroundStyle(.tertiary)
@@ -128,10 +93,10 @@ struct PropertiesListPane: View {
                 .foregroundStyle(.secondary)
             if searchQuery.isEmpty {
                 Text("Use **+ New property** below to add the first one.")
-                    .font(.caption)
+                    .font(PUI.Typography.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, PUI.Spacing.xxxl)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -144,16 +109,16 @@ struct PropertiesListPane: View {
         Button {
             path.append(.propertyTypePicker)
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: PUI.Spacing.md) {
                 Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(width: 18)
+                    .font(PUI.Icon.plus)
+                    .frame(width: PUI.Icon.leadingFrame)
                 Text("New property")
-                    .font(.callout)
+                    .font(PUI.Typography.row)
                 Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, PUI.Row.paddingHorizontal)
+            .padding(.vertical, PUI.Spacing.lg)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -172,26 +137,26 @@ private struct PropertyRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
+            HStack(spacing: PUI.Row.interSpacing) {
                 Image(systemName: definition.icon ?? definition.type.pickerIcon)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(PUI.Icon.leading)
                     .foregroundStyle(isReserved ? .tertiary : .primary)
-                    .frame(width: 18)
+                    .frame(width: PUI.Icon.leadingFrame)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: PUI.Spacing.xs) {
                         Text(definition.name)
-                            .font(.callout)
+                            .font(PUI.Typography.row)
                             .foregroundStyle(isReserved ? .secondary : .primary)
                             .lineLimit(1)
                         if isReserved {
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 9))
+                                .font(PUI.Icon.lock)
                                 .foregroundStyle(.tertiary)
                         }
                     }
                     Text(definition.type.displayName)
-                        .font(.caption2)
+                        .font(PUI.Typography.rowSubtitle)
                         .foregroundStyle(.tertiary)
                 }
 
@@ -199,12 +164,12 @@ private struct PropertyRow: View {
 
                 if !isReserved {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(PUI.Icon.chevron)
                         .foregroundStyle(.tertiary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, PUI.Row.paddingHorizontal)
+            .padding(.vertical, PUI.Row.paddingVertical)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -31,24 +31,26 @@ struct PropertyTypePickerPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            PaneHeader(path: $path, title: "+ New Property")
+
             ScrollView {
                 PropertyTypePicker(selected: $selected) { type in
                     Task { await commit(type) }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 16)
+                .padding(.horizontal, PUI.Spacing.xl)
+                .padding(.vertical, PUI.Pane.contentPadding)
             }
 
             if let err = commitError {
                 Text(err)
-                    .font(.caption)
+                    .font(PUI.Typography.caption)
                     .foregroundStyle(.red)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, PUI.Row.paddingHorizontal)
+                    .padding(.vertical, PUI.Row.paddingVertical)
             }
         }
-        .frame(width: 300, height: 360)
-        .navigationTitle("+ New Property")
+        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Commit

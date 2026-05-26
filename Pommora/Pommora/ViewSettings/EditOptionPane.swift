@@ -39,50 +39,54 @@ struct EditOptionPane: View {
     @State private var showingDeleteConfirm: Bool = false
 
     var body: some View {
-        Group {
-            if let context = locate() {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        labelRow
-                        colorRow
-                        if context.isStatus { statusGroupRow(currentGroup: context.statusGroupID) }
-                        deleteRow
-                        if let err = commitError {
-                            Text(err)
-                                .font(.caption)
-                                .foregroundStyle(.red)
+        VStack(spacing: 0) {
+            PaneHeader(path: $path, title: "Edit Option")
+
+            Group {
+                if let context = locate() {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: PUI.Spacing.xxl) {
+                            labelRow
+                            colorRow
+                            if context.isStatus { statusGroupRow(currentGroup: context.statusGroupID) }
+                            deleteRow
+                            if let err = commitError {
+                                Text(err)
+                                    .font(PUI.Typography.caption)
+                                    .foregroundStyle(.red)
+                            }
                         }
+                        .padding(.horizontal, PUI.Pane.contentPadding)
+                        .padding(.vertical, PUI.Pane.contentPadding)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                }
-                .onAppear {
-                    draftLabel = context.label
-                    draftColor = context.color
-                    draftGroupID = context.statusGroupID
-                }
-                .confirmationDialog(
-                    "Delete option “\(context.label)”?",
-                    isPresented: $showingDeleteConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete", role: .destructive) {
-                        Task { await commitDelete(isStatus: context.isStatus) }
+                    .onAppear {
+                        draftLabel = context.label
+                        draftColor = context.color
+                        draftGroupID = context.statusGroupID
                     }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Entities using this option will be cleared (per universal void-on-delete). Affected-entity count surfaces in a future v0.3.1.x patch.")
+                    .confirmationDialog(
+                        "Delete option “\(context.label)”?",
+                        isPresented: $showingDeleteConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Delete", role: .destructive) {
+                            Task { await commitDelete(isStatus: context.isStatus) }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Entities using this option will be cleared (per universal void-on-delete). Affected-entity count surfaces in a future v0.3.1.x patch.")
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "Option not found",
+                        systemImage: "questionmark.circle",
+                        description: Text("The option may have been deleted or moved.")
+                    )
                 }
-            } else {
-                ContentUnavailableView(
-                    "Option not found",
-                    systemImage: "questionmark.circle",
-                    description: Text("The option may have been deleted or moved.")
-                )
             }
         }
-        .frame(width: 300, height: 360)
-        .navigationTitle("Edit Option")
+        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Sections
