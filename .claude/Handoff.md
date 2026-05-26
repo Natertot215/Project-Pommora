@@ -19,18 +19,34 @@
 
 #### What's next
 
-**Immediate (Task 5 of the chrome plan):** real-app visual approval smoke on all 9 surfaces (4 storage detail views render the full menu when panes land; 5 placeholder surfaces — Pages / Spaces / Topics / Projects / Calendar — render the empty shell for now). User runs Cmd+R, clicks the button on each surface, confirms placement + glass + sizing.
+**APPROVED plan ready to execute:** `.claude/Planning/View-Settings-edit-properties-plan.md` (also mirrored to `/Users/nathantaichman/The Nexus/Pommora/Planning/`). Approved 2026-05-26. **Use `superpowers:subagent-driven-development` to dispatch the 25 tasks across 9 phases — each phase ships green standalone per quirk #8.**
 
-**Next plan to draft — v0.3.1.x panes:** spec NOT yet written. Open with `superpowers:writing-plans` to draft. Scope of the second slice (v0.3.1):
-- `SavedView` Codable struct gains real fields (visible_properties, hidden_properties, sort, filter, group, layout enum)
-- `views: [SavedView]` added to `PageCollection` + `ItemCollection` (already on `PageType` + `ItemType`)
-- `singular: String?` added to `ItemType` (Capacities-style — drives "+ Add Note" labels)
-- Default-view migration on `loadAll` (mints default Table view if `views` empty)
-- Layout pane (Table active; Board/List/Cards/Gallery rows muted)
-- Property Visibility pane (strikethrough toggle, drag-reorder)
-- Both panes wired to the 4 storage detail views' Table renderings
+**v0.3.1 scope (one plan, big):**
+- **Phase A (Tasks 1-5b)** — Data layer: `DisplayVariant` enum (.box/.select/.chip, Status-only) + `ItemType.singular` + `SavedView` Codable upgrade (real fields: id, name, icon, type, visibleProperties, hiddenProperties + reserved stub sort/filter/group fields) + `views: [SavedView]` on PageCollection + ItemCollection + `PropertyDefinition.dateFormat` (6 cases incl. ISO 8601) + default-view migration on loadAll (quirk #15 pattern) + PropertyChipColor cleanup (drop .cyan/.mint; 12 cases total; 10-color 5×2 selection grid via new `OptionColorPicker`)
+- **Phase B (Task 6)** — ViewSettingsScope associated values for 4 storage cases
+- **Phase C (Task 7)** — Popover NavigationStack scaffold + storage-scope root menu (Edit Properties + Property Visibility both active; Layout/Filter/Sort/Group muted-placeholder)
+- **Phase D (Task 8)** — PropertyEditor extraction: dedupe Select/Status/Number/File editors out of VaultSettingsSheet + TypeSettingsSheet into shared `Pommora/Properties/Editor/` module
+- **Phase E (Tasks 9-11b)** — Edit Properties pane (Notion screenshot format: icon+title row + Type + Options with chevron-push + Duplicate/Delete footer) + + New property flow with type-aware routing (Select/Status/Multi auto-push to Edit Property pane after creation; simpler types pop back to list) + EditOptionPane (per-option edit pushed from option chevron) + `duplicateProperty` manager method
+- **Phase F (Tasks 12-14)** — Property Visibility pane (drag-only reorder + click-to-toggle strikethrough) + new `updatePageProperty` / `updateItemProperty` single-property atomic manager methods
+- **Phase G (Tasks 15-18)** — Dynamic Table columns: `PropertyColumnBuilder` produces TableColumn descriptors from `views[0].visibleProperties` + schema; `PropertyCellDisplay` per-type renderer (chips ONLY for Status/Select/Multi/Relation; pure text for Date/Link/Number; FileChip for files); wire into all 4 storage detail views
+- **Phase H (Tasks 19-21)** — Click-to-edit cell popovers for all 11 types: `PropertyCellEditor` wrapper + per-type editor popovers reusing existing PropertyEditorRow editors + wire existing `RelationPicker` (J.15-shipped but unused) + `StatusPicker` + `FileAttachmentEditor` into PropertyEditorRow stubs
+- **Phase I (Tasks 22-23)** — Doc sweep + Nexus mirror + commit + push + merge to main
 
-After v0.3.1: drip v0.3.1.1 Edit Properties (extract shared `PropertyEditor` from `VaultSettingsSheet` + `TypeSettingsSheet`) → v0.3.1.2 Sort → v0.3.1.3 Filter → v0.3.1.4 Group (optional). Full delivery slice table in `.claude/Planning/View-Settings-research-notes.md`.
+**New chip primitives this plan adds (3):** `RelationChip.swift` (default-grey, RoundedRectangle cornerRadius 4, target entity icon + title) / `FileChip.swift` (quaternary fill, `link` SF Symbol, filename truncated 13 chars) / `LinkChip.swift` (accent-blue text, strips https:// prefix, truncates 15 chars) — all under `Pommora/Properties/Chips/`.
+
+**Locked decisions in this plan (recorded for reference):**
+- Empty cells: blank, full-area clickable (Notion-style)
+- Header drag-reorder: deferred (Property Visibility pane is the only reorder surface at v0.3.1)
+- Option sort: drag-only (no Sort picker in Edit Property pane; view-level Sort = v0.3.1.2 patch)
+- DisplayVariant cases: `.box` / `.select` / `.chip` (was `.status` in earlier draft)
+- Status group icons: hardcoded `"square.dashed"` placeholder; final per-group/per-option icons + Settings config deferred to pre-v1 cleanup
+- New property defaults: schema-only write (no member files touched); option-requiring types auto-push to Edit Property pane after creation
+- Reserved properties: lock badge in Properties pane; `_modified_at` always-visible read-only column
+- Sheet path: VaultSettingsSheet + TypeSettingsSheet keep working; both backport extracted PropertyEditor
+
+**Chrome plan retires to Superseded** at Task 22 of the edit-properties plan (once that ships).
+
+**After v0.3.1 ships, follow-up plans queued:** v0.3.1.2 Sort pane / v0.3.1.3 Filter pane / v0.3.1.4 Group pane / v0.3.1.5 existing-property change-type + per-type-config edits / v0.5.0 non-Table view renderers (board/list/cards/gallery).
 
 **UIX rules locked earlier this session (carry forward):** tables get NO vertical column borders (Notion-flat — `NSViewRepresentable` impl TBD); `"Title"` everywhere (not `"Name"`); `"Spaces"` / `"Topics"` / `"Projects"` in property panels (no `"Tier N"` prefix); Sidebar Items section defaults to `"Items"`; Item Types are disclosure-foldable, Sets are flat leaves.
 
@@ -89,4 +105,4 @@ All unit tests green except 4 pre-existing failures unrelated to this slice — 
 
 #### Resume prompt for next session (verbatim)
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. v0.3.x View Settings chrome slice shipped + merged to main 2026-05-25 PM; `slider.horizontal.3` button visible in the three-button capsule with NavDropdown + Inspector toggle, opens empty 300x360pt Liquid Glass popover scope-routed via `ViewSettingsScope` derived from `sidebarSelection`. Both branches in sync. **Open task:** real-app visual approval on all 9 surfaces (Task 5 of `.claude/Planning/View-Settings-button-chrome-plan.md`). **After that:** draft v0.3.1.x panes plan via `superpowers:writing-plans` — Layout + Property Visibility wired to new `SavedView` Codable + `views: [SavedView]` on `PageCollection` + `ItemCollection` + `singular: String?` on `ItemType` + default-view migration. Research notes for panes at `.claude/Planning/View-Settings-research-notes.md`. **Quirk #17 is new:** `Button(role: .close)` without label only works inside `.toolbar { ... }` — for non-toolbar close affordances use explicit `label:` closure. **Locked decision #12 is new:** View Settings button is statically positioned at ContentView level inside the existing primary-action `.glassEffect()` HStack — scope-adaptive content via reactive `ViewSettingsScope` parameter. Use `superpowers:subagent-driven-development` for execution; `builder` subagent with `run_in_background: true` for xcodebuild (quirk #13)."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. v0.3.x View Settings chrome slice shipped + merged to main 2026-05-25 PM (button + empty 300×360pt Liquid Glass popover at ContentView level inside the existing primary-action capsule with NavDropdown + Inspector toggle). Both branches in sync at `48316be`. **APPROVED PLAN ready to execute:** `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases) — ships v0.3.1 properties end-to-end: schema CRUD via popover + dynamic property-value columns in all 4 storage detail-view Tables + click-to-edit popovers for all 11 property types + Property Visibility pane. Plan mirrored to `/Users/nathantaichman/The Nexus/Pommora/Planning/` for RC viewing. **First action: invoke `superpowers:subagent-driven-development`** to dispatch the 25 tasks; each phase ships green standalone per quirk #8. Use `builder` subagent with `run_in_background: true` for xcodebuild (quirk #13). **Phase A (Tasks 1-5b) is foundation:** data layer additions (`DisplayVariant` / `dateFormat` / `singular` / `SavedView` real fields / `views[]` on Collections / default-view migration / PropertyChipColor cleanup to 12 cases) — start there. Plan body has exact code snippets + bite-sized TDD steps for each task. **Decisions locked in this plan:** chips render ONLY for Status/Select/Multi/Relation; Dates/Links/Numbers = pure text; Files = quaternary chip with link icon; LinkChip strips https:// + truncates 15 chars; Option ordering is drag-only (no Sort picker — that's v0.3.1.2's view-level surface); 10-color 5×2 selection grid (Default + Accent excluded). Quirks #15 + #16 + #17 still apply throughout. Chrome plan retires to Superseded at Task 22 of edit-properties plan."

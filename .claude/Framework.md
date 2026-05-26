@@ -66,15 +66,14 @@ Full ship summary → [[History]] § "v0.3.0 Properties — FEATURE-COMPLETE".
 
 #### Upcoming versions (roadmap)
 
-##### v0.3.1.x — Storage View Redesign (chrome slice shipped; panes drip)
-First slice (chrome) shipped 2026-05-25 PM: single static `slider.horizontal.3` toolbar button at ContentView level inside the existing primary-action Liquid Glass capsule (with NavDropdown + Inspector toggle). Empty 300×360pt popover today; scope-routes via `ViewSettingsScope` derived from `sidebarSelection` so the same button serves every surface with adaptive content. Plan record at `.claude/Planning/View-Settings-button-chrome-plan.md`.
+##### v0.3.1.x — Storage View Redesign (chrome shipped; properties-end-to-end approved)
 
-Following patches drip the panes per Approach B (research at `.claude/Planning/View-Settings-research-notes.md`):
-- **v0.3.1** — Layout pane (Table active; Board/List/Cards/Gallery muted) + Property Visibility pane (strikethrough toggle, drag-reorder) wired to new `SavedView` Codable + `views: [SavedView]` on `PageCollection` + `ItemCollection` + `singular: String?` on `ItemType` + default-view migration
-- **v0.3.1.1** — Edit Properties pane (extract shared `PropertyEditor` from `VaultSettingsSheet` + `TypeSettingsSheet`; backport into both sheets)
-- **v0.3.1.2** — Sort pane (single criterion; column-header click syncs)
-- **v0.3.1.3** — Filter pane (minimum viable operators: equals / not-equals / contains / empty / not-empty; AND-grouped; wired to `IndexQuery`)
+- **v0.3.0.5 chrome slice** (shipped 2026-05-25 PM, merged to main as `48316be`) — static `slider.horizontal.3` toolbar button at ContentView level inside the existing primary-action Liquid Glass capsule (with NavDropdown + Inspector toggle). Empty 300×360pt popover scope-routed via `ViewSettingsScope` derived from `sidebarSelection`. Plan record at `.claude/Planning/View-Settings-button-chrome-plan.md`.
+- **v0.3.1 Properties end-to-end** (APPROVED 2026-05-26, ready to execute) — 25 tasks across 9 phases at `.claude/Planning/View-Settings-edit-properties-plan.md`. Ships schema CRUD via popover (Edit Properties pane Notion-format with chevron-push option editing + Duplicate/Delete footer) + dynamic property-value columns in all 4 storage detail-view Tables + click-to-edit popovers for all 11 property types + Property Visibility pane (active) + Layout pane (Table active; Board/List/Cards/Gallery muted until v0.5.0). Includes data layer additions (`DisplayVariant` / `dateFormat` / `singular` / `SavedView` real fields / `views[]` on Collections / default-view migration / PropertyChipColor cleanup) and three new chip primitives (`RelationChip` / `FileChip` / `LinkChip`).
+- **v0.3.1.2** — Sort pane (per-view; single criterion at v0.3.1.x; multi when saved views land)
+- **v0.3.1.3** — Filter pane (equals / not-equals / contains / empty / not-empty; AND-grouped; wired to `IndexQuery`)
 - **v0.3.1.4** — Group pane (optional; defer to v0.5.0 if Board view is closer)
+- **v0.3.1.5** — existing-property change-type + per-type-config update gaps (`updateProperty(id:in:transform:)` manager method); relation cell edit if not landed in v0.3.1
 
 Property Pulldown + Property Panel Figma polish moves to v0.3.x fast-follow after the storage redesign — properties-per-Page surface evolves independently of the storage configurator chrome.
 

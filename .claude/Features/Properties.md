@@ -436,16 +436,45 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### 2. Vault / Type View Settings (per-view config)
 
-Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level (chrome shipped 2026-05-25 — see `.claude/Planning/View-Settings-button-chrome-plan.md`). The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
+Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level (chrome shipped 2026-05-25 — see `.claude/Planning/View-Settings-button-chrome-plan.md`; full v0.3.1 plan at `.claude/Planning/View-Settings-edit-properties-plan.md`). The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
 
 | Section | Contents | Ships |
 |---|---|---|
-| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active at v0.3.1; others muted until v0.5.0). | v0.3.1 |
-| **Property Visibility** | Per-view; show/hide columns. Click-to-toggle with strikethrough on hidden (no eye icon). Drag-reorder. | v0.3.1 |
-| **Sort by** | Per-view; single criterion at v0.3.1.x; multi-criterion when saved views land. | v0.3.1.2 |
+| **Edit Properties** | Schema CRUD pane (Notion-format: icon+title row + Type + Options with chevron-push to per-option EditOptionPane + Duplicate/Delete footer). Per-type config: Select/Multi-Select drag-only options; Status `.box`/`.select`/`.chip` display variant + 3 group sections; Date 6-format Display as picker; File/URL no per-type config (rename-only). Shared with VaultSettingsSheet + TypeSettingsSheet via extracted `Pommora/Properties/Editor/` module. | v0.3.1 |
+| **Property Visibility** | Per-view; show/hide columns + drag-reorder. Click-to-toggle with strikethrough on hidden. `_modified_at` always-visible (locked). | v0.3.1 |
+| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active at v0.3.1; others muted until v0.5.0). | v0.3.1 (muted) |
+| **Sort** | Per-view; single criterion at v0.3.1.2; multi-criterion when saved views land. Option ordering itself is drag-only at the property level (not view-level Sort) per Edit Property pane. | v0.3.1.2 |
 | **Filter** | Per-view; minimum viable operators (equals / not-equals / contains / empty / not-empty); AND-grouped at v0.3.1.x; OR-mode at v0.5.0. | v0.3.1.3 |
 | **Group By** | Per-view; single property. May defer to v0.5.0 with Board view. | v0.3.1.4 (optional) |
-| **Edit Properties** | Schema CRUD pane (extracted from `VaultSettingsSheet` + `TypeSettingsSheet`). Right-click sidebar admin path keeps the sheets; both surfaces render the same extracted subview. | v0.3.1.1 |
+
+**New `PropertyDefinition` fields landing in v0.3.1:**
+
+- `displayAs: DisplayVariant?` (Status-only) — `.box` / `.select` / `.chip` rendering variant. `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using hardcoded `square.dashed` placeholder (final per-group icons + Settings config deferred to pre-v1).
+- `dateFormat: DateFormat?` (Date / Date & Time only) — six display-format cases: `monthDayLong` ("March 4") / `monthDayYearLong` ("March 4, 2026") / `numericShort` ("03-04") / `numericMedium` ("03-04-26") / `numericLong` ("03-04-2026") / `iso` ("2026-03-04"). Default `.monthDayYearLong`.
+
+**New `ItemType` field landing in v0.3.1:**
+
+- `singular: String?` — Capacities-style singular form for "+ Add <singular>" button labels (e.g. ItemType "Books" with `singular: "Book"` drives "+ Add Book"). nil falls back to title. Per locked decision #11, only Item Types carry this (Pages aren't renameable concepts).
+
+**New `PageCollection` / `ItemCollection` field landing in v0.3.1:**
+
+- `views: [SavedView] = []` — already on PageType + ItemType; now mirror on Collections so each Collection's view config is independent of the parent Type's. Default-view migration on `loadAll` per quirk #15 pattern.
+
+**New chip primitives landing in v0.3.1 (Pommora/Properties/Chips/):**
+
+- `RelationChip` — default-grey, RoundedRectangle cornerRadius 4, target entity icon + title. Distinct from `PropertyChip` (Capsule, vivid colors).
+- `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
+- `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
+- `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance. Used by EditOptionPane.
+
+**PropertyChipColor cleanup landing in v0.3.1:**
+
+- Drop `.cyan` + `.mint` cases (overlap Teal).
+- 12 enum cases: `.default` (nil/grey fallback) / `.red` / `.orange` / `.yellow` / `.green` / `.blue` / `.accent` (nexus accent) / `.teal` / `.indigo` / `.purple` / `.pink` / `.brown`.
+- Green + Teal use Apple's secondary Color variants (less bright).
+- Yellow + Pink keep custom hex (`#FFDE21` / `#E89EB8`) shipped 2026-05-25.
+- Color selection grid shows 10 swatches (excludes `.default` and `.accent` which aren't pickable).
+- Tier system retired — flat palette.
 
 A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
 
