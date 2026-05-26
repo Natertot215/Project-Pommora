@@ -29,6 +29,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     var allowsMultiple: Bool?  // relation — single-pick vs multi-pick
     var dualProperty: DualPropertyConfig?  // relation — paired reverse on target Type
     var accept: [String]?  // file — MIME-type whitelist (e.g. ["application/pdf", "image/*"])
+    var displayAs: DisplayVariant?  // status — render variant (nil = .box default)
+    var dateFormat: DateFormat?  // date / datetime — display format (nil = .monthDayYearLong default)
 
     init(
         id: String,
@@ -42,7 +44,9 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         relationScope: RelationScope? = nil,
         allowsMultiple: Bool? = nil,
         dualProperty: DualPropertyConfig? = nil,
-        accept: [String]? = nil
+        accept: [String]? = nil,
+        displayAs: DisplayVariant? = nil,
+        dateFormat: DateFormat? = nil
     ) {
         self.id = id
         self.name = name
@@ -56,6 +60,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.allowsMultiple = allowsMultiple
         self.dualProperty = dualProperty
         self.accept = accept
+        self.displayAs = displayAs
+        self.dateFormat = dateFormat
     }
 
     // MARK: - Nested types
@@ -235,6 +241,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         case allowsMultiple = "allows_multiple"
         case dualProperty = "dual_property"
         case accept
+        case displayAs = "display_as"
+        case dateFormat = "date_format"
     }
 
     init(from decoder: any Decoder) throws {
@@ -253,6 +261,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.allowsMultiple = try c.decodeIfPresent(Bool.self, forKey: .allowsMultiple)
         self.dualProperty = try c.decodeIfPresent(DualPropertyConfig.self, forKey: .dualProperty)
         self.accept = try c.decodeIfPresent([String].self, forKey: .accept)
+        self.displayAs = try c.decodeIfPresent(DisplayVariant.self, forKey: .displayAs)
+        self.dateFormat = try c.decodeIfPresent(DateFormat.self, forKey: .dateFormat)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -269,5 +279,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(allowsMultiple, forKey: .allowsMultiple)
         try c.encodeIfPresent(dualProperty, forKey: .dualProperty)
         try c.encodeIfPresent(accept, forKey: .accept)
+        try c.encodeIfPresent(displayAs, forKey: .displayAs)
+        try c.encodeIfPresent(dateFormat, forKey: .dateFormat)
     }
 }
