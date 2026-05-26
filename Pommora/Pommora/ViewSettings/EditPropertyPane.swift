@@ -169,7 +169,23 @@ struct EditPropertyPane: View {
     private func footer(def: PropertyDefinition) -> some View {
         Divider()
         VStack(alignment: .leading, spacing: 0) {
-            // Duplicate property lands at Task 11b.
+            Button {
+                Task { await commitDuplicate() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 12))
+                        .frame(width: 18)
+                    Text("Duplicate property")
+                        .font(.callout)
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(ReservedPropertyID.isReserved(def.id))
+
             Button(role: .destructive) {
                 Task { await commitDelete() }
             } label: {
@@ -338,6 +354,22 @@ struct EditPropertyPane: View {
                 try await itemTypeManager.deleteProperty(id: propertyID, in: typeID)
             }
             // Pop back to the Properties list.
+            if !path.isEmpty { path.removeLast() }
+        } catch {
+            commitError = String(describing: error)
+        }
+    }
+
+    private func commitDuplicate() async {
+        guard let typeID = parentTypeID(), let side else { return }
+        do {
+            switch side {
+            case .pages:
+                try await pageTypeManager.duplicateProperty(id: propertyID, in: typeID)
+            case .items:
+                try await itemTypeManager.duplicateProperty(id: propertyID, in: typeID)
+            }
+            // Pop back to the Properties list so the user can see the new copy.
             if !path.isEmpty { path.removeLast() }
         } catch {
             commitError = String(describing: error)

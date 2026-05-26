@@ -606,6 +606,60 @@ extension PageTypeManager {
     /// **Paired relations** (`property.dualProperty != nil`): routed through
     /// `DualRelationCoordinator.deletePair` which cascades the delete to both
     /// Type sidecars and strips all values from member files on each side.
+    // MARK: - Duplicate property
+
+    /// Deep-copy a PropertyDefinition: mint a new ULID, copy every per-type
+    /// config field, append "(copy)" to the display name, and append to the
+    /// owning Type's schema. Member Page files are NOT touched (per locked
+    /// rule: "add property = schema-only write" — new copies start empty
+    /// on every member entity, ready to fill).
+    ///
+    /// Paired-relation duplicates: the dualProperty config is preserved but
+    /// each duplicate is paired anew with the existing target — this is
+    /// effectively "create another relation to the same target Type."
+    /// SchemaTransaction handles the atomic write across both sides.
+    /// At v0.3.1 we keep this case simple — duplicate skips the relation
+    /// dual-pair re-creation and just adds the non-relation fields fresh.
+    /// Relation dup is flagged for v0.3.1.5 follow-up.
+    func duplicateProperty(id propertyID: String, in typeID: String) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            guard let j = types[i].properties.firstIndex(where: { $0.id == propertyID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+
+            var duplicated = types[i].properties[j]
+            duplicated.id = ReservedPropertyID.mintUserPropertyID()
+            duplicated.name = "\(duplicated.name) (copy)"
+            duplicated.dualProperty = nil  // Defer relation dup re-pairing to v0.3.1.5.
+
+            try PropertyDefinitionValidator.validate(duplicated, in: types[i].properties)
+
+            var updatedType = types[i]
+            updatedType.properties.append(duplicated)
+            updatedType.modifiedAt = Date()
+
+            let meta = NexusPaths.vaultMetadataURL(forTitle: updatedType.title, in: nexus)
+            try updatedType.save(to: meta)
+
+            if let updater = indexUpdater {
+                let position = updatedType.properties.count - 1
+                do {
+                    try updater.upsertPropertyDefinition(
+                        duplicated, owningTypeID: typeID, owningTypeKind: "page_type", position: position
+                    )
+                } catch { self.pendingError = error }
+            }
+
+            types[i] = updatedType
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Update property (transform-based per-config edit)
 
     /// Apply an in-place transform to a PropertyDefinition's per-config

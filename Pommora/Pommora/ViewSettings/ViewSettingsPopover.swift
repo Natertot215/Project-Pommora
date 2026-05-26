@@ -61,7 +61,7 @@ struct ViewSettingsPopover: View {
         case .editProperty(let id):
             EditPropertyPane(scope: scope, propertyID: id, path: $path)
         case .editOption(let pid, let opt):
-            placeholder(title: "Edit Option", note: "EditOptionPane lands at Task 11b (\(pid).\(opt))")
+            EditOptionPane(scope: scope, propertyID: pid, optionValue: opt, path: $path)
         case .propertyVisibility:
             placeholder(title: "Property Visibility", note: "PropertyVisibilityPane lands at Task 12")
         }

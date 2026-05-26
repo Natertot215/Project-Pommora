@@ -663,6 +663,51 @@ extension ItemTypeManager {
     /// **Paired relations** (`property.dualProperty != nil`): routed through
     /// `DualRelationCoordinator.deletePair` which cascades the delete to both
     /// Type sidecars and strips all values from member files on each side.
+    // MARK: - Duplicate property
+
+    /// Mirror of PageTypeManager.duplicateProperty. Deep-copies a property,
+    /// mints a new ULID, appends "(copy)" to name, persists, indexes.
+    /// Member Item files unaffected.
+    func duplicateProperty(id propertyID: String, in typeID: String) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let j = types[i].properties.firstIndex(where: { $0.id == propertyID }) else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+
+            var duplicated = types[i].properties[j]
+            duplicated.id = ReservedPropertyID.mintUserPropertyID()
+            duplicated.name = "\(duplicated.name) (copy)"
+            duplicated.dualProperty = nil  // Defer relation dup re-pairing to v0.3.1.5.
+
+            try PropertyDefinitionValidator.validate(duplicated, in: types[i].properties)
+
+            var updatedType = types[i]
+            updatedType.properties.append(duplicated)
+            updatedType.modifiedAt = Date()
+
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: updatedType.title)
+            try updatedType.save(to: meta)
+
+            if let updater = indexUpdater {
+                let position = updatedType.properties.count - 1
+                do {
+                    try updater.upsertPropertyDefinition(
+                        duplicated, owningTypeID: typeID, owningTypeKind: "item_type", position: position
+                    )
+                } catch { self.pendingError = error }
+            }
+
+            types[i] = updatedType
+            typesByID[typeID] = updatedType
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Update property (transform-based per-config edit)
 
     /// Apply an in-place transform to a PropertyDefinition's per-config
