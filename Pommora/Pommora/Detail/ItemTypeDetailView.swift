@@ -60,6 +60,9 @@ struct ItemTypeDetailView: View {
     @State private var tableSelection: Set<String> = []
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
+    /// Session-local row order override. Nil → fall back to manager order.
+    /// Resets on entity change. Independent of the sidebar's reorder system.
+    @State private var sessionOrder: [String]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -70,6 +73,7 @@ struct ItemTypeDetailView: View {
             footer
         }
         .task(id: type.id) {
+            sessionOrder = nil
             await itemContentManager.loadAll(for: type)
             for set in itemTypeManager.itemCollections(in: type) {
                 await itemContentManager.loadAll(for: set)
@@ -111,6 +115,10 @@ struct ItemTypeDetailView: View {
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { handleDoubleTap(row) }
                 .contextMenu { menuItems(for: row) }
+                .draggable(DetailRowDragPayload(rowID: row.id, zone: zone(for: row)))
+                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
+                    handleDrop(payloads: payloads, ontoRowID: row.id)
+                }
             }
             TableColumn("Modified") { row in
                 Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
@@ -118,6 +126,31 @@ struct ItemTypeDetailView: View {
             }
             .width(min: 140, ideal: 180, max: 240)
         }
+    }
+
+    // MARK: - Drag-reorder (session-local, same-zone-only)
+
+    private func zone(for row: DetailRow) -> DetailRowDragPayload.Zone {
+        switch row.kind {
+        case .itemCollection: return .typeSet
+        case .item: return .typeRootItem
+        case .page, .collection: return .typeRootItem  // unreachable in ItemType context
+        }
+    }
+
+    /// Drop handler — session-only. Same-zone only. Cross-zone drops
+    /// (e.g. Item onto Set or vice versa) are silently rejected.
+    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
+        guard let payload = payloads.first else { return false }
+        let currentRows = rows
+        guard let targetRow = currentRows.first(where: { $0.id == targetID }) else { return false }
+        guard payload.zone == zone(for: targetRow) else { return false }
+
+        let currentIDs = currentRows.map(\.id)
+        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
+        guard next != currentIDs else { return false }
+        sessionOrder = next
+        return true
     }
 
     private var footer: some View {
@@ -145,11 +178,18 @@ struct ItemTypeDetailView: View {
     }
 
     private var rows: [DetailRow] {
-        ItemTypeDetailRowComposer(
+        let baseRows = ItemTypeDetailRowComposer(
             type: type,
             itemTypeManager: itemTypeManager,
             itemContentManager: itemContentManager
         ).rows()
+        guard let sessionOrder else { return baseRows }
+        // Top-level session order override; child rows retain their natural order.
+        let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
+        let ordered = sessionOrder.compactMap { byID[$0] }
+        let known = Set(sessionOrder)
+        let appended = baseRows.filter { !known.contains($0.id) }
+        return ordered + appended
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
