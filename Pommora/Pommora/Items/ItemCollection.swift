@@ -28,8 +28,14 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// "no pinned properties".
     var pinnedProperties: [String]
 
+    /// Per-Collection saved views. Each Collection is INDEPENDENT of its parent
+    /// ItemType (locked decision): its own `views[0]` config separate from the
+    /// ItemType's. Empty array on legacy sidecars; Task 5's loadAll default-view
+    /// migration mints a fresh Table view when empty.
+    var views: [SavedView] = []
+
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, views
         case typeID = "type_id"
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
@@ -45,7 +51,8 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         modifiedAt: Date,
         schemaVersion: Int = 1,
         itemOrder: [String]? = nil,
-        pinnedProperties: [String] = []
+        pinnedProperties: [String] = [],
+        views: [SavedView] = []
     ) {
         self.id = id
         self.typeID = typeID
@@ -55,6 +62,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = schemaVersion
         self.itemOrder = itemOrder
         self.pinnedProperties = pinnedProperties
+        self.views = views
     }
 
     init(from decoder: any Decoder) throws {
@@ -68,6 +76,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
         // Legacy decode: field absent in pre-J.2 sidecars → default to empty.
         self.pinnedProperties = (try? c.decode([String].self, forKey: .pinnedProperties)) ?? []
+        self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -80,6 +89,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         // Always encode pinnedProperties (even when empty) so the field is
         // always present in freshly-written sidecars — makes later reads unambiguous.
         try c.encode(pinnedProperties, forKey: .pinnedProperties)
+        try c.encode(views, forKey: .views)
     }
 }
 

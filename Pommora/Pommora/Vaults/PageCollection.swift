@@ -18,8 +18,14 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     // OrderResolver's alphabetic tail.
     var pageOrder: [String]?
 
+    /// Per-Collection saved views. Each Collection is INDEPENDENT of its parent
+    /// PageType (locked decision): its own `views[0]` config separate from the
+    /// PageType's. Empty array on legacy sidecars; Task 5's loadAll default-view
+    /// migration mints a fresh Table view when empty.
+    var views: [SavedView] = []
+
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, views
         case typeID = "type_id"
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
@@ -38,7 +44,8 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         folderURL: URL,
         modifiedAt: Date,
         schemaVersion: Int = 1,
-        pageOrder: [String]? = nil
+        pageOrder: [String]? = nil,
+        views: [SavedView] = []
     ) {
         self.id = id
         self.typeID = typeID
@@ -47,6 +54,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = modifiedAt
         self.schemaVersion = schemaVersion
         self.pageOrder = pageOrder
+        self.views = views
     }
 
     init(from decoder: any Decoder) throws {
@@ -65,6 +73,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -74,6 +83,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(modifiedAt, forKey: .modifiedAt)
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encode(views, forKey: .views)
     }
 }
 
