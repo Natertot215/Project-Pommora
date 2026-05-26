@@ -91,13 +91,20 @@ struct ContentView: View {
            let itemTypeMgr = itemTypeManager,
            recentsManager != nil, pinnedManager != nil
         {
+            let lookup = SidebarLookupBundle(
+                content: contentManager,
+                pageType: vaultMgr,
+                itemType: itemTypeMgr,
+                space: spaceManager,
+                topic: topicManager
+            )
             HStack(spacing: 0) {
                 ViewSettingsButton(
                     scope: currentViewSettingsScope,
                     pageTypeManager: vaultMgr,
                     itemTypeManager: itemTypeMgr
                 )
-                NavDropdownButton(asSegment: true) { sel in
+                NavDropdownButton(asSegment: true, lookup: lookup) { sel in
                     sidebarSelection = sel
                 }
 
@@ -158,8 +165,14 @@ struct ContentView: View {
                 .toolbar {
                     // Back/Forward navigation arrows in the leading toolbar area.
                     ToolbarItemGroup(placement: .navigation) {
-                        if recentsManager != nil {
-                            BackForwardButtons()
+                        if recentsManager != nil, let vaultMgr = vaultManager, let itemTypeMgr = itemTypeManager {
+                            BackForwardButtons(lookup: SidebarLookupBundle(
+                                content: contentManager,
+                                pageType: vaultMgr,
+                                itemType: itemTypeMgr,
+                                space: spaceManager,
+                                topic: topicManager
+                            ))
                         }
                     }
                     // Segmented pair: NavDropdown (left) + Inspector toggle

@@ -5,6 +5,7 @@ struct SidebarView: View {
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
 
     @Binding var selection: SidebarSelection
@@ -50,7 +51,14 @@ struct SidebarView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .onChange(of: selectedTag) { _, newTag in
-                if let newTag, let resolved = SidebarSelection(tag: newTag) {
+                let lookup = SidebarLookupBundle(
+                    content: contentManager,
+                    pageType: vaultManager,
+                    itemType: itemTypeManager,
+                    space: spaceManager,
+                    topic: topicManager
+                )
+                if let newTag, let resolved = SidebarSelection(tag: newTag, lookup: lookup) {
                     if selection != resolved { selection = resolved }
                 } else if newTag == nil, selection != .none {
                     selection = .none

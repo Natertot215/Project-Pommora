@@ -14,14 +14,27 @@ struct NavDropdownButton: View {
     /// When `false` (default), renders as a standalone Liquid Glass capsule.
     let asSegment: Bool
 
+    /// Managers passed in as explicit params (NOT @Environment) because the
+    /// toolbar where this lives is OUTSIDE ContentView's `.detail { ... }`
+    /// closure's `.environment(...)` chain. Same pattern as ViewSettingsButton
+    /// and BackForwardButtons (quirk #16). Threaded through so
+    /// `SidebarSelection(stateRef:lookup:)` in handleOpen() resolves against
+    /// live manager instances rather than AppGlobals.
+    let lookup: SidebarLookupBundle
+
     /// Called when a row is double-clicked. ContentView wires this to set
     /// its `sidebarSelection` @State directly — avoids the @Observable hop
     /// through MainWindowRouter, which doesn't propagate reliably from the
     /// popover view host.
     let onOpen: (SidebarSelection) -> Void
 
-    init(asSegment: Bool = false, onOpen: @escaping (SidebarSelection) -> Void) {
+    init(
+        asSegment: Bool = false,
+        lookup: SidebarLookupBundle,
+        onOpen: @escaping (SidebarSelection) -> Void
+    ) {
         self.asSegment = asSegment
+        self.lookup = lookup
         self.onOpen = onOpen
     }
 
@@ -219,7 +232,7 @@ struct NavDropdownButton: View {
         case .agenda, .none:
             return
         case .page, .vault, .space, .topic, .project, .collection:
-            if let sel = SidebarSelection(stateRef: ref) {
+            if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                 onOpen(sel)
                 return
             }
@@ -233,13 +246,13 @@ struct NavDropdownButton: View {
                 else { return }
                 for vault in vm.types {
                     await cm.loadAll(for: vault)
-                    if let sel = SidebarSelection(stateRef: ref) {
+                    if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                         onOpen(sel)
                         return
                     }
                     for col in vm.pageCollections(in: vault) {
                         await cm.loadAll(for: col)
-                        if let sel = SidebarSelection(stateRef: ref) {
+                        if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                             onOpen(sel)
                             return
                         }

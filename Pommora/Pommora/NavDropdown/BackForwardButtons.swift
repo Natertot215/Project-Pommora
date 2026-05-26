@@ -14,6 +14,14 @@ import SwiftUI
 ///    selection observer in ContentView while the mutation propagates.
 @MainActor
 struct BackForwardButtons: View {
+    // Managers passed in as explicit params (NOT @Environment) because the
+    // toolbar where this lives is OUTSIDE ContentView's `.detail { ... }`
+    // closure's `.environment(...)` chain. Same pattern as ViewSettingsButton
+    // (quirk #16). The lookup bundle is constructed by ContentView and threaded
+    // through so SidebarSelection(stateRef:lookup:) resolves against live
+    // manager instances rather than AppGlobals.
+    let lookup: SidebarLookupBundle
+
     // Read directly from AppGlobals so the toolbar (a separate view host in
     // macOS) always sees the live instance. @Observable tracking fires for
     // canStepBack / canStepForward because the accesses happen inside body.
@@ -86,7 +94,7 @@ struct BackForwardButtons: View {
             break
         }
 
-        guard let sel = SidebarSelection(stateRef: ref) else { return }
+        guard let sel = SidebarSelection(stateRef: ref, lookup: lookup) else { return }
 
         // requestStep sets pendingIntent = .stepHistory so ContentView's
         // onChange handler skips the record() call.
