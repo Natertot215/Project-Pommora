@@ -2,93 +2,87 @@ import SwiftUI
 
 /// Closed enum of every chip color the user can pick.
 ///
-/// Organized in two tiers (for Figma palette + UIX grouping purposes):
+/// v0.3.1 cleanup (Task 5b): retired the 2-tier Primary/Secondary system in
+/// favor of a flat 12-case palette. `.cyan` and `.mint` removed (overlap
+/// Teal — both effectively the same family). `.gray` removed in favor of
+/// `.default` as the nil/no-color render. `.orange` and `.accent` added.
 ///
-/// **Primary** — the everyday workhorse palette. Mostly Apple system accents,
-/// with two Pommora-custom overrides where Apple's defaults read poorly on
-/// the chip surface:
-///   - `pink` = `#E89EB8` (Pommora pink — Apple has no `systemPink` we like
-///     for this surface; this hex is the brand value)
-///   - `yellow` = `#FFDE21` (brighter than `Color(.systemYellow)`, reads
-///     better against white chip foreground)
+/// **Final 12 cases:** `.default` (nil/grey fallback) / `.red` / `.orange` /
+/// `.yellow` / `.green` / `.blue` / `.accent` (current Nexus accent) /
+/// `.teal` / `.indigo` / `.purple` / `.pink` / `.brown`.
 ///
-/// **Secondary** — softer / cooler accents. All Apple system colors so they
-/// inherit Light/Dark/Increased-Contrast adaptation for free.
+/// Apple system colors back most cases. Three exceptions:
+///   - `.yellow` = `#FFDE21` (brighter than `Color(.systemYellow)`, reads
+///     better against white chip foreground — Pommora brand value)
+///   - `.pink` = `#E89EB8` (Pommora pink — Apple has no `systemPink` we like
+///     for this surface)
+///   - `.green` + `.teal` use the system color at reduced opacity (0.7) so
+///     the chip fill is less screaming-saturated than the raw Apple defaults
+///
+/// `.default` and `.accent` are NOT user-pickable from the color grid —
+/// `.default` represents "no color selected" (write `nil` to the option's
+/// color binding) and `.accent` can't render reliably as a fixed swatch
+/// because the Nexus accent is configurable. The 5×2 selection grid in
+/// `OptionColorPicker` uses `selectablePalette` (10 cases) for that reason.
 ///
 /// v1 is hardcoded; per-Nexus color customization is post-v1.
 enum PropertyChipColor: String, Codable, CaseIterable, Sendable, Hashable {
-    // Primary tier
     case `default`
+    case red
+    case orange
+    case yellow
+    case green
     case blue
+    case accent
+    case teal
     case indigo
     case purple
     case pink
-    case red
-    case yellow
     case brown
-    case gray
-
-    // Secondary tier
-    case cyan
-    case mint
-    case green
-    case teal
 
     var swiftUIColor: Color {
         switch self {
-        // Primary
         case .default: return Color(.tertiaryLabelColor)
+        case .red: return Color(.systemRed)
+        case .orange: return Color(.systemOrange)
+        case .yellow: return Color(hex: 0xFF_DE_21)  // Pommora yellow
+        case .green: return Color(.systemGreen).opacity(0.7)  // softer than raw system
         case .blue: return Color(.systemBlue)
+        case .accent: return Color.accentColor
+        case .teal: return Color(.systemTeal).opacity(0.7)  // softer than raw system
         case .indigo: return Color(.systemIndigo)
         case .purple: return Color(.systemPurple)
-        case .pink: return Color(hex: 0xE8_9E_B8)        // Pommora pink
-        case .red: return Color(.systemRed)
-        case .yellow: return Color(hex: 0xFF_DE_21)      // Pommora yellow
+        case .pink: return Color(hex: 0xE8_9E_B8)  // Pommora pink
         case .brown: return Color(.systemBrown)
-        case .gray: return Color(.systemGray)
-
-        // Secondary
-        case .cyan: return Color(.systemCyan)
-        case .mint: return Color(.systemMint)
-        case .green: return Color(.systemGreen)
-        case .teal: return Color(.systemTeal)
         }
     }
 
     var displayName: String {
         switch self {
         case .default: return "Default"
+        case .red: return "Red"
+        case .orange: return "Orange"
+        case .yellow: return "Yellow"
+        case .green: return "Green"
         case .blue: return "Blue"
+        case .accent: return "Accent"
+        case .teal: return "Teal"
         case .indigo: return "Indigo"
         case .purple: return "Purple"
         case .pink: return "Pink"
-        case .red: return "Red"
-        case .yellow: return "Yellow"
         case .brown: return "Brown"
-        case .gray: return "Gray"
-        case .cyan: return "Cyan"
-        case .mint: return "Mint"
-        case .green: return "Green"
-        case .teal: return "Teal"
         }
     }
 
-    /// Which palette tier this color belongs to. Drives grouping in the
-    /// Pommora UIX Chips gallery (two visually separated rows) and any
-    /// future palette-picker UI.
-    var tier: Tier {
-        switch self {
-        case .default, .blue, .indigo, .purple, .pink, .red, .yellow, .brown, .gray:
-            return .primary
-        case .cyan, .mint, .green, .teal:
-            return .secondary
-        }
-    }
-
-    enum Tier: String, Sendable, Hashable {
-        case primary
-        case secondary
-    }
+    /// The 10 user-pickable colors rendered by `OptionColorPicker`'s 5×2
+    /// swatch grid. Excludes `.default` (= "no color"; surfaced as a
+    /// separate clear/None affordance) and `.accent` (= current Nexus
+    /// accent; can't render reliably as a fixed swatch since it's a
+    /// configurable runtime value, not a static color).
+    static let selectablePalette: [PropertyChipColor] = [
+        .red, .orange, .yellow, .green, .blue,
+        .teal, .indigo, .purple, .pink, .brown,
+    ]
 }
 
 // MARK: - Color hex helper (file-private)

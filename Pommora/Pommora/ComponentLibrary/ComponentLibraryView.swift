@@ -508,54 +508,46 @@ private struct PropertyChipShowcase: View {
     /// Swap freely — purely for showcase purposes.
     private let sampleIcons: [PropertyChipColor: String] = [
         .default: "tag.fill",
+        .red: "flame.fill",
+        .orange: "sun.max.fill",
+        .yellow: "bolt.fill",
+        .green: "checkmark.circle.fill",
         .blue: "star.fill",
+        .accent: "sparkles",
+        .teal: "wave.3.right",
         .indigo: "bell.fill",
         .purple: "bookmark.fill",
         .pink: "heart.fill",
-        .red: "flame.fill",
-        .yellow: "bolt.fill",
         .brown: "leaf.fill",
-        .gray: "minus.circle.fill",
-        .cyan: "drop.fill",
-        .mint: "snowflake",
-        .green: "checkmark.circle.fill",
-        .teal: "wave.3.right",
     ]
-
-    private var primaryColors: [PropertyChipColor] {
-        PropertyChipColor.allCases.filter { $0.tier == .primary }
-    }
-
-    private var secondaryColors: [PropertyChipColor] {
-        PropertyChipColor.allCases.filter { $0.tier == .secondary }
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            section(title: "Pill — 50pt × 20pt with Label text") {
-                tierRow(
-                    label: "Primary",
-                    colors: primaryColors,
-                    chipBuilder: { PropertyChip(label: $0.displayName, color: $0) }
-                )
-                tierRow(
-                    label: "Secondary",
-                    colors: secondaryColors,
+            section(title: "Pill — 50pt × 20pt with Label text (10 selectable colors)") {
+                paletteRow(
+                    colors: PropertyChipColor.selectablePalette,
                     chipBuilder: { PropertyChip(label: $0.displayName, color: $0) }
                 )
             }
 
-            section(title: "Chip — 32pt × 20pt with SF Symbol icon") {
-                tierRow(
-                    label: "Primary",
-                    colors: primaryColors,
+            section(title: "Chip — 32pt × 20pt with SF Symbol icon (10 selectable colors)") {
+                paletteRow(
+                    colors: PropertyChipColor.selectablePalette,
                     chipBuilder: { PropertyChip(icon: sampleIcons[$0] ?? "circle.fill", color: $0) }
                 )
-                tierRow(
-                    label: "Secondary",
-                    colors: secondaryColors,
-                    chipBuilder: { PropertyChip(icon: sampleIcons[$0] ?? "circle.fill", color: $0) }
+            }
+
+            section(title: "Informational — Default + Accent (not user-pickable)") {
+                paletteRow(
+                    colors: [.default, .accent],
+                    chipBuilder: { PropertyChip(label: $0.displayName, color: $0) }
                 )
+                Text(
+                    ".default surfaces as the No-color affordance in OptionColorPicker (writes nil to the option's color). "
+                    + ".accent reflects the current Nexus accent — can't render as a fixed swatch in the picker grid."
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
             }
 
             CodeBlock(
@@ -570,6 +562,9 @@ private struct PropertyChipShowcase: View {
                 // Pommora-custom hex overrides
                 //   .pink   = #E89EB8 (Pommora pink)
                 //   .yellow = #FFDE21 (brighter than systemYellow)
+                //
+                // .green + .teal use systemGreen / systemTeal at opacity 0.7
+                // for a softer fill against the chip background.
                 """
             )
             .padding(.horizontal)
@@ -577,19 +572,13 @@ private struct PropertyChipShowcase: View {
     }
 
     @ViewBuilder
-    private func tierRow(
-        label: String,
+    private func paletteRow(
         colors: [PropertyChipColor],
         chipBuilder: @escaping (PropertyChipColor) -> PropertyChip
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label.uppercased())
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.tertiary)
-            FlowingHStack {
-                ForEach(colors, id: \.self) { color in
-                    cell(chip: chipBuilder(color), caption: ".\(color.rawValue)")
-                }
+        FlowingHStack {
+            ForEach(colors, id: \.self) { color in
+                cell(chip: chipBuilder(color), caption: ".\(color.rawValue)")
             }
         }
     }
@@ -625,7 +614,7 @@ private struct ChipDropdownShowcase: View {
         PropertyChipOption(id: "academics", label: "Academics", color: .red),
         PropertyChipOption(id: "business", label: "Business", color: .green),
         PropertyChipOption(id: "projects", label: "Projects", color: .purple),
-        PropertyChipOption(id: "systems", label: "Systems", color: .gray),
+        PropertyChipOption(id: "systems", label: "Systems", color: .default),
     ]
     @State private var singleSelectedID: String? = "personal"
     @State private var multiSelectedIDs: Set<String> = ["personal"]
@@ -793,7 +782,7 @@ private struct PropertyCheckboxShowcase: View {
                 HStack(spacing: 16) {
                     iconSample(icon: "checkmark", color: .green, label: "checkmark")
                     iconSample(icon: "xmark", color: .red, label: "xmark")
-                    iconSample(icon: "minus", color: .gray, label: "minus")
+                    iconSample(icon: "minus", color: .default, label: "minus")
                     iconSample(icon: "star.fill", color: .yellow, label: "star.fill")
                     iconSample(icon: "exclamationmark", color: .red, label: "exclamationmark")
                 }
