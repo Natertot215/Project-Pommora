@@ -134,11 +134,31 @@ struct ItemTypeDetailView: View {
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
-                    PropertyCellDisplay(
-                        definition: def,
-                        value: propertyValue(for: row, propertyID: def.id),
-                        relationResolver: { _ in nil }
-                    )
+                    if case .item(let item) = row.kind {
+                        let parentSet = setContaining(itemID: item.id)
+                        PropertyCellEditor(
+                            definition: def,
+                            value: item.properties[def.id],
+                            relationResolver: { _ in nil },
+                            commit: { newValue in
+                                Task {
+                                    try? await itemContentManager.updateItemProperty(
+                                        item,
+                                        propertyID: def.id,
+                                        newValue: newValue,
+                                        type: type,
+                                        collection: parentSet
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        PropertyCellDisplay(
+                            definition: def,
+                            value: nil,
+                            relationResolver: { _ in nil }
+                        )
+                    }
                 }
                 .width(min: 90, ideal: 120, max: 220)
             }
@@ -157,6 +177,18 @@ struct ItemTypeDetailView: View {
         case .itemCollection, .page, .collection:
             return nil
         }
+    }
+
+    /// Find the ItemCollection (Set) (if any) that contains the item with
+    /// the given ID. Returns nil for ItemType-root items (which is the
+    /// correct `collection: nil` argument for updateItemProperty).
+    private func setContaining(itemID: String) -> ItemCollection? {
+        for set in itemTypeManager.itemCollections(in: type) {
+            if itemContentManager.items(in: set).contains(where: { $0.id == itemID }) {
+                return set
+            }
+        }
+        return nil
     }
 
     // MARK: - Drag-reorder (session-local, same-zone-only)

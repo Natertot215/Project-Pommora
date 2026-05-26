@@ -122,11 +122,32 @@ struct ItemCollectionDetailView: View {
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
-                    PropertyCellDisplay(
-                        definition: def,
-                        value: propertyValue(for: row, propertyID: def.id),
-                        relationResolver: { _ in nil }
-                    )
+                    if case .item(let item) = row.kind,
+                       let parent = itemTypeManager.parentItemType(for: collection)
+                    {
+                        PropertyCellEditor(
+                            definition: def,
+                            value: item.properties[def.id],
+                            relationResolver: { _ in nil },
+                            commit: { newValue in
+                                Task {
+                                    try? await itemContentManager.updateItemProperty(
+                                        item,
+                                        propertyID: def.id,
+                                        newValue: newValue,
+                                        type: parent,
+                                        collection: collection
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        PropertyCellDisplay(
+                            definition: def,
+                            value: nil,
+                            relationResolver: { _ in nil }
+                        )
+                    }
                 }
                 .width(min: 90, ideal: 120, max: 220)
             }

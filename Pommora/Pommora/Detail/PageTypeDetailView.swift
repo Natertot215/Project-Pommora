@@ -94,11 +94,31 @@ struct PageTypeDetailView: View {
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
-                    PropertyCellDisplay(
-                        definition: def,
-                        value: propertyValue(for: row, propertyID: def.id),
-                        relationResolver: { _ in nil }
-                    )
+                    if case .page(let pageMeta) = row.kind {
+                        let parentCollection = collectionContaining(pageID: pageMeta.id)
+                        PropertyCellEditor(
+                            definition: def,
+                            value: pageMeta.frontmatter.properties[def.id],
+                            relationResolver: { _ in nil },
+                            commit: { newValue in
+                                Task {
+                                    try? await contentManager.updatePageProperty(
+                                        pageMeta,
+                                        propertyID: def.id,
+                                        newValue: newValue,
+                                        vault: pageType,
+                                        collection: parentCollection
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        PropertyCellDisplay(
+                            definition: def,
+                            value: nil,
+                            relationResolver: { _ in nil }
+                        )
+                    }
                 }
                 .width(min: 90, ideal: 120, max: 220)
             }
@@ -124,6 +144,18 @@ struct PageTypeDetailView: View {
         case .collection, .item, .itemCollection:
             return nil
         }
+    }
+
+    /// Find the PageCollection (if any) that contains the page with the
+    /// given ID. Returns nil for Page-Type-root pages (which is the correct
+    /// `collection: nil` argument for updatePageProperty).
+    private func collectionContaining(pageID: String) -> PageCollection? {
+        for coll in pageTypeManager.pageCollections(in: pageType) {
+            if contentManager.pages(in: coll).contains(where: { $0.id == pageID }) {
+                return coll
+            }
+        }
+        return nil
     }
 
     // MARK: - Drag-reorder (session-local, same-zone-only)
