@@ -14,6 +14,7 @@ A minimal Cmd+Shift+D window built during v0.3.x Properties side-work. Two-pane 
 - **Chips** — gallery of all 3 chip primitives: `PropertyChip` (Pill 50×20 label + Chip 32×20 icon variants, 13-color palette in 2 tiers — Primary uses Apple system accents + Pommora-custom `.pink = #E89EB8` / `.yellow = #FFDE21`; Secondary uses Apple system cyan/mint/green/teal), `ChipDropdown` (single + multi-select, Liquid Glass popover, drag-reorder, content-driven width), `PropertyCheckbox` (custom fill color + SF Symbol when checked, 3 size presets).
 - **Sidebar** / **Detail Views** / **Sheets** / **Page Editor** / **NavDropdown** — placeholder galleries enumerating planned stories via `PlannedStoryCard`. Each card surfaces the planned spec so the library doubles as a roadmap.
 - **Windows** — stub launcher buttons for **Item Window** + **Page Preview**. Each opens a `WindowStubSheet` placeholder via `.sheet(isPresented:)`. As real designs land, stubs get replaced in-place with real chrome (Liquid Glass X + Inspector toggle, two-column body, etc.).
+- **View Settings** (chrome-only at v0.3.1.x — shipped 2026-05-25 PM) — `ViewSettingsButton` (toolbar `slider.horizontal.3` + `.popover(arrowEdge: .top)`) + `ViewSettingsPopover` (empty 300×360pt Liquid Glass shell at this slice). Wiring locked: static button at ContentView level inside the existing primary-action `.glassEffect()` HStack; `ViewSettingsScope` (10-case enum derived from `sidebarSelection`) routes content adaptively per surface. Future panes (Layout / Property Visibility / Sort / Filter / Group / Edit Properties) land in upcoming v0.3.1.x patches and will get their own UIX stories then.
 
 **Categories shipped (Foundations):** Colors / Typography / Materials & Liquid Glass / Symbols / Spacing — all currently render `CategoryPlaceholderGallery` until their content lands.
 
@@ -51,6 +52,7 @@ Right column uses `.inspector(isPresented:)` (macOS 14+). Sidebar uses `.searcha
 - Sidebar: Selectable Row · Renameable Row · Section Header · Selection Chrome
 - Detail Views: Detail Row · (sort header — when sort ships v0.5.0)
 - Sheets: New Item Sheet · Vault Settings Sheet · Type Settings Sheet · Icon Picker Sheet · Color Picker Sheet
+- View Settings: View Settings Button · View Settings Popover · Layout Pane · Property Visibility Pane · Sort Pane · Filter Pane · Group Pane · Edit Properties Pane · Edit Property Pane (panes ship across v0.3.1.x patches)
 - Page Editor: Blockquote · Code Block · Lists · HR · Tables (when ships)
 - NavDropdown: NavDropdown Button · Entity Row · BackForward Buttons
 - Item Window: (lands as Item Window redesign ships)

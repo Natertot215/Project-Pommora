@@ -436,23 +436,24 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### 2. Vault / Type View Settings (per-view config)
 
-Per-view configuration sheet. Ships at v0.6.0 alongside saved views.
+Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level (chrome shipped 2026-05-25 — see `.claude/Planning/View-Settings-button-chrome-plan.md`). The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
 
-| Section | Contents |
-|---|---|
-| **Sort by** | Per-view; multi-criterion. |
-| **Group By** | Per-view. |
-| **Filter** | Per-view; WHERE-style criteria. |
-| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery. |
-| **Property Visibility** | Per-view; show/hide columns. |
+| Section | Contents | Ships |
+|---|---|---|
+| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active at v0.3.1; others muted until v0.5.0). | v0.3.1 |
+| **Property Visibility** | Per-view; show/hide columns. Click-to-toggle with strikethrough on hidden (no eye icon). Drag-reorder. | v0.3.1 |
+| **Sort by** | Per-view; single criterion at v0.3.1.x; multi-criterion when saved views land. | v0.3.1.2 |
+| **Filter** | Per-view; minimum viable operators (equals / not-equals / contains / empty / not-empty); AND-grouped at v0.3.1.x; OR-mode at v0.5.0. | v0.3.1.3 |
+| **Group By** | Per-view; single property. May defer to v0.5.0 with Board view. | v0.3.1.4 (optional) |
+| **Edit Properties** | Schema CRUD pane (extracted from `VaultSettingsSheet` + `TypeSettingsSheet`). Right-click sidebar admin path keeps the sheets; both surfaces render the same extracted subview. | v0.3.1.1 |
 
-A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before saved views ship.
+A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
 
 ##### 3. Vault / Type Views (saved views)
 
 Multiple saved views per Vault / Type, Notion-database-views model. Each view carries its own View Settings (Sort / Group By / Filter / Layout / Property Visibility) and a path to the schema settings (Vault / Type Settings is accessible from any view).
 
-View definitions persist in the per-kind sidecar as `views[]`. Ships at v0.6.0.
+View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container assumed at v0.3.1.x (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title ships at v0.5.0 alongside the non-Table renderers.
 
 ##### 4. Item Inspector → Pinned Properties
 

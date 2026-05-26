@@ -66,8 +66,17 @@ Full ship summary → [[History]] § "v0.3.0 Properties — FEATURE-COMPLETE".
 
 #### Upcoming versions (roadmap)
 
-##### v0.3.1 — Properties Pulldown + Property Panel polish (next)
-Figma-driven fast-follow on the v0.3.0 placeholder UI. Polishes the `PropertiesPulldown` (lazy properties, "+ Add property" picker, divider-separated auto-managed section) and the `PropertyPanel` SwiftUI component (host-agnostic; slots into any inspector). MultiSelectChips color refactor. SchemaEditorRouter for cross-surface right-click → "Edit options…" routing into Type Settings.
+##### v0.3.1.x — Storage View Redesign (chrome slice shipped; panes drip)
+First slice (chrome) shipped 2026-05-25 PM: single static `slider.horizontal.3` toolbar button at ContentView level inside the existing primary-action Liquid Glass capsule (with NavDropdown + Inspector toggle). Empty 300×360pt popover today; scope-routes via `ViewSettingsScope` derived from `sidebarSelection` so the same button serves every surface with adaptive content. Plan record at `.claude/Planning/View-Settings-button-chrome-plan.md`.
+
+Following patches drip the panes per Approach B (research at `.claude/Planning/View-Settings-research-notes.md`):
+- **v0.3.1** — Layout pane (Table active; Board/List/Cards/Gallery muted) + Property Visibility pane (strikethrough toggle, drag-reorder) wired to new `SavedView` Codable + `views: [SavedView]` on `PageCollection` + `ItemCollection` + `singular: String?` on `ItemType` + default-view migration
+- **v0.3.1.1** — Edit Properties pane (extract shared `PropertyEditor` from `VaultSettingsSheet` + `TypeSettingsSheet`; backport into both sheets)
+- **v0.3.1.2** — Sort pane (single criterion; column-header click syncs)
+- **v0.3.1.3** — Filter pane (minimum viable operators: equals / not-equals / contains / empty / not-empty; AND-grouped; wired to `IndexQuery`)
+- **v0.3.1.4** — Group pane (optional; defer to v0.5.0 if Board view is closer)
+
+Property Pulldown + Property Panel Figma polish moves to v0.3.x fast-follow after the storage redesign — properties-per-Page surface evolves independently of the storage configurator chrome.
 
 ##### v0.3.x — Item Window redesign + PreviewWindow primitive (timing TBD)
 Reshape the Item Window around the Property Panel + inspector toggle + pinned chips per Nathan's WIP sketch. Eventually a `WindowGroup(for: ItemRef.self)` standalone window once the cross-feature PreviewWindow primitive ships. AgendaTask + AgendaEvent reuse the same UX pattern.
@@ -84,8 +93,8 @@ FSEventStream — external changes update SQLite + sidebar live; reconciles per-
 ##### v0.4.0 — Trash UI + cascade-delete refinements
 In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash actions. Cascade-delete reporting refinements with exact counts (Page Type → N Page Collections + M Pages). External-edit detection extended to all entity kinds.
 
-##### v0.5.0 — Type view types (table / board / list / cards / gallery)
-The five view types over Page Type / Item Type Content. Inline cell editing in Table view. Board ships as visual kanban (cards grouped by a property's options; editing via card UI). Drag-to-rewrite-frontmatter on kanban deferred post-v1. Per-view filter / sort / group / shown-properties controls; saved view configs in each Type's sidecar (`_pagetype.json.views[]` / `_itemtype.json.views[]`).
+##### v0.5.0 — Non-Table view renderers (board / list / cards / gallery)
+**Scope narrowed:** per-view filter / sort / visibility + view-config storage migrated to v0.3.1.x (above). v0.5.0 ships the remaining four renderer types over the same `SavedView` storage Table already uses at v0.3.1.x. Board = visual kanban (cards grouped by a property's options; editing via card UI). List / Cards / Gallery render the same underlying entities differently. Multi-saved-view support (tabs row beneath the detail-view title) ships here too — single-view-per-container is the v0.3.1.x assumption.
 
 ##### v0.6.0 — EventKit + Agenda UI + hardening + accessibility + perf + onboarding
 Agenda Task / Agenda Event Windows (popover with inspector toggle + Property Panel + pinned chips). Calendar view over Agenda. EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*` APIs; opt-in via Settings; bidirectional mirroring). Full Settings editing UI (accent color picker, label rename forms, tier-config consolidation). Accessibility checkpoint. Performance budgets verified. First-launch UX polish. Saved-section content fills in (Recents full-frame, Calendar with EventKit mirror).
