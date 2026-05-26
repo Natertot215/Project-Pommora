@@ -2,6 +2,49 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### v0.3.1 Properties end-to-end (2026-05-26 — shipped on main as 21 commits, baseline `627e972` → tip `0d5aa16`)
+
+Single-session execution of the approved `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases). Tasks 1-20 shipped + Task 21 (PropertyEditorRow stub patches in Item Window inspector) intentionally deferred to v0.3.1.x — the cell editor bypasses that dispatcher entirely so the headline UX ships without it. Task 23 (`git push` + Nexus mirror) paused for Nathan's auth.
+
+**Phase ship map:**
+- **Phase A — Data layer foundations** (Tasks 1-5b): `DisplayVariant` enum (`.box`/`.select`/`.chip`, Status-only render variant) + `DateFormat` enum (6 cases) + `PropertyDefinition.displayAs` + `.dateFormat` (additive Codable) + `ItemType.singular` (Capacities-style label) + `SavedView` Codable upgrade (real fields + reserved sort/filter/group stubs) + `views: [SavedView]` on PageCollection + ItemCollection + default-view migration on PageTypeManager.loadAll + ItemTypeManager.loadAll (quirk #15 pattern) + PropertyChipColor cleanup (12 cases — drop `.cyan`/`.mint`/`.gray`, add `.orange`/`.accent`; retire tier system; new OptionColorPicker 5x2 grid). 6 commits.
+- **Phase B — ViewSettingsScope + popover scaffold** (Tasks 6+7): `ViewSettingsScope` gains associated values on the 4 storage cases (PageType/PageCollection/ItemType/ItemCollection) so popover content can render schema-aware bodies. NavigationStack popover scaffold + StorageMenuRoot (Notion-style menu with active Edit Properties + Property Visibility + muted Layout/Sort/Filter/Group rows). 2 commits.
+- **Phase C — Schema editor extraction** (Task 8): SelectOptionsEditor + StatusGroupsEditor + NumberFormatPicker + FileAcceptEditor extracted from VaultSettingsSheet + TypeSettingsSheet into shared `Pommora/Properties/Editor/` module. Type-prefixed copies removed; both sheets reference shared definitions. 1 commit.
+- **Phase D — Edit Properties pane** (Tasks 9-11b): PropertiesListPane (searchable + reserved-property lock badges + chevron-push) → PropertyTypePickerPane (type-aware routing: Select/Status/MultiSelect auto-push to EditPropertyPane after commit; simple types pop back; Relation defers to RelationPropertyWizard) → EditPropertyPane (Notion-format: header + Type row + per-type middle section + Duplicate + Delete footer; live-save via new `updateProperty(id:in:transform:)` per manager) → EditOptionPane (per-option editor pushed via `.editOption` route; chevron-push wiring from SelectOptionsEditor deferred to v0.3.1.x). 4 commits.
+- **Phase E — Property Visibility pane** (Task 12): click-to-toggle + strikethrough-on-hidden + locked `_modified_at` (always visible per locked decision). Writes via new `updateView(viewID:in:transform:)` per manager (resolves containerID as PageType / PageCollection / ItemType / ItemCollection automatically). 1 commit.
+- **Phase F — Single-property value writes** (Tasks 13+14): `updatePageProperty` + `updateItemProperty` atomic single-property writes on PageContentManager + ItemContentManager. Read-modify-write via existing atomic save infrastructure; modifiedAt bumped on every write; SQLite index upsert best-effort. Dual-relation reverse-mirror via DualRelationCoordinator deferred to v0.3.1.x. 1 commit.
+- **Phase G — Dynamic Table columns** (Tasks 15-18): PropertyColumnBuilder descriptor + 3 new chip primitives (RelationChip / FileChip / LinkChip) + PropertyCellDisplay dispatcher rendering all 11 property types (chip-family for Status/Select/Multi/Relation; pure text for Number/Date/URL/LastEdit; native control for Checkbox; File via FileChip overflow counter). Wired into all 4 storage detail views via `TableColumnForEach` (macOS 14+ — the plan's "no dynamic columns" note was outdated). 4 commits.
+- **Phase H — Click-to-edit cell popovers** (Tasks 19+20): PropertyCellEditor wraps PropertyCellDisplay with a `.popover(arrowEdge: .bottom)` anchor; per-type editor dispatch inside the popover (number/date/datetime/select/multiSelect/status/url use built-ins or existing pickers; checkbox flips inline without popover; lastEditedTime stays read-only; relation + file show "v0.3.1.x" placeholder until IndexQuery + AttachmentManager flow-through ships). Detail views compute commit closures that route to updatePageProperty/updateItemProperty with the right parent collection (helpers `collectionContaining(pageID:)` + `setContaining(itemID:)` scan cache for membership). 2 commits.
+
+**Locked decisions ratified this session:**
+
+- **PropertyChipColor flat palette (12 cases).** `.default` (nil/grey fallback) / `.red` / `.orange` / `.yellow` / `.green` / `.blue` / `.accent` (Nexus accent) / `.teal` / `.indigo` / `.purple` / `.pink` / `.brown`. `.cyan`/`.mint`/`.gray` retired. Green + Teal use `.opacity(0.7)` Apple system colors. Yellow + Pink keep Pommora custom hex. `selectablePalette` returns the 10 user-pickable cases (excludes `.default` + `.accent`) for OptionColorPicker's 5x2 grid.
+
+- **DisplayVariant is Status-only.** `.box` / `.select` / `.chip`. Other property types ignore `displayAs`. The `.chip` variant uses hardcoded `"square.dashed"` placeholder icon at v0.3.1.x; per-group / per-option Status icons + Settings config land in pre-v1 cleanup (Prospects.md).
+
+- **DateFormat is Date/DateTime-only.** 6 cases including ISO 8601. Default `.monthDayYearLong`. Custom strftime-token formats deferred (Prospects.md).
+
+- **Chip rendering scope (cell display side).** Chips render ONLY for Status / Select / MultiSelect (via PropertyChip pill) + Relation (via RelationChip — RoundedRectangle cornerRadius 4) + File (via FileChip — quaternary fill, link icon). Dates / Links / Numbers / Checkboxes / LastEditedTime render as pure text or native controls without chip chrome.
+
+- **Each Collection's `views[]` is independent of the parent Type's.** SavedView lives on both PageType + PageCollection (and ItemType + ItemCollection) separately. Default-view migration in `loadAll` mints a fresh Table view per container that has empty views.
+
+- **Schema lives on the Type; Collections inherit.** Edit Properties pane shown for Collection scope writes to the parent Type's schema via `c.typeID` lookup. Property Visibility pane writes to the Collection's own views[0].
+
+- **TableColumnForEach works on macOS 26.** Plan note about "no dynamic columns on macOS" was outdated. Detail views use TableColumnForEach for the user-property column band between Title and Modified.
+
+- **`updateProperty(id:in:transform:)` on each Type manager.** Generic transform-based per-config edit. Replaces a hypothetical `updateOption(...)` method — EditOptionPane reuses the same `updateProperty(transform:)` flow with closure-based option lookup. Same pattern for `updateView(viewID:in:transform:)`.
+
+**Sub-tasks intentionally deferred to v0.3.1.x:**
+- Task 21 (PropertyEditorRow relation/status/file stub patches in Item Window inspector) — cell editor bypasses entirely; sheet path stays current behavior.
+- Cell-editor inline Relation editor (needs IndexQuery flow-through to cell editors).
+- Cell-editor inline File editor (needs AttachmentManager flow-through to cell editors).
+- SelectOptionsEditor + StatusGroupsEditor chevron-push refactor (would light up EditOptionPane in normal UX; today EditOptionPane is route-addressable but unreachable through the editors).
+- Dual-relation reverse-mirror inside updatePageProperty + updateItemProperty.
+- Per-option Status icons + Settings config (pre-v1 cleanup).
+- Tests for `updatePageProperty` + `updateItemProperty` value-write paths (defer to a test-coverage patch; cell-editor smoke testing relies on visual verification at this slice).
+
+**Working tree merge note:** Nathan's parallel session on Vault/Collection adoption (file-explorer add path) will conflict with my Phase A Task 5 default-view migration in PageTypeManager.loadAll + ItemTypeManager.loadAll. Quirk #11 anticipated this; rebase / merge resolution happens when his work lands.
+
 #### v0.3.x View Settings chrome slice (2026-05-25 evening — first patch of v0.3.1.x Storage View Redesign)
 
 Same-day continuation of the PM sweep. One focused commit on `v0.3.0-properties`; merged to `main` and pushed alongside. Ships the chrome of the consolidated View Settings popover — empty Liquid Glass shell behind a `slider.horizontal.3` toolbar button — while locking the architectural pattern every follow-up panes patch will reuse.

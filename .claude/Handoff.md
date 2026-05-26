@@ -2,9 +2,18 @@
 
 > **Read this first at session start.** Snapshot of where things stand + what to pick up next. Detailed shipped history lives in `History.md`; phased roadmap in `Framework.md`.
 
-#### Current state (2026-05-25 — `v0.3.0-properties` synced with `main` after chrome-slice merge)
+#### Current state (2026-05-26 — `main` at `0d5aa16`, +21 commits ahead of origin/main pending push)
 
-**v0.3.x View Settings chrome slice** shipped this session as the first patch of the v0.3.1.x Storage View Redesign series. Both branches in sync at the new tip; nothing ahead on either side after the merge + push.
+**v0.3.1 Properties end-to-end** shipped this session via inline execution of the approved `.claude/Planning/View-Settings-edit-properties-plan.md`. **Tasks 1-20 of 25 landed on `main` as 21 commits.** Task 21 (PropertyEditorRow Item-Window-inspector stub patches) deferred to v0.3.1.x — cell editor bypasses that dispatcher so the headline UX ships without it. **Task 22 (this doc sweep) just shipped.** **Task 23 (`git push origin main` + Nexus mirror) is paused awaiting Nathan's auth** — every working-tree change is committed locally; nothing on the wire.
+
+**Branch state:**
+- `main` (HEAD): `0d5aa16` — 21 commits ahead of `origin/main` (+ this commit + the doc-sweep commit before push).
+- `v0.3.0-properties`: still at `627e972` (pre-Properties-work tip). Nathan's parallel adoption-fix session works there.
+- After Task 23 push: `main` advances on origin; `v0.3.0-properties` retired (will rebase Nathan's adoption fix onto main when ready).
+
+**Working tree:** clean. Every Phase A-H commit landed atomically with `xcodebuild build` verification between. Test runner has been intermittently hanging on this Mac mid-session (build is reliable; tests deferred to a runner-stability follow-up).
+
+**Parallel-session merge debt:** Nathan's adoption-fix session on `v0.3.0-properties` will collide with my Phase A Task 5 default-view migration in `PageTypeManager.loadAll` + `ItemTypeManager.loadAll`. Quirk #11 anticipated; rebase happens when his work commits.
 
 **This session's ship:** static `slider.horizontal.3` toolbar button + empty Liquid-Glass popover (fixed 300×360pt) wired into ContentView's existing primary-action HStack — shares the Liquid-Glass capsule with NavDropdown + Inspector toggle. Popover content is `Color.clear` at this slice (chrome-only); future panes (Layout / Property Visibility / Sort / Filter / Group / Edit Properties) replace the body in subsequent v0.3.1.x patches. Scope-routing wiring locked: `ContentView.sidebarSelection` → `currentViewSettingsScope` computed → `ViewSettingsButton(scope:)` → `ViewSettingsPopover(scope:)`. Same button, every surface, content adapts.
 
@@ -19,40 +28,29 @@
 
 #### What's next
 
-**APPROVED plan ready to execute:** `.claude/Planning/View-Settings-edit-properties-plan.md` (also mirrored to `/Users/nathantaichman/The Nexus/Pommora/Planning/`). Approved 2026-05-26. **Use `superpowers:subagent-driven-development` to dispatch the 25 tasks across 9 phases — each phase ships green standalone per quirk #8.**
+**Task 23 — push + Nexus mirror (auth-required, paused for Nathan):**
+1. `git push origin main` — sends the 21 (now 22 with doc sweep) Properties commits live.
+2. Mirror `.claude/Handoff.md` + `.claude/History.md` + `.claude/Planning/README.md` + `.claude/Features/Properties.md` to `/Users/nathantaichman/The Nexus/Pommora/` for Obsidian/RC visibility.
+3. Retire `.claude/Planning/View-Settings-edit-properties-plan.md` to `.claude/Planning/Superseded/2026-05-26-View-Settings-edit-properties-plan-COMPLETE.md` (most of plan shipped; document the few sub-tasks deferred to v0.3.1.x).
+4. Retire `.claude/Planning/View-Settings-button-chrome-plan.md` to Superseded (predecessor; shipped this series).
+5. After Nathan's parallel adoption-fix session lands on `v0.3.0-properties`: rebase his work onto `main`; resolve PageTypeManager.loadAll + ItemTypeManager.loadAll merge conflicts at the default-view-migration insertion points.
 
-**v0.3.1 scope (one plan, big):**
-- **Phase A (Tasks 1-5b)** — Data layer: `DisplayVariant` enum (.box/.select/.chip, Status-only) + `ItemType.singular` + `SavedView` Codable upgrade (real fields: id, name, icon, type, visibleProperties, hiddenProperties + reserved stub sort/filter/group fields) + `views: [SavedView]` on PageCollection + ItemCollection + `PropertyDefinition.dateFormat` (6 cases incl. ISO 8601) + default-view migration on loadAll (quirk #15 pattern) + PropertyChipColor cleanup (drop .cyan/.mint; 12 cases total; 10-color 5×2 selection grid via new `OptionColorPicker`)
-- **Phase B (Task 6)** — ViewSettingsScope associated values for 4 storage cases
-- **Phase C (Task 7)** — Popover NavigationStack scaffold + storage-scope root menu (Edit Properties + Property Visibility both active; Layout/Filter/Sort/Group muted-placeholder)
-- **Phase D (Task 8)** — PropertyEditor extraction: dedupe Select/Status/Number/File editors out of VaultSettingsSheet + TypeSettingsSheet into shared `Pommora/Properties/Editor/` module
-- **Phase E (Tasks 9-11b)** — Edit Properties pane (Notion screenshot format: icon+title row + Type + Options with chevron-push + Duplicate/Delete footer) + + New property flow with type-aware routing (Select/Status/Multi auto-push to Edit Property pane after creation; simpler types pop back to list) + EditOptionPane (per-option edit pushed from option chevron) + `duplicateProperty` manager method
-- **Phase F (Tasks 12-14)** — Property Visibility pane (drag-only reorder + click-to-toggle strikethrough) + new `updatePageProperty` / `updateItemProperty` single-property atomic manager methods
-- **Phase G (Tasks 15-18)** — Dynamic Table columns: `PropertyColumnBuilder` produces TableColumn descriptors from `views[0].visibleProperties` + schema; `PropertyCellDisplay` per-type renderer (chips ONLY for Status/Select/Multi/Relation; pure text for Date/Link/Number; FileChip for files); wire into all 4 storage detail views
-- **Phase H (Tasks 19-21)** — Click-to-edit cell popovers for all 11 types: `PropertyCellEditor` wrapper + per-type editor popovers reusing existing PropertyEditorRow editors + wire existing `RelationPicker` (J.15-shipped but unused) + `StatusPicker` + `FileAttachmentEditor` into PropertyEditorRow stubs
-- **Phase I (Tasks 22-23)** — Doc sweep + Nexus mirror + commit + push + merge to main
+**v0.3.1.x follow-up patches (queued, each smaller than v0.3.1 itself):**
+- **v0.3.1.1** — Task 21 (PropertyEditorRow stub patches for relation/status/file in Item Window inspector) + inline Relation cell editor (IndexQuery flow-through) + inline File cell editor (AttachmentManager flow-through) + SelectOptionsEditor + StatusGroupsEditor chevron-push refactor (lights up EditOptionPane in normal UX) + dual-relation reverse-mirror in updatePageProperty + updateItemProperty.
+- **v0.3.1.2** — Sort pane (per-view single-criterion sort; multi-criterion when saved views land). Wires `SavedView.sort: [SortCriterion]` reserved stub from Task 3.
+- **v0.3.1.3** — Filter pane (equals / not-equals / contains / empty / not-empty operators; AND-grouped at first; OR at v0.5.0). Wires `SavedView.filter: FilterGroup`.
+- **v0.3.1.4** — Group pane (single property). May defer to v0.5.0 with Board view.
+- **v0.3.1.5** — Existing-property change-type + per-type-config edit-flow polish; relation scope reconfiguration via wizard inside the popover; Status icons + Settings config (per-group + per-option) pre-v1 cleanup.
 
-**New chip primitives this plan adds (3):** `RelationChip.swift` (default-grey, RoundedRectangle cornerRadius 4, target entity icon + title) / `FileChip.swift` (quaternary fill, `link` SF Symbol, filename truncated 13 chars) / `LinkChip.swift` (accent-blue text, strips https:// prefix, truncates 15 chars) — all under `Pommora/Properties/Chips/`.
+**v0.5.0** — non-Table view renderers (board / list / cards / gallery) on top of the populated SavedView storage.
 
-**Locked decisions in this plan (recorded for reference):**
-- Empty cells: blank, full-area clickable (Notion-style)
-- Header drag-reorder: deferred (Property Visibility pane is the only reorder surface at v0.3.1)
-- Option sort: drag-only (no Sort picker in Edit Property pane; view-level Sort = v0.3.1.2 patch)
-- DisplayVariant cases: `.box` / `.select` / `.chip` (was `.status` in earlier draft)
-- Status group icons: hardcoded `"square.dashed"` placeholder; final per-group/per-option icons + Settings config deferred to pre-v1 cleanup
-- New property defaults: schema-only write (no member files touched); option-requiring types auto-push to Edit Property pane after creation
-- Reserved properties: lock badge in Properties pane; `_modified_at` always-visible read-only column
-- Sheet path: VaultSettingsSheet + TypeSettingsSheet keep working; both backport extracted PropertyEditor
+**Open UX risks to watch in next visual smoke:**
+- TableColumnForEach behavior with very wide schemas (>10 columns) — width math may need tuning.
+- Popover dismissal commits the draft via `.onDisappear`; if SwiftUI re-renders the popover host mid-edit (e.g. typing in the cell while a sibling cell rebuilds), the draft might lose its in-flight value. Watch for this during visual smoke.
+- Status `.chip` displayAs renders `"square.dashed"` placeholder for ALL options; visually identical at the moment. Per-option icons land in pre-v1 cleanup.
+- `_modified_at` always-visible may feel like cluttered noise on narrow Tables — Nathan to decide if a "hide" override should land.
 
-**Chrome plan retires to Superseded** at Task 22 of the edit-properties plan (once that ships).
-
-**After v0.3.1 ships, follow-up plans queued:** v0.3.1.2 Sort pane / v0.3.1.3 Filter pane / v0.3.1.4 Group pane / v0.3.1.5 existing-property change-type + per-type-config edits / v0.5.0 non-Table view renderers (board/list/cards/gallery).
-
-**UIX rules locked earlier this session (carry forward):** tables get NO vertical column borders (Notion-flat — `NSViewRepresentable` impl TBD); `"Title"` everywhere (not `"Name"`); `"Spaces"` / `"Topics"` / `"Projects"` in property panels (no `"Tier N"` prefix); Sidebar Items section defaults to `"Items"`; Item Types are disclosure-foldable, Sets are flat leaves.
-
-**Parallel-session changes uncommitted in working tree** (NOT mine, per quirk #11 — surfaced not bundled):
-- `Pommora/Pommora/Properties/TypeSettingsSheet.swift` (-4 lines — drops dynamic title from sheet header)
-- `Pommora/Pommora/Sidebar/ItemTypeRow.swift` (-3 lines — context-menu label simplified to "Edit")
+**Carry-forward UIX rules (unchanged from prior session):** tables get NO vertical column borders (Notion-flat — NSViewRepresentable impl TBD); `"Title"` everywhere (not `"Name"`); `"Spaces"` / `"Topics"` / `"Projects"` in property panels (no `"Tier N"` prefix); Sidebar Items section defaults to `"Items"`; Item Types are disclosure-foldable, Sets are flat leaves.
 
 #### Locked decisions in force
 
@@ -105,4 +103,4 @@ All unit tests green except 4 pre-existing failures unrelated to this slice — 
 
 #### Resume prompt for next session (verbatim)
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. v0.3.x View Settings chrome slice shipped + merged to main 2026-05-25 PM (button + empty 300×360pt Liquid Glass popover at ContentView level inside the existing primary-action capsule with NavDropdown + Inspector toggle). Both branches in sync at `48316be`. **APPROVED PLAN ready to execute:** `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases) — ships v0.3.1 properties end-to-end: schema CRUD via popover + dynamic property-value columns in all 4 storage detail-view Tables + click-to-edit popovers for all 11 property types + Property Visibility pane. Plan mirrored to `/Users/nathantaichman/The Nexus/Pommora/Planning/` for RC viewing. **First action: invoke `superpowers:subagent-driven-development`** to dispatch the 25 tasks; each phase ships green standalone per quirk #8. Use `builder` subagent with `run_in_background: true` for xcodebuild (quirk #13). **Phase A (Tasks 1-5b) is foundation:** data layer additions (`DisplayVariant` / `dateFormat` / `singular` / `SavedView` real fields / `views[]` on Collections / default-view migration / PropertyChipColor cleanup to 12 cases) — start there. Plan body has exact code snippets + bite-sized TDD steps for each task. **Decisions locked in this plan:** chips render ONLY for Status/Select/Multi/Relation; Dates/Links/Numbers = pure text; Files = quaternary chip with link icon; LinkChip strips https:// + truncates 15 chars; Option ordering is drag-only (no Sort picker — that's v0.3.1.2's view-level surface); 10-color 5×2 selection grid (Default + Accent excluded). Quirks #15 + #16 + #17 still apply throughout. Chrome plan retires to Superseded at Task 22 of edit-properties plan."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **v0.3.1 Properties end-to-end shipped 2026-05-26 — 22 commits on `main` (`627e972` → `<tip>`), all local, awaiting `git push origin main`.** Tasks 1-20 of the View-Settings-edit-properties-plan landed (Task 21 deferred to v0.3.1.1; Task 23 push is the immediate action). The headline UX is live: click any cell in any of the 4 storage detail-view Tables → type-appropriate popover editor → commit on outside-click. **First action: run `git push origin main`** (auth-required — that's why the session paused). Then mirror `.claude/Handoff.md` + `.claude/History.md` + `.claude/Planning/README.md` to `/Users/nathantaichman/The Nexus/Pommora/` for RC visibility; retire the edit-properties plan + the chrome plan to `.claude/Planning/Superseded/`. **Parallel-session merge debt:** Nathan's adoption-fix work on `v0.3.0-properties` will conflict with my default-view-migration inserts in `PageTypeManager.loadAll` + `ItemTypeManager.loadAll` — rebase when his work commits. **v0.3.1.x patches queued (in order):** v0.3.1.1 (Task 21 + cell-editor inline Relation/File + EditOptionPane chevron-push), v0.3.1.2 Sort pane, v0.3.1.3 Filter pane, v0.3.1.4 Group pane, v0.3.1.5 existing-property change-type. **Quirks #15 + #16 + #17 still apply throughout.** Test runner is currently flaky on this Mac (build is reliable); `xcodebuild test` results not captured this session — a test-stability follow-up is on the v0.3.1.x list. **DON'T trust SourceKit squiggles** (quirk #3) — entire session was spent ignoring stale 'Cannot find type X' diagnostics that always cleared post-build."
