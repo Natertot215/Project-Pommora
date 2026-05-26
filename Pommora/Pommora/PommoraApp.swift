@@ -8,6 +8,7 @@ import SwiftUI
 @main
 struct PommoraApp: App {
     @State private var nexusManager = NexusManager()
+    @Environment(\.openWindow) private var openWindow
 
     init() {
         // Install NSApplication willResignActive + willTerminate observers
@@ -37,11 +38,25 @@ struct PommoraApp: App {
                 Button("Reset Nexus Bookmark") {
                     nexusManager.resetBookmark()
                 }
+                Divider()
+                Button("Component Library") {
+                    openWindow(id: "component-library")
+                }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
             }
             #endif
 
             InspectorCommands()
         }
+
+        #if DEBUG
+        // Debug-only: in-app design system explorer. Open via Cmd+Shift+D.
+        Window("Pommora Component Library", id: "component-library") {
+            ComponentLibraryView()
+        }
+        .defaultSize(width: 1100, height: 720)
+        .windowResizability(.contentMinSize)
+        #endif
 
         // Standard macOS Settings scene — `Cmd+,` opens the placeholder
         // until the designed Settings UI lands in v0.6.0 (Task 7.6).

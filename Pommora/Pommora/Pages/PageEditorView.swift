@@ -80,38 +80,12 @@ struct PageEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // J.13: PropertiesPulldown — lazy property surface above the editor.
-            // Binds to the page's frontmatter properties / tiers through the viewModel.
-            // Edits mutate frontmatter in-place then call scheduleSave() so the 300ms
-            // debounced pipeline picks them up just like body edits.
-            PropertiesPulldown(
-                schema: vault.properties,
-                values: Binding(
-                    get: { viewModel.page.frontmatter.properties },
-                    set: { viewModel.page.frontmatter.properties = $0 }
-                ),
-                tier1: Binding(
-                    get: { viewModel.page.frontmatter.tier1 },
-                    set: { viewModel.page.frontmatter.tier1 = $0 }
-                ),
-                tier2: Binding(
-                    get: { viewModel.page.frontmatter.tier2 },
-                    set: { viewModel.page.frontmatter.tier2 = $0 }
-                ),
-                tier3: Binding(
-                    get: { viewModel.page.frontmatter.tier3 },
-                    set: { viewModel.page.frontmatter.tier3 = $0 }
-                ),
-                autoManaged: AutoManagedFields(
-                    id: viewModel.page.frontmatter.id,
-                    createdAt: viewModel.page.frontmatter.createdAt,
-                    modifiedAt: viewModel.page.frontmatter.modifiedAt ?? viewModel.page.frontmatter.createdAt
-                ),
-                index: nil,  // wired when IndexQuery is plumbed through PageEditorHost
-                onValueChange: { _, _ in viewModel.scheduleSave() },
-                onTierChange: { _, _ in viewModel.scheduleSave() }
-            )
-            Divider()
+            // PropertiesPulldown removed 2026-05-25 per Nathan's directive —
+            // it obstructed the titlebar and isn't needed on the Page editor.
+            // Properties for Pages will live in the Claude chat main-window
+            // inspector slot when that ships (v0.3.x per Framework.md).
+            // FrontmatterInspector still surfaces page properties via the
+            // pop-out inspector pane when explicitly opened.
             editorZStack
         }
     }
