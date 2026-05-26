@@ -584,6 +584,79 @@ extension ItemContentManager {
             return value
         }
     }
+
+    // MARK: - Update single property value (Task 14 — v0.3.1)
+
+    /// Atomic single-property value write on an Item. Reads the current Item
+    /// from disk (since Item carries an in-memory snapshot but value writes
+    /// originate from contexts that may not have the fresh disk state),
+    /// mutates `properties[propertyID]`, updates modifiedAt, writes back
+    /// via AtomicJSON, then refreshes the in-memory cache + SQLite index.
+    ///
+    /// Mirror of PageContentManager.updatePageProperty (Task 13). Same
+    /// nil-clears-key semantics. Same deferral of dual-relation reverse-
+    /// mirror (Item ↔ Page relations + Item ↔ Item relations both wire up
+    /// via DualRelationCoordinator in a v0.3.1.x follow-up).
+    ///
+    /// Caller passes `collection: nil` for Item-Type-root items.
+    func updateItemProperty(
+        _ item: Item,
+        propertyID: String,
+        newValue: PropertyValue?,
+        type itemType: ItemType,
+        collection: ItemCollection?
+    ) async throws {
+        do {
+            let url: URL
+            if let collection {
+                url = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
+            } else {
+                url = NexusPaths.itemFileURL(forTitle: item.title, in: folderURL(for: itemType))
+            }
+
+            var updated = try AtomicJSON.decode(Item.self, from: url)
+            updated.title = item.title  // filename derives title (not persisted on Item)
+            if let newValue {
+                updated.properties[propertyID] = newValue
+            } else {
+                updated.properties.removeValue(forKey: propertyID)
+            }
+            updated.modifiedAt = Date()
+
+            try AtomicJSON.write(updated, to: url)
+
+            if let collection {
+                if var arr = itemsByCollection[collection.id],
+                   let i = arr.firstIndex(where: { $0.id == item.id })
+                {
+                    arr[i] = updated
+                    itemsByCollection[collection.id] = arr
+                }
+            } else {
+                if var arr = itemsByTypeRoot[itemType.id],
+                   let i = arr.firstIndex(where: { $0.id == item.id })
+                {
+                    arr[i] = updated
+                    itemsByTypeRoot[itemType.id] = arr
+                }
+            }
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertItem(
+                        updated,
+                        itemTypeID: itemType.id,
+                        itemCollectionID: collection?.id
+                    )
+                } catch {
+                    self.pendingError = error
+                }
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
 }
 
 /// Errors surfaced by `ItemContentManager` CRUD methods during the

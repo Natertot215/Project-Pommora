@@ -612,4 +612,78 @@ extension PageContentManager {
             return value
         }
     }
+
+    // MARK: - Update single property value (Task 13 — v0.3.1)
+
+    /// Atomic single-property value write on a Page's frontmatter. Reads the
+    /// current PageFile from disk, mutates `properties[propertyID]`, updates
+    /// modifiedAt, writes back via PageFile.save (atomic), then refreshes
+    /// the in-memory cache + SQLite index entry.
+    ///
+    /// `newValue == nil` deletes the property key from the frontmatter
+    /// (matches "clear cell" / "void this value" UX in the View Settings
+    /// cell-editor popovers — Phase H).
+    ///
+    /// Caller passes `collection: nil` for Page-Type-root-scoped pages and
+    /// the matching PageCollection otherwise.
+    ///
+    /// Dual-relation reverse-mirror via DualRelationCoordinator is deferred
+    /// to v0.3.1.x — basic write path lands now; the reverse-side mirror on
+    /// relation values surfaces when the relation cell editor wires up at
+    /// Task 20 + 21.
+    func updatePageProperty(
+        _ page: PageMeta,
+        propertyID: String,
+        newValue: PropertyValue?,
+        vault: PageType,
+        collection: PageCollection?
+    ) async throws {
+        do {
+            let pageFile = try PageFile.load(from: page.url)
+            var fm = pageFile.frontmatter
+            if let newValue {
+                fm.properties[propertyID] = newValue
+            } else {
+                fm.properties.removeValue(forKey: propertyID)
+            }
+            fm.modifiedAt = Date()
+
+            let updatedFile = PageFile(frontmatter: fm, body: pageFile.body, title: page.title)
+            try updatedFile.save(to: page.url)
+
+            var updatedMeta = page
+            updatedMeta.frontmatter = fm
+
+            if let collection {
+                if var arr = pagesByCollection[collection.id],
+                   let i = arr.firstIndex(where: { $0.id == page.id })
+                {
+                    arr[i] = updatedMeta
+                    pagesByCollection[collection.id] = arr
+                }
+            } else {
+                if var arr = pagesByTypeRoot[vault.id],
+                   let i = arr.firstIndex(where: { $0.id == page.id })
+                {
+                    arr[i] = updatedMeta
+                    pagesByTypeRoot[vault.id] = arr
+                }
+            }
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(
+                        updatedMeta,
+                        pageTypeID: vault.id,
+                        pageCollectionID: collection?.id
+                    )
+                } catch {
+                    self.pendingError = error
+                }
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
 }
