@@ -18,7 +18,7 @@ struct NewItemCollectionSheet: View {
             Text("New \(settingsManager.settings.labels.itemCollection.singular) in \"\(type.title)\"")
                 .font(.headline)
             Form {
-                TextField("Name", text: $name).focused($nameFocused)
+                TextField("Title", text: $name).focused($nameFocused)
             }
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.red).font(.callout)

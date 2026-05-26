@@ -16,7 +16,7 @@ struct NewSpaceSheet: View {
                 .font(.headline)
 
             Form {
-                TextField("Name", text: $name)
+                TextField("Title", text: $name)
                     .focused($nameFocused)
                 LabeledContent("Color") {
                     SpaceColorPicker(color: $color)

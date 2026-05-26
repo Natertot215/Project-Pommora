@@ -258,9 +258,9 @@ struct ItemWindow: View {
     private var relationsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Relations").font(.caption).foregroundStyle(.secondary)
-            relationLine(label: "Tier 1 (Spaces)", ids: item.tier1)
-            relationLine(label: "Tier 2 (Topics)", ids: item.tier2)
-            relationLine(label: "Tier 3 (Sub-topics)", ids: item.tier3)
+            relationLine(label: "Spaces", ids: item.tier1)
+            relationLine(label: "Topics", ids: item.tier2)
+            relationLine(label: "Projects", ids: item.tier3)
         }
     }
 

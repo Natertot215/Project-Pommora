@@ -299,9 +299,9 @@ private struct WizardTargetStep: View {
     var body: some View {
         if scopeKind == .contextTier {
             Picker("Tier", selection: $targetTier) {
-                Text("Tier 1 (Spaces)").tag(1)
-                Text("Tier 2 (Topics)").tag(2)
-                Text("Tier 3 (Projects)").tag(3)
+                Text("Spaces").tag(1)
+                Text("Topics").tag(2)
+                Text("Projects").tag(3)
             }
             .pickerStyle(.inline)
             .onAppear { targetID = "\(targetTier)" }

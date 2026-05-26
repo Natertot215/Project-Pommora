@@ -15,7 +15,7 @@ struct NewPageCollectionSheet: View {
             Text("New \(settingsManager.settings.labels.pageCollection.singular) in \"\(vault.title)\"")
                 .font(.headline)
             Form {
-                TextField("Name", text: $name).focused($nameFocused)
+                TextField("Title", text: $name).focused($nameFocused)
             }
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.red).font(.callout)

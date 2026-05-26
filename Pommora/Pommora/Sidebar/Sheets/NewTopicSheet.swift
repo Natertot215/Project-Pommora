@@ -17,7 +17,7 @@ struct NewTopicSheet: View {
                 .font(.headline)
 
             Form {
-                TextField("Name", text: $name)
+                TextField("Title", text: $name)
                     .focused($nameFocused)
                 LabeledContent("Icon") {
                     IconPickerField(symbol: $icon)

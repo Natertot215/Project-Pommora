@@ -17,7 +17,7 @@ struct NewProjectSheet: View {
             Text("New \(settingsManager.settings.labels.project.singular) in \"\(parent.title)\"")
                 .font(.headline)
             Form {
-                TextField("Name", text: $name).focused($nameFocused)
+                TextField("Title", text: $name).focused($nameFocused)
                 LabeledContent("Icon") {
                     IconPickerField(symbol: $icon)
                 }

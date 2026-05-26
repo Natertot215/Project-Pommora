@@ -36,7 +36,7 @@ struct PageTypeDetailView: View {
             }
         }
         .alert("Rename", isPresented: renameAlertBinding) {
-            TextField("Name", text: $renameDraft)
+            TextField("Title", text: $renameDraft)
             Button("Rename") { commitRename() }
             Button("Cancel", role: .cancel) { renameTarget = nil }
         } message: {
@@ -65,7 +65,7 @@ struct PageTypeDetailView: View {
 
     private var table: some View {
         Table(rows, children: \.children, selection: $tableSelection) {
-            TableColumn("Name") { row in
+            TableColumn("Title") { row in
                 Label {
                     Text(row.title)
                 } icon: {

@@ -16,7 +16,7 @@ struct NewItemTypeSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("New \(settingsManager.settings.labels.itemType.singular)").font(.headline)
             Form {
-                TextField("Name", text: $name).focused($nameFocused)
+                TextField("Title", text: $name).focused($nameFocused)
                 LabeledContent("Icon") {
                     IconPickerField(symbol: $icon)
                 }
