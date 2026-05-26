@@ -49,13 +49,13 @@ struct ViewSettingsPopover: View {
         }
     }
 
-    /// Pushed-pane destinations. Task 7 ships placeholder rows; Tasks 9-12
+    /// Pushed-pane destinations. Task 7 shipped placeholders; Tasks 9-12
     /// replace each in-place with the real pane.
     @ViewBuilder
     private func destination(for route: ViewSettingsRoute) -> some View {
         switch route {
         case .editProperties:
-            placeholder(title: "Edit Properties", note: "PropertiesListPane lands at Task 9")
+            PropertiesListPane(scope: scope, path: $path)
         case .propertyTypePicker:
             placeholder(title: "+ New Property", note: "PropertyTypePickerPane lands at Task 10")
         case .editProperty(let id):
