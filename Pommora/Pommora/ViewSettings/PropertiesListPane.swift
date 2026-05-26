@@ -34,7 +34,11 @@ struct PropertiesListPane: View {
             footer
         }
         .frame(width: 300, height: 360)
-        .toolbar(.hidden)  // suppress NavigationStack's dark-material chrome on macOS
+        .navigationBarBackButtonHidden(true)
+        // NOTE: `.toolbar(.hidden)` was tried first but on macOS suppresses the
+        // entire pushed pane, not just the chrome. Dropped; dark navigation-bar
+        // band returns briefly. Full chrome unification slated for next-session
+        // redesign.
     }
 
     // MARK: - Inline header (matches StorageMenuRoot styling)
