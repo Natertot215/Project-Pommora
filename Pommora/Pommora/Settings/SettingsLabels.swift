@@ -50,12 +50,14 @@ struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
     // surface via the Calendar pin entry; Calendar UI ships in a follow-up plan.
 
     static func defaults() -> SidebarSectionLabels {
-        // Section headers default to each side's PLURAL signature word per the
-        // locked UI-divergence rule: Pages-side signature is "Vault" → "Vaults";
-        // Items-side signature is "Set", but the section heading names the
-        // CONTAINER concept ("Types") not the sub-container — Items-side
-        // plural pageType-equivalent is "Types".
-        SidebarSectionLabels(spaces: "Spaces", topics: "Topics", pages: "Vaults", items: "Types")
+        // Section header defaults:
+        //   - Pages-side uses its container-plural signature word: "Vaults".
+        //   - Items-side uses the operational-concept word "Items" (NOT the
+        //     container plural "Types"). Reasoning: the section groups your
+        //     Items collection — the user is browsing their Items, not
+        //     browsing their Types. Per Nathan's 2026-05-25 directive.
+        //   - Both signature words remain renameable via Settings.
+        SidebarSectionLabels(spaces: "Spaces", topics: "Topics", pages: "Vaults", items: "Items")
     }
 
     // MARK: - Codable

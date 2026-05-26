@@ -28,7 +28,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
 
     /// The defaults version shipped with the current build.  Increment this
     /// whenever a default value changes and add a migration step in `migrate(_:)`.
-    static let currentDefaultsVersion: Int = 1
+    static let currentDefaultsVersion: Int = 2
 
     // MARK: - Codable
 
@@ -104,6 +104,16 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         if s.defaultsVersion < 1 {
             // No stale-default rewrites for v0→v1; just bump the version.
             s.defaultsVersion = 1
+        }
+
+        if s.defaultsVersion < 2 {
+            // v1→v2: Items sidebar section header renamed from "Types" → "Items"
+            // per Nathan's 2026-05-25 directive. Only overwrite if the user is
+            // still on the old default (preserves any custom rename).
+            if s.labels.sidebarSections.items == "Types" {
+                s.labels.sidebarSections.items = "Items"
+            }
+            s.defaultsVersion = 2
         }
 
         // Clamp to current in case intermediate versions were skipped.
