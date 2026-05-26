@@ -8,6 +8,11 @@ import Foundation
 struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var title: String  // derived from folder name (not persisted)
+    /// Capacities-style singular display label — drives "+ Add <singular>"
+    /// button labels at every Item Types add affordance. nil falls back to
+    /// `title`. Item Types only; Pages aren't renameable concepts (locked
+    /// decision #11). Persisted as `singular` in `_itemtype.json`.
+    var singular: String?
     var icon: String?  // SF Symbol name
     var properties: [PropertyDefinition]  // schema shared across Items
     var views: [SavedView]  // saved views (empty placeholder in v0.2)
@@ -28,7 +33,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var defaultSort: DefaultSortConfig?
 
     enum CodingKeys: String, CodingKey {
-        case id, icon, properties, views
+        case id, singular, icon, properties, views
         case templateConfig = "template_config"
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
@@ -48,7 +53,8 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         schemaVersion: Int = 1,
         collectionOrder: [String]? = nil,
         itemOrder: [String]? = nil,
-        defaultSort: DefaultSortConfig? = nil
+        defaultSort: DefaultSortConfig? = nil,
+        singular: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -61,12 +67,14 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.collectionOrder = collectionOrder
         self.itemOrder = itemOrder
         self.defaultSort = defaultSort
+        self.singular = singular
     }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(String.self, forKey: .id)
         self.title = ""  // caller (load(from:)) overwrites from folder name
+        self.singular = try c.decodeIfPresent(String.self, forKey: .singular)
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
@@ -81,6 +89,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
+        try c.encodeIfPresent(singular, forKey: .singular)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(properties, forKey: .properties)
         try c.encode(views, forKey: .views)
