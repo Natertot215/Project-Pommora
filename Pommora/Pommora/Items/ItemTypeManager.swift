@@ -663,6 +663,54 @@ extension ItemTypeManager {
     /// **Paired relations** (`property.dualProperty != nil`): routed through
     /// `DualRelationCoordinator.deletePair` which cascades the delete to both
     /// Type sidecars and strips all values from member files on each side.
+    // MARK: - Update view (per-container SavedView edit)
+
+    /// Mirror of PageTypeManager.updateView — see that file for the rationale.
+    /// containerID may be an ItemType.id or ItemCollection.id; we search both.
+    func updateView(
+        _ viewID: String,
+        in containerID: String,
+        transform: (inout SavedView) -> Void
+    ) async throws {
+        do {
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                guard let vi = types[i].views.firstIndex(where: { $0.id == viewID }) else {
+                    throw ItemTypeManagerError.propertyNotFound
+                }
+                var updated = types[i]
+                transform(&updated.views[vi])
+                updated.modifiedAt = Date()
+                let meta = NexusPaths.itemTypeMetadataURL(
+                    in: nexus.rootURL, typeFolderName: updated.title
+                )
+                try updated.save(to: meta)
+                types[i] = updated
+                typesByID[updated.id] = updated
+                return
+            }
+            for (typeID, cols) in itemCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    var coll = cols[ci]
+                    guard let vi = coll.views.firstIndex(where: { $0.id == viewID }) else {
+                        throw ItemTypeManagerError.propertyNotFound
+                    }
+                    transform(&coll.views[vi])
+                    coll.modifiedAt = Date()
+                    let meta = coll.folderURL.appendingPathComponent(
+                        NexusPaths.itemCollectionSidecarFilename
+                    )
+                    try coll.save(to: meta)
+                    itemCollectionsByType[typeID]?[ci] = coll
+                    return
+                }
+            }
+            throw ItemTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Duplicate property
 
     /// Mirror of PageTypeManager.duplicateProperty. Deep-copies a property,

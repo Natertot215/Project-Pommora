@@ -606,6 +606,59 @@ extension PageTypeManager {
     /// **Paired relations** (`property.dualProperty != nil`): routed through
     /// `DualRelationCoordinator.deletePair` which cascades the delete to both
     /// Type sidecars and strips all values from member files on each side.
+    // MARK: - Update view (per-container SavedView edit)
+
+    /// Apply a transform to a SavedView on a PageType or PageCollection
+    /// container (looked up by container ID), then persist the parent
+    /// sidecar atomically. Used by the View Settings Property Visibility
+    /// pane (Task 12) to write the visibleProperties / hiddenProperties
+    /// edits live as the user toggles + drag-reorders rows.
+    ///
+    /// `containerID` may be either a PageType.id or a PageCollection.id —
+    /// we search both. Throws if neither resolves or the view isn't found.
+    func updateView(
+        _ viewID: String,
+        in containerID: String,
+        transform: (inout SavedView) -> Void
+    ) async throws {
+        do {
+            // Try PageType first.
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                guard let vi = types[i].views.firstIndex(where: { $0.id == viewID }) else {
+                    throw PageTypeManagerError.propertyNotFound
+                }
+                var updated = types[i]
+                transform(&updated.views[vi])
+                updated.modifiedAt = Date()
+                let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
+                try updated.save(to: meta)
+                types[i] = updated
+                return
+            }
+            // Else PageCollection lookup.
+            for (typeID, cols) in pageCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    var coll = cols[ci]
+                    guard let vi = coll.views.firstIndex(where: { $0.id == viewID }) else {
+                        throw PageTypeManagerError.propertyNotFound
+                    }
+                    transform(&coll.views[vi])
+                    coll.modifiedAt = Date()
+                    let meta = coll.folderURL.appendingPathComponent(
+                        NexusPaths.pageCollectionSidecarFilename
+                    )
+                    try coll.save(to: meta)
+                    pageCollectionsByType[typeID]?[ci] = coll
+                    return
+                }
+            }
+            throw PageTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Duplicate property
 
     /// Deep-copy a PropertyDefinition: mint a new ULID, copy every per-type
