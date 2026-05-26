@@ -237,8 +237,10 @@ struct ContentView: View {
     private var detail: some View {
         if let spaceMgr = spaceManager,
             let vaultMgr = vaultManager,
+            let itemTypeMgr = itemTypeManager,
             let contentMgr = contentManager,
-            let itemContentMgr = itemContentManager
+            let itemContentMgr = itemContentManager,
+            let settingsMgr = settingsManager
         {
             SidebarDetailView(
                 selection: $sidebarSelection,
@@ -246,8 +248,10 @@ struct ContentView: View {
             )
             .environment(spaceMgr)
             .environment(vaultMgr)
+            .environment(itemTypeMgr)
             .environment(contentMgr)
             .environment(itemContentMgr)
+            .environment(settingsMgr)
         } else {
             Color.clear
         }
