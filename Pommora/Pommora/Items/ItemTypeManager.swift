@@ -43,6 +43,14 @@ final class ItemTypeManager {
         itemCollectionsByType[itemType.id] ?? []
     }
 
+    /// Resolve the parent ItemType for a given ItemCollection via the
+    /// ItemCollection's `typeID` field. Used by the sidebar to keep the
+    /// parent Type leaf visually selected while the user is drilled into
+    /// one of its Sets (which never renders as a sidebar row itself).
+    func parentItemType(for collection: ItemCollection) -> ItemType? {
+        typesByID[collection.typeID]
+    }
+
     // MARK: - Load
 
     func loadAll() async {
