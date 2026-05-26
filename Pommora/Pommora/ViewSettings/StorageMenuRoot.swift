@@ -34,9 +34,9 @@ struct StorageMenuRoot: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 8)
+                .padding(.horizontal, PUI.Pane.Header.paddingHorizontal)
+                .padding(.top, PUI.Pane.Header.paddingTop)
+                .padding(.bottom, PUI.Pane.Header.paddingBottom)
 
             Divider()
 
@@ -51,21 +51,21 @@ struct StorageMenuRoot: View {
                     title: "Property Visibility",
                     route: .propertyVisibility
                 )
-                mutedRow(icon: "rectangle.3.group", title: "Layout", note: "v0.5.0")
-                mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter", note: "v0.3.1.3")
-                mutedRow(icon: "arrow.up.arrow.down", title: "Sort", note: "v0.3.1.2")
-                mutedRow(icon: "square.stack.3d.down.right", title: "Group", note: "v0.3.1.4")
+                mutedRow(icon: "doc.on.doc", title: "Templates")
+                mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
+                mutedRow(icon: "square.stack.3d.down.right", title: "Group")
+                mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, PUI.Spacing.xs)
 
             Spacer(minLength: 0)
         }
-        .frame(width: 300, height: 360)
+        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
     }
 
     @ViewBuilder
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Pane.Header.interSpacing) {
             iconAffordance
             titleAffordance
             Spacer(minLength: 0)
@@ -81,9 +81,9 @@ struct StorageMenuRoot: View {
                 iconPickerOpen = true
             } label: {
                 Image(systemName: headerIcon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(PUI.Icon.header)
                     .foregroundStyle(.primary)
-                    .frame(width: 22, height: 22)
+                    .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -93,9 +93,9 @@ struct StorageMenuRoot: View {
             }
         } else {
             Image(systemName: headerIcon)
-                .font(.system(size: 14, weight: .medium))
+                .font(PUI.Icon.header)
                 .foregroundStyle(.secondary)
-                .frame(width: 22, height: 22)
+                .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
         }
     }
 
@@ -107,7 +107,7 @@ struct StorageMenuRoot: View {
             if isRenaming {
                 TextField("Title", text: $renameDraft, onCommit: { Task { await commitRename() } })
                     .textFieldStyle(.roundedBorder)
-                    .font(.headline)
+                    .font(PUI.Typography.paneTitle)
                     .frame(maxWidth: 200)
                     .onAppear { renameDraft = headerTitle }
                     .onSubmit { Task { await commitRename() } }
@@ -117,7 +117,7 @@ struct StorageMenuRoot: View {
                     isRenaming = true
                 } label: {
                     Text(headerTitle)
-                        .font(.headline)
+                        .font(PUI.Typography.paneTitle)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -128,7 +128,7 @@ struct StorageMenuRoot: View {
             }
         } else {
             Text(headerTitle)
-                .font(.headline)
+                .font(PUI.Typography.paneTitle)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -204,43 +204,44 @@ struct StorageMenuRoot: View {
         Button {
             path.append(route)
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: PUI.Row.interSpacing) {
                 Image(systemName: icon)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(PUI.Icon.leading)
                     .foregroundStyle(.primary)
-                    .frame(width: 18)
+                    .frame(width: PUI.Icon.leadingFrame)
                 Text(title)
-                    .font(.callout)
+                    .font(PUI.Typography.row)
                     .foregroundStyle(.primary)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(PUI.Icon.chevron)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, PUI.Row.paddingHorizontal)
+            .padding(.vertical, PUI.Row.paddingVertical)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
+    /// Muted placeholder row — no chevron, no destination, no right-side
+    /// version annotation (per Nathan's "DO NOT say 'coming v0.X.X' just keep
+    /// it muted" directive). The row renders at the same dimensions as an
+    /// activeRow so the muted/active distinction is purely tonal.
     @ViewBuilder
-    private func mutedRow(icon: String, title: String, note: String) -> some View {
-        HStack(spacing: 10) {
+    private func mutedRow(icon: String, title: String) -> some View {
+        HStack(spacing: PUI.Row.interSpacing) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .regular))
+                .font(PUI.Icon.leading)
                 .foregroundStyle(.tertiary)
-                .frame(width: 18)
+                .frame(width: PUI.Icon.leadingFrame)
             Text(title)
-                .font(.callout)
+                .font(PUI.Typography.row)
                 .foregroundStyle(.tertiary)
             Spacer()
-            Text(note)
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
     }
 }
 
