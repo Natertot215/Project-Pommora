@@ -6,15 +6,18 @@ A debug-only window inside Pommora that explores every Pommora-custom UI compone
 
 This is **separate from any feature ship**. Not part of v0.3.x, v0.4.0, or any pending plan. It's an evergreen debug surface that grows alongside Pommora's component catalog. Builds incrementally — new stories land alongside the components they cover.
 
-#### Current State (v0.1 shipped)
+#### Current State (v0.1 shipped 2026-05-25, refactored same-day to gallery-style)
 
-A minimal Cmd+Shift+D window built during v0.3.x Properties side-work. Two-pane (sidebar + detail), no inspector column, three stories:
+A minimal Cmd+Shift+D window built during v0.3.x Properties side-work. Two-pane (sidebar + detail), no inspector column. Sidebar = flat per-category leaves grouped under `COMPONENTS` / `FOUNDATIONS`. Each leaf opens a **gallery-style** detail pane that composes all of that category's variants on one page.
 
-- **Property Chip** — Pill (50×20 label) + Chip (32×20 icon) variants in all 9 PropertyChipColor cases
-- **Chip Dropdown** — single-select + multi-select with Liquid Glass dropdown, drag-reorder, hover-X (single-select only), checkboxes (multi-select)
-- **Property Checkbox** — colored fill + custom SF Symbol when checked, 3 sizes
+**Categories shipped (Components):**
+- **Chips** — gallery of all 3 chip primitives: `PropertyChip` (Pill 50×20 label + Chip 32×20 icon variants, 13-color palette in 2 tiers — Primary uses Apple system accents + Pommora-custom `.pink = #E89EB8` / `.yellow = #FFDE21`; Secondary uses Apple system cyan/mint/green/teal), `ChipDropdown` (single + multi-select, Liquid Glass popover, drag-reorder, content-driven width), `PropertyCheckbox` (custom fill color + SF Symbol when checked, 3 size presets).
+- **Sidebar** / **Detail Views** / **Sheets** / **Page Editor** / **NavDropdown** — placeholder galleries enumerating planned stories via `PlannedStoryCard`. Each card surfaces the planned spec so the library doubles as a roadmap.
+- **Windows** — stub launcher buttons for **Item Window** + **Page Preview**. Each opens a `WindowStubSheet` placeholder via `.sheet(isPresented:)`. As real designs land, stubs get replaced in-place with real chrome (Liquid Glass X + Inspector toggle, two-column body, etc.).
 
-Files: `Pommora/Pommora/ComponentLibrary/ComponentLibraryView.swift` + `Pommora/Pommora/PommoraApp.swift` (Window scene + Cmd+Shift+D shortcut).
+**Categories shipped (Foundations):** Colors / Typography / Materials & Liquid Glass / Symbols / Spacing — all currently render `CategoryPlaceholderGallery` until their content lands.
+
+Files: `Pommora/Pommora/ComponentLibrary/ComponentLibraryView.swift` (single-file router + galleries) + `Pommora/Pommora/PommoraApp.swift` (Debug menu + Cmd+Shift+D shortcut + `Window(id: "component-library")` scene gated `#if DEBUG`).
 
 #### Target Vision (v1.0)
 

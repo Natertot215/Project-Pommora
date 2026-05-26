@@ -2,6 +2,39 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### v0.3.x follow-up sweep (2026-05-25 PM — 17 commits on `v0.3.0-properties`)
+
+Same-day post-merge: design-system foundations + UX correctness sweep + one architectural fix. Branch tip `88c9367` on `origin/v0.3.0-properties`.
+
+**Ship list (chronological):**
+
+| Cluster | Tip commit | Outcome |
+|---|---|---|
+| Items-Detail-Views plan Tasks 1-11 | `55bf8c3` | All 4 storage detail views (PageType / PageCollection / ItemType / ItemCollection) shipped with footer (`+ New …` buttons) + session-local drag-reorder via `DetailRowDragPayload` + `SessionRowOrdering`. Real `NewItemSheet` replaces stub. PageCollectionDetailView strips duplicate sort UI. Kind column removed from Items-side views (homogeneous content) |
+| Sidebar disclosure restore | `dd441f1` | Reverses earlier flatten-to-leaf. Item Types fold like Vaults; Sets render as flat leaves WITHOUT chevrons. `ItemTypeManager.parentItemType(for:)` helper. New `SidebarConfirmation.deleteItemCollection` case. Mitigates structural-asymmetry crash risk per quirk #9 (mixed flat-leaf + disclosure children in same Section crashed `OutlineListCoordinator.recursivelyDiffRows`) |
+| Items section label | `675e378` | Sidebar default `"Types"` → `"Items"` (`SettingsLabels.SidebarSectionLabels.defaults`). `Settings.currentDefaultsVersion` 1→2 with migration step that only rewrites users still on the old default. `"Delete Type"` → `"Delete \(typeLabel)"` via newly-injected `@Environment(SettingsManager.self)` on top-level SidebarView |
+| Real stub-replacement sheets | `9a6aac0` | `NewItemTypeSheet` + `NewItemCollectionSheet` get real Name + Icon forms (was 23-24 line "UI ships in follow-up" stubs). Mirror `NewPageTypeSheet` / `NewPageCollectionSheet` shape |
+| Chip primitives + PommoraUIX | `cedb75b` | NEW `Pommora/Properties/Chips/` folder: `PropertyChip` (pill + chip variants, 13-color `PropertyChipColor` palette in 2 tiers — `.pink = #E89EB8` / `.yellow = #FFDE21` are Pommora-custom hex overrides), `PropertyCheckbox` (custom icon + color), `ChipDropdown` (Liquid Glass, content-driven width). NEW `Pommora/ComponentLibrary/` folder: `ComponentLibraryView` Cmd+Shift+D debug window with gallery-style flat per-category leaves (Chips / Sidebar / Detail Views / Sheets / Page Editor / NavDropdown / Windows + Foundations). `PropertiesPulldown` removed from `PageEditorView` (obstructed titlebar; properties for Pages will live in Claude chat inspector slot v0.3.x). NEW spec at `.claude/Features/PommoraUIX.md` |
+| Env-injection crash fix | `c8b3cbc` | `ItemTypeDetailView` + `ItemCollectionDetailView` declare `@Environment(ItemTypeManager.self)` + `@Environment(SettingsManager.self)` but `ContentView.detail` only injected `spaceMgr / vaultMgr / contentMgr / itemContentMgr`. SwiftUI `_TaskValueModifier.Child.value.getter` asserted in `EnvironmentValues.subscript.getter` (`EXC_BREAKPOINT` SIGTRAP) when computing the `.task` closure for the detail view. Added the missing two env values to the optional-unwrap chain + `.environment(...)` chain |
+| Icon pipeline | `09e7a27` | `ItemContentManager.createItem(name:in:type:)` + `createItem(name:inTypeRoot:)` gain `icon: String? = nil`. Same for `PageContentManager.createPage(name:in:vault:)` + `createPage(name:inVaultRoot:)`. Both managers persist the icon into entity's icon field (was hardcoded `nil`, silently discarding the IconPickerField selection). `NewItemSheet` passes through. `NewPageSheet` gains `IconPickerField` (was missing entirely) + frame expanded 380x220 → 400x260 |
+| Label sweep | `a8bd20b` | `TableColumn("Name")` → `TableColumn("Title")` in all 4 detail views. `TextField("Name", text:)` → `TextField("Title", text:)` in 8 sheet form files + 4 detail-view rename alerts. `"Tier 1 (Spaces)" / "Tier 2 (Topics)" / "Tier 3 (Sub-topics)"` → `"Spaces" / "Topics" / "Projects"` in `ItemWindow.relationsSection` + `RelationPropertyWizard` tier picker (drops `"Tier #"` prefix per locked 2026-05-25 directive) |
+| **SQLite FK fix** | `88c9367` | `PageTypeManager.loadAll` + `ItemTypeManager.loadAll` defensively upsert types + collections to the SQLite index after disk-load. Eliminates recurring `SQLite error 19: FOREIGN KEY constraint failed - INSERT OR REPLACE INTO pages...` toast that fired when CRUD ran against entities loaded from disk that the index DB had no record of (adoption / external Finder folders / post-adoption state). Establishes new invariant locked as quirk #15: "after loadAll, every in-memory parent is mirrored to DB." `INSERT OR REPLACE` keeps it idempotent; `try?` swallows failures since index is regeneratable. 4 regression tests in new `LoadAllIndexSyncTests.swift` lock the invariant against future regressions |
+
+**Locked decisions this sweep:**
+
+1. **Items + Pages are NOT renameable concepts.** Only their containers (Vault / Collection / Type / Set) get `LabelPair` entries in `SettingsLabels`. `"New Item"` and `"New Page"` literals are correct; no `settings.labels.item` / `.page` exists.
+2. **Sidebar Items section default = `"Items"`** (not the container plural `"Types"`). Users browsing this section think of it as "browsing my Items," not "browsing my Types." Renameable per Nexus.
+3. **Item Types are sidebar disclosure-toggles** mirroring Vaults; their Sets render as flat leaves WITHOUT chevrons (no further sidebar children to disclose). Items themselves never appear as sidebar rows — they live in the detail-pane Table.
+4. **Tables: NO vertical column borders.** Notion-flat aesthetic. Only horizontal bottom-of-header underline. Forward-applies to all 4 storage detail views + v0.5.0 view-type renderers. SwiftUI Table needs NSViewRepresentable + cleared `gridStyleMask` to enforce — implementation TBD with the v0.3.1.x Storage View Redesign spec.
+5. **Tier labels in property panels = `"Spaces" / "Topics" / "Projects"`** (no `"Tier #"` prefix). Matches the 2026-05-25 sidebar-section directive. Hardcoded for v0.3.x; will thread `SettingsManager` when v0.6.0 Settings UI ships.
+6. **`"Title"` everywhere, not `"Name"`.** Column headers, form placeholders, rename dialogs. Aligns with the `title` field name on every entity.
+7. **`loadAll` syncs parents to index** (quirk #15). Forward-binding architectural invariant.
+8. **Every detail-view `@Environment` must be injected at `ContentView.detail`** (quirk #16). Forward-binding architectural invariant.
+
+**Active brainstorm — v0.3.1.x Storage View Redesign:** Research done (Notion UX patterns + SwiftUI primitives), captured at `.claude/Planning/View-Settings-research-notes.md`. Spec NOT yet written. Plans to write spec next session. Locked decisions: toolbar `slider.horizontal.3` popover with `NavigationStack` submenus mirroring Notion's view-settings menu structure; per-view config storage in `views[]` array per sidecar (one entry today, multi at v0.5.0); Property Visibility row = strikethrough toggle (no eye icon); delivery via Approach B patch-series drip v0.3.1 → v0.3.1.4.
+
+---
+
 #### v0.3.0 Properties — FEATURE-COMPLETE; merged to main (2026-05-25)
 
 71 commits on `v0.3.0-properties` merged into `main` as `3d1bc19`. All 11 phases A–K shipped end-to-end. Smoke test on Nathan's real nexus is the only remaining gate before release tagging.
