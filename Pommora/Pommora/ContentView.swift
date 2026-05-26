@@ -40,6 +40,47 @@ struct ContentView: View {
     @State private var mainWindowRouter: MainWindowRouter?
     @State private var settingsManager: SettingsManager?
 
+    /// Maps a `SidebarSelection` to a `ViewSettingsScope`. Static + pure so the
+    /// scope-mapping logic is unit-testable without bootstrapping a full
+    /// `ContentView` instance + its env values.
+    ///
+    /// `.savedKey("calendar")` collapses to `.calendar`; other saved keys
+    /// (`homepage`, `recents`, unknown) collapse to `.none` — they aren't
+    /// view-settings surfaces.
+    static func viewSettingsScope(for selection: SidebarSelection) -> ViewSettingsScope {
+        switch selection {
+        case .none:
+            return .none
+        case .savedKey(let key):
+            return key == "calendar" ? .calendar : .none
+        case .space:
+            return .space
+        case .topic:
+            return .topic
+        case .project:
+            return .project
+        case .pageType:
+            return .pageType
+        case .collection:
+            return .pageCollection
+        case .page:
+            return .page
+        case .itemType:
+            return .itemType
+        case .itemCollection:
+            return .itemCollection
+        }
+    }
+
+    /// Reactive scope derived from the current sidebar selection. Re-evaluates
+    /// every time `sidebarSelection` mutates. Read by `ViewSettingsButton` to
+    /// drive the popover body's per-scope content. Statically positioning the
+    /// button + dynamically passing this scope is the architectural principle
+    /// of the View Settings surface.
+    private var currentViewSettingsScope: ViewSettingsScope {
+        Self.viewSettingsScope(for: sidebarSelection)
+    }
+
     var body: some View {
         @Bindable var bindableNexusManager = nexusManager
 
@@ -91,6 +132,7 @@ struct ContentView: View {
                     ToolbarItem(placement: .primaryAction) {
                         if recentsManager != nil, pinnedManager != nil {
                             HStack(spacing: 0) {
+                                ViewSettingsButton(scope: currentViewSettingsScope)
                                 NavDropdownButton(asSegment: true) { sel in
                                     sidebarSelection = sel
                                 }

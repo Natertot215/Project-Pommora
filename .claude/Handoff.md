@@ -2,54 +2,41 @@
 
 > **Read this first at session start.** Snapshot of where things stand + what to pick up next. Detailed shipped history lives in `History.md`; phased roadmap in `Framework.md`.
 
-#### Current state (2026-05-25 — 28 commits ahead of `origin/main` on `v0.3.0-properties`)
+#### Current state (2026-05-25 — `v0.3.0-properties` synced with `main` after chrome-slice merge)
 
-**v0.3.0 Properties FEATURE-COMPLETE + merged to main 2026-05-25 morning** (71 commits, tip `3d1bc19`). The `v0.3.0-properties` branch is now the **staging branch for v0.3.x patches**; today's session added 17 commits on top — 11 from the Items-Detail-Views plan (executor-driven) + 6 from interactive UX correctness work.
+**v0.3.x View Settings chrome slice** shipped this session as the first patch of the v0.3.1.x Storage View Redesign series. Both branches in sync at the new tip; nothing ahead on either side after the merge + push.
 
-**Branch tip:** `88c9367` (pushed to `origin/v0.3.0-properties`).
+**This session's ship:** static `slider.horizontal.3` toolbar button + empty Liquid-Glass popover (fixed 300×360pt) wired into ContentView's existing primary-action HStack — shares the Liquid-Glass capsule with NavDropdown + Inspector toggle. Popover content is `Color.clear` at this slice (chrome-only); future panes (Layout / Property Visibility / Sort / Filter / Group / Edit Properties) replace the body in subsequent v0.3.1.x patches. Scope-routing wiring locked: `ContentView.sidebarSelection` → `currentViewSettingsScope` computed → `ViewSettingsButton(scope:)` → `ViewSettingsPopover(scope:)`. Same button, every surface, content adapts.
 
-**Today's session ships (chronological):**
+**Files in the ship:**
+- NEW `Pommora/Pommora/ViewSettings/ViewSettingsScope.swift` (10-case enum mirroring `SidebarSelection`)
+- NEW `Pommora/Pommora/ViewSettings/ViewSettingsPopover.swift` (empty `Color.clear.frame(width: 300, height: 360)`)
+- NEW `Pommora/Pommora/ViewSettings/ViewSettingsButton.swift` (Button + `.popover(arrowEdge:.top)`)
+- NEW `Pommora/PommoraTests/ViewSettings/ViewSettingsScopeMappingTests.swift` (13 tests, all green)
+- MODIFIED `Pommora/Pommora/ContentView.swift` — added `static func viewSettingsScope(for:)` + `private var currentViewSettingsScope` + inserted button as leading item in existing `.glassEffect()` HStack
 
-| Cluster | Commits | Outcome |
-|---|---|---|
-| Items-Detail-Views plan (Tasks 1-11) | `adcb66c` → `55bf8c3` (11 commits) | All 4 storage detail views shipped with footer + drag-reorder; real NewItemSheet; columns no Kind |
-| Disclosure pattern restore | `dd441f1` | Item Types fold (mirror Vaults); Sets render as flat leaves without chevrons. Fixed structural-asymmetry crash risk per quirk #9 |
-| Items section label | `675e378` | Sidebar default `"Types"` → `"Items"` + Settings.migrate v1→v2 (preserves user customization) |
-| Real stub-replacement sheets | `9a6aac0` | NewItemTypeSheet + NewItemCollectionSheet (Name + Icon forms) |
-| Chip primitives + PommoraUIX | `cedb75b` | PropertyChip (2 variants × 13 colors in 2 tiers) + PropertyCheckbox + ChipDropdown + Cmd+Shift+D debug window. Pulldown removed from PageEditor |
-| Crash fix | `c8b3cbc` | `ItemTypeManager` + `SettingsManager` injected into SidebarDetailView env (was EXC_BREAKPOINT in `_TaskValueModifier.Child.value.getter` on Item Type select) |
-| Icon pipeline | `09e7a27` | `createItem` + `createPage` accept + persist `icon: String?`; NewPageSheet gains IconPickerField (was discarding selection) |
-| Label sweep | `a8bd20b` | `"Name"` → `"Title"` everywhere (4 detail views + 8 sheet TextFields). `"Tier 1 (Spaces)"` → `"Spaces"` (drop Tier# prefix) in ItemWindow + RelationPropertyWizard |
-| **SQLite FK fix** | `88c9367` | `PageTypeManager.loadAll` + `ItemTypeManager.loadAll` defensively upsert types + collections to index. Eliminates `INSERT OR REPLACE INTO pages... FK constraint failed` toast that hit when CRUD ran against entities loaded from disk that weren't in the DB (adoption / external-folder scenarios). 4 regression tests cover the invariant |
+**One bug found + fixed mid-session via systematic-debugging:** initial popover used `Button(role: .close) { dismiss() }` (no label). That role-only form only renders inside `.toolbar { ... }` context where SwiftUI synthesizes the X. Inside a popover body it asserted at first popover-content render — crash on button click. Replaced with `Button { dismiss() } label: { Image("xmark.circle.fill")... }.buttonStyle(.plain)` pattern. Then user requested empty placeholder; close button removed entirely (outside-click + ESC are the only dismiss paths now). Locked as new quirk #17.
 
 #### What's next
 
-**Immediate:** smoke-test on real nexus (FK fix needs Cmd+R to verify the popup is gone).
+**Immediate (Task 5 of the chrome plan):** real-app visual approval smoke on all 9 surfaces (4 storage detail views render the full menu when panes land; 5 placeholder surfaces — Pages / Spaces / Topics / Projects / Calendar — render the empty shell for now). User runs Cmd+R, clicks the button on each surface, confirms placement + glass + sizing.
 
-**Active brainstorm — v0.3.1.x Storage View Redesign** (research done, spec not yet written). Design decisions locked:
-- **Toolbar button** = `slider.horizontal.3` (Apple HIG: per-view configurator). Standard SwiftUI toolbar button sizing.
-- **Popover** = `.popover(isPresented:)` with `NavigationStack` for submenu push/pop (WWDC25 #323 confirms Liquid Glass auto-applies in toolbar-anchored popovers).
-- **Menu structure** mirrors Notion exactly:
-  - Header: view icon + editable view name
-  - View settings section: Layout / Property visibility / Filter / Sort / Group
-  - Divider + "DATA SOURCE SETTINGS" subhead
-  - Edit properties (schema CRUD, opens same surface as toolbar gear)
-- **Property Visibility row** = click-to-toggle with **strikethrough** on muted (no eye icon)
-- **Storage:** `views[]` array per sidecar (4 of them), single entry today, multi at v0.5.0
-- **Delivery:** 4-5 patches v0.3.1 → v0.3.1.4 (user picked Approach B — patch-series drip)
+**Next plan to draft — v0.3.1.x panes:** spec NOT yet written. Open with `superpowers:writing-plans` to draft. Scope of the second slice (v0.3.1):
+- `SavedView` Codable struct gains real fields (visible_properties, hidden_properties, sort, filter, group, layout enum)
+- `views: [SavedView]` added to `PageCollection` + `ItemCollection` (already on `PageType` + `ItemType`)
+- `singular: String?` added to `ItemType` (Capacities-style — drives "+ Add Note" labels)
+- Default-view migration on `loadAll` (mints default Table view if `views` empty)
+- Layout pane (Table active; Board/List/Cards/Gallery rows muted)
+- Property Visibility pane (strikethrough toggle, drag-reorder)
+- Both panes wired to the 4 storage detail views' Table renderings
 
-**UIX rules locked this session:**
-- **Tables have NO vertical column borders.** Only bottom border under headers. Notion-flat aesthetic (vs Finder's column-separated). Forward-applies to all storage detail views + v0.5.0 view types. SwiftUI Table needs NSViewRepresentable + cleared `gridStyleMask` to enforce (TBD implementation).
-- **`"Title"` everywhere** (not `"Name"`) — column headers, form placeholders, rename dialogs.
-- **Tier labels = `"Spaces"` / `"Topics"` / `"Projects"`** in property panels. No `"Tier N"` prefix.
-- **Sidebar Items section = `"Items"`** (renameable; defaults to "Items" not "Types").
-- **Item Types are disclosure-foldable** (mirror Vaults); Sets render as flat leaves WITHOUT chevrons (no further sidebar children to disclose).
+After v0.3.1: drip v0.3.1.1 Edit Properties (extract shared `PropertyEditor` from `VaultSettingsSheet` + `TypeSettingsSheet`) → v0.3.1.2 Sort → v0.3.1.3 Filter → v0.3.1.4 Group (optional). Full delivery slice table in `.claude/Planning/View-Settings-research-notes.md`.
 
-**Research findings captured** at `.claude/Planning/View-Settings-research-notes.md` (Notion UX patterns + SwiftUI primitives — feed directly into the eventual spec).
+**UIX rules locked earlier this session (carry forward):** tables get NO vertical column borders (Notion-flat — `NSViewRepresentable` impl TBD); `"Title"` everywhere (not `"Name"`); `"Spaces"` / `"Topics"` / `"Projects"` in property panels (no `"Tier N"` prefix); Sidebar Items section defaults to `"Items"`; Item Types are disclosure-foldable, Sets are flat leaves.
 
-**After v0.3.1.x cluster:** Per-item properties UX wiring (chip primitives → PropertyPanel / Item Window inspector / FrontmatterInspector — chips exist but aren't consumed anywhere except PommoraUIX) → Item Window redesign → PreviewWindow primitive → Page-wikilinks → file watcher → Trash UI → v0.5.0 non-Table view renderers.
-
-Note: **v0.5.0 scope narrows** as v0.3.1.x lands. The per-view filter / sort / visible-properties + view-config storage that was scheduled for v0.5.0 ships at v0.3.1.x; v0.5.0 reduces to "non-Table renderers (board/list/cards/gallery)." Framework.md needs updating to reflect this (deferred — low priority).
+**Parallel-session changes uncommitted in working tree** (NOT mine, per quirk #11 — surfaced not bundled):
+- `Pommora/Pommora/Properties/TypeSettingsSheet.swift` (-4 lines — drops dynamic title from sheet header)
+- `Pommora/Pommora/Sidebar/ItemTypeRow.swift` (-3 lines — context-menu label simplified to "Edit")
 
 #### Locked decisions in force
 
@@ -62,8 +49,9 @@ Note: **v0.5.0 scope narrows** as v0.3.1.x lands. The per-view filter / sort / v
 7. **AgendaTask + AgendaEvent default seed = single `_status` property.**
 8. **`DualRelationCoordinator` owns paired-relation lifecycle.**
 9. **`AttachmentManager` is the only path for file values.** Copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/`.
-10. **Settings carries `defaultsVersion: Int`** for forward-compat stale-default migration. `Settings.migrate(_:)` step-function. Bumped to v2 on 2026-05-25 (`"Types"` → `"Items"` label fix).
+10. **Settings carries `defaultsVersion: Int`** for forward-compat stale-default migration. `Settings.migrate(_:)` step-function. Bumped to v2 on 2026-05-25.
 11. **Items + Pages are NOT renameable concepts** — only their containers are (Vault / Collection / Type / Set). `"New Item"` and `"New Page"` are fixed literals; no `settings.labels.item` or `.page` exists.
+12. **View Settings button = single static instance at ContentView level inside the existing primary-action `.glassEffect()` HStack.** Order: `[ViewSettings] [NavDropdown] [InspectorToggle]`. NEVER per-detail-view. Popover content adapts via `scope: ViewSettingsScope` parameter derived from `sidebarSelection`. Source of truth: `.claude/Planning/View-Settings-button-chrome-plan.md`.
 
 #### Active branch quirks (carry forward to every subagent dispatch)
 
@@ -77,16 +65,17 @@ Note: **v0.5.0 scope narrows** as v0.3.1.x lands. The per-view filter / sort / v
 8. **Stub-and-progressively-replace** is the locked execution strategy for branch-spanning plans. Each task ships green standalone; later phases replace earlier stubs in-place.
 9. **Section structure in SidebarView is load-bearing.** Don't break `Section(isExpanded:) { } header: { SectionHeader(...) }` patterns. Also: don't mix flat-leaf and disclosure-style rows inside the same `Section` — `OutlineListCoordinator.recursivelyDiffRows` can crash on the asymmetry. Item Types + Sets must mirror Vaults + Page Collections uniformly.
 10. **Sidebar selection chrome at row file level via `.listRowBackground(SelectionChrome(...))`.**
-11. *(retired — parallel-session sidebar work landed at `2fada62`)*
+11. **Parallel-session caveat** — Nathan may have a separate session running small UI tweaks. `Pommora/*` working tree is NOT guaranteed clean between subagent dispatches. Never revert unattributed working-tree changes; surface in report rather than bundling or discarding.
 12. **`swift format` is invoked as a subcommand** (`swift format format --in-place ...`, `swift format lint --strict --recursive ...`). The direct `swift-format` binary is NOT on `$PATH`.
 13. **Use `Agent run_in_background: true` for builder-subagent verification** — Nathan does not want xcodebuild grabbing window focus. Always builder via background Agent with `-only-testing:PommoraTests` to skip UI tests.
 14. **GRDB `String` overload pollution in @ViewBuilder closures** — `SQLSpecificExpressible` conformance on String causes overload ambiguity for `==` and `contains` inside SwiftUI views. Workaround: isolate per-row rendering into private struct sub-views with plain value types; use `first(where:)` not `contains(_:)`. Pattern established in `RelationPicker.swift`.
-15. **`loadAll` must sync in-memory parents to the SQLite index.** Established 2026-05-25 in `88c9367`. PageTypeManager.loadAll + ItemTypeManager.loadAll defensively upsert types + collections after disk load (INSERT OR REPLACE makes it idempotent; `try?` swallows failures since the index is regeneratable). The architecture's prior contract — "DB stays in sync via incremental CRUD upserts after IndexBuilder runs once" — breaks for entities arriving outside CRUD (adoption / external Finder folders / post-adoption state). Without this sync, any page/item CRUD into a non-CRUD-created vault triggers SQLite error 19 (FK constraint failed) toast. Regression-tested in `LoadAllIndexSyncTests.swift`. Future detail-view detail loaders (PageContent / ItemContent) inherit the same gap and may need similar sync if their FKs ever escalate.
-16. **Every `@Environment(X.self)` declared on a detail view must be injected at `ContentView.detail`'s `.environment(...)` chain.** Locked 2026-05-25 via `c8b3cbc`. SwiftUI's `_TaskValueModifier` KeyPath-resolves env values when computing the `.task` closure; missing env asserts at runtime as EXC_BREAKPOINT — not a clean error. Symptom is "crash on first selection routing to that view." When adding a new env to a detail view, ALSO add it to the optional-unwrap chain at `ContentView.swift:237` AND the `.environment(...)` chain immediately after.
+15. **`loadAll` must sync in-memory parents to the SQLite index.** PageTypeManager.loadAll + ItemTypeManager.loadAll defensively upsert types + collections after disk load (INSERT OR REPLACE makes it idempotent; `try?` swallows failures since the index is regeneratable). Regression-tested in `LoadAllIndexSyncTests.swift`. Future detail-view detail loaders (PageContent / ItemContent) inherit the same gap and may need similar sync if their FKs ever escalate.
+16. **Every `@Environment(X.self)` declared on a detail view must be injected at `ContentView.detail`'s `.environment(...)` chain.** SwiftUI's `_TaskValueModifier` KeyPath-resolves env values when computing the `.task` closure; missing env asserts at runtime as EXC_BREAKPOINT — not a clean error. Symptom is "crash on first selection routing to that view."
+17. **`Button(role: .close) { dismiss() }` without an explicit `label:` closure crashes outside `.toolbar { ... }` context.** Apple only documents the role-only form inside a toolbar block where the system synthesizes the X icon from the role. Inside any other context (popover body, sheet body, regular VStack) it asserts at first render. For non-toolbar close affordances use the explicit `Button { ... } label: { Image(systemName: "xmark.circle.fill") ... }.buttonStyle(.plain)` form. Established this session in `ViewSettingsPopover.swift`.
 
 #### Pre-existing test state
 
-All unit tests green at branch merge + today's tip. The 4 new `LoadAllIndexSyncTests` pass. The two flakes carried earlier in the branch (`NexusAdopterTests/applyNathansActualShape` + `PageEditorViewModelTests/debounceCoalescesRapidEdits`) remain resolved.
+All unit tests green except 4 pre-existing failures unrelated to this slice — 3 label-spec drift in `SettingsTests` + `UILabelThreadingTests` (expect `"Types"` but defaults seed `"Items"` post-v2 migration; tests need updating) + 1 timing flake in `PageEditorViewModelTests/debounceCoalescesRapidEdits`. 13 new `ViewSettingsScopeMappingTests` all pass.
 
 #### Document pointers
 
@@ -96,8 +85,8 @@ All unit tests green at branch merge + today's tip. The 4 new `LoadAllIndexSyncT
 - **Properties spec (single source of truth)**: `.claude/Features/Properties.md`
 - **Per-entity specs**: `.claude/Features/{Domain-Model, Contexts, PageTypes, Pages, Items, Agenda, Homepage, NavDropdown, Sidebar, PageEditor, Architecture, Prospects, PommoraUIX}.md`
 - **Paradigm-decision rules**: `.claude/Guidelines/Paradigm-Decisions.md`
-- **Active planning + research notes**: `.claude/Planning/`
+- **Active planning + research notes**: `.claude/Planning/` (chrome-slice plan + research notes for the panes work)
 
 #### Resume prompt for next session (verbatim)
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. v0.3.0 Properties merged to main; **today (2026-05-25) added 17 commits on `v0.3.0-properties` branch** — Items-Detail-Views plan complete + 6 UX/correctness fixes (env-injection crash, Items section label, real stub-replacement sheets, chip primitives, PommoraUIX debug window, icon pipeline, Name→Title, Tier# prefix removal, SQLite FK fix). Branch tip `88c9367` on `origin/v0.3.0-properties`. **Active brainstorm:** v0.3.1.x Storage View Redesign — toolbar `slider.horizontal.3` popover w/ NavigationStack submenus mirroring Notion's view-settings menu (Layout / Property Visibility / Filter / Sort / Group / Edit Properties); research notes at `.claude/Planning/View-Settings-research-notes.md`; spec NOT yet written. **UIX rules locked:** tables get NO vertical column borders (Notion-flat); 'Title' everywhere not 'Name'; 'Spaces'/'Topics'/'Projects' (no 'Tier #' prefix); Items section default 'Items'; Item Types fold like Vaults with Sets as flat leaves. **Quirks #15 + #16 are new** — loadAll syncs parents to index (regression-tested); every detail-view @Environment must be injected at ContentView.detail. Locked decisions + quirks in `Handoff.md`. Use `superpowers:subagent-driven-development` for execution; `builder` subagent with `run_in_background: true` for xcodebuild (quirk #13)."
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. v0.3.x View Settings chrome slice shipped + merged to main 2026-05-25 PM; `slider.horizontal.3` button visible in the three-button capsule with NavDropdown + Inspector toggle, opens empty 300x360pt Liquid Glass popover scope-routed via `ViewSettingsScope` derived from `sidebarSelection`. Both branches in sync. **Open task:** real-app visual approval on all 9 surfaces (Task 5 of `.claude/Planning/View-Settings-button-chrome-plan.md`). **After that:** draft v0.3.1.x panes plan via `superpowers:writing-plans` — Layout + Property Visibility wired to new `SavedView` Codable + `views: [SavedView]` on `PageCollection` + `ItemCollection` + `singular: String?` on `ItemType` + default-view migration. Research notes for panes at `.claude/Planning/View-Settings-research-notes.md`. **Quirk #17 is new:** `Button(role: .close)` without label only works inside `.toolbar { ... }` — for non-toolbar close affordances use explicit `label:` closure. **Locked decision #12 is new:** View Settings button is statically positioned at ContentView level inside the existing primary-action `.glassEffect()` HStack — scope-adaptive content via reactive `ViewSettingsScope` parameter. Use `superpowers:subagent-driven-development` for execution; `builder` subagent with `run_in_background: true` for xcodebuild (quirk #13)."

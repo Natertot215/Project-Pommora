@@ -2,6 +2,32 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### v0.3.x View Settings chrome slice (2026-05-25 evening — first patch of v0.3.1.x Storage View Redesign)
+
+Same-day continuation of the PM sweep. One focused commit on `v0.3.0-properties`; merged to `main` and pushed alongside. Ships the chrome of the consolidated View Settings popover — empty Liquid Glass shell behind a `slider.horizontal.3` toolbar button — while locking the architectural pattern every follow-up panes patch will reuse.
+
+**Ship list:**
+
+| Component | File | Outcome |
+|---|---|---|
+| Scope enum | `Pommora/Pommora/ViewSettings/ViewSettingsScope.swift` | 10-case enum (one per `SidebarSelection` variant; `.savedKey("calendar")` collapses to `.calendar`, other saved keys collapse to `.none`). Case-only at this slice; associated values added in v0.3.1 when first real pane needs entity refs |
+| Empty popover shell | `Pommora/Pommora/ViewSettings/ViewSettingsPopover.swift` | `Color.clear.frame(width: 300, height: 360)`. Liquid Glass auto-inherits from toolbar anchor (WWDC25 #323). Outside-click + ESC are the only dismiss paths — no in-popover close affordance |
+| Toolbar button | `Pommora/Pommora/ViewSettings/ViewSettingsButton.swift` | `Button { } label: { Image("slider.horizontal.3") ... }` + `.popover(arrowEdge: .top)`. 22x16 icon frame matches Inspector toggle next to it for capsule uniformity |
+| Test coverage | `Pommora/PommoraTests/ViewSettings/ViewSettingsScopeMappingTests.swift` | 13 tests covering every `SidebarSelection` case + the 4 `.savedKey` variants (`"calendar"` / `"homepage"` / `"recents"` / unknown). All green |
+| ContentView wiring | `Pommora/Pommora/ContentView.swift` | `static func viewSettingsScope(for:)` pure mapper + `private var currentViewSettingsScope` reactive computed property. Button inserted as FIRST child of the existing primary-action HStack — shares the existing `.glassEffect()` capsule with NavDropdown + Inspector toggle. Order: `[ViewSettings] [NavDropdown] [InspectorToggle]` |
+
+**Architecture locked (locked decision #12):** static button position at ContentView level + adaptive popover content via `ViewSettingsScope` derived reactively from `sidebarSelection`. Detail views never declare their own `.toolbar { ... }` for this surface. SwiftUI re-evaluates the scope parameter when selection changes; the popover body (when open) re-renders against the new scope; the button itself never moves. Forward-compat: in v0.3.1 the enum gains associated values carrying concrete entities; the wiring shape doesn't change, only the body content.
+
+**Bug found + fixed mid-session via systematic-debugging:** initial popover header used `Button(role: .close) { dismiss() }` — the role-only init that infers an X label from the role. Apple only documents this inside `.toolbar { ... }` context where SwiftUI synthesizes the X. Inside a popover body (non-toolbar context) it asserted at first popover-content render — crash on button click (popover content is lazy-evaluated, so render fires on tap, not at app launch). Root-cause located via Phase 2 pattern analysis: my usage was the only `Button(role: .close)` in the entire codebase; every other `Button(role:)` paired the role with explicit `label:` content. Surgical fix: replaced with `Button { dismiss() } label: { Image("xmark.circle.fill") ... }.buttonStyle(.plain)`. Then user requested empty placeholder per the chrome-only slice scope; close button removed entirely. Locked as new quirk #17.
+
+**Locked decisions this slice:**
+
+1. **View Settings button = single static instance at ContentView level inside the existing primary-action `.glassEffect()` HStack.** Order: `[ViewSettings] [NavDropdown] [InspectorToggle]`. NEVER per-detail-view. Popover content adapts via `scope: ViewSettingsScope` parameter derived from `sidebarSelection`. Recorded as locked decision #12 in Handoff.
+
+**Plan record:** `.claude/Planning/View-Settings-button-chrome-plan.md`. Tasks 1-4 (button + popover + scope wiring + ContentView insertion) shipped this commit; Task 5 (visual approval on all 9 surfaces) is the remaining open item. Plan stays in active Planning until Task 5 closes; then retires to Superseded.
+
+---
+
 #### v0.3.x follow-up sweep (2026-05-25 PM — 17 commits on `v0.3.0-properties`)
 
 Same-day post-merge: design-system foundations + UX correctness sweep + one architectural fix. Branch tip `88c9367` on `origin/v0.3.0-properties`.
