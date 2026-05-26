@@ -19,7 +19,7 @@ extension PageContentManager {
     // MARK: - Page CRUD (PageCollection-scoped)
 
     @discardableResult
-    func createPage(name: String, in collection: PageCollection, vault: PageType) async throws -> PageMeta {
+    func createPage(name: String, icon: String? = nil, in collection: PageCollection, vault: PageType) async throws -> PageMeta {
         do {
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
@@ -33,7 +33,7 @@ extension PageContentManager {
 
             let now = Date()
             let frontmatter = PageFrontmatter(
-                id: ULID.generate(), icon: nil,
+                id: ULID.generate(), icon: icon,
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
                 createdAt: now
@@ -172,7 +172,7 @@ extension PageContentManager {
     // MARK: - Page CRUD (Page-Type-root)
 
     @discardableResult
-    func createPage(name: String, inVaultRoot vault: PageType) async throws -> PageMeta {
+    func createPage(name: String, icon: String? = nil, inVaultRoot vault: PageType) async throws -> PageMeta {
         do {
             let existing = pagesByTypeRoot[vault.id] ?? []
             try PageValidator.validate(
@@ -186,7 +186,7 @@ extension PageContentManager {
 
             let now = Date()
             let frontmatter = PageFrontmatter(
-                id: ULID.generate(), icon: nil,
+                id: ULID.generate(), icon: icon,
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
                 createdAt: now

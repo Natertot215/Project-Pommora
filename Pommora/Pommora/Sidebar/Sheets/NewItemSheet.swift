@@ -20,7 +20,7 @@ struct NewItemSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("New Item").font(.headline)
             Form {
-                TextField("Name", text: $name).focused($nameFocused)
+                TextField("Title", text: $name).focused($nameFocused)
                 LabeledContent("Icon") {
                     IconPickerField(symbol: $icon)
                 }
@@ -46,11 +46,12 @@ struct NewItemSheet: View {
     private func create() async {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
+        let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
         do {
             if let collection {
-                _ = try await itemContentManager.createItem(name: trimmed, in: collection, type: type)
+                _ = try await itemContentManager.createItem(name: trimmed, icon: iconValue, in: collection, type: type)
             } else {
-                _ = try await itemContentManager.createItem(name: trimmed, inTypeRoot: type)
+                _ = try await itemContentManager.createItem(name: trimmed, icon: iconValue, inTypeRoot: type)
             }
             dismiss()
         } catch let error as LocalizedError {

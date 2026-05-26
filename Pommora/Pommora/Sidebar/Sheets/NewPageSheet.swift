@@ -6,6 +6,7 @@ struct NewPageSheet: View {
     @Environment(PageContentManager.self) private var contentManager
 
     @State private var name: String = ""
+    @State private var icon: String? = "doc.text"
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
 
@@ -13,7 +14,10 @@ struct NewPageSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(headerText).font(.headline)
             Form {
-                TextField("Name", text: $name).focused($nameFocused)
+                TextField("Title", text: $name).focused($nameFocused)
+                LabeledContent("Icon") {
+                    IconPickerField(symbol: $icon)
+                }
             }
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.red).font(.callout)
@@ -29,7 +33,7 @@ struct NewPageSheet: View {
             }
         }
         .padding()
-        .frame(width: 380, height: 220)
+        .frame(width: 400, height: 260)
         .onAppear { nameFocused = true }
     }
 
@@ -43,12 +47,13 @@ struct NewPageSheet: View {
     }
 
     private func create() async {
+        let iconValue: String? = (icon?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) ? nil : icon
         do {
             switch parent {
             case .collection(let coll, let vault):
-                try await contentManager.createPage(name: name, in: coll, vault: vault)
+                try await contentManager.createPage(name: name, icon: iconValue, in: coll, vault: vault)
             case .vaultRoot(let vault):
-                _ = try await contentManager.createPage(name: name, inVaultRoot: vault)
+                _ = try await contentManager.createPage(name: name, icon: iconValue, inVaultRoot: vault)
             }
             dismiss()
         } catch let error as PageValidator.ValidationError {

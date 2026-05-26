@@ -42,7 +42,7 @@ extension ItemContentManager {
     // MARK: - Item CRUD (ItemCollection-scoped)
 
     @discardableResult
-    func createItem(name: String, in collection: ItemCollection, type itemType: ItemType) async throws -> Item {
+    func createItem(name: String, icon: String? = nil, in collection: ItemCollection, type itemType: ItemType) async throws -> Item {
         do {
             let trimmed = name.trimmingCharacters(in: .whitespaces)
             let existing = itemsByCollection[collection.id] ?? []
@@ -50,7 +50,7 @@ extension ItemContentManager {
 
             let now = Date()
             let item = Item(
-                id: ULID.generate(), title: trimmed, icon: nil, description: "",
+                id: ULID.generate(), title: trimmed, icon: icon, description: "",
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
                 createdAt: now, modifiedAt: now
@@ -179,7 +179,7 @@ extension ItemContentManager {
     // MARK: - Item CRUD (Item-Type-root)
 
     @discardableResult
-    func createItem(name: String, inTypeRoot itemType: ItemType) async throws -> Item {
+    func createItem(name: String, icon: String? = nil, inTypeRoot itemType: ItemType) async throws -> Item {
         do {
             let trimmed = name.trimmingCharacters(in: .whitespaces)
             let existing = itemsByTypeRoot[itemType.id] ?? []
@@ -187,7 +187,7 @@ extension ItemContentManager {
 
             let now = Date()
             let item = Item(
-                id: ULID.generate(), title: trimmed, icon: nil, description: "",
+                id: ULID.generate(), title: trimmed, icon: icon, description: "",
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
                 createdAt: now, modifiedAt: now
