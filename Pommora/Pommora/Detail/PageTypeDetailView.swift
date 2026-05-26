@@ -63,6 +63,18 @@ struct PageTypeDetailView: View {
 
     // MARK: - Table
 
+    /// User-defined property columns derived from `pageType.views[0]` +
+    /// schema. Empty when the active SavedView has no visibleProperties
+    /// configured — collapses to the legacy Title/Kind/Modified shape.
+    private var userPropertyColumns: [PropertyDefinition] {
+        guard let view = pageType.views.first else { return [] }
+        let cols = PropertyColumnBuilder.columns(view: view, schema: pageType.properties)
+        return cols.compactMap { col in
+            if case .userProperty(let def) = col.kind { return def }
+            return nil
+        }
+    }
+
     private var table: some View {
         Table(rows, children: \.children, selection: $tableSelection) {
             TableColumn("Title") { row in
@@ -80,6 +92,16 @@ struct PageTypeDetailView: View {
                     handleDrop(payloads: payloads, ontoRowID: row.id)
                 }
             }
+            TableColumnForEach(userPropertyColumns, id: \.id) { def in
+                TableColumn(def.name) { row in
+                    PropertyCellDisplay(
+                        definition: def,
+                        value: propertyValue(for: row, propertyID: def.id),
+                        relationResolver: { _ in nil }
+                    )
+                }
+                .width(min: 90, ideal: 120, max: 220)
+            }
             TableColumn("Kind") { row in
                 Text(row.kindLabel).foregroundStyle(.secondary)
             }
@@ -89,6 +111,18 @@ struct PageTypeDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        }
+    }
+
+    /// Resolve the PropertyValue for a row + propertyID. Pages carry their
+    /// frontmatter.properties; Collections + Items don't surface property
+    /// values in this PageType view (Items are deferred per Phase 6).
+    private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
+        switch row.kind {
+        case .page(let pageMeta):
+            return pageMeta.frontmatter.properties[propertyID]
+        case .collection, .item, .itemCollection:
+            return nil
         }
     }
 

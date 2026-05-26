@@ -53,6 +53,19 @@ struct PageCollectionDetailView: View {
         .padding()
     }
 
+    /// User-defined property columns derived from `collection.views[0]` +
+    /// parent vault's schema (Collections inherit schema from the parent
+    /// PageType per locked decision). Empty when the SavedView has no
+    /// visibleProperties configured — collapses to legacy Title/Kind/Modified.
+    private var userPropertyColumns: [PropertyDefinition] {
+        guard let view = collection.views.first else { return [] }
+        let cols = PropertyColumnBuilder.columns(view: view, schema: vault.properties)
+        return cols.compactMap { col in
+            if case .userProperty(let def) = col.kind { return def }
+            return nil
+        }
+    }
+
     private var table: some View {
         Table(rows, children: \.children, selection: $tableSelection) {
             TableColumn("Title") { row in
@@ -70,6 +83,16 @@ struct PageCollectionDetailView: View {
                     handleDrop(payloads: payloads, ontoRowID: row.id)
                 }
             }
+            TableColumnForEach(userPropertyColumns, id: \.id) { def in
+                TableColumn(def.name) { row in
+                    PropertyCellDisplay(
+                        definition: def,
+                        value: propertyValue(for: row, propertyID: def.id),
+                        relationResolver: { _ in nil }
+                    )
+                }
+                .width(min: 90, ideal: 120, max: 220)
+            }
             TableColumn("Kind") { row in
                 Text(row.kindLabel).foregroundStyle(.secondary)
             }
@@ -79,6 +102,15 @@ struct PageCollectionDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        }
+    }
+
+    private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
+        switch row.kind {
+        case .page(let pageMeta):
+            return pageMeta.frontmatter.properties[propertyID]
+        case .collection, .item, .itemCollection:
+            return nil
         }
     }
 
