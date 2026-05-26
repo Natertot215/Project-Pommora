@@ -113,7 +113,6 @@ struct ItemTypeRow: View {
                 accent: nil
             )
             .contextMenu {
-                let typeLabel = settingsManager.settings.labels.itemType.singular
                 let setLabel = settingsManager.settings.labels.itemCollection.singular
                 Button("New Item") {
                     presentedSheet = .newItem(collection: nil, type: itemType)
@@ -122,7 +121,7 @@ struct ItemTypeRow: View {
                     presentedSheet = .newItemCollection(type: itemType)
                 }
                 Divider()
-                Button("\(typeLabel) Settings…") {
+                Button("Edit") {
                     showingTypeSettings = true
                 }
                 Divider()

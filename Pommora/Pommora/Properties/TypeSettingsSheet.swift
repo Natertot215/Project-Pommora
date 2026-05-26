@@ -202,7 +202,6 @@ struct TypeSettingsSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             TypeSettingsSheetHeader(
-                title: itemType.title,
                 hasChanges: vm.hasChanges,
                 isSaving: isSaving,
                 onCancel: { onDismiss() },
@@ -271,7 +270,6 @@ struct TypeSettingsSheet: View {
 // MARK: - TypeSettingsSheetHeader
 
 private struct TypeSettingsSheetHeader: View {
-    let title: String
     let hasChanges: Bool
     let isSaving: Bool
     let onCancel: () -> Void
@@ -282,7 +280,7 @@ private struct TypeSettingsSheetHeader: View {
             Button("Cancel", action: onCancel)
                 .buttonStyle(.borderless)
             Spacer()
-            Text("\(title) — Settings")
+            Text("Type Settings")
                 .font(.headline)
             Spacer()
             Button(isSaving ? "Saving…" : "Save") {
