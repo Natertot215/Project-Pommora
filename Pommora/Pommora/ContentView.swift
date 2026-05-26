@@ -81,6 +81,43 @@ struct ContentView: View {
         Self.viewSettingsScope(for: sidebarSelection)
     }
 
+    /// Toolbar primary-action capsule (ViewSettings + NavDropdown + Inspector
+    /// toggle). Extracted to a separate ViewBuilder so the compound nil-guards
+    /// don't blow up SwiftUI's @ViewBuilder type-checker inside the toolbar
+    /// closure. Renders nothing until the managers it needs are non-nil.
+    @ViewBuilder
+    private var primaryActionCapsule: some View {
+        if let vaultMgr = vaultManager,
+           let itemTypeMgr = itemTypeManager,
+           recentsManager != nil, pinnedManager != nil
+        {
+            HStack(spacing: 0) {
+                ViewSettingsButton(
+                    scope: currentViewSettingsScope,
+                    pageTypeManager: vaultMgr,
+                    itemTypeManager: itemTypeMgr
+                )
+                NavDropdownButton(asSegment: true) { sel in
+                    sidebarSelection = sel
+                }
+
+                Button {
+                    withAnimation(.smooth(duration: 0.25)) {
+                        inspectorPresented.toggle()
+                    }
+                } label: {
+                    Image(systemName: "sidebar.trailing")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 22, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .keyboardShortcut("0", modifiers: [.option, .command])
+                .help("Toggle Inspector (⌥⌘0)")
+            }
+            .glassEffect()
+        }
+    }
+
     var body: some View {
         @Bindable var bindableNexusManager = nexusManager
 
@@ -130,28 +167,7 @@ struct ContentView: View {
                     // segment buttons inside are plain so the background
                     // glass isn't doubled by per-button glass.
                     ToolbarItem(placement: .primaryAction) {
-                        if recentsManager != nil, pinnedManager != nil {
-                            HStack(spacing: 0) {
-                                ViewSettingsButton(scope: currentViewSettingsScope)
-                                NavDropdownButton(asSegment: true) { sel in
-                                    sidebarSelection = sel
-                                }
-
-                                Button {
-                                    withAnimation(.smooth(duration: 0.25)) {
-                                        inspectorPresented.toggle()
-                                    }
-                                } label: {
-                                    Image(systemName: "sidebar.trailing")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .frame(width: 22, height: 16)
-                                        .contentShape(Rectangle())
-                                }
-                                .keyboardShortcut("0", modifiers: [.option, .command])
-                                .help("Toggle Inspector (⌥⌘0)")
-                            }
-                            .glassEffect()
-                        }
+                        primaryActionCapsule
                     }
                 }
         }

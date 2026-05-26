@@ -16,18 +16,22 @@ import SwiftUI
 struct ViewSettingsButton: View {
     let scope: ViewSettingsScope
 
-    /// Env values consumed here at the button's level (where ContentView's
-    /// `.environment(...)` chain DOES propagate) and re-injected into the
-    /// popover content closure. Without this, macOS popovers present their
-    /// content in a detached context that doesn't inherit the ancestor
-    /// environment chain — every `@Environment(PageTypeManager.self)` /
-    /// `@Environment(ItemTypeManager.self)` inside the popover hierarchy
-    /// (PropertiesListPane / EditPropertyPane / EditOptionPane /
-    /// PropertyVisibilityPane / PropertyTypePickerPane) asserts at first
-    /// render with "No Observable object of type X found." A popover-level
-    /// variant of quirk #16.
-    @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
+    /// Managers passed in as explicit params (NOT @Environment) because the
+    /// toolbar where this button lives is OUTSIDE ContentView's
+    /// `.detail { ... }` closure's `.environment(...)` chain. Reading these
+    /// via `@Environment(PageTypeManager.self)` here asserts at toolbar
+    /// render (app launch crash).
+    ///
+    /// We then re-inject them onto the popover content via `.environment(_:)`
+    /// modifiers — macOS popovers present their content in a detached
+    /// context that doesn't inherit the button's ancestor env chain either,
+    /// so explicit injection at the popover boundary is required for
+    /// every popover-hosted view that declares `@Environment(X.self)`
+    /// (PropertiesListPane / PropertyTypePickerPane / EditPropertyPane /
+    /// EditOptionPane / PropertyVisibilityPane). See quirk #16's two
+    /// variants in Handoff.md.
+    let pageTypeManager: PageTypeManager
+    let itemTypeManager: ItemTypeManager
 
     @State private var isPresented: Bool = false
 
@@ -49,16 +53,6 @@ struct ViewSettingsButton: View {
     }
 }
 
-#if DEBUG
-    #Preview("Button (pageType scope)") {
-        ViewSettingsButton(
-            scope: .pageType(
-                PageType(
-                    id: "01HPT", title: "Notes", icon: nil,
-                    properties: [], views: [], modifiedAt: Date()
-                )
-            )
-        )
-        .padding()
-    }
-#endif
+// Preview removed at v0.3.1 — the new init signature requires real
+// PageTypeManager + ItemTypeManager instances which need a Nexus to
+// construct. Use PommoraUIX (Cmd+Shift+D) for the live debug surface.
