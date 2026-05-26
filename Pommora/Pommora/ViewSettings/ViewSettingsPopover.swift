@@ -57,7 +57,7 @@ struct ViewSettingsPopover: View {
         case .editProperties:
             PropertiesListPane(scope: scope, path: $path)
         case .propertyTypePicker:
-            placeholder(title: "+ New Property", note: "PropertyTypePickerPane lands at Task 10")
+            PropertyTypePickerPane(scope: scope, path: $path)
         case .editProperty(let id):
             placeholder(title: "Edit Property", note: "EditPropertyPane lands at Task 11 (id: \(id))")
         case .editOption(let pid, let opt):
