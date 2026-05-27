@@ -117,11 +117,7 @@ extension PageContentManager {
             self.pendingError = error
             throw error
         }
-        // Best-effort cascade: move the entity's attachments folder to trash.
-        let attachmentsURL = NexusPaths.attachmentsDir(for: page.id, in: nexus.rootURL)
-        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
-            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
-        }
+        trashAttachments(for: page.id)
     }
 
     /// Re-write a Page's body to disk, preserving its frontmatter verbatim.
@@ -268,11 +264,16 @@ extension PageContentManager {
             self.pendingError = error
             throw error
         }
-        // Best-effort cascade: move the entity's attachments folder to trash.
-        let attachmentsURL = NexusPaths.attachmentsDir(for: page.id, in: nexus.rootURL)
-        if FileManager.default.fileExists(atPath: attachmentsURL.path) {
-            try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
-        }
+        trashAttachments(for: page.id)
+    }
+
+    /// Best-effort cascade: move a deleted Page's attachments folder to trash.
+    /// Shared by every `deletePage` overload. Failures are swallowed — the
+    /// attachments folder is non-critical and the SQLite index is regeneratable.
+    private func trashAttachments(for pageID: String) {
+        let attachmentsURL = NexusPaths.attachmentsDir(for: pageID, in: nexus.rootURL)
+        guard FileManager.default.fileExists(atPath: attachmentsURL.path) else { return }
+        do { try Filesystem.moveToTrash(attachmentsURL, in: nexus) } catch { /* best-effort */ }
     }
 
     /// Type-root variant of `updatePage`. Same contract: body-only write,

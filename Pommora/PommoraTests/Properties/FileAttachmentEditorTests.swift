@@ -48,7 +48,7 @@ struct FileAttachmentEditorTests {
         let src = try makeTempFile(size: 10_000_000)
         defer { try? FileManager.default.removeItem(at: src) }
 
-        await MainActor.run {
+        _ = await MainActor.run {
             Task { await vm.attach(file: src) }
         }
         // Give the async task a moment to complete

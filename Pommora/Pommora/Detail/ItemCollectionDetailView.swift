@@ -176,6 +176,7 @@ struct ItemCollectionDetailView: View {
     /// Drop handler — session-only. Accepts `.setItem` or `.collectionItem`
     /// (synonyms in the v1 paradigm). Updates `sessionOrder`, which the
     /// `rows` computed honors. Never calls a manager API.
+    @discardableResult
     private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
         guard let payload = payloads.first else { return false }
         guard payload.zone == .setItem || payload.zone == .collectionItem else { return false }

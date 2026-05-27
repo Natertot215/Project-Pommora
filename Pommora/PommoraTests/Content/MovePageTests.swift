@@ -42,7 +42,7 @@ struct MovePageTests {
 
         // Create a page in CollA with all 3 property values set.
         let pageID = ULID.generate()
-        var fm = PageFrontmatter(
+        let fm = PageFrontmatter(
             id: pageID, icon: nil,
             tier1: [], tier2: [], tier3: [],
             properties: [

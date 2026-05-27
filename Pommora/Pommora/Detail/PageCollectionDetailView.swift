@@ -139,6 +139,7 @@ struct PageCollectionDetailView: View {
 
     /// Drop handler — session-only. Same-zone only. Updates `sessionOrder`,
     /// which the `rows` computed honors. Never calls a manager API.
+    @discardableResult
     private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
         guard let payload = payloads.first else { return false }
         guard payload.zone == .collectionItem else { return false }

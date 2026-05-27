@@ -28,7 +28,10 @@ struct DetailRowDragPayload: Codable, Equatable, Hashable, Sendable, Transferabl
 extension UTType {
     /// Custom UTType for in-process drag of detail-pane rows. Conforming
     /// to `data` keeps it private to Pommora (not exposed to other apps).
-    /// `nonisolated` so Transferable conformance can reference it from
-    /// non-MainActor contexts (Swift 6 strict concurrency).
-    nonisolated(unsafe) static let pommoraDetailRow = UTType(exportedAs: "com.pommora.detail-row")
+    /// `nonisolated` is REQUIRED: the project builds under default-MainActor
+    /// isolation, so a bare `static let` here is inferred MainActor-isolated
+    /// and the `nonisolated` Transferable conformance (`transferRepresentation`)
+    /// can't reference it. Because `UTType` is `Sendable`, plain `nonisolated`
+    /// (no `unsafe`) is the correct, warning-free form.
+    nonisolated static let pommoraDetailRow = UTType(exportedAs: "com.pommora.detail-row")
 }

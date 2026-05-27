@@ -634,9 +634,9 @@ enum NexusAdopter {
         )
     }
 
-    // MARK: - autoTagMissingSidecars (F.1.i — paradigm shift)
+    // MARK: - autoTagMissingSidecars (silent two-tier auto-tag)
 
-    /// Silent three-level walk that writes missing per-kind sidecars so
+    /// Silent two-level walk that writes missing per-kind sidecars so
     /// Finder-built structure is first-class on the next launch. Runs
     /// unconditionally from `NexusManager.runAdoptionIfNeeded` after the
     /// legacy adoption `apply(_:)` pass — auto-tag runs whether legacy
@@ -653,10 +653,7 @@ enum NexusAdopter {
     ///   defaults to PageType.
     /// - Depth 1, parent has `_pagetype.json` → write `_pagecollection.json`.
     /// - Depth 1, parent has `_itemtype.json` → write `_itemcollection.json`.
-    /// - Depth 2, parent has `_pagecollection.json` → write `_folder.json`
-    ///   (the new third-tier sidecar; locked decision #11).
-    /// - Depth 2, parent has `_itemcollection.json` → no-op (Items side
-    ///   has no third tier).
+    /// - No deeper tier — Types + Collections are the only auto-tagged kinds.
     ///
     /// **Paradigm-shift note:** overrides the previous "non-Pommora folders
     /// at root stay invisible to discovery" rule. Anything at the Nexus

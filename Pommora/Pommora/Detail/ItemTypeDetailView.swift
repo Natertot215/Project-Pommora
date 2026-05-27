@@ -207,6 +207,7 @@ struct ItemTypeDetailView: View {
 
     /// Drop handler — session-only. Same-zone only. Cross-zone drops
     /// (e.g. Item onto Set or vice versa) are silently rejected.
+    @discardableResult
     private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
         guard let payload = payloads.first else { return false }
         let currentRows = rows

@@ -185,18 +185,12 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case itemCollection(String)
 
     func matches(_ selection: SidebarSelection) -> Bool {
-        switch (self, selection) {
-        case (.savedKey(let k), .savedKey(let s)): return k == s
-        case (.space(let id), .space(let s)): return id == s.id
-        case (.topic(let id), .topic(let t)): return id == t.id
-        case (.project(let id), .project(let p)): return id == p.id
-        case (.pageType(let id), .pageType(let t)): return id == t.id
-        case (.collection(let id), .collection(let c)): return id == c.id
-        case (.page(let id), .page(let p)): return id == p.id
-        case (.itemType(let id), .itemType(let t)): return id == t.id
-        case (.itemCollection(let id), .itemCollection(let c)): return id == c.id
-        default: return false
-        }
+        // Derive the tag for `selection` and value-compare. Equivalent to the
+        // old pairwise switch but doesn't have to grow a case per entity kind —
+        // `init?(_:)` is the single source of truth for selection→tag mapping.
+        // `.none` yields no tag, so nothing matches it (returns false).
+        guard let tag = SelectionTag(selection) else { return false }
+        return self == tag
     }
 
     /// Derive the tag from a `SidebarSelection`. Used by `SidebarView` to keep
