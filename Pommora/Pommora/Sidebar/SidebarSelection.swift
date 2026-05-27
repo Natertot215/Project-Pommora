@@ -34,64 +34,95 @@ struct SidebarLookupBundle {
 }
 
 extension SidebarSelection {
+    // MARK: - Shared per-entity resolvers
+    //
+    // Both bridges below — EntityStateRef→ and SelectionTag→ — resolve the same
+    // entities via the same manager lookups. The per-entity resolution lives
+    // here ONCE; each `init?` is a thin dispatcher mapping its input kind to a
+    // resolver. Adding a selectable entity = one resolver + two one-line
+    // dispatch cases, not two duplicated lookup bodies (the prior shape).
+
+    @MainActor
+    private static func resolveSpace(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let sm = lookup.space, let s = sm.spaces.first(where: { $0.id == id }) else { return nil }
+        return .space(s)
+    }
+
+    @MainActor
+    private static func resolveTopic(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let tm = lookup.topic, let t = tm.topics.first(where: { $0.id == id }) else { return nil }
+        return .topic(t)
+    }
+
+    @MainActor
+    private static func resolveProject(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let tm = lookup.topic else { return nil }
+        for projects in tm.projectsByParent.values {
+            if let p = projects.first(where: { $0.id == id }) { return .project(p) }
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func resolvePageType(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let pm = lookup.pageType, let t = pm.types.first(where: { $0.id == id }) else { return nil }
+        return .pageType(t)
+    }
+
+    @MainActor
+    private static func resolveCollection(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let pm = lookup.pageType else { return nil }
+        for pageType in pm.types {
+            if let c = pm.pageCollections(in: pageType).first(where: { $0.id == id }) { return .collection(c) }
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func resolvePage(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let cm = lookup.content else { return nil }
+        for pages in cm.pagesByCollection.values {
+            if let page = pages.first(where: { $0.id == id }) { return .page(page) }
+        }
+        for pages in cm.pagesByTypeRoot.values {
+            if let page = pages.first(where: { $0.id == id }) { return .page(page) }
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func resolveItemType(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let itm = lookup.itemType, let t = itm.types.first(where: { $0.id == id }) else { return nil }
+        return .itemType(t)
+    }
+
+    @MainActor
+    private static func resolveItemCollection(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let itm = lookup.itemType else { return nil }
+        for itemType in itm.types {
+            if let c = itm.itemCollections(in: itemType).first(where: { $0.id == id }) { return .itemCollection(c) }
+        }
+        return nil
+    }
+
     /// Bridge EntityStateRef → SidebarSelection by resolving via live managers.
     /// Used by NavDropdown's double-click open and BackForwardButtons stepping.
-    /// Returns nil for kinds that aren't main-detail-pane targets (item, agenda,
-    /// collection) and for entities that no longer exist on disk.
+    /// Returns nil for kinds that aren't main-detail-pane targets (item, agenda)
+    /// and for entities that no longer exist on disk.
     @MainActor
     init?(stateRef: EntityStateRef, lookup: SidebarLookupBundle) {
+        let resolved: SidebarSelection?
         switch stateRef.typedKind {
-        case .page:
-            guard let cm = lookup.content else { return nil }
-            for pages in cm.pagesByCollection.values {
-                if let page = pages.first(where: { $0.id == stateRef.id }) {
-                    self = .page(page)
-                    return
-                }
-            }
-            for pages in cm.pagesByTypeRoot.values {
-                if let page = pages.first(where: { $0.id == stateRef.id }) {
-                    self = .page(page)
-                    return
-                }
-            }
-            return nil
-        case .vault:
-            guard let pm = lookup.pageType,
-                let t = pm.types.first(where: { $0.id == stateRef.id })
-            else { return nil }
-            self = .pageType(t)
-        case .space:
-            guard let sm = lookup.space,
-                let s = sm.spaces.first(where: { $0.id == stateRef.id })
-            else { return nil }
-            self = .space(s)
-        case .topic:
-            guard let tm = lookup.topic,
-                let t = tm.topics.first(where: { $0.id == stateRef.id })
-            else { return nil }
-            self = .topic(t)
-        case .project:
-            guard let tm = lookup.topic else { return nil }
-            for projects in tm.projectsByParent.values {
-                if let p = projects.first(where: { $0.id == stateRef.id }) {
-                    self = .project(p)
-                    return
-                }
-            }
-            return nil
-        case .collection:
-            guard let pm = lookup.pageType else { return nil }
-            for pageType in pm.types {
-                if let c = pm.pageCollections(in: pageType).first(where: { $0.id == stateRef.id }) {
-                    self = .collection(c)
-                    return
-                }
-            }
-            return nil
-        case .item, .agenda, .none:
-            return nil
+        case .page: resolved = Self.resolvePage(id: stateRef.id, lookup: lookup)
+        case .vault: resolved = Self.resolvePageType(id: stateRef.id, lookup: lookup)
+        case .space: resolved = Self.resolveSpace(id: stateRef.id, lookup: lookup)
+        case .topic: resolved = Self.resolveTopic(id: stateRef.id, lookup: lookup)
+        case .project: resolved = Self.resolveProject(id: stateRef.id, lookup: lookup)
+        case .collection: resolved = Self.resolveCollection(id: stateRef.id, lookup: lookup)
+        case .item, .agenda, .none: resolved = nil
         }
+        guard let resolved else { return nil }
+        self = resolved
     }
 }
 
@@ -102,72 +133,20 @@ extension SidebarSelection {
     /// List's native `selection:` mechanism.
     @MainActor
     init?(tag: SelectionTag, lookup: SidebarLookupBundle) {
+        let resolved: SidebarSelection?
         switch tag {
-        case .savedKey(let key):
-            self = .savedKey(key)
-        case .space(let id):
-            guard let sm = lookup.space,
-                let s = sm.spaces.first(where: { $0.id == id })
-            else { return nil }
-            self = .space(s)
-        case .topic(let id):
-            guard let tm = lookup.topic,
-                let t = tm.topics.first(where: { $0.id == id })
-            else { return nil }
-            self = .topic(t)
-        case .project(let id):
-            guard let tm = lookup.topic else { return nil }
-            for projects in tm.projectsByParent.values {
-                if let p = projects.first(where: { $0.id == id }) {
-                    self = .project(p)
-                    return
-                }
-            }
-            return nil
-        case .pageType(let id):
-            guard let pm = lookup.pageType,
-                let t = pm.types.first(where: { $0.id == id })
-            else { return nil }
-            self = .pageType(t)
-        case .collection(let id):
-            guard let pm = lookup.pageType else { return nil }
-            for pageType in pm.types {
-                if let c = pm.pageCollections(in: pageType).first(where: { $0.id == id }) {
-                    self = .collection(c)
-                    return
-                }
-            }
-            return nil
-        case .page(let id):
-            guard let cm = lookup.content else { return nil }
-            for pages in cm.pagesByCollection.values {
-                if let page = pages.first(where: { $0.id == id }) {
-                    self = .page(page)
-                    return
-                }
-            }
-            for pages in cm.pagesByTypeRoot.values {
-                if let page = pages.first(where: { $0.id == id }) {
-                    self = .page(page)
-                    return
-                }
-            }
-            return nil
-        case .itemType(let id):
-            guard let itm = lookup.itemType,
-                let t = itm.types.first(where: { $0.id == id })
-            else { return nil }
-            self = .itemType(t)
-        case .itemCollection(let id):
-            guard let itm = lookup.itemType else { return nil }
-            for itemType in itm.types {
-                if let c = itm.itemCollections(in: itemType).first(where: { $0.id == id }) {
-                    self = .itemCollection(c)
-                    return
-                }
-            }
-            return nil
+        case .savedKey(let key): resolved = .savedKey(key)
+        case .space(let id): resolved = Self.resolveSpace(id: id, lookup: lookup)
+        case .topic(let id): resolved = Self.resolveTopic(id: id, lookup: lookup)
+        case .project(let id): resolved = Self.resolveProject(id: id, lookup: lookup)
+        case .pageType(let id): resolved = Self.resolvePageType(id: id, lookup: lookup)
+        case .collection(let id): resolved = Self.resolveCollection(id: id, lookup: lookup)
+        case .page(let id): resolved = Self.resolvePage(id: id, lookup: lookup)
+        case .itemType(let id): resolved = Self.resolveItemType(id: id, lookup: lookup)
+        case .itemCollection(let id): resolved = Self.resolveItemCollection(id: id, lookup: lookup)
         }
+        guard let resolved else { return nil }
+        self = resolved
     }
 }
 
