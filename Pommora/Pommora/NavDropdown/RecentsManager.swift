@@ -39,7 +39,7 @@ final class RecentsManager {
         do {
             let state = try AtomicJSON.decode(NexusState.self, from: url)
             // Drop any entries from prior versions that recorded organizational
-            // surfaces (Spaces / Topics / Sub-topics / Vaults / Collections);
+            // surfaces (Spaces / Topics / Projects / Vaults / Collections);
             // those no longer belong in Recents.
             let filtered = state.recents.filter { ref in
                 guard let kind = ref.typedKind else { return false }
@@ -56,7 +56,7 @@ final class RecentsManager {
     }
 
     /// Only Pages, Items, and Agenda entries belong in Recents. Contexts
-    /// (Spaces / Topics / Sub-topics) and Vault containers (Vaults /
+    /// (Spaces / Topics / Projects) and Vault containers (Vaults /
     /// Collections) are organizational surfaces — they can still be Pinned,
     /// but selecting them never enters the Recents history.
     static let recordableKinds: Set<EntityStateRef.Kind> = [.page, .item, .agenda]

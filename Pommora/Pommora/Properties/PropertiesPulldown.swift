@@ -203,7 +203,7 @@ struct PropertiesPulldown: View {
                     Divider().padding(.horizontal, 16)
                 }
                 if !tier3.isEmpty {
-                    tierRow(label: "Sub-topics", ids: tier3)
+                    tierRow(label: "Projects", ids: tier3)
                     Divider().padding(.horizontal, 16)
                 }
             }

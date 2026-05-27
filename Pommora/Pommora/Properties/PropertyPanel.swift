@@ -126,7 +126,7 @@ struct PropertyPanel: View {
                 .padding(.horizontal, 12)
             Divider()
                 .padding(.horizontal, 12)
-            tierRow(label: "Sub-topics", tier: 3, ids: tier3)
+            tierRow(label: "Projects", tier: 3, ids: tier3)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
 

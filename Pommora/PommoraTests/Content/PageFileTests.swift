@@ -17,7 +17,7 @@ struct PageFileTests {
             icon: "doc.text",
             tier1: ["01HSPACE"],
             tier2: [],
-            tier3: ["01HSUBTOPIC"],
+            tier3: ["01HPROJECT0"],
             properties: ["status": .select("Active")],
             createdAt: Date(timeIntervalSince1970: 1716000000)
         )
@@ -29,7 +29,7 @@ struct PageFileTests {
         #expect(loaded.frontmatter.id == "01HPAGE")
         #expect(loaded.frontmatter.icon == "doc.text")
         #expect(loaded.frontmatter.tier1 == ["01HSPACE"])
-        #expect(loaded.frontmatter.tier3 == ["01HSUBTOPIC"])
+        #expect(loaded.frontmatter.tier3 == ["01HPROJECT0"])
         #expect(loaded.body == body)
         #expect(loaded.title == "Notes")
     }

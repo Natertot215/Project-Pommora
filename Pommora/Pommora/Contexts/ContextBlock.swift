@@ -1,7 +1,7 @@
 import Foundation
 
 /// Placeholder for composed-blocks tree entries used by Spaces / Topics /
-/// Sub-topics / Homepage. The composed-blocks editor lands in v0.9 — until
+/// Projects / Homepage. The composed-blocks editor lands in v0.9 — until
 /// then, this empty struct lets the `blocks: [ContextBlock]` arrays serialize
 /// as `[]` and the on-disk schema stays stable.
 struct ContextBlock: Codable, Equatable, Hashable, Sendable {

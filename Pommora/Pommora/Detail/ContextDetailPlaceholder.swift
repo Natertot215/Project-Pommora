@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Minimal placeholder shown for Space / Topic / Sub-topic selection until
+/// Minimal placeholder shown for Space / Topic / Project selection until
 /// the composed-blocks editor lands v0.7.0.
 struct ContextDetailPlaceholder: View {
     let title: String

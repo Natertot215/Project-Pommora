@@ -6,7 +6,7 @@ import Testing
 @Suite("TierConfig")
 struct TierConfigTests {
 
-    @Test("default seed has Space/Topic/Sub-topic labels and color tagging")
+    @Test("default seed has Space/Topic/Project labels and color tagging")
     func defaultSeed() {
         let config = TierConfig.defaultSeed()
         #expect(config.schemaVersion == 1)
@@ -17,7 +17,7 @@ struct TierConfigTests {
         #expect(config.tiers[1].level == 2)
         #expect(config.tiers[1].singular == "Topic")
         #expect(config.tiers[2].level == 3)
-        #expect(config.tiers[2].singular == "Sub-topic")
+        #expect(config.tiers[2].singular == "Project")
         #expect(config.taggingStyle == .color)
         for tier in config.tiers { #expect(tier.exposed == true) }
     }

@@ -142,7 +142,7 @@ struct FrontmatterInspector: View {
         Section("Tiers") {
             LabeledContent("Spaces", value: tier1Names)
             LabeledContent("Topics", value: tier2Names)
-            LabeledContent("Sub-topics", value: tier3Names)
+            LabeledContent("Projects", value: tier3Names)
         }
     }
 
