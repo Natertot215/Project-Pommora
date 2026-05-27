@@ -180,6 +180,13 @@ final class NexusManager {
         // sheet doesn't appear.
         await runAdoptionIfNeeded(at: url)
 
+        // F.1.j — silent three-level auto-tag pass. Runs unconditionally
+        // after legacy adoption (whether the preview sheet was shown or
+        // not, whether the user confirmed or declined). Writes missing
+        // per-kind sidecars so Finder-built structure is first-class on
+        // the next IndexBuilder walk. Idempotent + silent.
+        NexusAdopter.autoTagMissingSidecars(at: url)
+
         let nexus = Nexus(id: identity.id, rootURL: url)
         await openIndex(for: nexus)
         currentNexus = nexus
@@ -232,6 +239,13 @@ final class NexusManager {
         // of Nexuses that pre-date this feature. The scan is idempotent;
         // fully-adopted Nexuses produce an empty plan and skip the sheet.
         await runAdoptionIfNeeded(at: url)
+
+        // F.1.j — silent three-level auto-tag pass. Runs unconditionally
+        // after legacy adoption (whether the preview sheet was shown or
+        // not, whether the user confirmed or declined). Writes missing
+        // per-kind sidecars so Finder-built structure is first-class on
+        // the next IndexBuilder walk. Idempotent + silent.
+        NexusAdopter.autoTagMissingSidecars(at: url)
 
         replaceAccessingURL(with: url)
         guard NexusBookmark.startAccessing(url) else {

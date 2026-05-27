@@ -2,6 +2,38 @@
 
 Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
 
+#### v0.3.2 Folders data layer (2026-05-26 → 2026-05-27 — shipped F.0 + F.1.a–F.1.k on main)
+
+Third tier on the Pages side — `PageType → PageCollection → Folder → Page` with on-disk shape `<nexus>/<PageType>/<PageCollection>/<Folder>/_folder.json` + `*.md` siblings. Items side stays two-tier. Plan at `.claude/Planning/2026-05-26-folders-and-stub-crud-refactor-plan.md`. F.2–F.5 (sidebar visibility / CRUD UI / detail view / docs) queued.
+
+**Ship map (F.0 + F.1 — data layer complete):**
+- F.0 (`68caf96`) — system-wide stub-and-inline-rename CRUD refactor (9 New*Sheet.swift files deleted; shared `CreateWithInlineEdit` + `DefaultTitleResolver`; manager `create*` returns new entity via `@discardableResult`).
+- F.1.a/b (`50a1f6f`) — `Folder` model + `_folder.json` sidecar + path helpers.
+- F.1.c/d (`25c0009`) — `PageCollection.folderOrder` + SQLite `folders` table + `pages.page_folder_id` FK column (ON DELETE SET NULL).
+- F.1.e/f (`77490f1`) — IndexBuilder three-level walk + `TargetRef.folder` + `IndexUpdater.upsertFolder` / `deleteFolder` + `upsertPage(pageFolderID:)` optional param.
+- F.1.g (`e7c6295`) — `PageTypeManager.foldersByCollection` + `folders(in:)` + loadAll walk + default-view migration + full Folder CRUD + `FolderValidator` + rename cascades for nested folderURLs + `OrderPersister.setFolderOrder`.
+- F.1.h (`2d0c0d3`) — `PageContentManager.pagesByFolder` + `pages(in folder:)` + `loadAll(for: folder:)` + Collection-walk exclusion of Folder sub-folders + `resolveParent` 3-tuple + full Folder-scoped Page CRUD + `reorderPages(in folder:)` + `OrderPersister.setPageOrder(_:in folder:)`.
+- F.1.i/j/k (_this commit_) — NexusAdopter `.folder` + silent `autoTagMissingSidecars(at:)` three-level walk + NexusManager wiring after `runAdoptionIfNeeded` before `openIndex` + `NexusAdopterAutoTagTests` + `FolderIndexSyncTests`.
+
+**Locked decisions ratified:**
+
+- **Folders have customizable per-Folder icons** (divergence from Collections which use hardcoded `folder` symbol). SymbolPicker reused.
+- **Folders inherit property schema from grandparent PageType** — no per-Folder schema override. Only `views: [SavedView]` is per-Folder.
+- **Fresh-Folder views start cold** — `SavedView.defaultTable(visiblePropertyIDs: parentType.properties.map(\.id))` minted on creation. Does NOT copy parent Collection's current view.
+- **Three-layer cap on Pages side** — no nested Folders, no Collections inside Folders. Items side stops at two tiers.
+- **NO `hidden: Bool` on Folder** — per-view hidden-properties lives inside `views[0].hiddenProperties`.
+- **Folder sidecar = `_folder.json`** — Swift type `Folder`, SQLite table `folders`, FK column on pages = `page_folder_id`.
+- **All "New X" CRUD switches to stub-and-inline-rename system-wide** — no modal sheets. Shared `CreateWithInlineEdit` + `DefaultTitleResolver`. Overrides the 2026-05-17 paradigm decision that locked sheet-driven CRUD.
+- **Auto-sidecar-tagging on every launch (silent, paradigm shift).** `NexusAdopter.autoTagMissingSidecars(at:)` walks the Nexus root three levels deep on every launch and silently writes missing per-kind sidecars. Idempotent + silent — no user prompt. Skips dotfile/underscore-prefixed folder names. Depth-aware kind selection: depth-0 content-sniffed (md → PageType, json → ItemType); depth-1 dictated by parent type sidecar (Pages → PageCollection, Items → ItemCollection); depth-2 Pages-side only → Folder, Items-side no-op. **Overrides the prior "non-Pommora folders at root stay invisible to discovery" decision.** Consequence: any non-Pommora folder a user keeps at the Nexus root without a dotfile/underscore prefix will receive a `_pagetype.json` on next launch. This is the accepted cost of "build via Finder" — the user has chosen this Nexus as a Pommora root.
+- **Cross-container Page moves go through a nested "Move to ▸" context-menu submenu** — NOT modal sheet, NOT sidebar drag. Drag stays for same-zone reorder only.
+
+**Quirks reinforced:**
+- IndexBuilder strategy is DELETE-then-repopulate — the migration adds the empty `folders` table; next IndexBuilder.populate wipes everything and rebuilds from the now-fully-tagged tree. No post-migration backfill needed.
+- `loadAll` must defensively upsert in-memory entities (Folders included) to SQLite per quirk #15. Regression-tested in `FolderIndexSyncTests`.
+- `recognizedSidecarsAt` ordering matters for orphan-cleanup authoritative selection — tier-1 kinds precede tier-2 precede tier-3 (`.folder` last).
+
+**F.5 stopgap to clean up:** `AdoptionPreviewView.swift` `labelForSidecar(_:)` returns literal `"Folder"` for `.folder` case — F.5 will route through `labels.folder.singular` once SettingsLabels gains the field with defensive `init(from:)`.
+
 #### v0.3.1 Properties end-to-end (2026-05-26 — shipped on main as 21 commits, baseline `627e972` → tip `0d5aa16`)
 
 Single-session execution of the approved `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases). Tasks 1-20 shipped + Task 21 (PropertyEditorRow stub patches in Item Window inspector) intentionally deferred to v0.3.1.x — the cell editor bypasses that dispatcher entirely so the headline UX ships without it. Task 23 (`git push` + Nexus mirror) paused for Nathan's auth.

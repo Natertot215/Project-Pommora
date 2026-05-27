@@ -40,6 +40,7 @@ import Foundation
 enum AdoptedSidecarKind: Sendable, Equatable {
     case pageType
     case pageCollection
+    case folder
     case itemType
     case itemCollection
     case taskConfig
@@ -49,6 +50,7 @@ enum AdoptedSidecarKind: Sendable, Equatable {
         switch self {
         case .pageType: return NexusPaths.pageTypeSidecarFilename
         case .pageCollection: return NexusPaths.pageCollectionSidecarFilename
+        case .folder: return NexusPaths.folderSidecarFilename
         case .itemType: return NexusPaths.itemTypeSidecarFilename
         case .itemCollection: return NexusPaths.itemCollectionSidecarFilename
         case .taskConfig: return NexusPaths.taskConfigSidecarFilename
@@ -256,10 +258,13 @@ private let legacyCollectionSidecarFilename = "_collection.json"
 /// Pre-flatlayout unified sidecar name. The wrapper-layout unwrap reads + rewrites these.
 private let paradigmV2UnifiedSidecarFilename = "_schema.json"
 
-/// Set of all six new per-kind sidecar filenames — fast membership test.
+/// Set of all per-kind sidecar filenames — fast membership test.
+/// `_folder.json` was added at v0.3.2 (F.1.i) as the third-tier sidecar
+/// on the Pages side. Items side has no third tier.
 private let recognizedFlatSidecarFilenames: Set<String> = [
     NexusPaths.pageTypeSidecarFilename,
     NexusPaths.pageCollectionSidecarFilename,
+    NexusPaths.folderSidecarFilename,
     NexusPaths.itemTypeSidecarFilename,
     NexusPaths.itemCollectionSidecarFilename,
     NexusPaths.taskConfigSidecarFilename,
@@ -509,9 +514,14 @@ enum NexusAdopter {
     /// the caller.
     private static func recognizedSidecarsAt(_ folder: URL) -> [AdoptedSidecarKind] {
         var found: [AdoptedSidecarKind] = []
+        // Ordering matters — first wins for authoritative-sidecar selection
+        // (orphan cleanup picks `found.first`). Tier-1 kinds (Types) precede
+        // tier-2 kinds (Collections) precede tier-3 (Folder), matching the
+        // natural-parent inference rule.
         let allKinds: [AdoptedSidecarKind] = [
             .pageType, .itemType, .taskConfig, .eventConfig,
             .pageCollection, .itemCollection,
+            .folder,
         ]
         for kind in allKinds {
             let url = folder.appendingPathComponent(kind.filename, isDirectory: false)
@@ -631,6 +641,290 @@ enum NexusAdopter {
         )
     }
 
+    // MARK: - autoTagMissingSidecars (F.1.i — paradigm shift)
+
+    /// Silent three-level walk that writes missing per-kind sidecars so
+    /// Finder-built structure is first-class on the next launch. Runs
+    /// unconditionally from `NexusManager.runAdoptionIfNeeded` after the
+    /// legacy adoption `apply(_:)` pass — auto-tag runs whether legacy
+    /// adoption shows the preview or not.
+    ///
+    /// **Idempotent + silent.** No prompts, no UI; failures logged to stderr
+    /// and never abort. Skips dotfile-prefixed (`.nexus/`, `.obsidian/`,
+    /// `.trash/`) and underscore-prefixed folder names plus the
+    /// `adoptionExcludedSubFolderNames` set (`node_modules`, `.trash`).
+    ///
+    /// **Depth-aware kind selection:**
+    /// - Depth 0 unknown → content-sniff via `contentSniff` → `_pagetype.json`
+    ///   (md descendants) or `_itemtype.json` (json descendants); empty
+    ///   defaults to PageType.
+    /// - Depth 1, parent has `_pagetype.json` → write `_pagecollection.json`.
+    /// - Depth 1, parent has `_itemtype.json` → write `_itemcollection.json`.
+    /// - Depth 2, parent has `_pagecollection.json` → write `_folder.json`
+    ///   (the new third-tier sidecar; locked decision #11).
+    /// - Depth 2, parent has `_itemcollection.json` → no-op (Items side
+    ///   has no third tier).
+    ///
+    /// **Paradigm-shift note:** overrides the previous "non-Pommora folders
+    /// at root stay invisible to discovery" rule. Anything at the Nexus
+    /// root without a dotfile/underscore prefix is now presumed Pommora-tagged
+    /// on first launch and silently classified. This is the cost of "build
+    /// via Finder" — the user has chosen this Nexus as a Pommora root.
+    static func autoTagMissingSidecars(at nexusRoot: URL) {
+        let now = Date()
+        // Depth 0: Nexus root children
+        let topLevel = (try? Filesystem.childFolders(of: nexusRoot)) ?? []
+        for folder in topLevel where !shouldSkipForAutoTag(folder) {
+            tagDepth0IfMissing(folder, now: now)
+            // After depth-0 tagging, descend into this folder for depth-1
+            // and depth-2 work (even if we wrote the sidecar just now, we
+            // still want to seed Collections + Folders inside).
+            walkDepth1(folder, now: now)
+        }
+    }
+
+    // MARK: autoTag — depth helpers
+
+    /// Writes `_pagetype.json` or `_itemtype.json` if the folder has no
+    /// recognized sidecar yet. Existing legacy sidecars are NOT touched
+    /// here — the regular adoption path handles those.
+    private static func tagDepth0IfMissing(_ folder: URL, now: Date) {
+        let existing = recognizedSidecarsAt(folder)
+        guard existing.isEmpty else { return }
+        let title = folder.lastPathComponent
+        let sniff = contentSniff(folder)
+        let kind = sniff.kind  // .pageType or .itemType
+        do {
+            try writeAutoTagTypeSidecar(at: folder, kind: kind, title: title, now: now)
+        } catch {
+            #if DEBUG
+            FileHandle.standardError.write(Data(
+                "autoTag depth-0 write failed at \(folder.path): \(error)\n".utf8
+            ))
+            #endif
+        }
+    }
+
+    /// Walks the Collections inside `typeFolder` and writes missing
+    /// `_pagecollection.json` / `_itemcollection.json` sidecars (kind
+    /// dictated by parent). Then recurses into depth-2 for Pages-side
+    /// Collections (Folders inside).
+    private static func walkDepth1(_ typeFolder: URL, now: Date) {
+        // Re-read parent kind after depth-0 write — the type sidecar should
+        // now exist (or have existed before this run).
+        guard let parent = loadTypeParent(at: typeFolder) else { return }
+        let children = (try? Filesystem.childFolders(of: typeFolder)) ?? []
+        for child in children where !shouldSkipForAutoTag(child) {
+            tagDepth1IfMissing(child, parent: parent, now: now)
+            if parent.kind == .pageType {
+                // Only Pages side has a depth-2 tier.
+                walkDepth2(child, parentTypeID: parent.id, now: now)
+            }
+        }
+    }
+
+    /// Writes `_pagecollection.json` or `_itemcollection.json` if the folder
+    /// has no recognized sidecar. Kind is dictated by `parent.kind`.
+    private static func tagDepth1IfMissing(
+        _ folder: URL, parent: AutoTagTypeParent, now: Date
+    ) {
+        let existing = recognizedSidecarsAt(folder)
+        guard existing.isEmpty else { return }
+        let title = folder.lastPathComponent
+        let kind: AdoptedSidecarKind = parent.kind == .pageType
+            ? .pageCollection : .itemCollection
+        do {
+            try writeAutoTagCollectionSidecar(
+                at: folder, kind: kind, title: title,
+                typeID: parent.id, now: now
+            )
+        } catch {
+            #if DEBUG
+            FileHandle.standardError.write(Data(
+                "autoTag depth-1 write failed at \(folder.path): \(error)\n".utf8
+            ))
+            #endif
+        }
+    }
+
+    /// Walks Folders inside a PageCollection. Only invoked when the parent
+    /// is Pages-side; Items side has no depth-2 tier.
+    private static func walkDepth2(
+        _ collectionFolder: URL, parentTypeID: String, now: Date
+    ) {
+        // Re-read the Collection's id after depth-1 write.
+        let collectionMetaURL = collectionFolder.appendingPathComponent(
+            NexusPaths.pageCollectionSidecarFilename, isDirectory: false
+        )
+        guard Filesystem.fileExists(at: collectionMetaURL),
+              let collection = try? PageCollection.load(from: collectionMetaURL)
+        else { return }
+
+        let children = (try? Filesystem.childFolders(of: collectionFolder)) ?? []
+        for child in children where !shouldSkipForAutoTag(child) {
+            tagDepth2IfMissing(
+                child, parentTypeID: parentTypeID,
+                parentCollectionID: collection.id, now: now
+            )
+        }
+    }
+
+    /// Writes `_folder.json` if the folder has no recognized sidecar.
+    private static func tagDepth2IfMissing(
+        _ folder: URL,
+        parentTypeID: String,
+        parentCollectionID: String,
+        now: Date
+    ) {
+        let existing = recognizedSidecarsAt(folder)
+        guard existing.isEmpty else { return }
+        let title = folder.lastPathComponent
+        do {
+            try writeAutoTagFolderSidecar(
+                at: folder, title: title,
+                typeID: parentTypeID, collectionID: parentCollectionID, now: now
+            )
+        } catch {
+            #if DEBUG
+            FileHandle.standardError.write(Data(
+                "autoTag depth-2 write failed at \(folder.path): \(error)\n".utf8
+            ))
+            #endif
+        }
+    }
+
+    // MARK: autoTag — sidecar writers (silent)
+
+    /// Loaded parent identity used for depth-1 kind selection + FK threading.
+    private struct AutoTagTypeParent: Sendable, Equatable {
+        let id: String
+        let kind: AdoptedSidecarKind  // .pageType or .itemType
+    }
+
+    /// Reads the parent type sidecar (Pages or Items) to extract the id used
+    /// as FK on freshly-tagged child sidecars. Returns nil if neither type
+    /// sidecar exists or decoding fails (silent — failures don't abort).
+    private static func loadTypeParent(at folder: URL) -> AutoTagTypeParent? {
+        let ptURL = folder.appendingPathComponent(
+            NexusPaths.pageTypeSidecarFilename, isDirectory: false
+        )
+        if Filesystem.fileExists(at: ptURL),
+           let pt = try? PageType.load(from: ptURL)
+        {
+            return AutoTagTypeParent(id: pt.id, kind: .pageType)
+        }
+        let itURL = folder.appendingPathComponent(
+            NexusPaths.itemTypeSidecarFilename, isDirectory: false
+        )
+        if Filesystem.fileExists(at: itURL),
+           let it = try? ItemType.load(from: itURL)
+        {
+            return AutoTagTypeParent(id: it.id, kind: .itemType)
+        }
+        return nil
+    }
+
+    private static func writeAutoTagTypeSidecar(
+        at folder: URL, kind: AdoptedSidecarKind, title: String, now: Date
+    ) throws {
+        let metaURL = folder.appendingPathComponent(kind.filename, isDirectory: false)
+        switch kind {
+        case .pageType:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL,
+                metadata: PageType(
+                    id: ULID.generate(), title: title, icon: nil,
+                    properties: [], views: [], modifiedAt: now
+                )
+            )
+        case .itemType:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL,
+                metadata: ItemType(
+                    id: ULID.generate(), title: title, icon: nil,
+                    properties: [], views: [], modifiedAt: now
+                )
+            )
+        default:
+            // Defensive — depth-0 kind selection only routes Pages/Items
+            // Types. Other kinds at depth 0 require explicit type-creation
+            // flow inside the app.
+            return
+        }
+    }
+
+    private static func writeAutoTagCollectionSidecar(
+        at folder: URL,
+        kind: AdoptedSidecarKind,
+        title: String,
+        typeID: String,
+        now: Date
+    ) throws {
+        let metaURL = folder.appendingPathComponent(kind.filename, isDirectory: false)
+        switch kind {
+        case .pageCollection:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL,
+                metadata: PageCollection(
+                    id: ULID.generate(),
+                    typeID: typeID,
+                    title: title,
+                    folderURL: folder,
+                    modifiedAt: now
+                )
+            )
+        case .itemCollection:
+            try Filesystem.writeMetadataIntoExistingFolder(
+                metadataURL: metaURL,
+                metadata: ItemCollection(
+                    id: ULID.generate(),
+                    typeID: typeID,
+                    title: title,
+                    folderURL: folder,
+                    modifiedAt: now
+                )
+            )
+        default:
+            return
+        }
+    }
+
+    private static func writeAutoTagFolderSidecar(
+        at folder: URL,
+        title: String,
+        typeID: String,
+        collectionID: String,
+        now: Date
+    ) throws {
+        let metaURL = folder.appendingPathComponent(
+            NexusPaths.folderSidecarFilename, isDirectory: false
+        )
+        try Filesystem.writeMetadataIntoExistingFolder(
+            metadataURL: metaURL,
+            metadata: Folder(
+                id: ULID.generate(),
+                typeID: typeID,
+                collectionID: collectionID,
+                title: title,
+                folderURL: folder,
+                modifiedAt: now,
+                views: []  // PageTypeManager.loadAll mints the default Table view on first load
+            )
+        )
+    }
+
+    /// Auto-tag exclusion rule: skip dotfile-prefixed, underscore-prefixed,
+    /// and the `adoptionExcludedSubFolderNames` set. Matches the existing
+    /// scan-walk skip predicate for legacy adoption.
+    private static func shouldSkipForAutoTag(_ folder: URL) -> Bool {
+        let name = folder.lastPathComponent
+        if name.hasPrefix(".") || name.hasPrefix("_") { return true }
+        if adoptionExcludedSubFolderNames.contains(name) { return true }
+        return false
+    }
+
+    // MARK: - Legacy fresh-sidecar writer (scan/apply path)
+
     /// Writes a fresh per-kind sidecar based on the folder's content sniff.
     private static func writeFreshSidecar(
         _ fresh: PlannedFreshSidecar, now: Date
@@ -671,13 +965,13 @@ enum NexusAdopter {
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
             )
-        case .pageCollection, .itemCollection:
-            // Fresh PageCollection / ItemCollection writes are not initiated by
-            // the adopter for top-level folders — those land via type-creation
-            // flow inside the app. If we somehow get here, write a minimal
-            // sidecar so the folder is recognized.
-            // (Defensive — shouldn't happen given classifyFolder routes Types
-            // only into freshSidecars.)
+        case .pageCollection, .itemCollection, .folder:
+            // Fresh PageCollection / ItemCollection / Folder writes are not
+            // initiated by the LEGACY adopter for top-level folders — those
+            // land via type-creation flow inside the app, or via the silent
+            // `autoTagMissingSidecars` pass below for Finder-built folders.
+            // If we somehow get here through the scan/apply path, no-op.
+            // (Defensive — classifyFolder routes Types only into freshSidecars.)
             break
         }
     }
@@ -815,6 +1109,15 @@ enum NexusAdopter {
             cleanupOrphansAt(sub, fm: fm, legacyNames: [
                 legacyCollectionSidecarFilename, paradigmV2UnifiedSidecarFilename,
             ])
+            // Two-level-deep cleanup (Folders inside Collections — F.1.i).
+            // Folders are brand-new at v0.3.2 — no legacy sidecar names to
+            // sweep, just co-located per-kind orphan handling.
+            let subSubFolders = (try? Filesystem.childFolders(of: sub)) ?? []
+            for subSub in subSubFolders where !isHiddenOrExcludedSub(subSub) {
+                cleanupOrphansAt(subSub, fm: fm, legacyNames: [
+                    paradigmV2UnifiedSidecarFilename,
+                ])
+            }
         }
     }
 

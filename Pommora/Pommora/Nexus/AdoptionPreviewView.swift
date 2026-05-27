@@ -450,6 +450,7 @@ struct AdoptionPreviewView: View {
     private func iconForSidecar(_ kind: AdoptedSidecarKind) -> String {
         switch kind {
         case .pageType, .pageCollection: return "folder.fill"
+        case .folder: return "folder"
         case .itemType, .itemCollection: return "tablecells"
         case .taskConfig: return "checkmark.circle"
         case .eventConfig: return "calendar"
@@ -460,6 +461,10 @@ struct AdoptionPreviewView: View {
         switch kind {
         case .pageType: return labels.pageType.singular
         case .pageCollection: return labels.pageCollection.singular
+        // F.1.i — literal stopgap until F.5 wires `labels.folder.singular`
+        // through SettingsLabels (needs defensive `init(from:)` to decode
+        // legacy settings.json files without the field).
+        case .folder: return "Folder"
         case .itemType: return labels.itemType.singular
         case .itemCollection: return labels.itemCollection.singular
         case .taskConfig: return labels.agendaTask.plural
