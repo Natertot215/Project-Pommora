@@ -2,9 +2,9 @@
 
 > **Read this first at session start.** Snapshot of where things stand + what to pick up next. Detailed shipped history in `History.md`; phased roadmap in `Framework.md`.
 
-#### Current state (2026-05-26 — `main` at `e7c6295`, +43 commits ahead of `origin/main`)
+#### Current state (2026-05-26 — `main` pushed to `origin/main` at session end)
 
-**Session outcome: F.0 + F.1.a–F.1.g all SHIPPED on `main`. F.1.h is partially in working tree (uncommitted).** Six commits landed this session on top of `0a0411a`:
+**Session outcome: F.0 + F.1.a–F.1.g all SHIPPED on `main`. F.1.h is partially in working tree (uncommitted). `origin/main` is now in lock-step with `main`** (fast-forward push, no rewrite) so both this session and the parallel v0.3.1 Properties session operate against the same remote baseline. **Start each new session with `git pull origin main`** before doing anything else — both sessions push back to the same branch, so the remote is the canonical truth and either session can be ahead at any moment. Six commits landed this session on top of `0a0411a`:
 
 | Commit | Scope |
 |---|---|
