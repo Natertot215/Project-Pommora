@@ -131,9 +131,23 @@ struct PropertyTypePickerPane: View {
         case .datetime:
             return PropertyDefinition(id: "", name: name, type: .datetime)
         case .select:
-            return PropertyDefinition(id: "", name: name, type: .select, selectOptions: [])
+            // Seed one default option so PropertyDefinitionValidator passes on
+            // create (it throws .selectMissingOptions for an empty options
+            // array). User customizes / removes the placeholder in
+            // EditPropertyPane.
+            return PropertyDefinition(
+                id: "", name: name, type: .select,
+                selectOptions: [
+                    PropertyDefinition.SelectOption(value: "option_1", label: "Option 1", color: nil)
+                ]
+            )
         case .multiSelect:
-            return PropertyDefinition(id: "", name: name, type: .multiSelect, selectOptions: [])
+            return PropertyDefinition(
+                id: "", name: name, type: .multiSelect,
+                selectOptions: [
+                    PropertyDefinition.SelectOption(value: "option_1", label: "Option 1", color: nil)
+                ]
+            )
         case .status:
             return PropertyDefinition(
                 id: "", name: name, type: .status,
