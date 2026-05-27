@@ -1,6 +1,6 @@
 ### Pommora — History
 
-Locked decisions, ordered by area. Brief by design — implementation detail lives in `PommoraPRD.md` and the feature docs.
+Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
 #### Folders (third Pages-side tier) — tried and reverted (2026-05-27)
 
@@ -8,7 +8,7 @@ Built a full `PageType → PageCollection → Folder → Page` third tier (model
 
 #### v0.3.1 Properties end-to-end (2026-05-26 — shipped on main as 21 commits, baseline `627e972` → tip `0d5aa16`)
 
-Single-session execution of the approved `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases). Tasks 1-20 shipped + Task 21 (PropertyEditorRow stub patches in Item Window inspector) intentionally deferred to v0.3.1.x — the cell editor bypasses that dispatcher entirely so the headline UX ships without it. Task 23 (`git push` + Nexus mirror) paused for Nathan's auth.
+Single-session execution of the approved `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases). Tasks 1-20 shipped + Task 21 (in-window item property editing — wiring the Item Window inspector's `PropertyEditorRow` stubs to real per-type editors) deferred to v0.3.1.x. **The deferral is deliberate, not technical:** the Item Window is still a placeholder UI slated for a rebuild, so the in-window property-editor work shouldn't be invested in a surface that's about to change — it waits for the real Item Window. Task 23 (`git push` + Nexus mirror) paused for Nathan's auth.
 
 **Phase ship map:**
 - **Phase A — Data layer foundations** (Tasks 1-5b): `DisplayVariant` enum (`.box`/`.select`/`.chip`, Status-only render variant) + `DateFormat` enum (6 cases) + `PropertyDefinition.displayAs` + `.dateFormat` (additive Codable) + `ItemType.singular` (Capacities-style label) + `SavedView` Codable upgrade (real fields + reserved sort/filter/group stubs) + `views: [SavedView]` on PageCollection + ItemCollection + default-view migration on PageTypeManager.loadAll + ItemTypeManager.loadAll (quirk #15 pattern) + PropertyChipColor cleanup (12 cases — drop `.cyan`/`.mint`/`.gray`, add `.orange`/`.accent`; retire tier system; new OptionColorPicker 5x2 grid). 6 commits.
@@ -135,10 +135,10 @@ Same-day post-merge: design-system foundations + UX correctness sweep + one arch
 
 1. **Status value on-disk encoding = `{"$status": value}` tagged-object form.** Matches `{"$rel": id}` relation pattern. Pure shape-sniff at the Codable layer can't disambiguate `.status` from `.select`; tagged form is round-trip-stable AND agent-legible.
 2. **Move-strip matches by NAME, not ID.** Property IDs are globally unique per `property_definitions.id PRIMARY KEY`; ID-based cross-type matching is structurally impossible. `IndexQuery.moveStripCount` filters by name; Pages keep values where dest has a same-named property.
-3. **Reserved property IDs:** `_id`, `_created_at`, `_modified_at`, `_status`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`. User-defined properties mint `prop_<ulid>`.
+3. **Reserved property IDs:** `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks` (`_type` added Phase D.4). User-defined properties mint `prop_<ulid>`.
 4. **`schema_version: 1` on every sidecar.** Legacy decode → 0 = needs migration. Index DB carries its own `schema_version` in `meta` table; mismatch triggers delete + rebuild.
 5. **`PropertyIDMigration` runs on EVERY nexus open** (not only when adoption is also needed). Idempotent. Preview sheet shows per-Type counts before commit.
-6. **tier1/2/3 are root-level frontmatter fields**, not nested under `properties:`. Reserved IDs `_tier1`/`_tier2`/`_tier3` block user collisions. Edited via `ContextTierPicker`.
+6. **tier1/2/3 are root-level frontmatter fields**, not nested under `properties:`. Reserved IDs `_tier1`/`_tier2`/`_tier3` block user collisions.
 7. **AgendaTask + AgendaEvent default seed = single `_status` Status property.** Legacy `type` Select removed. Load-path migration injects on existing schemas via `SchemaTransaction`.
 8. **`DualRelationCoordinator` is the lifecycle owner of paired relations.** Manager `addProperty`/`deleteProperty` route paired-relation work through it; container-scoped relations get atomic dual creation, value mirroring on set/clear, atomic delete-with-value-cascade.
 9. **`AttachmentManager` is the only path for file values.** Copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/`; 50 MB warn / 500 MB hard cap; cascade-delete to trash on entity delete.
@@ -150,34 +150,7 @@ Same-day post-merge: design-system foundations + UX correctness sweep + one arch
 
 #### v0.3.0 Properties — Phases A–G shipped on `v0.3.0-properties` (2026-05-24 EOD)
 
-44 commits on branch (off `main`). Build green; full unit suite passing with two known pre-existing failures (`NexusAdopterTests/applyNathansActualShape` from parallel-session NexusAdopter working-tree change + `PageEditorViewModelTests/debounceCoalescesRapidEdits` flake under full-suite load).
-
-**Phases shipped (in commit order):**
-
-| Phase | Scope | Commit |
-|---|---|---|
-| A.1–A.6 | Foundation types: 11-case `PropertyType`; `PropertyValue` + `FileRef`; `ReservedPropertyID` + `mintUserPropertyID`; 5-case `RelationScope` (tagged-object on-disk); `PropertyDefinition` stored `id` + config fields + `StatusGroup`/`StatusOption`/`StatusGroupID` + `DualPropertyConfig` nested | `cd61ed4`–`1f85548` |
-| B.1 | `SchemaTransaction` atomic multi-file commit primitive | `f31bda0` |
-| C.1, C.3, C.4, C.5 | Migration suite: `PageFrontmatter.modifiedAt` + `schema_version: 1` on every sidecar + `PropertyIDMigration` two-phase scan/apply API runs every nexus open + `AdoptionPreviewView` surfaces migration counts before commit | `d69fd97`, `3afeec9`, `8ff9dc9`, `87dcf76` (+ fix `c60fe48`) |
-| D.1–D.8 | Schema CRUD on all 4 schema-bearing managers (`addProperty`/`renameProperty`/`changeType`/`deleteProperty`/`reorderProperty`); `PropertyDefinitionValidator` 8 rules; `schemaByID` rewire + drop `duplicateTitle`; `default_sort` on every sidecar; `SchemaConflictDialog` EC4 drift defense | `5e6a0de`–`516e2e5` |
-| E.1–E.7.5 | SQLite index live end-to-end: GRDB.swift SPM dep; `PommoraIndex.open(at:)` lifecycle with schema-version recovery; 12-table schema; `IndexBuilder` two-phase populate (MainActor walk → `Sendable` snapshot → single GRDB transaction); `IndexUpdater` wired into all 6 managers; `IndexQuery` Notion-style filter+sort+broken-links; `NexusManager` opens/rebuilds index; `ContentView.constructManagers` plumbs `IndexUpdater` so mid-session mutations propagate | `064f8dc`–`0b629bc` (+ name-match fixup `ef43eb9`) |
-| F.1–F.2 | `AttachmentManager` copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/` with MIME accept-list (wildcard support), 50 MB warn / 500 MB hard cap, collision-safe filename suffixing; cascade-delete to trash on entity delete across all 4 entity managers | `d696100`, `7bb883d` |
-| G.1–G.5 | AgendaTask + AgendaEvent schema defaults inject `_status` Status property; load-path backfill for pre-existing schemas via SchemaTransaction; `DualRelationCoordinator` manages paired-relation lifecycle (create/value-mirror/rename/delete); wired into `PageTypeManager` + `ItemTypeManager.addProperty`/`deleteProperty` to route paired relations through coordinator | `9edb2db`–`13af10f` (+ validator regression fix `71ce2da`) |
-
-**Locked decisions this branch:**
-
-1. **Status value on-disk encoding = `{"$status": value}` tagged-object form.** Matches the `{"$rel": id}` relation pattern. Pure shape-sniff at the Codable layer can't disambiguate `.status` from `.select` (both single strings); tagged form is round-trip-stable AND agent-legible.
-2. **Move-strip matches by NAME, not ID.** Property IDs are globally unique per `property_definitions.id PRIMARY KEY`, so ID-based cross-type matching was structurally impossible. `IndexQuery.moveStripCount` filters by name; a Page keeps property values where the destination has a property of the same name.
-3. **Reserved property IDs:** `_id`, `_created_at`, `_modified_at`, `_status`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`. User-defined properties mint `prop_<ulid>`.
-4. **`schema_version: 1` on every sidecar.** Legacy decode → 0 = needs migration. Index DB carries its own `schema_version` in `meta` table; mismatch triggers delete + rebuild.
-5. **Property-ID migration runs on EVERY nexus open** (not only when adoption is also needed). Idempotent. Preview sheet shows per-Type counts before commit.
-6. **Tier1/2/3 are root-level frontmatter fields**, not nested under `properties:`. Reserved IDs `_tier1`/`_tier2`/`_tier3` block user collisions.
-7. **`AgendaTaskSchema` + `AgendaEventSchema` default seed = single `_status` Status property.** Legacy `type` Select removed. Load-path migration injects on existing schemas via `SchemaTransaction`.
-8. **`DualRelationCoordinator` is the lifecycle owner of paired relations.** Manager `addProperty`/`deleteProperty` route paired-relation work through it; container-scoped relations get atomic dual creation, value mirroring on set/clear, atomic delete-with-value-cascade.
-
-**Parallel-session state:** sidebar drag-reorder native `.onMove` rebuild + `RenameableRow` extraction merged into branch as `c98ecd6` during C.5. End-of-day working tree carries ~15 uncommitted sidebar/manager mods + 1 untracked `Sidebar/NSTableSelectionStyleSuppressor.swift` + 1 untracked plan doc from a continuing parallel sidebar-color iteration — quirk #11 (hands-off).
-
-**Next session opens at:** Phase H (move-strip primitive + cross-Type move methods on `PageContentManager` + `ItemContentManager` using `SchemaTransaction`). Then I (settings scaffold + auto-migration), J (placeholder UI suite, ~15 sub-tasks), K (Calendar pinned list view). After J + K land, v0.3.0 is shippable end-to-end.
+44-commit interim milestone: Phases A–G complete on the branch (off `main`). Build green; full suite passing with two known pre-existing failures (`NexusAdopterTests/applyNathansActualShape` from a parallel-session working-tree change + `PageEditorViewModelTests/debounceCoalescesRapidEdits` full-suite flake). Phase/commit detail and the branch's locked decisions are folded into the FEATURE-COMPLETE A–K entry above (2026-05-25). Parallel-session: sidebar drag-reorder `.onMove` rebuild + `RenameableRow` extraction merged as `c98ecd6` during C.5.
 
 ---
 
@@ -593,147 +566,9 @@ Sprawling session: SPM dep on Pallepadehat fork → full domain layer + 10 tests
 
 **Quirk added this session:** branch-pinned SPM forks don't bump via gentle `xcodebuild -resolvePackageDependencies` — need full nuke of `Package.resolved` + `DerivedData/.../SourcePackages` + `~/Library/Caches/org.swift.swiftpm/repositories/<DepName>-*`. Documented in `v0.2.7-g` commit message.
 
-#### Decisions
+#### Founding decisions (2026-05-16…18) — superseded
 
-##### Stack — SwiftUI
-
-Stack is SwiftUI. Dual-stack evaluation (React+Electron vs SwiftUI) closed on SwiftUI for Mac cohesion, Apple ecosystem alignment, and iOS/iPad intent. React+Electron preserved as contingency at `// ReactInfo//`.
-
-- **Editor strategy: two SwiftUI options.** Option 1 — native: NSTextView via `NSViewRepresentable` + `swift-markdown` + TextKit 2 (Clearly available as fork-reference, FSL-1.1-MIT → MIT Feb 2028). Option 2 (likely direction) — WKWebView hosting Tiptap / Milkdown / BlockNote / MarkdownEditor. Detail → `// Features//Pages.md`.
-- **Mac OS integration first-party** on SwiftUI — QuickLook, CoreSpotlight, Share Extensions, Finder file-promise drag-out, sidebar vibrancy, accessibility. Detail → `PommoraPRD.md`.
-- **Distribution** Sparkle 2.x for non-MAS auto-update; TestFlight for Mac; security-scoped bookmarks for MAS sandbox. Detail → `PommoraPRD.md`.
-- **React-side editor research** at `// ReactInfo//Editor.md` — BlockNote (MPL-2.0) and Tiptap (MIT) co-primary; `@tiptap/markdown` first-party round-trip. Same candidates serve as Option 2 in-WebView editor on Swift.
-
-##### SwiftUI research findings (preserved)
-
-- `TextEditor(text: Binding<AttributedString>, selection:)` documented for iOS 26+ / macOS 26+ (Tahoe).
-- `apple/swift-markdown` suitable as parse / AST / query layer. `MarkupFormatter` reformats rather than round-trips; not a fit for save path — hand-rolled writer expected.
-- Native `.draggable` + `.dropDestination` + `Transferable` are Apple's documented D&D API for new SwiftUI code.
-- Wikilinks-as-styled-spans follows WWDC25 Session 280 rich-text guidance; verified in build.
-- `AttributedString(markdown:)` is one-way (no `.markdown` accessor) — save path needs its own writer.
-- swift-markdown block directives use DocC `@Name(args){...}` syntax (NOT Pandoc / Obsidian `:::`), via `ParseOptions.parseBlockDirectives`. A `:::` ↔ `@` preprocessor or swift-markdown fork needed for Pommora directives.
-- Candidate component libraries: `stevengharris/SplitView`, `visfitness/reorderable`, `SwiftUIX/SwiftUIX`. Selection at build time.
-- References: WWDC25 Session 280 ("Cook up a rich text experience in SwiftUI with AttributedString"); Apple "Building rich SwiftUI text experiences".
-
-##### Architecture (three load-bearing constraints)
-1. **Stack portability of functionalities** — file formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design values, UX patterns survive a stack rebuild. Codebase doesn't. **No enforced layer separation** (Core/Adapter/UI rule dropped); portability comes from documented decisions.
-2. **Cross-nexus queryability + cloud sync compatibility** — Collections aren't isolated; queryable and linkable from anywhere. On-disk model maps cleanly to a cloud DB (shared `pages` / `items` tables keyed by `collection_id`; `_collection.json` → `collections` row; each Space → `spaces` row). Sync arrives as additive translation. Cloud sync is real long-term intent.
-3. **Persistent immediate legibility for agents** — every entity is a file an external agent reads directly without tool-call round-trips. SQLite is performance scaffolding, not source of truth. Differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (legible but unstructured). Pommora = local + structured.
-
-##### Domain Model (revised 2026-05-16 — replaces earlier 3-entity model)
-
-**2-layer PARA-aligned model:**
-- **Organization layer — Contexts** (3 tiers): **Spaces** (1, broad life domains) / **Topics** (2, subject areas) / **Sub-topics** (3, specifics within a Topic). All three are composed-blocks surfaces.
-- **Operational layer — Vaults + Agenda:** **Vaults** (folder + `_vault.json` with shared schema) contain **Collections** (sub-folders sharing the Vault's schema in v1) which contain **Pages** (`.md`) + **Items** (`.json`). **Agenda** is a sibling of Vaults at `<nexus>/Agenda/` holding `.agenda.json` files with EventKit integration.
-- **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
-
-**Tier system rules:**
-- Tier-parent rule — every `parents[i]` resolves to a Context with `level < this.tier`. Cycles impossible by construction.
-- Topics multi-parent across Spaces; Sub-topics single-parent at file (folder location = parent Topic) with additional `linked_relations` as typed multi-valued relation property.
-- No same-tier file-structural links (Topic ↛ Topic; Space ↛ Space).
-- Tier-skip allowed.
-- Per-tier labels user-configurable per-Nexus (Capacities-style singular + plural in `.nexus/tier-config.json`).
-- **Three tiers default; tier 3 ("Sub-topics") exposed in v1.** Code/schema supports a fourth tier without changes (gated by `exposed` flag).
-
-**Operational layer rules:**
-- Vaults are **kind-agnostic** — Pages and Items coexist under the shared Vault schema. Earlier `kind: "pages" | "items"` Collection typing is gone.
-- Collections in v1 are pure sub-folders (no own metadata file, no own schema). Collection-local schema overrides are a post-v1 Prospect.
-- **Tasks and calendar events are NOT Items** — they live as **Agenda items** with EventKit integration. Schema is unified (no `kind` discriminator); user-facing type (Task / To-Do / Phase / Event / custom) is a `properties.type` Select.
-- Per-tier multi-relations (`tier1` / `tier2` / `tier3`) on Items / Pages / Agenda items replace the earlier `spaces` multi-relation.
-- Move-strip rule survives — moving Content between Vaults strips properties not in destination schema with confirm.
-- No in-place Item ↔ Page promotion in v1 (Prospect).
-- No default seeded Collections; first launch seeds the singleton Homepage entity (not a Space).
-
-**Sidebar shape:**
-- Four top-level sections: **Saved / Spaces / Topics / Vaults**. Replaces the earlier three-heading model (Spaces / Saved / Collections).
-- Saved holds three fixed entries (Homepage / Calendar / Recents) with renamable labels (`saved-config.json`).
-- Agenda items don't appear in the sidebar — accessed via Saved → Calendar.
-
-**Inline editing principle (locked):**
-- Every embedded view in a composed-blocks surface (Context, Homepage) is a live, fully-editable view of its source — never a read-only snapshot.
-- Edits route through source entity's manager → atomic write → file watcher → SQLite re-index → all embedded views refresh.
-- Full inline editing of a referenced Page's body (Notion "synced blocks") is post-v1 (Prospect).
-
-**EventKit integration contract:**
-- Agenda items map to `EKEvent` / `EKReminder` based on which time fields are populated.
-- Sandbox entitlement `com.apple.security.personal-information.calendars` + Info.plist usage description keys + modern `requestFullAccessTo*` APIs required.
-- Sync NOT enabled by default in v1 — opt-in via Settings.
-
-**Full revised spec** lives at `// Planning//Contexts-Vaults-spec.md` (file schemas, validation, CRUD scope, 11-phase implementation plan, SwiftUI research findings, day-1 working plan, doc-rewrite tracking).
-
-##### Storage Layout
-- **Nexus location is user-pickable on first launch** (default suggestion `~// PommoraNexus//`). The user can place the nexus in iCloud Drive / Dropbox / any synced folder for free device-to-device sync in v1.
-- **App-internal config folder: `.nexus//`** (leading dot, hidden by default — matches `.obsidian` convention; renamed from the earlier underscore-prefix `_pommora//`). Lives inside the nexus. v0.1a holds `nexus.json` (vault-portable identity: ULID + createdAt). v0.2+ adds `state.json` (vault-portable user state: open tabs, sidebar collapsed state) and `spaces//` (`.space.json` files).
-- **`nexus.db` lives outside the nexus** at `~//Library//Application Support//com.nathantaichman.Pommora//nexuses//<nexus-id>//nexus.db`. Resolves the iCloud-sync corruption risk that motivated moving SQLite out of the cloud-syncable nexus folder. Per-nexus subdir keyed by ULID survives nexus rename/move; marked `isExcludedFromBackupKey` so iCloud Backup skips the regeneratable index. Per Apple Foundation + GRDB.swift recommendation; SQLite official guidance against placing DBs on network filesystems.
-- **App-level state.json** at `~//Library//Application Support//com.nathantaichman.Pommora//state.json` holds machine-specific state (security-scoped bookmark of the last-opened nexus; future recent-nexuses, last-window-frame). No UserDefaults dependency.
-- **Three Codable files, three concerns:** identity (`<nexus>/.nexus/nexus.json`, vault-portable, ULID-based), app state (`App Support/.../state.json`, machine-specific, holds bookmarks), nexus user state (`<nexus>/.nexus/state.json`, vault-portable, future v0.2+). The boundary is enforced by *where the file physically lives*, not by code.
-- **Nexus-local trash: `.trash//`** at the nexus root (sibling of `.nexus//`). Deleted entities move here, preserving original relative path. Restoration is a straight file move back. Auto-purge / age-based clearing is post-v1; v1 ships with manual clear only.
-- **`.space.json` files** carry the full block tree. `_collection.json` is the Collection's schema sidecar (Make.md folder-notes pattern).
-- **Files canonical, SQLite as index.** Markdown for Pages; JSON for everything else. SQLite is regeneratable from files.
-- **Cloud-sync mapping** in PRD: a single shared `pages` table with `collection_id` + `properties` JSONB column; parallel `items` table with the same shape; one `collections` row per `_collection.json`; one `spaces` row per `.space.json`.
-
-##### Property Model
-- **No free-form text property.** Title is the filename; "text-shaped" values use Select / Multi-select with creatable options (Notion behavior).
-- **No dedicated `Status` type.** Status-like behavior = a Select named "Status" with user-defined options.
-- **v1 catalog (8 types):** number, checkbox, date, datetime, select, multi-select, relation, URL.
-- **Per-Collection schemas** — each `_collection.json` holds its own property schema and saved views. No shared schemas file.
-- **Property values** — Pages in YAML frontmatter; Items in the `.json` file's `properties` key. Same catalog, two storage substrates.
-- **Color palette for Select / Multi-select** = fixed 9-color Notion palette (`gray`, `brown`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`, `red`). Custom hex picker is a Prospect.
-- **Property panel shows every schema property always** (Notion-style), even unset. Hide-empty is a Prospect.
-- **Option order within Select / Multi-select properties defines sort behavior** — drag-to-reorder options; ascending sort returns first-listed first. Replaces alphabetical sort.
-- **View-level column ordering is visual, per-view** (drag column headers; stored in the view spec). Schema-level property declaration order is append-on-add in v1.
-- **Inline cell editing in Table view** confirmed.
-- **Relations are stored by ID** (rename-safe) and **displayed as the target's current title** (resolves ID → title at render time; renames update display automatically).
-- **Move-strip rule (Notion-style):** moving a member across Collections (or in/out of loose state) strips properties not in the destination schema. No `_orphaned` quarantine, no backup. **User gets a simple confirmation warning** listing which properties will be stripped before the move proceeds. Same rule applies to property deletion.
-- **Auto-managed fields**: `id` (ULID), `created_at`, `modified_at` on every member and every loose entity.
-
-##### Editor
-- **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips/pills.
-- **Pages are Markdown documents, not block surfaces** — one continuous Markdown stream. "Block-level features" as a project term belongs to Spaces only.
-- **Two Pommora-specific Markdown directives on Pages**: `@Columns` (`:::columns`) renders a section in N horizontal columns; `:::callout` renders an outlined-box callout (distinct from blockquotes). Both directives resolve cleanly when read by external Markdown tools.
-- **Standard Markdown features**: paragraphs, headings H1–H5 (in v0's type scale; no H6 token; **headings are foldable by default** — built-in UI, not a directive), lists, code blocks + inline code, images, GFM tables, blockquotes, horizontal rules. Tables are GFM. Dividers are `---`. Side-by-side callouts or blockquotes via `@Columns` wrapping.
-- **Blockquotes vs callouts are distinct constructs.** Blockquotes use standard `>` syntax and render as a filled box with a left-side emphasis bar. Callouts use the `:::callout` directive and render as a minimally-rounded outlined box. Each binds to its own brand-value family — `blockquote// fg` / `bg` / `accent` (left bar) and `callout// fg` / `bg` / `border` — alongside SwiftUI semantic colors.
-- **Code rendering.** Code blocks and inline code render in SF Mono at 1.0 em. Foreground and background bind to Pommora-brand values (`code// fg`, `code// bg`) so the code palette can be tuned independently of text and accent.
-- **Columns are equidistant in v1** — width division by child count. Adjustable widths deferred.
-- **`@View` (in-line database view embed in a Page) is deferred to v2+.** Easier on Option 2 (WKWebView + JS editor — same node-component approach BlockNote and Tiptap support directly); harder on Option 1 (native editor) due to layout-attachment complexity. Embedded Collection views remain available *inside Spaces* (widget blocks) for v1.
-- **Wikilink syntax variants in scope, incremental**: `[[Page Name]]` ships in v0.5; aliases (`[[name|alias]]`), heading anchors (`[[name#heading]]`), and asset embeds (`![[asset]]`) land as follow-ups.
-- **Editor serialization architecture (load-bearing, applies to either option):** (a) Canonical on-disk = Markdown for Pages, JSON for Spaces / Items / Collections. (b) Rich in-editor working format = styled attributes on Option 1, JS editor's block tree on Option 2. (c) Explicit serializers bridge the two for Pommora directives (`:::columns`, `:::callout`, wikilinks). Stack-agnostic principle in `// Features//Architecture.md`; React-side detail (BlockNote `blocksToMarkdownLossy` / `tryParseMarkdownToBlocks`, Tiptap `editor.getJSON()` + `@tiptap/markdown`) at `// ReactInfo//Editor.md`.
-- **SwiftUI editor options.** Option 1 (native): NSTextView via `NSViewRepresentable` + `swift-markdown` + TextKit 2 — text storage IS the Markdown source, styling layered as attributes, marker hiding/reveal selection-driven. Clearly is fork-able baseline. Option 2 (likely): WKWebView hosting Tiptap / Milkdown / BlockNote / MarkdownEditor. [MarkEdit](https://github.com/MarkEdit-app/MarkEdit) is the production reference; [Pallepadehat/MarkdownEditor](https://github.com/Pallepadehat/MarkdownEditor) is a Swift Package wrapping CodeMirror 6 in WKWebView with Obsidian-style syntax hiding, GFM tables, SF fonts (MIT; single contributor — fork rather than depend). Pommora extensions to add: `:::callout`, `:::columns`, wikilinks (CM6 extensions). `file://` ES-module block resolved by `WKURLSchemeHandler` registered for custom scheme (Apple-documented); cross-origin caveat doesn't bite when bundle ships inside `.app`.
-
-##### Sidebar + Shell
-- **Three top-level collapsible headings, default-collapsed, user-reorderable**: Spaces (leaf labels), Saved (non-operational placeholder in v1 — pinning is post-v1), Collections (kind-agnostic; each Collection is a folder-style disclosure).
-- **Sidebar selection language locked**: custom `SelectableRow` with tap-driven `@State var selection: String?` (not `List(selection:)`). `Color.gray.opacity(0.11)` rounded fill via `.listRowBackground`, accent foreground on selected icon + text, `+0.11` brightness via `.brightness(_:)` to compensate for fill dimming, `.symbolRenderingMode(.monochrome)`. Required because `.tint(_:)` doesn't recolor sidebar List selection on macOS Tahoe — NSTableView ignores SwiftUI's tint for `.sourceList` highlight. Custom approach also combines gray fill + accent foreground. Trade-off: fill doesn't desaturate on window unfocus like Finder/Mail. Detail → `// Features//Sidebar.md`.
-- **No Loose sidebar group.** Loose entities reach via search, wikilinks, or pinning.
-- **No raw filesystem view in v1.**
-- **"Collapsed-by-default disclosure"** is the general UI pattern for any hierarchical or grouped content.
-- **Three-pane shell** (240 sidebar / flex main / 280 inspector, hidden by default in v0.0): two-column `NavigationSplitView(sidebar:detail:)` + `.inspector(isPresented:)` at split-view level. Two-column chosen because third column is for drill-down, not contextual side panel. System sidebar toggle (NSSplitView animation, Mail/Notes/Finder pattern); inspector toggle inside `.inspector { … }` closure (anchors to inspector toolbar segment), wrapped in `withAnimation(.smooth(duration: 0.30))`. Widths persist. Property-panel content lands v0.6.
-- **Main pane is multi-tabbed** (Obsidian / Notion pattern). Tab row at top; each tab = one open view (Page / Collection with active view / Space). **Tab chrome + navigation ship v0.1** when files open (v0.0 has no tab chrome — chrome-without-functionality removed as dead weight). `+` / `×` / `Cmd+T` / `Cmd+W` / `Cmd+1..9` / `Ctrl+Tab` shortcuts. Open tabs + active tab persist. Items don't get tabs in v1 — they open in **Item window**: popover-style floating surface anchored to trigger (Calendar-event-detail pattern), holding title + property inputs + 250-char description. Tabs reserved for full-pane views; inspector is Page property panels only. Detail → `PommoraPRD.md`.
-- **Property panel default location is the right inspector pane.** Below-heading and page-bottom placements are Prospects.
-- **Inspector pane has two planned views.** Default view in v1 is the property panel for the active Page. An **AI chat interface** is a planned future addition (post-v1) — a frontend to Nathan's existing local CLI (not an API integration; the same pattern he already uses on Obsidian). See `// Features//Prospects.md`.
-
-##### Views
-- **Five view types in v1**: table, board, list, cards, gallery.
-- **Inline cell editing** in Table view; **board view ships as visual kanban layout** in v0.9 (cards grouped by a property's options; edit a card to "move" it); **drag-to-rewrite-frontmatter kanban** is a planned post-v1.0 follow-up.
-- **Two contexts for views**: inside a Collection (saved views in `_collection.json`); embedded as a Space widget (filter / sort / group / shown-properties override locally).
-
-##### Scope and Posture
-- **Mac for v1**; Linux / Windows aren't on the v1 path and become contingency-only on SwiftUI. **iOS / iPad is real long-term intent** — SwiftUI ships there essentially for free; one of the values that drove the SwiftUI lock.
-- **Plugin system out of scope**, now and indefinitely. Personal tool, not a platform.
-- **Versioning / file history delegated to OS tools** (Time Machine, git, filesystem snapshots). Pommora handles in-session undo only.
-- **Single-user.** Multi-user collaboration is out of scope.
-
-##### First-Launch Experience
-- **Empty sidebars + seeded `Homepage` Space.** No tutorial, no walkthrough wizard. First Pages / Collections are user-created.
-
-##### Design System
-- **Swift-native baseline.** SwiftUI semantic colors + Pommora-brand `Color` / `Font` extensions for values not covered by native semantics; component library at `// UI-UX//Components//` consumes them. For Swift, only a small subset matters (accent, code, callout, blockquote); semantic colors carry the rest. Full ~118-token Figma-built taxonomy is React-flavored, preserved at `// ReactInfo//Styling-Tokens.md`.
-- **One initial scheme** in v0.x — no built-in light / dark; in-app customization is limited to accent color + font size (Framework v0.12). SwiftUI semantic colors, Materials, and Dynamic Type cover the rest natively.
-- **Visual direction:** Notion-comfortable density; pastel-leaning color treatment (muted / desaturated); flat dark chrome (no shadows except on overlays); mixed-scale rounding (pill for tags / chips, tight for buttons / toggles / labels, surface for cards / panels / modals — Notion / Claude-style).
-- **Typography pairing:** SF Pro (sans) + SF Mono (mono), system-native via SwiftUI Font scale. Heading scale is em-relative (H1–H5; no H6 in v0) so changing body rescales every heading.
-- **Accent:** Single-hue, 2×2 matrix — primary/active, primary/muted, secondary/active, secondary/muted. All 4 stops share the same hue; descending in saturation + lightness. App accent color lives in `Assets.xcassets/AccentColor.colorset`; the other stops live as `Color+Pommora.swift` extensions. Specific hue is deferred — Xcode default stands in until the design lock.
-- **SF Symbols on Swift** via `Image(systemName:)` — no indirection layer. (Material Symbols + role-indirection via `.nexus//symbols.json` is the React-side approach, preserved at `// ReactInfo//Symbols-guide.md`.)
-- **In-app customization** (Framework v0.12) covers two values: accent color and font size. SwiftUI handles dark mode, semantic colors, Materials, and Dynamic Type natively — no additional override surface needed. Spacing / radius / shadow stay on baseline.
-- **Disclosure pattern + DisclosureLine.** Multiple disclosure types (tree/folder, heading, toggle block, sidebar section header), all built on one `Disclosure` primitive with `indent line` variant. `true` for tree/folder — renders `DisclosureLine` hairline guide tracing depth (Obsidian / VSCode). `false` for heading + toggle blocks — no line. DisclosureLine is a sub-element of Disclosure, never independent.
+The original by-area founding-decisions block (Stack / Architecture / Domain Model / Storage / Property Model / Editor / Sidebar + Shell / Views / Scope / Design System) is removed. It described an earlier model and is no longer current truth — the live state lives in `// Features//Domain-Model.md`, `// Features//Properties.md`, and `// Features//Architecture.md`; the SwiftUI stack lock and editor direction in `PommoraPRD.md` + `// Features//PageEditor.md`. Two facts from that era are recorded as dated entries below: the SwiftUI stack lock and the 2-layer domain model (revised 2026-05-16, replacing the earlier 3-entity model).
 
 #### Features Implemented
 
@@ -752,7 +587,7 @@ Stack is SwiftUI. Dual-stack evaluation (React+Electron vs SwiftUI) closed on Sw
 
 Design + 4 implementation Findings preserved at [.claude/Planning/v0.1-nexus-foundation-design.md](.claude/Planning/v0.1-nexus-foundation-design.md).
 
-**Post-v0.1a sidebar visual scaffolding pass.** Sidebar UI swapped from FolderTree-driven to hardcoded placeholder Sections (3 loose Items + Spaces section × 3 entries + Collections section with 3 collection-folders × 3 placeholders each) to iterate on selection language without real-data noise. New private `SelectableRow` view consolidates icon + text + tap selection + selection chrome. `FolderTree` / `SidebarNode` / `SidebarRow` remain in the target but dormant — re-wire when de-scaffolding. `EmptyPane` removed from `ContentView`; detail closure is bare `Color.clear`. Inspector toggle stays in `.inspector { ... }.toolbar { }` per the v0.0 UIX-Guide direction (the toolbar-move experiment from commit 807057d was reverted in-session). Pommora-specific selection language captured in the Sidebar+Shell decisions above and documented at `// Features//Sidebar.md`.
+**Post-v0.1a sidebar visual scaffolding pass.** Sidebar UI swapped from FolderTree-driven to hardcoded placeholder Sections (3 loose Items + Spaces section × 3 entries + Collections section with 3 collection-folders × 3 placeholders each) to iterate on selection language without real-data noise. New private `SelectableRow` view consolidates icon + text + tap selection + selection chrome. `FolderTree` / `SidebarNode` / `SidebarRow` remain in the target but dormant — re-wire when de-scaffolding. `EmptyPane` removed from `ContentView`; detail closure is bare `Color.clear`. Inspector toggle stays in `.inspector { ... }.toolbar { }` per the v0.0 UIX-Guide direction (the toolbar-move experiment from commit 807057d was reverted in-session). Pommora-specific selection language documented at `// Features//Sidebar.md`.
 
 **Paradigm scaffolding — branch `paradigm-scaffolding`, session 1 (2026-05-16).** Tasks 1-44 of 65 from `// Planning//Paradigm-Scaffolding-Tasks.md` shipped on a feature branch, plus 4 cleanup commits — 48 total. Data layer is feature-complete for v0.2: every entity in the locked paradigm (Space / Topic / Sub-topic / Vault / Collection / Item / Page / AgendaItem / AgendaSchema / Recurrence / Homepage / TierConfig / SavedConfig) has Codable, validator, and `@MainActor @Observable` manager. Swift 6 strict concurrency + ExistentialAny upcoming feature both enabled (flipped Task 1). Yams 5.4.0 added via SPM (Task 2). All custom Codable signatures use `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)` and all manager `pendingError` fields use `(any Error)?` per cleanup sweeps. UI tier (sidebar replacement + sheets + detail pane + Item Window + ContentView wiring) is Tasks 45-65, deferred to session 2.
 
@@ -855,7 +690,7 @@ Execution session: 4 code patches + 1 doc sweep, ending at v0.2.6 — Pommora ha
 
 1. **`60e2ef6` — v0.2.4: swift-format baseline.** `.swift-format` config at repo root (lineLength 120 / 4-space indent / `respectsExistingLineBreaks: true` / `OrderedImports: true` / `NeverForceUnwrap: false` to honor `try!` use). One-time formatter pass over 97 Swift files (+593/-422; mechanical whitespace + import-ordering only, no semantic changes). CI `swift format lint --strict --recursive` step in `.github/workflows/ci.yml` after "Show toolchain" — fail-fast. Also fixed two pre-existing `OneCasePerLine` violations in `Recurrence.swift` (`Kind` and `Day` enums) since the formatter can't auto-fix that rule — the alternative (disabling the rule) was worse. Code quality reviewer flagged one cosmetic regression: `swift format` mangled ~12 single-line `do { try await … } catch { /* … */ }` patterns in `SidebarView.swift` + `IconPickerSheet.swift` into `} catch\n{ … }` shape (`respectsExistingLineBreaks: true` can't preserve single-line catch bodies that span the `{`). Recommended structural fix (extract `runDelete(_:)` helpers) when SidebarView is next touched — likely during v0.2.7 work; not config-driven.
 
-2. **`9f56fbe` — v0.2.5: `.trash//` data foundation.** 5 new APIs: `NexusPaths.trashDir(in: nexus)` returns `<nexus>/.trash/`; `Filesystem.moveToTrash(_:in:)` (@discardableResult URL throws) preserves the deleted entity's relative path under nexus root, creates intermediate `.trash` dirs, resolves collisions via timestamp suffix; private `Filesystem.suffixedWithTimestamp(_:)` helper; `FilesystemError.sourceNotInNexus(source:, nexus:)` case (new `LocalizedError` enum — no pre-existing type to extend); file-private `String.removingPrefix(_:)` helper. Swapped 10 manager delete call-sites: SpaceManager.delete / TopicManager.deleteTopic + deleteSubtopic / VaultManager.deleteVault + deleteCollection / ContentManager+CRUD.deletePage×2 + deleteItem×2 / AgendaManager.deleteItem. All 10 managers already held a `nexus` reference — no threading required. Pre-existing `pendingError` flow preserved. New `Pommora/PommoraTests/AtomicIO/FilesystemTrashTests.swift` with 4 tests (movesFile / movesFolder / collisionAddsTimestampSuffix / rejectsExternalSource). Extended v0.2.2's `ContentManagerTests.deletes` + `VaultManagerTests.deleteVault`/`deleteCollection` assertions to ALSO check trash-side existence (the cross-patch coordination flagged in the plan). Tests: 182 → 186. PRD-aligned: `.trash//` lives inside the nexus (syncs with iCloud/Dropbox as user data, not regeneratable index), unlike `nexus.db` which lives in Application Support.
+2. **`9f56fbe` — v0.2.5: `.trash//` data foundation.** 5 new APIs: `NexusPaths.trashDir(in: nexus)` returns `<nexus>/.trash/`; `Filesystem.moveToTrash(_:in:)` (@discardableResult URL throws) preserves the deleted entity's relative path under nexus root, creates intermediate `.trash` dirs, resolves collisions via timestamp suffix; private `Filesystem.suffixedWithTimestamp(_:)` helper; `FilesystemError.sourceNotInNexus(source:, nexus:)` case (new `LocalizedError` enum — no pre-existing type to extend); file-private `String.removingPrefix(_:)` helper. Swapped 10 manager delete call-sites: SpaceManager.delete / TopicManager.deleteTopic + deleteSubtopic / VaultManager.deleteVault + deleteCollection / ContentManager+CRUD.deletePage×2 + deleteItem×2 / AgendaManager.deleteItem. All 10 managers already held a `nexus` reference — no threading required. Pre-existing `pendingError` flow preserved. New `Pommora/PommoraTests/AtomicIO/FilesystemTrashTests.swift` with 4 tests (movesFile / movesFolder / collisionAddsTimestampSuffix / rejectsExternalSource). Extended v0.2.2's `ContentManagerTests.deletes` + `VaultManagerTests.deleteVault`/`deleteCollection` assertions to ALSO check trash-side existence (the cross-patch coordination flagged in the plan). Tests: 182 → 186. PRD-aligned: `.trash//` lives inside the nexus (syncs with iCloud/Dropbox as user data), unlike the regeneratable SQLite index.
 
 3. **`25de7c6` — v0.2.5.1: Trash cleanup.** Three Minor items from the v0.2.5 code quality reviewer: (a) `suffixedWithTimestamp` now appends a 4-char hex discriminator (UUID prefix) after the UTC `YYYYMMDD-HHMMSS` timestamp — guarantees uniqueness for the same-second collision edge case (`@MainActor` serialization makes this impossible today, but future batch-delete scenarios would benefit). Filenames become `Notes.20260518-093215-A3F2.md` — slightly noisier but always unique without loop ceremony. (b) `rejectsExternalSource` test tightened to pattern-match the specific `FilesystemError.sourceNotInNexus` case via the closure form `throws: { error in case ... = error }`, matching existing test convention in `AgendaManagerTests` / `SpaceManagerTests` / `AtomicYAMLMarkdownTests`. (c) UTC documentation folded into the suffix function's docstring (cross-timezone determinism rationale).
 

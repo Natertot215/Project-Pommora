@@ -182,7 +182,7 @@ Wrap multiple-character storage mutations in either `ts.beginEditing()` / `ts.en
 
 The save pipeline is:
 
-`keystroke → viewModel.body didSet → scheduleSave() 300ms debounce → PageSaver.save (protocol in PageEditorViewModel.swift) → ContentManager.updatePage(_:body:in:vault:) → reconstructs PageFile(frontmatter:body:title:) → AtomicYAMLMarkdown.write(frontmatter:body:to:) → atomic temp-file + rename`
+`keystroke → viewModel.body didSet → scheduleSave() 300ms debounce → PageSaver.save (protocol in PageEditorViewModel.swift) → PageContentManager.updatePage(_:body:in:vault:) → reconstructs PageFile(frontmatter:body:title:) → AtomicYAMLMarkdown.write(frontmatter:body:to:) → atomic temp-file + rename`
 
 This is load-bearing and untouched since v0.2.7.0 ship. **Don't break it.** Specifically:
 
@@ -508,8 +508,8 @@ Stable per-heading IDs (UUIDs in a `heading_ids:` map) is the v2 escalation if t
 - **`mouseDown` collision.** `NativeTextView` already has a `mouseDown` override in `+DragSelectBoost.swift`. Adding a parallel override in `+HeadingFoldHover.swift` fails to compile. The fix: integrate chevron hit-test into the existing `mouseDown`, positioned AFTER prior intercepts but BEFORE drag-boost arms.
 - **Class-level `final` blocks `open`.** `NativeTextView` is `final`; `override open func` on extension overrides emits a compiler diagnostic. Drop `open` on the overrides — `override func` is enough.
 - **Content storage delegate must be set BEFORE first layout.** Otherwise cold-open of a page with `folded_headings: ["## Foo"]` renders the section expanded for a frame, then collapses when the next layout pass queries the now-set delegate. Wire-up in `NativeTextViewWrapper.makeNSView` between layout-manager-delegate setup and `textView.string` assignment.
-- **`@Binding` stored on a class goes stale across SwiftUI re-renders.** See "Why a stored property + callback" section above. The coordinator must NOT hold `@Binding<T>` — the captured `@Bindable` proxy desyncs after the first wrapper render and reads/writes return stale values while a fresh wrapper-side binding works correctly. Use a stored property + callback re-installed in `updateNSView` on every call.
-- **`textContentStorage(_:textParagraphWith:)` is for paragraph SUBSTITUTION, not ELISION.** Returning a paragraph whose `attributedString` doesn't match `range.length` (e.g. empty string for a non-empty source range) crashes `NSTextContentStorage.enumerateTextElementsFromLocation:` inside `setParagraphSeparatorRange:` via out-of-bounds `characterAtIndex:`. For elision use `NSTextContentManagerDelegate.shouldEnumerateTextElement:options:` returning `false`.
+- **`@Binding` stored on a class goes stale across SwiftUI re-renders** — see "Why a stored property + callback" above.
+- **`textContentStorage(_:textParagraphWith:)` is for paragraph SUBSTITUTION, not ELISION** — see "Why `shouldEnumerateTextElement:`" above.
 - **Chevron click skips `super.mouseDown`.** Returning `true` from the chevron-click handler short-circuits NSTextView's standard mouseDown processing — which is what we WANT (prevents caret jumping to the click point) but loses the natural layout-cascade NSTextView would otherwise run via `textLayoutFragment(for:)` hit-test. The fold-toggle path has to reproduce that cascade manually via `invalidateLayout` + `ensureLayout` + `textLayoutFragment(for:)` + `viewportLayoutController.layoutViewport()` + `needsDisplay`.
 - **Layout invalidation must extend through document-end for SHRINKING content.** `invalidateLayout(for:)` only refreshes fragments INSIDE the passed range; fragments AFTER the range keep their cached Y positions. When content shrinks (fold), everything below the fold needs to reposition upward — so invalidate from fold-start through `documentRange.endLocation`, not just the fold's own range.
 
@@ -572,9 +572,9 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 | File | Role |
 |---|---|
 | [`Pommora/Pommora/Pages/PageEditorView.swift`](Pommora/Pommora/Pages/PageEditorView.swift) | SwiftUI view hosting `NativeTextViewWrapper`. Title TextField + body editor. Save pipeline entry point. |
-| `Pommora/Pommora/Pages/PageEditorViewModel.swift` | ViewModel binding body + frontmatter to ContentManager. |
+| `Pommora/Pommora/Pages/PageEditorViewModel.swift` | ViewModel binding body + frontmatter to PageContentManager. |
 | `PageSaver` protocol in `Pommora/Pommora/Pages/PageEditorViewModel.swift` | 300ms-debounced save scheduler (protocol + concrete impl). |
-| `Pommora/Pommora/Content/ContentManager+CRUD.swift` | `updatePage(_:body:in:vault:)` write path. |
+| `Pommora/Pommora/Content/PageContentManager+CRUD.swift` | `updatePage(_:body:in:vault:)` write path. |
 | `Pommora/Pommora/Storage/AtomicYAMLMarkdown.swift` | Atomic temp-file + rename. YAML/body split on load. |
 
 ##### 10.3 Specs + history

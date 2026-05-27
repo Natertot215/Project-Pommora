@@ -6,18 +6,6 @@ A debug-only window inside Pommora that explores every Pommora-custom UI compone
 
 This is **separate from any feature ship**. Not part of v0.3.x, v0.4.0, or any pending plan. It's an evergreen debug surface that grows alongside Pommora's component catalog. Builds incrementally — new stories land alongside the components they cover.
 
-#### Current State (v0.1 shipped 2026-05-25, refactored same-day to gallery-style)
-
-A minimal Cmd+Shift+D window built during v0.3.x Properties side-work. Two-pane (sidebar + detail), no inspector column. Sidebar = flat per-category leaves grouped under `COMPONENTS` / `FOUNDATIONS`. Each leaf opens a **gallery-style** detail pane that composes all of that category's variants on one page.
-
-**Categories shipped (Components):**
-- **Chips** — gallery of all 3 chip primitives: `PropertyChip` (Pill 50×20 label + Chip 32×20 icon variants, 13-color palette in 2 tiers — Primary uses Apple system accents + Pommora-custom `.pink = #E89EB8` / `.yellow = #FFDE21`; Secondary uses Apple system cyan/mint/green/teal), `ChipDropdown` (single + multi-select, Liquid Glass popover, drag-reorder, content-driven width), `PropertyCheckbox` (custom fill color + SF Symbol when checked, 3 size presets).
-- **Sidebar** / **Detail Views** / **Sheets** / **Page Editor** / **NavDropdown** — placeholder galleries enumerating planned stories via `PlannedStoryCard`. Each card surfaces the planned spec so the library doubles as a roadmap.
-- **Windows** — stub launcher buttons for **Item Window** + **Page Preview**. Each opens a `WindowStubSheet` placeholder via `.sheet(isPresented:)`. As real designs land, stubs get replaced in-place with real chrome (Liquid Glass X + Inspector toggle, two-column body, etc.).
-- **View Settings** (chrome-only at v0.3.1.x — shipped 2026-05-25 PM) — `ViewSettingsButton` (toolbar `slider.horizontal.3` + `.popover(arrowEdge: .top)`) + `ViewSettingsPopover` (empty 300×360pt Liquid Glass shell at this slice). Wiring locked: static button at ContentView level inside the existing primary-action `.glassEffect()` HStack; `ViewSettingsScope` (10-case enum derived from `sidebarSelection`) routes content adaptively per surface. Future panes (Layout / Property Visibility / Sort / Filter / Group / Edit Properties) land in upcoming v0.3.1.x patches and will get their own UIX stories then.
-
-**Categories shipped (Foundations):** Colors / Typography / Materials & Liquid Glass / Symbols / Spacing — all currently render `CategoryPlaceholderGallery` until their content lands.
-
 Files: `Pommora/Pommora/ComponentLibrary/ComponentLibraryView.swift` (single-file router + galleries) + `Pommora/Pommora/PommoraApp.swift` (Debug menu + Cmd+Shift+D shortcut + `Window(id: "component-library")` scene gated `#if DEBUG`).
 
 #### Target Vision (v1.0)
@@ -45,38 +33,13 @@ Three-pane `NavigationSplitView` matching the Interactful App Store app's UX pat
 
 Right column uses `.inspector(isPresented:)` (macOS 14+). Sidebar uses `.searchable` + `Section`-grouped `List`. Selection drives the center pane via SwiftUI binding; inspector controls bind to `@State` properties on each story that the center pane reads.
 
-#### Sidebar Categories (target)
-
-**COMPONENTS**
-- Chips: Property Chip · Chip Dropdown · Property Checkbox
-- Sidebar: Selectable Row · Renameable Row · Section Header · Selection Chrome
-- Detail Views: Detail Row · (sort header — when sort ships v0.5.0)
-- Sheets: New Item Sheet · Vault Settings Sheet · Type Settings Sheet · Icon Picker Sheet · Color Picker Sheet
-- View Settings: View Settings Button · View Settings Popover · Layout Pane · Property Visibility Pane · Sort Pane · Filter Pane · Group Pane · Edit Properties Pane · Edit Property Pane (panes ship across v0.3.1.x patches)
-- Page Editor: Blockquote · Code Block · Lists · HR · Tables (when ships)
-- NavDropdown: NavDropdown Button · Entity Row · BackForward Buttons
-- Item Window: (lands as Item Window redesign ships)
-
-**FOUNDATIONS**
-- Colors: PropertyChipColor palette + Apple system colors + Pommora accents
-- Typography: Apple text scale × Pommora's usage (caption2 / callout / headline as Pommora applies them)
-- Materials & Liquid Glass: background swatches Pommora uses (sidebar / popover / hover states)
-- Symbols: live registry from `Guidelines/Symbols.md` — semantic-role → SF Symbol mapping
-- Spacing: Pommora-specific spacing tokens (if any emerge)
-
 #### Why NOT clone Interactful's full scope
 
 Apple's [Interactful](https://apps.apple.com/us/app/interactful/id1528095640) and [SwiftUI Catalog](https://apps.apple.com/in/app/swiftui-catalog/id1597742701) already cover every generic SwiftUI primitive (Buttons / Menus / Pickers / Tables / Charts / Maps / etc.). Building those stories ourselves is duplicate work. **PommoraUIX is exclusively for Pommora-custom components + Pommora design tokens** — the leverage is in the differentiated content, not the chrome.
 
-#### Phased Roadmap
+#### Current State
 
-| Phase | Scope | Trigger |
-|---|---|---|
-| **v0.1** ✓ | Minimal 2-pane window, 3 stories, Cmd+Shift+D | Shipped 2026-05-25 alongside v0.3.x chip work |
-| **v0.2** | 3-pane layout (sidebar + center + inspector) + search + port existing 3 stories | When chip system is feature-stable |
-| **v0.3** | Live parameter inspectors (sliders/toggles/pickers) for existing stories — bind controls to `@State` props the preview reads | After v0.2 |
-| **v0.4** | Foundations section (Colors, Typography, Symbols, Materials) | After v0.3 |
-| **v0.5+** | New Component stories ship alongside the components themselves | Ongoing |
+Shipped: a minimal 2-pane window with 3 stories, opened via Cmd+Shift+D (gated `#if DEBUG`). It builds toward the Target Vision incrementally — 3-pane layout + search, then live parameter inspectors, then a Foundations section (Colors / Typography / Symbols / Materials) — with new component stories landing alongside the components they cover. No version gates; it grows with the catalog.
 
 #### Build Discipline
 

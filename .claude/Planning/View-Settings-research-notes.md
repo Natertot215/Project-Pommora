@@ -59,7 +59,7 @@ View settings                                    [×]
 👁   Property visibility                     3   >    ← count badge
 ≡    Filter                                  2   >    ← count badge
 ↕    Sort                                    1   >    ← count badge
-⊟    Group                                       >    ← OPEN Q: ship in v0.3.1.x or defer to v0.5.0?
+⊟    Group                                       >    ← OPEN Q: ship in v0.3.1.x or defer to v0.6.0?
 ─────────────────────────────────────────────────────
 DATA SOURCE SETTINGS                                  ← subhead
 ☰    Edit properties                            >    ← schema-wide CRUD (deepest stack)
@@ -93,7 +93,7 @@ Add to all 4 sidecars (`_pagetype.json`, `_pagecollection.json`, `_itemtype.json
 ]
 ```
 
-- Single entry per container today. Multiple at v0.5.0 (saved view tabs).
+- Single entry per container today. Multiple at v0.6.0 (saved view tabs).
 - `schema_version` bump → idempotent migration creates default `views[0]` from current state.
 - IndexUpdater paths unaffected — view config is presentation-only, not indexed.
 - Each container is INDEPENDENT (decision locked): Page Type, Page Collection, Item Type, Item Collection each carry their own `views[]`. Configuring one doesn't change the other.
@@ -108,7 +108,7 @@ Add to all 4 sidecars (`_pagetype.json`, `_pagecollection.json`, `_itemtype.json
 └──────────────────────────────────────────────────┘
 ```
 
-**No tabs row, no chip strip, no inline view-config.** All view interaction lives in the toolbar button. At v0.5.0, when saved views ship, a tabs row appears below the title — that's the only future visual change.
+**No tabs row, no chip strip, no inline view-config.** All view interaction lives in the toolbar button. At v0.6.0, when saved views ship, a tabs row appears below the title — that's the only future visual change.
 
 #### Recommended SwiftUI skeleton
 
@@ -163,13 +163,13 @@ Inside each `pane.editor`, use `@Environment(\.dismiss)` to pop back to the root
 | **v0.3.1.1** | Edit Properties pane (extract `PropertyEditor` from `VaultSettingsSheet` / `TypeSettingsSheet`; route from popover; backport into sheets) | Schema CRUD reachable from popover; sheets internally unified |
 | **v0.3.1.2** | Sort pane | Sort rules editable from popover; column-header click syncs |
 | **v0.3.1.3** | Filter pane | Filter rules editable; `IndexQuery` wired |
-| **v0.3.1.4** | Group pane (or defer to v0.5.0) | Grouped Table-mode rendering — OPEN Q |
+| **v0.3.1.4** | Group pane (or defer to v0.6.0) | Grouped Table-mode rendering — OPEN Q |
 
 Semantic gripe noted but accepted: Framework.md calls patches "touch-ups," and these are feature work. User accepted the drip framing.
 
 #### Open questions for the spec
 
-1. **Group pane** — ship in v0.3.1.x at all, or defer to v0.5.0 (it's most useful for Board view which is v0.5.0)?
+1. **Group pane** — ship in v0.3.1.x at all, or defer to v0.6.0 (it's most useful for Board view, which is the v0.5.0 renderer work)?
 2. **Filter operators in v0.3.x** — minimum viable set? Suggest `equals` / `not-equals` / `contains` / `empty` / `not-empty`. OR-grouped filters deferred to v0.5.0+.
 3. **View tabs row** — hide entirely until ≥2 views (recommended), or show a single "Table" tab placeholder now?
 4. **Title placement** — keep large title at top of detail view, or move to window toolbar's title slot?

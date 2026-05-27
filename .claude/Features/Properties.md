@@ -127,7 +127,7 @@ Schema sidecar shape:
 
 Cross-property references in the schema use IDs: `dual_property.synced_property_id`, `default_sort.property_id`, `views[i].group_by.property_id` (v0.6.0), `views[i].filter[i].property_id` (v0.6.0).
 
-**Reserved property IDs.** Built-in property IDs use a fixed prefix scheme so the schema editor can block collisions and external agents can identify them at a glance: `_id`, `_created_at`, `_modified_at`, `_status`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`. The schema editor blocks user-defined properties from using these IDs.
+**Reserved property IDs.** Built-in property IDs use a fixed prefix scheme so the schema editor can block collisions and external agents can identify them at a glance: `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`. The schema editor blocks user-defined properties from using these IDs.
 
 **Property `name` uniqueness within a Type** is enforced (case-insensitive) at name-write time — for display sanity, not identity. Two properties in the same Type can't share a display name.
 
@@ -405,7 +405,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 1. Property `name` uniqueness within the Type (case-insensitive) — display sanity, not identity.
 2. Property `name` non-empty.
 3. Property `id` uniqueness within the Type.
-4. Reserved property IDs (block user-defined properties from claiming these): `_id`, `_created_at`, `_modified_at`, `_status`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`.
+4. Reserved property IDs (block user-defined properties from claiming these): `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`.
 5. Dual relation requires `page_type` / `item_type` / `page_collection` / `item_collection` scope; `context_tier` scope rejects dual.
 6. Relation scope's target ULID must resolve to a live entity at save time. Cross-side targets are allowed.
 7. Select / Multi-select: at least one option; option `value` uniqueness within property.
@@ -436,45 +436,35 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### 2. Vault / Type View Settings (per-view config)
 
-Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level (chrome shipped 2026-05-25 — see `.claude/Planning/View-Settings-button-chrome-plan.md`; full v0.3.1 plan at `.claude/Planning/View-Settings-edit-properties-plan.md`). The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
+Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level. The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
 
 | Section | Contents | Ships |
 |---|---|---|
 | **Edit Properties** | Schema CRUD pane (Notion-format: icon+title row + Type + Options with chevron-push to per-option EditOptionPane + Duplicate/Delete footer). Per-type config: Select/Multi-Select drag-only options; Status `.box`/`.select`/`.chip` display variant + 3 group sections; Date 6-format Display as picker; File/URL no per-type config (rename-only). Shared with VaultSettingsSheet + TypeSettingsSheet via extracted `Pommora/Properties/Editor/` module. | v0.3.1 |
-| **Property Visibility** | Per-view; show/hide columns + drag-reorder. Click-to-toggle with strikethrough on hidden. `_modified_at` always-visible (locked). | v0.3.1 |
+| **Property Visibility** | Per-view; show/hide columns + drag-reorder. Click-to-toggle with strikethrough on hidden. `_modified_at` always visible. | v0.3.1 |
 | **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active at v0.3.1; others muted until v0.5.0). | v0.3.1 (muted) |
-| **Sort** | Per-view; single criterion at v0.3.1.2; multi-criterion when saved views land. Option ordering itself is drag-only at the property level (not view-level Sort) per Edit Property pane. | v0.3.1.2 |
-| **Filter** | Per-view; minimum viable operators (equals / not-equals / contains / empty / not-empty); AND-grouped at v0.3.1.x; OR-mode at v0.5.0. | v0.3.1.3 |
-| **Group By** | Per-view; single property. May defer to v0.5.0 with Board view. | v0.3.1.4 (optional) |
+| **Sort** | Per-view; single criterion at v0.3.1.2; multi-criterion when saved views land (v0.6.0). Option ordering itself is drag-only at the property level (not view-level Sort) per Edit Property pane. | v0.3.1.2 |
+| **Filter** | Per-view; minimum viable operators (equals / not-equals / contains / empty / not-empty); AND-grouped at v0.3.1.x; OR-mode at v0.6.0. | v0.3.1.3 |
+| **Group By** | Per-view; single property. May defer to v0.6.0 with Board view. | v0.3.1.4 (optional) |
 
-**New `PropertyDefinition` fields landing in v0.3.1:**
+**Schema fields beyond the catalog basics** (on `PropertyDefinition` unless noted):
 
-- `displayAs: DisplayVariant?` (Status-only) — `.box` / `.select` / `.chip` rendering variant. `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using hardcoded `square.dashed` placeholder (final per-group icons + Settings config deferred to pre-v1).
+- `displayAs: DisplayVariant?` (Status-only) — `.box` / `.select` / `.chip` rendering variant. `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using a hardcoded `square.dashed` placeholder (final per-group icons + Settings config are a Prospect). Other property types ignore this field.
 - `dateFormat: DateFormat?` (Date / Date & Time only) — six display-format cases: `monthDayLong` ("March 4") / `monthDayYearLong` ("March 4, 2026") / `numericShort` ("03-04") / `numericMedium` ("03-04-26") / `numericLong` ("03-04-2026") / `iso` ("2026-03-04"). Default `.monthDayYearLong`.
+- `singular: String?` (on `ItemType`) — Capacities-style singular form for "+ Add <singular>" button labels (e.g. ItemType "Books" with `singular: "Book"` drives "+ Add Book"). nil falls back to title. Per the RC-session decision list (see `History.md`), only Item Types carry this (Pages aren't renameable concepts).
+- `views: [SavedView]` (on `PageType` / `ItemType` / `PageCollection` / `ItemCollection`) — each Collection's view config is independent of its parent Type's.
 
-**New `ItemType` field landing in v0.3.1:**
-
-- `singular: String?` — Capacities-style singular form for "+ Add <singular>" button labels (e.g. ItemType "Books" with `singular: "Book"` drives "+ Add Book"). nil falls back to title. Per locked decision #11, only Item Types carry this (Pages aren't renameable concepts).
-
-**New `PageCollection` / `ItemCollection` field landing in v0.3.1:**
-
-- `views: [SavedView] = []` — already on PageType + ItemType; now mirror on Collections so each Collection's view config is independent of the parent Type's. Default-view migration on `loadAll` per quirk #15 pattern.
-
-**New chip primitives landing in v0.3.1 (Pommora/Properties/Chips/):**
+**Chip primitives** (`Pommora/Properties/Chips/`):
 
 - `RelationChip` — default-grey, RoundedRectangle cornerRadius 4, target entity icon + title. Distinct from `PropertyChip` (Capsule, vivid colors).
 - `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
 - `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
-- `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance. Used by EditOptionPane.
+- `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance.
 
-**PropertyChipColor cleanup landing in v0.3.1:**
+**Option color palette — two enums.** Two distinct color types serve two layers:
 
-- Drop `.cyan` + `.mint` cases (overlap Teal).
-- 12 enum cases: `.default` (nil/grey fallback) / `.red` / `.orange` / `.yellow` / `.green` / `.blue` / `.accent` (nexus accent) / `.teal` / `.indigo` / `.purple` / `.pink` / `.brown`.
-- Green + Teal use Apple's secondary Color variants (less bright).
-- Yellow + Pink keep custom hex (`#FFDE21` / `#E89EB8`) shipped 2026-05-25.
-- Color selection grid shows 10 swatches (excludes `.default` and `.accent` which aren't pickable).
-- Tier system retired — flat palette.
+- `PropertyDefinition.SelectColor` — the **persistence layer**: 9 cases (`gray` / `brown` / `orange` / `yellow` / `green` / `blue` / `purple` / `pink` / `red`). This is what an option's stored `color` field holds on disk.
+- `PropertyChipColor` — the **render layer**: 12 cases (`.default` nil/grey fallback / `.red` / `.orange` / `.yellow` / `.green` / `.blue` / `.accent` current Nexus accent / `.teal` / `.indigo` / `.purple` / `.pink` / `.brown`). `.default` and `.accent` aren't user-pickable, so the 5×2 swatch grid (`OptionColorPicker`) uses `selectablePalette` — 10 cases. `PropertyChipColor(selectColor:)` maps the 9 stored cases up to the render enum (lossy: `gray` → `.default`; the render-only `teal` / `indigo` / `accent` have no stored counterpart). Green + Teal render at reduced opacity; Yellow (`#FFDE21`) + Pink (`#E89EB8`) use custom hex. Flat palette — no color tiers.
 
 A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
 
@@ -482,7 +472,7 @@ A per-Type default sort lives on the Type sidecar (`default_sort: { property_id,
 
 Multiple saved views per Vault / Type, Notion-database-views model. Each view carries its own View Settings (Sort / Group By / Filter / Layout / Property Visibility) and a path to the schema settings (Vault / Type Settings is accessible from any view).
 
-View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container assumed at v0.3.1.x (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title ships at v0.5.0 alongside the non-Table renderers.
+View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container assumed at v0.3.1.x (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title ships at v0.6.0. (The non-Table renderer types themselves — Board / List / Cards / Gallery — ship at v0.5.0.)
 
 ##### 4. Item Inspector → Pinned Properties
 
@@ -563,57 +553,13 @@ Three orderings, three layers:
 
 ---
 
-#### Scope at v0.3.0 (ship boundary)
+#### Out-of-scope boundaries
 
-v0.3.0 is the ship boundary for the full Properties data layer + placeholder UI for every interaction. The placeholder UI is not polished — final Figma-driven UI replaces it in fast-follow patches — but every data field has a working UI path so behavior is verifiable end-to-end.
+The full property data layer (all 11 types, ID-truth identity, schema CRUD on all four carriers, paired relations, move-strip, file-attachment copy-on-attach, reserved-ID enforcement, the SQLite indexer) is in scope; the value editors, Settings sheet, and pickers all have a working UI path. Phasing of remaining UI polish lives in [[Framework]]; per-feature deferrals live in [[Prospects]]. Design constraints that don't fit elsewhere in this doc:
 
-##### In scope at v0.3.0
-
-Data layer (full):
-- All 11 property types — data + validation + value round-trip on Pages, Items, AgendaTask, AgendaEvent
-- Property ID-truth identity model + migration for existing nexuses
-- Schema CRUD on all four schema-bearing carriers (PageType, ItemType, AgendaTask schema, AgendaEvent schema)
-- Status built-in on AgendaTask + AgendaEvent (default seed)
-- Cross-side relations (no side-locking)
-- Paired-relation creation + lifecycle (dual_property)
-- Move-strip rule + cross-Type move methods
-- File-attachment copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/`
-- `_itemcollection.json.pinned_properties` field
-- `default_sort` field on all four schema-bearing sidecars
-- Reserved property ID prefix enforcement
-- SQLite indexer (per-nexus DB at `<nexus>/.nexus/index.db`; powers relation pickers + move-strip "affected count" + sort/filter at scale)
-
-Placeholder UI (every interaction has a working path):
-- Property panel for every property type (Pages-side via extended `FrontmatterInspector`; Items-side via extended `PropertyEditorRow`)
-- Vault / Type Settings sheet with Edit Properties + Templates sections (Pages-side + Items-side)
-- Relation picker (scope-aware; cross-side targets supported)
-- Status grouped picker (3 sections, single-pick)
-- File attachment editor (drag-drop + click-to-pick + thumbnail strip)
-- Pinned-property chips above title in Item Window (basic rendering; pin / unpin via right-click)
-- Move-strip confirmation dialog (lists what's stripped)
-- Column-header click-to-sort on Pages-side detail-pane Table
-- Live red-border validation feedback on every value editor
-
-##### Out of scope at v0.3.0 (deferred to specific later versions)
-
-- Real polished Properties Pulldown + Property Panel SwiftUI component (Figma-driven; v0.3.0 fast-follow / v0.3.1)
-- Real polished Item Window redesign with finalized chip UX (Figma-driven; v0.3.x)
-- PreviewWindow primitive (Page Preview, Context Preview) — v0.3.x
-- Claude chat main-window inspector — ships independently
-- Per-entity `panel_hidden_properties` field — revisit post-v0.3.0 if needed
-- Vault / Type Views + Vault / Type View Settings (saved views) — v0.6.0 with the five view types
-- Detail-pane property columns + reimagined view shape — v0.6.0
-- Multi-criterion sort — v0.6.0
-- Wikilink resolution + autocomplete + `wikilinks: []` mirror — v0.3.2
-- Watcher-driven Last Edited Time updates from external edits — v0.3.3
-- EventKit sync (Status bridges to `EKReminder.isCompleted` for AgendaTask; AgendaEvent bridge TBD) — v0.6.0+
-- Cross-side *promotion* (transforming an Item INTO a Page or vice versa) — post-v1 Prospect (cross-side *relations* ARE supported at v0.3.0)
-- Per-Item-Type templates — post-v1 Prospect
-- Computed properties (Formula, Rollup, People) — out of v1
-- 4th Status group (`cancelled`) — 3-slot structural preserved for EventKit; `EKEvent.status = .canceled` maps to `done` if/when bridged
-- Cross-Type lossy type-change auto-conversion — lossless only in v0.3.0
-- Ad-hoc page-local properties (one-off properties without schema entry) — out of v1
-- Collection-local schema overrides — post-v1 Prospect
+- **Computed properties** (Formula, Rollup, People), **ad-hoc page-local properties** (no schema entry), and **Collection-local schema overrides** are out of v1.
+- **A 4th Status group (`cancelled`) is never added** — the 3-slot structure is preserved for clean EventKit mapping; `EKEvent.status = .canceled` maps to `done` if/when the sync layer bridges it.
+- **Cross-side *promotion*** (transforming an Item into a Page or vice versa) is a post-v1 Prospect — distinct from cross-side *relations*, which are supported.
 
 ---
 

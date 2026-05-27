@@ -57,7 +57,7 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
 | Editor (Pages) | Shipped v0.2.7.0: native NSTextView + `swift-markdown` 0.8.0 + TextKit 2 + vendored `swift-markdown-engine` (`External/MarkdownEngine/`). Pommora-side `AppleASTSupplementalStyler` adds BlockQuote / Strikethrough / Table / ThematicBreak on top of the engine's regex tokenizer. `MarkdownTextLayoutFragment.draw` overrides are the extension point for HR (Phase 1) + v0.2.7.2 Blockquote + Tables work. |
 | Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `Codable` block enum; candidate libs (`visfitness/reorderable`, `stevengharris/SplitView`) evaluated at build time |
 | Backend layer | Pure Swift |
-| Database | SQLite via GRDB.swift v7.5+ (FTS5 + `ValueObservation`) |
+| Database | SQLite via GRDB.swift 6.29.3 (FTS5 + `ValueObservation`) |
 | Markdown parser | `apple/swift-markdown` (parse only; hand-rolled writer for save path) |
 | File watcher | FSEventStream via Swift wrapper |
 | Icons | SF Symbols via `Image(systemName:)` |
@@ -68,7 +68,7 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
 
 1. **Stack portability of functionalities.** File formats, SQLite schema, domain model, property catalog, directive syntax, wikilink behavior, view directives, design values, UX patterns survive a stack rebuild — the codebase doesn't. No enforced layer separation; portability comes from documented decisions. Detail → `// Features//Architecture.md`.
 
-2. **Cross-nexus queryability + cloud sync compatibility.** Types and Collections aren't isolated — any Page or Context can query/link/embed any Type's contents regardless of folder location. On-disk model maps cleanly to a cloud DB: shared `pages` table with `page_type_id` + `page_collection_id` + `properties` JSONB; parallel `items` table with `item_type_id` + `item_collection_id`; one `page_types` row per `_pagetype.json`; parallel `item_types` row per `_itemtype.json`; `agenda_tasks` + `agenda_events` tables; one `spaces` row per `.space.json`. Sync arrives as additive translation. V1 gets device-to-device sync free via nexus in iCloud/Dropbox/any synced folder. **Reference convention:** relations stored by ID (rename-safe); body wikilinks use names (rewritten on rename).
+2. **Cross-nexus queryability + cloud sync compatibility.** Types and Collections aren't isolated — any Page or Context can query/link/embed any Type's contents regardless of folder location. On-disk model maps cleanly to a cloud DB: shared `pages` table with `page_type_id` + `page_collection_id` + `properties` JSONB; parallel `items` table with `item_type_id` + `item_collection_id`; one `page_types` row per `_pagetype.json`; parallel `item_types` row per `_itemtype.json`; `agenda_tasks` + `agenda_events` tables; one `contexts` row per Space / Topic / Project. Sync arrives as additive translation. V1 gets device-to-device sync free via nexus in iCloud/Dropbox/any synced folder. **Reference convention:** relations stored by ID (rename-safe); body wikilinks use names (rewritten on rename).
 
 3. **Persistent immediate legibility for agents.** External agents (Claude, MCP clients, any tool with filesystem access) read Pommora's entire structured graph — Pages, Items, Collection schemas, Spaces, relations, properties — directly from files without tool-call round-trips. SQLite is performance scaffolding, not source of truth. Differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Choices that trade file-canonical legibility for app-internal convenience violate this constraint.
 
@@ -110,13 +110,14 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
     _eventconfig.json                       ← AgendaEvent schema (EKEvent-aligned)
     Team-standup.event.json
 
-  .nexus//                                  ← app-internal config (nexus-portable, syncs)
+  .nexus//                                  ← app-internal config + index (nexus-portable, syncs)
     nexus.json                              ← v0.1a: ULID + createdAt
     state.json                              ← v0.2+: open tabs, sidebar UI state
     settings.json                           ← user-overridable UI labels + accent color
     tier-config.json                        ← Contexts tier labels (singular + plural)
     saved-config.json                       ← Saved-section item labels
     homepage.json                           ← singleton Homepage entity (composed blocks)
+    index.db                                ← SQLite index (v0.2+); regeneratable, schema-versioned
     spaces//                                ← tier-1 Contexts (flat files)
       Personal.space.json
       Academics.space.json
@@ -136,15 +137,11 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
 
 ~//Library//Application Support//com.nathantaichman.Pommora//   ← machine-specific, never syncs
   state.json                                ← Codable AppState: bookmark + future recent-nexuses
-  nexuses//
-    <nexus-id>//                            ← keyed by ULID from .nexus/nexus.json
-      nexus.db                              ← SQLite index (v0.2+); regeneratable
-      cache//                               ← future
 ```
 
-A folder at the nexus root containing `_pagetype.json` is a **Page Type**; a folder at the nexus root containing `_itemtype.json` is an **Item Type**. Sub-folders inside a Page Type carrying `_pagecollection.json` are **Page Collections** (sharing the Type's schema; sidecar carries only id + type_id + page_order); same shape with `_itemcollection.json` inside an Item Type defines an **Item Collection**. The Tasks singleton is the root folder carrying `_taskconfig.json`; the Events singleton is the root folder carrying `_eventconfig.json` (sidecar-driven discovery — folder name is renameable via Finder). All classification is by sidecar filename; folder location at root + sidecar presence alone identifies kind. App-internal config sits in `.nexus//` (hidden, matches `.obsidian` convention) and holds Contexts + Homepage singleton + tier/saved config + Settings. Deletes go to `.trash//` at the nexus root, preserving original relative path under each source Type.
+Classification is by sidecar filename alone: folder location at the nexus root plus sidecar presence identifies kind (`_pagetype.json` → Page Type, `_itemtype.json` → Item Type; `_taskconfig.json` / `_eventconfig.json` mark the Tasks / Events singletons — folder names renameable via Finder). App-internal config sits in `.nexus//` (hidden, matches `.obsidian` convention) and holds Contexts + Homepage singleton + tier/saved config + Settings + the SQLite index. Deletes go to `.trash//` at the nexus root, preserving original relative path under each source Type.
 
-**Why the SQLite index lives outside the nexus:** `nexus.db` inside an iCloud/Dropbox-synced vault risks file-conflict-driven corruption (SQLite's locking assumes single-host filesystem semantics). The Application Support per-nexus subdir is keyed by ULID (survives vault rename/move) and marked `isExcludedFromBackupKey` so iCloud Backup skips the regeneratable index.
+**Why the SQLite index lives inside the nexus:** the index is `<nexus>/.nexus/index.db` — it travels with the vault, so a moved or renamed nexus keeps its index without re-pathing. It holds no user data (titles, properties, links, relations only — never Page bodies), so it is fully regeneratable: `PommoraIndex.open` stamps the file with a `schema_version` and force-deletes + rebuilds via `IndexBuilder` whenever that version differs from the code's `currentSchemaVersion`. The Application Support tree holds only machine-specific `state.json` (security-scoped bookmark + recent-nexuses).
 
 ##### Pages
 
@@ -161,7 +158,7 @@ Symmetric operational-layer container layer. Both kinds:
 - **Page Type** — folder at `<nexus>/<Title>/` + `_pagetype.json` sidecar (`id`, `icon`, `properties[]` shared schema, `views[]`, `collection_order`, `page_order`). Title = folder name. **Page Collections** are sub-folders inside a Page Type, sharing the Type's schema (their own `_pagecollection.json` carries `id` + `type_id` + `page_order` only). UI label "Vault" / "Collection" by default. Full detail → `// Features//PageTypes.md`.
 - **Item Type** — folder at `<nexus>/<Title>/` + `_itemtype.json` sidecar (mirror shape, plus `item_order`, `template_config` reserved). **Item Collections** are sub-folders inside an Item Type, each carrying `_itemcollection.json`. UI label "Type" / "Set" by default. Full detail → `// Features//Items.md`.
 
-Both Types have no text-editor surface — pure database viewers (table / board / list / cards / gallery). Move-strip applies cross-Type (Page across Page Types, Item across Item Types). Schema-bearing layer + organizational sub-folder layer is the locked pattern across both sides.
+Both Types have no text-editor surface — pure database viewers (table / board / list / cards / gallery). Move-strip applies cross-Type (Page across Page Types, Item across Item Types). Schema-bearing layer + organizational sub-folder layer is the shared pattern across both sides.
 
 ##### Contexts (Spaces / Topics / Projects)
 
@@ -188,148 +185,153 @@ Singleton composed-blocks dashboard at `.nexus/homepage.json`. No `id`/`tier`/`p
 
 ##### SQLite Schema
 
-Eight tables, rebuilt from files on launch or demand. Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start.
+Twelve data tables plus an internal `meta` table, rebuilt from files on launch or demand. The index stores titles, properties, links, and relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
 
 ```sql
--- Page index (rebuilt from .md files inside any Page Type folder at the nexus root)
-CREATE TABLE pages (
-  id TEXT PRIMARY KEY,                -- ULID from frontmatter
-  path TEXT UNIQUE NOT NULL,          -- 'Assignments/Spring-2026/Essay-1.md'
-  page_type_id TEXT NOT NULL,         -- derived from path (containing Page Type folder)
-  page_collection_id TEXT,            -- nullable; populated when Page lives inside a Page Collection
-  title TEXT NOT NULL,                -- derived from filename (basename minus '.md')
-  icon TEXT,
-  frontmatter JSON NOT NULL,          -- includes tier1/tier2/tier3 ID arrays + properties
-  body TEXT NOT NULL,                 -- raw markdown body (powers FTS)
-  modified_at INTEGER NOT NULL
-);
-
--- Item index (rebuilt from .json files inside any Item Type folder at the nexus root)
-CREATE TABLE items (
-  id TEXT PRIMARY KEY,
-  path TEXT UNIQUE NOT NULL,          -- 'Bookmarks/Tech/Swift-evolution.json'
-  item_type_id TEXT NOT NULL,
-  item_collection_id TEXT,            -- nullable; populated when Item lives inside an Item Collection
-  title TEXT NOT NULL,
-  icon TEXT,
-  description TEXT,                   -- short plain-text field, 250-char cap
-  properties JSON NOT NULL,
-  tier1 JSON NOT NULL,                -- array of Space IDs
-  tier2 JSON NOT NULL,                -- array of Topic IDs
-  tier3 JSON NOT NULL,                -- array of Project IDs
-  modified_at INTEGER NOT NULL
-);
-
--- Agenda Task index (rebuilt from .task.json files in the Tasks singleton folder at the nexus root)
-CREATE TABLE agenda_tasks (
-  id TEXT PRIMARY KEY,
-  path TEXT UNIQUE NOT NULL,          -- 'Tasks/Submit-grant-proposal.task.json'
-  title TEXT NOT NULL,
-  icon TEXT,
-  due_at TEXT,                        -- ISO-8601; nullable (EKReminder.dueDateComponents)
-  start_at TEXT,                      -- ISO-8601; nullable (EKReminder "not before")
-  completed INTEGER NOT NULL,         -- bool
-  completed_at TEXT,                  -- ISO-8601; nullable
-  priority INTEGER NOT NULL,          -- 0-9 (EKReminder.priority)
-  eventkit_uuid TEXT,                 -- nullable; populated when synced to EKEventStore
-  calendar_id TEXT,                   -- EKCalendar identifier; nullable
-  properties JSON NOT NULL,           -- includes required built-in `status` Status (EventKit-bridged)
-  tier1 JSON NOT NULL,
-  tier2 JSON NOT NULL,
-  tier3 JSON NOT NULL,
-  modified_at INTEGER NOT NULL
-);
-
--- Agenda Event index (rebuilt from .event.json files in the Events singleton folder at the nexus root)
-CREATE TABLE agenda_events (
-  id TEXT PRIMARY KEY,
-  path TEXT UNIQUE NOT NULL,          -- 'Events/Team-standup.event.json'
-  title TEXT NOT NULL,
-  icon TEXT,
-  start_at TEXT NOT NULL,             -- ISO-8601 (EKEvent.startDate; required)
-  end_at TEXT NOT NULL,               -- ISO-8601 (EKEvent.endDate; required)
-  all_day INTEGER NOT NULL,           -- bool
-  location TEXT,                      -- EKEvent.location; nullable
-  eventkit_uuid TEXT,                 -- nullable
-  calendar_id TEXT,                   -- nullable
-  properties JSON NOT NULL,           -- includes required built-in `status` Status (user-set; EventKit bridge ships v0.6.0)
-  tier1 JSON NOT NULL,
-  tier2 JSON NOT NULL,
-  tier3 JSON NOT NULL,
-  modified_at INTEGER NOT NULL
-);
-
--- Page Type index (rebuilt from <nexus>/<Title>/_pagetype.json files at the root)
+-- Page Type index (one row per <nexus>/<Title>/_pagetype.json at the root)
 CREATE TABLE page_types (
   id TEXT PRIMARY KEY,
-  folder_path TEXT UNIQUE NOT NULL,
-  title TEXT NOT NULL,                -- derived from folder name
+  title TEXT NOT NULL,
   icon TEXT,
-  properties JSON NOT NULL,           -- shared schema for Pages inside
-  views JSON NOT NULL,
-  modified_at INTEGER NOT NULL
+  modified_at TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1
 );
 
--- Item Type index (rebuilt from <nexus>/<Title>/_itemtype.json files at the root)
+-- Item Type index (one row per <nexus>/<Title>/_itemtype.json at the root)
 CREATE TABLE item_types (
   id TEXT PRIMARY KEY,
-  folder_path TEXT UNIQUE NOT NULL,
   title TEXT NOT NULL,
   icon TEXT,
-  properties JSON NOT NULL,
-  views JSON NOT NULL,
-  template_config JSON,               -- reserved (null in v0.3.0); per-Item-Type template
-  modified_at INTEGER NOT NULL
+  modified_at TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1
 );
 
--- Contexts (Tiers) index — Spaces / Topics / Projects share one table, discriminated by level
-CREATE TABLE tiers (
+-- Page Collection index (sub-folders inside a Page Type)
+CREATE TABLE page_collections (
   id TEXT PRIMARY KEY,
-  level INTEGER NOT NULL,             -- 1 (Space) | 2 (Topic) | 3 (Project)
-  path TEXT UNIQUE NOT NULL,          -- file path inside .nexus/spaces or .nexus/topics
+  page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  icon TEXT,
-  color TEXT,                         -- tier-1 only; nullable for tier 2/3
-  parents JSON NOT NULL,              -- array of tier IDs at lower levels (file-structural for tier 3 Projects)
-  linked_relations JSON NOT NULL,     -- additional non-file relations (tier 3 Projects only; empty array for tier 1/2)
-  blocks JSON NOT NULL,               -- composed-page block tree
-  modified_at INTEGER NOT NULL
+  modified_at TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1
 );
 
--- Link index (rebuilt from files)
-CREATE TABLE links (
-  from_id TEXT NOT NULL,         -- page, item, agenda_task, agenda_event, tier id
-  from_kind TEXT NOT NULL,       -- 'page' | 'item' | 'agenda_task' | 'agenda_event' | 'tier'
-  to_id TEXT NOT NULL,
-  to_kind TEXT NOT NULL,         -- 'page' | 'item' | 'agenda_task' | 'agenda_event' | 'tier' | 'page_type' | 'item_type'
-  property TEXT                  -- NULL for inline wikilinks; 'tier1', 'tier2', 'tier3', 'linked_relations', etc.
+-- Item Collection index (sub-folders inside an Item Type)
+CREATE TABLE item_collections (
+  id TEXT PRIMARY KEY,
+  item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  modified_at TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX idx_pages_type ON pages(page_type_id);
-CREATE INDEX idx_pages_collection ON pages(page_collection_id);
-CREATE INDEX idx_items_type ON items(item_type_id);
-CREATE INDEX idx_items_collection ON items(item_collection_id);
-CREATE INDEX idx_agenda_tasks_due ON agenda_tasks(due_at);
-CREATE INDEX idx_agenda_tasks_completed ON agenda_tasks(completed);
-CREATE INDEX idx_agenda_events_start ON agenda_events(start_at);
-CREATE INDEX idx_tiers_level ON tiers(level);
-CREATE INDEX idx_links_from ON links(from_id, from_kind);
-CREATE INDEX idx_links_to   ON links(to_id, to_kind);
+-- Page index (rebuilt from .md files inside any Page Type folder; no body/frontmatter columns)
+CREATE TABLE pages (
+  id TEXT PRIMARY KEY,                                                       -- ULID from frontmatter
+  page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
+  page_collection_id TEXT REFERENCES page_collections(id) ON DELETE SET NULL, -- nullable
+  title TEXT NOT NULL,                                                       -- derived from filename
+  properties TEXT NOT NULL DEFAULT '{}',                                     -- JSON; property values
+  modified_at TEXT NOT NULL
+);
+
+-- Item index (rebuilt from .json files inside any Item Type folder)
+CREATE TABLE items (
+  id TEXT PRIMARY KEY,
+  item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
+  item_collection_id TEXT REFERENCES item_collections(id) ON DELETE SET NULL, -- nullable
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',                                       -- 250-char cap
+  properties TEXT NOT NULL DEFAULT '{}',                                     -- JSON
+  modified_at TEXT NOT NULL
+);
+
+-- Agenda Task index (rebuilt from .task.json files in the Tasks singleton folder)
+CREATE TABLE agenda_tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  due_at TEXT,                        -- ISO-8601; nullable (EKReminder.dueDateComponents)
+  properties TEXT NOT NULL DEFAULT '{}', -- JSON; includes required built-in `status` Status
+  modified_at TEXT NOT NULL
+);
+
+-- Agenda Event index (rebuilt from .event.json files in the Events singleton folder)
+CREATE TABLE agenda_events (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  start_at TEXT NOT NULL,             -- ISO-8601 (EKEvent.startDate; required)
+  end_at TEXT NOT NULL,               -- ISO-8601 (EKEvent.endDate; required)
+  properties TEXT NOT NULL DEFAULT '{}', -- JSON; includes required built-in `status` Status
+  modified_at TEXT NOT NULL
+);
+
+-- Contexts index — Spaces / Topics / Projects share one table, discriminated by tier
+CREATE TABLE contexts (
+  id TEXT PRIMARY KEY,
+  tier INTEGER NOT NULL,              -- 1 (Space) | 2 (Topic) | 3 (Project)
+  title TEXT NOT NULL,
+  parent_topic_id TEXT                -- tier-3 Projects: file-structural parent Topic; nullable for tier 1/2
+);
+
+-- Relation index — property-typed links (paired relations, tier relations via property_id)
+CREATE TABLE relations (
+  id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  source_kind TEXT NOT NULL,          -- 'page' | 'item' | 'agenda_task' | 'agenda_event'
+  target_id TEXT NOT NULL,
+  target_kind TEXT NOT NULL,
+  property_id TEXT NOT NULL,
+  modified_at TEXT NOT NULL
+);
+
+-- Tier-link index — tier1/tier2/tier3 membership (composite PK)
+CREATE TABLE tier_links (
+  entity_id TEXT NOT NULL,
+  entity_kind TEXT NOT NULL,          -- 'page' | 'item' | 'agenda_task' | 'agenda_event'
+  tier INTEGER NOT NULL,              -- 1 | 2 | 3
+  target_id TEXT NOT NULL,            -- Context ID
+  PRIMARY KEY (entity_id, entity_kind, tier, target_id)
+);
+
+-- Property-definition index (one row per property in any Type's schema)
+CREATE TABLE property_definitions (
+  id TEXT PRIMARY KEY,
+  owning_type_id TEXT NOT NULL,
+  owning_type_kind TEXT NOT NULL,     -- 'page_type' | 'item_type' | 'agenda_task' | 'agenda_event'
+  name TEXT NOT NULL,                 -- renameable display label
+  type TEXT NOT NULL,                 -- property type tag
+  config TEXT NOT NULL DEFAULT '{}',  -- JSON; per-type config (options, formats, etc.)
+  position INTEGER NOT NULL DEFAULT 0,
+  modified_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_pages_page_type_id ON pages(page_type_id);
+CREATE INDEX idx_pages_page_collection_id ON pages(page_collection_id);
+CREATE INDEX idx_items_item_type_id ON items(item_type_id);
+CREATE INDEX idx_items_item_collection_id ON items(item_collection_id);
+CREATE INDEX idx_page_collections_page_type_id ON page_collections(page_type_id);
+CREATE INDEX idx_item_collections_item_type_id ON item_collections(item_type_id);
+CREATE INDEX idx_relations_source_id ON relations(source_id);
+CREATE INDEX idx_relations_target_id ON relations(target_id);
+CREATE INDEX idx_relations_property_id ON relations(property_id);
+CREATE INDEX idx_tier_links_entity ON tier_links(entity_id, entity_kind);
+CREATE INDEX idx_tier_links_target ON tier_links(target_id);
+CREATE INDEX idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
+CREATE INDEX idx_contexts_tier ON contexts(tier);
+CREATE INDEX idx_contexts_parent_topic ON contexts(parent_topic_id);
 ```
 
-Queries use SQLite's JSON1 extension to reach into property values and tier-relation arrays:
+The internal `meta(key, value)` table holds the global `schema_version`; on mismatch with the code's `currentSchemaVersion`, the whole index file is deleted and rebuilt. Queries use SQLite's JSON1 extension to reach into the `properties` JSON, and join `tier_links` / `relations` for tier-relation and paired-relation lookups:
 
 ```sql
 -- All Pages in the "Notes" Page Type tagged to a specific Topic
-SELECT * FROM pages
-WHERE page_type_id = '01H...notes-page-type-id'
-  AND EXISTS (SELECT 1 FROM json_each(json_extract(frontmatter, '$.tier2'))
-              WHERE value = '01H...topic-id');
+SELECT p.* FROM pages p
+JOIN tier_links tl ON tl.entity_id = p.id AND tl.entity_kind = 'page' AND tl.tier = 2
+WHERE p.page_type_id = '01H...notes-page-type-id'
+  AND tl.target_id = '01H...topic-id';
 
--- All incomplete Agenda Tasks due in the next 7 days
+-- All Agenda Tasks due in the next 7 days
 SELECT * FROM agenda_tasks
-WHERE completed = 0
-  AND due_at BETWEEN datetime('now') AND datetime('now', '+7 days');
+WHERE due_at BETWEEN datetime('now') AND datetime('now', '+7 days');
 
 -- All Agenda Events starting in the next 7 days
 SELECT * FROM agenda_events
@@ -358,7 +360,7 @@ Five view types in v1:
 | Type | Renderer | Notes |
 |---|---|---|
 | **Table** | Stack-native data table | Sortable columns, inline cell edit |
-| **Board** | Kanban layout | Cards grouped by a property's options. v0.9 ships visual layout (edit via card UI to "move" between columns); drag-to-rewrite-frontmatter is post-v1.0. |
+| **Board** | Kanban layout | Cards grouped by a property's options. Visual layout first (edit via card UI to "move" between columns); drag-to-rewrite-frontmatter is post-v1.0. |
 | **List** | Plain list | Title + selected inline properties |
 | **Gallery** | Grid | Cards with cover image |
 | **Cards** | Grid | Cards without cover-first emphasis |
@@ -432,7 +434,7 @@ Renames are filesystem renames + nothing else — no cross-file rewrite of wikil
 ##### Data, State, File Watching
 
 - **State.** `@Observable` macro (Swift 5.9+, mature in 6.2) — per-property tracking; `@State` replaces `@StateObject`. Heavy services (NexusIndex, parsers) stay in DI to avoid re-init on view rebuild.
-- **Persistence.** `GRDB.swift v7.5+` for "SQLite as index, files canonical": `ValueObservation.tracking { db in ... }`, `.values(in:)` returning `AsyncSequence` change notifications, `FTS5Pattern` for full-text. SwiftData isn't a fit (wraps Core Data; no custom SQLite schema or FTS5 access).
+- **Persistence.** `GRDB.swift` (6.29.3) for "SQLite as index, files canonical": `ValueObservation.tracking { db in ... }`, `.values(in:)` returning `AsyncSequence` change notifications, `FTS5Pattern` for full-text. SwiftData isn't a fit (wraps Core Data; no custom SQLite schema or FTS5 access).
 - **Code shape.** Pure Swift Package for data + parsing layer keeps SwiftUI imports out (callable from a CLI target if useful). `actor` wrapping the database boundary, `Sendable` records, `AsyncSequence` surfaces (preferred over Combine in Swift 6 strict concurrency) fit GRDB's `.values(in:)` as the data-to-UI reactive surface. Not enforced (see `// Features//Architecture.md`).
 - **File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool. Use FSEventStream via Swift wrapper (`EonilFSEvents` or hand-rolled `FSEventStreamCreate`). APFS atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
 
@@ -463,7 +465,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
 - **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.6.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.
-- Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 11 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + Templates placeholder). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in Vault / Type View Settings at v0.6.0.
+- Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 11 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + Templates placeholder). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
 - Wikilinks (styled colored inline text).
 - Automatic file rename with cross-nexus wikilink rewrite.
 - File watcher keeping SQLite synced.

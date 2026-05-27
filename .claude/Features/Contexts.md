@@ -26,7 +26,7 @@ All three tiers are composed-blocks surfaces — same pattern as Homepage. Each 
 - `parents` — IDs of Contexts at lower tier numbers (validated)
 - `blocks` — composed-page block tree; can embed any entity by ID
 - `modified_at`
-- Tier-1 (Space) additionally carries `color` (one of 9 Notion palette colors)
+- Tier-1 (Space) additionally carries `color` — the `SpaceColor` palette (the 9 Notion-palette colors plus `accent`; `nil` = no tint)
 
 Filename = title. Renaming in the UI renames the file.
 
@@ -83,7 +83,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. Edited via `ContextTierPicker` in the property panel (Pulldown / Inspector / Item Window). User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — these stay one-way (Contexts have no `properties[]` schema, so no reverse property is created; the reverse view is SQLite-query-derived via `IndexQuery.entitiesByScope(.contextTier(N))`).
+Each tier filled independently. Each tier renders as its own value-row inline in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`). User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — the target tier is chosen in `EditPropertyPane`, which swaps the relation target field for a tier Picker when the scope is `contextTier`; these stay one-way (Contexts have no `properties[]` schema, so no reverse property is created; the reverse view is SQLite-query-derived via `IndexQuery.entitiesByScope(.contextTier(N))`).
 
 ---
 

@@ -52,43 +52,30 @@ Dark mode first. SwiftUI semantic colors cover the shell; Pommora extensions pro
 
 Section header chevrons appear **on hover only** — Apple's default for `Section(_:isExpanded:)` under `.listStyle(.sidebar)`. Don't override with always-visible indicators. Matches Mail / Notes / Finder.
 
+
+
+#### Liquid Glass continuity
+
+Surfaces hosted inside `.popover(...)` and toolbar-anchored panels sit inside Apple's Liquid Glass chrome. Don't compete with it.
+
+- Apple drives the outer shell (translucent rounded background, drop shadow, anchor arrow, transitions). Don't add `.background(.regularMaterial)` / `.glassEffect()` / opaque fills to popover roots.
+- Use `Color.primary.opacity(0.06)` for in-popover emphasis (title pills, icon button backgrounds) — works on both appearances without breaking translucency.
+- Prefer `Menu { ... } label: { Text + chevron-down }` with `.menuStyle(.borderlessButton)` over `Picker(.menu)` for inline selectors — Pickers render a heavy macOS button background that reads as "form control" rather than inline content.
+- Third-party popover content (e.g., SymbolPicker) must be wrapped in `.popover` with an explicit `.frame(width:height:)` — default sizing dwarfs Liquid Glass surfaces.
+- When a popover pane edits one named entity whose icon + name render inline at the top, drop the separate "Edit X" pane title — the entity row carries identity. Otherwise keep the standard `PaneHeader`.
+
 ---
 
-#### Creation affordance pattern: right-click context menus, scoped by cursor location
+#### Context-aware padding
 
-**Canonical pattern for all sidebar CRUD-creation** (paradigm decision 2026-05-17). No always-visible "+ New" buttons in the sidebar; users right-click the relevant heading / row / area and get a context menu whose "New X" options auto-scope to that location's parent.
+Layout mechanics for nested SwiftUI views.
 
-Implementation pattern in SwiftUI:
-
-```swift
-ForEach(pageTypeManager.pageTypes) { type in
-    PageTypeRow(pageType: type, ...)
-        .contextMenu {
-            // Sheet titles are user-facing — read from SettingsManager.
-            // Defaults: Pages-side "Vault" / "Collection"; Items-side "Type" / "Set".
-            Button(settings.labels.pageType.singular("New ")) { presentedSheet = .newPageType }
-            Button(settings.labels.pageCollection.singular("New ")) {
-                presentedSheet = .newPageCollection(type: type)
-            }
-            Button("New Page") { presentedSheet = .newPage(collection: nil, type: type) }
-            Divider()
-            Button("Rename") { ... }
-            Button("Change Icon") { presentedSheet = .editIcon(.pageType(type)) }
-            Divider()
-            Button("Delete", role: .destructive) { confirmingDelete = .deletePageType(type, collectionCount: ...) }
-        }
-}
-```
-
-The `.contextMenu` attaches to the row view directly — clicking on the Page Type row's chevron, title, or icon all open the same scoped menu. Each enum case in `SidebarSheet` / `SidebarConfirmation` carries the parent entity binding through to the presented sheet — the sheet never re-asks for parent location. Items-side rows ship as minimal stubs at v0.3.0 (no context menus); designed Items-side UI lands in a follow-up plan.
-
-**Why over always-visible "+ New":**
-- Sidebar reads content-forward at rest (matches chevron-on-hover)
-- Right-click is universal macOS muscle memory (Finder, Notion, Obsidian)
-- Location scoping is automatic — cursor already identified the parent
-- Quick-capture (Cmd+Shift+N, v0.6.0) absorbs the global creation path
-
-Detail → `// Features//Sidebar.md`.
+- Padding stacks. A child's `.padding(...)` adds to the parent's. When wrapping previously-pinned content into a padded scroll container, strip the child's own horizontal padding.
+- Order matters: `.padding → .frame → .background`. Backgrounds wrap the framed size only when applied last.
+- For "all rows share an exact horizontal rail" requirements, derive `contentWidth` from math (`N × elementSize + (N-1) × spacing`) and apply that same `.frame(width: contentWidth)` to every row that participates.
+- `LazyVGrid` with `.fixed` columns beats `HStack` + `Spacer(minLength: 0)` for pixel-exact alignment — grid math is deterministic; Spacer behavior negotiates sub-pixels.
+- For "Enter commits + click-outside also commits" behavior on plain TextFields, attach `@FocusState` and observe its `onChange` for blur-to-commit. `.onSubmit` alone only fires while focused.
+- SourceKit "Cannot find type" diagnostics for same-module types are usually stale (branch quirk #3). Trust xcodebuild.
 
 ---
 
@@ -96,7 +83,7 @@ Detail → `// Features//Sidebar.md`.
 
 Apple's native chrome animations (`NSSplitView` collapse, toolbar reflow, inspector reveal) are gold standard. **Don't replace system chrome with custom equivalents.**
 
-`.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.30))`. Inspector toolbar items belong **inside the `.inspector(...) { content }` closure** to anchor to the inspector's toolbar segment.
+`.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.25))`. Inspector toolbar items belong **inside the `.inspector(...) { content }` closure** to anchor to the inspector's toolbar segment.
 
 Platform quirks (`.toolbar(removing:)` on macOS 26+, exact curves) verified in build and noted in `Handoff.md`.
 

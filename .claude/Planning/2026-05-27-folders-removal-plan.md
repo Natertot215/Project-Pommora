@@ -1,6 +1,6 @@
 ### Plan — Folders Feature Removal (Revert F.1–F.4, Keep F.0 + Auto-Tag)
 
-> Reverts the Folders third-tier feature in full. Folders were built ahead of the view-organization system (Board / group-by / saved views, v0.6.0) that would justify a structural tier; the rigid-grouping role duplicates Collections, and the group-by-vs-hierarchy conflict is unresolved. Removing now (cheapest exit) before more features build on the third tier. Decision + reasoning: this session's chat.
+> Reverts the Folders third-tier feature in full, keeping F.0 CRUD + Types/Collections auto-tag. Built ahead of the view-organization system (Board / group-by / saved views, v0.6.0) that would justify a structural tier, the tier duplicated Collections' rigid-grouping role and conflicted with group-by — so it's removed now, the cheapest exit, before more features pile on (reasoning: this session's chat).
 
 #### Keep-list (do NOT remove)
 

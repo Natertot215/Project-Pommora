@@ -21,7 +21,7 @@ The parallel Items-side entity is the Item — a row-shaped JSON record without 
 
 - Markdown body for prose.
 
-- **Adopted `.md` files load leniently (shipped v0.2.7.4).** Markdown files that surface during folder adoption — i.e. existing notes without Pommora frontmatter — open via `PageFile.loadLenient(from:nexusRoot:)`. Missing `id` is synthesized as `"adopted-" + sha256(relativePath).prefix(16)` (stable across launches, derived from the file's path relative to the Nexus root). Missing `created_at` falls back to the file's `creationDate`; tier and properties default to empty. The on-disk file is **not mutated** by the lenient loader — frontmatter is only written when the user actually edits and saves the Page through the editor. This guarantees opening a folder that's also an Obsidian vault leaves your notes byte-identical until you touch them. Both the sidebar's discovery (`ContentManager.loadAll(for:)`) and the editor (`PageEditorHost`) use the lenient path — anything that surfaces also opens.
+- **Adopted `.md` files load leniently (shipped v0.2.7.4).** Markdown files that surface during folder adoption — i.e. existing notes without Pommora frontmatter — open via `PageFile.loadLenient(from:nexusRoot:)`. Missing `id` is synthesized as `"adopted-" + sha256(relativePath).prefix(16)` (stable across launches, derived from the file's path relative to the Nexus root). Missing `created_at` falls back to the file's `creationDate`; tier and properties default to empty. The on-disk file is **not mutated** by the lenient loader — frontmatter is only written when the user actually edits and saves the Page through the editor. This guarantees opening a folder that's also an Obsidian vault leaves your notes byte-identical until you touch them. Both the sidebar's discovery (`PageContentManager.loadAll(for:)`) and the editor (`PageEditorHost`) use the lenient path — anything that surfaces also opens.
 
 ---
 
@@ -89,7 +89,7 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 **Editor implementation — shipped at v0.2.7.0 on native TextKit 2.** Pommora uses Apple `swift-markdown` 0.8.0 + vendored `swift-markdown-engine` (at `External/MarkdownEngine/`, Apache 2.0) + a Pommora-side `AppleASTSupplementalStyler` layered on top. Full implementation spec lives at `PageEditor.md`. The three-options inventory used during v0.2.7 prep (Native Swift / JS-editor in WKWebView / Pallepadehat fork) has been resolved — historical context preserved in git history.
 
-**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. The Pages-side content manager's `updatePage(_:in:pageType:)` + `(_:inPageTypeRoot:)` write path is the Swift-side surface.
+**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. `PageContentManager`'s `updatePage(_:body:in:vault:)` + `updatePage(_:body:inVaultRoot:)` write path is the Swift-side surface.
 
 **Pommora-specific surface behavior:**
 
@@ -106,7 +106,7 @@ Markers are consumed at the moment of typing — they don't remain visible. Cmd-
 
 #### Properties Pulldown
 
-For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy rendering** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties on this Page. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. Title is NOT included (filename plays that role). For Pages opened in a Page Preview window, the property panel inside the inspector uses **eager rendering** — all schema properties visible, void-or-fill from there. Pulldown stays lazy; only the Inspector is eager. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Property surface rendering modes".
+For Pages in the main window, properties live in a NavDropdown-style **pulldown** at the top of the page content. **Lazy rendering** — only populated properties render; empty schema entries are invisible. "+ Add property" picker over the parent Page Type's schema populates new properties on this Page. Auto-managed `id` + `created_at` sit at the bottom in a divider-separated section; `modified_at` appears in the main list as **Last Edited Time** for sortability. Title is NOT included (filename plays that role). For Pages opened in a Page Preview window, the property panel inside the inspector uses **eager rendering** — all schema properties visible, void-or-fill from there. Pulldown stays lazy; only the Inspector is eager. Canonical architecture: [[Properties]] § "Where Properties Live" + § "Render modes".
 
 ---
 

@@ -92,11 +92,11 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
       "type": "relation",
       "relation_scope": {
         "kind": "page_type",
-        "type_id": "01HMATERIALSPAGETYPE..."
+        "page_type_id": "01HMATERIALSPAGETYPE..."
       },
       "allows_multiple": true,
       "dual_property": {
-        "synced_property_name": "Cited By",
+        "synced_property_id": "prop_01HCITEDBY...",
         "synced_property_defined_on_type_id": "01HMATERIALSPAGETYPE..."
       }
     },
@@ -128,11 +128,11 @@ Title = folder name. Schema applies to every Page inside (each Page's frontmatte
   "type": "relation",
   "relation_scope": {
     "kind": "page_type",
-    "type_id": "01HTHISPAGETYPE..."
+    "page_type_id": "01HTHISPAGETYPE..."
   },
   "allows_multiple": true,
   "dual_property": {
-    "synced_property_name": "sources",
+    "synced_property_id": "prop_01HSOURCES...",
     "synced_property_defined_on_type_id": "01HTHISPAGETYPE..."
   }
 }

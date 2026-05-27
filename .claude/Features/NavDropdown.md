@@ -4,13 +4,13 @@ Pommora's primary navigation-history surface — a **Liquid Glass dropdown butto
 
 ![NavDropdown visual reference](assets/NavDropdown-mockup.png)
 
-**Status: SHIPPED at v0.2.7.1.** Functional layer + click model + context-menu Pin + detail-view context menus working.
+The functional layer, click model, context-menu Pin, and detail-view context menus all work.
 
 ---
 
-#### Future implementation (deferred from v0.2.7.1)
+#### Future implementation
 
-Captured at ship time; the functional layer is done. Explicit follow-ups:
+Explicit follow-ups not yet wired:
 
 1. **Open-in-preview wiring** — when the cross-feature PreviewWindow primitive is built for Pages, Page Types, Page Collections, Item Types, Item Collections, Spaces, Topics, Projects, Items, Agenda Tasks, and Agenda Events, light up the dropdown's preview-on-click affordance. **Until that primitive exists, no "open in standalone window" UI ships here** — single/double-click both route to the main detail pane (Items route to ItemWindow). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
 2. **Drag-to-reorder Pinned** — `.onMove` wiring is in place but drag doesn't initiate inside the popover's List. Likely a SwiftUI List + popover view-host interaction issue.
@@ -111,8 +111,8 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 
 On double-click, `handleOpen(ref)` dispatches by `ref.typedKind`:
 
-- **`.page` / `.vault` / `.space` / `.topic` / `.subtopic` / `.collection`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
-- **`.item`** — closes popover, looks up the Item via `ContentManager.items(in: vault/collection)` (brute-force walk; SQLite in v0.4.0 → O(1)), calls `AppGlobals.presentItemAction?(item)` to open `ItemWindow`.
+- **`.page` / `.vault` / `.space` / `.topic` / `.project` / `.collection`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
+- **`.item`** — closes popover, looks up the Item via `ItemContentManager.items(in: itemType/collection)` (brute-force walk; SQLite in v0.4.0 → O(1)), calls `AppGlobals.presentItemAction?(item)` to open `ItemWindow`.
 - **`.agenda` / `.none`** — no-op. Agenda surfaces ship v0.6.0.
 
 ##### Routing architecture
@@ -123,7 +123,7 @@ NavDropdownButton takes `onOpen: (SidebarSelection) -> Void` at construction. Co
 
 ##### Lazy-load fallback
 
-If `SidebarSelection.init?(stateRef:)` returns nil for a page or collection (host vault's content not loaded this session — `ContentManager` lazy-loads per-collection on detail-view appear), `handleOpen` falls back to an async walk of `vaultManager.vaults` calling `contentMgr.loadAll(for: vault)` + each collection, retrying at each step. SQLite v0.4.0 makes this O(1) and removes the walk.
+If `SidebarSelection.init?(stateRef:)` returns nil for a page or collection (host vault's content not loaded this session — `PageContentManager` lazy-loads per-collection on detail-view appear), `handleOpen` falls back to an async walk of `vaultManager.vaults` calling `contentMgr.loadAll(for: vault)` + each collection, retrying at each step. SQLite v0.4.0 makes this O(1) and removes the walk.
 
 ##### Standalone preview windows — deferred
 
@@ -154,7 +154,7 @@ The v0.2.7.2 first attempt added a `WindowGroup(id: "entity", for: EntityRef.sel
 #### Pinned rules
 
 - **Uncapped, insertion-ordered** — drag-reorder is wired (`.onMove(perform:)` → `PinnedManager.move(fromOffsets:toOffset:)`) but doesn't fire end-to-end inside the popover; see Future implementation #2.
-- **Single entry point**: right-click any row (Pinned or Recents tab) → "Pin {kind}". Also mirrored in `VaultDetailView` / `CollectionDetailView` context menus on Page + Item rows.
+- **Single entry point**: right-click any row (Pinned or Recents tab) → "Pin {kind}". Also mirrored in `PageTypeDetailView` / `PageCollectionDetailView` context menus on Page + Item rows.
 - **Separate Codable array** — NOT a flag on Recents entries. Falling off the Recents cap does not un-pin.
 - **Open flow identical to Recents** — single = highlight, double = route to main detail pane (or ItemWindow for Items).
 - **Removal**: right-click in Pinned tab → "Unpin {kind}" → removed from Pinned (stays in Recents if within cap).
@@ -170,7 +170,7 @@ The v0.2.7.2 first attempt added a `WindowGroup(id: "entity", for: EntityRef.sel
 | Collection | "Collection" | main-frame land (via `.collection(c)` SidebarSelection) | ✓ |
 | Space | "Space" | main-frame land | ✓ |
 | Topic | "Topic" | main-frame land | ✓ |
-| Sub-topic | "Sub-topic" | main-frame land | ✓ |
+| Project | "Project" | main-frame land | ✓ |
 | Item | "Item" | popover open (`ItemWindow`) | ✓ |
 | Agenda | **"Task"** | (TBD at v0.6.0) | ✗ — v0.6.0+ |
 | Homepage | — | excluded | never |
@@ -212,7 +212,7 @@ The v0.2.7.2 first attempt added a `WindowGroup(id: "entity", for: EntityRef.sel
 
 **`EntityStateRef` fields:**
 
-- `kind` — raw String mapped to `Kind` enum: `page` / `vault` / `collection` / `space` / `topic` / `subtopic` / `item` / `agenda`. Raw String allows forward-compat.
+- `kind` — raw String mapped to `Kind` enum: `page` / `vault` / `collection` / `space` / `topic` / `project` / `item` / `agenda`. Raw String allows forward-compat.
 - `id` — ULID of the underlying entity (rename-safe)
 - `title` — denormalized, refreshed on resolve. Used for orphan display after deletion.
 - `cursor` (top-level) — position in Recents for back/forward; 0 = newest active
@@ -247,17 +247,17 @@ Sidebar `Recents` pin and dropdown Recents share `RecentsManager` but render dif
 
 #### Detail-view context menus (v0.2.7.1 additive scope)
 
-Right-click on a Page or Item row inside `VaultDetailView` or `CollectionDetailView` opens a `.contextMenu` with three items:
+Right-click on a Page or Item row inside `PageTypeDetailView` or `PageCollectionDetailView` opens a `.contextMenu` with three items:
 
-- **Rename** — `.alert("Rename", isPresented:)` with TextField + Rename / Cancel. Commits via `ContentManager.renamePage(_:to:in:vault:)` / `renameItem` (collection-hosted) or `renamePage(_:to:inVaultRoot:)` / `renameItem(_:to:inVaultRoot:)` (vault-root).
+- **Rename** — `.alert("Rename", isPresented:)` with TextField + Rename / Cancel. Commits via `PageContentManager.renamePage(_:to:in:vault:)` / `ItemContentManager.renameItem` (collection-hosted) or `renamePage(_:to:inVaultRoot:)` / `renameItem(_:to:inTypeRoot:)` (root-hosted).
 - **Pin / Unpin {kind}** — toggles `AppGlobals.pinnedManager?.toggle(ref)`. Label reflects current state + row kind.
-- **Delete** — destructive role. Mirrors the sidebar's no-confirmation pattern (PageRow / SubtopicRow context menus). Routes to `ContentManager.deletePage(_:in:)` / `deletePage(_:inVaultRoot:)` / `deleteItem` overload by parent.
+- **Delete** — destructive role. Mirrors the sidebar's no-confirmation pattern (PageRow / ProjectRow context menus). Routes to `PageContentManager.deletePage(_:in:)` / `deletePage(_:inVaultRoot:)` / `ItemContentManager.deleteItem` overload by parent.
 
-VaultDetailView uses a `parent(for: DetailRow) -> PageParent?` helper scanning `contentManager.pages(in: vault)` / `items(in: vault)` for vault-root match, then iterating `vaultManager.collections(in: vault)`. O(N × M); fine v0.2.7.1 (SQLite v0.4.0 → O(1)).
+PageTypeDetailView uses a `parent(for: DetailRow) -> PageParent?` helper scanning `contentManager.pages(in: vault)` / `items(in: vault)` for vault-root match, then iterating `vaultManager.collections(in: vault)`. O(N × M); fine v0.2.7.1 (SQLite v0.4.0 → O(1)).
 
-CollectionDetailView's parent is always `.collection(collection, vault: vault)` — no lookup.
+PageCollectionDetailView's parent is always `.collection(collection, vault: vault)` — no lookup.
 
-Collection rows in VaultDetailView intentionally have NO context menu — sidebar's `CollectionRow` is canonical for collection rename/delete.
+Collection rows in PageTypeDetailView intentionally have NO context menu — sidebar's `PageCollectionRow` is canonical for collection rename/delete.
 
 ---
 

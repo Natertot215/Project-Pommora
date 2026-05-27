@@ -61,12 +61,6 @@ The full Settings UI ships v0.6.0 and brings:
 
 Slotted v0.6.0 alongside the quick-capture / design-system customization batch.
 
-#### Property panel placement options — RETIRED 2026-05-23
-**Status:** Superseded by the locked surface architecture (see [[Properties]] § "Where Properties Live"). Properties live in the NavDropdown-style pulldown for Pages in the main window, and in the inspector panel for Page Preview / Item Window. Alternate placements (below page heading, page bottom) are no longer being considered as toggleable user preferences.
-
-#### Claude chat interface as main-window inspector — IN ROADMAP 2026-05-23
-**Status:** Promoted out of Prospects. Becomes the main-window inspector under the locked surface architecture (Properties live in pulldown / preview inspectors; main-window inspector is Claude chat). Frontend to Nathan's local CLI, not an API integration — chat UI sends to a CLI subprocess and renders streamed output. No model hosting, no API keys, no per-token costs. Ships in a v0.3.x patch, whenever designed.
-
 #### Sidebar Collection-kind indicator toggle
 **Description:** A setting that adds a small per-row icon distinguishing Page Collections from Item Collections in the sidebar. The default v1 sidebar already separates the two via the Pages / Items section split + the "Vault" / "Collection" vs "Type" / "Set" UI labels; this is a power-user detail for users who want an extra glance-level signal at the row level.
 

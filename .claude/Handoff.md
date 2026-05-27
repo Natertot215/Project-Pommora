@@ -4,16 +4,13 @@
 
 #### Current state (2026-05-27)
 
-**Folders feature reverted in full this cycle** (see `History.md` → "Folders — tried and reverted"). The third Pages-side tier (`PageType → PageCollection → Folder → Page`) was built end-to-end then removed: it duplicated Collections' rigid-grouping role and conflicted with the still-unbuilt view-organization system (Board / group-by / saved views, v0.6.0) — you can't group-by-property while displaying a fixed container hierarchy in the same view, and that primitive doesn't exist yet to prove folders were even needed. Removed before more features piled onto the third tier.
+**Folders feature reverted in full + post-revert cleanup done — committed + pushed to `origin/main`.** The third Pages-side tier (`PageType → PageCollection → Folder → Page`) was built end-to-end then removed: it duplicated Collections' rigid-grouping role and conflicted with the still-unbuilt view-organization system (Board / group-by / saved views — phasing in `Framework.md`). Full rationale + ledger in `History.md` → "Folders — tried and reverted."
 
-**Kept from the effort:**
-- **F.0** (commit `68caf96`) — system-wide stub-and-inline-rename CRUD (`CreateWithInlineEdit` + `DefaultTitleResolver`; manager `create*` return new entity via `@discardableResult`; 9 `New*Sheet.swift` deleted).
-- **Sidebar context-menu tweaks** — "New Vault" removed from the PageType row menu (the Pages-section "+" header is the sole vault-creation path); plain "New X" labels (dropped the "(in This …)" suffixes).
-- **`NexusAdopter.autoTagMissingSidecars`** for Types + Collections — drag a folder structure into a Nexus via Finder and it's recognized on launch (two-tier; folder depth-3 stripped).
+**Kept from the effort:** F.0 system-wide stub-and-inline-rename CRUD (`CreateWithInlineEdit` + `DefaultTitleResolver`); sidebar context-menu tweaks ("New Vault" off the row menu — the Pages-section "+" header is the sole vault-creation path; plain "New X" labels); `NexusAdopter.autoTagMissingSidecars` for Types + Collections (Finder-built structures recognized on launch, two-tier).
 
-**Mechanics of the revert:** 26 files reverted to the pre-folders baseline (`68caf96`), 9 folder files deleted, surgical folder-strip on `NexusAdopter` + `AdoptionPreviewView` + `NexusAdopterAutoTagTests` (auto-tagger kept two-tier). Build verified green — **304 tests pass across 16 regression suites**; parallel Properties/ViewSettings working-tree code compiles clean. Removal plan: `.claude/Planning/2026-05-27-folders-removal-plan.md`. Beyond-folders cleanup backlog: `.claude/Planning/2026-05-27-codebase-health-log.md`.
+**Cleanup pass (post-revert):** consolidated the duplicated sidebar selection routing (`SelectionTag.matches` + both `SidebarSelection` resolvers → shared helpers), zeroed five compiler warnings, deduped the deletePage attachment cascade. Build compiles clean. **Caveat:** the macOS test host is wedged (`testmanagerd` — needs a machine reboot), so the suite couldn't run post-cleanup; the changes are compile- + review-verified behavior-neutral. Run `xcodebuild test` after a reboot to close the loop.
 
-**Pending: commit + push.** `origin/main` is at `e2a5dc0` (folders shipped); the revert commit backs that out. Both sessions share `main` — **`git pull origin main` at session start** once the revert lands.
+**Next session: clean up the property panels + build the real Item Windows.** In-window item property editing was deliberately deferred off the current placeholder Item Window (Task 21 — see `History.md`); build it on the real window, not the placeholder.
 
 #### Side-channel: parallel v0.3.1 Properties UX rebuild — in-flight in working tree
 
@@ -64,28 +61,15 @@ Nathan has separate in-progress edits to the property editor surfaces (`Properti
 5. **Detail-view footer "+" buttons drive sidebar rename mode** by sharing `editingID` + `justCreatedID` bindings via ContentView (lifted from SidebarView's local @State).
 6. **Manager `create*` methods return their new entity** via `@discardableResult` — backward-compatible with existing call sites; coordinator reads the new id for the editingID flip.
 
-#### Parallel-session coordination note
-
-**The v0.3.1 Properties UX rebuild work in `Pommora/Properties/Editor/*`, `Pommora/Properties/Chips/*`, `Pommora/Properties/PropertyTypePicker.swift`, and `Pommora/ViewSettings/*` is uncommitted in working tree** as of session end. The settings-sheet call-site patches I wrote to keep the build green (matching whatever editor signature is current) are also uncommitted. When Nathan finishes the Properties rebuild, those patches need to ride along with that commit (not with the folders-revert commit).
-
 #### Resume prompt for next session (verbatim)
 
-> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **Folders feature was reverted in full** (see History.md "Folders — tried and reverted"); kept F.0 stub-and-inline-rename CRUD, the sidebar menu tweaks, and the Types/Collections auto-tagger. The revert is verified green (304 tests / 16 suites). **First: `git pull origin main`** — confirm the folders-revert commit landed and the parallel Properties session is synced. Then resume the actual next priority: **build the view-organization system** (Board / group-by / sort / filter / saved views) — that's the primitive that defines how Pommora organizes, and the reason folders were premature. **DO NOT touch** `Pommora/Properties/*` or `Pommora/ViewSettings/*` (parallel v0.3.1 Properties work in working tree). Codebase-health backlog for opportunistic cleanup: `.claude/Planning/2026-05-27-codebase-health-log.md`."
-
-#### Locked rules from the Properties rebuild (durable — schema, correctness, workflow)
-
-> UIX-specific design choices that may change (type picker layout, drag affordances, gesture canonicalization, design-tool workflow) have been removed from this list. They live in the active plan + working code until smoke-verified and locked.
-
-1. **Property Visibility shows ONLY user properties + `_modified_at`.** Reserved IDs (`_id`, `_created_at`, `_status`, `_tier1/2/3`, `_wikilinks`) do not appear in the user-facing visibility list. Schema-level decision.
-2. **Error display uses user-friendly sentences.** Raw enum descriptions (`String(describing: error)`) banned. Errors clear on every fresh user input.
-3. **All popover-side surfaces MUST read live from the manager via stable IDs.** Never from captured `ViewSettingsScope` payloads. Property-pane equivalent of quirk #16 (env re-injection).
-4. **STOP-and-ASK on uncertainty.** Any uncertainty about interaction model, UX flow, design specifics, gesture behavior, error-state copy, drop-target affordances, or animation behavior → stop and ask Nathan. No guessing.
+> "Pommora at `/Users/nathantaichman/The Studio/Projects/Project Pommora`. **Folders reverted in full + post-revert cleanup done, committed + pushed** (see History.md → "Folders — tried and reverted"). **First: `git pull origin main`**, then run `xcodebuild test` once — the macOS test host was wedged at session end (needs a reboot) so the post-cleanup suite hasn't run; expect green, the changes are behavior-neutral refactors. **Next priority: clean up the property panels + build the real Item Windows.** The in-window item property editing was deliberately deferred off the placeholder Item Window (Task 21) — build it on the real window, not the placeholder. Coordinate before touching the parallel Properties working-tree work. Active plan: `.claude/Planning/2026-05-26-v0.3.1-properties-rebuild-plan.md`. (The view-organization system — Board / group-by / sort / filter — remains the eventual foundation per `Framework.md`, but is not the immediate next.)"
 
 #### Locked decisions in force (carry forward from prior sessions)
 
 1. **Status value on-disk encoding = `{"$status": value}` tagged-object form.**
 2. **Move-strip matches by NAME, not ID.** Property IDs are globally unique per `property_definitions.id PRIMARY KEY`.
-3. **Reserved property IDs:** `_id`, `_created_at`, `_modified_at`, `_status`, `_tier1/2/3`, `_wikilinks`. User-defined mint `prop_<ulid>`.
+3. **Reserved property IDs (9):** `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1/2/3`, `_wikilinks`. User-defined mint `prop_<ulid>`.
 4. **`schema_version: 1` on every sidecar.**
 5. **`PropertyIDMigration` runs on EVERY nexus open** — idempotent.
 6. **tier1/2/3 are root-level frontmatter fields** (not under `properties:`).
@@ -100,6 +84,7 @@ Nathan has separate in-progress edits to the property editor surfaces (`Properti
 15. **`SidebarSelection` no longer reads `AppGlobals`** — all selection resolution goes through `SidebarLookupBundle`. AppGlobals is forbidden as a selection-resolution source.
 16. **Popover-side surfaces read live from the manager via stable IDs.** `PropertiesListPane`, `EditPropertyPane`, `PropertyVisibilityPane`, `EditOptionPane` must NEVER read state from captured `ViewSettingsScope` payloads — always look up via type ID / property ID / option value from the live manager. View-state propagation equivalent of quirk #16 (env re-injection).
 17. **Visibility lists show ONLY user properties + `_modified_at`.** Reserved IDs are filtered out — they have no place in a user-facing visibility list.
+18. **Error display uses user-friendly sentences.** Raw enum descriptions (`String(describing: error)`) banned. Errors clear on every fresh user input.
 
 #### Active branch quirks (carry forward to every subagent dispatch)
 
@@ -145,7 +130,6 @@ All deferred items get their own focused plan documents after Slice 3 ships gree
 
 - **Active plan (Properties rebuild)**: `.claude/Planning/2026-05-26-v0.3.1-properties-rebuild-plan.md`
 - **Folders revert record**: `.claude/Planning/2026-05-27-folders-removal-plan.md` (feature tried + reverted)
-- **Codebase health backlog**: `.claude/Planning/2026-05-27-codebase-health-log.md`
 - **Superseded plan (v0.3.1 original)**: `.claude/Planning/Superseded/2026-05-26-View-Settings-edit-properties-plan-COMPLETE.md` — referenced by the rebuild plan for UIX detail recovery
 - **Roadmap (chronological)**: `.claude/Framework.md`
 - **Session history (canonical decision + ship log)**: `.claude/History.md`

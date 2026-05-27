@@ -35,4 +35,18 @@ If in doubt, surface it. Better to overconfirm than retrofit.
 2. **State the choice in user-facing terms** — on-disk shape, user-visible behavior, migration cost. Not jargon.
 3. **Present 2–3 options** with concrete on-disk samples. Lead with your recommendation.
 4. **Wait for confirmation.** Update the spec/plan before dispatching implementation.
-5. **Record the locked decision** in `History.md` (the canonical log for confirmed paradigm decisions and the surrounding session context).
+5. **Record the locked decision** in `History.md` (the canonical log for confirmed paradigm decisions and the surrounding session context), then add a one-line entry to the registry below.
+
+#### Registry
+
+Numbered, chronological. Citations elsewhere ("paradigm decision #N") resolve here. Each entry is the decision plus a one-line rationale; full session context lives in `History.md`.
+
+1. **`PropertyValue.relation` encodes as the tagged object `{"$rel": "<ULID>"}`**, not a bare string — relation edges stay legible to external agents and the graph indexer without consulting a Type's schema (constraint #3).
+2. **Collections persist a sidecar** (`_pagecollection.json` / `_itemcollection.json`, carrying id + parent-Type id + ordering) — the parent relation is explicit on-disk rather than inferred from folder nesting.
+3. **SF Symbol picker = the `xnth97/SymbolPicker` SPM dep wrapped behind Pommora's own `IconPickerSheet` / `IconPickerField`** — the wrapper isolates call sites, so swapping libraries is a single-file rewrite.
+4. **Stub-and-progressively-replace is the execution strategy** for branch-spanning plans with forward dependencies — each task ships green standalone with throwaway in-file stubs that later tasks replace in place, rather than one batch-commit-at-end where a single break contaminates the whole batch.
+5. **Sidebar creation is via right-click context menus scoped to the cursor**, not "+ New" buttons — right-clicking a row binds "New X" to that exact entity, keeping the entry point unambiguous.
+6. **Sidebar selection chrome lives at the row-file level via `.listRowBackground(SelectionChrome(...))`**, not in-content `.background` — the row-level background covers the disclosure-chevron gutter, and an in-content `.background` regressed a launch crash in `OutlineListCoordinator.recursivelyDiffRows`.
+7. **Pages editor stack** — superseded. The locked direction was originally Tiptap (ProseMirror) in a WKWebView; the editor shipped instead as **TextKit 2 + Apple `swift-markdown` + the vendored `swift-markdown-engine`** (native NSTextView, no web view). Spec → `// Features//PageEditor.md`; engine rules → `Markdown.md`.
+
+> **Note — numbers beyond #7 are not entries in this registry.** Citations elsewhere to "decision #11" (in `Features/Properties.md`) or "decision #12" (in `History.md` and the View-Settings plans) refer to *plan-local* decision lists — the RC-session "14 locked decisions" and the flat-layout "13 decisions" list — each numbered within its own source plan, not against this cross-project registry. Those numbers live in their source plans and in `History.md`; resolve such a citation there, not here. This registry stays small and is extended only when a genuinely cross-project paradigm decision is ratified.

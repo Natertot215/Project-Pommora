@@ -20,27 +20,27 @@ Every new entity (Space, Topic, Project, Page Type, Page Collection, Page, Item 
 @MainActor
 @Observable
 final class SpaceManager {
-    var spaces: [Space] = []
+    private(set) var spaces: [Space] = []
     var pendingError: (any Error)?   // existential-any per project convention
 
     private let nexus: Nexus  // injected from NexusManager
 
     init(nexus: Nexus) {
         self.nexus = nexus
-        Task { await loadAll() }
     }
 
     func loadAll() async { ... }
-    func create(name: String, color: SpaceColor, icon: String?) async throws { ... }
+    @discardableResult
+    func create(name: String, color: SpaceColor?, icon: String?) async throws -> Space { ... }
     func rename(_ space: Space, to newName: String) async throws { ... }
-    func updateColor(_ space: Space, to color: SpaceColor) async throws { ... }
+    func updateColor(_ space: Space, to color: SpaceColor?) async throws { ... }
     func delete(_ space: Space) async throws { ... }
 }
 ```
 
-Inject the active Nexus's root URL at construction; re-load when `NexusManager.currentNexus` changes via `.onChange(of:initial:true)` on the parent view — `initial: true` covers the nil → Nexus transition, else first construction races a separate `.task { await loadOnLaunch() }`.
+Inject the active Nexus at construction; the init does NOT kick its own load — the parent view drives loading via `.onChange(of:initial:true)` on `NexusManager.currentNexus`, where `initial: true` covers the nil → Nexus transition. Keeping load out of init avoids racing the parent's `.onChange`.
 
-**`pendingError` scope (v0.2):** assigned only from `loadAll`/`load`; CRUD methods (`create`, `rename`, `update*`, `delete`) throw out of `async throws` and the row/sheet catch block surfaces. Failed sidebar context-menu renames/deletes are currently silent. Locked direction (4-commit pre-merge cleanup): managers ALSO set `pendingError` on CRUD failures + a sidebar-level toast surfaces it transiently. Until then, sheet-level forms (NewSpaceSheet etc.) use per-view `@State errorMessage: String?` for inline display.
+**`pendingError` scope:** set from `loadAll`/`load` AND from every CRUD method (`create`, `rename`, `update*`, `delete`, reorder) — each catch block assigns `self.pendingError = error` before rethrowing out of `async throws`. A sidebar-level toast (`SidebarToast`) surfaces it transiently, so failed context-menu renames/deletes are no longer silent. Sheet-level forms (NewSpaceSheet etc.) additionally use per-view `@State errorMessage: String?` for inline display at the point of edit.
 
 ---
 
@@ -49,13 +49,13 @@ Inject the active Nexus's root URL at construction; re-load when `NexusManager.c
 Every Codable entity file follows `NexusIdentity`'s shape.
 
 ```swift
-struct Space: Codable, Equatable, Identifiable, Hashable {
+struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String          // ULID
-    var tier: Int = 1
+    var tier: Int           // always 1; set in init, written as 1 via custom encode
     var title: String       // derived from filename on load, set on create
-    var color: SpaceColor
+    var color: SpaceColor?  // nil = no color picked
     var icon: String?       // SF Symbol name
-    var blocks: [SpaceBlock]
+    var blocks: [ContextBlock]
     var modifiedAt: Date
 }
 
@@ -162,17 +162,9 @@ func create(name: String, parents: [String]) async throws {
 
 **Idempotent recovery on load:** if `loadAll()` encounters a folder under `.nexus/topics/` without a `_topic.json` inside, skip silently — treat as user-manual organization; user repairs via Finder. **Folder rename** uses `FileManager.moveItem(at:to:)` — atomic on same volume (always true for nexus contents).
 
-##### Rename atomicity — pending consistent pattern (4-commit cleanup)
+##### Rename atomicity — rename-first-then-write-metadata, rollback on failure
 
-v0.2 managers use **rename-folder-first-then-write-metadata** with an unrecoverable failure mode: if metadata write fails the folder is already at the new name with stale `modified_at`. Post-ParadigmV2 rename sites (one per manager): `SpaceManager.rename`, `TopicManager.renameTopic` + `renameProject` + `moveProject`, `PageTypeManager.renamePageType`, `PageTypeManager.renamePageCollection`, `ItemTypeManager.renameItemType`, `ItemTypeManager.renameItemCollection`, `PageContentManager.renamePage`, `ItemContentManager.renameItem`, `AgendaTaskManager.renameTask`, `AgendaEventManager.renameEvent`.
-
-Locked direction (4-commit pre-merge cleanup): pick ONE pattern. Candidates:
-
-1. **Write metadata first, then rename folder** — on folder-rename failure metadata is already correct; retry rename on next load. Resilient; brief on-disk name divergence.
-2. **Rollback on metadata failure** — current pattern; rename folder back on metadata-write failure. Risk: rename-back can also fail.
-3. **Write-temp + atomic rename of metadata, then folder rename** — closest to true atomicity; requires two-phase recovery.
-
-Decision locked when cleanup executes; canonical flow documented here then.
+Renames that touch two filesystem ops (folder/file rename + metadata save) follow one uniform pattern across every `rename*` site: **rename the folder/file first → write metadata → if the metadata write fails, roll the rename back → if the rollback ALSO fails, throw `RenameAtomicityError`** (`AtomicIO/RenameAtomicityError.swift`, a `LocalizedError` carrying both the save error and the revert error). The managers set `pendingError` on the unrecoverable case before rethrowing. Same shape in `SpaceManager.rename`, `TopicManager.renameTopic` + `renameProject` + `moveProject`, `PageTypeManager.renamePageType` + `renamePageCollection`, `ItemTypeManager.renameItemType` + `renameItemCollection`, `PageContentManager.renamePage`, `ItemContentManager.renameItem`, `AgendaTaskManager.renameTask`, `AgendaEventManager.renameEvent`. The remaining gap is the rare double-failure (both rename and rollback fail) — surfaced to the user via `RenameAtomicityError` rather than silently leaving divergent on-disk state.
 
 ---
 
@@ -250,27 +242,27 @@ Paradigm decision 2026-05-16 (see `// Guidelines//Paradigm-Decisions.md`): use `
 import SymbolPicker
 
 struct IconPickerSheet: View {
-    let target: SidebarSheet.IconTarget   // .space | .topic | .project | .pageType | .pageCollection | .itemType | .itemCollection
+    let target: SidebarSheet.IconTarget   // .space | .topic | .project | .pageType | .itemType
     @Environment(\.dismiss) private var dismiss
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ItemTypeManager.self) private var itemTypeManager
 
-    @State private var icon: String = ""
+    @State private var icon: String? = nil  // nullable so the picker shows its delete-icon button
 
     var body: some View {
-        SymbolPicker(symbol: $icon)  // nullable variant exposes a delete-icon button
-            .onAppear { icon = currentIcon ?? "" }
-            .onChange(of: icon) { _, newValue in
-                Task { await save(newIcon: newValue.isEmpty ? nil : newValue); dismiss() }
+        SymbolPicker(symbol: $icon)
+            .onAppear { /* initialize from currentIcon, guard one-shot */ }
+            .onChange(of: icon, initial: false) { _, newValue in
+                Task { await save(newIcon: newValue) }  // nil clears back to default
             }
     }
     // currentIcon + save() switch on `target` to dispatch to the right manager method
 }
 ```
 
-SymbolPicker auto-renders Cancel / clear / done chrome. Wrapper's only job: bind the picked symbol to the right manager's `updateIcon` via the `IconTarget` enum. SPM dep added at commit `22e3fc6`, resolver 1.6.2. No curated default list — library's full search picker is the only icon-picker UI in v0.2.
+SymbolPicker renders its own chrome (search field, x-close, symbol grid, and a delete button when the binding is nullable) and auto-dismisses on pick / delete / close — the wrapper adds no Cancel/Save of its own. Its only job: bind the picked symbol to the right manager's `updateIcon` via the `IconTarget` enum. Collections aren't icon-pickable, so `IconTarget` has no `.pageCollection` / `.itemCollection` case. SPM dep added at commit `22e3fc6`, resolver 1.6.2. No curated default list — the library's full search picker is the only icon-picker UI.
 
 ---
 

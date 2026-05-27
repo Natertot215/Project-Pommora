@@ -74,40 +74,13 @@ Built-in fields (not user-creatable):
 
 ---
 
-#### Built-in properties
-
-- **AgendaTask** — required built-in **`status`** Status property (3 EventKit-aligned groups: Upcoming / In Progress / Done; non-deletable; bridges to `EKReminder.isCompleted`). All other AgendaTask properties are user-defined.
-- **AgendaEvent** — required built-in **`status`** Status property. Same 3 EventKit-aligned groups as AgendaTask. User-set (decoupled from `start_at` / `end_at` date math) — the user marks status to track their own engagement with the event ("Upcoming" before, "In Progress" during, "Done" after attending). EventKit mapping for AgendaEvent ships at v0.6.0; through v0.3.0 the field round-trips on disk and edits via the Item Window inspector. All other AgendaEvent properties are user-defined.
-
-Users who want a `type` taxonomy can add it via the schema editor like any other Select — neither Agenda kind ships a built-in `type` field (Status is the sole built-in workflow indicator).
-
----
-
 #### Built-in `_status` property (AgendaTask + AgendaEvent)
 
-Pommora's Status type with **3 EventKit-aligned fixed groups: Upcoming / In Progress / Done**. Group IDs (`upcoming` / `in_progress` / `done`) map cleanly onto EventKit semantics — the v0.6.0 sync layer doesn't need translation logic.
+Both kinds carry exactly one built-in property: a non-deletable `_status` Status property (reserved ID `_status`). Every other property on either kind is user-defined. The Status type's structure (3 fixed EventKit-aligned groups Upcoming / In Progress / Done, renameable labels, user-editable options, default seed, the 3-slot rule, and the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
 
-Marked `builtin: true` — Status cannot be deleted on AgendaTask. Group **labels** are user-renamable; **options** are user-editable (add "Blocked", "Waiting on someone", etc.). Default seed:
-
-```
-Upcoming        → [Not started]
-In Progress     → [In progress]
-Done            → [Done]
-```
-
-EventKit mapping when v0.6.0 sync ships:
-
-| Pommora StatusGroupID | `EKReminder.isCompleted` |
-|---|---|
-| `upcoming` | `false` |
-| `in_progress` | `false` |
-| `done` | `true` |
-
-**The 3-slot structure is structural — not user-configurable.** Adding a 4th group would break EventKit compatibility (no clean mapping target). Customization happens by adding options within groups.
-
-AgendaEvent also carries built-in `status`. Same 3 EventKit-aligned groups (Upcoming / In Progress / Done). User-set, decoupled from `start_at` / `end_at` date math — tracks the user's engagement with the event. EKEvent's own status field (`.tentative` / `.confirmed`) is a separate EventKit concept; the v0.6.0 sync layer chooses how to bridge Pommora's Status as the design evolves.
-
-Full spec → [[Properties]].
+- The group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly, so the sync layer needs no translation logic.
+- AgendaEvent's `status` is user-set and decoupled from `start_at` / `end_at` date math — it tracks the user's engagement with the event ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own status field (`.tentative` / `.confirmed`) is a separate EventKit concept; the sync layer chooses how to bridge Pommora's Status as the design evolves.
+- Neither kind ships a built-in `type` field — Status is the sole built-in workflow indicator. A `type` taxonomy can be added via the schema editor like any other Select.
 
 ---
 
