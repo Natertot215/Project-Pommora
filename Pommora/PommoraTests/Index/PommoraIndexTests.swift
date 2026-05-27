@@ -15,7 +15,7 @@ struct PommoraIndexTests {
 
     // MARK: - Test 1: freshOpenCreatesDBAndMetaWithSchemaVersion1
 
-    @Test func freshOpenCreatesDBAndMetaWithSchemaVersion1() throws {
+    @Test func freshOpenCreatesDBAndMetaWithCurrentSchemaVersion() throws {
         let root = tempNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
@@ -25,7 +25,7 @@ struct PommoraIndexTests {
 
         try index.dbQueue.read { db in
             let row = try Row.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'schema_version'")
-            #expect(row?["value"] as String? == "1")
+            #expect(row?["value"] as String? == String(PommoraIndex.currentSchemaVersion))
         }
     }
 
@@ -46,7 +46,7 @@ struct PommoraIndexTests {
         let root = tempNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        // First open seeds version 1.
+        // First open seeds the current schema version.
         let (idx1, _) = try PommoraIndex.open(at: root)
         try idx1.dbQueue.write { db in
             try db.execute(sql: "UPDATE meta SET value = '99' WHERE key = 'schema_version'")

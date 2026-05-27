@@ -6,7 +6,14 @@ import GRDB
 /// Stored at `<nexus>/.nexus/index.db`. Schema version bumps force a full
 /// rebuild via IndexBuilder (Phase E.4).
 final class PommoraIndex {
-    static let currentSchemaVersion: Int = 1
+    // v2 (2026-05-27): bumped on the Folders revert. v1 dev databases created
+    // during the Folders era carry a now-dormant `folders` table + a
+    // `page_folder_id` column on `pages` (the schema added them via
+    // CREATE-IF-NOT-EXISTS without a version bump). Bumping to 2 marks every
+    // v1 DB stale so `open(at:)` deletes + recreates it fresh from the
+    // folders-free schema; IndexBuilder repopulates. Safe — the index holds no
+    // user data.
+    static let currentSchemaVersion: Int = 2
 
     let dbQueue: DatabaseQueue   // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
