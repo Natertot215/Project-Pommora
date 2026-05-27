@@ -7,11 +7,6 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPageType
 final class PageTypeManager {
     private(set) var types: [PageType] = []
     private(set) var pageCollectionsByType: [String: [PageCollection]] = [:]
-    /// Third tier on the Pages side (F.1.g). Folders indexed by their parent
-    /// PageCollection.id (NOT by PageType.id — Folders are Collection-local).
-    /// A Collection without any Folders maps to an empty array; lookup-by-id
-    /// returns `[]` for unknown collection IDs.
-    private(set) var foldersByCollection: [String: [Folder]] = [:]
     var pendingError: (any Error)?
 
     private let nexus: Nexus
@@ -29,24 +24,6 @@ final class PageTypeManager {
 
     func pageCollections(in pageType: PageType) -> [PageCollection] {
         pageCollectionsByType[pageType.id] ?? []
-    }
-
-    /// Returns the Folders inside `collection`, sorted by the persisted
-    /// `folderOrder` on the Collection (with an alphabetic tail for unranked
-    /// entries via `OrderResolver`).
-    func folders(in collection: PageCollection) -> [Folder] {
-        foldersByCollection[collection.id] ?? []
-    }
-
-    /// Resolves a Folder by its ULID across every loaded Collection. Used by
-    /// the sidebar selection bridge (`SidebarSelection.init?(tag:lookup:)` +
-    /// `init?(stateRef:lookup:)`) for routing + Pinned restore. Brute-force
-    /// O(N) walk over `foldersByCollection.values`; fine at sidebar scale.
-    func folder(byID id: String) -> Folder? {
-        for folders in foldersByCollection.values {
-            if let f = folders.first(where: { $0.id == id }) { return f }
-        }
-        return nil
     }
 
     // MARK: - Load
@@ -69,7 +46,6 @@ final class PageTypeManager {
 
             var loadedTypes: [PageType] = []
             var loadedCols: [String: [PageCollection]] = [:]
-            var loadedFolders: [String: [Folder]] = [:]
 
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
@@ -128,38 +104,6 @@ final class PageTypeManager {
                             ]
                             try? collection.save(to: collMetaURL)
                         }
-
-                        // F.1.g — walk this Collection's sub-folders for
-                        // `_folder.json` sidecars. A sub-folder without one is
-                        // either still tagged-up by F.1.i's auto-tag pass
-                        // (next launch) or an intentional Obsidian-style
-                        // adopted folder; either way we skip it here.
-                        let collectionFolders = (try? Filesystem.childFolders(of: sub)
-                            .filter { !$0.lastPathComponent.hasPrefix("_") }
-                            .filter { !$0.lastPathComponent.hasPrefix(".") }
-                            .compactMap { folderSub -> Folder? in
-                                let folderMetaURL = folderSub.appendingPathComponent(
-                                    NexusPaths.folderSidecarFilename
-                                )
-                                guard Filesystem.fileExists(at: folderMetaURL),
-                                    var f = try? Folder.load(from: folderMetaURL)
-                                else { return nil }
-                                if f.views.isEmpty {
-                                    f.views = [
-                                        SavedView.defaultTable(
-                                            visiblePropertyIDs: parentPropertyIDs
-                                        )
-                                    ]
-                                    try? f.save(to: folderMetaURL)
-                                }
-                                return f
-                            }) ?? []
-                        loadedFolders[collection.id] = OrderResolver.resolve(
-                            collectionFolders,
-                            persistedOrder: collection.folderOrder,
-                            titleKeyPath: \Folder.title
-                        )
-
                         return collection
                     }
                 loadedCols[pageType.id] = OrderResolver.resolve(
@@ -175,7 +119,6 @@ final class PageTypeManager {
                 titleKeyPath: \PageType.title
             )
             self.pageCollectionsByType = loadedCols
-            self.foldersByCollection = loadedFolders
             self.pendingError = nil
 
             // Defensive index sync. The architecture's quiet contract is "DB
@@ -187,26 +130,17 @@ final class PageTypeManager {
             // constraints fire. INSERT OR REPLACE makes this loop idempotent;
             // zero harm if a row's already there. Failures swallowed: index
             // is regeneratable, no user data lost.
-            //
-            // Folders ride this same defensive sync (F.1.g) — parent
-            // PageCollection rows MUST be upserted before Folder rows so the
-            // application-layer FK invariant holds even if upstream code
-            // races a query before populate runs.
             if let updater = indexUpdater {
                 for pageType in self.types {
                     try? updater.upsertPageType(pageType)
                     for collection in self.pageCollectionsByType[pageType.id] ?? [] {
                         try? updater.upsertPageCollection(collection)
-                        for folder in self.foldersByCollection[collection.id] ?? [] {
-                            try? updater.upsertFolder(folder)
-                        }
                     }
                 }
             }
         } catch {
             self.types = []
             self.pageCollectionsByType = [:]
-            self.foldersByCollection = [:]
             self.pendingError = error
         }
     }
@@ -288,38 +222,13 @@ final class PageTypeManager {
                 if let oldCols = pageCollectionsByType[pageType.id] {
                     let rebuilt = oldCols.map { c -> PageCollection in
                         let newCollURL = newFolder.appendingPathComponent(c.title, isDirectory: true)
-                        // F.1.g — re-derive Folder folderURLs that nest under
-                        // this Collection, so subsequent CRUD has a valid
-                        // on-disk path. IDs unchanged; only the URL needs
-                        // recomputing.
-                        if let oldFolders = foldersByCollection[c.id] {
-                            let rebuiltFolders = oldFolders.map { f -> Folder in
-                                let newFolderURL = newCollURL.appendingPathComponent(
-                                    f.title, isDirectory: true
-                                )
-                                return Folder(
-                                    id: f.id,
-                                    typeID: f.typeID,
-                                    collectionID: f.collectionID,
-                                    title: f.title,
-                                    folderURL: newFolderURL,
-                                    icon: f.icon,
-                                    modifiedAt: f.modifiedAt,
-                                    schemaVersion: f.schemaVersion,
-                                    pageOrder: f.pageOrder,
-                                    views: f.views
-                                )
-                            }
-                            foldersByCollection[c.id] = rebuiltFolders
-                        }
                         return PageCollection(
                             id: c.id,
                             typeID: c.typeID,
                             title: c.title,
                             folderURL: newCollURL,
                             modifiedAt: c.modifiedAt,
-                            pageOrder: c.pageOrder,
-                            folderOrder: c.folderOrder
+                            pageOrder: c.pageOrder
                         )
                     }
                     pageCollectionsByType[pageType.id] = rebuilt
@@ -429,7 +338,7 @@ final class PageTypeManager {
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
             // Bump modified_at in the sidecar at its new location. Preserve
-            // pageOrder + folderOrder so a rename doesn't drop persisted ordering.
+            // pageOrder so a rename doesn't drop persisted ordering.
             let now = Date()
             let updated = PageCollection(
                 id: collection.id,
@@ -437,8 +346,7 @@ final class PageTypeManager {
                 title: newName,
                 folderURL: newURL,
                 modifiedAt: now,
-                pageOrder: collection.pageOrder,
-                folderOrder: collection.folderOrder
+                pageOrder: collection.pageOrder
             )
             let metaURL = newURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             do {
@@ -468,30 +376,6 @@ final class PageTypeManager {
                 )
             }
             pageCollectionsByType[pageType.id] = arr
-
-            // F.1.g — rebuild Folder folderURLs nested under this Collection
-            // after its parent folder moved. IDs unchanged; only the URL
-            // path needs recomputing.
-            if let oldFolders = foldersByCollection[collection.id] {
-                let rebuiltFolders = oldFolders.map { f -> Folder in
-                    let newFolderURL = newURL.appendingPathComponent(
-                        f.title, isDirectory: true
-                    )
-                    return Folder(
-                        id: f.id,
-                        typeID: f.typeID,
-                        collectionID: f.collectionID,
-                        title: f.title,
-                        folderURL: newFolderURL,
-                        icon: f.icon,
-                        modifiedAt: f.modifiedAt,
-                        schemaVersion: f.schemaVersion,
-                        pageOrder: f.pageOrder,
-                        views: f.views
-                    )
-                }
-                foldersByCollection[collection.id] = rebuiltFolders
-            }
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -509,239 +393,9 @@ final class PageTypeManager {
             var arr = pageCollectionsByType[collection.typeID] ?? []
             arr.removeAll { $0.id == collection.id }
             pageCollectionsByType[collection.typeID] = arr
-
-            // F.1.g — the SQLite folders table cascades via ON DELETE CASCADE
-            // FK on `page_collections(id)`, but the in-memory dictionary must
-            // be cleared explicitly. Folders inside the deleted Collection
-            // are gone from disk (parent folder moved to trash); pages inside
-            // those Folders are also trashed.
-            foldersByCollection.removeValue(forKey: collection.id)
         } catch {
             self.pendingError = error
             throw error
-        }
-    }
-
-    // MARK: - Folder CRUD (F.1.g)
-
-    /// Creates a new Folder inside `collection`. Writes the on-disk
-    /// `<nexus>/<type>/<collection>/<title>/_folder.json` sidecar,
-    /// upserts the index row, and appends to `foldersByCollection`. Mints
-    /// a default Table view via `SavedView.defaultTable(visiblePropertyIDs:)`
-    /// keyed off the grandparent PageType's property schema. Locked decision:
-    /// fresh Folders start cold — they do NOT copy the parent Collection's
-    /// `views[0]` config (Collection independence rule extends to Folders).
-    @discardableResult
-    func createFolder(
-        in collection: PageCollection,
-        title: String,
-        icon: String? = nil
-    ) async throws -> Folder {
-        do {
-            guard let pageType = types.first(where: { $0.id == collection.typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            let existing = foldersByCollection[collection.id] ?? []
-            try FolderValidator.validate(title: title, existingInCollection: existing)
-
-            let folderURL = NexusPaths.folderFolderURL(
-                in: nexus.rootURL,
-                typeFolderName: pageType.title,
-                collectionFolderName: collection.title,
-                folderFolderName: title
-            )
-            let metaURL = folderURL.appendingPathComponent(NexusPaths.folderSidecarFilename)
-            let now = Date()
-            let folder = Folder(
-                id: ULID.generate(),
-                typeID: pageType.id,
-                collectionID: collection.id,
-                title: title,
-                folderURL: folderURL,
-                icon: icon,
-                modifiedAt: now,
-                views: [
-                    SavedView.defaultTable(
-                        visiblePropertyIDs: pageType.properties.map(\.id)
-                    )
-                ]
-            )
-            try Filesystem.createFolderWithMetadata(
-                folderURL: folderURL, metadataURL: metaURL, metadata: folder
-            )
-
-            if let updater = indexUpdater {
-                do { try updater.upsertFolder(folder) } catch { self.pendingError = error }
-            }
-
-            var arr = existing
-            arr.append(folder)
-            arr = OrderResolver.resolve(
-                arr,
-                persistedOrder: collection.folderOrder,
-                titleKeyPath: \Folder.title
-            )
-            foldersByCollection[collection.id] = arr
-            return folder
-        } catch {
-            self.pendingError = error
-            throw error
-        }
-    }
-
-    /// Renames a Folder. Atomic disk rename → sidecar rewrite at new path
-    /// with bumped modifiedAt → in-memory update. Preserves `pageOrder` /
-    /// `views` / `icon` across the rename. On save failure rolls back the
-    /// folder rename and throws (combined `RenameAtomicityError` if the
-    /// rollback itself fails).
-    func renameFolder(_ folder: Folder, to newName: String) async throws {
-        do {
-            guard let pageType = types.first(where: { $0.id == folder.typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            guard let collection = (pageCollectionsByType[folder.typeID] ?? [])
-                .first(where: { $0.id == folder.collectionID })
-            else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            let existing = foldersByCollection[collection.id] ?? []
-            try FolderValidator.validate(
-                title: newName, existingInCollection: existing, excluding: folder
-            )
-
-            let newURL = NexusPaths.folderFolderURL(
-                in: nexus.rootURL,
-                typeFolderName: pageType.title,
-                collectionFolderName: collection.title,
-                folderFolderName: newName
-            )
-            try Filesystem.renameFolder(from: folder.folderURL, to: newURL)
-
-            let now = Date()
-            let updated = Folder(
-                id: folder.id,
-                typeID: folder.typeID,
-                collectionID: folder.collectionID,
-                title: newName,
-                folderURL: newURL,
-                icon: folder.icon,
-                modifiedAt: now,
-                schemaVersion: folder.schemaVersion,
-                pageOrder: folder.pageOrder,
-                views: folder.views
-            )
-            let metaURL = newURL.appendingPathComponent(NexusPaths.folderSidecarFilename)
-            do {
-                try updated.save(to: metaURL)
-            } catch let saveError {
-                do {
-                    try Filesystem.renameFolder(from: newURL, to: folder.folderURL)
-                    throw saveError
-                } catch let revertError {
-                    let combined = RenameAtomicityError(
-                        saveError: saveError, revertError: revertError
-                    )
-                    self.pendingError = combined
-                    throw combined
-                }
-            }
-
-            if let updater = indexUpdater {
-                do { try updater.upsertFolder(updated) } catch { self.pendingError = error }
-            }
-
-            var arr = existing
-            if let i = arr.firstIndex(where: { $0.id == folder.id }) {
-                arr[i] = updated
-                arr = OrderResolver.resolve(
-                    arr,
-                    persistedOrder: collection.folderOrder,
-                    titleKeyPath: \Folder.title
-                )
-            }
-            foldersByCollection[collection.id] = arr
-        } catch {
-            if !(error is RenameAtomicityError) {
-                self.pendingError = error
-            }
-            throw error
-        }
-    }
-
-    /// Updates a Folder's icon. Schema-only write at the sidecar; bumps
-    /// `modifiedAt`. Pages-in-folders unaffected.
-    func updateFolderIcon(_ folder: Folder, to icon: String?) async throws {
-        do {
-            var updated = folder
-            updated.icon = icon
-            updated.modifiedAt = Date()
-            let metaURL = folder.folderURL.appendingPathComponent(
-                NexusPaths.folderSidecarFilename
-            )
-            try updated.save(to: metaURL)
-            if let updater = indexUpdater {
-                do { try updater.upsertFolder(updated) } catch { self.pendingError = error }
-            }
-            var arr = foldersByCollection[folder.collectionID] ?? []
-            if let i = arr.firstIndex(where: { $0.id == folder.id }) {
-                arr[i] = updated
-            }
-            foldersByCollection[folder.collectionID] = arr
-        } catch {
-            self.pendingError = error
-            throw error
-        }
-    }
-
-    /// Moves a Folder + every Page inside it to the nexus trash. The SQLite
-    /// `folders` row deletion is explicit (no FK cascade across the
-    /// `addPageFolderIDColumnIfMissing`-added pages.page_folder_id column
-    /// since SQLite ALTER can't add the REFERENCES clause). Pages-in-folders
-    /// remain indexed; the next IndexBuilder run reconciles their orphan
-    /// `page_folder_id`.
-    func deleteFolder(_ folder: Folder) async throws {
-        do {
-            try Filesystem.moveToTrash(folder.folderURL, in: nexus)
-            if let updater = indexUpdater {
-                do { try updater.deleteFolder(id: folder.id) } catch { self.pendingError = error }
-            }
-            var arr = foldersByCollection[folder.collectionID] ?? []
-            arr.removeAll { $0.id == folder.id }
-            foldersByCollection[folder.collectionID] = arr
-        } catch {
-            self.pendingError = error
-            throw error
-        }
-    }
-
-    /// Reorders Folders inside `collection` (intra-group only — Folders never
-    /// interleave with root Pages). Persists the new order to the parent
-    /// Collection's `_pagecollection.json` `folder_order` field via
-    /// `OrderPersister.setFolderOrder`. Also bumps the in-memory
-    /// PageCollection's `folderOrder` so subsequent loadAll's OrderResolver
-    /// reads the persisted value back consistently.
-    func reorderFolders(
-        in collection: PageCollection,
-        fromOffsets source: IndexSet,
-        toOffset destination: Int
-    ) {
-        var arr = foldersByCollection[collection.id] ?? []
-        let before = arr
-        arr.move(fromOffsets: source, toOffset: destination)
-        guard arr != before else { return }
-        foldersByCollection[collection.id] = arr
-        do {
-            try OrderPersister.setFolderOrder(arr.map(\.id), in: collection)
-            // Keep the in-memory PageCollection's folderOrder in sync.
-            if let typeArr = pageCollectionsByType[collection.typeID],
-                let ci = typeArr.firstIndex(where: { $0.id == collection.id })
-            {
-                var c = typeArr[ci]
-                c.folderOrder = arr.map(\.id)
-                pageCollectionsByType[collection.typeID]?[ci] = c
-            }
-        } catch {
-            self.pendingError = error
         }
     }
 

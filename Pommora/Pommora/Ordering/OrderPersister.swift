@@ -73,27 +73,6 @@ enum OrderPersister {
         }
     }
 
-    /// Persists the order of Pages inside `folder` (F.1.h). Writes to the
-    /// Folder's `_folder.json` `page_order` field. Folder-scoped Pages are
-    /// distinct from Collection-root Pages (`setPageOrder(_:in collection:)`)
-    /// and Type-root Pages (`setPageOrder(_:inVault:)`); a Page lives in
-    /// exactly one of the three orderings.
-    static func setPageOrder(_ order: [String], in folder: Folder) throws {
-        try mutateFolder(folder) { f in
-            f.pageOrder = order.isEmpty ? nil : order
-        }
-    }
-
-    /// Persists the order of Folders inside `collection` (F.1.c). Writes to the
-    /// Collection's `_pagecollection.json` `folder_order` field. Intra-group
-    /// only: Folders and root Pages are reorderable independently, never
-    /// interleaved.
-    static func setFolderOrder(_ order: [String], in collection: PageCollection) throws {
-        try mutatePageCollection(collection) { c in
-            c.folderOrder = order.isEmpty ? nil : order
-        }
-    }
-
     // MARK: - ItemCollection order / Item order (_itemtype.json + _itemcollection.json)
 
     static func setItemCollectionOrder(
@@ -171,16 +150,6 @@ enum OrderPersister {
     ) throws {
         let url = collection.folderURL.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
         var updated = try ItemCollection.load(from: url)
-        mutate(&updated)
-        try updated.save(to: url)
-    }
-
-    private static func mutateFolder(
-        _ folder: Folder,
-        _ mutate: (inout Folder) -> Void
-    ) throws {
-        let url = folder.folderURL.appendingPathComponent(NexusPaths.folderSidecarFilename)
-        var updated = try Folder.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
     }

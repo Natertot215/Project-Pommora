@@ -2,7 +2,7 @@ import Foundation
 
 /// Orchestrates the system-wide stub-and-inline-rename CRUD flow (paradigm
 /// shift superseding the modal `New*Sheet.swift` pattern). Every "New X"
-/// trigger across Pommora — PageType, PageCollection, Folder, Page, ItemType,
+/// trigger across Pommora — PageType, PageCollection, Page, ItemType,
 /// ItemCollection, Item, and the Context tier (Space, Topic, Project) —
 /// funnels through this helper so the create-then-edit sequence is uniform.
 ///

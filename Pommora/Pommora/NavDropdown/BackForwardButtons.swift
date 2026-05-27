@@ -90,7 +90,7 @@ struct BackForwardButtons: View {
             return
         case .agenda, .none:
             return  // skip — nothing to route
-        case .page, .vault, .space, .topic, .project, .collection, .folder:
+        case .page, .vault, .space, .topic, .project, .collection:
             break
         }
 

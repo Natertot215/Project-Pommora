@@ -98,32 +98,6 @@ struct SidebarDetailView: View {
                     .padding()
                 }
 
-            case .folder(let f):
-                if let v = lookupVault(forFolder: f) {
-                    FolderDetailView(
-                        folder: f,
-                        vault: v,
-                        selection: $selection,
-                        presentedSheet: $presentedSheet,
-                        presentedItem: $presentedItem,
-                        editingID: $editingID,
-                        justCreatedID: $justCreatedID
-                    )
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Folder parent vault not found")
-                            .foregroundStyle(.red)
-                            .font(.headline)
-                        Text("Folder title: \(f.title)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("Folder typeID: \(f.typeID)")
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                }
-
             case .page(let p):
                 PageEditorHost(page: p)
 
@@ -183,21 +157,6 @@ struct SidebarDetailView: View {
         }
         let parentFolderName = c.folderURL.deletingLastPathComponent().lastPathComponent
         return vaultManager.types.first { $0.title == parentFolderName }
-    }
-
-    /// Find the PageType that owns this Folder. Primary: `folder.typeID`.
-    /// Fallback: the grandparent folder name — a Folder sits at
-    /// `<nexus>/<Type>/<Collection>/<Folder>/`, so two `deletingLastPathComponent`
-    /// hops yield the owning PageType folder.
-    private func lookupVault(forFolder f: Folder) -> PageType? {
-        if let v = vaultManager.types.first(where: { $0.id == f.typeID }) {
-            return v
-        }
-        let grandparentFolderName = f.folderURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .lastPathComponent
-        return vaultManager.types.first { $0.title == grandparentFolderName }
     }
 
     private var emptyState: some View {

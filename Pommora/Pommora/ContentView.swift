@@ -76,12 +76,6 @@ struct ContentView: View {
             return .pageType(t)
         case .collection(let c):
             return .pageCollection(c)
-        case .folder:
-            // Folder view-settings scope (ViewSettingsScope.folder) lands with
-            // the full F.4 pass, which touches ViewSettings/StorageMenuRoot.swift
-            // — currently a parallel-session surface. Until then the View
-            // Settings popover shows nothing special for a selected Folder.
-            return .none
         case .page:
             return .page
         case .itemType(let t):

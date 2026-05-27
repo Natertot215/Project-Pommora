@@ -3,36 +3,35 @@ import Testing
 
 @testable import Pommora
 
-/// F.1.i — silent auto-sidecar-tagging tests.
+/// Silent auto-sidecar-tagging tests.
 ///
-/// `NexusAdopter.autoTagMissingSidecars(at:)` walks the Nexus root three
+/// `NexusAdopter.autoTagMissingSidecars(at:)` walks the Nexus root two
 /// levels deep on every launch and writes missing per-kind sidecars so
-/// Finder-built structure is first-class without any user-facing prompt.
-/// These tests cover:
-///   - Three-tier round-trip (Type / Collection / Folder all auto-tagged)
-///   - Items-side stops at two tiers (no `_folder.json` on depth-2)
+/// Finder-built structure (Types + Collections) is first-class without any
+/// user-facing prompt. These tests cover:
+///   - Two-tier round-trip (Type / Collection auto-tagged)
+///   - Items-side stops at two tiers
 ///   - Idempotence (second pass produces identical disk state)
 ///   - Exclusion rules (dotfile + underscore prefixes left alone)
 @MainActor
 @Suite("NexusAdopter+AutoTag")
 struct NexusAdopterAutoTagTests {
 
-    // MARK: - Three-tier Pages round-trip
+    // MARK: - Two-tier Pages round-trip
 
-    @Test("Finder-built three-tier Pages structure round-trips to fully-tagged tree")
-    func threeTierPagesRoundTrip() throws {
+    @Test("Finder-built two-tier Pages structure round-trips to fully-tagged tree")
+    func twoTierPagesRoundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Hand-built: Research/Sources/2026-Q2/paper.md — zero sidecars.
+        // Hand-built: Research/Sources/paper.md — zero sidecars.
         let typeFolder = nexus.rootURL.appendingPathComponent("Research", isDirectory: true)
         let collFolder = typeFolder.appendingPathComponent("Sources", isDirectory: true)
-        let folderFolder = collFolder.appendingPathComponent("2026-Q2", isDirectory: true)
         try FileManager.default.createDirectory(
-            at: folderFolder, withIntermediateDirectories: true
+            at: collFolder, withIntermediateDirectories: true
         )
         try FixtureFiles.write(
-            "# Paper\n", to: folderFolder.appendingPathComponent("paper.md")
+            "# Paper\n", to: collFolder.appendingPathComponent("paper.md")
         )
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
@@ -54,33 +53,12 @@ struct NexusAdopterAutoTagTests {
         #expect(pc.typeID == pt.id)
         #expect(pc.title == "Sources")
 
-        // Folder sidecar (the new third tier)
-        let fMeta = folderFolder.appendingPathComponent(NexusPaths.folderSidecarFilename)
-        #expect(FileManager.default.fileExists(atPath: fMeta.path))
-        let f = try Folder.load(from: fMeta)
-        #expect(!f.id.isEmpty)
-        #expect(f.typeID == pt.id)
-        #expect(f.collectionID == pc.id)
-        #expect(f.title == "2026-Q2")
-    }
-
-    @Test("auto-tag preserves the markdown file at the three-tier path")
-    func threeTierPreservesPageFile() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let folderFolder = nexus.rootURL
-            .appendingPathComponent("Research")
-            .appendingPathComponent("Sources")
-            .appendingPathComponent("2026-Q2")
-        try FileManager.default.createDirectory(
-            at: folderFolder, withIntermediateDirectories: true
+        // The markdown file at the collection path is preserved.
+        #expect(
+            FileManager.default.fileExists(
+                atPath: collFolder.appendingPathComponent("paper.md").path
+            )
         )
-        let paperURL = folderFolder.appendingPathComponent("paper.md")
-        try FixtureFiles.write("# Paper\n", to: paperURL)
-
-        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
-
-        #expect(FileManager.default.fileExists(atPath: paperURL.path))
     }
 
     // MARK: - Items side stops at two tiers
@@ -113,13 +91,11 @@ struct NexusAdopterAutoTagTests {
         )
         #expect(FileManager.default.fileExists(atPath: icMeta.path))
 
-        // No _folder.json AND no _itemcollection.json inside the depth-2
-        // folder — Items side has no third tier.
-        let depth2Folder = deepFolder.appendingPathComponent(NexusPaths.folderSidecarFilename)
+        // No sidecar inside the depth-2 folder — Items side has no third
+        // tier (and Pages-side third-tier auto-tagging was removed).
         let depth2ItemColl = deepFolder.appendingPathComponent(
             NexusPaths.itemCollectionSidecarFilename
         )
-        #expect(!FileManager.default.fileExists(atPath: depth2Folder.path))
         #expect(!FileManager.default.fileExists(atPath: depth2ItemColl.path))
     }
 
@@ -129,35 +105,33 @@ struct NexusAdopterAutoTagTests {
     func idempotence() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let folderFolder = nexus.rootURL
+        let collFolder = nexus.rootURL
             .appendingPathComponent("Research")
             .appendingPathComponent("Sources")
-            .appendingPathComponent("2026-Q2")
         try FileManager.default.createDirectory(
-            at: folderFolder, withIntermediateDirectories: true
+            at: collFolder, withIntermediateDirectories: true
         )
         try FixtureFiles.write(
-            "# Paper\n", to: folderFolder.appendingPathComponent("paper.md")
+            "# Paper\n", to: collFolder.appendingPathComponent("paper.md")
         )
 
         // Pass 1
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
-        let pcMeta = folderFolder.deletingLastPathComponent()
-            .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-        let fMeta = folderFolder.appendingPathComponent(NexusPaths.folderSidecarFilename)
+        let ptMeta = collFolder.deletingLastPathComponent()
+            .appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let pt1 = try PageType.load(from: ptMeta)
         let pc1 = try PageCollection.load(from: pcMeta)
-        let f1 = try Folder.load(from: fMeta)
 
         // Pass 2
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+        let pt2 = try PageType.load(from: ptMeta)
         let pc2 = try PageCollection.load(from: pcMeta)
-        let f2 = try Folder.load(from: fMeta)
 
         // IDs preserved across passes — sidecars not rewritten.
+        #expect(pt1.id == pt2.id)
         #expect(pc1.id == pc2.id)
-        #expect(f1.id == f2.id)
-        #expect(f1.collectionID == f2.collectionID)
-        #expect(f1.typeID == f2.typeID)
+        #expect(pc1.typeID == pc2.typeID)
     }
 
     // MARK: - Exclusion rules

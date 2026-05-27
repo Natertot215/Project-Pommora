@@ -108,7 +108,6 @@ struct SidebarView: View {
         case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
-        case .deleteFolder(let f)?: return "Delete Folder \"\(f.title)\"?"
         case .deleteItemType(let t, _)?:
             let typeLabel = settingsManager.settings.labels.itemType.singular
             return "Delete \(typeLabel) \"\(t.title)\"?"
@@ -129,7 +128,6 @@ struct SidebarView: View {
         case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
         case .deleteCollection: return "All Pages and Items inside will be deleted."
-        case .deleteFolder: return "All Pages inside will be deleted."
         case .deleteItemType(_, let sets):
             return sets > 0
                 ? "Contains \(sets) Set(s). All Items inside will be deleted."
@@ -198,15 +196,6 @@ struct SidebarView: View {
             Button("Delete", role: .destructive) {
                 Task {
                     do { try await vaultManager.deletePageCollection(c) } catch
-                    { /* pendingError set by manager; toast surfaces */  }
-                    confirmingDelete = nil
-                }
-            }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
-        case .deleteFolder(let f):
-            Button("Delete", role: .destructive) {
-                Task {
-                    do { try await vaultManager.deleteFolder(f) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }

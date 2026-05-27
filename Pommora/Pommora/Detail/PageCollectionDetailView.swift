@@ -10,10 +10,8 @@ struct PageCollectionDetailView: View {
     @Binding var justCreatedID: String?
 
     @State private var isCreatingPage: Bool = false
-    @State private var isCreatingFolder: Bool = false
 
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(PageTypeManager.self) private var pageTypeManager
 
     @State private var tableSelection: Set<String> = []
     @State private var renameTarget: DetailRow?
@@ -162,14 +160,6 @@ struct PageCollectionDetailView: View {
     private var footer: some View {
         HStack {
             Button {
-                createFolder()
-            } label: {
-                Label("New Folder", systemImage: "folder.badge.plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingFolder)
-            Button {
                 createPage()
             } label: {
                 Label("New Page", systemImage: "plus")
@@ -180,33 +170,6 @@ struct PageCollectionDetailView: View {
             Spacer()
         }
         .padding(8)
-    }
-
-    /// Stub-and-edit "New Folder" trigger fired from the detail-view footer.
-    /// Mirrors PageCollectionRow's createFolder — creates a uniquely-named
-    /// Folder via PageTypeManager, then flips its sidebar row into rename mode
-    /// (the Folder surfaces in the sidebar tree under this Collection).
-    private func createFolder() {
-        guard !isCreatingFolder else { return }
-        isCreatingFolder = true
-        let existing = pageTypeManager.folders(in: collection).map(\.title)
-        let title = DefaultTitleResolver.resolve(label: "Folder", existingTitles: existing)
-        Task {
-            defer { isCreatingFolder = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await pageTypeManager.createFolder(in: collection, title: title)
-                    },
-                    onCreate: { newFolder in
-                        editingID = newFolder.id
-                        justCreatedID = newFolder.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
     }
 
     /// Stub-and-edit "New Page" trigger fired from the detail-view footer.

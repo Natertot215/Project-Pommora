@@ -7,9 +7,7 @@ enum IndexSchema {
         try db.execute(sql: itemTypesDDL)
         try db.execute(sql: pageCollectionsDDL)
         try db.execute(sql: itemCollectionsDDL)
-        try db.execute(sql: foldersDDL)
         try db.execute(sql: pagesDDL)
-        try addPageFolderIDColumnIfMissing(db)
         try db.execute(sql: itemsDDL)
         try db.execute(sql: agendaTasksDDL)
         try db.execute(sql: agendaEventsDDL)
@@ -18,24 +16,6 @@ enum IndexSchema {
         try db.execute(sql: tierLinksDDL)
         try db.execute(sql: propertyDefinitionsDDL)
         try db.execute(sql: indexesDDL)
-    }
-
-    /// Idempotent ALTER for adding `page_folder_id` to an existing `pages`
-    /// table on databases that pre-date v0.3.2. Fresh databases get the
-    /// column via `pagesDDL` directly — the column is declared inline below.
-    /// Existing v0.3.1 indexes have the table without the column; this helper
-    /// detects + adds it. Skipping FK enforcement at ALTER time matches
-    /// SQLite's restricted ALTER semantics (no FK clause on added columns).
-    private static func addPageFolderIDColumnIfMissing(_ db: Database) throws {
-        let columns = try db.columns(in: "pages").map(\.name)
-        guard !columns.contains("page_folder_id") else { return }
-        // SQLite ALTER TABLE … ADD COLUMN cannot include a REFERENCES clause
-        // for an existing table. The FK relationship is enforced via
-        // application-layer upsert/delete paths (IndexUpdater) and via the
-        // DELETE-then-repopulate IndexBuilder strategy. ON DELETE SET NULL
-        // semantics: when a Folder row is deleted, the IndexUpdater clears
-        // page_folder_id on the corresponding pages.
-        try db.execute(sql: "ALTER TABLE pages ADD COLUMN page_folder_id TEXT;")
     }
 
     // MARK: - Table DDL
@@ -80,28 +60,11 @@ enum IndexSchema {
         );
         """
 
-    /// `folders` — third-tier on the Pages side (v0.3.2 F.1.d). Sits inside
-    /// a PageCollection sub-folder, holds Pages directly. Cascading delete
-    /// from either parent (page_collection or page_type) per the on-disk
-    /// containment rule.
-    private static let foldersDDL = """
-        CREATE TABLE IF NOT EXISTS folders (
-            id TEXT PRIMARY KEY,
-            page_collection_id TEXT NOT NULL REFERENCES page_collections(id) ON DELETE CASCADE,
-            page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
-            title TEXT NOT NULL,
-            icon TEXT,
-            modified_at TEXT NOT NULL,
-            schema_version INTEGER NOT NULL DEFAULT 1
-        );
-        """
-
     private static let pagesDDL = """
         CREATE TABLE IF NOT EXISTS pages (
             id TEXT PRIMARY KEY,
             page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
             page_collection_id TEXT REFERENCES page_collections(id) ON DELETE SET NULL,
-            page_folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
             title TEXT NOT NULL,
             properties TEXT NOT NULL DEFAULT '{}',
             modified_at TEXT NOT NULL
@@ -190,13 +153,10 @@ enum IndexSchema {
     private static let indexesDDL = """
         CREATE INDEX IF NOT EXISTS idx_pages_page_type_id ON pages(page_type_id);
         CREATE INDEX IF NOT EXISTS idx_pages_page_collection_id ON pages(page_collection_id);
-        CREATE INDEX IF NOT EXISTS idx_pages_page_folder_id ON pages(page_folder_id);
         CREATE INDEX IF NOT EXISTS idx_items_item_type_id ON items(item_type_id);
         CREATE INDEX IF NOT EXISTS idx_items_item_collection_id ON items(item_collection_id);
         CREATE INDEX IF NOT EXISTS idx_page_collections_page_type_id ON page_collections(page_type_id);
         CREATE INDEX IF NOT EXISTS idx_item_collections_item_type_id ON item_collections(item_type_id);
-        CREATE INDEX IF NOT EXISTS idx_folders_page_collection_id ON folders(page_collection_id);
-        CREATE INDEX IF NOT EXISTS idx_folders_page_type_id ON folders(page_type_id);
         CREATE INDEX IF NOT EXISTS idx_relations_source_id ON relations(source_id);
         CREATE INDEX IF NOT EXISTS idx_relations_target_id ON relations(target_id);
         CREATE INDEX IF NOT EXISTS idx_relations_property_id ON relations(property_id);

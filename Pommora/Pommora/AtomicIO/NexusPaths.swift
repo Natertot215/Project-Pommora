@@ -14,9 +14,6 @@ enum NexusPaths {
     static let itemTypeSidecarFilename = "_itemtype.json"
     /// `_itemcollection.json` — ItemCollection sub-folder sidecar.
     static let itemCollectionSidecarFilename = "_itemcollection.json"
-    /// `_folder.json` — Folder sub-sub-folder sidecar (third-tier on Pages
-    /// side; lives inside a PageCollection sub-folder, holds Pages only).
-    static let folderSidecarFilename = "_folder.json"
     /// `_taskconfig.json` — Tasks singleton sidecar (AgendaTask schema).
     static let taskConfigSidecarFilename = "_taskconfig.json"
     /// `_eventconfig.json` — Events singleton sidecar (AgendaEvent schema).
@@ -284,40 +281,6 @@ enum NexusPaths {
             collectionFolderName: collectionFolderName
         )
         .appendingPathComponent(pageCollectionSidecarFilename, isDirectory: false)
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/<folderFolderName>/` —
-    /// Folder folder (third tier on Pages side). Sits inside the parent
-    /// PageCollection sub-folder; holds Pages directly.
-    static func folderFolderURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String,
-        folderFolderName: String
-    ) -> URL {
-        pageCollectionFolderURL(
-            in: nexusRoot,
-            typeFolderName: typeFolderName,
-            collectionFolderName: collectionFolderName
-        )
-        .appendingPathComponent(folderFolderName, isDirectory: true)
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/<folderFolderName>/_folder.json`
-    /// — Folder sidecar.
-    static func folderMetadataURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String,
-        folderFolderName: String
-    ) -> URL {
-        folderFolderURL(
-            in: nexusRoot,
-            typeFolderName: typeFolderName,
-            collectionFolderName: collectionFolderName,
-            folderFolderName: folderFolderName
-        )
-        .appendingPathComponent(folderSidecarFilename, isDirectory: false)
     }
 
     // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)

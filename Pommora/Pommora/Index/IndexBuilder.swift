@@ -20,22 +20,6 @@ private struct PageCollectionSnapshot: Sendable {
     let title: String
     let modifiedAt: Date
     let schemaVersion: Int
-    let folders: [FolderSnapshot]
-    let pages: [PageSnapshot]  // Pages directly at Collection root (folderID nil)
-}
-
-/// Folder — third tier on the Pages side (F.1). Sits inside a PageCollection
-/// sub-folder via `_folder.json`; holds Pages only. Pages indexed under a
-/// FolderSnapshot get `folderID` populated; pages at Collection root carry
-/// `folderID == nil`.
-private struct FolderSnapshot: Sendable {
-    let id: String
-    let title: String
-    let icon: String?
-    let pageCollectionID: String
-    let pageTypeID: String
-    let modifiedAt: Date
-    let schemaVersion: Int
     let pages: [PageSnapshot]
 }
 
@@ -46,7 +30,6 @@ private struct PageSnapshot: Sendable {
     let modifiedAt: Date
     let pageTypeID: String
     let collectionID: String?
-    let folderID: String?
     let tier1: [String]
     let tier2: [String]
     let tier3: [String]
@@ -191,7 +174,7 @@ final class IndexBuilder {
                 let pageType = try? PageType.load(from: metaURL)
             else { continue }
 
-            // Collections (and their Folders — third tier on the Pages side)
+            // Collections
             let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
             var collections: [PageCollectionSnapshot] = []
             for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
@@ -199,57 +182,17 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: collURL),
                     let coll = try? PageCollection.load(from: collURL)
                 else { continue }
-
-                // Walk this Collection's sub-folders for `_folder.json` (F.1 Folder tier).
-                // Sub-folders without `_folder.json` are silently skipped here —
-                // F.1.i's `autoTagMissingSidecars` pass promotes them to Folders
-                // on next launch, so steady-state has every sub-folder tagged.
-                let collectionChildFolders = (try? Filesystem.childFolders(of: sub)) ?? []
-                var folders: [FolderSnapshot] = []
-                for folderSub in collectionChildFolders
-                where !folderSub.lastPathComponent.hasPrefix("_")
-                    && !folderSub.lastPathComponent.hasPrefix(".")
-                {
-                    let folderURL = folderSub.appendingPathComponent(
-                        NexusPaths.folderSidecarFilename
-                    )
-                    guard Filesystem.fileExists(at: folderURL),
-                        let fld = try? Folder.load(from: folderURL)
-                    else { continue }
-                    let folderPages = collectPagesInFolder(
-                        folderSub,
-                        pageTypeID: pageType.id,
-                        collectionID: coll.id,
-                        folderID: fld.id
-                    )
-                    folders.append(FolderSnapshot(
-                        id: fld.id,
-                        title: fld.title,
-                        icon: fld.icon,
-                        pageCollectionID: coll.id,
-                        pageTypeID: pageType.id,
-                        modifiedAt: fld.modifiedAt,
-                        schemaVersion: fld.schemaVersion,
-                        pages: folderPages
-                    ))
-                }
-
-                let pages = collectPagesInFolder(
-                    sub, pageTypeID: pageType.id, collectionID: coll.id, folderID: nil
-                )
+                let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id)
                 collections.append(PageCollectionSnapshot(
                     id: coll.id,
                     title: coll.title,
                     modifiedAt: coll.modifiedAt,
                     schemaVersion: coll.schemaVersion,
-                    folders: folders,
                     pages: pages
                 ))
             }
 
-            let directPages = collectPagesInFolder(
-                folder, pageTypeID: pageType.id, collectionID: nil, folderID: nil
-            )
+            let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil)
 
             result.append(PageTypeSnapshot(
                 id: pageType.id,
@@ -268,8 +211,7 @@ final class IndexBuilder {
     private static func collectPagesInFolder(
         _ folderURL: URL,
         pageTypeID: String,
-        collectionID: String?,
-        folderID: String?
+        collectionID: String?
     ) -> [PageSnapshot] {
         let urls = (try? Filesystem.children(of: folderURL) { $0.pathExtension == "md" }) ?? []
         return urls.compactMap { url -> PageSnapshot? in
@@ -282,7 +224,6 @@ final class IndexBuilder {
                 modifiedAt: fm.modifiedAt ?? fm.createdAt,
                 pageTypeID: pageTypeID,
                 collectionID: collectionID,
-                folderID: folderID,
                 tier1: fm.tier1,
                 tier2: fm.tier2,
                 tier3: fm.tier3
@@ -463,11 +404,7 @@ final class IndexBuilder {
         try db.execute(sql: "DELETE FROM tier_links")
         try db.execute(sql: "DELETE FROM relations")
         try db.execute(sql: "DELETE FROM property_definitions")
-        // Order: pages → folders → page_collections → page_types.
-        // ON DELETE SET NULL / CASCADE FK actions would handle this anyway,
-        // but the explicit order keeps a defensive guarantee.
         try db.execute(sql: "DELETE FROM pages")
-        try db.execute(sql: "DELETE FROM folders")
         try db.execute(sql: "DELETE FROM page_collections")
         try db.execute(sql: "DELETE FROM items")
         try db.execute(sql: "DELETE FROM item_collections")
@@ -496,24 +433,6 @@ final class IndexBuilder {
                         VALUES (\(coll.id), \(pt.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
                         """
                 )
-                // Folders nest below their parent Collection. Insert each Folder
-                // row first, then the Pages inside (so the page → folder FK can
-                // satisfy even with `foreign_keys=ON`).
-                for fld in coll.folders {
-                    try db.execute(
-                        literal: """
-                            INSERT INTO folders
-                                (id, page_collection_id, page_type_id, title, icon, modified_at, schema_version)
-                            VALUES
-                                (\(fld.id), \(fld.pageCollectionID), \(fld.pageTypeID),
-                                 \(fld.title), \(fld.icon),
-                                 \(iso8601(fld.modifiedAt)), \(fld.schemaVersion))
-                            """
-                    )
-                    for page in fld.pages {
-                        try insertPage(db, page: page)
-                    }
-                }
                 for page in coll.pages {
                     try insertPage(db, page: page)
                 }
@@ -528,11 +447,8 @@ final class IndexBuilder {
         let propsJSON = (try? propertiesJSON(page.properties)) ?? "{}"
         try db.execute(
             literal: """
-                INSERT INTO pages
-                    (id, page_type_id, page_collection_id, page_folder_id, title, properties, modified_at)
-                VALUES
-                    (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.folderID),
-                     \(page.title), \(propsJSON), \(iso8601(page.modifiedAt)))
+                INSERT INTO pages (id, page_type_id, page_collection_id, title, properties, modified_at)
+                VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(propsJSON), \(iso8601(page.modifiedAt)))
                 """
         )
     }
@@ -623,12 +539,6 @@ final class IndexBuilder {
         for pt in snapshot.pageTypes {
             let schema = pt.properties
             for coll in pt.collections {
-                for fld in coll.folders {
-                    for page in fld.pages {
-                        try insertRelationRows(db, properties: page.properties, schema: schema,
-                            sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
-                    }
-                }
                 for page in coll.pages {
                     try insertRelationRows(db, properties: page.properties, schema: schema,
                         sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
@@ -708,12 +618,6 @@ final class IndexBuilder {
     private nonisolated static func insertTierLinks(_ db: Database, snapshot: NexusSnapshot) throws {
         for pt in snapshot.pageTypes {
             for coll in pt.collections {
-                for fld in coll.folders {
-                    for page in fld.pages {
-                        try insertTierLinkRows(db, entityID: page.id, entityKind: "page",
-                            tier1: page.tier1, tier2: page.tier2, tier3: page.tier3)
-                    }
-                }
                 for page in coll.pages {
                     try insertTierLinkRows(db, entityID: page.id, entityKind: "page",
                         tier1: page.tier1, tier2: page.tier2, tier3: page.tier3)

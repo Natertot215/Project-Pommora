@@ -72,8 +72,6 @@ struct PageRow: View {
                 switch parent {
                 case .collection(let coll, let vault):
                     try await contentManager.renamePage(page, to: draft, in: coll, vault: vault)
-                case .folder(let folder, let vault):
-                    try await contentManager.renamePage(page, to: draft, in: folder, vault: vault)
                 case .vaultRoot(let vault):
                     try await contentManager.renamePage(page, to: draft, inVaultRoot: vault)
                 }
@@ -96,8 +94,6 @@ struct PageRow: View {
             switch parent {
             case .collection(let coll, _):
                 try await contentManager.deletePage(page, in: coll)
-            case .folder(let folder, _):
-                try await contentManager.deletePage(page, in: folder)
             case .vaultRoot(let vault):
                 try await contentManager.deletePage(page, inVaultRoot: vault)
             }
