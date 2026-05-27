@@ -308,4 +308,56 @@ struct IndexQueryTests {
         #expect(broken[0].targetKind == .page)
         #expect(broken[0].sourceKind == .page)
     }
+
+    // MARK: - F.1.f — TargetRef.folder
+
+    @Test func filterByFolderTargetReturnsOnlyFolderPages() async throws {
+        let (dir, idx) = try await setupIndex()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try await idx.dbQueue.write { db in
+            try db.execute(sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT1', 'Notes', '2026-05-24T00:00:00Z')")
+            try db.execute(sql: """
+                INSERT INTO page_collections(id, page_type_id, title, modified_at) VALUES
+                ('PC1', 'PT1', 'Inbox', '2026-05-24T00:00:00Z')
+                """)
+            try db.execute(sql: """
+                INSERT INTO folders(id, page_collection_id, page_type_id, title, modified_at) VALUES
+                ('F1', 'PC1', 'PT1', 'Topic A', '2026-05-24T00:00:00Z'),
+                ('F2', 'PC1', 'PT1', 'Topic B', '2026-05-24T00:00:00Z')
+                """)
+            // 3 pages: one in F1, one in F2, one at Collection root.
+            try db.execute(sql: """
+                INSERT INTO pages(id, page_type_id, page_collection_id, page_folder_id, title, modified_at) VALUES
+                ('P_F1', 'PT1', 'PC1', 'F1',  'In F1',    '2026-05-24T00:00:00Z'),
+                ('P_F2', 'PT1', 'PC1', 'F2',  'In F2',    '2026-05-24T00:00:00Z'),
+                ('P_PC', 'PT1', 'PC1', NULL,  'In PC1',   '2026-05-24T00:00:00Z')
+                """)
+        }
+
+        let results = try await IndexQuery(idx).filter([], in: .folder("F1"))
+        #expect(results.count == 1)
+        #expect(results.first?.id == "P_F1")
+        #expect(results.first?.kind == .page)
+    }
+
+    @Test func sortByFolderTargetOrdersByJSONProperty() async throws {
+        let (dir, idx) = try await setupIndex()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try await idx.dbQueue.write { db in
+            try db.execute(sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT1', 'Notes', '2026-05-24T00:00:00Z')")
+            try db.execute(sql: "INSERT INTO page_collections(id, page_type_id, title, modified_at) VALUES ('PC1', 'PT1', 'Inbox', '2026-05-24T00:00:00Z')")
+            try db.execute(sql: "INSERT INTO folders(id, page_collection_id, page_type_id, title, modified_at) VALUES ('F1', 'PC1', 'PT1', 'Topic A', '2026-05-24T00:00:00Z')")
+            try db.execute(sql: """
+                INSERT INTO pages(id, page_type_id, page_collection_id, page_folder_id, title, properties, modified_at) VALUES
+                ('P1', 'PT1', 'PC1', 'F1', 'Zeta',  '{"prop_X":"3"}', '2026-05-24T00:00:00Z'),
+                ('P2', 'PT1', 'PC1', 'F1', 'Alpha', '{"prop_X":"1"}', '2026-05-24T00:00:00Z'),
+                ('P3', 'PT1', 'PC1', 'F1', 'Mike',  '{"prop_X":"2"}', '2026-05-24T00:00:00Z')
+                """)
+        }
+
+        let results = try await IndexQuery(idx).sortBy("prop_X", direction: .ascending, in: .folder("F1"))
+        #expect(results.map(\.id) == ["P2", "P3", "P1"])
+    }
 }

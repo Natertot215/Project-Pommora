@@ -93,12 +93,54 @@ struct IndexUpdater: Sendable {
         }
     }
 
+    // MARK: - Folder (F.1.f)
+
+    /// Upserts a Folder row. FK to `page_collections(id)` + `page_types(id)` is
+    /// expressed in the table DDL via CASCADE, but the row-level FK isn't
+    /// validated at INSERT time (the `addPageFolderIDColumnIfMissing` ALTER
+    /// also can't add a REFERENCES clause to an existing pages table — see
+    /// the comment at IndexSchema.swift). Application-layer code is the
+    /// integrity guarantor: PageTypeManager only calls this with a Folder
+    /// whose `collectionID` + `typeID` already point to existing rows.
+    func upsertFolder(_ folder: Folder) throws {
+        try index.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT OR REPLACE INTO folders
+                        (id, page_collection_id, page_type_id, title, icon, modified_at, schema_version)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                arguments: [
+                    folder.id, folder.collectionID, folder.typeID,
+                    folder.title, folder.icon,
+                    iso(folder.modifiedAt), folder.schemaVersion,
+                ]
+            )
+        }
+    }
+
+    /// Deletes a Folder row. The ON DELETE SET NULL on `pages.page_folder_id`
+    /// nulls out the FK on every Page that was inside; the pages stay
+    /// indexed (now appearing at Collection root from the index's POV).
+    /// The Page sidecar on disk doesn't carry the folder ID — file-side
+    /// containment is by parent path, so the on-disk move is the canonical
+    /// representation.
+    func deleteFolder(id: String) throws {
+        try index.dbQueue.write { db in
+            try db.execute(
+                sql: "DELETE FROM folders WHERE id = ?",
+                arguments: [id]
+            )
+        }
+    }
+
     // MARK: - Page
 
     func upsertPage(
         _ meta: PageMeta,
         pageTypeID: String,
-        pageCollectionID: String?
+        pageCollectionID: String?,
+        pageFolderID: String? = nil
     ) throws {
         let propsJSON = propertiesJSON(meta.frontmatter.properties)
         let modifiedAt = (try? FileManager.default.attributesOfItem(atPath: meta.url.path)[.modificationDate] as? Date).map { iso($0) } ?? nowISO()
@@ -106,10 +148,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO pages
-                        (id, page_type_id, page_collection_id, title, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (id, page_type_id, page_collection_id, page_folder_id, title, properties, modified_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                arguments: [meta.id, pageTypeID, pageCollectionID, meta.title, propsJSON, modifiedAt]
+                arguments: [meta.id, pageTypeID, pageCollectionID, pageFolderID, meta.title, propsJSON, modifiedAt]
             )
             try reconcileRelations(
                 db: db,

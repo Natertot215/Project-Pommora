@@ -222,6 +222,7 @@ private enum FilterBuilder {
         case .itemType(let id):       return ("items", "id", "title", "item_type_id = ?", [id])
         case .pageCollection(let id): return ("pages", "id", "title", "page_collection_id = ?", [id])
         case .itemCollection(let id): return ("items", "id", "title", "item_collection_id = ?", [id])
+        case .folder(let id):         return ("pages", "id", "title", "page_folder_id = ?", [id])
         case .agendaTasks:            return ("agenda_tasks", "id", "title", "", [])
         case .agendaEvents:           return ("agenda_events", "id", "title", "", [])
         case .contextTier(let t):     return ("contexts", "id", "title", "tier = ?", [t])
@@ -230,7 +231,7 @@ private enum FilterBuilder {
 
     nonisolated static func targetEntityKind(_ target: TargetRef) -> EntityKind {
         switch target {
-        case .pageType, .pageCollection:  return .page
+        case .pageType, .pageCollection, .folder:  return .page
         case .itemType, .itemCollection:  return .item
         case .agendaTasks:                return .agendaTask
         case .agendaEvents:               return .agendaEvent
@@ -389,6 +390,11 @@ enum TargetRef: Sendable {
     case itemType(String)
     case pageCollection(String)
     case itemCollection(String)
+    /// Pages scoped to a single Folder (F.1.f). Third-tier scope on the Pages
+    /// side — matches `pages.page_folder_id = ?`. FolderDetailView's content
+    /// surface uses this; filter/sort panes attach to it the same way they
+    /// attach to `.pageCollection`.
+    case folder(String)
     case agendaTasks
     case agendaEvents
     case contextTier(Int)
