@@ -73,6 +73,16 @@ enum OrderPersister {
         }
     }
 
+    /// Persists the order of Folders inside `collection` (F.1.c). Writes to the
+    /// Collection's `_pagecollection.json` `folder_order` field. Intra-group
+    /// only: Folders and root Pages are reorderable independently, never
+    /// interleaved.
+    static func setFolderOrder(_ order: [String], in collection: PageCollection) throws {
+        try mutatePageCollection(collection) { c in
+            c.folderOrder = order.isEmpty ? nil : order
+        }
+    }
+
     // MARK: - ItemCollection order / Item order (_itemtype.json + _itemcollection.json)
 
     static func setItemCollectionOrder(
