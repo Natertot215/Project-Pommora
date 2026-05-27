@@ -3,6 +3,8 @@ import SwiftUI
 struct SidebarDetailView: View {
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @State private var presentedItem: Item?
 
     @Environment(SpaceManager.self) private var spaceManager
@@ -52,7 +54,9 @@ struct SidebarDetailView: View {
                     pageType: t,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
-                    presentedItem: $presentedItem
+                    presentedItem: $presentedItem,
+                    editingID: $editingID,
+                    justCreatedID: $justCreatedID
                 )
 
             case .collection(let c):
@@ -64,7 +68,9 @@ struct SidebarDetailView: View {
                         vault: v,
                         selection: $selection,
                         presentedSheet: $presentedSheet,
-                        presentedItem: $presentedItem
+                        presentedItem: $presentedItem,
+                        editingID: $editingID,
+                        justCreatedID: $justCreatedID
                     )
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -100,7 +106,9 @@ struct SidebarDetailView: View {
                     type: t,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
-                    presentedItem: $presentedItem
+                    presentedItem: $presentedItem,
+                    editingID: $editingID,
+                    justCreatedID: $justCreatedID
                 )
 
             case .itemCollection(let c):
@@ -108,7 +116,9 @@ struct SidebarDetailView: View {
                     collection: c,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
-                    presentedItem: $presentedItem
+                    presentedItem: $presentedItem,
+                    editingID: $editingID,
+                    justCreatedID: $justCreatedID
                 )
             }
         }
@@ -122,16 +132,6 @@ struct SidebarDetailView: View {
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .newSpace: NewSpaceSheet()
-            case .newTopic: NewTopicSheet()
-            case .newProject(let t): NewProjectSheet(parent: t)
-            case .newPageType: NewPageTypeSheet()
-            case .newCollection(let v): NewPageCollectionSheet(vault: v)
-            case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
-            case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
-            case .newItemType: NewItemTypeSheet()
-            case .newItemCollection(let t): NewItemCollectionSheet(type: t)
-            case .newItem(let c, let t): NewItemSheet(collection: c, type: t)
             case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
             case .editColor(let s): ColorPickerSheet(space: s)

@@ -11,6 +11,19 @@ struct ContentView: View {
     @State private var searchQuery = ""
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
+
+    // Inline-rename + stub-and-edit CRUD state. Lifted to ContentView (was
+    // SidebarView-local pre-F.0) so detail-view footer "+" triggers can flip
+    // the matching sidebar row into rename mode after a stub-create. Both
+    // bindings cascade into SidebarView (and its sections/rows) AND into
+    // SidebarDetailView (and its detail views).
+    //
+    // `editingID` is set non-nil when a single row is in inline-rename mode.
+    // `justCreatedID` is set non-nil when the row in rename mode was just
+    // freshly stub-created; RenameableRow reads it to select-all-on-focus so
+    // the user's first keystroke replaces the default title.
+    @State private var editingID: String? = nil
+    @State private var justCreatedID: String? = nil
     /// Inspector toggle. Per-Page persistence: loaded from AppState on
     /// selection change, persisted on every toggle. Lives at this level
     /// (not inside PageEditorView) so the inspector renders at the window's
@@ -254,7 +267,11 @@ struct ContentView: View {
             let agendaTaskMgr = agendaTaskManager,
             let agendaEventMgr = agendaEventManager
         {
-            SidebarView(selection: $sidebarSelection)
+            SidebarView(
+                selection: $sidebarSelection,
+                editingID: $editingID,
+                justCreatedID: $justCreatedID
+            )
                 .environment(spaceMgr)
                 .environment(topicMgr)
                 .environment(vaultMgr)
@@ -315,7 +332,9 @@ struct ContentView: View {
         {
             SidebarDetailView(
                 selection: $sidebarSelection,
-                presentedSheet: $presentedSheet
+                presentedSheet: $presentedSheet,
+                editingID: $editingID,
+                justCreatedID: $justCreatedID
             )
             .environment(spaceMgr)
             .environment(vaultMgr)

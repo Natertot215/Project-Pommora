@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Shared rename-mode row content used by every sidebar row that supports
@@ -12,6 +13,14 @@ import SwiftUI
 /// State ownership stays with each calling row: `draft`, `isCommitting`, the
 /// `@FocusState` itself, and the `commit()` / `cancel()` methods all live in
 /// the row. This helper only collapses the duplicated view shape.
+///
+/// `selectAllOnAppear` (added F.0) drives the system-wide stub-and-inline-
+/// rename CRUD flow: when a row is entering rename mode because it was just
+/// freshly stub-created (e.g. `"New Folder"` materialized via
+/// `CreateWithInlineEdit`), the entire default-title text is selected so the
+/// user's first keystroke replaces it. Defaults to `false` so existing
+/// rename-from-context-menu sites keep cursor-at-end (their default title
+/// already matches the existing entity name, and select-all would surprise).
 struct RenameableRow<Trailing: View>: View {
     let symbol: String
     let symbolForeground: Color
@@ -21,6 +30,7 @@ struct RenameableRow<Trailing: View>: View {
     let onSubmit: () -> Void
     let onCancel: () -> Void
     let onFocusLoss: () -> Void
+    let selectAllOnAppear: Bool
     @ViewBuilder let trailing: () -> Trailing
 
     init(
@@ -32,6 +42,7 @@ struct RenameableRow<Trailing: View>: View {
         onSubmit: @escaping () -> Void,
         onCancel: @escaping () -> Void,
         onFocusLoss: @escaping () -> Void,
+        selectAllOnAppear: Bool = false,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
     ) {
         self.symbol = symbol
@@ -42,6 +53,7 @@ struct RenameableRow<Trailing: View>: View {
         self.onSubmit = onSubmit
         self.onCancel = onCancel
         self.onFocusLoss = onFocusLoss
+        self.selectAllOnAppear = selectAllOnAppear
         self.trailing = trailing
     }
 
@@ -66,6 +78,22 @@ struct RenameableRow<Trailing: View>: View {
                 .onAppear {
                     draft = initialTitle
                     renameFocused = true
+                    if selectAllOnAppear {
+                        // AppKit responder hop. The TextField becomes a
+                        // backing NSTextView in the responder chain a tick
+                        // after `renameFocused = true`; dispatching to the
+                        // next main-runloop pass lets focus settle, then
+                        // sending `selectAll:` to the first responder
+                        // highlights the entire default-title text so the
+                        // user's first keystroke replaces it. Safe no-op if
+                        // the responder hasn't materialized yet (the
+                        // tryToPerform call silently fails).
+                        DispatchQueue.main.async {
+                            NSApp.keyWindow?.firstResponder?.tryToPerform(
+                                #selector(NSText.selectAll(_:)), with: nil
+                            )
+                        }
+                    }
                 }
             Spacer(minLength: 0)
             trailing()

@@ -166,7 +166,8 @@ final class ItemTypeManager {
 
     // MARK: - ItemType CRUD
 
-    func createItemType(name: String, icon: String?) async throws {
+    @discardableResult
+    func createItemType(name: String, icon: String?) async throws -> ItemType {
         do {
             try ItemTypeValidator.validate(title: name, existing: types)
 
@@ -198,6 +199,7 @@ final class ItemTypeManager {
                 titleKeyPath: \ItemType.title
             )
             rebuildTypesByID()
+            return itemType
         } catch {
             self.pendingError = error
             throw error
@@ -319,7 +321,8 @@ final class ItemTypeManager {
 
     // MARK: - ItemCollection CRUD
 
-    func createItemCollection(name: String, inItemType itemType: ItemType) async throws {
+    @discardableResult
+    func createItemCollection(name: String, inItemType itemType: ItemType) async throws -> ItemCollection {
         do {
             let existing = itemCollectionsByType[itemType.id] ?? []
             try ItemCollectionValidator.validate(title: name, existingInType: existing)
@@ -358,6 +361,7 @@ final class ItemTypeManager {
                 titleKeyPath: \ItemCollection.title
             )
             itemCollectionsByType[itemType.id] = arr
+            return coll
         } catch {
             self.pendingError = error
             throw error

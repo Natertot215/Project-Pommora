@@ -10,6 +10,7 @@ struct PageRow: View {
     let parent: PageParent
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
 
     @Environment(PageContentManager.self) private var contentManager
 
@@ -31,7 +32,8 @@ struct PageRow: View {
                         if !isCommitting && editingID == page.id {
                             cancel()
                         }
-                    }
+                    },
+                    selectAllOnAppear: justCreatedID == page.id
                 )
             } else {
                 SelectableRow(
@@ -60,6 +62,7 @@ struct PageRow: View {
     private func commit() {
         guard draft != page.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -73,6 +76,7 @@ struct PageRow: View {
                     try await contentManager.renamePage(page, to: draft, inVaultRoot: vault)
                 }
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
                 // editingID preserved on failure for retry.
@@ -82,6 +86,7 @@ struct PageRow: View {
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 
     private func delete() async {

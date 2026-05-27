@@ -1,17 +1,16 @@
 import Foundation
 
 /// Discriminated union of every sheet the sidebar can present.
+///
+/// **F.0 system-wide stub-and-inline-rename CRUD refactor:** every "New X"
+/// trigger across Pommora now creates the entity immediately with a default
+/// title (via `DefaultTitleResolver`) and flips the matching sidebar row
+/// into inline-rename mode. The retired `New*Sheet.swift` files (and their
+/// `.newSpace` / `.newTopic` / `.newProject` / `.newPageType` /
+/// `.newCollection` / `.newPage` / `.newPageInPageType` / `.newItemType` /
+/// `.newItemCollection` / `.newItem` cases) are gone. Only edit-affordance
+/// sheets remain: `editTopicParents`, `editIcon`, `editColor`.
 enum SidebarSheet: Identifiable {
-    case newSpace
-    case newTopic
-    case newProject(parent: Topic)
-    case newPageType
-    case newCollection(pageType: PageType)
-    case newPage(collection: PageCollection, pageType: PageType)
-    case newPageInPageType(pageType: PageType)
-    case newItemType
-    case newItemCollection(type: ItemType)
-    case newItem(collection: ItemCollection?, type: ItemType)
     case editTopicParents(Topic)
     case editIcon(IconTarget)
     case editColor(Space)
@@ -28,16 +27,6 @@ enum SidebarSheet: Identifiable {
 
     var id: String {
         switch self {
-        case .newSpace: return "newSpace"
-        case .newTopic: return "newTopic"
-        case .newProject(let t): return "newProject-\(t.id)"
-        case .newPageType: return "newPageType"
-        case .newCollection(let t): return "newCollection-\(t.id)"
-        case .newPage(let c, _): return "newPage-\(c.id)"
-        case .newPageInPageType(let t): return "newPageInPageType-\(t.id)"
-        case .newItemType: return "newItemType"
-        case .newItemCollection(let t): return "newItemCollection-\(t.id)"
-        case .newItem(let c, let t): return "newItem-\(c?.id ?? t.id)"
         case .editTopicParents(let t): return "editTopicParents-\(t.id)"
         case .editIcon(let target):
             switch target {

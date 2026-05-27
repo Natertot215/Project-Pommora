@@ -6,6 +6,10 @@ struct PageCollectionDetailView: View {
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
+
+    @State private var isCreatingPage: Bool = false
 
     @Environment(PageContentManager.self) private var contentManager
 
@@ -156,15 +160,45 @@ struct PageCollectionDetailView: View {
     private var footer: some View {
         HStack {
             Button {
-                presentedSheet = .newPage(collection: collection, pageType: vault)
+                createPage()
             } label: {
                 Label("New Page", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
+            .disabled(isCreatingPage)
             Spacer()
         }
         .padding(8)
+    }
+
+    /// Stub-and-edit "New Page" trigger fired from the detail-view footer.
+    /// Mirrors PageCollectionRow's createPage — same default-title resolver,
+    /// same justCreatedID + editingID flip — so the new row appears in the
+    /// sidebar tree in rename mode while the detail-view list also updates.
+    private func createPage() {
+        guard !isCreatingPage else { return }
+        isCreatingPage = true
+        let existing = contentManager.pages(in: collection).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Page", existingTitles: existing)
+        Task {
+            defer { isCreatingPage = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await contentManager.createPage(
+                            name: title, in: collection, vault: vault
+                        )
+                    },
+                    onCreate: { newPage in
+                        editingID = newPage.id
+                        justCreatedID = newPage.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
     }
 
     private var rows: [DetailRow] {

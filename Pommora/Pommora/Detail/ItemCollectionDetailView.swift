@@ -27,6 +27,8 @@ struct ItemCollectionDetailView: View {
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(ItemContentManager.self) private var itemContentManager
@@ -37,6 +39,7 @@ struct ItemCollectionDetailView: View {
     /// Session-local row order override. Nil → fall back to manager order.
     /// Resets on entity change. Independent of the sidebar's reorder system.
     @State private var sessionOrder: [String]?
+    @State private var isCreatingItem: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -183,6 +186,32 @@ struct ItemCollectionDetailView: View {
         return true
     }
 
+    /// Stub-and-edit "New Item (in This Set)" trigger from the detail-view footer.
+    private func createItem(parent: ItemType) {
+        guard !isCreatingItem else { return }
+        isCreatingItem = true
+        let existing = itemContentManager.items(in: collection).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Item", existingTitles: existing)
+        Task {
+            defer { isCreatingItem = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemContentManager.createItem(
+                            name: title, in: collection, type: parent
+                        )
+                    },
+                    onCreate: { newItem in
+                        editingID = newItem.id
+                        justCreatedID = newItem.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
     private var footer: some View {
         // Parent must exist for + New Item — Sets are always inside a Type.
         // If parent isn't loaded yet, disable the button rather than ship a
@@ -190,15 +219,13 @@ struct ItemCollectionDetailView: View {
         let parent = itemTypeManager.parentItemType(for: collection)
         return HStack {
             Button {
-                if let parent {
-                    presentedSheet = .newItem(collection: collection, type: parent)
-                }
+                if let parent { createItem(parent: parent) }
             } label: {
                 Label("New Item", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
-            .disabled(parent == nil)
+            .disabled(parent == nil || isCreatingItem)
             Spacer()
         }
         .padding(8)

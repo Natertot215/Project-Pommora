@@ -52,6 +52,8 @@ struct ItemTypeDetailView: View {
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(ItemContentManager.self) private var itemContentManager
@@ -63,6 +65,8 @@ struct ItemTypeDetailView: View {
     /// Session-local row order override. Nil → fall back to manager order.
     /// Resets on entity change. Independent of the sidebar's reorder system.
     @State private var sessionOrder: [String]?
+    @State private var isCreatingItem: Bool = false
+    @State private var isCreatingCollection: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -220,24 +224,77 @@ struct ItemTypeDetailView: View {
         let setLabel = settingsManager.settings.labels.itemCollection.singular
         return HStack {
             Button {
-                presentedSheet = .newItem(collection: nil, type: type)
+                createItem()
             } label: {
                 Label("New Item", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
+            .disabled(isCreatingItem)
 
             Button {
-                presentedSheet = .newItemCollection(type: type)
+                createItemCollection()
             } label: {
                 Label("New \(setLabel)", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
+            .disabled(isCreatingCollection)
 
             Spacer()
         }
         .padding(8)
+    }
+
+    /// Stub-and-edit "New Item" (at ItemType root) from the detail-view footer.
+    private func createItem() {
+        guard !isCreatingItem else { return }
+        isCreatingItem = true
+        let existing = itemContentManager.items(in: type).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Item", existingTitles: existing)
+        Task {
+            defer { isCreatingItem = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemContentManager.createItem(name: title, inTypeRoot: type)
+                    },
+                    onCreate: { newItem in
+                        editingID = newItem.id
+                        justCreatedID = newItem.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "New Set" (ItemCollection) from the detail-view footer.
+    private func createItemCollection() {
+        guard !isCreatingCollection else { return }
+        isCreatingCollection = true
+        let label = settingsManager.settings.labels.itemCollection.singular
+        let existing = itemTypeManager.itemCollections(in: type).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingCollection = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemTypeManager.createItemCollection(
+                            name: title, inItemType: type
+                        )
+                    },
+                    onCreate: { newCollection in
+                        editingID = newCollection.id
+                        justCreatedID = newCollection.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
     }
 
     private var rows: [DetailRow] {

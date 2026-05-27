@@ -5,9 +5,15 @@ struct PageTypeDetailView: View {
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
     @Binding var presentedItem: Item?  // drives Item Window popover
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
+
+    @State private var isCreatingPage: Bool = false
+    @State private var isCreatingCollection: Bool = false
 
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var tableSelection: Set<String> = []
     @State private var expanded: Set<String> = []  // row IDs
@@ -188,24 +194,81 @@ struct PageTypeDetailView: View {
     private var footer: some View {
         HStack {
             Button {
-                presentedSheet = .newPageInPageType(pageType: pageType)
+                createPage()
             } label: {
                 Label("New Page", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
+            .disabled(isCreatingPage)
 
             Button {
-                presentedSheet = .newCollection(pageType: pageType)
+                createCollection()
             } label: {
                 Label("New Collection", systemImage: "plus")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.primary)
+            .disabled(isCreatingCollection)
 
             Spacer()
         }
         .padding(8)
+    }
+
+    /// Stub-and-edit "New Page" (at this PageType's root) trigger from the
+    /// detail-view footer. Page lives at the PageType folder root (no
+    /// PageCollection parent); the sidebar's PageTypeRow disclosure body
+    /// includes Type-root Pages alongside Collections, and `editingID` flip
+    /// lights up rename-mode on the newly-created row.
+    private func createPage() {
+        guard !isCreatingPage else { return }
+        isCreatingPage = true
+        let existing = contentManager.pages(in: pageType).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Page", existingTitles: existing)
+        Task {
+            defer { isCreatingPage = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await contentManager.createPage(name: title, inVaultRoot: pageType)
+                    },
+                    onCreate: { newPage in
+                        editingID = newPage.id
+                        justCreatedID = newPage.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "New Collection" trigger from the detail-view footer.
+    private func createCollection() {
+        guard !isCreatingCollection else { return }
+        isCreatingCollection = true
+        let label = settingsManager.settings.labels.pageCollection.singular
+        let existing = pageTypeManager.pageCollections(in: pageType).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingCollection = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await pageTypeManager.createPageCollection(
+                            name: title, inPageType: pageType
+                        )
+                    },
+                    onCreate: { newCollection in
+                        editingID = newCollection.id
+                        justCreatedID = newCollection.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
     }
 
     // MARK: - Row construction

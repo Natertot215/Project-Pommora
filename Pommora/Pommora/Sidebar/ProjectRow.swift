@@ -6,6 +6,7 @@ struct ProjectRow: View {
     let parentTopic: Topic
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
@@ -29,7 +30,8 @@ struct ProjectRow: View {
                         if !isCommitting && editingID == project.id {
                             cancel()
                         }
-                    }
+                    },
+                    selectAllOnAppear: justCreatedID == project.id
                 )
             } else {
                 SelectableRow(
@@ -57,6 +59,7 @@ struct ProjectRow: View {
     private func commit() {
         guard draft != project.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -65,6 +68,7 @@ struct ProjectRow: View {
             do {
                 try await topicManager.renameProject(project, to: draft)
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
                 // editingID preserved on failure for retry.
@@ -74,5 +78,6 @@ struct ProjectRow: View {
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 }

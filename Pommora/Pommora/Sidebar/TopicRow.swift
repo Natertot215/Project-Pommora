@@ -4,6 +4,7 @@ struct TopicRow: View {
     let topic: Topic
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @State private var expanded: Bool = false
@@ -15,6 +16,8 @@ struct TopicRow: View {
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
+    @State private var isCreatingTopic: Bool = false
+    @State private var isCreatingProject: Bool = false
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -24,6 +27,7 @@ struct TopicRow: View {
                     parentTopic: topic,
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
@@ -61,6 +65,7 @@ struct TopicRow: View {
                         cancel()
                     }
                 },
+                selectAllOnAppear: justCreatedID == topic.id,
                 trailing: {
                     ParentSpaceTags(topic: topic, spaceManager: spaceManager)
                 }
@@ -78,8 +83,10 @@ struct TopicRow: View {
             )
             .contextMenu {
                 let projectLabel = settingsManager.settings.labels.project.singular
-                Button("New Topic") { presentedSheet = .newTopic }
-                Button("New \(projectLabel) (in This Topic)") { presentedSheet = .newProject(parent: topic) }
+                Button("New Topic") { createTopic() }
+                    .disabled(isCreatingTopic)
+                Button("New \(projectLabel) (in This Topic)") { createProject() }
+                    .disabled(isCreatingProject)
                 Divider()
                 Button("Rename") { editingID = topic.id }
                 Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }
@@ -92,9 +99,68 @@ struct TopicRow: View {
         }
     }
 
+    /// Stub-and-edit "New Topic" trigger. New Topics inherit this Topic's
+    /// current parents (Spaces) — matches the parent-selection UX of the
+    /// retired NewTopicSheet, where the freshly-created Topic was initially
+    /// rootless and the user picked parents via the sheet. With stub-and-edit
+    /// the parents are inherited from the row that fired the action, and the
+    /// user can adjust later via "Edit Parents".
+    private func createTopic() {
+        guard !isCreatingTopic else { return }
+        isCreatingTopic = true
+        let existing = topicManager.topics.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Topic", existingTitles: existing)
+        Task {
+            defer { isCreatingTopic = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await topicManager.createTopic(
+                            name: title, parents: topic.parents, icon: nil
+                        )
+                    },
+                    onCreate: { newTopic in
+                        editingID = newTopic.id
+                        justCreatedID = newTopic.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "New Project (in This Topic)" trigger.
+    private func createProject() {
+        guard !isCreatingProject else { return }
+        isCreatingProject = true
+        let label = settingsManager.settings.labels.project.singular
+        let existing = topicManager.projects(in: topic).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingProject = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await topicManager.createProject(
+                            name: title, inTopic: topic, icon: nil
+                        )
+                    },
+                    onCreate: { newProject in
+                        editingID = newProject.id
+                        justCreatedID = newProject.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
     private func commit() {
         guard draft != topic.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -103,6 +169,7 @@ struct TopicRow: View {
             do {
                 try await topicManager.renameTopic(topic, to: draft)
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
                 // editingID preserved on failure for retry.
@@ -112,6 +179,7 @@ struct TopicRow: View {
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 }
 

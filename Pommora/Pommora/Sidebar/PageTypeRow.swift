@@ -25,6 +25,7 @@ struct PageTypeRow: View {
     let pageType: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     let nexus: Nexus
@@ -39,6 +40,9 @@ struct PageTypeRow: View {
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
     @State private var showingVaultSettings: Bool = false
+    @State private var isCreatingCollection: Bool = false
+    @State private var isCreatingPageType: Bool = false
+    @State private var isCreatingPage: Bool = false
 
     // Collections first, then vault-root pages. A single ForEach with one
     // .onMove works around the SwiftUI bug where only the first sibling
@@ -59,6 +63,7 @@ struct PageTypeRow: View {
                         parentVault: pageType,
                         selection: $selection,
                         editingID: $editingID,
+                        justCreatedID: $justCreatedID,
                         presentedSheet: $presentedSheet,
                         confirmingDelete: $confirmingDelete
                     )
@@ -68,7 +73,8 @@ struct PageTypeRow: View {
                         page: page,
                         parent: .vaultRoot(pageType),
                         selection: $selection,
-                        editingID: $editingID
+                        editingID: $editingID,
+                        justCreatedID: $justCreatedID
                     )
                     .tag(SelectionTag.page(page.id))
                 }
@@ -116,7 +122,8 @@ struct PageTypeRow: View {
                     if !isCommitting && editingID == pageType.id {
                         cancel()
                     }
-                }
+                },
+                selectAllOnAppear: justCreatedID == pageType.id
             )
         } else {
             SelectableRow(
@@ -129,13 +136,12 @@ struct PageTypeRow: View {
             .contextMenu {
                 let pageTypeLabel = settingsManager.settings.labels.pageType.singular
                 let collectionLabel = settingsManager.settings.labels.pageCollection.singular
-                Button("New \(pageTypeLabel)") { presentedSheet = .newPageType }
-                Button("New \(collectionLabel)") {
-                    presentedSheet = .newCollection(pageType: pageType)
-                }
-                Button("New Page") {
-                    presentedSheet = .newPageInPageType(pageType: pageType)
-                }
+                Button("New \(pageTypeLabel)") { createPageType() }
+                    .disabled(isCreatingPageType)
+                Button("New \(collectionLabel)") { createPageCollection() }
+                    .disabled(isCreatingCollection)
+                Button("New Page") { createPage() }
+                    .disabled(isCreatingPage)
                 Divider()
                 Button("\(pageTypeLabel) Settings…") {
                     showingVaultSettings = true
@@ -152,9 +158,94 @@ struct PageTypeRow: View {
         }
     }
 
+    /// Stub-and-edit "New Page" trigger. Creates a uniquely-named Page at
+    /// the PageType folder root (no PageCollection parent), then flips the
+    /// matching sidebar row into rename mode with the default title
+    /// pre-selected. `isCreatingPage` guards against rapid double-clicks
+    /// producing collision toasts. Mirrors `PageTypeDetailView.createPage()`.
+    private func createPage() {
+        guard !isCreatingPage else { return }
+        isCreatingPage = true
+        let existing = contentManager.pages(in: pageType).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Page", existingTitles: existing)
+        Task {
+            defer { isCreatingPage = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await contentManager.createPage(name: title, inVaultRoot: pageType)
+                    },
+                    onCreate: { newPage in
+                        editingID = newPage.id
+                        justCreatedID = newPage.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "New PageCollection" trigger. Creates a uniquely-named
+    /// PageCollection on disk + in memory + in SQLite, then flips the
+    /// matching sidebar row into rename mode with the default title
+    /// pre-selected for replacement. `isCreatingCollection` guards against
+    /// rapid double-clicks producing collision toasts.
+    private func createPageCollection() {
+        guard !isCreatingCollection else { return }
+        isCreatingCollection = true
+        let label = settingsManager.settings.labels.pageCollection.singular
+        let existing = pageTypeManager.pageCollections(in: pageType).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingCollection = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await pageTypeManager.createPageCollection(
+                            name: title, inPageType: pageType
+                        )
+                    },
+                    onCreate: { newCollection in
+                        editingID = newCollection.id
+                        justCreatedID = newCollection.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "New PageType" trigger.
+    private func createPageType() {
+        guard !isCreatingPageType else { return }
+        isCreatingPageType = true
+        let label = settingsManager.settings.labels.pageType.singular
+        let existing = pageTypeManager.types.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingPageType = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await pageTypeManager.createPageType(name: title, icon: nil)
+                    },
+                    onCreate: { newType in
+                        editingID = newType.id
+                        justCreatedID = newType.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
     private func commit() {
         guard draft != pageType.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -163,15 +254,19 @@ struct PageTypeRow: View {
             do {
                 try await pageTypeManager.renamePageType(pageType, to: draft)
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
+                // editingID preserved on failure for retry — justCreatedID
+                // also preserved so the still-visible TextField stays in its
+                // select-all state for the next keystroke.
             }
         }
     }
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 
     /// Routes a drag-reorder to the correct manager.

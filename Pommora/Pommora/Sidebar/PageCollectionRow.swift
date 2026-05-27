@@ -5,6 +5,7 @@ struct PageCollectionRow: View {
     let parentVault: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
@@ -16,6 +17,7 @@ struct PageCollectionRow: View {
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
     @State private var expanded: Bool = false
+    @State private var isCreatingPage: Bool = false
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -24,7 +26,8 @@ struct PageCollectionRow: View {
                     page: page,
                     parent: .collection(collection, vault: parentVault),
                     selection: $selection,
-                    editingID: $editingID
+                    editingID: $editingID,
+                    justCreatedID: $justCreatedID
                 )
                 .tag(SelectionTag.page(page.id))
             }
@@ -65,7 +68,8 @@ struct PageCollectionRow: View {
                     if !isCommitting && editingID == collection.id {
                         cancel()
                     }
-                }
+                },
+                selectAllOnAppear: justCreatedID == collection.id
             )
         } else {
             SelectableRow(
@@ -77,9 +81,8 @@ struct PageCollectionRow: View {
             )
             .contextMenu {
                 let collectionLabel = settingsManager.settings.labels.pageCollection.singular
-                Button("New Page (in This \(collectionLabel))") {
-                    presentedSheet = .newPage(collection: collection, pageType: parentVault)
-                }
+                Button("New Page (in This \(collectionLabel))") { createPage() }
+                    .disabled(isCreatingPage)
                 Divider()
                 Button("Rename") { editingID = collection.id }
                 Divider()
@@ -90,9 +93,36 @@ struct PageCollectionRow: View {
         }
     }
 
+    /// Stub-and-edit "New Page in This Collection" trigger.
+    private func createPage() {
+        guard !isCreatingPage else { return }
+        isCreatingPage = true
+        let existing = contentManager.pages(in: collection).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Page", existingTitles: existing)
+        Task {
+            defer { isCreatingPage = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await contentManager.createPage(
+                            name: title, in: collection, vault: parentVault
+                        )
+                    },
+                    onCreate: { newPage in
+                        editingID = newPage.id
+                        justCreatedID = newPage.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
     private func commit() {
         guard draft != collection.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -101,6 +131,7 @@ struct PageCollectionRow: View {
             do {
                 try await vaultManager.renamePageCollection(collection, to: draft)
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
                 // editingID preserved on failure for retry.
@@ -110,5 +141,6 @@ struct PageCollectionRow: View {
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 }

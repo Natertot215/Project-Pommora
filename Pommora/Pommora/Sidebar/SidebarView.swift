@@ -9,8 +9,9 @@ struct SidebarView: View {
     @Environment(SettingsManager.self) private var settingsManager
 
     @Binding var selection: SidebarSelection
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
 
-    @State private var editingID: String? = nil
     @State private var presentedSheet: SidebarSheet? = nil
     @State private var confirmingDelete: SidebarConfirmation? = nil
 
@@ -26,24 +27,28 @@ struct SidebarView: View {
                 SpacesSection(
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
                 TopicsSection(
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
                 ItemsSection(
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
                 VaultsSection(
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
@@ -76,16 +81,6 @@ struct SidebarView: View {
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .newSpace: NewSpaceSheet()
-            case .newTopic: NewTopicSheet()
-            case .newProject(let t): NewProjectSheet(parent: t)
-            case .newPageType: NewPageTypeSheet()
-            case .newCollection(let v): NewPageCollectionSheet(vault: v)
-            case .newPage(let c, let v): NewPageSheet(parent: .collection(c, vault: v))
-            case .newPageInPageType(pageType: let v): NewPageSheet(parent: .vaultRoot(v))
-            case .newItemType: NewItemTypeSheet()
-            case .newItemCollection(let t): NewItemCollectionSheet(type: t)
-            case .newItem(let c, let t): NewItemSheet(collection: c, type: t)
             case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
             case .editColor(let s): ColorPickerSheet(space: s)
@@ -367,12 +362,14 @@ struct SavedSection: View {
 struct SpacesSection: View {
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
+    @State private var isCreating: Bool = false
 
     var body: some View {
         Section(isExpanded: $expanded) {
@@ -381,6 +378,7 @@ struct SpacesSection: View {
                     space: space,
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
@@ -393,7 +391,30 @@ struct SpacesSection: View {
             }
         } header: {
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.spaces) {
-                presentedSheet = .newSpace
+                createSpace()
+            }
+        }
+    }
+
+    private func createSpace() {
+        guard !isCreating else { return }
+        isCreating = true
+        let existing = spaceManager.spaces.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Space", existingTitles: existing)
+        Task {
+            defer { isCreating = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await spaceManager.create(name: title, color: nil, icon: nil)
+                    },
+                    onCreate: { newSpace in
+                        editingID = newSpace.id
+                        justCreatedID = newSpace.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
             }
         }
     }
@@ -402,12 +423,14 @@ struct SpacesSection: View {
 struct TopicsSection: View {
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(TopicManager.self) private var topicManager
     @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
+    @State private var isCreating: Bool = false
 
     var body: some View {
         Section(isExpanded: $expanded) {
@@ -416,6 +439,7 @@ struct TopicsSection: View {
                     topic: topic,
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
@@ -428,7 +452,30 @@ struct TopicsSection: View {
             }
         } header: {
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.topics) {
-                presentedSheet = .newTopic
+                createTopic()
+            }
+        }
+    }
+
+    private func createTopic() {
+        guard !isCreating else { return }
+        isCreating = true
+        let existing = topicManager.topics.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Topic", existingTitles: existing)
+        Task {
+            defer { isCreating = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await topicManager.createTopic(name: title, parents: [], icon: nil)
+                    },
+                    onCreate: { newTopic in
+                        editingID = newTopic.id
+                        justCreatedID = newTopic.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
             }
         }
     }
@@ -437,6 +484,7 @@ struct TopicsSection: View {
 struct ItemsSection: View {
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(ItemTypeManager.self) private var itemTypeManager
@@ -444,6 +492,7 @@ struct ItemsSection: View {
     @Environment(SettingsManager.self) private var settingsManager
 
     @State private var expanded: Bool = true
+    @State private var isCreating: Bool = false
 
     var body: some View {
         Section(isExpanded: $expanded) {
@@ -452,6 +501,7 @@ struct ItemsSection: View {
                     itemType: itemType,
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete,
                     nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
@@ -466,7 +516,31 @@ struct ItemsSection: View {
             }
         } header: {
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.items) {
-                presentedSheet = .newItemType
+                createItemType()
+            }
+        }
+    }
+
+    private func createItemType() {
+        guard !isCreating else { return }
+        isCreating = true
+        let label = settingsManager.settings.labels.itemType.singular
+        let existing = itemTypeManager.types.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreating = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemTypeManager.createItemType(name: title, icon: nil)
+                    },
+                    onCreate: { newType in
+                        editingID = newType.id
+                        justCreatedID = newType.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
             }
         }
     }
@@ -475,6 +549,7 @@ struct ItemsSection: View {
 struct VaultsSection: View {
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     @Environment(PageTypeManager.self) private var vaultManager
@@ -482,6 +557,7 @@ struct VaultsSection: View {
     @Environment(NexusManager.self) private var nexusManager
 
     @State private var expanded: Bool = true
+    @State private var isCreating: Bool = false
 
     var body: some View {
         Section(isExpanded: $expanded) {
@@ -490,6 +566,7 @@ struct VaultsSection: View {
                     pageType: pageType,
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete,
                     nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
@@ -504,7 +581,31 @@ struct VaultsSection: View {
             }
         } header: {
             SectionHeader(title: settingsManager.settings.labels.sidebarSections.pages) {
-                presentedSheet = .newPageType
+                createPageType()
+            }
+        }
+    }
+
+    private func createPageType() {
+        guard !isCreating else { return }
+        isCreating = true
+        let label = settingsManager.settings.labels.pageType.singular
+        let existing = vaultManager.types.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreating = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await vaultManager.createPageType(name: title, icon: nil)
+                    },
+                    onCreate: { newType in
+                        editingID = newType.id
+                        justCreatedID = newType.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
             }
         }
     }

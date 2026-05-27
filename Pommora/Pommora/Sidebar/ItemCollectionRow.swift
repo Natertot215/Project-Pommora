@@ -14,15 +14,18 @@ struct ItemCollectionRow: View {
     let parentType: ItemType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(SettingsManager.self) private var settingsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
+    @State private var isCreatingItem: Bool = false
 
     var body: some View {
         label
@@ -47,7 +50,8 @@ struct ItemCollectionRow: View {
                     if !isCommitting && editingID == collection.id {
                         cancel()
                     }
-                }
+                },
+                selectAllOnAppear: justCreatedID == collection.id
             )
         } else {
             SelectableRow(
@@ -59,9 +63,8 @@ struct ItemCollectionRow: View {
             )
             .contextMenu {
                 let setLabel = settingsManager.settings.labels.itemCollection.singular
-                Button("New Item (in This \(setLabel))") {
-                    presentedSheet = .newItem(collection: collection, type: parentType)
-                }
+                Button("New Item (in This \(setLabel))") { createItem() }
+                    .disabled(isCreatingItem)
                 Divider()
                 Button("Rename") { editingID = collection.id }
                 Divider()
@@ -72,9 +75,36 @@ struct ItemCollectionRow: View {
         }
     }
 
+    /// Stub-and-edit "New Item (in This Set)" trigger.
+    private func createItem() {
+        guard !isCreatingItem else { return }
+        isCreatingItem = true
+        let existing = itemContentManager.items(in: collection).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Item", existingTitles: existing)
+        Task {
+            defer { isCreatingItem = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemContentManager.createItem(
+                            name: title, in: collection, type: parentType
+                        )
+                    },
+                    onCreate: { newItem in
+                        editingID = newItem.id
+                        justCreatedID = newItem.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
     private func commit() {
         guard draft != collection.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -83,6 +113,7 @@ struct ItemCollectionRow: View {
             do {
                 try await itemTypeManager.renameItemCollection(collection, to: draft)
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
                 // editingID preserved on failure for retry.
@@ -92,5 +123,6 @@ struct ItemCollectionRow: View {
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 }

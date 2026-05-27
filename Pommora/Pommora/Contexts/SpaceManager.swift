@@ -37,7 +37,8 @@ final class SpaceManager {
         }
     }
 
-    func create(name: String, color: SpaceColor?, icon: String?) async throws {
+    @discardableResult
+    func create(name: String, color: SpaceColor?, icon: String?) async throws -> Space {
         do {
             try SpaceValidator.validate(title: name, existing: spaces)
 
@@ -60,6 +61,7 @@ final class SpaceManager {
                 persistedOrder: readPersistedSpaceOrder(),
                 titleKeyPath: \Space.title
             )
+            return space
         } catch {
             self.pendingError = error
             throw error

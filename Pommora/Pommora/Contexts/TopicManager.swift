@@ -76,7 +76,8 @@ final class TopicManager {
 
     // MARK: - Topic CRUD
 
-    func createTopic(name: String, parents: [String], icon: String?) async throws {
+    @discardableResult
+    func createTopic(name: String, parents: [String], icon: String?) async throws -> Topic {
         do {
             try TopicValidator.validate(
                 title: name, parents: parents,
@@ -102,6 +103,7 @@ final class TopicManager {
                 persistedOrder: readPersistedTopicOrder(),
                 titleKeyPath: \Topic.title
             )
+            return topic
         } catch {
             self.pendingError = error
             throw error
@@ -241,7 +243,8 @@ final class TopicManager {
 
     // MARK: - Project CRUD
 
-    func createProject(name: String, inTopic parent: Topic, icon: String?) async throws {
+    @discardableResult
+    func createProject(name: String, inTopic parent: Topic, icon: String?) async throws -> Project {
         do {
             let existing = projectsByParent[parent.id] ?? []
             let context = NexusContext(
@@ -280,6 +283,7 @@ final class TopicManager {
                 titleKeyPath: \Project.title
             )
             projectsByParent[parent.id] = arr
+            return project
         } catch {
             self.pendingError = error
             throw error

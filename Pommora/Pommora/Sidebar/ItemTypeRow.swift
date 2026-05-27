@@ -22,6 +22,7 @@ struct ItemTypeRow: View {
     let itemType: ItemType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
+    @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
     let nexus: Nexus
@@ -30,12 +31,16 @@ struct ItemTypeRow: View {
     @State private var expanded: Bool = false
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(SettingsManager.self) private var settingsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
     @State private var showingTypeSettings: Bool = false
+    @State private var isCreatingItem: Bool = false
+    @State private var isCreatingCollection: Bool = false
+    @State private var isCreatingItemType: Bool = false
 
     /// True when this Item Type is the active selection OR when any of its
     /// child ItemCollections is the active selection (drilled-in case).
@@ -58,6 +63,7 @@ struct ItemTypeRow: View {
                     parentType: itemType,
                     selection: $selection,
                     editingID: $editingID,
+                    justCreatedID: $justCreatedID,
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
@@ -102,7 +108,8 @@ struct ItemTypeRow: View {
                     if !isCommitting && editingID == itemType.id {
                         cancel()
                     }
-                }
+                },
+                selectAllOnAppear: justCreatedID == itemType.id
             )
         } else {
             SelectableRow(
@@ -114,12 +121,10 @@ struct ItemTypeRow: View {
             )
             .contextMenu {
                 let setLabel = settingsManager.settings.labels.itemCollection.singular
-                Button("New Item") {
-                    presentedSheet = .newItem(collection: nil, type: itemType)
-                }
-                Button("New \(setLabel)") {
-                    presentedSheet = .newItemCollection(type: itemType)
-                }
+                Button("New Item") { createItem() }
+                    .disabled(isCreatingItem)
+                Button("New \(setLabel)") { createItemCollection() }
+                    .disabled(isCreatingCollection)
                 Divider()
                 Button("Edit") {
                     showingTypeSettings = true
@@ -136,9 +141,65 @@ struct ItemTypeRow: View {
         }
     }
 
+    /// Stub-and-edit "New Item" trigger (Items live at the Type root when
+    /// triggered from the ItemType row; the analogous "in This Set" trigger
+    /// is on ItemCollectionRow).
+    private func createItem() {
+        guard !isCreatingItem else { return }
+        isCreatingItem = true
+        let existing = itemContentManager.items(in: itemType).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Item", existingTitles: existing)
+        Task {
+            defer { isCreatingItem = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemContentManager.createItem(
+                            name: title, inTypeRoot: itemType
+                        )
+                    },
+                    onCreate: { newItem in
+                        editingID = newItem.id
+                        justCreatedID = newItem.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "New ItemCollection (Set)" trigger.
+    private func createItemCollection() {
+        guard !isCreatingCollection else { return }
+        isCreatingCollection = true
+        let label = settingsManager.settings.labels.itemCollection.singular
+        let existing = itemTypeManager.itemCollections(in: itemType).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingCollection = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await itemTypeManager.createItemCollection(
+                            name: title, inItemType: itemType
+                        )
+                    },
+                    onCreate: { newCollection in
+                        editingID = newCollection.id
+                        justCreatedID = newCollection.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
     private func commit() {
         guard draft != itemType.title else {
             editingID = nil
+            justCreatedID = nil
             return
         }
         isCommitting = true
@@ -147,6 +208,7 @@ struct ItemTypeRow: View {
             do {
                 try await itemTypeManager.renameItemType(itemType, to: draft)
                 editingID = nil
+                justCreatedID = nil
             } catch {
                 // pendingError set by manager; toast surfaces.
                 // editingID preserved on failure for retry.
@@ -156,5 +218,6 @@ struct ItemTypeRow: View {
 
     private func cancel() {
         editingID = nil
+        justCreatedID = nil
     }
 }

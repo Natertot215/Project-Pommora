@@ -147,7 +147,8 @@ final class PageTypeManager {
 
     // MARK: - PageType CRUD
 
-    func createPageType(name: String, icon: String?) async throws {
+    @discardableResult
+    func createPageType(name: String, icon: String?) async throws -> PageType {
         do {
             try PageTypeValidator.validate(title: name, existing: types)
 
@@ -174,6 +175,7 @@ final class PageTypeManager {
                 persistedOrder: readPersistedPageTypeOrder(),
                 titleKeyPath: \PageType.title
             )
+            return pageType
         } catch {
             self.pendingError = error
             throw error
@@ -281,7 +283,8 @@ final class PageTypeManager {
 
     // MARK: - PageCollection CRUD
 
-    func createPageCollection(name: String, inPageType pageType: PageType) async throws {
+    @discardableResult
+    func createPageCollection(name: String, inPageType pageType: PageType) async throws -> PageCollection {
         do {
             let existing = pageCollectionsByType[pageType.id] ?? []
             try PageCollectionValidator.validate(title: name, existingInType: existing)
@@ -314,6 +317,7 @@ final class PageTypeManager {
                 titleKeyPath: \PageCollection.title
             )
             pageCollectionsByType[pageType.id] = arr
+            return coll
         } catch {
             self.pendingError = error
             throw error
