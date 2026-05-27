@@ -228,7 +228,8 @@ final class PageTypeManager {
                             title: c.title,
                             folderURL: newCollURL,
                             modifiedAt: c.modifiedAt,
-                            pageOrder: c.pageOrder
+                            pageOrder: c.pageOrder,
+                            folderOrder: c.folderOrder
                         )
                     }
                     pageCollectionsByType[pageType.id] = rebuilt
@@ -338,7 +339,7 @@ final class PageTypeManager {
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
             // Bump modified_at in the sidecar at its new location. Preserve
-            // pageOrder so a rename doesn't drop persisted ordering.
+            // pageOrder + folderOrder so a rename doesn't drop persisted ordering.
             let now = Date()
             let updated = PageCollection(
                 id: collection.id,
@@ -346,7 +347,8 @@ final class PageTypeManager {
                 title: newName,
                 folderURL: newURL,
                 modifiedAt: now,
-                pageOrder: collection.pageOrder
+                pageOrder: collection.pageOrder,
+                folderOrder: collection.folderOrder
             )
             let metaURL = newURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             do {

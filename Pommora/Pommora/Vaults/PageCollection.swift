@@ -16,7 +16,20 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     // Persisted display order for direct child Pages (v0.2.8.0). Nil until the
     // user reorders inside this PageCollection; missing entries fall through to
     // OrderResolver's alphabetic tail.
+    //
+    // **F.1.c note:** with the v0.3.2 Folder tier landing, `pageOrder` now
+    // applies specifically to Pages-at-Collection-root (Pages inside Folders
+    // are ordered by `Folder.pageOrder`). The companion `folderOrder` below
+    // tracks the order of Folders inside this Collection. Both default to nil
+    // until the user reorders; intra-group only — Folders never interleave
+    // with Pages in the persisted order.
     var pageOrder: [String]?
+
+    /// Persisted display order for direct child Folders (v0.3.2 F.1.c).
+    /// Mirrors `pageOrder`'s shape. Nil until the user reorders Folders inside
+    /// this Collection. Folders and root Pages are reorderable independently;
+    /// `pageOrder` and `folderOrder` are NEVER interleaved.
+    var folderOrder: [String]?
 
     /// Per-Collection saved views. Each Collection is INDEPENDENT of its parent
     /// PageType (locked decision): its own `views[0]` config separate from the
@@ -30,6 +43,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
         case pageOrder = "page_order"
+        case folderOrder = "folder_order"
         // Pre-ParadigmV2 `_collection.json` used `vault_id`. Auto-migrated
         // sidecars renamed to `_pagecollection.json` still carry the old key
         // until a save() rewrites them; this decode-only fallback bridges
@@ -45,6 +59,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         modifiedAt: Date,
         schemaVersion: Int = 1,
         pageOrder: [String]? = nil,
+        folderOrder: [String]? = nil,
         views: [SavedView] = []
     ) {
         self.id = id
@@ -54,6 +69,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = modifiedAt
         self.schemaVersion = schemaVersion
         self.pageOrder = pageOrder
+        self.folderOrder = folderOrder
         self.views = views
     }
 
@@ -73,6 +89,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.folderOrder = try c.decodeIfPresent([String].self, forKey: .folderOrder)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
 
@@ -83,6 +100,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(modifiedAt, forKey: .modifiedAt)
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encodeIfPresent(folderOrder, forKey: .folderOrder)
         try c.encode(views, forKey: .views)
     }
 }
