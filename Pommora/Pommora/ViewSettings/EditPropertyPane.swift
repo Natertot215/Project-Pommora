@@ -1,26 +1,49 @@
 import SwiftUI
+import SymbolPicker
 
 /// View Settings → Edit Properties → per-property editor.
 ///
-/// Notion-style structure: header row (icon + inline name field) + Type row
-/// (read-only at v0.3.1; change-type pushes to v0.3.1.5) + type-aware middle
-/// section + footer (Delete property). Duplicate property lands at Task 11b.
+/// Layout per Figma (node V3wKMilXkoceCL1Q2J9kf4 / 474:9432):
 ///
-/// Live-save model: rename commits via `renameProperty(id:in:to:)`; per-config
-/// edits (select options, status groups, displayAs, dateFormat, numberFormat,
-/// accept) commit via `updateProperty(id:in:transform:)` (extension on each
-/// manager). All commits flow through the parent Type's manager — for
-/// Collection scopes we look up the parent via `typeID`.
+/// ```
+/// ┌─────────────────────────────────────┐
+/// │ < Edit Property        (PaneHeader) │
+/// │ ─────                               │
+/// │ [icon]  [name TextField, plain]     │  header row — icon Button opens SymbolPicker
+/// │ ─────                               │
+/// │  <scrollable per-type middle>       │  Status groups, Select options, Relation scope, etc.
+/// │                                     │
+/// │ ─────                               │
+/// │ Display As            Chip ▾        │  pinned bottom picker (Status only at first ship;
+/// │                                     │     Number/Date use their format picker here)
+/// │ ─────                               │
+/// │ Delete            Duplicate         │  pinned footer: borderless mini-buttons,
+/// └─────────────────────────────────────┘     Delete on the left (red), Duplicate on the right
+/// ```
 ///
-/// Per-type middle sections (locked decisions):
-///   - Select / MultiSelect → SelectOptionsEditor (shared from Task 8)
-///   - Status → DisplayVariant Picker + StatusGroupsEditor (shared from Task 8)
-///   - Date / DateTime → DateFormatPicker (Display as)
-///   - Number → NumberFormatPicker (shared from Task 8)
-///   - URL / File / Checkbox → no middle section (rename-only)
-///   - Relation → read-only scope summary
-///   - LastEditedTime → reserved; pane shouldn't be reachable for it
-///     (PropertiesListPane disables the chevron on reserved properties).
+/// **Key design rules** (per Nathan, locked 2026-05-26):
+/// - Icon at top renders the property's current icon (defaults to the type's
+///   pickerIcon when unset) and is a tappable Button — opens `SymbolPicker`
+///   for icon selection.
+/// - Title TextField uses `.plain` style — no rounded-border ring, no blue
+///   focus emphasis.
+/// - Delete + Duplicate footer is PINNED to the pane bottom (not inline in
+///   the scroll body) and renders as borderless side-by-side mini-buttons
+///   with no icons.
+/// - Display As / Format pickers PINNED above the footer as Label-Menu rows.
+/// - Type-label row is removed — the icon at top conveys the type.
+///
+/// Live-save model unchanged: rename commits via `renameProperty`; per-config
+/// edits commit via `updateProperty(id:in:transform:)`; icon updates flow
+/// through the same `updateProperty` transform.
+///
+/// Per-type sections:
+///   - Select / MultiSelect → `SelectOptionsEditor` in scroll body, no bottom picker
+///   - Status → `StatusGroupsEditor` in scroll body + Display As pinned bottom
+///   - Date / DateTime → empty middle + Date Format pinned bottom
+///   - Number → empty middle + Number Format pinned bottom
+///   - URL / File / Checkbox → empty middle, no bottom picker
+///   - Relation → read-only scope summary in scroll body, no bottom picker
 struct EditPropertyPane: View {
     let scope: ViewSettingsScope
     let propertyID: String
@@ -32,30 +55,40 @@ struct EditPropertyPane: View {
 
     @State private var draftName: String = ""
     @State private var commitError: String?
+    @State private var iconPickerOpen: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
             PaneHeader(path: $path, title: "Edit Property")
 
-            Group {
-                if let def = currentDefinition() {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: PUI.Spacing.xxl) {
-                            headerRow(def: def)
-                            typeRow(def: def)
-                            middleSection(for: def)
-                            footer(def: def)
-                        }
+            if let def = currentDefinition() {
+                headerRow(def: def)
+                Divider()
+
+                ScrollView {
+                    middleSection(for: def)
                         .padding(.horizontal, PUI.Pane.contentPadding)
                         .padding(.vertical, PUI.Pane.contentPadding)
-                    }
-                } else {
-                    ContentUnavailableView(
-                        "Property not found",
-                        systemImage: "questionmark.circle",
-                        description: Text("The property may have been deleted in another window.")
-                    )
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxHeight: .infinity)
+
+                if hasBottomPicker(for: def) {
+                    Divider()
+                    bottomPicker(for: def)
+                        .padding(.horizontal, PUI.Row.paddingHorizontal)
+                        .padding(.vertical, PUI.Row.paddingVertical)
+                }
+
+                Divider()
+                footerRow(def: def)
+            } else {
+                ContentUnavailableView(
+                    "Property not found",
+                    systemImage: "questionmark.circle",
+                    description: Text("The property may have been deleted in another window.")
+                )
+                .frame(maxHeight: .infinity)
             }
         }
         .frame(width: PUI.Pane.width, height: PUI.Pane.height)
@@ -63,97 +96,66 @@ struct EditPropertyPane: View {
         .onAppear {
             if let def = currentDefinition() { draftName = def.name }
         }
+        .sheet(isPresented: $iconPickerOpen) {
+            SymbolPicker(symbol: iconBinding)
+        }
     }
 
-    // MARK: - Sections
+    // MARK: - Header (icon Button + plain TextField)
 
     @ViewBuilder
     private func headerRow(def: PropertyDefinition) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: def.icon ?? def.type.pickerIcon)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.primary)
-                .frame(width: 22, height: 22)
+        HStack(spacing: PUI.Row.interSpacing) {
+            Button {
+                iconPickerOpen = true
+            } label: {
+                Image(systemName: def.icon ?? def.type.pickerIcon)
+                    .font(PUI.Icon.header)
+                    .foregroundStyle(.primary)
+                    .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Change icon")
+            .disabled(ReservedPropertyID.isReserved(def.id))
+
             TextField("Property name", text: $draftName)
-                .textFieldStyle(.roundedBorder)
-                .font(.body)
+                .textFieldStyle(.plain)
+                .font(PUI.Typography.row)
                 .onSubmit { Task { await commitRename() } }
+                .disabled(ReservedPropertyID.isReserved(def.id))
         }
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
     }
 
-    @ViewBuilder
-    private func typeRow(def: PropertyDefinition) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "tag")
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(.secondary)
-                .frame(width: 18)
-            Text("Type")
-                .font(.callout)
-                .foregroundStyle(.primary)
-            Spacer()
-            Text(def.type.displayName)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .help("Type changes for existing properties land at v0.3.1.5")
-    }
+    // MARK: - Middle (scrollable, per-type)
 
     @ViewBuilder
     private func middleSection(for def: PropertyDefinition) -> some View {
-        Divider()
         switch def.type {
         case .select, .multiSelect:
             SelectOptionsEditor(options: bindingForSelectOptions(def: def))
         case .status:
-            VStack(alignment: .leading, spacing: 12) {
-                displayVariantRow(def: def)
-                StatusGroupsEditor(groups: bindingForStatusGroups(def: def))
-            }
-        case .date, .datetime:
-            DateFormatPicker(format: bindingForDateFormat(def: def))
-        case .number:
-            NumberFormatPicker(format: bindingForNumberFormat(def: def))
-        case .url, .file, .checkbox:
-            EmptyView()
+            StatusGroupsEditor(groups: bindingForStatusGroups(def: def))
         case .relation:
             relationScopeSummary(def: def)
-        case .lastEditedTime:
-            EmptyView()  // reserved; not reachable
-        }
-    }
-
-    @ViewBuilder
-    private func displayVariantRow(def: PropertyDefinition) -> some View {
-        HStack(spacing: 8) {
-            Text("Display as")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Picker("Display as", selection: bindingForDisplayAs(def: def)) {
-                Text("Box").tag(DisplayVariant?.some(.box))
-                Text("Select").tag(DisplayVariant?.some(.select))
-                Text("Chip").tag(DisplayVariant?.some(.chip))
-                Divider()
-                Text("Default (.box)").tag(DisplayVariant?.none)
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(width: 130)
+        case .number, .date, .datetime, .checkbox, .url, .file, .lastEditedTime:
+            EmptyView()
         }
     }
 
     @ViewBuilder
     private func relationScopeSummary(def: PropertyDefinition) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             Text("Scope")
-                .font(.caption)
+                .font(PUI.Typography.sectionHeader)
                 .foregroundStyle(.secondary)
             Text(relationScopeText(def.relationScope))
-                .font(.callout)
+                .font(PUI.Typography.row)
                 .foregroundStyle(.primary)
             Text("Change scope from Vault Settings → Edit Properties (v0.3.1.5).")
-                .font(.caption2)
+                .font(PUI.Typography.caption)
                 .foregroundStyle(.tertiary)
         }
     }
@@ -169,50 +171,131 @@ struct EditPropertyPane: View {
         }
     }
 
-    @ViewBuilder
-    private func footer(def: PropertyDefinition) -> some View {
-        Divider()
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                Task { await commitDuplicate() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 12))
-                        .frame(width: 18)
-                    Text("Duplicate property")
-                        .font(.callout)
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(ReservedPropertyID.isReserved(def.id))
+    // MARK: - Pinned bottom picker (Status / Number / Date)
 
+    private func hasBottomPicker(for def: PropertyDefinition) -> Bool {
+        switch def.type {
+        case .status, .number, .date, .datetime: return true
+        case .select, .multiSelect, .checkbox, .url, .file, .relation, .lastEditedTime: return false
+        }
+    }
+
+    @ViewBuilder
+    private func bottomPicker(for def: PropertyDefinition) -> some View {
+        switch def.type {
+        case .status: displayAsPicker(def: def)
+        case .number: numberFormatPicker(def: def)
+        case .date, .datetime: dateFormatPicker(def: def)
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func displayAsPicker(def: PropertyDefinition) -> some View {
+        HStack(spacing: PUI.Spacing.md) {
+            Text("Display As")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.primary)
+            Spacer()
+            Picker("Display As", selection: bindingForDisplayAs(def: def)) {
+                Text("Box").tag(DisplayVariant?.some(.box))
+                Text("Select").tag(DisplayVariant?.some(.select))
+                Text("Chip").tag(DisplayVariant?.some(.chip))
+                Divider()
+                Text("Default").tag(DisplayVariant?.none)
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private func numberFormatPicker(def: PropertyDefinition) -> some View {
+        HStack(spacing: PUI.Spacing.md) {
+            Text("Format")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.primary)
+            Spacer()
+            Picker("Format", selection: bindingForNumberFormat(def: def)) {
+                ForEach(PropertyDefinition.NumberFormat.allCases, id: \.self) { fmt in
+                    Text(fmt.rawValue.capitalized).tag(fmt)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private func dateFormatPicker(def: PropertyDefinition) -> some View {
+        HStack(spacing: PUI.Spacing.md) {
+            Text("Display as")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.primary)
+            Spacer()
+            Picker("Display as", selection: bindingForDateFormat(def: def)) {
+                Text("Default").tag(DateFormat?.none)
+                ForEach(DateFormat.allCases, id: \.self) { fmt in
+                    Text(dateFormatLabel(fmt)).tag(DateFormat?.some(fmt))
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .fixedSize()
+        }
+    }
+
+    private func dateFormatLabel(_ fmt: DateFormat) -> String {
+        switch fmt {
+        case .monthDayLong: return "March 4"
+        case .monthDayYearLong: return "March 4, 2026"
+        case .numericShort: return "03-04"
+        case .numericMedium: return "03-04-26"
+        case .numericLong: return "03-04-2026"
+        case .iso: return "2026-03-04"
+        }
+    }
+
+    // MARK: - Pinned footer (Delete | Duplicate, borderless mini-buttons)
+
+    @ViewBuilder
+    private func footerRow(def: PropertyDefinition) -> some View {
+        HStack(spacing: 0) {
             Button(role: .destructive) {
                 Task { await commitDelete() }
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 12))
-                        .frame(width: 18)
-                    Text("Delete property")
-                        .font(.callout)
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
+                Text("Delete")
+                    .font(PUI.Typography.row)
+                    .foregroundStyle(.red)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.red)
+            .disabled(ReservedPropertyID.isReserved(def.id))
+
+            Spacer()
+
+            Button {
+                Task { await commitDuplicate() }
+            } label: {
+                Text("Duplicate")
+                    .font(PUI.Typography.row)
+                    .foregroundStyle(.primary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .disabled(ReservedPropertyID.isReserved(def.id))
         }
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
 
         if let err = commitError {
             Text(err)
-                .font(.caption)
+                .font(PUI.Typography.caption)
                 .foregroundStyle(.red)
+                .padding(.horizontal, PUI.Row.paddingHorizontal)
+                .padding(.bottom, PUI.Row.paddingVertical)
         }
     }
 
@@ -257,7 +340,16 @@ struct EditPropertyPane: View {
         }
     }
 
-    // MARK: - Per-config Bindings
+    // MARK: - Bindings
+
+    private var iconBinding: Binding<String?> {
+        Binding(
+            get: { currentDefinition()?.icon },
+            set: { newIcon in
+                Task { await applyTransform { $0.icon = newIcon } }
+            }
+        )
+    }
 
     private func bindingForSelectOptions(def: PropertyDefinition) -> Binding<[PropertyDefinition.SelectOption]> {
         Binding(
@@ -365,8 +457,6 @@ struct EditPropertyPane: View {
                 try await itemTypeManager.deleteProperty(id: propertyID, in: typeID)
             }
         } catch {
-            // Pane is already unmounted; surface the error via the manager's
-            // pendingError toast pathway (set by deleteProperty on failure).
             commitError = String(describing: error)
         }
     }
@@ -380,7 +470,6 @@ struct EditPropertyPane: View {
             case .items:
                 try await itemTypeManager.duplicateProperty(id: propertyID, in: typeID)
             }
-            // Pop back to the Properties list so the user can see the new copy.
             if !path.isEmpty { path.removeLast() }
         } catch {
             commitError = String(describing: error)
