@@ -41,7 +41,6 @@ struct PageTypeRow: View {
     @FocusState private var renameFocused: Bool
     @State private var showingVaultSettings: Bool = false
     @State private var isCreatingCollection: Bool = false
-    @State private var isCreatingPageType: Bool = false
     @State private var isCreatingPage: Bool = false
 
     // Collections first, then vault-root pages. A single ForEach with one
@@ -136,8 +135,10 @@ struct PageTypeRow: View {
             .contextMenu {
                 let pageTypeLabel = settingsManager.settings.labels.pageType.singular
                 let collectionLabel = settingsManager.settings.labels.pageCollection.singular
-                Button("New \(pageTypeLabel)") { createPageType() }
-                    .disabled(isCreatingPageType)
+                // Vault creation is intentionally NOT offered here — the only
+                // way to create a Vault is the "+" button in the Pages section
+                // header (SidebarView.createPageType). A Vault's context menu
+                // creates its children (Collections + Pages) only.
                 Button("New \(collectionLabel)") { createPageCollection() }
                     .disabled(isCreatingCollection)
                 Button("New Page") { createPage() }
@@ -209,31 +210,6 @@ struct PageTypeRow: View {
                     onCreate: { newCollection in
                         editingID = newCollection.id
                         justCreatedID = newCollection.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
-    }
-
-    /// Stub-and-edit "New PageType" trigger.
-    private func createPageType() {
-        guard !isCreatingPageType else { return }
-        isCreatingPageType = true
-        let label = settingsManager.settings.labels.pageType.singular
-        let existing = pageTypeManager.types.map(\.title)
-        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
-        Task {
-            defer { isCreatingPageType = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await pageTypeManager.createPageType(name: title, icon: nil)
-                    },
-                    onCreate: { newType in
-                        editingID = newType.id
-                        justCreatedID = newType.id
                     }
                 )
             } catch {

@@ -62,8 +62,7 @@ struct ItemCollectionRow: View {
                 accent: nil
             )
             .contextMenu {
-                let setLabel = settingsManager.settings.labels.itemCollection.singular
-                Button("New Item (in This \(setLabel))") { createItem() }
+                Button("New Item") { createItem() }
                     .disabled(isCreatingItem)
                 Divider()
                 Button("Rename") { editingID = collection.id }

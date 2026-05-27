@@ -6,5 +6,6 @@ import Foundation
 /// correct ContentManager overload without leaking that branching into UI code.
 enum PageParent: Hashable {
     case collection(PageCollection, vault: PageType)
+    case folder(Folder, vault: PageType)
     case vaultRoot(PageType)
 }

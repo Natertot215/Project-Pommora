@@ -11,7 +11,7 @@ struct EntityStateRef: Codable, Hashable, Sendable {
     let title: String
 
     enum Kind: String {
-        case page, vault, collection, space, topic, project, item, agenda
+        case page, vault, collection, folder, space, topic, project, item, agenda
     }
 
     var typedKind: Kind? { Kind(rawValue: kind) }
@@ -47,6 +47,7 @@ extension EntityStateRef {
         case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
         case .project(let p): self.init(kind: .project, id: p.id, title: p.title)
         case .collection(let c): self.init(kind: .collection, id: c.id, title: c.title)
+        case .folder(let f): self.init(kind: .folder, id: f.id, title: f.title)
         case .itemType, .itemCollection:
             // ParadigmV2 (Task 8.1): Items-side Recents/Pinned state.json wiring
             // lands with the Items detail surface plan. EntityStateRef.Kind only

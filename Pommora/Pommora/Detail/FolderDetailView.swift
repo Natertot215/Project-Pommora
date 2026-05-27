@@ -1,7 +1,13 @@
 import SwiftUI
 
-struct PageCollectionDetailView: View {
-    let collection: PageCollection
+/// Detail surface for a selected Folder (third tier on the Pages side).
+/// Structural mirror of `PageCollectionDetailView`, scoped one level deeper:
+/// a Folder holds Pages only (no nested Folders or Collections), so the table
+/// is a flat page list. Property columns derive from the Folder's own
+/// `views[0]` against the grandparent PageType's schema (Folders inherit
+/// schema, edit views independently — locked decision).
+struct FolderDetailView: View {
+    let folder: Folder
     let vault: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
@@ -10,17 +16,13 @@ struct PageCollectionDetailView: View {
     @Binding var justCreatedID: String?
 
     @State private var isCreatingPage: Bool = false
-    @State private var isCreatingFolder: Bool = false
 
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(PageTypeManager.self) private var pageTypeManager
 
     @State private var tableSelection: Set<String> = []
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
     /// Session-local row order override. Nil → fall back to manager order.
-    /// Resets on entity change (.task(id:)) per spec. Independent of the
-    /// sidebar's persistent reorder system.
     @State private var sessionOrder: [String]?
 
     var body: some View {
@@ -31,9 +33,9 @@ struct PageCollectionDetailView: View {
             Divider()
             footer
         }
-        .task(id: collection.id) {
+        .task(id: folder.id) {
             sessionOrder = nil
-            await contentManager.loadAll(for: collection)
+            await contentManager.loadAll(for: folder)
         }
         .alert("Rename", isPresented: renameAlertBinding) {
             TextField("Title", text: $renameDraft)
@@ -49,9 +51,9 @@ struct PageCollectionDetailView: View {
     private var header: some View {
         HStack {
             Label {
-                Text(collection.title)
+                Text(folder.title)
             } icon: {
-                Image(systemName: "folder")
+                Image(systemName: folder.icon ?? "folder")
             }
             .font(.title2.bold())
             Spacer()
@@ -59,12 +61,10 @@ struct PageCollectionDetailView: View {
         .padding()
     }
 
-    /// User-defined property columns derived from `collection.views[0]` +
-    /// parent vault's schema (Collections inherit schema from the parent
-    /// PageType per locked decision). Empty when the SavedView has no
-    /// visibleProperties configured — collapses to legacy Title/Kind/Modified.
+    /// User-defined property columns derived from `folder.views[0]` + the
+    /// grandparent vault's schema (Folders inherit schema per locked decision).
     private var userPropertyColumns: [PropertyDefinition] {
-        guard let view = collection.views.first else { return [] }
+        guard let view = folder.views.first else { return [] }
         let cols = PropertyColumnBuilder.columns(view: view, schema: vault.properties)
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }
@@ -73,7 +73,7 @@ struct PageCollectionDetailView: View {
     }
 
     private var table: some View {
-        Table(rows, children: \.children, selection: $tableSelection) {
+        Table(rows, selection: $tableSelection) {
             TableColumn("Title") { row in
                 Label {
                     Text(row.title)
@@ -84,10 +84,6 @@ struct PageCollectionDetailView: View {
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { handleDoubleTap(row) }
                 .contextMenu { menuItems(for: row) }
-                .draggable(DetailRowDragPayload(rowID: row.id, zone: .collectionItem))
-                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
-                    handleDrop(payloads: payloads, ontoRowID: row.id)
-                }
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
@@ -103,7 +99,7 @@ struct PageCollectionDetailView: View {
                                         propertyID: def.id,
                                         newValue: newValue,
                                         vault: vault,
-                                        collection: collection
+                                        collection: nil
                                     )
                                 }
                             }
@@ -118,10 +114,6 @@ struct PageCollectionDetailView: View {
                 }
                 .width(min: 90, ideal: 120, max: 220)
             }
-            TableColumn("Kind") { row in
-                Text(row.kindLabel).foregroundStyle(.secondary)
-            }
-            .width(min: 80, ideal: 100, max: 140)
             TableColumn("Modified") { row in
                 Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
                     .foregroundStyle(.secondary)
@@ -130,45 +122,15 @@ struct PageCollectionDetailView: View {
         }
     }
 
-    private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
-        switch row.kind {
-        case .page(let pageMeta):
-            return pageMeta.frontmatter.properties[propertyID]
-        case .collection, .item, .itemCollection:
-            return nil
-        }
-    }
-
-    /// Drop handler — session-only. Same-zone only. Updates `sessionOrder`,
-    /// which the `rows` computed honors. Never calls a manager API.
-    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
-        guard let payload = payloads.first else { return false }
-        guard payload.zone == .collectionItem else { return false }
-        let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
-        guard next != currentIDs else { return false }
-        sessionOrder = next
-        return true
-    }
-
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
-        case .item(let i): presentedItem = i
         case .page(let p): selection = .page(p)
-        case .collection, .itemCollection: break
+        case .item, .collection, .itemCollection: break
         }
     }
 
     private var footer: some View {
         HStack {
-            Button {
-                createFolder()
-            } label: {
-                Label("New Folder", systemImage: "folder.badge.plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingFolder)
             Button {
                 createPage()
             } label: {
@@ -182,41 +144,13 @@ struct PageCollectionDetailView: View {
         .padding(8)
     }
 
-    /// Stub-and-edit "New Folder" trigger fired from the detail-view footer.
-    /// Mirrors PageCollectionRow's createFolder — creates a uniquely-named
-    /// Folder via PageTypeManager, then flips its sidebar row into rename mode
-    /// (the Folder surfaces in the sidebar tree under this Collection).
-    private func createFolder() {
-        guard !isCreatingFolder else { return }
-        isCreatingFolder = true
-        let existing = pageTypeManager.folders(in: collection).map(\.title)
-        let title = DefaultTitleResolver.resolve(label: "Folder", existingTitles: existing)
-        Task {
-            defer { isCreatingFolder = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await pageTypeManager.createFolder(in: collection, title: title)
-                    },
-                    onCreate: { newFolder in
-                        editingID = newFolder.id
-                        justCreatedID = newFolder.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
-    }
-
-    /// Stub-and-edit "New Page" trigger fired from the detail-view footer.
-    /// Mirrors PageCollectionRow's createPage — same default-title resolver,
-    /// same justCreatedID + editingID flip — so the new row appears in the
-    /// sidebar tree in rename mode while the detail-view list also updates.
+    /// Stub-and-edit "New Page" trigger fired from the Folder detail footer.
+    /// Creates a Page inside the Folder, then flips its sidebar row into
+    /// rename mode (mirrors the Collection-scoped variant one tier up).
     private func createPage() {
         guard !isCreatingPage else { return }
         isCreatingPage = true
-        let existing = contentManager.pages(in: collection).map(\.title)
+        let existing = contentManager.pages(in: folder).map(\.title)
         let title = DefaultTitleResolver.resolve(label: "Page", existingTitles: existing)
         Task {
             defer { isCreatingPage = false }
@@ -224,7 +158,7 @@ struct PageCollectionDetailView: View {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
                         try await contentManager.createPage(
-                            name: title, in: collection, vault: vault
+                            name: title, in: folder, vault: vault
                         )
                     },
                     onCreate: { newPage in
@@ -239,50 +173,37 @@ struct PageCollectionDetailView: View {
     }
 
     private var rows: [DetailRow] {
-        // ParadigmV2 (Task 5.5): Items live in ItemContentManager keyed on
-        // ItemCollection now. PageCollection-side Items disappear until a
-        // future plan surfaces cross-side embedding (out of scope here).
-        let pages = contentManager.pages(in: collection).map { ContentItem.page($0) }
-        let items: [ContentItem] = []
-        let baseRows: [DetailRow] = (pages + items).map { ci in
+        let baseRows: [DetailRow] = contentManager.pages(in: folder).map { page in
             DetailRow(
-                id: ci.id,
-                title: ci.title,
-                kind: detailKind(ci),
-                iconName: ci.iconName,
-                modifiedAt: ci.modifiedAt,
+                id: page.id,
+                title: page.title,
+                kind: .page(page),
+                iconName: "doc.text",
+                // PageMeta doesn't carry a separate mtime; fall back to
+                // createdAt, mirroring ContentItem.modifiedAt's page case.
+                modifiedAt: page.frontmatter.createdAt,
                 children: nil
             )
         }
         guard let sessionOrder else { return baseRows }
         let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
-        // Honor session order for known rows; append any newly added rows at the end.
         let ordered = sessionOrder.compactMap { byID[$0] }
         let known = Set(sessionOrder)
         let appended = baseRows.filter { !known.contains($0.id) }
         return ordered + appended
     }
 
-    private func detailKind(_ ci: ContentItem) -> DetailRow.Kind {
-        switch ci {
-        case .page(let p): return .page(p)
-        case .item(let i): return .item(i)
-        }
-    }
-
     @ViewBuilder
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
-        case .page, .item:
+        case .page:
             Button("Rename") { beginRename(row) }
-            Button(isPinned(row) ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
-                togglePin(row)
-            }
+            Button(isPinned(row) ? "Unpin Page" : "Pin Page") { togglePin(row) }
             Divider()
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .collection, .itemCollection:
+        case .item, .collection, .itemCollection:
             EmptyView()
         }
     }
@@ -290,8 +211,7 @@ struct PageCollectionDetailView: View {
     private func stateRef(for row: DetailRow) -> EntityStateRef? {
         switch row.kind {
         case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
-        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .collection, .itemCollection: return nil
+        case .item, .collection, .itemCollection: return nil
         }
     }
 
@@ -324,13 +244,8 @@ struct PageCollectionDetailView: View {
         guard !newName.isEmpty, newName != row.title else { return }
         Task {
             do {
-                switch row.kind {
-                case .page(let p):
-                    try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
-                case .item:
-                    break  // Items rename via Item Window
-                case .collection, .itemCollection:
-                    break
+                if case .page(let p) = row.kind {
+                    try await contentManager.renamePage(p, to: newName, in: folder, vault: vault)
                 }
             } catch {
                 // pendingError set by manager; toast surfaces.
@@ -340,13 +255,8 @@ struct PageCollectionDetailView: View {
 
     private func delete(_ row: DetailRow) async {
         do {
-            switch row.kind {
-            case .page(let p):
-                try await contentManager.deletePage(p, in: collection)
-            case .item:
-                break
-            case .collection, .itemCollection:
-                break
+            if case .page(let p) = row.kind {
+                try await contentManager.deletePage(p, in: folder)
             }
         } catch {
             // pendingError set by manager; toast surfaces.

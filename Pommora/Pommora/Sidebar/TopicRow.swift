@@ -85,7 +85,7 @@ struct TopicRow: View {
                 let projectLabel = settingsManager.settings.labels.project.singular
                 Button("New Topic") { createTopic() }
                     .disabled(isCreatingTopic)
-                Button("New \(projectLabel) (in This Topic)") { createProject() }
+                Button("New \(projectLabel)") { createProject() }
                     .disabled(isCreatingProject)
                 Divider()
                 Button("Rename") { editingID = topic.id }

@@ -231,7 +231,7 @@ struct NavDropdownButton: View {
             openItemWindow(ref)
         case .agenda, .none:
             return
-        case .page, .vault, .space, .topic, .project, .collection:
+        case .page, .vault, .space, .topic, .project, .collection, .folder:
             if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                 onOpen(sel)
                 return

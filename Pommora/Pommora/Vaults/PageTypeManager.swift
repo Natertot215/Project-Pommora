@@ -38,6 +38,17 @@ final class PageTypeManager {
         foldersByCollection[collection.id] ?? []
     }
 
+    /// Resolves a Folder by its ULID across every loaded Collection. Used by
+    /// the sidebar selection bridge (`SidebarSelection.init?(tag:lookup:)` +
+    /// `init?(stateRef:lookup:)`) for routing + Pinned restore. Brute-force
+    /// O(N) walk over `foldersByCollection.values`; fine at sidebar scale.
+    func folder(byID id: String) -> Folder? {
+        for folders in foldersByCollection.values {
+            if let f = folders.first(where: { $0.id == id }) { return f }
+        }
+        return nil
+    }
+
     // MARK: - Load
 
     func loadAll() async {

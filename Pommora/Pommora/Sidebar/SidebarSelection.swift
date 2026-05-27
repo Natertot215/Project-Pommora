@@ -10,6 +10,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case project(Project)
     case pageType(PageType)
     case collection(PageCollection)
+    case folder(Folder)
     case page(PageMeta)
     case itemType(ItemType)
     case itemCollection(ItemCollection)
@@ -89,6 +90,9 @@ extension SidebarSelection {
                 }
             }
             return nil
+        case .folder:
+            guard let pm = lookup.pageType, let f = pm.folder(byID: stateRef.id) else { return nil }
+            self = .folder(f)
         case .item, .agenda, .none:
             return nil
         }
@@ -138,9 +142,18 @@ extension SidebarSelection {
                 }
             }
             return nil
+        case .folder(let id):
+            guard let pm = lookup.pageType, let f = pm.folder(byID: id) else { return nil }
+            self = .folder(f)
         case .page(let id):
             guard let cm = lookup.content else { return nil }
             for pages in cm.pagesByCollection.values {
+                if let page = pages.first(where: { $0.id == id }) {
+                    self = .page(page)
+                    return
+                }
+            }
+            for pages in cm.pagesByFolder.values {
                 if let page = pages.first(where: { $0.id == id }) {
                     self = .page(page)
                     return
@@ -180,6 +193,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case project(String)
     case pageType(String)
     case collection(String)
+    case folder(String)
     case page(String)
     case itemType(String)
     case itemCollection(String)
@@ -192,6 +206,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case (.project(let id), .project(let p)): return id == p.id
         case (.pageType(let id), .pageType(let t)): return id == t.id
         case (.collection(let id), .collection(let c)): return id == c.id
+        case (.folder(let id), .folder(let f)): return id == f.id
         case (.page(let id), .page(let p)): return id == p.id
         case (.itemType(let id), .itemType(let t)): return id == t.id
         case (.itemCollection(let id), .itemCollection(let c)): return id == c.id
@@ -211,6 +226,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case .project(let p): self = .project(p.id)
         case .pageType(let t): self = .pageType(t.id)
         case .collection(let c): self = .collection(c.id)
+        case .folder(let f): self = .folder(f.id)
         case .page(let p): self = .page(p.id)
         case .itemType(let t): self = .itemType(t.id)
         case .itemCollection(let c): self = .itemCollection(c.id)
