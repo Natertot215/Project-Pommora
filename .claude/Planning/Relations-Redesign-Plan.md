@@ -32,8 +32,29 @@
 | RelationChip data model | `RelationChip(icon: scopedEntity.icon, title: scopedEntity.title)` — both fields resolve from the LINKED target entity (the Page/Item/Task/Event/Context the chip references), NOT from the source-side property's icon/name. Existing `RelationChip(icon: resolved.icon, title: resolved.title)` signature already matches. |
 | RelationChip v1 visual | Plain styled text placeholder. Existing minimal `RoundedRectangle(cornerRadius: 4)` + `Color(.tertiarySystemFill)` body already meets this — no visual change. Redesign follows. |
 | Tier property edit pane | Pre-populates Spaces/Topics/Projects entries; edits home name+icon AND context-side name+icon. `PropertyDefinition` gains `reverseName` + `reverseIcon` optional fields. |
-| Relations table FK behavior | Application-layer source-side cascade. Context delete routines walk incoming relations, strip target ID from source entities' tier arrays, delete the relations rows. No DB-level FK changes. |
-| Agenda schema shape | UNIFY — AgendaTaskSchema + AgendaEventSchema migrate to PropertyDefinition. Sidecar files (`_taskconfig.json` / `_eventconfig.json`) reformatted in-place via PropertyIDMigration. Agenda walkers added. |
+| Relations table FK behavior | Application-layer source-side cascade (ratified 2026-05-28 — deleting a Context auto-removes its tag from every referencing entity). Context delete routines walk incoming relations, strip target ID from source entities' tier arrays, delete the relations rows. No DB-level FK changes. |
+| Agenda schema shape | Already unified — `AgendaTaskSchema` / `AgendaEventSchema` already use `[PropertyDefinition]` with a `LegacyProperty` decode-tolerance struct. NO Property→PropertyDefinition migration. Agenda Tasks/Events ARE relation targets in v1 (ratified) — reverse relation properties append to the existing schema; `defaultSeed()` stays a single `_status` (decision #7). See Reconciliation pass + Phase 4. |
+| Relation cardinality | Always-multi (ratified 2026-05-28). `allows_multiple` dropped; a single `{"$rel":id}` migrates to a one-element array; an empty relation OMITS the property key on disk (no `[]`) — this also avoids the schema-blind decoder's empty-array ambiguity (empty `[]` currently decodes as `.file([])`). |
+| Tier value storage | Tier values stay at frontmatter ROOT (`tier1`/`tier2`/`tier3`); the `_tier1/2/3` properties read/write them through a NEW translator/adapter (Phase 6.5), NOT the `properties` dict. Preserves decision #6 (agent-legible root tiers). |
+
+---
+
+#### Reconciliation pass (2026-05-28) — read before executing
+
+Code re-verification this session (four Explore passes against the live tree) found the plan's pre-write verification had drifted. The corrections below supersede the body where they conflict. Ratified product decisions (Nathan, this session) are folded into the decision table above.
+
+**Ratified decisions:** relations are always-multi (single-pick dropped); deleting a Context auto-removes its tag from every referencing entity (source-side cascade); Agenda Tasks/Events ARE valid relation targets in v1; value pickers are flat lists in v1 (hierarchy deferred).
+
+**Corrections to the body:**
+
+1. **Phase 2 is obsolete — skip it.** `stageBackRefClear` is already defined in `ItemContentManager+CRUD.swift:504-574` (the "504" the body reads as a missing call site is the definition). No port needed.
+2. **Phase 4 is rescoped to verify-only.** `AgendaTaskSchema` / `AgendaEventSchema` ALREADY use `[PropertyDefinition]` (with a `LegacyProperty` decode-tolerance struct). The plan's example seed (`_due_date`/`_priority`) is WRONG — the seed is and stays a single `_status` (locked decision #7). Phase 19.9's Agenda "Property→PropertyDefinition" migration likewise reduces to "confirm `LegacyProperty` read-tolerance covers old files" (already present).
+3. **New Phase 6.5 — Tier value adapter (the translator).** Tier values live at frontmatter ROOT, not in `properties`, and no bridge to the property pipeline exists. Phase 6.5 builds it; Phases 13 / 14 / 15 / 16 / 18 route through it instead of touching `properties[id]` or root fields directly.
+4. **Phase 8 / 10 — coordinator method name + edit path.** The real method is `createPairedRelation(...)`, not `createDualProperty`. It only CREATES (appends) — there is NO edit path, and the wizard never completed container-scope creation (`commitSave` returns `.nexusNotBound`). So the single-pane editor must (a) wire the coordinator with a bound nexus (net-new, not a move), (b) branch create-vs-edit: on create → `createPairedRelation`; on edit → `updateProperty` / `renameOneSide` for name/icon/mirror only, with the **target locked after creation** (matches "a relation targets one container at creation; for another, make another relation").
+5. **Phase 13 — `ChipDropdown` is NOT generic** (hardcoded to `PropertyChipOption`, no `@ViewBuilder` row). Parameterize it over row content (update Status/Select/Multi-select call sites) or build a relation-specific sibling. The body's `ChipDropdown(options:) { … }` sample does not match the real API.
+6. **Phase 18 — `unlinkTier` must use the Phase 6.5 adapter** (`setRelationIDs`), NOT `properties["_tierN"]` (the body's sample reads the wrong location and would silently no-op).
+7. **Counts / citations:** the validator has 20 call sites (8 prod + 12 test), not "~11"; the "Phase 9.5" reference in Phase 20.2 means Phase 9.4; Phase 16.1's `resolvedProperties` is the Phase 5.2 `.properties` computed accessor.
+8. **Work on `main`** (Nathan's explicit direction, 2026-05-28). Commit per task directly to `main`; no feature branch. Phase 0 cleanup (fix the 3 stale `"Types"`→`"Items"` label-default tests) lands first so the per-task TDD baseline is green; the 1 known `debounceCoalescesRapidEdits` flake is accepted/documented and dodged by targeted `-only-testing` runs.
 
 ---
 
@@ -251,9 +272,11 @@ _Phase 1 ends here — `BuiltInRelationProperties` is created with its real merg
 
 ---
 
-#### Phase 2 — Fix `ItemContentManager` stageBackRefClear gap
+#### Phase 2 — ~~Fix `ItemContentManager` stageBackRefClear gap~~ (OBSOLETE — skip)
 
-Verification revealed `ItemContentManager+CRUD.swift` has call sites for `stageBackRefClear` at lines 419 and 504 but the method is missing from the file. The method exists only on `PageContentManager+CRUD.swift:524-599`. This is a pre-existing broken state independent of Relations work; fixing it here unblocks Phase 8 (DualRelationCoordinator Agenda cases) which requires symmetric back-ref clearing on every operational manager.
+> **Skip this phase (2026-05-28 re-verification).** `stageBackRefClear` IS already defined in `ItemContentManager+CRUD.swift:504-574` — the "504" cited below is the definition, not a missing call site. No port is needed; the symmetric back-ref clearing Phase 8 requires already exists. Task 2.1 below is void. Proceed to Phase 3.
+>
+> _(Optional cleanup, not required: the method is duplicated near-verbatim across `ItemContentManager+CRUD` and `PageContentManager+CRUD`. A DRY hoist is a separate, optional refactor — do not bundle it into this plan.)_
 
 ##### Task 2.1 — Port `stageBackRefClear` to `ItemContentManager+CRUD`
 
@@ -391,11 +414,13 @@ git commit -m "feat(properties): add reverseName/reverseIcon optional fields to 
 
 ---
 
-#### Phase 4 — Agenda schema unification (Property → PropertyDefinition)
+#### Phase 4 — Agenda schema: verify already-unified (RESCOPED)
 
-Verification surfaced that `AgendaTaskSchema` and `AgendaEventSchema` use a `Property` struct without an `id` field. The comment at `PropertyIDMigration.swift:35-37` explicitly explains this is why Agenda walkers don't exist. To inject tier properties uniformly via `BuiltInRelationProperties`, Agenda schemas must adopt `PropertyDefinition`.
-
-This is the largest individual schema change in the plan. It lands here (Phase 4) so subsequent phases can assume uniform schema shape.
+> **Rescoped (2026-05-28 re-verification).** `AgendaTaskSchema` / `AgendaEventSchema` ALREADY use `var properties: [PropertyDefinition]`, with a `LegacyProperty` struct providing decode tolerance for old `_taskconfig.json` / `_eventconfig.json` files. The `PropertyIDMigration.swift:35-37` comment claiming "separate `Property` struct without an `id` field" is STALE. There is no Property→PropertyDefinition change to make.
+>
+> **Do instead (verify-only):** (1) confirm both schemas decode legacy + current shapes via the `LegacyProperty` path; (2) confirm `defaultSeed()` is a SINGLE `_status` property and LEAVE IT — do NOT add `_due_date` / `_priority` / `_start` / `_end` (locked decision #7). EKReminder/EKEvent native fields are not schema properties.
+>
+> Tasks 4.1–4.5 below are superseded — their `Property`-shape premise is void. Phase 19.9's Agenda migration similarly reduces to confirming the existing `LegacyProperty` read-tolerance. Agenda-as-relation-target work (the part that survives) lives in Phase 8, which appends a reverse property to the already-`PropertyDefinition` schema with no shape change.
 
 ##### Task 4.1 — Migrate `AgendaTaskSchema` to `PropertyDefinition`
 
@@ -913,6 +938,109 @@ Update each consumer:
 ```bash
 git commit -m "refactor(properties): drop allowsMultiple field; always-multi storage"
 ```
+
+---
+
+#### Phase 6.5 — Tier value adapter (root-field ↔ property translator)
+
+> **Why this phase exists (2026-05-28).** Verification found tier values are stored at frontmatter ROOT (`tier1` / `tier2` / `tier3`) on Page / Item / AgendaTask / AgendaEvent — NOT in the `properties` dictionary — and that NO code bridges them to the property pipeline (the `_tier1/2/3` reserved IDs exist but are never instantiated as schema properties; `FrontmatterInspector.onSave` is even unwired today). The redesign treats `_tier1/2/3` as relation properties, so every value surface (picker, cell editor, panel, column display, validator, `unlinkTier`) must read/write tier values through ONE adapter that maps the reserved tier IDs to the root fields. Locked decision #6 (tiers at root for agent-legibility) is preserved — values stay at root; only the access path is unified. This phase lands after Phase 6 (`.relation([String])` exists) and before the picker/cell wiring (Phases 13–14) that depends on it.
+
+##### Task 6.5.1 — Add relation-value accessors to each operational entity
+
+**Files:**
+- Modify: `Pommora/Pommora/Content/PageFrontmatter.swift`, `Pommora/Pommora/Content/Item.swift`, `Pommora/Pommora/Agenda/AgendaTask.swift`, `Pommora/Pommora/Agenda/AgendaEvent.swift`
+- Test: `Pommora/PommoraTests/Content/TierValueAdapterTests.swift` (new)
+
+- [ ] **Step 1: Add failing tests**
+
+```swift
+@Test func tierPropertyIDsReadFromRootFields() {
+    var fm = PageFrontmatter.empty()
+    fm.tier1 = ["01SPACE"]; fm.tier3 = ["01PROJ"]
+    #expect(fm.relationIDs(forPropertyID: ReservedPropertyID.tier1) == ["01SPACE"])
+    #expect(fm.relationIDs(forPropertyID: ReservedPropertyID.tier2) == [])
+    #expect(fm.relationIDs(forPropertyID: ReservedPropertyID.tier3) == ["01PROJ"])
+}
+
+@Test func tierPropertyIDsWriteToRootFields() {
+    var fm = PageFrontmatter.empty()
+    fm.setRelationIDs(["01SPACE", "01SPACE2"], forPropertyID: ReservedPropertyID.tier1)
+    #expect(fm.tier1 == ["01SPACE", "01SPACE2"])
+}
+
+@Test func userRelationIDsRoundTripThroughProperties() {
+    var fm = PageFrontmatter.empty()
+    fm.setRelationIDs(["01T"], forPropertyID: "prop_rel")
+    #expect(fm.relationIDs(forPropertyID: "prop_rel") == ["01T"])
+    if case .relation(let ids)? = fm.properties["prop_rel"] { #expect(ids == ["01T"]) }
+    else { Issue.record("expected .relation") }
+}
+
+@Test func emptyUserRelationOmitsTheKey() {
+    var fm = PageFrontmatter.empty()
+    fm.setRelationIDs(["01T"], forPropertyID: "prop_rel")
+    fm.setRelationIDs([], forPropertyID: "prop_rel")
+    #expect(fm.properties["prop_rel"] == nil)   // omitted, NOT stored as []
+}
+```
+
+- [ ] **Step 2: Implement the adapter on each entity**
+
+Illustrative for `PageFrontmatter` (mirror verbatim on Item / AgendaTask / AgendaEvent — all four carry root `tier1/2/3` + a `properties` dict):
+
+```swift
+extension PageFrontmatter {
+    /// Canonical READ for any relation-typed property, including the three
+    /// built-in tier properties whose values live at frontmatter root.
+    func relationIDs(forPropertyID id: String) -> [String] {
+        switch id {
+        case ReservedPropertyID.tier1: return tier1
+        case ReservedPropertyID.tier2: return tier2
+        case ReservedPropertyID.tier3: return tier3
+        default:
+            if case .relation(let ids)? = properties[id] { return ids }
+            return []
+        }
+    }
+
+    /// Canonical WRITE. Tier IDs route to the root field; user relations route
+    /// to `properties`. An empty user-relation value OMITS the key (no `[]` on
+    /// disk) so the schema-blind decoder never sees an ambiguous empty array.
+    mutating func setRelationIDs(_ ids: [String], forPropertyID id: String) {
+        switch id {
+        case ReservedPropertyID.tier1: tier1 = ids
+        case ReservedPropertyID.tier2: tier2 = ids
+        case ReservedPropertyID.tier3: tier3 = ids
+        default: properties[id] = ids.isEmpty ? nil : .relation(ids)
+        }
+    }
+}
+```
+
+- [ ] **Step 3: Run tests** — PASS for all four entities.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "feat(relations): tier value adapter — root-field/property translator on all 4 entities"
+```
+
+##### Task 6.5.2 — Adapter is the sole tier-value access path (gate)
+
+This is a checklist gate enforced as later phases land (no code of its own here beyond the audit):
+
+- Phases 13 / 14 (picker + cell editor) read/write via `relationIDs(forPropertyID:)` / `setRelationIDs(_:forPropertyID:)`.
+- Phases 15 / 16 (chip-everywhere surfaces + table columns) resolve tier values via the same read accessor.
+- Phase 18 (`unlinkTier`) mutates via `setRelationIDs`, NOT `properties["_tierN"]`.
+
+- [ ] **Step 1: Audit** — after Phase 18, grep confirms no surface indexes `properties["_tier` and no relation surface assigns `.tier1/2/3` directly except the adapter + Codable:
+
+```bash
+grep -rn 'properties\["_tier' Pommora/Pommora/ --include='*.swift'   # expect: none
+grep -rn '\.tier[123] = ' Pommora/Pommora/ --include='*.swift'        # expect: only adapter + Codable + FrontmatterInspector flush
+```
+
+- [ ] **Step 2: No commit** unless the audit surfaces a stray direct access to fix.
 
 ---
 
