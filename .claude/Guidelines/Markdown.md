@@ -2,7 +2,7 @@
 
 The canonical playbook for any agent touching Pommora's page editor — the vendored `swift-markdown-engine` at `External/MarkdownEngine/`, Pommora's customizations on top of it, the Apple `swift-markdown` parser, and the TextKit 2 substrate. Every rule below is grounded in either (a) shipped engine code, (b) Apple-source documentation, or (c) a paradigm decision Nathan has locked. Anything written from intuition or speculation is flagged as such.
 
-This document supersedes prior ad-hoc lessons scattered across `Handoff.md`, `// Features//PageEditor.md`, and Transcripts. When those files repeat anything here, the repeats should eventually be trimmed to a pointer.
+**The code is authoritative.** Where this doc cites engine files, the file is the spec; the citation is a pointer, not a copy. When the two disagree, the file is right and this doc is stale — fix the doc.
 
 ---
 
@@ -28,9 +28,9 @@ This document supersedes prior ad-hoc lessons scattered across `Handoff.md`, `//
 - **What it adds on top of Apple's stack:** dynamic syntax (markers shrink when caret leaves AST node, expand when entered — Bear/iA Writer pattern) + Markdown-aware typing helpers (list continuation, block auto-wrap, character-pair auto-pair).
 - **Pommora's customizations live in:**
   - `Styling/AppleASTSupplementalStyler.swift` — AST walker for BlockQuote / Strikethrough / Table / ThematicBreak.
-  - `Renderer/MarkdownTextLayoutFragment.swift` — custom NSTextLayoutFragment subclass with overlays for HR, code-block backgrounds, LaTeX images, task checkboxes.
+  - `Renderer/MarkdownTextLayoutFragment.swift` — custom NSTextLayoutFragment subclass with overlays for HR, code-block backgrounds, LaTeX images, task checkboxes, blockquote card, bullet glyphs, heading-fold chevron.
   - `TextView/Coordinator/NativeTextViewCoordinator+*.swift` — extensions on the engine's coordinator, including caret-awareness services (the HR visibility service is the canonical example).
-  - `Input/MarkdownListHandler.swift` — list continuation + space-creates / Enter-continues / Shift+Enter-exits behavior.
+  - `Input/MarkdownListHandler.swift` — list continuation + space-creates / Enter-continues / Shift+Enter-exits behavior + dash and arrow auto-format.
   - `TextView/ContextMenu.swift` — extended right-click menu.
 - **Ownership:** Pommora can edit any engine file. Edits get logged in `NOTICE.md`. The `External/` path was chosen so Xcode auto-includes new files without pbxproj surgery.
 
@@ -39,7 +39,7 @@ This document supersedes prior ad-hoc lessons scattered across `Handoff.md`, `//
 - **Role:** Apple's text layout + rendering system. Pommora targets the modern TextKit 2 stack — `NSTextLayoutManager`, `NSTextContentManager`, `NSTextLayoutFragment`, `NSTextLineFragment`.
 - **What we get for free:** Writing Tools (macOS 15.1+), Look Up / Translate, spell-check, autocorrect, IME, dynamic system colors, drag-to-select, native context menu, find-in-document hooks.
 - **What we lose if we abandon TextKit 2:** `NSTextTable` is the most-cited example — it exists since OS X 10.4 but was never promoted to TextKit 2. Apple's own TextEdit silently downgrades to TextKit 1 when a table is inserted (Keith Blount quoted in Krzyzanowski Aug 14, 2025, "TextKit 2: The Promised Land"). Apple Notes uses a custom protobuf document model, not the AppKit text system (per public reverse engineering — Ciofeca Forensics, mac4n6, et al.; not Apple-confirmed). **Adopting `NSTextTable` forfeits everything in the previous bullet** — that's why Pommora rejected it.
-- **Mainthread guarantee:** TextKit 2 always invokes rendering on the main thread. The engine subclass exploits this via `@unchecked Sendable` + `MainActor.assumeIsolated` wrappers ([MarkdownTextLayoutFragment.swift:29-50](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L29-L50)).
+- **Main-thread guarantee:** TextKit 2 always invokes rendering on the main thread. The engine subclass exploits this via `@unchecked Sendable` + `MainActor.assumeIsolated` wrappers ([MarkdownTextLayoutFragment.swift:29-50](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L29-L50)).
 
 ##### 1.4 Pommora-specific design constraints
 
@@ -100,6 +100,7 @@ Do NOT use it for:
 
 - Inline marks (bold / italic / strikethrough / inline code) — these are already handled by the engine's regex tokenizer + active-token-tracking system.
 - Constructs whose visual state is independent of caret position (e.g. fenced code block backgrounds — those use a different, simpler mechanism described below).
+- Non-interactive static glyphs (bullet `•`, task checkbox) — use the always-show overlay pattern instead (§9.10, L14).
 
 ##### 3.2 The three pieces
 
@@ -124,7 +125,14 @@ BlockQuote can span multiple paragraphs. The HR pattern is per-paragraph. Extend
 
 ##### 3.5 Card always visible vs hide-while-editing
 
-Nathan-locked 2026-05-21: **the visual chrome (card, bar, line, whatever) is a Pommora-side render that does NOT physically exist in the source.** The pattern is HR-style: caret-out shows the visual; caret-in hides the visual and reveals the source markers. Same approach for HR's line, blockquote's card + bar, and any future construct. Do not invent variants like "card stays visible always" — that's a separate UX pattern with its own consequences and was retired at this lock.
+Nathan-locked 2026-05-21: **the visual chrome (card, bar, line, whatever) is a Pommora-side render that does NOT physically exist in the source.** Per-construct choice between two render lockings:
+
+| Pattern | When | Examples |
+|---|---|---|
+| **Caret-aware reveal/hide** (this §3) | Markers should be editable as text; visible chrome replaces them caret-out | HR (`---`) |
+| **Always-show overlay** (§9.10) | Non-interactive static glyph or chrome that never needs to hide | Bullet `•`, task checkbox, blockquote card+bar |
+
+A third pattern — **content-manager elision + hover-overlay** (§9.11) — applies when interactive stateful chrome (hover-revealed, click-toggled) needs content to disappear from layout entirely (foldable headings). All three honor the "render is the spec, not the source" principle; choose by L14 + interactivity.
 
 ---
 
@@ -180,15 +188,12 @@ Wrap multiple-character storage mutations in either `ts.beginEditing()` / `ts.en
 
 ##### 5.4 Atomic write contract
 
-The save pipeline is:
+Canonical pipeline + flush-on-context-loss + failure handling live in `// Features//PageEditor.md` § "Save pipeline". Don't restate it here — keep both in sync if either changes.
 
-`keystroke → viewModel.body didSet → scheduleSave() 300ms debounce → PageSaver.save (protocol in PageEditorViewModel.swift) → PageContentManager.updatePage(_:body:in:vault:) → reconstructs PageFile(frontmatter:body:title:) → AtomicYAMLMarkdown.write(frontmatter:body:to:) → atomic temp-file + rename`
+Two load-bearing rules to keep in mind when touching the editor:
 
-This is load-bearing and untouched since v0.2.7.0 ship. **Don't break it.** Specifically:
-
-- The editor binds ONLY to `body` (Markdown, no YAML). YAML is held in `viewModel.page.frontmatter` as a typed struct and re-serialized on save. The user cannot destroy frontmatter via the editor — it's never visible to the editor.
-- Flush on context loss: page switch, window close, app resignActive, app willTerminate, ⌘S. All paths exist; don't add a new one without checking why.
-- Failure: existing `pendingError` alert pattern with Retry / OK buttons. Draft body preserved; retry re-schedules.
+- The editor binds ONLY to `body` (Markdown, no YAML). YAML is held in `viewModel.page.frontmatter` as a typed struct and re-serialized on save. **The user cannot destroy frontmatter via the editor** — it's never visible to the editor.
+- Storage writes initiated by Pommora (input handlers, edit-commits) MUST flow through the `isProgrammaticEdit`-guarded path (§5.1) so the delegate's `shouldChangeTextIn` short-circuit fires correctly.
 
 ---
 
@@ -276,7 +281,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **Why it fails:** TextKit lays out inline text at character positions. There's no native "render this inline text region at a different visual width than its character widths suggest" mechanism. `NSTextTable` would do it but it forfeits TextKit 2 (see 1.3).
 
-**What to do instead:** for any feature that needs custom inline widths (e.g. drag-resize columns), either (a) accept that source padding is the only authority and mutate source on user intent only, or (b) build a custom render layer that overrides natural text positioning (multi-week effort with hit-test + selection consequences). When the Tables work resumes, this is the central architectural question to answer first.
+**What to do instead:** for any feature that needs custom inline widths (e.g. drag-resize columns), either (a) accept that source padding is the only authority and mutate source on user intent only, or (b) build a custom render layer that overrides natural text positioning (multi-week effort with hit-test + selection consequences). When the true table support work resumes (§9.6), this is the central architectural question to answer first.
 
 ##### 6.11 Don't draft plans with new files when existing files cover the change
 
@@ -330,7 +335,7 @@ Canonical example: [MarkdownTextLayoutFragment.swift:29-50](External/MarkdownEng
 
 ##### 7.3 Swift 6 strict concurrency + ExistentialAny
 
-The engine targets Swift 5.9; Pommora is Swift 6 strict-concurrency + ExistentialAny. Custom Codable declarations: `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)`. Errors: `var foo: (any Error)?`. The local Swift Package boundary at `External/MarkdownEngine/` isolates the engine's older concurrency contract from Pommora's stricter one.
+The engine targets Swift 5.9; Pommora is Swift 6 strict-concurrency + ExistentialAny (CLAUDE.md quirk #5). Custom Codable declarations: `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)`. Errors: `var foo: (any Error)?`. The local Swift Package boundary at `External/MarkdownEngine/` isolates the engine's older concurrency contract from Pommora's stricter one.
 
 ##### 7.4 Restyle scoping vs service whole-document walk
 
@@ -402,11 +407,24 @@ Pages have no `title` field. The filename IS the title. Renaming the title in th
 
 Nathan-locked operating principle for any debugging session. When N speculative fixes don't resolve a bug, the right move is to revert all N and reconsider the design — not add fix N+1. Mentioned multiple times across Handoff entries.
 
-##### 9.6 Tables planning is PAUSED (2026-05-21)
+##### 9.6 True table support — to be implemented
 
-> "I'm going to pause the planning in the tables and have that be the final thing we do once we learn more from implementing other features into the markdown editor."
+Pommora is just getting started, and proper Apple-Notes-style inline-grid tables are a **major future deliverable**, not a polish pass. The current ship parses GFM tables (`| col | col |`) and applies basic styling (monospace + faint background, hidden pipes, hidden separator row). The target experience is a real inline grid with **drag-resize columns**, **a double-click popover cell editor**, and **a structural context menu** (add row / column, align cells, delete row / column, etc.).
 
-Tables work is deferred. The architecture-stress-test work originally captured in `// Planning//Page-Editor-Plan.md` was folded into `// Features//PageEditor.md → Tables — to be implemented` when the planning doc was retired (2026-05-23). No Tables coding starts until other markdown editor features ship and we have a better feel for the engine's behavior. The column-alignment question (Strategy A / B / C / hybrid) remains open and will be answered against accumulated experience, not in a vacuum.
+This was previously framed as "Tables planning is PAUSED." That framing understates the work. Reframing: true table support is a real, named future deliverable on the editor's roadmap — see `// Features//PageEditor.md` § "Tables — to be implemented" and `Framework.md` for phasing. No Tables coding starts until the central architectural question is settled.
+
+**The central architectural question** (§6.10 + §9.2):
+
+- Source on disk stays at uniform width via `Markup.format()` (per 9.2).
+- Column widths live in frontmatter (per 9.2).
+- The render layer must apply column-width overrides on inline-laid-out text.
+- TextKit has no native primitive for "lay out this inline text region at a width different from its character widths." `NSTextTable` would do it but forfeits TextKit 2's free behaviors (Writing Tools, Look Up, dynamic colors — see §1.3).
+
+Three candidate strategies have been sketched (A / B / C / hybrid) and remain open. The decision waits on accumulated experience with other editor features so the right tradeoff is grounded in evidence, not a vacuum.
+
+**Independently shippable pieces** that don't depend on the alignment question: the popover cell editor (hosts its own column-aligned SwiftUI Grid) and the structural context menu. Those can land while the inline-grid architecture decision is still open.
+
+> The `pommora_table_widths` frontmatter key is grandfathered for v0.3.0 per the CLAUDE.md "Pommora prohibited in on-disk schemas" rule; rename when Tables ship.
 
 ##### 9.7 Bullet glyph substitution SHIPPED (v0.2.7.4 — 2026-05-21)
 
@@ -581,7 +599,7 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 
 | Doc | What it carries |
 |---|---|
-| [`// Features//PageEditor.md`](.claude/Features/PageEditor.md) | Editor implementation spec. Shipped v0.2.7.0 feature surface + "Tables — to be implemented" deferred-work spec (folded in from the retired Page-Editor-Plan 2026-05-23). "Dynamic-syntax pattern" section is the locked architecture statement. |
+| [`// Features//PageEditor.md`](.claude/Features/PageEditor.md) | Editor implementation spec. Shipped v0.2.7.0 feature surface + "Tables — to be implemented" deferred-work spec. "Dynamic-syntax pattern" section is the locked architecture statement. |
 | [`// Features//Pages.md`](.claude/Features/Pages.md) | On-disk page format, Markdown features in v1, opening behavior, sidebar visibility, wikilinks. |
 | [`// Guidelines//Paradigm-Decisions.md`](.claude/Guidelines/Paradigm-Decisions.md) | Confirmation protocol + registry. Editor architecture decision recorded here (superseding the dead WKWebView entry). |
 | `Handoff.md` | Live session state. Most recent lessons (Session 12 HR + Session 13 Lists) preserved in the entry headers. |

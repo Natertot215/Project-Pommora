@@ -16,7 +16,7 @@ The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are b
 | **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` in the vendored engine — walks `Document(parsing:)` for BlockQuote / Strikethrough / Table / ThematicBreak and composes attributes on top of the engine's primary regex tokenizer/styler. |
 | **Domain wiring** | `PageRef`, `PageFile`, `PageContentManager.updatePage`, `PageEditorViewModel`, `PageEditorHost`, `AppGlobals`, inspector + sidebar wiring — editor-library-agnostic. |
 
-The engine is vendored as a **local Swift Package** rather than raw source files in Pommora's main target because Pommora is Swift 6 + strict concurrency + ExistentialAny; the engine targets Swift 5.9. The package boundary isolates the engine's concurrency contract. Pommora fully owns the vendored copy and can edit any file (see `External/MarkdownEngine/NOTICE.md` for the per-file modification log).
+Engine vendoring rationale + per-file modification log → `// Guidelines//Markdown.md` §1.2 + `External/MarkdownEngine/NOTICE.md`.
 
 ---
 
@@ -91,15 +91,19 @@ What the editor renders and supports today.
 
 ---
 
-#### Tables
+#### Tables — to be implemented
 
-The current ship parses GFM tables and applies monospace + faint-background + hidden-pipe styling. The target is an Apple-Notes-style inline grid with drag-resize, a double-click popover cell editor, and a structural context menu — **paused** pending one open architectural question.
+Tables are a **major future deliverable**, not a polish pass. Pommora is just getting started, and proper Apple-Notes-style inline-grid tables (drag-resize columns, double-click popover cell editor, structural context menu for add/delete row/column + cell alignment) are a real named feature on the roadmap.
 
-**Open question — column alignment.** With unpadded source laid out as inline text in TextKit 2, cells do not visually align unless the source is padded to equal column widths. `NSTextTable` is rejected (it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade). Nathan's locked direction: source on disk stays uniformly padded (via `Markup.format()`), column widths live in frontmatter, and the render layer applies overrides — but making *inline* layout honor custom widths is non-trivial. The decision record + implementation constraints are in `// Guidelines//Markdown.md` §9.2 + §9.6 + anti-pattern §6.10.
+**Current ship:** GFM `| col | col |` syntax parses and renders with monospace + faint background + hidden pipes + hidden separator row. No grid alignment, no editing affordances, no drag-resize.
 
-The popover cell editor and structural context menu are independently shippable (each hosts its own column-aligned SwiftUI Grid and doesn't depend on the inline-grid alignment question); the inline grid + drag-resize wait on the alignment lock.
+**Target experience:** inline grid that looks and feels like Apple Notes' table — cell-by-cell alignment, drag-to-resize column widths, double-click any cell for a popover editor, right-click for structural operations.
 
-> The `pommora_table_widths` frontmatter key is grandfathered for v0.3.0 per the CLAUDE.md "Pommora prohibited in on-disk schemas" rule; rename when Tables ship.
+**Central open question — inline-column alignment.** With unpadded source laid out as inline text in TextKit 2, cells don't visually align unless source is padded to equal column widths. `NSTextTable` is rejected — it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade (`// Guidelines//Markdown.md` §1.3 + §6.10). Nathan's locked direction (`// Guidelines//Markdown.md` §9.2 + §9.6): source on disk stays uniformly padded via `Markup.format()`, column widths live in frontmatter, the render layer applies overrides — but making *inline* layout honor custom widths is non-trivial. Three candidate strategies (A / B / C / hybrid) remain open; the decision waits on accumulated experience with other editor features.
+
+**Independently shippable pieces** that don't depend on the alignment question: the popover cell editor (hosts its own column-aligned SwiftUI Grid) and the structural context menu. Those can land while the inline-grid architecture is still being decided.
+
+> The `pommora_table_widths` frontmatter key is grandfathered per the CLAUDE.md "Pommora prohibited in on-disk schemas" rule; rename when Tables ship.
 
 ---
 

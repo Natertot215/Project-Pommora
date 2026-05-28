@@ -1,80 +1,192 @@
-### Architecture
+### Architecture — Data Layer + Nexus
 
-Pommora's stack is locked to SwiftUI. The system's *functionalities* — the decisions defining how Pommora behaves — are designed to survive a hypothetical rebuild in React+Electron as translation work, not redesign.
+How Pommora's data layer actually works: the on-disk Nexus, the manager + cache surface, the SQLite index that stays in sync with it, the atomic-write contract that makes saves crash-safe, the adopter that opens any folder as a Nexus, and the file-watcher that keeps everything in sync with external edits.
 
-This is **conceptual** portability, NOT structural — the codebase isn't pre-arranged for hot-swap, and there's no enforced layer separation.
-
----
-
-#### What survives a rebuild
-
-These are the decisions that define Pommora and would carry forward to a rebuild in React+Electron:
-
-- **File formats** — Markdown for Pages, `.json` for Items, `.space.json` for Spaces (tier-1 Contexts), folder + `_topic.json` for Topics (tier-2 Contexts) with `.project.json` files inside for tier 3 (Projects), six per-kind schema sidecars on the operational layer (`_pagetype.json` on Page Type folders, `_pagecollection.json` on Page Collection sub-folders, `_itemtype.json` on Item Type folders, `_itemcollection.json` on Item Collection sub-folders, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton), `.task.json` for Agenda Tasks, `.event.json` for Agenda Events, `.nexus/homepage.json` for the singleton Homepage, `.nexus/settings.json` for user-overridable UI labels + accent color, YAML frontmatter shape on Pages
-- **Nexus structure conventions** — `.nexus//` at nexus root holds app config + the SQLite index (`.nexus/index.db` — fully regeneratable, force-rebuilt when its stored schema version is stale) + Contexts files + Homepage + Settings; operational containers (Page Types, Item Types, Tasks singleton, Events singleton) live as siblings at the nexus root — no wrapper folders. Each folder's kind is identified by its per-kind sidecar filename alone; renaming a folder in Finder Just Works. `.trash//` at nexus root holds deleted entities (preserving original relative path); leading-dot folders are hidden in the sidebar
-- **SQLite schema** — a regeneratable index of titles / properties / links / relations (12 data tables + an internal `meta`; `pages` carries no body or frontmatter columns). Canonical DDL lives in `PommoraPRD.md`; FTS5 + JSON1 query patterns survive a rebuild.
-- **Domain model** — 2-layer model with PARA-aligned naming: Contexts (Spaces tier 1 / Topics tier 2 / Projects tier 3) in the organization layer; **Page Types + Page Collections + Pages** on the Pages side, **Item Types + Item Collections + Items** on the Items side, and **Agenda Tasks + Agenda Events** as calendar-anchored entities in the operational layer; Homepage as singleton dashboard. Settings scaffold (`.nexus/settings.json`) provides per-Nexus user-overridable UI labels + accent color. UI label divergence: Item Collections render as "Set" by default. (`// Features//Domain-Model.md`)
-- **Tier system** — three-tier Contexts with multi-parent across tiers, single-parent at file for Projects, no same-tier file-structural links; `linked_relations` as typed multi-valued relation property on Projects; tier names user-configurable per-Nexus (Capacities-style singular + plural in `.nexus/tier-config.json`)
-- **Property type catalog** — 11 types in v1: Number, Checkbox, Date, Date & Time, Select, Multi-select, Status, URL, Relation, Last Edited Time, File / Attachment. Config shapes + schema mutation rules. Shared `PropertyDefinition` shape applied across **Page Types** (`_pagetype.json`), **Item Types** (`_itemtype.json`), **AgendaTask schema** (`_taskconfig.json`), and **AgendaEvent schema** (`_eventconfig.json`); Type schema is Type-wide in v1 (`// Features//Properties.md`). **Status is a first-class type** with 3 EventKit-aligned structural groups (Upcoming / In Progress / Done) — built-in on both AgendaTask + AgendaEvent. **Property identity is a stable ID** (frontmatter / JSON keys reference property ID; renames are schema-only). **Relation values use the tagged-object encoding `{"$rel": "<ULID>"}`** so external agents can identify relation edges without consulting Type schema. Cross-side relations (Item ↔ Page) supported.
-- **Directive syntax** — `:::columns` (multi-column rendering on Pages), `:::callout` (outlined-box callout, distinct from blockquotes); wikilink syntax. Blockquotes use standard `>` syntax (rendered with filled background and left-side emphasis bar). Headings are foldable by default. Pages support these two directives on top of standard Markdown; Contexts + Homepage use a separate block-tree JSON schema.
-- **Editor serialization architecture — canonical on-disk format vs rich in-editor working format.** On-disk format (Markdown for Pages, JSON for everything else) is what agents see; in-editor working format is whatever the framework prefers. Explicit serializers bridge them for the Pommora-specific directives.
-- **Inline-editing principle** — every embedded view inside a composed-blocks surface (Context page, Homepage) is a live, fully-editable view of its source. Edits route through the source entity's manager → atomic write → file watcher → SQLite re-index → all embedded views refresh. NOT a read-only snapshot. Full inline editing of a referenced Page's body (Notion synced blocks) is post-v1 (`// Features//Prospects.md`).
-- **Wikilink behavior** — ID-keyed resolution (disk format `[[Title|ULID]]`); renames are filesystem renames only (no body-scan rewrite); untargeted basename `[[Title]]` resolves by current basename match with editor underlining for ambiguous matches
-- **View directives** — table / board / list / cards / gallery; saved view spec shape; embed-time override semantics
-- **EventKit integration contract** — Agenda Tasks (`.task.json`) map to `EKReminder` and Agenda Events (`.event.json`) map to `EKEvent` (the split matches EventKit's own API split — separate access permissions, predicates, and data models); sandbox entitlement `com.apple.security.personal-information.calendars` + Info.plist usage description keys required; modern `requestFullAccessTo*` APIs used
-- **Design values** — Pommora-brand accent / code / callout / blockquote values live in `Assets.xcassets` + `Color+Pommora.swift` / `Font+Pommora.swift`. SwiftUI semantic colors and Font scale carry the rest. (`// Guidelines//Design.md` covers Swift-side conventions; SF Symbol assignments → `// Guidelines//Symbols.md`.)
-- **UX patterns** — three-pane shell, five-group sidebar (heading-less pinned section at top + Spaces / Topics / Items / Pages), collapsed-by-default disclosure, wikilinks-as-styled-colored-inline-text, Item Window (popover anchored to trigger; Calendar-event-detail pattern), right-click context menus as the canonical creation affordance (scoped by cursor location — no always-visible "+ New" buttons in the sidebar), Pages-and-Items-in-sidebar / Agenda-via-Calendar-pin split (Agenda Tasks + Events have no dedicated sidebar section). Editor UX is stack-specific and does NOT survive a rebuild.
-- **Agent legibility contract** — every entity is a file an external agent can read directly; SQLite is performance scaffolding, not source of truth.
-
-A React+Electron rebuild would re-implement these in TypeScript; the decisions don't change.
+PRD carries the high-altitude storage model + SQLite DDL. This doc covers the **dynamics** — how the layers cooperate, what invariants hold, and the rules that keep the whole thing legible to external agents.
 
 ---
 
-#### What doesn't survive
+#### Two load-bearing principles
 
-These are inherently stack-locked and would be rewritten in a rebuild:
+These principles hold the data layer together. Every architectural choice below traces back to one of them.
 
-- The codebase itself (Swift → TypeScript)
-- UI framework idioms (SwiftUI views → React components)
-- Editor primitive (shipped on native NSTextView + Apple `swift-markdown` + vendored `swift-markdown-engine` on TextKit 2; would translate to BlockNote or Tiptap on a React rebuild)
-- Reactive primitives (`@Observable` + `ValueObservation` → Zustand + hooks)
-- Build / packaging tooling (Xcode + SPM → electron-vite + electron-builder)
-- File watching (FSEventStream → `@parcel/watcher`)
-- SQLite library (GRDB.swift → better-sqlite3)
-- Distribution mechanisms (Sparkle → electron-updater)
+1. **Files are canonical.** Pages = `.md`, Items = `.json`, Spaces = `.space.json`, Topics = folder + `_topic.json`, Projects = `.project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
 
-The React-side detail for each of these lives in `// ReactInfo//` (organized by topic — `Editor.md`, `Spaces-DnD.md`, `StateData.md`, `MacIntegration.md`, `Distribution.md`, `Styling-Tokens.md`, `Symbols-guide.md`). Pivot methodology lives in `// ReactInfo//Contingency.md`.
+2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) can read Pommora's entire structured graph — Pages, Items, schemas, relations, properties — directly from files without tool-call round-trips. This is the differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Any choice that trades file-canonical legibility for app-internal convenience violates this principle.
 
 ---
 
-#### Practical discipline (not enforcement)
+#### Nexus layout
 
-Patterns that keep a future rebuild tractable — not enforced rules:
+A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmark) and treats it as canonical content. The Nexus can sit in iCloud Drive / Dropbox / any synced folder for free device-to-device sync.
 
-- Frontmatter schemas in JSON sidecars (canonical), not code — rebuild loads same schemas.
-- Item entries as individual `.json` files, not SQLite-only — rebuild reads via `JSONDecoder`.
-- View specs (filter / sort / group / shown-properties) are data, consumed identically by a React rebuild.
-- File renames + wikilink rewrites are PRD-specified algorithm, not a code shape.
-- The Markdown file is the spec, not the render — directives reference data; rendering is editor-implementation-dependent.
-- Agent-legibility contract applied per decision: would an external file-only agent still see this? If no, revisit.
-- **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for module name, app branding, and documentation; not allowed in JSON field names (`pommora_*`) or as a Swift type discriminator (`Pommora.X`). Side-prefixed names are the canonical pattern when collisions arise (e.g., `AgendaTask` not `Pommora.Task`).
+```
+<picked nexus folder>/                  ← canonical content; syncs with cloud
+  Assignments/                          ← Page Type (root folder, identified by sidecar)
+    _pagetype.json                      ← shared property schema
+    Spring-2026/                        ← Page Collection (sub-folder)
+      _pagecollection.json              ← collection metadata + per-Collection views[]
+      Essay-1.md                        ← Page
+    Final-Project.md                    ← Page directly in Page Type
 
-No enforced layer separation, no "Core layer with zero UI imports" rule. Portability comes from documented decisions, not code organization.
+  Bookmarks/                            ← Item Type
+    _itemtype.json
+    Tech/                               ← Item Collection ("Set")
+      _itemcollection.json
+      Swift-evolution.json              ← Item
+    Hacker-News.json                    ← Item directly in Item Type
+
+  Tasks/                                ← AgendaTask singleton (folder + _taskconfig.json)
+    _taskconfig.json
+    Submit-grant-proposal.task.json
+
+  Events/                               ← AgendaEvent singleton (folder + _eventconfig.json)
+    _eventconfig.json
+    Team-standup.event.json
+
+  .nexus/                               ← app-internal config + index (nexus-portable; syncs)
+    nexus.json                          ← ULID + createdAt
+    state.json                          ← session state (open tabs, sidebar UI, Recents)
+    settings.json                       ← per-Nexus UI labels + accent color
+    tier-config.json                    ← Contexts tier labels (singular + plural)
+    saved-config.json                   ← Saved-section item labels
+    homepage.json                       ← singleton Homepage entity (composed blocks)
+    index.db                            ← SQLite index (regeneratable, schema-versioned)
+    spaces/                             ← tier-1 Contexts (flat files)
+    topics/                             ← tier-2 Contexts (folders) + tier-3 Projects (files inside)
+    attachments/<entity-id>/            ← copy-on-attach files (file/attachment properties)
+
+  .trash/                               ← deleted entities (nexus-local trash; v1+ surface)
+    Assignments/Old-essay.md            ← preserves original relative path under the source Type
+
+~/Library/Application Support/com.nathantaichman.Pommora/   ← machine-specific; never syncs
+  state.json                            ← security-scoped bookmark + recent-nexuses
+```
+
+**Classification by sidecar filename alone.** A root folder containing `_pagetype.json` IS a Page Type — regardless of folder name. Folders renameable via Finder; the sidecar identifies kind. The six per-kind sidecar filenames (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`) are the discriminators.
+
+**No wrapper folders.** Page Types, Item Types, Tasks singleton, Events singleton all live as siblings at the nexus root. The legacy `Pages/` / `Items/` / `Agenda/` wrappers (paradigmV2-era) are unwrapped by the adopter and disappear from the on-disk shape.
+
+**Hidden + private.** `.nexus/` and `.trash/` (leading dot) are hidden from the sidebar and from non-Pommora tools by convention (matches `.obsidian/`). Pommora's own writes to `.nexus/` don't surface in the user-facing tree.
 
 ---
 
-#### What Pommora explicitly does not own
+#### Manager + cache layer
 
-Adjacent concerns left to OS-level tools:
+Per-entity managers own the in-memory cache for their kind. They load files at app start, mirror to the SQLite index, and write atomically on every mutation.
 
-- **Versioning / file history.** In-session undo is free from the editor; long-term history is Time Machine, git on the nexus folder, or filesystem snapshots. No internal version store, no auto-commit.
-- **Cross-device sync (v1).** Nexus is user-pickable — place in iCloud Drive / Dropbox / synced folder for device-to-device sync. Real cloud sync is a long-term Prospect.
-- **Backup.** Same as versioning — Time Machine and friends.
+| Manager | Owns | Source |
+|---|---|---|
+| `PageTypeManager` | In-memory list of Page Types + their Collections | `_pagetype.json` + `_pagecollection.json` files at nexus root |
+| `ItemTypeManager` | In-memory list of Item Types + their Item Collections | `_itemtype.json` + `_itemcollection.json` files at nexus root |
+| `PageContentManager` | Per-Page bodies + frontmatter | `.md` files inside Page Types |
+| `ItemContentManager` | Per-Item JSON content | `.json` files inside Item Types |
+| `AgendaTaskManager` | Tasks + schema | `.task.json` files + `_taskconfig.json` |
+| `AgendaEventManager` | Events + schema | `.event.json` files + `_eventconfig.json` |
+| `SpaceManager` / `TopicManager` | Contexts (tier-1 / tier-2 + tier-3) | `.space.json` / `_topic.json` / `.project.json` under `.nexus/` |
+| `HomepageManager` | Singleton dashboard | `.nexus/homepage.json` |
+| `SettingsManager` | UI labels + accent color | `.nexus/settings.json` |
+
+Managers are `@MainActor` `@Observable` classes. SwiftUI views observe them directly via `@Environment(...)`. Heavy services (the SQLite index, parsers) stay in DI to avoid re-init on view rebuild.
+
+**`loadAll` mirrors parents to the SQLite index.** Established invariant: after `loadAll`, every in-memory parent (PageType / PageCollection / ItemType / ItemCollection) is also present in the corresponding SQLite table. `PageTypeManager.loadAll` + `ItemTypeManager.loadAll` defensively `INSERT OR REPLACE` after disk-load (idempotent; `try?` swallows failures since the index is regeneratable). Without this, any page/item CRUD into a non-CRUD-created folder (adoption / external Finder folders / post-adoption state) triggers SQLite error 19 (FK constraint failed). Regression-tested in `LoadAllIndexSyncTests.swift`.
+
+---
+
+#### SQLite index — regeneratable scaffolding
+
+The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a moved or renamed Nexus keeps its index without re-pathing. It holds titles / properties / links / relations — **never** Page bodies (the `pages` table has no body column; full-text search reads files directly).
+
+**Fully regeneratable.** `PommoraIndex.open` stamps the file with a `schema_version` and force-deletes + rebuilds via `IndexBuilder` whenever that version differs from the code's `currentSchemaVersion`. No user data is trapped — losing the index file just means a rebuild on next open.
+
+**Twelve data tables** (DDL canonical in PRD § SQLite Schema): `page_types`, `item_types`, `page_collections`, `item_collections`, `pages`, `items`, `agenda_tasks`, `agenda_events`, `contexts`, `relations`, `tier_links`, `property_definitions`. Plus an internal `meta(key, value)` table holding the `schema_version` itself.
+
+**Query surface.** `IndexQuery` (`Index/IndexQuery.swift`) is a Notion-style filter/sort/group/broken-links facade — it composes parameterized SQL using SQLite's JSON1 extension to reach into the `properties` JSON column, and joins `tier_links` / `relations` for tier-relation and paired-relation lookups. Embedded views in Contexts / Homepage flow through this surface.
+
+**Update path: `IndexUpdater`.** Wired into all six entity managers; mid-session mutations propagate to the DB without waiting for a restart. Pattern: every manager mutation method (`createX`, `updateX`, `deleteX`, `renameX`) calls the corresponding `IndexUpdater.x` after the atomic file write succeeds.
+
+**FK constraint shape.** Most relationships cascade-delete in SQLite (`ON DELETE CASCADE` on `page_type_id` / `item_type_id` / etc.). The `page_collection_id` and `item_collection_id` fields on `pages` and `items` are `ON DELETE SET NULL` so deleting a Collection doesn't cascade-delete its child Pages / Items — they move back to the Type root in the index until the next `loadAll` reconciles.
+
+---
+
+#### Atomic-write contract
+
+Every file write goes through one of three atomic-write helpers:
+
+- **`AtomicYAMLMarkdown.write(frontmatter:body:to:)`** — Pages. Composes `---\n<yaml>\n---\n\n<body>` then writes via temp-file + rename.
+- **`AtomicJSON.write(value, to:)`** — Items, sidecars, Agenda Tasks / Events, Contexts, Settings, Homepage. Encodes via `JSONEncoder` then writes via temp-file + rename.
+- **`SchemaTransaction`** — multi-file commits for schema operations that must succeed-or-fail as a unit (e.g. paired-relation create touches two sidecars; move-strip touches the moved entity + paired-relation reverse refs across multiple types). Composes a transaction shape (`writes: [FileWrite]` + `schemaWrites: [SchemaWrite]`), validates, then applies temp-files + rename in dependency order with rollback on failure.
+
+**Why temp-file + rename, not in-place write.** POSIX rename is atomic on the same filesystem. A crash mid-write leaves either the old file (rename never happened) or the new file (rename completed) — never a half-written file. macOS / APFS preserves this guarantee.
+
+**The save pipeline shape** (Pages, as the most complex example): keystroke → `viewModel.body didSet` → `scheduleSave()` 300ms debounce → `PageContentManager.updatePage` → `AtomicYAMLMarkdown.write` (temp-file + rename) → `IndexUpdater.updatePage`. Flush triggers on context loss (page-switch, window-close, app resignActive / willTerminate, `⌘S`). The editor binds ONLY to `body` — frontmatter is held as a typed struct and re-serialized on save; the user can't destroy frontmatter via the editor. Item save pipeline mirrors this via `ItemContentManager.updateItem` + `AtomicJSON.write`. Full editor-side detail → `// Features//PageEditor.md` § "Save pipeline".
+
+---
+
+#### File-watcher contract (deferred; v0.3.3)
+
+External edits — files changed by Obsidian / vim / Finder rename / cloud-sync mtime drift — need to propagate to the SQLite index + the in-memory caches + the sidebar UI without restarting Pommora.
+
+**Tool choice: FSEventStream.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong shape. FSEventStream via Swift wrapper (`EonilFSEvents` or hand-rolled `FSEventStreamCreate`) gives recursive watch on the Nexus root with a per-event payload.
+
+**APFS atomic-rename gotchas.** Editor save = `.tmp` write + rename emits create+delete events for the temp. Debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes (otherwise every save round-trips through the watcher).
+
+**Lost-update protection.** On Page / Item / AgendaTask / AgendaEvent save, compare on-disk mtime to the version Pommora last loaded. If external mtime drifted, prompt the user to reload before overwriting.
+
+Roadmap entry: `Framework.md` v0.3.3 (FSEventStream + FTS5 + external-edit detection). The data layer's atomic-write discipline + IndexUpdater shape was designed to support this — adding the watcher is a wiring task, not an architectural change.
+
+---
+
+#### Adoption — opening any folder as a Nexus
+
+`NexusAdopter` classifies each root folder independently when a folder is first opened as a Nexus — fresh (content-sniff `.md` vs `.json`), legacy Vault sidecar (rename to `_pagetype.json`), legacy wrapper layout (unwrap + rename), or already flat (no-op). Idempotent; per-folder atomicity (no two-phase transaction across folders); safe to re-run on partial state. Hidden folders (leading `.` or `_`) skipped. Preview-before-commit via `AdoptionPreviewView` shows per-Type counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageTypes.md` § "Adopting existing folders" + `// Features//Items.md` § (parallel rule on the Items side).
+
+---
+
+#### Migration — schema versioning + property-ID rewrites
+
+Pommora carries two migration mechanisms:
+
+**1. Index-side schema version.** The SQLite index file stamps a `meta.schema_version`. On open, `PommoraIndex.open` compares against the code's `currentSchemaVersion`; mismatch deletes the file and rebuilds from disk via `IndexBuilder`. Adding a new index column / table is a `currentSchemaVersion += 1` + one new DDL — no per-user migration.
+
+**2. File-side schema version + ID migration.** Every Pommora-written sidecar carries `schema_version: 1`. Legacy decode (no version) = 0 = needs migration. `PropertyIDMigration` runs on every Nexus open: walks every sidecar, mints stable ULID `id`s for legacy name-keyed properties, rewrites entity files to reference properties by ID instead of name. Two-phase (scan / apply); preview sheet shows per-Type counts before commit. Idempotent.
+
+**Settings auto-migration.** `Settings.defaultsVersion: Int` + `Settings.migrate(_:)` step-function scaffold. `SettingsManager.loadOrSeed` calls `migrate` after decode + re-persists only when changed (mtime stays stable on no-op launches). Bump the constant + add a migration step when defaults change.
+
+---
+
+#### What this data layer enables — and what it leaves to the OS
+
+**Enabled by file-canonicality:**
+
+- **External editor compatibility.** Files open cleanly in Obsidian / Bear / pandoc / iA Writer / GitHub / vim — Pages are standard CommonMark, sidecars are plain JSON, frontmatter is YAML.
+- **External agent legibility.** Claude via MCP, any filesystem tool, any future agent reads the entire graph directly. No tool-call round-trips to Pommora.
+- **Cloud sync for free.** The Nexus folder can sit in iCloud Drive / Dropbox / any synced folder; per-file conflict resolution is the syncer's job. Real cloud sync (Supabase, etc.) arrives as additive translation — the on-disk model maps cleanly to a cloud DB.
+
+**Deliberately left to OS-level tools:**
+
+- **Versioning / file history / backup.** Time Machine, `git` on the Nexus, filesystem snapshots. No internal version store, no auto-commit. In-session undo is free from the editor.
+- **Cross-device sync (v1).** User picks the Nexus location; placing it in a synced folder gives device-to-device sync. Real cloud sync is a long-term Prospect.
+
+---
+
+#### Discipline (not enforcement)
+
+No enforced layer separation. Patterns that keep the data layer tractable:
+
+- **Frontmatter + per-Type schemas live in JSON sidecars** (canonical), not code.
+- **Item entries are individual `.json` files**, not SQLite-only — agents read them directly.
+- **View specs are data** (filter / sort / group / shown-properties on each storage container's `views[]`).
+- **File renames + wikilink resolution as algorithm.** Wikilinks resolve by ID at render time; renames are pure filesystem renames; no body-scan rewrite needed.
+- **Agent-legibility check per decision** — would an external file-only agent still see this? If no, revisit.
+- **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for module name, app branding, documentation; not allowed in JSON field names (`pommora_*`) or as a Swift type discriminator (`Pommora.X`). Side-prefixed names are canonical when collisions arise (`AgendaTask` not `Pommora.Task`).
 
 ---
 
 #### Reference
 
-Implementation-neutral specs (don't change for a stack pivot): `PommoraPRD.md`, `// Features//Domain-Model.md`, `// Features//Properties.md`, `// Features//Prospects.md`, `// Guidelines//Design.md`, `// Guidelines//Symbols.md`.
-
-React-side reference for a hypothetical pivot: `// ReactInfo//` folder, with `Contingency.md` as the entry point for translation methodology.
+- `PommoraPRD.md` — high-altitude product spec; storage model overview; SQLite DDL.
+- `// Features//Domain-Model.md` — 2-layer model + PARA mapping + linking model.
+- `// Features//Properties.md` — per-Type property catalog; relation lifecycle; move-strip semantics.
+- `// Guidelines//CRUD-Patterns.md` — per-entity CRUD UI patterns + atomic-write discipline.
+- `// Guidelines//Markdown.md` — editor architecture (dynamic-syntax, anti-patterns, save pipeline).

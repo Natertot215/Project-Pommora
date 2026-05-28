@@ -28,22 +28,23 @@ Everything below is on **`origin/main`** — today's work (spanning multiple ses
 Acknowledged, not-yet-fixed — address soon (keep current per Handoff Rules):
 
 1. **Icon picker too large.** The icon picker in View Settings renders far too big; constrain its size.
-2. **Settings popout sizing.** The View Settings popout should size to its content dynamically (currently pinned to a fixed min height).
+2. **Settings popout sizing.** The View Settings popout should size to its content dynamically to avoid scrolling (currently pinned to a fixed max height; Nathan likes the min height).
 3. **Column reorder broken.** Drag-reordering table columns doesn't work.
 4. **"Modified" not hideable.** Last-Edited / "Modified" can't be toggled off in the visibility settings, but it should be.
 5. **Schema changes need reload.** Changing "View As", adding properties, or other schema edits don't show until the view is reloaded — they should update live.
 6. **Inline-edit lag.** Editing a property value inline has a noticeable performance + update buffer.
 7. **Column layout not persisted.** Table column width/order adjustments don't survive across sessions.
+8. **Handoff Skill.** Nathan wants to create an actual skill / command to handle the handoff documentation process rather than relying on listed rules or individual session judgement.
 
 #### Handoff Rules
 
-- **Keep the Fix Log current.** When an issue is acknowledged but not yet fixed, add it to the Fix Log above in 1–2 sentences; remove an entry once resolved (and note the fix in `History.md`).
-- **Maintain this file every session** — current state + next focuses + fix log only. Push spec/decisions to their canonical homes (`History.md` / `Framework.md` / `Features/*`); never accumulate per-session work logs here.
+- **Keep the Fix Log current.** When an issue is acknowledged but not yet fixed, add it to the Fix Log above in 1–2 sentences; remove an entry once resolved. 
+- **Maintain this file every session** — current state + next focuses + fix log only. Push spec/decisions to their canonical homes (`History.md` / `Framework.md` / `Features/*`); never accumulate per-session work logs here unless double-checked for importance or the work is not yet completed. 
 
 #### Document pointers
 
 - Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
 - Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md`
-- UIX baseline → `Guidelines/UIX-Baseline.md` · CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
+- CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
 - Branch quirks + hard rules → `CLAUDE.md`
 - Figma (property editor) → `https://www.figma.com/design/V3wKMilXkoceCL1Q2J9kf4/Pommora-Swift?node-id=474-9432`

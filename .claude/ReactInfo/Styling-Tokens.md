@@ -16,8 +16,6 @@ For Swift, the canonical source is `Tokens.swift` — Figma is preserved here as
 
 Tokens (~118 vars) and primitives + composed components are built in the Figma file as gallery FRAMEs with full token bindings. Nine Tag components are converted to standalone COMPONENTs; the remaining 35 gallery items are still FRAMEs.
 
-**Next step (Figma-side):** FRAME → COMPONENT_SET conversion of the remaining 35 gallery items (consolidate the 9 standalone Tag COMPONENTs into one SET, then promote each gallery FRAME to a SET with variant properties). After conversion, the file is a real reusable component library (single source per concept, variant properties, INSTANCE references everywhere) ready for code translation.
-
 **Initial-build placeholder.** Until specific icons are finalized per role, the Figma design system uses the `crop_free` Material Symbol (a square frame) for every symbol slot. The icon-role finalization is post-conversion work; until then `crop_free` stays inline and the INSTANCE_SWAP `vector` slot on the Icon component is deferred.
 
 #### What the Figma build revealed about the React path

@@ -29,18 +29,15 @@ The parallel Items-side entity is the Item — a row-shaped JSON record without 
 
 **Pages are Markdown documents — not block surfaces.** A Page is one continuous Markdown stream from top to bottom. Pommora doesn't impose a block abstraction on Pages; "block-level features" as a project term belongs to Contexts (Spaces / Topics / Projects) only — the composed-blocks surfaces, not Pages.
 
-Pages support everything in standard Markdown:
+Pages support everything in standard Markdown — paragraphs, headings (H1–H5; H5/H6 render at body size), bulleted / numbered / task lists, fenced + inline code, images, GFM tables, blockquotes, horizontal rules. Standard Markdown round-trips natively to any external tool.
 
-- Paragraphs, **headings** (H1–H5 in v0's type scale; no H6 token). **Headings are foldable by default** — hover any heading line to reveal a chevron in the left gutter; click it to collapse the section below that heading (down to the next equal-or-higher heading, or document end) to zero height. Fold state persists per-Page in frontmatter as `folded_headings: ["## Foo", "## Notes [2]", ...]` (ordinal-disambiguated source-line keys; renaming a heading drops its entry, orphan keys reconciled on save). The Markdown body itself stays untouched — external tools see standard headings with no fold notion. Implementation spec → [[PageEditor]]; architecture rationale → `// Guidelines//Markdown.md` §9.11.
-- Bulleted / numbered lists
-- **Task lists** — GFM `- [ ]` / `- [x]` syntax, plus a Pommora `-[]` / `-[x]` compressed shorthand. Both render as an SF Symbol checkbox glyph (`square` unchecked / `checkmark.square.fill` checked); click the glyph to toggle. Source on disk stays as typed — GFM form round-trips to any external tool natively; the shorthand is Pommora-specific. Full rendering spec → [[PageEditor]].
-- **Code blocks** (fenced) and **inline code** — render in mono font (SF Mono) at 1.0 em (same size as body) with system-semantic colors as of v0.2.7.4: text color is `NSColor.systemRed.withAlphaComponent(0.85)` (adapts light↔dark via the system accent's red); background is `NSColor.quaternaryLabelColor` (semantic system fill — built-in subtle alpha, adapts light↔dark, sits visibly distinct from the page background without a custom blend). Future per-Nexus theme tokens may expose these as overrides, but the defaults now ride the system palette rather than the earlier hardcoded `#FF2525` / `#323233` values.
-- Images
-- **Tables** — standard GFM `| col | col |` syntax
-- **Blockquotes** — standard `>` syntax (shipped v0.2.7.5). Rendered Notion/Obsidian-style: filled rounded card with a continuous vertical accent bar to its left (separated by a small gap). The `>` syntax marker is hidden in-editor (font 0.1 + clear color) but stays on disk for portability; activation requires `> ` (marker + space). Multi-paragraph quotes (consecutive `> ` lines) render as one visually-contiguous block via per-fragment position enum (`.only` / `.first` / `.middle` / `.last`) for selective corner rounding. Plain Enter continues the quote with `> ` prefix; Shift+Enter exits. Default tint is `NSColor.tertiarySystemFill` (system semantic, light/dark adaptive); accent bar is `NSColor.secondaryLabelColor`. Distinct from callouts (see below). On disk they're standard CommonMark blockquotes.
-- **Horizontal rules** — standard `---` on its own line. Renders as a real 1pt horizontal line drawn via `MarkdownTextLayoutFragment.drawThematicBreak`; the `---` source markers hide when the caret leaves the line and reveal when the caret enters (Obsidian-style dynamic syntax, shipped at v0.2.7.2; jitter-fix at v0.2.7.4 made the reveal/hide layout-constant — only foreground color toggles, not font metrics, so the surrounding paragraph spacing stays steady). Pommora explicitly rejects the Setext H2 interpretation — `---` always renders as HR regardless of context above. On disk it's standard CommonMark.
+**Headings are foldable** by default; fold state persists per-Page in frontmatter as `folded_headings: [...]` (ordinal-disambiguated keys; orphan entries reconciled on save). The Markdown body itself stays untouched. Implementation + visual spec → [[PageEditor]]; architecture rationale → `// Guidelines//Markdown.md` §9.11.
 
-Standard Markdown round-trips natively to any tool that reads the file.
+**Task lists** accept GFM (`- [ ]` / `- [x]`) and Pommora's `-[]` / `-[x]` shorthand. Render + click-to-toggle spec → [[PageEditor]].
+
+**Blockquote, horizontal rule, code-block** rendering is in [[PageEditor]]. The on-disk form is standard CommonMark in every case (the `>` marker hides in-editor but stays on disk; HR is `---` on its own line; Pommora rejects the Setext H2 interpretation — `---` is always HR).
+
+**Tables** parse as GFM (`| col | col |`) today with basic styling only. True Apple-Notes-style inline-grid tables — drag-resize columns, double-click popover cell editor, structural context menu — are a **major future deliverable**; full spec → [[PageEditor]] § "Tables — to be implemented".
 
 On top of standard Markdown, Pages support **two Pommora-specific rendering directives**:
 
@@ -63,44 +60,9 @@ The earlier-proposed `@View` (in-line database view embed) is **deferred** to v2
 
 #### Editor surface
 
-> **Full editor implementation spec — see [`PageEditor.md`](PageEditor.md).** Library choice (Apple `swift-markdown` + vendored `swift-markdown-engine`), shipped features as of v0.2.7.0, deferred v0.2.7.x patch scope, save pipeline, and hot-swap surface all live there. The sections below cover the *user-facing* editing model — what the WYSIWYG experience promises — agnostic of the underlying library.
+The editor's **WYSIWYG prose** experience — what the user sees and types — is a **dynamic-syntax** render: markers shrink near-invisible when the caret leaves an AST node, reveal when the caret enters (Bear / iA Writer pattern). Raw Markdown source is only visible in an external tool (`vim`, Obsidian source mode). Full surface, save pipeline, library, and hot-swap layer → [[PageEditor]]. Architecture, anti-patterns, and Nathan-locked editor decisions → `// Guidelines//Markdown.md`.
 
-Pages on disk are a continuous Markdown stream; in the editor, that stream renders as **WYSIWYG prose** — markers shrink to near-invisible when the caret leaves an AST node (Bear/Notion/iA Writer pattern). Typing `**bold**` immediately becomes **bold**; typing `# H1 ` immediately becomes a heading; etc. The raw Markdown source is only visible if you open the file in an external editor (`vim`, `cat`, Obsidian source mode).
-
-**Markdown input shortcuts.** Notion / Bear pattern — typing common Markdown syntax triggers immediate formatting via the editor's input-rule system:
-
-- `**word**` → **bold**
-- `*word*` → *italic*
-- `` `code` `` → `code`
-- `~~word~~` → ~~strikethrough~~
-- `# `, `## `, `### ` at line start → H1 / H2 / H3
-- `- `, `* `, `1. ` at line start → list
-- `> ` at line start → blockquote
-- ` ``` ` at line start → fenced code block
-- `---` on its own line → horizontal rule
-
-Markers are consumed at the moment of typing — they don't remain visible. Cmd-Z undoes the formatting transform as a single unit.
-
-**Wikilink autocomplete.** Typing `[[` opens an autocomplete popover anchored to the cursor showing Page / Item / Context titles filtered by subsequent input. Selecting an entry inserts a styled-inline-text wikilink rendering the target's current title (custom inline node; visually identical to Obsidian-style hyperlinks, no chip background). Esc dismisses; Enter confirms; arrows navigate. The `[[ ]]` brackets are not shown — editing an existing wikilink means clicking it, which opens the picker popover with the current target preselected.
-
-**Floating toolbar on selection.** Bubble-menu pattern — a small floating Material-bg toolbar appears on text selection with bold / italic / code / link / strikethrough buttons; disappears on collapse. Matches the macOS text-selection menu instinct.
-
-**Slash menu (`/`) for directive insertion.** Typing `/` at line start opens a popover listing the two Pommora directives (Callout, Columns) alongside other block insertions (code block, table, heading levels, divider). SF Symbol icons; filterable by typing.
-
-**Editor implementation — shipped at v0.2.7.0 on native TextKit 2.** Pommora uses Apple `swift-markdown` 0.8.0 + vendored `swift-markdown-engine` (at `External/MarkdownEngine/`, Apache 2.0) + a Pommora-side `AppleASTSupplementalStyler` layered on top. Full implementation spec lives at `PageEditor.md`. The three-options inventory used during v0.2.7 prep (Native Swift / JS-editor in WKWebView / Pallepadehat fork) has been resolved — historical context preserved in git history.
-
-**`.md` file format is the architectural firewall** — Pages on disk would be identical under any future editor swap. `PageContentManager`'s `updatePage(_:body:in:vault:)` + `updatePage(_:body:inVaultRoot:)` write path is the Swift-side surface.
-
-**Pommora-specific surface behavior:**
-
-- Markdown round-trip on disk — body is what's saved; frontmatter handled separately in Swift.
-- Dynamic syntax — markers shrink to near-invisible when caret leaves an AST node (Bear / iA Writer pattern). Locked architecture rules + anti-patterns + lessons live at [`// Guidelines//Markdown.md`](../Guidelines/Markdown.md); the feature spec for what the editor currently ships lives at [`PageEditor.md`](PageEditor.md).
-- Apple-native styling in the canvas — system font stack, system caret, accent-derived selection color; brand values via direct `NSAttributedString` attributes.
-- Frontmatter never reaches the editor canvas; property surface is separate from the page body. See § "Properties Pulldown" below for the Pages-side property surface.
-- **Title area** — the editable Page title sits structurally above the body content as a header (28pt bold + 1pt gutter-aligned hairline divider in the system separator color). At rest the title is at the top of the editor; on body scroll it **moves with body content** (scrolls off-screen upward) rather than staying pinned to the viewport. This keeps screen real estate for body content on long Pages and gives future cover-image / banner support a place to land *above* the title without competing for fixed viewport space.
-- Standalone-window previews are queued behind the cross-feature **PreviewWindow primitive** (see `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`); `⌥⌘O` is reserved for that ship and not currently bound.
-
-> If pivoting to React, see `// ReactInfo//Editor.md` for the React-side approach (Tiptap directly, no WKWebView wrapper).
+The `.md` file format is the architectural firewall — Pages on disk are identical under any future editor swap. Frontmatter never reaches the editor canvas; property surface is separate from the page body (see § "Properties Pulldown" below).
 
 ---
 

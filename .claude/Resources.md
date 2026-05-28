@@ -15,16 +15,6 @@ Editor shipped at v0.2.7.0 on native TextKit 2. Swift-side primitives:
 - **[Shpigford/clearly](https://github.com/Shpigford/clearly)** — native AppKit / SwiftUI markdown editor for macOS. Source-with-decorations editor with syntax highlighter + fold plumbing. Kept as a fork-reference for the native swift-markdown path. License: FSL-1.1-MIT (converts to MIT Feb 2028).
 - **[Pallepadehat/MarkdownEditor](https://github.com/Pallepadehat/MarkdownEditor)** — Swift Package wrapping CodeMirror 6 in WKWebView. **Tried + abandoned** during v0.2.7 prep (didn't deliver the macOS-native feel); see `// Features//PageEditor.md` for the pivot story. Listed here as a historical anchor only.
 
-#### React-contingency editor candidates
-
-Reference material for a hypothetical React+Electron pivot — NOT active dependencies. Full React-side architecture → `// ReactInfo// Editor.md` and `// ReactInfo// Resources.md`.
-
-- **BlockNote** — open-source MPL-2.0 core; block editor built on Tiptap. Slash menu, formatting toolbar, drag handles wired by default. [Docs](https://www.blocknotejs.org/docs) · [GitHub](https://github.com/TypeCellOS/BlockNote). License note: the "XL" packages (`xl-multi-column`, exporters, AI commands) are GPL-3.0 OR a paid commercial Business subscription.
-- **Tiptap** — MIT-licensed headless ProseMirror-React framework. Every package Pommora would use ships under MIT. [Docs](https://tiptap.dev/docs/editor) · [GitHub](https://github.com/ueberdosis/tiptap)
-- **Milkdown** — MIT, ProseMirror foundation, markdown-first by design (round-trip enforced at framework level). [Docs](https://milkdown.dev/) · [GitHub](https://github.com/Milkdown/milkdown)
-- **Yoopta-Editor** — MIT, Slate-based, 20+ built-in plugins including a callout. [Site](https://yoopta.dev/) · [GitHub](https://github.com/yoopta-editor/Yoopta-Editor)
-- **CodeMirror 6** — buffer-based editor (markdown literally *is* the document). Used as Obsidian Live Preview's foundation. [Docs](https://codemirror.net/) · [GitHub](https://github.com/codemirror/dev)
-
 #### Spaces (drag-and-drop blocks)
 
 - **stevengharris/SplitView** — nestable resizable splits with persistence. [GitHub](https://github.com/stevengharris/SplitView)

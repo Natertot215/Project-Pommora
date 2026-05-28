@@ -2,14 +2,13 @@
 
 Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
-#### Properties UIX baseline + View Settings editor redesign (2026-05-27)
+#### View Settings editor redesign + Design.md consolidation (2026-05-27)
 
-Established a written UIX baseline (`.claude/Guidelines/UIX-Baseline.md`) for the popover-family surfaces and rebuilt the View Settings per-property editor to Nathan's Figma. Build-clean (two `xcodebuild` passes); not yet smoke-tested.
+Rebuilt the View Settings per-property editor to Nathan's Figma. The popover-family UIX lessons that fell out of the rebuild (PaneDivider rail standard, pinned destructive footers, Subheadline / Callout type scale, chip dimensions, back-label pane affordance, idempotent inline-`TextField` commit on Enter / blur / disappear, plain `Menu` over `Picker(.menu)` for inline selectors) folded into `Guidelines/Design.md`; the standalone `UIX-Baseline.md` file was removed (one fact, one home). Build-clean (two `xcodebuild` passes); not yet smoke-tested.
 
 **Locked decisions:**
 
-- **Field fill = the native grouped-`Form` system fill, not a hand-set opacity.** Single source of truth `PUI.Fill.field`; verify-and-tune that one token in build.
-- **Section headers = Subheadline/emphasized vibrant secondary; chip text = Callout/emphasized** (Nathan's Figma type ramp).
+- **Section headers = Subheadline / emphasized vibrant secondary; chip text = Callout / emphasized** (Nathan's Figma type ramp).
 - **Inline selectors = plain `Menu` with no chevron glyph, checkmark on current** — supersedes the earlier Design.md "Menu label = Text + chevron-down" note.
 - **Pane back affordance names the previous pane**, not the current one; entity-identity panes (EditPropertyPane) carry no duplicate title.
 
@@ -22,14 +21,14 @@ Built a full `PageType → PageCollection → Folder → Page` third tier (model
 Single-session execution of the approved `.claude/Planning/View-Settings-edit-properties-plan.md` (25 tasks, 9 phases). Tasks 1-20 shipped + Task 21 (in-window item property editing — wiring the Item Window inspector's `PropertyEditorRow` stubs to real per-type editors) deferred to v0.3.1.x. **The deferral is deliberate, not technical:** the Item Window is still a placeholder UI slated for a rebuild, so the in-window property-editor work shouldn't be invested in a surface that's about to change — it waits for the real Item Window. Task 23 (`git push` + Nexus mirror) paused for Nathan's auth.
 
 **Phase ship map:**
-- **Phase A — Data layer foundations** (Tasks 1-5b): `DisplayVariant` enum (`.box`/`.select`/`.chip`, Status-only render variant) + `DateFormat` enum (6 cases) + `PropertyDefinition.displayAs` + `.dateFormat` (additive Codable) + `ItemType.singular` (Capacities-style label) + `SavedView` Codable upgrade (real fields + reserved sort/filter/group stubs) + `views: [SavedView]` on PageCollection + ItemCollection + default-view migration on PageTypeManager.loadAll + ItemTypeManager.loadAll (quirk #15 pattern) + PropertyChipColor cleanup (12 cases — drop `.cyan`/`.mint`/`.gray`, add `.orange`/`.accent`; retire tier system; new OptionColorPicker 5x2 grid). 6 commits.
-- **Phase B — ViewSettingsScope + popover scaffold** (Tasks 6+7): `ViewSettingsScope` gains associated values on the 4 storage cases (PageType/PageCollection/ItemType/ItemCollection) so popover content can render schema-aware bodies. NavigationStack popover scaffold + StorageMenuRoot (Notion-style menu with active Edit Properties + Property Visibility + muted Layout/Sort/Filter/Group rows). 2 commits.
-- **Phase C — Schema editor extraction** (Task 8): SelectOptionsEditor + StatusGroupsEditor + NumberFormatPicker + FileAcceptEditor extracted from VaultSettingsSheet + TypeSettingsSheet into shared `Pommora/Properties/Editor/` module. Type-prefixed copies removed; both sheets reference shared definitions. 1 commit.
-- **Phase D — Edit Properties pane** (Tasks 9-11b): PropertiesListPane (searchable + reserved-property lock badges + chevron-push) → PropertyTypePickerPane (type-aware routing: Select/Status/MultiSelect auto-push to EditPropertyPane after commit; simple types pop back; Relation defers to RelationPropertyWizard) → EditPropertyPane (Notion-format: header + Type row + per-type middle section + Duplicate + Delete footer; live-save via new `updateProperty(id:in:transform:)` per manager) → EditOptionPane (per-option editor pushed via `.editOption` route; chevron-push wiring from SelectOptionsEditor deferred to v0.3.1.x). 4 commits.
-- **Phase E — Property Visibility pane** (Task 12): click-to-toggle + strikethrough-on-hidden + locked `_modified_at` (always visible per locked decision). Writes via new `updateView(viewID:in:transform:)` per manager (resolves containerID as PageType / PageCollection / ItemType / ItemCollection automatically). 1 commit.
-- **Phase F — Single-property value writes** (Tasks 13+14): `updatePageProperty` + `updateItemProperty` atomic single-property writes on PageContentManager + ItemContentManager. Read-modify-write via existing atomic save infrastructure; modifiedAt bumped on every write; SQLite index upsert best-effort. Dual-relation reverse-mirror via DualRelationCoordinator deferred to v0.3.1.x. 1 commit.
-- **Phase G — Dynamic Table columns** (Tasks 15-18): PropertyColumnBuilder descriptor + 3 new chip primitives (RelationChip / FileChip / LinkChip) + PropertyCellDisplay dispatcher rendering all 11 property types (chip-family for Status/Select/Multi/Relation; pure text for Number/Date/URL/LastEdit; native control for Checkbox; File via FileChip overflow counter). Wired into all 4 storage detail views via `TableColumnForEach` (macOS 14+ — the plan's "no dynamic columns" note was outdated). 4 commits.
-- **Phase H — Click-to-edit cell popovers** (Tasks 19+20): PropertyCellEditor wraps PropertyCellDisplay with a `.popover(arrowEdge: .bottom)` anchor; per-type editor dispatch inside the popover (number/date/datetime/select/multiSelect/status/url use built-ins or existing pickers; checkbox flips inline without popover; lastEditedTime stays read-only; relation + file show "v0.3.1.x" placeholder until IndexQuery + AttachmentManager flow-through ships). Detail views compute commit closures that route to updatePageProperty/updateItemProperty with the right parent collection (helpers `collectionContaining(pageID:)` + `setContaining(itemID:)` scan cache for membership). 2 commits.
+- **Phase A — Data layer foundations.** `DisplayVariant` enum (`.box`/`.select`/`.chip`, Status-only render variant) + `DateFormat` enum (6 cases) + `PropertyDefinition.displayAs` + `.dateFormat` (additive Codable) + `ItemType.singular` (Capacities-style label) + `SavedView` Codable upgrade (real fields + reserved sort/filter/group stubs) + `views: [SavedView]` on PageCollection + ItemCollection + default-view migration on PageTypeManager.loadAll + ItemTypeManager.loadAll (quirk #15 pattern) + PropertyChipColor cleanup (12 cases — drop `.cyan`/`.mint`/`.gray`, add `.orange`/`.accent`; retire tier system; new OptionColorPicker 5x2 grid).
+- **Phase B — ViewSettingsScope + popover scaffold.** `ViewSettingsScope` gains associated values on the 4 storage cases (PageType/PageCollection/ItemType/ItemCollection) so popover content can render schema-aware bodies. NavigationStack popover scaffold + StorageMenuRoot (Notion-style menu with active Edit Properties + Property Visibility + muted Layout/Sort/Filter/Group rows).
+- **Phase C — Schema editor extraction.** SelectOptionsEditor + StatusGroupsEditor + NumberFormatPicker + FileAcceptEditor extracted from VaultSettingsSheet + TypeSettingsSheet into shared `Pommora/Properties/Editor/` module. Type-prefixed copies removed; both sheets reference shared definitions.
+- **Phase D — Edit Properties pane.** PropertiesListPane (searchable + reserved-property lock badges + chevron-push) → PropertyTypePickerPane (type-aware routing: Select/Status/MultiSelect auto-push to EditPropertyPane after commit; simple types pop back; Relation defers to RelationPropertyWizard) → EditPropertyPane (Notion-format: header + Type row + per-type middle section + Duplicate + Delete footer; live-save via new `updateProperty(id:in:transform:)` per manager) → EditOptionPane (per-option editor pushed via `.editOption` route; chevron-push wiring from SelectOptionsEditor deferred to v0.3.1.x).
+- **Phase E — Property Visibility pane.** Click-to-toggle + strikethrough-on-hidden + locked `_modified_at` (always visible per locked decision). Writes via new `updateView(viewID:in:transform:)` per manager (resolves containerID as PageType / PageCollection / ItemType / ItemCollection automatically).
+- **Phase F — Single-property value writes.** `updatePageProperty` + `updateItemProperty` atomic single-property writes on PageContentManager + ItemContentManager. Read-modify-write via existing atomic save infrastructure; modifiedAt bumped on every write; SQLite index upsert best-effort. Dual-relation reverse-mirror via DualRelationCoordinator deferred to v0.3.1.x.
+- **Phase G — Dynamic Table columns.** PropertyColumnBuilder descriptor + 3 new chip primitives (RelationChip / FileChip / LinkChip) + PropertyCellDisplay dispatcher rendering all 11 property types (chip-family for Status/Select/Multi/Relation; pure text for Number/Date/URL/LastEdit; native control for Checkbox; File via FileChip overflow counter). Wired into all 4 storage detail views via `TableColumnForEach` (macOS 14+ — the plan's "no dynamic columns" note was outdated).
+- **Phase H — Click-to-edit cell popovers.** PropertyCellEditor wraps PropertyCellDisplay with a `.popover(arrowEdge: .bottom)` anchor; per-type editor dispatch inside the popover (number/date/datetime/select/multiSelect/status/url use built-ins or existing pickers; checkbox flips inline without popover; lastEditedTime stays read-only; relation + file show "v0.3.1.x" placeholder until IndexQuery + AttachmentManager flow-through ships). Detail views compute commit closures that route to updatePageProperty/updateItemProperty with the right parent collection (helpers `collectionContaining(pageID:)` + `setContaining(itemID:)` scan cache for membership).
 
 **Locked decisions ratified this session:**
 
@@ -115,7 +114,7 @@ Same-day post-merge: design-system foundations + UX correctness sweep + one arch
 7. **`loadAll` syncs parents to index** (quirk #15). Forward-binding architectural invariant.
 8. **Every detail-view `@Environment` must be injected at `ContentView.detail`** (quirk #16). Forward-binding architectural invariant.
 
-**Active brainstorm — v0.3.1.x Storage View Redesign:** Research done (Notion UX patterns + SwiftUI primitives), captured at `.claude/Planning/View-Settings-research-notes.md`. Spec NOT yet written. Plans to write spec next session. Locked decisions: toolbar `slider.horizontal.3` popover with `NavigationStack` submenus mirroring Notion's view-settings menu structure; per-view config storage in `views[]` array per sidecar (one entry today, multi at v0.5.0); Property Visibility row = strikethrough toggle (no eye icon); delivery via Approach B patch-series drip v0.3.1 → v0.3.1.4.
+**v0.3.1.x Storage View Redesign — locked decisions:** toolbar `slider.horizontal.3` popover with `NavigationStack` submenus mirroring Notion's view-settings menu structure; per-view config storage in `views[]` array per sidecar (one entry today, multi at v0.5.0); Property Visibility row = strikethrough toggle (no eye icon); delivery via Approach B patch-series drip v0.3.1 → v0.3.1.4.
 
 ---
 
@@ -123,24 +122,19 @@ Same-day post-merge: design-system foundations + UX correctness sweep + one arch
 
 71 commits on `v0.3.0-properties` merged into `main` as `3d1bc19`. All 11 phases A–K shipped end-to-end. Smoke test on Nathan's real nexus is the only remaining gate before release tagging.
 
-**Full phase ship list:**
+**What shipped (by phase):**
 
-| Phase | Scope | Tip commit |
-|---|---|---|
-| A.1–A.6 | Foundation types (11-case `PropertyType`; `PropertyValue` + `FileRef`; `ReservedPropertyID` + `mintUserPropertyID`; 5-case `RelationScope` tagged-object; `PropertyDefinition` stored ULID `id` + config fields + nested `StatusGroup`/`StatusOption`/`StatusGroupID` + `DualPropertyConfig`) | `1f85548` |
-| B.1 | `SchemaTransaction` atomic multi-file commit primitive | `f31bda0` |
-| C.1, C.3, C.4, C.5 | Migration suite: `PageFrontmatter.modifiedAt` + `schema_version: 1` on every sidecar + `PropertyIDMigration` two-phase scan/apply runs every nexus open + `AdoptionPreviewView` surfaces per-Type migration counts before commit | `87dcf76` (+ fix `c60fe48`) |
-| D.1–D.8 | Schema CRUD on all 4 schema-bearing managers (`addProperty`/`renameProperty`/`changeType`/`deleteProperty`/`reorderProperty`); `PropertyDefinitionValidator` 8 rules; `schemaByID` rewire + drop `duplicateTitle`; `default_sort` on every sidecar; `SchemaConflictDialog` EC4 drift defense | `516e2e5` |
-| E.1–E.7.5 | SQLite index live end-to-end: GRDB.swift SPM dep; `PommoraIndex.open(at:)` lifecycle with schema-version recovery; 12-table schema; `IndexBuilder` two-phase populate; `IndexUpdater` wired into all 6 managers; `IndexQuery` Notion-style filter+sort+broken-links; `NexusManager` opens/rebuilds; `ContentView.constructManagers` plumbs `IndexUpdater` so mid-session mutations propagate | `0b629bc` (+ name-match fixup `ef43eb9`) |
-| F.1–F.2 | `AttachmentManager` copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/` with MIME accept-list (wildcard support), 50 MB warn / 500 MB hard cap, collision-safe filename suffixing; cascade-delete to trash on entity delete across all 4 entity managers | `7bb883d` |
-| G.1–G.5 | AgendaTask + AgendaEvent schema defaults inject `_status` Status property; load-path backfill for pre-existing schemas via SchemaTransaction; `DualRelationCoordinator` manages paired-relation lifecycle (create/value-mirror/rename/delete); wired into `PageTypeManager` + `ItemTypeManager.addProperty`/`deleteProperty` to route paired relations through coordinator | `13af10f` (+ validator fix `71ce2da`) |
-| H.1–H.2 | `movePageAcrossTypes` / `movePageBetweenCollections` on `PageContentManager+CRUD`; parallel `moveItem*` on `ItemContentManager+CRUD`. Name-based strip (property IDs are globally unique so ID-match is structurally impossible). Paired-relation back-ref cascade-clear. SchemaTransaction atomic across move + strip + back-refs | `7058991` |
-| I.1+I.2 | `Settings.defaultsVersion` field + `Settings.migrate(_:)` step-function scaffold; `SettingsManager.loadOrSeed` calls `migrate` after decode + re-persists only when changed (mtime stays stable on no-op launches); 4 auto-migration tests | `b6c970a` |
-| J.1–J.15 | Placeholder UI suite: PropertyEditorRow dispatches all 11 types; `ItemCollection.pinned_properties`; `StatusPicker` 3-section popover; `RelationPicker` scope-aware (GRDB `String` overload pollution workaround via private struct sub-views); `FileAttachmentEditor` with size-warning flow; `RelationPropertyWizard` 5-step (`DualRelationCoordinating` protocol for mockable tests); `PropertyTypePicker` 10-case (excludes `.lastEditedTime`); `VaultSettingsSheet` + `TypeSettingsSheet` schema editors; `MoveStripConfirmationDialog`; `PropertyPanel` host-agnostic eager panel; Item Window inspector toggle + pinned chips; `PropertiesPulldown` lazy mounted in `PageEditorView`; `FrontmatterInspector` live editors; column-header click-to-sort on `PageCollectionDetailView` | `f14c881` (J.15) |
-| I.3 | `SidebarSectionLabels.spaces` + `.topics` fields; sidebar section headers + sheet titles thread from `SettingsManager.labels` instead of hardcoded literals | `345a9df` |
-| K.1+K.2 | `CalendarDetailView` (Tasks list above, Events list below; sorted by due/start ascending; nil-date last); right-click Calendar pin → "New Task" / "New Event" quick-create | `fc7e0f8` + `11a7f45` |
-
-**Parallel-session merge during branch:** `c98ecd6` (drag-reorder native `.onMove` rebuild + `RenameableRow` extraction during Phase C.5) + `2fada62` (sidebar native-selection migration: new `NSTableSelectionStyleSuppressor`, expanded `SidebarSelection` model, sidebar row + view polish across 14 files).
+- **A — Foundation types.** 11-case `PropertyType`; `PropertyValue` + `FileRef`; `ReservedPropertyID` + `mintUserPropertyID`; 5-case `RelationScope` tagged-object; `PropertyDefinition` stored ULID `id` + config fields + nested `StatusGroup`/`StatusOption`/`StatusGroupID` + `DualPropertyConfig`.
+- **B — `SchemaTransaction`** atomic multi-file commit primitive.
+- **C — Migration suite.** `PageFrontmatter.modifiedAt` + `schema_version: 1` on every sidecar + `PropertyIDMigration` two-phase scan/apply runs every nexus open + `AdoptionPreviewView` surfaces per-Type migration counts before commit.
+- **D — Schema CRUD on all 4 schema-bearing managers** (`addProperty`/`renameProperty`/`changeType`/`deleteProperty`/`reorderProperty`); `PropertyDefinitionValidator` 8 rules; `schemaByID` rewire + drop `duplicateTitle`; `default_sort` on every sidecar; `SchemaConflictDialog` EC4 drift defense.
+- **E — SQLite index live end-to-end.** GRDB.swift SPM dep; `PommoraIndex.open(at:)` lifecycle with schema-version recovery; 12-table schema; `IndexBuilder` two-phase populate; `IndexUpdater` wired into all 6 managers; `IndexQuery` Notion-style filter+sort+broken-links; `NexusManager` opens/rebuilds; `ContentView.constructManagers` plumbs `IndexUpdater` so mid-session mutations propagate.
+- **F — `AttachmentManager`** copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/` with MIME accept-list (wildcard support), 50 MB warn / 500 MB hard cap, collision-safe filename suffixing; cascade-delete to trash on entity delete across all 4 entity managers.
+- **G — Agenda Status + paired relations.** AgendaTask + AgendaEvent schema defaults inject `_status` Status property; load-path backfill for pre-existing schemas via SchemaTransaction; `DualRelationCoordinator` manages paired-relation lifecycle (create/value-mirror/rename/delete); wired into `PageTypeManager` + `ItemTypeManager.addProperty`/`deleteProperty`.
+- **H — Move-strip.** `movePageAcrossTypes` / `movePageBetweenCollections` on `PageContentManager+CRUD`; parallel `moveItem*` on `ItemContentManager+CRUD`. Name-based strip (property IDs are globally unique so ID-match is structurally impossible). Paired-relation back-ref cascade-clear. SchemaTransaction atomic across move + strip + back-refs.
+- **I — Settings migration.** `Settings.defaultsVersion` field + `Settings.migrate(_:)` step-function scaffold; `SettingsManager.loadOrSeed` calls `migrate` after decode + re-persists only when changed (mtime stays stable on no-op launches). `SidebarSectionLabels.spaces` + `.topics` fields; sidebar section headers + sheet titles thread from `SettingsManager.labels` instead of hardcoded literals.
+- **J — Placeholder UI suite.** PropertyEditorRow dispatches all 11 types; `ItemCollection.pinned_properties`; `StatusPicker` 3-section popover; `RelationPicker` scope-aware (GRDB `String` overload pollution workaround via private struct sub-views); `FileAttachmentEditor` with size-warning flow; `RelationPropertyWizard` 5-step (`DualRelationCoordinating` protocol for mockable tests); `PropertyTypePicker` 10-case (excludes `.lastEditedTime`); `VaultSettingsSheet` + `TypeSettingsSheet` schema editors; `MoveStripConfirmationDialog`; `PropertyPanel` host-agnostic eager panel; Item Window inspector toggle + pinned chips; `PropertiesPulldown` lazy mounted in `PageEditorView`; `FrontmatterInspector` live editors; column-header click-to-sort on `PageCollectionDetailView`.
+- **K — CalendarDetailView.** Tasks list above, Events list below; sorted by due/start ascending; nil-date last. Right-click Calendar pin → "New Task" / "New Event" quick-create.
 
 **Locked decisions this branch:**
 
@@ -155,7 +149,6 @@ Same-day post-merge: design-system foundations + UX correctness sweep + one arch
 9. **`AttachmentManager` is the only path for file values.** Copy-on-attach into `<nexus>/.nexus/attachments/<entity-id>/`; 50 MB warn / 500 MB hard cap; cascade-delete to trash on entity delete.
 10. **Settings carries `defaultsVersion: Int`** for forward-compatible stale-default migration. `Settings.migrate(_:)` is the step-function scaffold; bump the constant + add a migration step when defaults change.
 
-**Next session opens at:** v0.3.1 — Properties Pulldown + Property Panel polish (Figma-driven fast-follow). Plus smoke test of v0.3.0 on Nathan's real nexus before tagging.
 
 ---
 
@@ -167,7 +160,7 @@ Same-day post-merge: design-system foundations + UX correctness sweep + one arch
 
 #### v0.3.0 Properties scope redirection + editor patches (2026-05-23 EOD)
 
-Three shipped threads + a Properties scope brainstorm. Build green, **365/365 tests passing** (one timing flake in `PageEditorViewModelTests/debounceCoalescesRapidEdits` re-runs clean; unrelated to scope).
+Three shipped threads + a Properties scope brainstorm.
 
 **Editor patches (parallel session):**
 
@@ -208,7 +201,7 @@ Three shipped threads + a Properties scope brainstorm. Build green, **365/365 te
 
 #### Post-flatlayout hardening cluster (2026-05-23)
 
-Five follow-up commits on `main` after the `flatlayout` tag (`049df19`), addressing issues Nathan found running the app post-ship on his real nexus. Each shipped green standalone; build green at cluster close, **366 tests passing** (+3 from the ship tag's 363).
+Five follow-up commits on `main` after the `flatlayout` tag (`049df19`), addressing issues Nathan found running the app post-ship on his real nexus.
 
 1. **`2d42d63` fix(adopter): adoption preview fires only on structural migration.** `AdoptionPlan.hasAnythingToAdopt` no longer triggers on `freshSidecars` — only `inPlaceRenames` (legacy v0.2 migration), `unwrapSteps` (paradigmV2 wrapper unwrap), and `warnings` (explicit issues). Non-Pommora folders at root (Obsidian organization, etc.) stay invisible to discovery instead of spamming the adoption preview every launch. Per-folder opt-in adoption UI is a future Prospect. New test: `adoptionNoOpOnUnPommoraFoldersAtRoot`.
 
@@ -252,16 +245,6 @@ V0.3.0 refinement on top of ParadigmV2. Drops the `<nexus>/Pages/`, `<nexus>/Ite
 
 **Agenda discovery:** sidecar-driven — Tasks/Events folders renameable via Finder; discovery walks root for any folder carrying `_taskconfig.json` or `_eventconfig.json`. Multi-folder pathological case: first-found wins with warning logged.
 
-**Build status:** green. **Test count: 363 passing at ship** (up from 358 at flatlayout start).
-
-**Phase-by-phase commit ranges:**
-- Phase 1 — Docs: `711d570` 1.1 root, `ad59dec` 1.2 Features, `e29f7e3` 1.3 Guidelines [parallel-session anomaly: edits to `Paradigm-Decisions.md` + `Symbols.md` landed in the editor-refactor commit `e29f7e3` instead of a dedicated `flatlayout/1.3` commit — content correct, metadata bundled with editor work], `2e78503` 1.4 Planning, `735a7a9` planning reorganization + carry-forward cleanup, `42c4ce5` mirror-to-Nexus push.
-- Phase 2 — NexusPaths: `f39f541` 2.1 add per-kind sidecar constants, `ffc42ee` 2.2 flatten PageType + PageCollection paths, `da744ab` 2.2.1 sidebar labels follow-up, `6f1add8` 2.3 flatten ItemType + ItemCollection paths, `d4c8a6c` 2.4 Agenda sidecar-driven discovery.
-- Phase 3 — Managers: `97eb523` 3.1 PageTypeManager walks root, `d2061f4` 3.3 ContentManagers per-kind sidecars, `d3825c3` 3.5 OrderPersister branches per-side + drop `PageType.itemOrder`; 3.2 (ItemTypeManager) + 3.4 (Agenda managers) verified clean — no changes required beyond Phase 2.
-- Phase 4 — Adopter: `f0833f6` 4.1+4.2 combined (scan four shapes + apply best-effort + idempotent + legacy-orphan cleanup), `464faf3` 4.3 drop wrapper helpers + `schemaSidecarFilename` + `reservedTopLevelFolderNames`, `35108d1` 4.4 AdoptionPreviewView warnings + summary.
-- Phase 5 — Tests: `fa6b1c0` 5.1 NexusPathsTests rewrite, `249beff` 5.2 NexusAdopterTests four-shapes coverage.
-- Phase 6 — Ship: `5ceca94` 6.2 Handoff + History ship entry, `f2d42fe` 6.3 swift-format auto-fixes for lint gate (line-length wraps + import dedupe + `fileprivate` hoist), plus a 6.3 doc-sync fixup — tag `flatlayout` lands on the doc-sync fixup at the tip of the Phase 6 ship cluster. 6.1 grep sweep was a no-op (production code already clean; legitimate `_schema.json` references inside NexusAdopterTests fixtures preserved per spec).
-
 **Outstanding manual step:** Nathan's nexus migration (backup + adopt + verify on real Nexus at `/Users/nathantaichman/The Nexus/`). Engineering ships in flatlayout Phase 4; user-side adoption is one click on next launch — preview describes the migration, apply executes it, idempotent if interrupted.
 
 #### ParadigmV2 — Operational-layer domain model refactor (2026-05-22 plan; SHIPPED 2026-05-23, tag `paradigmV2`)
@@ -270,21 +253,7 @@ Vault becomes Pages-only as Page Type; Item Type introduced as parallel Items-si
 
 **Locked phase sequence (11 phases):** 1) Doc rewrites → 2) PageType + PageCollection renames + `_schema.json` sidecar → 3) Subtopic → Project rename → 4) AgendaItem split → 5) New ItemType + ItemCollection subsystem → 6) Pages/Items/Agenda wrapper folders + NexusAdopter → 7) Settings scaffold → 8) Sidebar / Detail / Sheet UI restructure → 9) Tests consolidation + v0.3.0 Properties spec reconciliation → 10) Nathan's user-data migration (one-shot script) → 11) Cleanup + Framework reconciliation + ship (tag `paradigmV2`).
 
-**Execution status (2026-05-23):** **SHIPPED.** Tag `paradigmV2` pushed to origin at commit `36d48c8`. All 11 phases complete. Build green, 358 tests passing (baseline 252; +106 across Phases 4–9). Subagent-driven dispatch: each phase ships green standalone via stub-and-progressively-replace (quirk #8). Phase 2/3/4 fanned out in parallel since they touched disjoint files; Phase 5 used wave-based dispatch (5.1+5.2 → 5.3+5.4+5.5 → 5.6); Phases 7 + 8 followed the same wave pattern. **Fix-forward at `2b8ade8` pulls Phase 10's data-migration scope into NexusAdopter** — legacy root-level Vault folders are classified by content sniff (`.md` → Pages-side; user `.json` → Items-side; empty → default Pages-side) and moved into the appropriate wrapper at `apply()`, with collision handling + fresh-sidecar generation for bare folders. Phase 10 simplified to "backup + run adoption + verify" — engineering shipped, Nathan's manual step (adopt his real nexus) remains open whenever he chooses. Phase 11 closed the ship: final grep sweep cleaned 5 stale type-description docstrings; Framework.md `Current Focus` flipped from "IN FLIGHT" to "SHIPPED"; tag annotated + pushed.
-
-**Phase-by-phase commit ranges:**
-- Phase 1 — Docs: `e6ddc04`
-- Phase 2 — PageType + PageCollection renames: `b86ddf0` → `2da6d5f` → `aba8f0a` → `a0179d1` → `aeb9a35` (+ auto-heal `4df8188`)
-- Phase 3 — Subtopic → Project: `1e1fe77` → `1630586`
-- Phase 4 — AgendaItem split: `5e5b225` → `4a0d88c` → `80e326b` → `a4b497f`
-- Phase 5 — Items-side subsystem: `2e904ec` → `8c05cc3` → `d07d654` → `e4aa1e5` → `1b052bb` → `5dcbb95`
-- Phase 6 — Wrapper folders + adopter: `2eba366` → `fe277c9` → `2686799` + fix-forward `2b8ade8`
-- Phase 7 — Settings scaffold: `331f0e2` → `aad27d6` → `fc9903e` → `6e8349e` → `e299587` → `63fb39d` → `207c3ee` (+ UI fix `7f491f7`)
-- Phase 8 — Sidebar / Detail / Sheet UI restructure: `e976bb4` → `9853121` → `053abe0` → `0bb58e1`
-- Phase 9 — Tests audit + Properties plan re-derive + Handoff/History sync: `54b136b` → `cb97ae2` → `2b1a1c4`
-- Phase 11 — Grep-sweep stale docstrings + Framework reconciliation + tag push: `36d48c8` + tag `paradigmV2`
-
-**v0.3.0 Properties plan re-derived** (Task 9.2, commit `cb97ae2`). The original implementation plan at `Planning/v0.3.0-Properties-implementation.md` is now archived under `Planning/Superseded/`; the conceptual WHAT lives at `Planning/v0.3.0-Properties-spec.md`; the post-ParadigmV2 HOW lives at `Planning/v0.3.0-Properties-plan.md` (675 lines, 5 phases A–E, `ItemTypeSettingsSheet` locked to ship at v0.3.0 alongside `PageTypeSettingsSheet`).
+**Execution status (2026-05-23):** **SHIPPED.** Tag `paradigmV2` pushed to origin at `36d48c8`. All 11 phases complete. **Fix-forward at `2b8ade8` pulls Phase 10's data-migration scope into NexusAdopter** — legacy root-level Vault folders are classified by content sniff (`.md` → Pages-side; user `.json` → Items-side; empty → default Pages-side) and moved into the appropriate wrapper at `apply()`, with collision handling + fresh-sidecar generation for bare folders. Phase 10 simplified to "backup + run adoption + verify" — engineering shipped, Nathan's manual step (adopt his real nexus) remains open.
 
 **UI tint-cascade regression caught during Phase 7.5 ship.** `.tint(currentAccent)` applied to `ContentView`'s `NavigationSplitView` cascaded the accent color into the `.borderless` "New Collection" button in `PageTypeDetailView`'s footer. Fixed with `.foregroundStyle(.primary)` after `.buttonStyle(.borderless)` — keeps the borderless style but opts out of tint inheritance. Same pattern applies to any other inline button that should NOT inherit the accent.
 
@@ -356,8 +325,6 @@ Unified the two states: dashes always render at `bodyFont`, only the foreground 
 5. **HR caret-aware reveal/hide must not cause vertical layout change.** Both states share line metrics + paragraph spacing; only dash color differs. Computed spacing `max(0, 16 - bodyLineHeight / 2)` keeps the ~16pt visual margin invariant at any font size.
 6. **Dynamic-syntax services must scope per-caret-move work.** `syncHRVisibility` on `textViewDidChangeSelection` is the canonical example — only the prior + current caret paragraphs need touching. Full walks stay on `restyleTextView` and `rebuildTextStorageAndStyle` for events that can add/remove the construct anywhere.
 
-Build green; 244 unit tests passing (one pre-existing full-suite flake on `debounceCoalescesRapidEdits` unrelated to TextKit); lint exit 0.
-
 #### Session 14 — 2026-05-21 (v0.2.7.4 Nexus folder adoption SHIPPED)
 
 Obsidian-parity "open folder as Nexus." Both Nexus-open paths (`openPicked` from menu, `openExisting` from saved bookmark) now run `NexusAdopter.scan` after identity is established and present a preview-and-confirm sheet listing top-level folders → Vaults and direct sub-folders → Collections. Excludes only `.`/`_`-prefixed, `node_modules`, `.trash`, `Agenda`. Idempotent — fully-adopted Nexuses produce an empty plan and skip the sheet silently. Re-runs on every open catch newly-added folders (the indexer is the source of truth, not first-launch state).
@@ -367,8 +334,6 @@ Obsidian-parity "open folder as Nexus." Both Nexus-open paths (`openPicked` from
 `NexusManager.isIndexing` + `IndexingHUD` overlay in the sidebar give visible feedback during the scan. `pendingAdoption: AdoptionPlan?` + `withCheckedContinuation` route the sheet's user decision back into the async open flow; sheet auto-dismiss (Esc / click-outside) handled via `.sheet(item:onDismiss:)` calling idempotent `resolveAdoption(false)`.
 
 **Architecture cross-check via Context7.** Pommora's Vault + `.nexus/` structure verified identical to Obsidian's Vault + `.obsidian/` shape. The one principled divergence: Vaults need `_vault.json` and Collections need `_collection.json` because Pommora has a per-Vault property schema concept Obsidian lacks. The indexer creates those sidecars on existing folders so the user doesn't have to.
-
-**Files:** `NexusAdopter.swift` (new), `AdoptionPreviewView.swift` (new), `NexusManager.swift` (open hooks), `Filesystem.swift` (`descendantFiles` + `writeMetadataIntoExistingFolder`), `PageFile.swift` (lenient path), `ContentManager.swift` (recursive load + lenient), `PageEditorHost.swift:74` (load swap), `ContentView.swift` (sheet + HUD). Tests: `NexusAdopterTests` (11) + `PageFileLenientTests` (6); full suite 244 passing, lint exit 0.
 
 **Cleanup pass post-implementation:** auto-dismiss continuation hang fixed; redundant `String.StringInterpolation` extension removed; manual `Equatable` on `AdoptionError` replaced with auto-synth; duplicate `childFolders` enumeration in `scan` merged; `apply`'s vault-id cache populated inline as we write instead of via a separate reload pass.
 
@@ -405,39 +370,21 @@ Architecture + 4 new lessons in `Features/PageEditor.md → Dynamic-syntax patte
 
 **Open follow-ups Nathan flagged:** (1) Lists improvements — Enter on bare `-`/`*`/`1.` should commit as list item (currently only space triggers); Shift+Space inserts new list item below at same nesting. (2) Blockquote — see above; reuses dynamic-syntax pattern.
 
-Plan files now stale; Page-Editor-Plan.md's HR portion was scrubbed pre-execution. Post-ship architecture lives in PageEditor.md `Dynamic-syntax pattern`, not the plan file.
+#### Session 11 — 2026-05-20 (v0.2.7.2 page editor fixes plan LOCKED)
 
-#### Session 11 — 2026-05-20 (v0.2.7.2 page editor fixes plan LOCKED — Round 5 + Round 6 refinement)
+**No code commits.** Planning session sharpened across two rounds.
 
-**No code commits.** Planning-only via Claude.ai mobile (RC). Plan sharpened across two refinement rounds. v0.2.7.1 NavDropdown unchanged on `main` (tagged + pushed). Plan files 3-way sync: canonical at `~//.claude//plans//frolicking-enchanting-perlis.md`, Studio mirror at `.claude//Planning//Page-Editor-Plan.md`, Nexus mirror at `//The Nexus//Pommora//Planning//Page-Editor-Plan.md`.
+1. **NSTextTable rejected.** Exists since OS X 10.3 but never promoted to TextKit 2; Apple's TextEdit silently downgrades to TextKit 1 on table insertion (Krzyzanowski "TextKit 2: The Promised Land," Aug 2025). Adopting it forfeits Writing Tools, Look Up / Translate, spell-check, IME, dynamic system colors. **Core Graphics overlay drawn in `MarkdownTextLayoutFragment.draw` IS the 2026 Apple-native pattern.**
 
-**Round 5 — research-driven sharpening:**
+2. **HR cursor-atom behavior.** `---` source line stays in storage (needed for swift-markdown's ThematicBreak parse) but caret must never plant inside. `textViewDidChangeSelection` push-out (direction-aware, mirrors NSTextAttachment caret-skip); arrow keys skip past; smart-backspace from line below deletes `---\n` in one keystroke. Both interceptors guard against `isProgrammaticEdit == true`. Apple Notes parity.
 
-1. **NSTextTable rejected as Apple-native table-rendering alternative.** Via Context7 + research agents: `NSTextTable` / `NSTextBlock` / `NSTextTableBlock` exist since OS X 10.3 but never promoted to TextKit 2. Apple's TextEdit silently downgrades to TextKit 1 on table insertion (Marcin Krzyzanowski, "TextKit 2: The Promised Land," Aug 2025 — via Michael Tsai). Apple Notes uses a custom protobuf document model, NOT NSTextTable. Adopting NSTextTable would forfeit Writing Tools (15.1+), Look Up / Translate, spell-check, IME, dynamic system colors. **Core Graphics overlay drawn in `MarkdownTextLayoutFragment.draw` IS the 2026 Apple-native pattern.** Rationale in plan's Architecture decisions table.
+3. **Structural context menu added** (Nathan: "add column / add row should be on the context menu and shouldn't open the popup"). Right-click in `.pommoraTable` range surfaces row/column add → in-place AST splice via `TableStructureRewriter` (Apple `MarkupRewriter`) + `Markup.format()` GFM emission. Matches Apple Numbers/Pages/Notes (no popover).
 
-2. **HR cursor-atom behavior added (Fix 2d).** `---` source line stays in storage (needed for swift-markdown's ThematicBreak parse) but caret must never plant inside. `textViewDidChangeSelection` push-out (direction-aware, mirrors NSTextAttachment caret-skip); arrow keys skip past; smart-backspace from line below deletes `---\n` in one keystroke. Both interceptors guard against `isProgrammaticEdit == true` so Stage 3.C table-cell splices don't trip them. Apple Notes parity. Phase 2 estimate ~30min → ~45min.
+4. **Popover cell styling spec** for the Grid-hosted cell editors: `.textFieldStyle(.plain) + .focusEffectDisabled()` (`.plain` strips bg + border but NOT the focus ring); `.padding` (inner) → `.frame` (outer); `.contentShape(Rectangle())` (SwiftUI hit-tests intrinsic content, not explicit frame); `.onTapGesture` on the wrapper routes focus to the embedded TextField; `TextField(axis: .vertical)` with `.onKeyPress(.return)` (`.onSubmit` doesn't fire for vertical axis). Beyond: per-column `.multilineTextAlignment` from GFM `table.columnAlignments`; 1pt accent `.overlay` focus border; `NSCursor.iBeam` push/pop on hover.
 
-3. **Stage 3.D — structural context menu added** per Nathan's "add column / add row should be on the context menu and shouldn't open the popup." Right-click in `.pommoraTable` range surfaces "Add Row Above / Below" + "Add Column Left / Right" → in-place AST splice via new `TableStructureRewriter` (Apple `MarkupRewriter`) + `Markup.format()` GFM emission + `performEditingTransaction`. Does NOT open popover (matches Apple Numbers/Pages/Notes). Row insert preserves widths (columnCount unchanged → `pommora_table_widths` fingerprint hits); column insert resets to auto (columnCount changes → misses). Remove row/column deferred.
+5. **Blockquote target locked** as Apple Calendar event-card chrome (per Nathan's reference screenshot): grey rounded-rect card + accent bar inside at small leading inset. Multi-line blockquotes use per-fragment corner-rounding (`.only` / `.first` / `.middle` / `.last`) to render as one visually contiguous card. `BlockquoteMetadata { let sourceRange: NSRange }` attribute payload lets each fragment determine position without re-scanning storage.
 
-**Round 6 — visual + UX corrections:**
-
-4. **Popover cell styling spec corrected against Apple docs.** Gemini's 4-point recipe verified via Context7 + `swiftui-expert-skill`. **2 of 4 needed correction, 4 pieces missing.** Locked spec for each `cellField` in the popover Grid:
-   - `.textFieldStyle(.plain) + .focusEffectDisabled()` — `.plain` strips bg + border but NOT the focus ring (separate AppKit concern); need `.focusEffectDisabled()` explicitly.
-   - `.padding (inner) → .frame (outer)` — SwiftUI modifier order applies outer-in; padding-then-frame puts padding INSIDE the cell-sized frame (correct).
-   - `.contentShape(Rectangle())` — without it, taps on transparent expanded-frame area don't register (SwiftUI hit-tests intrinsic content, not explicit frame).
-   - `.onTapGesture { focusedCell = ... }` on the wrapper — expanded hit area catches tap but doesn't auto-route focus to embedded TextField; wrapper-level routing is safe.
-   - `TextField(..., axis: .vertical)` with `.onKeyPress(.return) { return .handled }` (macOS 14+) — `.onSubmit` doesn't fire for `axis: .vertical` (newline-on-Return by-design).
-   - Beyond Gemini: per-column `.multilineTextAlignment` from GFM `table.columnAlignments`; `lineLimit(1...10)` soft cap; 1pt accent `.overlay` focus border; `NSCursor.iBeam` push/pop on hover.
-
-5. **Blockquote target swapped: "Apple Notes minimal bar" → Apple Calendar event-card chrome.** Nathan supplied a Calendar Today-widget event-card screenshot. Grey rounded-rect card (6pt corner radius, `Color.primary.opacity(0.06)` fill — `NSColor.labelColor.withAlphaComponent(0.06)`) + 3pt `NSColor.separatorColor` bar INSIDE the card at ~4pt inset from leading edge. Multi-line blockquotes use per-fragment corner-rounding (`.only` / `.first` / `.middle` / `.last`) to render as one visually contiguous card. `BlockquoteMetadata { let sourceRange: NSRange }` attribute payload (upgraded from `Bool`) lets each fragment determine position without re-scanning storage. Mirrors `drawCodeBlockBackground`'s CGPath + bg-fill pattern. `paragraphStyle.headIndent = 20` (4pt card-edge → 3pt bar → 13pt clear → text). Aligns plan with `Features/Pages.md` (described it as "Calendar.app event-card pattern" all along). Phase 1 estimate ~25min → ~45min.
-
-6. **Version bumped: v0.2.7.1 → v0.2.7.2 for this plan.** NavDropdown took v0.2.7.1. Sequence: `v0.2.7.0` engine swap (S9) → `v0.2.7.1` NavDropdown (S10) → `v0.2.7.2` page editor fixes. Tables custom grid (was v0.2.7.3) absorbs into v0.2.7.2 Phase 3.
-
-**Plan-only meta:** 24 parallel edits in 3-way plan file sync for blockquote re-spec; ~36 total plan-file edits across Rounds 5+6. All three files byte-identical (modulo Nexus mirror's supersession header). Total estimate ~7.5h across 3 phases / 4 stages (Phase 1 ~45min + Phase 2 ~45min + Phase 3 ~6h). 9 new test suites scoped: `BlockquoteTests`, `HRAutoTransformTests`, `HRCursorAtomTests`, `TableRenderingTests`, `TableColumnWidthTests`, `TablePopoverEditTests`, `TablePopoverCellInteractionTests`, `TableStructureEditTests`, extended `PageFrontmatterTests`. Phase commit cadence: Phase 1 → Phase 2 → Stage 3.A → 3.B → 3.C → 3.D. Each green standalone.
-
-**Doc deltas (no code):** `// Planning//Page-Editor-Plan.md` (Studio), `~//.claude//plans//frolicking-enchanting-perlis.md` (canonical), `//The Nexus//Pommora//Planning//Page-Editor-Plan.md` (Obsidian mirror) — Round 5+6 updates. `Handoff.md` — new "Current State (end of 2026-05-20)" + v0.2.7.2 priority + updated resume prompt. `Framework.md` — patch list reflects v0.2.7.2 plan-locked; Planned section rewritten; cumulative history entry added. `Features//PageEditor.md` — deferred patches table rewritten; v0.2.10 → v0.3.2 wikilinks references; v0.2.9 marked unscheduled. `Features//Pages.md` — stale v0.2.7.2 NavDropdown references corrected to v0.2.7.1 (shipped without the preview-then-expand mechanic). `PommoraPRD.md` — Editor row stack updated (Option 2 hypothetical → Option 1 native TextKit-2 SHIPPED at v0.2.7.0). `CLAUDE.md` Active Version — v0.2.7.2 plan-locked status.
-
-**Tooling used:** Context7 MCP (Apple SwiftUI docs for TextField axis / textFieldStyle / onKeyPress / NSPopover); `swiftui-expert-skill` (text-patterns / focus-patterns / macos-views / latest-apis references); targeted research agents for NSTextTable verdict (Krzyzanowski blog + Apple Forums); plan-file 3-way sync via parallel Edit calls.
+6. **Version sequence locked:** v0.2.7.0 engine swap → v0.2.7.1 NavDropdown → v0.2.7.2 page editor fixes. Tables custom grid (was v0.2.7.3) absorbs into v0.2.7.2 Phase 3.
 
 ---
 
@@ -447,135 +394,47 @@ Session 10 second half. Nathan: "this session produced lots of data layers, and 
 
 **Scope cuts Nathan called for:** (1) remove standalone preview-window machinery entirely — feature-specific window plumbing rots; the real PreviewWindow is a cross-feature primitive (build once, light up per kind); (2) replace hover-heart favorites with right-click "Pin" context menu — rename Favorites → Pinned across class, file, JSON key, UI; (3) mid-session add: detail-view context menus on Page + Item rows inside Vault/Collection views don't work — fix in same patch.
 
-**Commits (8, all on `main`):**
-- `4def823` v0.2.7.2.1-a.1 — Strip standalone-window machinery: deleted `EntityRef.swift`, `EntityWindowHost.swift`, `EntityRefTests.swift`, `WindowGroup(for: EntityRef.self)` scene; replaced `SidebarSelection.init?(entityRef:)` with `init?(stateRef:)`; updated `BackForwardButtons` + `NavDropdownButton`; renamed `MainWindowRouter.Intent.expandFromWindow` → `.directNavigation` (`requestExpand` → `requestOpen`); deleted `ContentManager.findPage(byID:vaultManager:)`. **406 deleted, 58 added.**
-- `406e585` v0.2.7.2.1-a.2 — Favorites → Pinned rename: `FavoritesManager` → `PinnedManager`, JSON key `favorites` → `pinned` with backward-compat decode (`favoritesLegacy = "favorites"` CodingKey fallback), `AppGlobals.favoritesManager` → `AppGlobals.pinnedManager`, `ContentView.favoritesManager` updated, `NavDropdownButton.PanelMode.favorites` → `.pinned` + `pinnedSnapshot` + `pinnedList` + empty-state "Right-click to pin". Two new `NexusStateTests` cover legacy-key decode + encoder-doesn't-emit-favorites.
-- `d524b09` v0.2.7.2.1-a.3 — `EntityRow` rewrite: removed hover-heart Button + `isFavorite` / `favoriteAction`; added `isPinned` / `pinAction`; repurposed `@State hovering` to drive row-background tint (`Color.primary.opacity(0.06)` in 6pt rounded rect); added `.contextMenu { Button("Pin {chip}" | "Unpin {chip}") { pinAction() } }`. NavDropdownButton sites updated.
-- `9c96405` v0.2.7.2.1-a.4 — Click model rewire: removed `.onChange(of: selection) { handleOpen }` handlers (single-click was firing open — wrong UX). Single-click only updates List's selection binding (native row highlight). Double-click fires `.onTapGesture(count: 2) { handleOpen(ref) }`.
-- `3f768cb` v0.2.7.2.1-b.1 — Detail-view context menus: `VaultDetailView` + `CollectionDetailView` add `.contextMenu` on Page + Item rows with Rename (alert + TextField → `ContentManager.renamePage` / `renameItem` per vault-root vs collection parent), Pin / Unpin {kind} (toggles `AppGlobals.pinnedManager`), Delete (mirrors sidebar no-confirmation pattern). `VaultDetailView` uses `parent(for:)` helper scanning vault-root then collections. **+274 / -10 lines.**
-- `68d497e` v0.2.7.2.1-a.5 — Bugfix double-click open: `.onTapGesture(count: 2)` inside SwiftUI List on macOS gets intercepted by NSTableView's selection handler. Switched to `.simultaneousGesture(TapGesture(count: 2))` so gesture coexists with List's row-click. Added Task-based lazy-load fallback in `handleOpen` — when `SidebarSelection(stateRef:)` returns nil for a page (host collection not loaded), walk `vaultManager.vaults` + `contentMgr.loadAll(for:)` retrying at each step.
-- `4ad9156` v0.2.7.2.1-a.6 — Bugfix collections + routing: (1) wired `.collection` case in `SidebarSelection.init?(stateRef:)` — leftover `return nil` blocked collection rows from opening; SidebarDetailView already routes `.collection` → CollectionDetailView. (2) Bypassed `AppGlobals.mainWindowRouter` @Observable hop for the dropdown (didn't propagate reliably from popover view host — same root cause as empty-Recents bug). NavDropdownButton gains `onOpen: (SidebarSelection) -> Void`; ContentView passes `{ sel in sidebarSelection = sel }`. Direct @State binding write, reliable across view-host boundaries. MainWindowRouter stays for back/forward.
-- (final commit) — v0.2.7.1 ship: doc updates (Handoff / NavDropdown.md / CLAUDE.md Active Version / History entry / session transcript), GitHub CI removed (`.github/workflows/ci.yml` — Nathan: failure emails), new architectural rule at `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` (PreviewWindow primitive ships per kind before any "open in preview" UI for that kind).
+**Ship summary:** standalone-window machinery stripped (deleted `EntityRef.swift`, `EntityWindowHost.swift`, `EntityRefTests.swift`, `WindowGroup(for: EntityRef.self)` scene; replaced `init?(entityRef:)` with `init?(stateRef:)`). Favorites → Pinned rename across `PinnedManager` + JSON key (`pinned`, with `favorites` backward-compat decode) + `EntityRow` (hover-heart removed; right-click "Pin" / "Unpin" instead). Click model: single-click selects in List, double-click opens via `.simultaneousGesture(TapGesture(count: 2))` (plain `.onTapGesture(count: 2)` gets intercepted by NSTableView's selection handler). Detail-view rows (`VaultDetailView`, `CollectionDetailView`) gained `.contextMenu` with Rename / Pin / Delete. Bypassed `AppGlobals.mainWindowRouter`'s `@Observable` hop for the dropdown (didn't propagate reliably from popover view host) — `NavDropdownButton` takes an `onOpen` closure that writes the parent's `@State sidebarSelection` directly. GitHub CI removed (`.github/workflows/ci.yml`).
 
-**Version note:** committed/tagged `v0.2.7.1` despite chronologically following `v0.2.7.2`. `v0.2.7.2` stays in git history as "first NavDropdown attempt (functional but UIX-deferred)"; v0.2.7.1 is canonical shipped NavDropdown. Planned v0.2.7.1 Page-editor-touch-ups slot shifts to a later patch number.
+**Version note:** committed/tagged `v0.2.7.1` despite chronologically following `v0.2.7.2`. `v0.2.7.2` stays in git history as "first NavDropdown attempt (functional but UIX-deferred)"; v0.2.7.1 is canonical shipped NavDropdown.
 
-**Tests:** 226 pass (v0.2.7.2 baseline 227 - 3 deleted EntityRefTests + 2 new NexusStateTests).
-
-**Doc / arch deltas:** `Guidelines/CRUD-Patterns.md` — new "Preview-window prerequisite": PreviewWindow primitive ships per kind before any "open in preview" UI for that kind; CRUD lands independently (deleted EntityWindowHost is the cautionary tale). `Features/NavDropdown.md` — Status v0.2.7.1; version-supersedes note; "Future implementation" with 4 deferred items (preview-window wiring, drag-to-reorder Pinned fix, type-chip removal, segmented-picker polish). `Handoff.md` — full rewrite for v0.2.7.1 close + next priorities (page editor touch-ups / sidebar drag-reorder / v0.3.0 Properties / PreviewWindow primitive). `.github/workflows/ci.yml` deleted.
-
-**Files renamed:** `FavoritesManager.swift` → `PinnedManager.swift`, `FavoritesManagerTests.swift` → `PinnedManagerTests.swift`.
-
-**Files deleted:** `EntityRef.swift`, `EntityWindowHost.swift`, `EntityRefTests.swift`, `ContentManager.findPage(byID:vaultManager:)` (method), `.github/workflows/ci.yml`.
+**New architectural rule:** `Guidelines/CRUD-Patterns.md → Preview-window prerequisite` — the PreviewWindow primitive ships per kind before any "open in preview" UI for that kind. CRUD lands independently (deleted EntityWindowHost is the cautionary tale).
 
 ---
 
-#### RC Session — 2026-05-19 (v0.3.0 Properties brainstorm + spec + tighten)
+#### RC Session — 2026-05-19 (v0.3.0 Properties brainstorm + spec)
 
-**No code commits.** Docs + planning via Claude.ai mobile (RC). Edits authored in `// The Nexus//Pommora//` mirror first; deployed to `// The Studio//Projects//Project Pommora//.claude//` end of session.
+**No code commits.** Docs + planning session that locked the v0.3.0 Properties shape before implementation.
 
-**Shipped (docs only):**
-1. **`Planning//v0.3.0-Properties-implementation.md`** (NEW, ~5000 words) — implementation spec grounded in Pommora Swift code (file:line citations to PropertyType / PropertyDefinition / PropertyValue / Vault / PropertyEditorRow / FrontmatterInspector / AgendaSchema). Four phases (model → manager → UI → validation/tests). 14 locked decisions. v0.3.x sub-sequence: .0 Properties / .1 Items pane / .2 Page-wikilinks / .3 SQLite. Estimate 7-10 sessions.
-2. **`Planning//v0.3.0-Properties-uncertainty-log.md`** (NEW) — top 5 blockers (PropertyValue Status-vs-Select decode collision; RelationScope migration; multi-file atomic-write recovery; Sendable on new types; missing test coverage); SwiftUI patterns via Context7 (`TableColumnForEach`, `TableColumnCustomization`, `KeyPathComparator`, drag-between-Sections); 7 open design questions; edge cases; 16 new files + 15 modifications + 3 reserved; migration checklist.
-3. **`Planning//Roadmap-Reorder-Tier-Model.md`** (NEW) — tier model framing (Tier A polish v0.2.7.x → Tier B foundation v0.3.x-v0.7.0 → Tier C interaction v0.8.0+). Same total work as Framework; cleaner naming.
-4. **`Features//Properties.md`** (revised) — 10-type catalog (added Status + Last Edited Time); Status type with EventKit-aligned 3 groups (Upcoming / In Progress / Done); Relation scope rework (Vault/Collection/ContextTier, no anywhere); mandatory dual relations for Vault/Collection; option-move-between-groups; no-inline-option-creation; property icons; Vault Settings sheet as central edit surface.
-5. **`Features//Vaults.md`** (revised) — `_vault.json` example with new RelationScope shape + dual config + Status property + default_sort; Vault Settings sheet (6 sections); Vault templates removed; content templates reservation pointer.
-6. **`Features//Items.md`** (revised) — v0.5 refs → v0.3.0 / v0.3.1; Item Window redesign retargeted v0.3.1; Item creation surfacing lands v0.3.0.
-7. **`Features//Agenda.md`** (revised) — new "Built-in `status` property" with EventKit-aligned groups + sync mapping; schema JSON example updated; migration shim.
-8. **`Framework.md`** (revised) — v0.3.x sub-sequence locked; v0.4.0 slimmed to Trash UI + cascade refinements (SQLite + move-strip pulled into v0.3.x); 2026-05-19 cumulative history entry.
-9. **`PommoraPRD.md`** (revised) — Property Model rewritten (10 types, Status first-class, paired relations mandatory, no inline option creation, schema editor centralized).
-10. **`Sidebar.md`** + **`Domain-Model.md`** (minor) — Vault Settings entry point; Properties section updated with v0.3.0 catalog.
-
-**RC-session locked decisions** (14 in implementation spec): 10-type property catalog (number / checkbox / date / datetime / select / multi-select / URL / relation / **status** / **last edited time**); Status: 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done), group labels renamable, slots structural; relation scope: Vault / Collection / Context-tier, mandatory dual for Vault/Collection; no inline option creation — schema editor + right-click "Edit options…" + "Manage options…" link only; property icons (SF Symbol per property); Vault Settings sheet: 6 sections (3 functional v0.3.0 + 3 placeholders v0.6.0); Collection picker UX: 2-step Vault→Collection at schema time, Collection-grouped at value time; Vault templates REJECTED in favor of post-v1 content templates (storage location + Codable sketch reserved); property names remain key (rename-cascade via SchemaTransaction two-phase commit); no `.anywhere` relation scope; Move-strip pulled v0.4.0 → v0.3.0 (tightly coupled to schema); AgendaSchema migration shim for built-in Status injection on legacy schemas; MultiSelectChips: signature changes to `[SelectOption]` for color rendering, `allowsAddingOptions` flag removed; SchemaEditorRouter `@Observable` for shortcut routing to Vault Settings at specific property.
-
-**Tooling used:** Context7 MCP (Notion API + Apple SwiftUI docs); Explore agent inventory of Pommora Swift code; cross-reference against existing Pommora docs.
+**Locked decisions** (carried forward into the shipped v0.3.0 work): 10-type property catalog (number / checkbox / date / datetime / select / multi-select / URL / relation / **status** / **last edited time**); Status type with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done — group labels renamable, slots structural); relation scope: Vault / Collection / Context-tier (no `.anywhere`), mandatory dual for Vault/Collection; no inline option creation — schema editor only; property icons (SF Symbol per property); Vault Settings sheet as central edit surface; Vault templates rejected in favor of post-v1 content templates; move-strip pulled v0.4.0 → v0.3.0 (tightly coupled to schema); AgendaSchema migration shim for built-in Status injection on legacy schemas; SchemaEditorRouter `@Observable` for shortcut routing.
 
 ---
 
-#### Session 9 — 2026-05-18 (continued — **v0.2.7.0 SHIPPED + PUSHED to origin in 10 commits**)
+#### Session 9 — 2026-05-18 (v0.2.7.0 SHIPPED — native TextKit 2 editor)
 
-Executed Session-8 plan + live-feedback iteration with Nathan after first launch. Native TextKit-2 Page editor **LIVE on `origin/main` at `9a0b383`, tagged `v0.2.7.0`**. 197/197 tests pass; build green; lint exit 0; engine builds standalone. (Prior "198" doc refs were off-by-one — current XCTest count verified by spot-check.)
+Native TextKit-2 Page editor shipped on `origin/main` at `9a0b383`, tagged `v0.2.7.0`. After Phase A-G of the Pallepadehat WKWebView fork failed Nathan's visual baseline, demo of `nodes-app/swift-markdown-engine` sealed the pivot. Session stripped the fork, vendored the engine, wired Pommora's editable title + body-binding chain, added UX polish driven by Nathan's first-look feedback.
 
-**The pivot that mattered:** Phase A-G shipped on the Pallepadehat WKWebView fork (`Natertot215/PageEditorMD`). Phase G's smoke test failed Nathan's visual baseline despite Apple-typography work + transparent-bg defensive layers. Two pivots: brief Milkdown + Crepe candidate (also WKWebView), then a demo of `nodes-app/swift-markdown-engine`'s native TextKit-2 editor sealed it. Session 9 stripped the fork, vendored the engine, wired Pommora's editable title + body-binding chain, added UX polish passes driven by Nathan's first-look feedback. **Nathan: stoked and surprised at how good it looks.**
+**Ship summary:**
+- Pallepadehat fork stripped (pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone removed).
+- `swift-markdown-engine` vendored at `External/MarkdownEngine/` (Apache 2.0, local Swift Package). Apple swift-markdown 0.8.0 added as SPM dep. Minimal Swift-6 patches to engine sources (`@MainActor` on Input/Styling struct types + `nonisolated` overrides with `MainActor.assumeIsolated` bodies on `MarkdownTextLayoutFragment`).
+- PageEditorView body swapped to `NativeTextViewWrapper`; editable title TextField preserved exactly.
+- Character-pair auto-pair (`**`/`__`/`[[`/`` ` ``) added to engine's `MarkdownInputHandler`; auto-unpair on backspace (`*|*` / `**|**` / `[[|]]` / `` `|` `` backspace deletes both halves as single undo step).
+- **Apple-AST supplemental styler**: walks `Document(parsing:)` AST for BlockQuote/Strikethrough/Table/ThematicBreak (the GFM block types the engine's regex tokenizer doesn't cover). Composes additively on top of primary `MarkdownStyler`.
+- **Expanded right-click menu**: Format (Bold/Italic/Strikethrough/Inline Code/Link) + Heading (H1-H4) + Lists (Bullet/Numbered) + Block submenu (Blockquote/Code Block/Table/Horizontal Rule). H5/H6 removed (render smaller than body text).
+- **HR-as-real-line**: `---` renders as 1pt full-width horizontal line via custom `MarkdownTextLayoutFragment.drawThematicBreak` (dashes hidden via font-0.1 + clear foreground; range tagged with `.pommoraThematicBreak`). **Table source markup hidden**: pipes + separator row invisible (cell content styled). **Enter on title → body focus**: `focusBodyEditor()` walks `NSApp.keyWindow.contentView` for first NSTextView and makes it first responder.
+- Title focus via `@FocusState` (`titleFocused = false` on submit before `focusBodyEditor()` so TextField cleanly relinquishes focus).
 
-**Commits (all on `main`):**
-- `1c6e270` v0.2.7-h.0 — docs repair reconciling Session-8 engine-swap decision (Handoff/Framework/History/CLAUDE/Planning)
-- `3d23f52` v0.2.7-h.1 — Pallepadehat fork stripped (6 pbxproj entries + Package.resolved pin + `network.client` entitlement + External/PageEditorMD/ clone removed); body editor replaced with Phase-4 placeholder Text
-- `ad2b879` v0.2.7-h.2 — swift-markdown-engine vendored as local Swift Package at `External/MarkdownEngine/` (Apache 2.0, 46 .swift files); Apple swift-markdown 0.8.0 exact added as Pommora SPM dep; minimal Swift-6 patches to engine sources (`@MainActor` on MarkdownInputHandler / MarkdownLists / MarkdownStyler / TextStylingService structs + MarkdownTextLayoutFragment overrides as `nonisolated` with `MainActor.assumeIsolated` bodies + selector-based notification observers in NativeTextViewCoordinator)
-- `4fafed0` v0.2.7-h.3 — PageEditorView body swapped to `NativeTextViewWrapper(text: $viewModel.body, configuration: .default, fontName: "SF Pro Text", fontSize: 15, documentId: viewModel.page.id)`; editable title TextField preserved exactly; Apple swift-markdown 0.8.0 also added as engine-side dep (groundwork for deferred Phase 3)
-- `b7a2535` v0.2.7-h.4 — character-pair auto-pair (`**`/`__`/`[[`/`` `` ``) added to engine's `MarkdownInputHandler.handleCharacterPairAutoPair(...)`; wired into NSTextViewDelegate's `shouldChangeTextIn` chain after image-embed auto-wrap, before list insertion; suppressed inside code blocks + when next char is close marker
-- `9756f68` v0.2.7-h.5 — initial Session-9 doc ship-out across Handoff/Framework/History/CLAUDE reflecting v0.2.7 LIVE state
-- `9b97393` v0.2.7-h.6 — doc self-correction: commit count + main SHA references in the h.5 doc tables (h.5 itself shifted main, its own SHA wasn't in the table it authored)
-- `9e13c95` v0.2.7-h.7 — UX fixes batch: title-body padding 4 → 20pt; body editor `textInsets(horizontal: 24)` so body aligns under title; **auto-unpair on backspace** (`*|*` / `**|**` / `[[|]]` / `` `|` `` backspace deletes both halves, single undo step)
-- `54d1ddd` v0.2.7-h.8 — **Apple-AST supplemental styler**: walks `Document(parsing:)` AST for BlockQuote/Strikethrough/Table/ThematicBreak (the GFM block types the engine's regex tokenizer doesn't cover). Composes additively on top of primary `MarkdownStyler`. Plus **expanded right-click menu**: Format (Bold/Italic/Strikethrough/Inline Code/Link) + Heading (H1-H6) + Lists (Bullet/Numbered) + new Block submenu (Blockquote/Code Block/Table/Horizontal Rule). 9 new `@objc` insert handlers
-- `6719e11` v0.2.7-h.9 — **HR-as-real-line**: `---` renders as a 1pt full-width horizontal line via custom `MarkdownTextLayoutFragment.drawThematicBreak`. Dashes hidden via font-0.1 + clear foreground; range tagged with new `.pommoraThematicBreak` attribute. **Table source markup hidden**: all `|` pipes + the `|---|---|` separator row invisible (cell content stays styled). **Enter on title → body focus**: `focusBodyEditor()` walks `NSApp.keyWindow.contentView` for first NSTextView and makes it firstResponder
-- `9a0b383` v0.2.7-h.10 — **HR draw-detection fixed**: `drawThematicBreak` now scans the whole fragment range via `enumerateAttribute` instead of only checking the first char (root cause: fragment range often starts at leading newline that doesn't carry the attribute). **Title focus via `@FocusState`**: `titleFocused = false` on submit before `focusBodyEditor()` so TextField cleanly relinquishes focus (was: stayed focused + auto-selected). **H5/H6 removed** from Heading submenu (render smaller than body text at Pommora's typical scales)
+**Plan deviations:** engine vendored at `External/MarkdownEngine/` as a local Swift Package (plan said `Pommora/Pommora/PageEditor/Engine/` raw) — package boundary isolates the engine's Swift 5.9 concurrency contract from Pommora's Swift 6 strict-concurrency + ExistentialAny. AST tokenizer/styler rewrite (Phase 3) deferred to v0.2.7.1; engine ships with its existing regex-based tokenizer.
 
-**Plan deviations from `// Planning//v0.2.7-engine-swap.md`:**
+**Carried to v0.2.7.1:** AST tokenizer/styler rewrite; selection-wrap auto-pair + auto-exit; split Pages.md editor-UX content into `Features/PageEditor.md`; `PommoraWikiLinkResolver` conformance to engine's `WikiLinkResolver`.
 
-1. **Engine location** — plan said `Pommora/Pommora/PageEditor/Engine/` (raw vendoring); shipped at `External/MarkdownEngine/` (local Swift Package). Pommora's Swift 6 strict-concurrency + ExistentialAny clashed with engine's Swift 5.9 idioms — package boundary isolates the concurrency contract, avoiding cascading `@MainActor` across 46 files. Engine fully editable (we own External/ copy).
+#### Session 7 — 2026-05-18 — v0.2.7 Phase A-G ship + Milkdown pivot (later superseded)
 
-2. **Phase 3 deferred to v0.2.7.1** — plan's `MarkdownTokenizer.parseTokens(in:)` body swap to walk `Document(parsing: text)` AST + emit `[MarkdownToken]` shims (+ surgery on `MarkdownStyler.styleAttributes` + delete `MarkdownTokenizer+Emphasis.swift` and 6 `MarkdownStyler+*` extensions) deferred. Pommora-side files (`PommoraMarkdownStyler` / `PommoraInlineScanner` / `SourceRangeToNSRange` / `MarkersShrinker`) at `Pommora/Pommora/PageEditor/Styler/` morph into in-engine rewrites at v0.2.7.1. Apple swift-markdown 0.8.0 already wired in `External/MarkdownEngine/Package.swift` as groundwork. Engine ships v0.2.7 with existing regex-based tokenizer + styler — table / blockquote / strikethrough / ThematicBreak arrive with Phase 3.
+SPM dep on Pallepadehat fork → full domain layer + 10 tests → editor wires end-to-end → polish iterations post-smoke → Phase G fork-side polish (drop active-line, custom fold chevron, `markdown-autopair.ts`, Apple typography overhaul SF Pro Text/Display/Mono 28/22/17/15/13/13pt, triple-clear transparent-bg `!important`). Nathan smoke-tested Phase G; visual baseline still didn't ship Notion-like polish — decision to swap to Milkdown + Crepe (Crepe `frame` theme as default; vendor wrapper as source inside Pommora's tree, not SPM dep). Session 8 reconsidered both and pivoted again to native TextKit-2 — see Session 9.
 
-3. **Phase 4.5 trimmed** — basic character-pair auto-pair ships (insertion only). Selection-wrap (`*` on selected text → `*text*`) + auto-exit-on-whitespace defer to v0.2.7.1. 11-test auto-pair suite also defers.
+**Survives swap (verified preserved across both pivots):** PageRef, PageFile, PageMeta, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, Pommora.entitlements, title-banner VStack + `.inspector` pattern.
 
-**Session-9 close & v0.2.7.0 release:**
-- Tagged `main@9a0b383` as `v0.2.7.0`; pushed `main` + tag to `origin/main`. First origin push since v0.2.0 series; CI runner `runs-on: macos-26` resolution is the open question.
-- Roadmap reorder: NavDropdown (was v0.2.8) → v0.2.7.2; Tables custom = v0.2.7.3; Sidebar reordering + drag = v0.2.7.4 (new). `NavDropdown.md` + `PommoraPRD.md` still reference NavDropdown as v0.2.8 — Nathan's other session reconciles.
-- Live-feedback iteration loop took ~5 commits (h.7 → h.10) — highest-value part of the session. Pattern worth preserving for polish phases.
-
-**What's still broken (v0.2.7.1 scope):**
-- **Blockquote (`>`)** — current rendering is dimmed-text + bg tint + 20pt indent (h.8 supplemental styler). Apple-Notes-style needs vertical accent bar on leading edge + heavier bg shading. Replicable via `MarkdownTextLayoutFragment.draw` pattern — add `drawBlockquote(at:in:)` analogous to `drawCodeBlockBackground`; tag ranges with `.pommoraBlockquote: true`. Small lift.
-- **HR (`---`)** — three fixes: auto-transform lock on typing (further `-` after `---` shouldn't extend); inset visual width by `textInsets.horizontal`; color confirm. Same pattern as existing draw hook.
-
-Both replicable from Apple Notes / TextEdit native behaviors — not research-grade. Scoped to v0.2.7.1.
-
-**Time-cost driver of deviations:** Swift 6 strict-concurrency cascades on vendored engine source. ~30% of session diagnosing `MarkdownTextLayoutFragment` NSTextLayoutFragment-override isolation mismatches + `NativeTextViewCoordinator` notification-observer Sendable failures before pivoting to local-SPM Swift-5.9-package strategy. Pivot resolved the cascade — engine needed only ~5 minimal `@MainActor` annotations on Input/Styling struct types to build clean.
-
-**Architectural assurances intact:** Files-are-canonical (editor writes `.md` via `viewModel.body` → 300ms debounced save → `ContentManager.updatePage` → `PageFile.save` → `AtomicYAMLMarkdown.write` atomic temp+rename); frontmatter preservation (editor binds only to body, YAML stripped by `AtomicYAMLMarkdown.load`, re-serialized on save from typed `viewModel.page.frontmatter`); page-switch flush via PageEditorHost `.task(id:)` await `old.close()`; window-close / app-quit flush via AppGlobals lifecycle observers; editable title TextField at `PageEditorView.swift:53-63` preserved per plan; all 197 tests pass (none touched MarkdownEditor types — domain is editor-library-agnostic).
-
-**Carried to v0.2.7.1:** Phase 3 substantive (AST tokenizer/styler rewrite); Phase 4.5 polish (selection-wrap + auto-exit + 11-test suite); Phase 6 (split `.claude/Features/Pages.md` editor-UX content into `Features/PageEditor.md`); `PommoraWikiLinkResolver` conformance to engine's `WikiLinkResolver` (v0.2.10 wikilink autocomplete + rename cascade); engine actor-isolation warning at `NativeTextViewWrapper.swift:213` (fix in same Phase 3 pass).
-
-#### Session 7 — 2026-05-18 (second long session) — v0.2.7 Phase A-G ship + Milkdown pivot
-
-Sprawling session: SPM dep on Pallepadehat fork → full domain layer + 10 tests → editor wires end-to-end → 5 polish iterations post-smoke → 2 fork-side polish iterations (Phase G #1 + #2) → Nathan-driven decision to swap to Milkdown + Crepe.
-
-**Commits on `main` (8, none pushed):**
-- `1df93a6` v0.2.7-a — SPM dep on `Natertot215/PageEditorMD` (Pallepadehat fork, branch=main)
-- `ca33210` v0.2.7-b — Domain layer (PageRef + updatePage + PageEditorViewModel + 10 tests) + icon migration
-- `74d1ea9` v0.2.7-c1 — Pommora.entitlements + CODE_SIGN_ENTITLEMENTS (4 keys: app-sandbox / user-selected.read-write / bookmarks.app-scope / network.client)
-- `14e1c8a` v0.2.7-c2 — AppGlobals (weak VM registry + lifecycle flush observer) + AppState.pageInspectorOpen + PommoraApp.init bootstrap
-- `62f4b7b` v0.2.7-c3 — Editor end-to-end: FrontmatterInspector + PageEditorView + PageEditorHost (`.task(id:)` page-switch flush) + sidebar wire
-- `599ee2f` v0.2.7-c4 — Inspector dedupe + title banner (read-only)
-- `454d153` v0.2.7-c5 — Editable title (TextField → renamePage → file rename) + inspector at NavigationSplitView level
-- `dcb1ab0` v0.2.7-c5.1 — Inspector toggle INSIDE `.inspector(...)` closure (fixes left-side placement)
-- `6882ea9` v0.2.7-c5.2 — Sidebar page-switching regression fix (`@State var viewModel` → `@Bindable` + `.id(vm.page.id)`)
-- `2226fbe` v0.2.7-g — Package.resolved bump to fork `4fd91d6` (Phase G #1)
-- `1989fac` v0.2.7-g.2 — Package.resolved bump to fork `addaa23` + SwiftUI `.background(Color.clear)` defensive layer
-
-**Fork commits at `Natertot215/PageEditorMD` (all pushed):**
-- `4fd91d6` — Phase G #1: drop active-line highlighting + Notes-style fold chevron + markdown-autopair.ts + tighter heading→body spacing + Apple typography overhaul (SF Pro Text body, SF Pro Display headings, SF Mono code, 28/22/17/15/13/13pt scale) + transparent bg CSS
-- `a146a28` — Swift WKWebView triple-clear (drawsBackground KVC + underPageBackgroundColor + NSView layer bg)
-- `addaa23` — `!important` on transparent bg rules to win over xcode theme
-
-**Tests:** 186/186 → 198/198 (+12 in Phase B). Lint + build green throughout.
-
-**Smoke-test + Milkdown decision:** Nathan smoke-tested Phase G post-clean-build; visual baseline still didn't ship Notion-like polish. Context7 research on Milkdown + Crepe: `@milkdown/crepe` is the polished out-of-box wrapper with `frame` / `crepe` / `nord` themes; `remark-directive` handles `:::callout` natively; custom inline nodes follow standardized 5-component pattern. Round-trip risk = body stylistic normalization (list marker / fence / heading style), accepted for primary single-source-of-truth use case.
-
-**Locked decisions for the swap (Session 8 implements):**
-- **Vendor wrapper as source inside Pommora's tree** (`Pommora/Pommora/PageEditor/` + `web/`), NOT SPM dep, NOT fork. Nathan needs to see every line.
-- **Crepe's `frame` theme (most macOS-native) as default**. Pommora-brand styling layer comes AFTER baseline ships.
-- **Defer Pommora extensions:** `:::callout` + `@Columns` → v0.2.9 (remark-directive). `[[wikilinks]]` → v0.2.10 (5-component plugin).
-- **Stay WYSIWYG / Live Preview editing** (Crepe defaults).
-
-**Survives swap:** PageRef, PageFile, PageMeta, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, Pommora.entitlements, all 198 tests, title-banner VStack + `.inspector` pattern.
-
-**Stripped:** 6 pbxproj SPM entries for `MarkdownEditor`, Package.resolved entry for PageEditorMD, `import MarkdownEditor`, `pommoraEditorConfig`, Pallepadehat-specific `EditorWebView(...)`. The fork at `Natertot215/PageEditorMD` stays in git history as a parked branch.
-
-**Sub-plan:** `.claude/Planning/v0.2.7-milkdown-swap.md` with three research areas (Strip / Setup / Construct styling) + verbatim resume prompt.
-
-**Effort:** ~2.5-3 sessions to ship feature-equivalent + better UI baseline.
-
-**Quirk added this session:** branch-pinned SPM forks don't bump via gentle `xcodebuild -resolvePackageDependencies` — need full nuke of `Package.resolved` + `DerivedData/.../SourcePackages` + `~/Library/Caches/org.swift.swiftpm/repositories/<DepName>-*`. Documented in `v0.2.7-g` commit message.
+**Quirk added (#13 in `CLAUDE.md`):** branch-pinned SPM forks don't bump via gentle `xcodebuild -resolvePackageDependencies` — need full nuke of `Package.resolved` + `DerivedData/.../SourcePackages` + `~/Library/Caches/org.swift.swiftpm/repositories/<DepName>-*`.
 
 #### Founding decisions (2026-05-16…18) — superseded
 
@@ -611,7 +470,7 @@ A new operating protocol installed in `// Guidelines//Paradigm-Decisions.md`: fu
 
 **Paradigm scaffolding — branch `paradigm-scaffolding`, session 2 (2026-05-17).** Tasks 45-65 shipped (21 commits, **69 total ahead of `main`**). UI tier end-to-end: SidebarSheet + SidebarConfirmation enums; SidebarView four-section layout (Saved / Spaces / Topics / Vaults) with SelectionTag; 5 row views (SpaceRow / TopicRow / SubtopicRow / VaultRow / CollectionRow + ParentSpaceTags); 10 sheets (NewSpace / NewTopic / NewSubtopic / NewVault / NewCollection / NewPage / NewItem / EditTopicParents / SpaceColorPicker + ColorPickerSheet / IconPickerSheet wrapping SymbolPicker); detail-pane tier (ContentItem + DetailRow + ContextDetailPlaceholder / VaultDetailView + CollectionDetailView with native `Table(_:children:)` / SidebarDetailView dispatcher); ItemWindow tier (MultiSelectChips + FlowLayout / PropertyEditorRow / ItemWindow popover with title + icon + description + property editors + tier1/2/3 read-only); ContentView 8-manager wiring with real `contextProvider` closures via in-body snapshot-capture. **177 tests, 0 failures, 0 warnings, entitlements verified.** SymbolPicker 1.6.2 via SPM.
 
-Code review at session end (CodeRabbit + synthesis) — 45 findings, ~10 real. Four-commit cleanup plan in `Handoff.md`: (1) dead-code purge (`SheetStubView` + v0.1a FolderTree trio); (2) sidebar UX restructure per right-click-context-menu direction + row commit() draft-loss fix; (3) Pages-under-Vaults/Collections sidebar disclosure; (4) atomicity + error-surfacing (6 rename sites, pendingError-on-CRUD, AgendaManager orphan fix, PageFrontmatter required-id, 8 validators trim consistency, ContentView initial-construction race, AtomicYAMLMarkdown force-unwrap, VaultDetailView modifiedAt, ItemWindow applyDraft helper).
+Four-commit cleanup plan queued for session 3: dead-code purge (`SheetStubView` + v0.1a FolderTree trio); sidebar UX restructure per right-click-context-menu direction + row commit() draft-loss fix; Pages-under-Vaults/Collections sidebar disclosure; atomicity + error-surfacing (6 rename sites, pendingError-on-CRUD, AgendaManager orphan fix, PageFrontmatter required-id, validators trim consistency, ContentView initial-construction race, AtomicYAMLMarkdown force-unwrap, VaultDetailView modifiedAt, ItemWindow applyDraft helper).
 
 Paradigm-solidifying decisions session 2 (appended to `// Guidelines//Paradigm-Decisions.md`):
 - **Stub-and-progressively-replace execution strategy.** For branch-spanning plans with forward-dependencies, write each task with throwaway in-file stubs for not-yet-shipped types; later tasks replace stubs in-place. Every commit ships green standalone, independently verifiable. Supersedes spec's batch-commit-at-end (uncommitted 12-task blobs where any single break contaminates the batch).
@@ -619,7 +478,7 @@ Paradigm-solidifying decisions session 2 (appended to `// Guidelines//Paradigm-D
 
 The React+Electron-locked v0.0 spec is preserved at `// ReactInfo// v0.0.md` for contingency.
 
-**Paradigm scaffolding — branch `paradigm-scaffolding`, session 3 (2026-05-17/18) — cleanup + UX polish + Commit 4.** All 4 planned cleanup commits shipped + a longer-than-planned sidebar polish iteration sequence. **13 cleanup commits this session, branch landed at 82 commits ahead of `main`.** 182/182 unit tests pass, 0 source warnings, sandbox entitlements verified, app launches cleanly under test harness.
+**Paradigm scaffolding — branch `paradigm-scaffolding`, session 3 (2026-05-17/18) — cleanup + UX polish + Commit 4.** All 4 planned cleanup commits shipped + a longer-than-planned sidebar polish iteration sequence.
 
 Commits shipped:
 
@@ -646,15 +505,12 @@ Plus a parallel SpaceColorPicker tweak (made `color` binding optional + tap-togg
 
 - **Pages editor stack: Tiptap (ProseMirror) in WKWebView, MarkEdit-pattern native shell, vanilla TypeScript bundle.** Closes the long-running Option 1 (native NSTextView) vs Option 2 (WKWebView + JS editor) question. WYSIWYG editing locked over Live Preview at Nathan's direction — typing `**bold**` becomes **bold** instantly, no markers visible. Markdown round-trip via `@tiptap/markdown` (per-node serializers; near-perfect not byte-perfect). `:::callout` and `:::columns` / `@Columns` directives via custom Tiptap `Node.create`. Roadmap reordered: Pages moves from v0.6/0.7/0.8 to v0.3 (internal phases a/b/c); Tabs become v0.4; Properties v0.5; infrastructure cycles shift to v0.6+. Pages open in detail pane (single Page at a time) in v0.3; tabs ship at v0.4. Standalone-window-via-context-menu / `⌥⌘O` path works in v0.3a via `WindowGroup(for: PageRef.self)`. Full implementation spec at `// Planning//Page-Editor-Plan.md`.
 
-**Pre-merge gates verified end-of-session:** `xcodebuild build` SUCCEEDED, 0 warnings; `xcodebuild test -only-testing:PommoraTests` 182/182 pass; sandbox entitlements (`app-sandbox` + `files.user-selected.read-write`) present in built `.app`; Nathan signed off on sidebar + detail pane; CodeRabbit final review: 3 major findings (non-blocking test-coverage; defer to v0.3 prep or small post-merge tightening).
-
 **Merge strategy locked: full history** (non-fast-forward merge commit preserving all 82 commits). Bisect-value-preserving — already paid off twice this session (locating the launch crash, finding SidebarToast issue).
 
 **Known UX gap flagged at session end (2026-05-17):** Item creation affordance is buried — only `CollectionDetailView`'s footer offers "+ New Item"; not in VaultDetailView footer, not in any sidebar context menu. Fix is small (~3 button additions across detail views + row context menus); deferred to pre-v0.3 polish or rolled into v0.3a prep. Sidebar.md table to be updated to reflect the new affordance once added.
 
 **Nathan-sketched "New Item" window design (v0.5 design intent)** captured at `// Features//Items.md` "Item window — design evolution" section. Modal window with 2-column layout (description body LEFT, property dropdowns stacked RIGHT), Delete (red, edit-only) + Save (blue primary) footer, title bar with icon-picker + view-toggle affordances top-right. Supersedes current v0.2 Spartan ItemWindow popover; lands with v0.5 Properties.
 
-**Parallel-session caveat established as project quirk #15:** Nathan may have a separate session running small UI tweaks while another session is working. Pommora/* working tree is no longer guaranteed clean between subagent dispatches; small Nathan-hand-tweaks may appear (e.g., the `0.12 → 0.10` opacity tweak that arrived mid-session). Subagents should never revert unattributed working-tree changes.
 
 ---
 
@@ -676,92 +532,47 @@ Long session covering Framework audit + semver conversion + Pages/Tabs reorder +
 **Three patches shipped to main (in order):**
 
 1. **`3bcf328` — v0.2.1: Parallel-session sidebar UX tweaks + page selection wiring.** 16 Swift files (Detail / Sidebar / Sheet polish from the parallel Claude session) including `case page(PageMeta)` selection wired + a `PageDetailView`-style placeholder in `SidebarDetailView` ("Page editor coming v0.6" — stale version string, fix in v0.2.6 spec catch-up).
-2. **`2e140ed` — v0.2.2: CodeRabbit tightening.** `ItemWindow.swift` refetch-after-rename recovery (`await contentManager.loadAll(for: coll)` + `dismiss()` on still-missing-after-reload) + 2 `ContentManagerTests` filesystem assertions (`renameItem` verifies old URL gone + new URL exists; `deletes` verifies files gone from disk). Cherry-picked from the `v0.2.2-coderabbit` branch (snapshot ref `e462681`). Executed via subagent-driven-development skill: implementer + spec reviewer + quality reviewer.
+2. **`2e140ed` — v0.2.2: CodeRabbit tightening.** `ItemWindow.swift` refetch-after-rename recovery (`await contentManager.loadAll(for: coll)` + `dismiss()` on still-missing-after-reload) + 2 `ContentManagerTests` filesystem assertions (`renameItem` verifies old URL gone + new URL exists; `deletes` verifies files gone from disk).
 3. **`56efd68` — v0.2.3: CI baseline.** `.github/workflows/ci.yml` running `xcodebuild build` + `xcodebuild test -only-testing:PommoraTests` on `runs-on: macos-26`, triggered by push to ANY branch + PRs targeting `main`. Cherry-picked from `v0.2.3-ci` branch (snapshot ref `b746481`). First push will smoke-test runner availability; fallback is `macos-latest` + explicit Xcode 26 path.
 
-**Combined build state verified end-of-session:** `xcodebuild build` BUILD SUCCEEDED, 0 source warnings; `xcodebuild test -only-testing:PommoraTests` 182/182 pass.
-
-**Mid-session git incident:** while branching for v0.2.x patches, Claude stashed `.claude/*` doc accumulation + Swift parallel-session edits before branch switch. Nathan saw docs revert to days-old state when his view followed Claude to feature branches off main. Recovered via `git stash pop`. **Lesson:** `.claude/*` IS included in commits (corrected quirk #4). Prior "don't stage .claude/* unless explicitly asked" prevents unilateral doc bundling into Swift commits, but explicit doc commits expected so branch switches preserve doc visibility.
-
-**xcbeautify deferred from CI:** plan included `| xcbeautify --renderer github-actions` pipes; shipped without it as scope reduction — raw `xcodebuild` output sufficient. Future small patch (needs `brew install xcbeautify`).
+**Quirk #4 corrected:** `.claude/*` IS included in commits. The prior "don't stage .claude/* unless explicitly asked" rule prevents unilateral doc bundling into Swift commits, but explicit doc commits are expected so branch switches preserve doc visibility (caught when Claude stashed accumulated docs before a branch switch and Nathan saw the docs revert).
 
 **Item Window v0.5 redesign now targets v0.3.0:** was slotted with Properties at v0.5.0; Properties moved to v0.3.0, redesign comes along.
 
-**Tomorrow's session opens with:** v0.2.4 swift-format baseline → v0.2.5 `.trash//` data foundation → v0.2.6 spec catch-up → v0.2.7 Pages editor (editor-library decision reopened first). See `Handoff.md`.
-
 ---
 
-#### Session 5 — 2026-05-18 (v0.2.4 → v0.2.6 shipped via subagent-driven-development)
+#### Session 5 — 2026-05-18 (v0.2.4 → v0.2.6 shipped)
 
-Execution session: 4 code patches + 1 doc sweep, ending at v0.2.6 — Pommora has CI + formatter + `.trash//` data layer + spec docs synced, ready for editor-library decision and v0.2.7 Pages. Commits land on `main` directly per Nathan's override ("execute; but let's keep it on this branch"); not pushed (Nathan reviews + pushes).
+Three patches landed on `main`:
 
-**Execution model:** `subagent-driven-development` for v0.2.4 / v0.2.5 (implementer + spec-reviewer + code-quality-reviewer chain). Compressed review for v0.2.5.1 / v0.2.6 (already-reviewed Minor items + mechanical updates). Builder subagent for xcodebuild where reachable; piped-log fallback otherwise.
+1. **`60e2ef6` — v0.2.4: swift-format baseline.** `.swift-format` config at repo root (lineLength 120 / 4-space indent / `respectsExistingLineBreaks: true` / `OrderedImports: true` / `NeverForceUnwrap: false` to honor `try!`). One-time formatter pass over 97 Swift files. CI `swift format lint --strict --recursive` step. Fixed two pre-existing `OneCasePerLine` violations in `Recurrence.swift` since the formatter can't auto-fix that rule.
 
-**Five patches shipped:**
+2. **`9f56fbe` — v0.2.5: `.trash//` data foundation.** New `NexusPaths.trashDir(in:)`, `Filesystem.moveToTrash(_:in:)` (@discardableResult, preserves deleted entity's relative path under nexus root, creates intermediate `.trash` dirs, resolves collisions via timestamp + 4-char hex discriminator suffix → `Notes.20260518-093215-A3F2.md`), `FilesystemError.sourceNotInNexus` case. Swapped 10 manager delete call-sites to route through trash. `.trash//` lives inside the nexus (syncs with iCloud/Dropbox as user data), unlike the regeneratable SQLite index.
 
-1. **`60e2ef6` — v0.2.4: swift-format baseline.** `.swift-format` config at repo root (lineLength 120 / 4-space indent / `respectsExistingLineBreaks: true` / `OrderedImports: true` / `NeverForceUnwrap: false` to honor `try!` use). One-time formatter pass over 97 Swift files (+593/-422; mechanical whitespace + import-ordering only, no semantic changes). CI `swift format lint --strict --recursive` step in `.github/workflows/ci.yml` after "Show toolchain" — fail-fast. Also fixed two pre-existing `OneCasePerLine` violations in `Recurrence.swift` (`Kind` and `Day` enums) since the formatter can't auto-fix that rule — the alternative (disabling the rule) was worse. Code quality reviewer flagged one cosmetic regression: `swift format` mangled ~12 single-line `do { try await … } catch { /* … */ }` patterns in `SidebarView.swift` + `IconPickerSheet.swift` into `} catch\n{ … }` shape (`respectsExistingLineBreaks: true` can't preserve single-line catch bodies that span the `{`). Recommended structural fix (extract `runDelete(_:)` helpers) when SidebarView is next touched — likely during v0.2.7 work; not config-driven.
-
-2. **`9f56fbe` — v0.2.5: `.trash//` data foundation.** 5 new APIs: `NexusPaths.trashDir(in: nexus)` returns `<nexus>/.trash/`; `Filesystem.moveToTrash(_:in:)` (@discardableResult URL throws) preserves the deleted entity's relative path under nexus root, creates intermediate `.trash` dirs, resolves collisions via timestamp suffix; private `Filesystem.suffixedWithTimestamp(_:)` helper; `FilesystemError.sourceNotInNexus(source:, nexus:)` case (new `LocalizedError` enum — no pre-existing type to extend); file-private `String.removingPrefix(_:)` helper. Swapped 10 manager delete call-sites: SpaceManager.delete / TopicManager.deleteTopic + deleteSubtopic / VaultManager.deleteVault + deleteCollection / ContentManager+CRUD.deletePage×2 + deleteItem×2 / AgendaManager.deleteItem. All 10 managers already held a `nexus` reference — no threading required. Pre-existing `pendingError` flow preserved. New `Pommora/PommoraTests/AtomicIO/FilesystemTrashTests.swift` with 4 tests (movesFile / movesFolder / collisionAddsTimestampSuffix / rejectsExternalSource). Extended v0.2.2's `ContentManagerTests.deletes` + `VaultManagerTests.deleteVault`/`deleteCollection` assertions to ALSO check trash-side existence (the cross-patch coordination flagged in the plan). Tests: 182 → 186. PRD-aligned: `.trash//` lives inside the nexus (syncs with iCloud/Dropbox as user data), unlike the regeneratable SQLite index.
-
-3. **`25de7c6` — v0.2.5.1: Trash cleanup.** Three Minor items from the v0.2.5 code quality reviewer: (a) `suffixedWithTimestamp` now appends a 4-char hex discriminator (UUID prefix) after the UTC `YYYYMMDD-HHMMSS` timestamp — guarantees uniqueness for the same-second collision edge case (`@MainActor` serialization makes this impossible today, but future batch-delete scenarios would benefit). Filenames become `Notes.20260518-093215-A3F2.md` — slightly noisier but always unique without loop ceremony. (b) `rejectsExternalSource` test tightened to pattern-match the specific `FilesystemError.sourceNotInNexus` case via the closure form `throws: { error in case ... = error }`, matching existing test convention in `AgendaManagerTests` / `SpaceManagerTests` / `AtomicYAMLMarkdownTests`. (c) UTC documentation folded into the suffix function's docstring (cross-timezone determinism rationale).
-
-4. **`7b17d1d` — v0.2.6: Spec catch-up.** 5 Swift `Text(...)` version strings aligned to Framework reorder: `ItemWindow.swift` "Property-panel relation editor coming v0.5" → "Property panel coming v0.3.0"; `PropertyEditorRow.swift` "Relation editor coming v0.5" → "Relation editor coming v0.3.0"; `ContextDetailPlaceholder.swift` "Composed view coming v0.9" → "Composed view coming v0.7.0" (+ doc comment); `SidebarDetailView.swift` "Saved view coming v0.5" → "Saved view coming v0.6.0"; "Page editor coming v0.6" → "Page editor coming v0.2.7". Doc passes: `// Features//Pages.md` softened "Tiptap LOCKED" → "leading candidate; final pick reopens at v0.2.7 prep" with candidate list (Tiptap / Milkdown / BlockNote / CodeMirror 6); cross-refs Paradigm-Decision #7. `// Features//Sidebar.md` updated right-click table Page row to v0.2.7 + replaced "discoverability deferred to quick-capture" with "hover-icon `+` complement + quick-capture" (spec was stale on what shipped in v0.2.0).
-
-5. **`<pending>` — docs-end-5-18: End-of-session doc sweep.** This `History.md` entry + `Handoff.md` rewrite + `Framework.md` "Current Focus" + v0.2.x "Shipped" expanded for v0.2.4-v0.2.6 + `CLAUDE.md` Active Version table updated + quirk #12 added. `PommoraPRD.md` and `Paradigm-Decisions.md` needed no changes — decision #7 already reflects current state; PRD is version-agnostic.
-
-**Build state end-of-session:** `xcodebuild build` SUCCEEDED, 0 warnings; `xcodebuild test -only-testing:PommoraTests` 186/186 pass; `swift format lint --strict --recursive` exit 0; entitlements present; tree clean.
-
-**No new paradigm-solidifying decisions.** Pure execution + spec hygiene. 10-entry Paradigm-Decisions registry from end-of-5-17 remains current.
+3. **`7b17d1d` — v0.2.6: Spec catch-up.** Aligned 5 in-app `Text(...)` version strings to the Framework reorder (e.g., "Property-panel relation editor coming v0.5" → "Property panel coming v0.3.0"). Doc passes on `Pages.md` (Tiptap softened to "leading candidate") + `Sidebar.md` (hover-icon `+` complement instead of quick-capture-only).
 
 **Project quirk added (#12):** `swift format` invoked as subcommand (`swift format format`, `swift format lint`) via Xcode 26's bundled toolchain. Direct `swift-format` binary not on `$PATH`. CI uses same form. Locked at v0.2.4.
 
-**SourceKit staleness re-confirmed (quirk #3):** false "Cannot find type X" + "No such module 'Testing'" diagnostics for same-module types throughout session (`Nexus`, `Space`, `NexusPaths`, `Filesystem`, `NexusContext`, `Item`, `Vault`, `PropertyValue`, `ContentManager`, etc.). xcodebuild consistently passed. Clears after re-indexing.
-
-**Next session opens with:** confirm push of v0.2.4-v0.2.6 to origin (first CI smoke-test on `runs-on: macos-26`; fallback `macos-latest` + Xcode 26 path) → reopen editor library decision via `superpowers:brainstorming` → **v0.2.7 Pages editor** per `// Planning//Page-Editor-Plan.md`. Use `subagent-driven-development`. See `Handoff.md`.
-
 ---
 
-#### Session 6 — 2026-05-18 (continued — editor library re-evaluation, no code)
+#### Session 6 — 2026-05-18 (editor library re-evaluation, no code)
 
-Research session after v0.2.4-v0.2.6 shipped. Nathan reopened editor library decision and pushed for honest evaluation of native AppKit / TextKit 2 against prior Tiptap framing. **No code committed**; outcome is rewritten `// Planning//Page-Editor-Plan.md` (objective options inventory) + chat-only recommendation.
+Research session reopening the editor library decision. Nathan confirmed Live Preview (Obsidian/Bear marker-fade-by-proximity) AND pure WYSIWYG both acceptable — "as long as Markdown syntax isn't always visible and the page looks like a page rather than a file." Removes the constraint that drove Tiptap-over-CodeMirror earlier.
 
-**Skills used:** `superpowers:brainstorming` (framing), `swiftui-expert-skill` (TextKit 2 / `AttributedString` / macOS-views), `context7` (`/swiftlang/swift-markdown` API + source-range tracking + GFM tables + visitor patterns). Background Explore covered WWDC25 Session 280, Bear 2, Drafts, MarkEdit, user-shared Reddit thread, open-source precedents.
+**Native framework gaps surfaced:**
+- TextKit 2 has no native `NSTextTable` support; an `NSTextTable` in attributed string triggers fallback to TextKit 1 (disabling `NSTextAttachmentViewProvider`). Workaround: render tables via `NSTextAttachment` / `NSTextAttachmentViewProvider`, never `NSTextTable` — fallback isn't triggered by "document contains table syntax," only by NSTextTable instances in storage.
+- No multi-column inline layout API in TextKit 2 — `@Columns` requires custom rendering.
+- `swift-markdown` lacks first-class custom-directive parsing (post-parse traversal handles `:::callout` / `@Columns`); DOES provide source-range tracking critical for decoration efficiency.
 
-**Linchpin clarifier:** Nathan confirmed Live Preview (Obsidian/Bear marker-fade-by-proximity) AND pure WYSIWYG both acceptable — "as long as Markdown syntax isn't always visible and the page looks like a page rather than a file." Removes constraint that drove Tiptap-over-CodeMirror earlier.
+**Three options listed in `Page-Editor-Plan.md`:** Native Swift (TextKit 2 + `swift-markdown`, optionally wrapping `nodes-app/swift-markdown-engine`); JS editor + WKWebView shell (Tiptap / Milkdown / BlockNote); fork `Pallepadehat/MarkdownEditor` (CodeMirror 6 + WKWebView). `.md` is the firewall — user data portable across all transitions.
 
-**Deep-dive on `Pallepadehat/MarkdownEditor`** (cloned + read full source). 3,010 LOC (~1,300 Swift, ~1,700 TypeScript). MIT, v1.0.1 (Feb 11 2026), 26★, 6 forks. macOS 14+, Swift 5.9+, Xcode 15+. WKWebView + CodeMirror 6 + `@codemirror/lang-markdown` + `@lezer/markdown` GFM. Pre-built `editor.html` ships as SPM Resource via `vite-plugin-singlefile` — no JS toolchain in consumer build. Public Swift API: `EditorWebView(text: Binding<String>, configuration: EditorConfiguration, onReady:)` + `EditorBridge` (`@MainActor`, ~30 methods) + `EditorBridgeDelegate` + `EditorConfiguration` (Codable/Equatable/Sendable, includes `hideSyntax` toggle). Ships: `syntax-hiding.ts` (185 LOC), `command-palette/` (~500 LOC), `math.ts` (386 LOC, KaTeX), `mermaid.ts` (281 LOC), `images.ts` (208 LOC), `calc.ts` (97 LOC), Xcode-themed light/dark, `@codemirror/search`. Doesn't ship: wikilinks, `:::callout`, `@Columns`, visual table rendering, heading fold, bubble menu, Pommora brand theme. Widget extension pattern: walk syntax tree via `syntaxTree(state).iterate()` → `Decoration.mark()`/`Decoration.replace({widget})` to `RangeSetBuilder` → `StateField` via `EditorView.decorations.from(field)` → `Extension` via `Compartment`. Each Pommora widget = new TS file at `CoreEditor/src/widgets/<name>.ts`.
-
-**Reference for native path:** [`nodes-app/swift-markdown-engine`](https://github.com/nodes-app/swift-markdown-engine) (Apache 2.0, 455★, v0.4.0 May 2026). NSTextView + TextKit 2 + SwiftUI bridge. Built by Nodes (Germany), in their commercial macOS app. Ships: live styling, wiki-linking with `[[Name|<id>]]` storage/display round-trip (matches Pommora spec), LaTeX blocks + inline, code blocks with embedder-supplied syntax highlighting, task checkboxes, Writing Tools (macOS 15.1+), spelling/grammar with code/LaTeX/wiki-link suppression, bottom overscroll, drag-select autoscroll. Doesn't ship: tables, multi-column layout, block-level callouts.
-
-**Native framework gaps:**
-- TextKit 2 has no native `NSTextTable` support; an `NSTextTable` instance in attributed string triggers fallback to TextKit 1, disabling `NSTextAttachmentViewProvider`. Apple Forums thread 776824. Workaround: render tables via `NSTextAttachment` / `NSTextAttachmentViewProvider`, never `NSTextTable` — fallback isn't triggered by "document contains table syntax," only by NSTextTable instances in storage.
-- No multi-column inline layout API in TextKit 2. `@Columns` requires custom rendering. STTextView discussions note custom `NSTextContentManager` is "challenging."
-- `swift-markdown` lacks first-class custom-directive parsing. Post-parse traversal handles `:::callout` / `@Columns`.
-- `swift-markdown` DOES provide source-range tracking (`element.range.lowerBound.line/column/source`) — critical for decoration efficiency.
-- MarkEdit's creators (3.3k★) chose CodeMirror over TextKit 2 citing documentation/community/feature complexity. Production-quality native Markdown editing is non-trivial.
-
-**Three options now in `// Planning//Page-Editor-Plan.md`** (rewrote 939 → 169 lines; objective inventory, no recommendation in doc):
-1. **Native Swift** — `swift-markdown` + TextKit 2 + `NSTextView`. Optionally wrap `nodes-app/swift-markdown-engine`.
-2. **JS editor library + WKWebView shell we build** — Tiptap (WYSIWYG, ~250KB, MIT) / Milkdown (better round-trip, ~400KB, MIT) / BlockNote (React + GPL/commercial). Shell ~1-2 sessions of standard WebKit work. No Swift Package wrapper exists as of May 2026.
-3. **Fork `Pallepadehat/MarkdownEditor`** — CodeMirror 6 + WKWebView. Fork to add Pommora widgets (wikilinks, `:::callout`, `@Columns`, tables, bubble menu, brand theme). Fork is ours; upstream reference only.
-
-**Swap costs in Claude sessions** (per new "effort estimates use Claude-time" rule). Transitions are 1-2 sessions for shell/wrapper swap + 1 session per Pommora widget. `.md` is the firewall — user data portable across all transitions. Reversibility roughly symmetric.
-
-**Chat-only recommendation:** Try Option 3 first. Cheapest experiment (v0.2.7 prose ships in 1 session); surfaces WKWebView-feel question fast; reversibility high (Pallepadehat is clean SPM cut). Session-1 deliverable spec in `Handoff.md`.
-
-**StudioMD updated** with "Effort estimates use Claude-time" rule (Nexus source → Studio deploy). Mandates Claude sessions/hours framing — never weeks/days/months. Sibling bullet to "Frame tradeoffs in plain terms" under "Working with Nathan."
-
-**Nexus mirrors** of `Page-Editor-Plan.md` + Handoff/Framework/CLAUDE/History/Pages to `//The Nexus//Topics//Pommora//`.
-
-**Paradigm-Decisions registry impact:** Decision #7 (Tiptap leading direction) superseded by three-option inventory. Sync at v0.2.7 implementation start.
-
-**Next session opens with:** push v0.2.4-v0.2.6 to origin if Nathan signals → confirm pick among three options (recommendation Option 3) → implement v0.2.7. Opening commit (common to all): `ContentManager.updatePage(_:in:vault:)` + `(_:inVaultRoot:)` mirroring `updateItem`. Session-1 deliverable spec in `Handoff.md`.
+Decision #7 (Tiptap leading direction) superseded by the three-option inventory.
 
 ---
 
 #### Session 7 — 2026-05-18 (continued — Phase A-G of v0.2.7 + Milkdown decision)
 
-Long execution session. Nathan picked Option 3 (fork Pallepadehat); shipped Phase A through Phase G of v0.2.7 across 11 commits on `main` + 3 commits on the fork at `Natertot215/PageEditorMD`. End-of-session smoke test failed Nathan's visual baseline despite extensive Apple typography overhaul; decision to swap to Milkdown + Crepe (later superseded by Session 8). Doc commit at `152609c`; no swap code.
+Nathan picked Option 3 (fork Pallepadehat); shipped Phase A through Phase G of v0.2.7 across 11 commits on `main` + 3 commits on the fork at `Natertot215/PageEditorMD`. End-of-session smoke test failed Nathan's visual baseline despite extensive Apple typography overhaul; decision to swap to Milkdown + Crepe (later superseded by Session 8).
 
 **Code shipped (11 commits, `1df93a6` → `1989fac`):**
 
@@ -770,40 +581,20 @@ Long execution session. Nathan picked Option 3 (fork Pallepadehat); shipped Phas
 - **Phase C1-C5.2** — Inspector wiring + sandbox entitlements (4 keys including `network.client` for WKWebView), `AppGlobals` (NSHashTable<PageEditorViewModel> registry + willResignActive + willTerminate observers), `AppState.pageInspectorOpen` per-Page persistence (v1→v2 backward-compat decoder), `FrontmatterInspector` (read-only Form), `PageEditorView` + `PageEditorHost` (`.task(id:)` page-switch flush + `.id()` re-keying), editable title `TextField` (28pt bold, plain, commit → `ContentManager.renamePage`), inspector at NavigationSplitView level with toolbar `ToolbarItem(placement: .primaryAction)` INSIDE `.inspector(...)` closure (fixes left-side placement), sidebar page-switching fix (`@State var viewModel` → `@Bindable` + `.id(vm.page.id)`).
 - **Phase G** — Fork polish: drop active-line, custom fold chevron, `markdown-autopair.ts` for `**`/`__`/`[[`/`` ` ``, Apple typography (SF Pro Text body + SF Pro Display headings + SF Mono code; 28/22/17/15/13/13pt), triple-clear transparent-bg (`drawsBackground=false` KVC + `underPageBackgroundColor=.clear` + NSView layer bg + CSS `!important`), Pommora-side `.background(Color.clear)` defensive layer.
 
-**Build state end-of-session:** `xcodebuild build` SUCCEEDED. `xcodebuild test -only-testing:PommoraTests` → **198/198 pass**. `swift format lint --strict --recursive` → exit 0.
-
-**Smoke test verdict (Nathan):** Phase G's overhaul still didn't produce Notion-like polish. Decision to swap editor library to Milkdown + Crepe. Plan written at `// Planning//v0.2.7-milkdown-swap.md`. Compact at session close.
+**Smoke test verdict (Nathan):** Phase G's overhaul still didn't produce Notion-like polish. Decision to swap editor library to Milkdown + Crepe.
 
 **Project quirk added (#13 in `CLAUDE.md`):** SPM branch-pinned forks need full cache nuke to bump (gentle `xcodebuild -resolvePackageDependencies` respects pins). Nuke `Package.resolved` + `DerivedData/.../SourcePackages` + `~/Library/Caches/org.swift.swiftpm/repositories/<DepName>-*`.
 
 ---
 
-#### Session 8 — 2026-05-18 (continued — architecture pivot to Apple swift-markdown + swift-markdown-engine, plan-only)
+#### Session 8 — 2026-05-18 (architecture pivot to native TextKit 2 + swift-markdown-engine, plan-only)
 
-Plan-only session. Nathan reconsidered the Milkdown direction after demoing `nodes-app/swift-markdown-engine` (Apache 2.0, native TextKit 2, ~7411 LOC). The demo (built + launched manually by Nathan in Terminal — auto-mode classifier blocked the builder agent from /tmp paths) made the native-Mac feel undeniable. Session produced a comprehensive single-session implementation plan at `// Planning//v0.2.7-engine-swap.md` and Nathan accepted it. No code committed. Compact at session close to execute the plan in one go next session.
+Plan-only session. Nathan reconsidered the Milkdown direction after demoing `nodes-app/swift-markdown-engine` (Apache 2.0, native TextKit 2). The native-Mac feel made the call.
 
-**Architecture locked:**
-
-- **Parser:** Apple `swift-markdown` (full GFM AST + `BlockDirective` for v0.2.9 directives + source-range tracking). SPM dep on `swiftlang/swift-markdown`.
+**Architecture locked** (shipped at v0.2.7.0 in Session 9):
+- **Parser:** Apple `swift-markdown` (full GFM AST + `BlockDirective` + source-range tracking).
 - **Renderer:** Apple `NSAttributedString` + `NSTextView` + `NSTextLayoutManager`. Writing Tools (15.1+), Look Up / Translate / spell-check, IME, dynamic system colors, drag-select all free.
-- **Live-preview chassis:** `swift-markdown-engine` (selectively vendored at `Pommora/Pommora/PageEditor/Engine/`, ~4500 LOC after planned deletions). Two load-bearing engine contributions: **dynamic syntax** (markers shrink when caret leaves AST node — Bear/Notion pattern) + **Markdown-aware typing helpers** (list continuation + block auto-wrap shipped; character-pair auto-pair `**`/`__`/`[[`/`` ` `` with auto-exit-on-space added Pommora-side in Phase 4.5). Engine's `Services/WikiLinkService.swift` two-form `[[Name|<id>]]` ↔ `[[Name]]` storage transform also kept as reference for v0.2.10 wikilink work.
-- **Domain wiring:** PageRef, PageFile, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, inspector + sidebar wiring, lifecycle observers, atomic-write contract, frontmatter preservation rule, editable title TextField, all 198 tests — **survive unchanged from Phase A-G**.
+- **Live-preview chassis:** `swift-markdown-engine` vendored. Two load-bearing engine contributions: **dynamic syntax** (markers shrink when caret leaves AST node — Bear/Notion pattern) + **Markdown-aware typing helpers** (list continuation, block auto-wrap, character-pair auto-pair `**`/`__`/`[[`/`` ` ``).
+- **Domain wiring** preserved from Phase A-G: PageRef, PageFile, ContentManager.updatePage, PageEditorViewModel, PageEditorHost, AppGlobals, AppState.pageInspectorOpen, inspector + sidebar wiring, atomic-write contract, frontmatter preservation, editable title TextField.
 
-**Critical scoping discovery:** engine's `MarkdownToken` type is load-bearing — 11 non-styling files (coordinator extensions, ContextMenu, SpellingPolicy, Input handlers) reach through it. Plan **preserves type-API** of `MarkdownToken`/`MarkdownTokenizer.parseTokens(in:)`/`MarkdownDetection.isInside…` and **rewrites internals** to back onto Apple AST. Only `MarkdownStyler` gets a full body swap (replaced by `PommoraMarkdownStyler`).
-
-**Plan structure (single session, Phases 0-5; Phase 6 docs split defers to v0.2.7.1):**
-
-- **Phase 0** — Docs repair (~30min) — verify Handoff/History/Framework/CLAUDE reflect reality post-compact.
-- **Phase 1** — Strip Pallepadehat fork (~30min) — 6 pbxproj entries + Package.resolved + `import MarkdownEditor` + `pommoraEditorConfig` + `EditorWebView` call + `network.client` entitlement + `External/PageEditorMD/` clone.
-- **Phase 2** — Vendor engine + Apple swift-markdown SPM (~45min) — drop `MarkdownEngine.docc/`; copy engine; pin Apple swift-markdown.
-- **Phase 3** — Parser internals + styler (~2h, the heart) — reimplement `MarkdownTokenizer.parseTokens(in:)` as Apple-AST walker emitting `MarkdownToken` shims; reimplement `MarkdownDetection` helpers; write `PommoraMarkdownStyler` (all GFM block types); `PommoraInlineScanner` for wikilink/image-embed overlay; `SourceRangeToNSRange` converter + tests.
-- **Phase 4** — Wire PageEditorView (~20min) — replace `EditorWebView` with `NativeTextViewWrapper`; swap config; title TextField untouched.
-- **Phase 4.5** — Auto-pair + auto-exit-on-space (~30min core + 20min stretch) — extend `MarkdownInputHandler`.
-- **Phase 5** — Smoke-test (~15min) — type prose / table / blockquote / hr / strikethrough / wikilink; switch Pages; verify on disk.
-- **Phase 6** — Docs split → defer to v0.2.7.1.
-
-**Locked execution rules:** all commits on `main` directly (override of quirk #13); every dispatched agent uses `claude-opus-4-7` (Opus 4.7); `builder` subagent for `xcodebuild`; FILENAME form for `-only-testing` (quirk #1); `swift format lint --strict` exit 0 before every commit; Nathan pushes manually.
-
-**End-of-session state:** code state unchanged at `152609c`; build green; 198/198 tests pass; lint clean. Planning folder: `v0.2.7-engine-swap.md` active; `v0.2.7-milkdown-swap.md` deleted by Nathan as no-longer-needed; Pallepadehat-era `v0.2.7-editor-polish.md` already marked SUPERSEDED.
-
-**Next session opens with:** post-compact, execute the engine-swap plan Phases 0-5 in one go per the verbatim resume prompt at the top of `Handoff.md`.
+**Critical scoping discovery:** engine's `MarkdownToken` type is load-bearing — 11 non-styling files reach through it. Plan preserves the type-API of `MarkdownToken` / `MarkdownTokenizer.parseTokens(in:)` / `MarkdownDetection.isInside…` and rewrites internals to back onto Apple AST.

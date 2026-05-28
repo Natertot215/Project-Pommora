@@ -365,7 +365,7 @@ Five view types in v1:
 | **Gallery** | Grid | Cards with cover image |
 | **Cards** | Grid | Cards without cover-first emphasis |
 
-Views appear in two contexts: (1) **inside a Type** — saved views in the Type's per-kind sidecar (`_pagetype.json` or `_itemtype.json`), switch via tabs, scope to Collection sub-folders or whole Type; (2) **embedded as a widget** — "Embedded Collection View" renders any saved Type view inside a Context/Homepage with per-embed overrides on filter/sort/group/shown-properties. Per the inline-editing principle, embedded views are fully editable in place.
+Views appear in two contexts: (1) **inside any storage container** — saved views in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json`), switch via tabs. Every storage container has its own view surfaces, not just the schema-bearing Types — a Page Collection can carry a Board view independent of the parent Page Type's Table; schema is inherited from the Type but the saved-view configuration is per-container. (2) **embedded as a widget** — "Embedded Collection View" renders any saved view inside a Context/Homepage with per-embed overrides on filter/sort/group/shown-properties. Per the inline-editing principle, embedded views are fully editable in place.
 
 Each view spec: source Type (implicit from sidecar location), optional Collection-path scoping, view type, filter expression, sort, group-by property, properties to display, cover image (gallery). Filter expressions parse to a small DSL translating to parameterized `json_extract` SQL. View filters/sorts never modify the source Type.
 
@@ -423,7 +423,7 @@ After the user picks a nexus location, Pommora opens with empty sidebars plus a 
 
 ##### Design System
 
-SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into v0.6.0 Settings scaffold). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`. React-side reference → `// ReactInfo//Styling-Tokens.md`.
+SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into v0.6.0 Settings scaffold). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`.
 
 ##### File Renames and Wikilink Resolution
 
@@ -438,19 +438,14 @@ Renames are filesystem renames + nothing else — no cross-file rewrite of wikil
 - **Code shape.** Pure Swift Package for data + parsing layer keeps SwiftUI imports out (callable from a CLI target if useful). `actor` wrapping the database boundary, `Sendable` records, `AsyncSequence` surfaces (preferred over Combine in Swift 6 strict concurrency) fit GRDB's `.values(in:)` as the data-to-UI reactive surface. Not enforced (see `// Features//Architecture.md`).
 - **File watching.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong tool. Use FSEventStream via Swift wrapper (`EonilFSEvents` or hand-rolled `FSEventStreamCreate`). APFS atomic-rename gotchas: editor save = `.tmp` write + rename emits create+delete; debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes.
 
-> If pivoting to React, see `// ReactInfo//StateData.md` (Zustand + hand-rolled pub/sub + `@parcel/watcher`).
-
 ##### Mac OS Integration
 
 SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` via QuickLook Preview Extension target; `QLSupportedContentTypes` for `net.daringfireball.markdown`); **CoreSpotlight** (`CSSearchableItem` + `CSSearchableItemAttributeSet`; `.onContinueUserActivity(CSSearchableItemActionType)` deep-links); **Share Extension** (target conforming to `NSExtensionPrincipalClass`); **NSServices** ("New Pommora Page from Selection" — Info.plist + selector); **MenuBarExtra** (macOS 13+; `.menuBarExtraStyle(.window)`); **Sidebar vibrancy + accent** (`NSVisualEffectView` via SwiftUI `Material`; auto accent via `Color.accentColor`); **Finder file-promise drag-out** (`Transferable` + `.draggable`); **Accessibility** (`.accessibilityLabel/Hint/Value/Action`; Dynamic Type + VoiceOver rotor free); **Window state restoration with Spaces** (`Scene` + `@SceneStorage` + NSWindow restoration); **Deep links** (`.onOpenURL` + `CFBundleURLTypes` for `pommora://`).
 
-> If pivoting to React, see `// ReactInfo//MacIntegration.md` for Electron ceilings on each.
 
 ##### Distribution
 
 **Sparkle 2.x** for non-MAS auto-update (EdDSA-signed, sandbox-compatible, SwiftUI via `SPUStandardUpdaterController`). **TestFlight for Mac** fully shipped (same as iOS). **Sandboxing for MAS:** user-picked nexus folders via security-scoped bookmarks (`URL.bookmarkData(options: .withSecurityScope)`), resolved with `startAccessingSecurityScopedResource()` on each launch. No feature blocker.
-
-> If pivoting to React, see `// ReactInfo//Distribution.md` (electron-vite + electron-builder + electron-updater + `@electron/notarize`).
 
 ---
 

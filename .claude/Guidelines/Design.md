@@ -4,6 +4,12 @@ Pommora's visual identity, brand values, and design conventions — Swift / Appl
 
 ---
 
+#### The Component Library is the source of design
+
+Components and design come from the **Component Library** (Cmd+Shift+D, `ComponentLibraryView`) as reusable assets — stage them there, then pull into production. Avoid one-off designs. New patterns land in the Component Library first.
+
+---
+
 #### Design philosophy
 
 Apple's macOS HIG for native cohesion. Toolkit is **SwiftUI primary + AppKit where SwiftUI doesn't reach** — both first-class.
@@ -15,67 +21,61 @@ Apple's macOS HIG for native cohesion. Toolkit is **SwiftUI primary + AppKit whe
 - **Native controls** — system Button / Slider / Toggle; encapsulate Pommora styling via `ButtonStyle` / `ViewModifier`.
 - **Window chrome** — macOS unified title bar, OS traffic-light buttons.
 
-A small set of brand-specific values (code colors, callout border, blockquote accent bar) express Pommora's character within the Apple aesthetic.
+A small set of brand values (code colors, callout border, blockquote accent bar) expresses Pommora's character within that aesthetic.
+Dark mode first; no in-app light/dark toggle in v0.x. Accent color + font size customization folds into the v0.6.0 Settings scaffold.
 
 ---
 
-#### Where Pommora's brand values live
+#### Where brand values live
 
-- **App accent** — `Assets.xcassets/AccentColor.colorset` with light/dark variants. Accessed via `Color.accentColor` or `.tint(.accentColor)`.
-- **Pommora Colors** — small extensions (`Color+Pommora.swift` or Asset Catalog) for values SwiftUI semantic colors don't cover: code fg/bg, callout border, blockquote accent bar. Naming: `Color.nexusCodeBackground`, etc.
-- **Pommora Fonts** — small Font extensions where the scale doesn't fit.
+- **App accent** — `Assets.xcassets/AccentColor.colorset` (light/dark). Use via `Color.accentColor` / `.tint(.accentColor)`.
+- **Pommora Colors / Fonts** — small extensions (`Color+Pommora.swift`, Asset Catalog) for what SwiftUI semantic colors / Font scale don't cover. Naming: `Color.nexusCodeBackground`, etc.
 
-That's the whole brand surface on Swift; SwiftUI semantic colors + Font scale carry the rest.
+SwiftUI semantic colors + Font scale carry the rest.
 
-> The ~118-token design system (semantic role-based naming, surface/element tier model) is a React pattern → `// ReactInfo// Styling-Tokens.md`. Swift doesn't need it — SwiftUI's semantic system does most of the work.
+> The ~118-token design system (semantic role-based naming, surface/element tier model) is a React pattern → `// ReactInfo//Styling-Tokens.md`. SwiftUI's semantic system covers it.
 
 ---
 
 #### Component conventions
 
-- **Prefer SwiftUI semantic colors and fonts.** Use Pommora extensions only for values without native equivalents.
 - **Modern modifiers.** `.foregroundStyle(.primary)` not `.foregroundColor()`. `.clipShape(.rect(cornerRadius: 12))` not `.cornerRadius()`.
 - **Reusable styling via `ViewModifier` and `ButtonStyle`.** Encapsulate repeated visual patterns.
 - **Single component per concept.** One `Button` with a `style` enum or `ButtonStyle`, not seven button files.
-- **SF Symbol weight matches text weight.** Symbols inherit weight from the surrounding text style when paired — keep that link. If a symbol's weight needs to deviate, apply `.fontWeight()` explicitly.
-- **No hardcoded brand values.** Every Pommora-brand color/font resolves through `Color+Pommora` or Asset Catalog; hardcoded *semantic* values (`.foregroundStyle(.primary)`) are fine because they ARE the semantic.
-
----
-
-#### Initial scheme
-
-Dark mode first. SwiftUI semantic colors cover the shell; Pommora extensions provide the accent and brand-specific values. No built-in light/dark toggle in v0.x. In-app customization (accent color + font size) folds into the v0.6.0 Settings scaffold; everything else is handled by SwiftUI natively.
+- **SF Symbol weight matches text weight** — symbols inherit weight from the surrounding text style; override with `.fontWeight()` only when intended.
+- **o hardcoded brand values.** Pommora-brand colors / fonts resolve through `Color+Pommora` or Asset Catalog. Hardcoded *semantic* values (`.foregroundStyle(.primary)`) are fine — they ARE the semantic. Hardcoded or specialized design should be directed by Nathan and approved; don't create without explicit permission. 
+- **No raw magic numbers in views.** Spacing, sizes, radii, paddings flow through `PUI` (`DesignSystem/PUI.swift`). Extend `PUI` rather than inlining a literal.
+- **Popover-family type scale.** Section headers ("Options", "Display As") = Subheadline / emphasized, vibrant secondary. Chip text = Callout / emphasized — matches `PropertyChip`.
+- **Chips.** Capsule, 50×20. 6pt between chips; 12pt from a section header to the first chip. Reorder grip = `line.3.horizontal`, vibrant secondary, sized to chip text; drag happens on the grip.
 
 ---
 
 #### Sidebar section chevrons
 
-Section header chevrons appear **on hover only** — Apple's default for `Section(_:isExpanded:)` under `.listStyle(.sidebar)`. Don't override with always-visible indicators. Matches Mail / Notes / Finder.
+Section header chevrons appear **on hover only** — Apple's default for `Section(_:isExpanded:)` under `.listStyle(.sidebar)`. Matches Mail / Notes / Finder.
 
-
+---
 
 #### Liquid Glass continuity
 
 Surfaces hosted inside `.popover(...)` and toolbar-anchored panels sit inside Apple's Liquid Glass chrome. Don't compete with it.
 
 - Apple drives the outer shell (translucent rounded background, drop shadow, anchor arrow, transitions). Don't add `.background(.regularMaterial)` / `.glassEffect()` / opaque fills to popover roots.
-- **Editable fields + icon buttons** use the unified `PUI.Fill.field` backdrop via `.pommoraFieldBackground()` — the page inspector's grouped-`Form` system fill, rounded-rect (not a pill, not a hand-set opacity). 
-- Prefer a plain `Menu` over `Picker(.menu)` for inline selectors (Pickers render a heavy "form control" background). The trigger is the value text with **no chevron glyph**; the menu is a vertical list with a checkmark on the current value. → `UIX-Baseline.md`.
-- Third-party popover content (e.g., SymbolPicker) must be wrapped in `.popover` with an explicit `.frame(width:height:)` — default sizing dwarfs Liquid Glass surfaces.
-- When a popover pane edits one named entity whose icon + name render inline at the top, drop the separate "Edit X" pane title — the entity row carries identity. Otherwise keep the standard `PaneHeader`.
+- **Inline selectors** = plain `Menu` over `Picker(.menu)` (Pickers render a heavy form-control background). Trigger = the value text, **no chevron glyph**; menu = vertical list, checkmark on current.
+- **Third-party popover content** (e.g., SymbolPicker) is wrapped in `.popover` with an explicit `.frame(width:height:)` — default sizing dwarfs Liquid Glass surfaces.
+- **Pane dividers use `PaneDivider`** — system `Divider` inset to the content rail (`PUI.Pane.contentPadding`, 16pt), flush to content edges. Field↔content divider adds 5pt vertical (`PUI.Pane.dividerPaddingVertical`); footer dividers add none (the row's own padding provides the gap).
+- **Destructive / global footers pin to the popover bottom.** Delete / Duplicate / "New property" stay fixed; the scrollable middle absorbs spare space. Per-type selectors (Display As, date format) scroll with their section.
+- **Pushed panes show a chevron + previous-pane-name back affordance** ("‹ Edit Properties"). When the pane edits one named entity whose icon + name render inline at the top, drop the separate "Edit X" pane title — the entity row carries identity. Otherwise keep the standard `PaneHeader`.
+- Reach for custom only where the platform can't carry the look (e.g., the in-content `PaneHeader`, which exists because `.navigationTitle` renders a dark band inside a popover).
 
 ---
 
 #### Context-aware padding
 
-Layout mechanics for nested SwiftUI views.
-
-- Padding stacks. A child's `.padding(...)` adds to the parent's. When wrapping previously-pinned content into a padded scroll container, strip the child's own horizontal padding.
-- Order matters: `.padding → .frame → .background`. Backgrounds wrap the framed size only when applied last.
-- For "all rows share an exact horizontal rail" requirements, derive `contentWidth` from math (`N × elementSize + (N-1) × spacing`) and apply that same `.frame(width: contentWidth)` to every row that participates.
+- Padding stacks. A child's `.padding(...)` adds to the parent's; when wrapping previously-pinned content into a padded scroll container, strip the child's own horizontal padding.
+- Order matters: `.padding → .frame → .background` — backgrounds wrap the framed size only when applied last.
+- For "all rows share an exact horizontal rail," derive `contentWidth` from math (`N × elementSize + (N-1) × spacing`) and apply that same `.frame(width: contentWidth)` to every row.
 - `LazyVGrid` with `.fixed` columns beats `HStack` + `Spacer(minLength: 0)` for pixel-exact alignment — grid math is deterministic; Spacer behavior negotiates sub-pixels.
-- For "Enter commits + click-outside also commits" behavior on plain TextFields, attach `@FocusState` and observe its `onChange` for blur-to-commit. `.onSubmit` alone only fires while focused.
-- SourceKit "Cannot find type" diagnostics for same-module types are usually stale (branch quirk #3). Trust xcodebuild.
 
 ---
 
@@ -85,19 +85,24 @@ Apple's native chrome animations (`NSSplitView` collapse, toolbar reflow, inspec
 
 `.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.25))`. Inspector toolbar items belong **inside the `.inspector(...) { content }` closure** to anchor to the inspector's toolbar segment.
 
-Platform quirks (`.toolbar(removing:)` on macOS 26+, exact curves) verified in build and noted in `Handoff.md`.
-
 ---
 
 #### AppKit interop
 
-AppKit wraps are confirmed during real build, not pre-cataloged. Shipped: Page editor (NSTextView / TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` → `// Features//PageEditor.md`). Other candidates resolve when their consuming feature lands.
+Confirmed in real build, not pre-cataloged. Shipped: Page editor (NSTextView / TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` → `// Features//PageEditor.md`). Other wraps resolve when their consuming feature lands.
+
+---
+
+#### Inline text-field commit
+
+Every inline-edit `TextField` commits on **Enter, focus loss, AND popover/pane dismissal** — never Enter-only. Wire `@FocusState` + `.onChange(of:)` (commit when focus goes `true → false`) plus an `.onDisappear` safety net for popover-hosted fields; `.onSubmit` only fires on Enter while focused, and click-outside dismissals don't blur reliably. Commit closures must be **idempotent** — guard `trimmed != current` so Enter / blur / disappear can all fire without double-writing.
+
+The editable hit-target is the **field, not the whole row** — constrain a label-style inline field with `.fixedSize(horizontal: true, vertical: false)` so the caret/click area matches the text, not the row.
 
 ---
 
 #### Reference
 
-- `UIX-Baseline.md` — concrete popover-family UIX spec (field backdrop, dividers, type scale, selectors, back-label)
 - `Symbols.md` — SF Symbol registry (Application ↔ Symbol table)
 - `CRUD-Patterns.md` — per-entity CRUD UI patterns + atomic-write discipline
 - `// Features//Sidebar.md` — right-click menu table + selection chrome spec

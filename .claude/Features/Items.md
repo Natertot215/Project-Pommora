@@ -73,11 +73,11 @@ If an Item later needs prose, the user creates a Page under a Page Type and link
 
 - Hold typed properties from the parent Item Type's schema (same catalog as Pages; full type list → [[Properties]])
 - Hold typed relations to any other entity in the Nexus (Pages, Items, Agenda Tasks, Agenda Events, Contexts, Page Types, Item Types) by ID — rename-safe
-- Appear in any view defined on the parent Item Type (table / board / list / cards / gallery)
+- Appear in any view (table / board / list / cards / gallery) defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`
 - Relate to Contexts via `tier1` / `tier2` / `tier3` multi-relation fields — surface on those Contexts' composed pages via embedded views
 - Be linked-to from a Context page's link-list widget, an embedded Item Collection view, or wikilinks in body content
 
-Item Collections are organizational only — they do not carry their own properties or views; everything is inherited from the parent Item Type's schema.
+Item Collections inherit their **schema** from the parent Item Type (no per-Collection schema override in v1 — that's a Prospect), but carry their own `views[]` — a Set can configure a Board view independent of the parent Type's Table.
 
 ---
 
@@ -87,74 +87,30 @@ Item Collections are organizational only — they do not carry their own propert
 
 #### Item Window
 
-Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. Not a tab, not a full page, not part of the main-window inspector (which is Claude chat). The Item Window has **its own** inspector — toggle button in the popover's top-right; default closed — that hosts the property panel when opened. Contains:
+Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. Not a tab, not a full page, not part of the main-window inspector (which is Claude chat). The Item Window has **its own** inspector — toggle button in the popover's top-right; default closed — that hosts the property panel when opened. Current design is a placeholder, polished UIX will be implemented soon.
+
+The inspector renders eagerly (all schema properties, void-or-fill inline); **pinned-property chips** above the title give always-on access without opening it. Two Item-specific rules: Items in a Type root (no Collection) get no pinning controls (the pinned set persists per Item Collection), and stale pinned IDs referencing deleted schema properties are filtered on render. Persistence shape + pin/unpin mechanics + rendering modes are canonical in [[Properties]] § "Where Properties Live" + § "Item Inspector → Pinned Properties".
 
 - **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
-- **Icon** — optional SF Symbol, editable via TextField (curated SymbolPicker UI deferred to a polish pass; current sheet supports manual entry).
-- **Properties** — typed inputs for each property in the parent Item Type's schema (via `PropertyEditorRow` dispatching to per-type controls: TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select; relation editor + tier1/2/3 chip pickers land v0.3.0).
+- **Icon** — optional SF Symbol; in the placeholder, edited as a plain TextField (the SymbolPicker-backed `IconPickerField` used in `NewItemSheet` / `EditPropertyPane` / `StorageMenuRoot` swaps in with the redesign).
+- **Properties** — typed inputs for each property in the parent Item Type's schema, via `PropertyEditorRow` dispatching to per-type controls (TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select).
 - **Description** — plain-text body field, **hard cap 250 characters**. Sized to fit the Item Window without scrolling; keeps the JSON file small and cloud-sync-friendly. This IS Items' body field (Items don't have Markdown bodies; description fills that role at a deliberately short size).
-- **Tier 1 / Tier 2 / Tier 3 relations** — the three tier value-rows render inline in the same property surface as on the Pages side (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`). There is no standalone tier-picker component.
+- **Tier 1 / Tier 2 / Tier 3 relations** — in the placeholder window they render as static labeled rows in `relationsSection`. The chip-picker treatment used on the Pages side (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also `FrontmatterInspector`) lands with the Item Window redesign.
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem` (with a `renameItem` pre-step if the title changed). No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
 
 ---
 
-#### Inspector Panel + Pinned Chips
-
-The inspector renders eagerly (all schema properties, void-or-fill inline); **pinned-property chips** above the title give always-on access without opening it. Two Item-specific rules: Items in a Type root (no Collection) get no pinning controls (the pinned set persists per Item Collection), and stale pinned IDs referencing deleted schema properties are filtered on render. Persistence shape + pin/unpin mechanics + rendering modes are canonical in [[Properties]] § "Where Properties Live" + § "Item Inspector → Pinned Properties".
-
----
-
-#### Item Window — redesigned modal shape (Figma-driven, v0.3.x)
-
-The current popover Item Window is a **placeholder** — it opens an Item and edits basic property types, but its inspector's `PropertyEditorRow` wiring is intentionally left partial: the full in-window property editing is deferred to the redesigned **modal** Item Window rather than invested in the placeholder (Task 21 — see [[History]]). The redesign (Figma-driven) is a rebuild, not a polish pass: it restructures the layout to a modal window with a two-column body and lands the complete property panel on the real surface.
-
-**Layout:** modal window (not popover) with a `New Item` / item-title header, two-column body, footer with Delete + Save.
-
-```
-┌─ New Item ────────────────────────────────  ▣ ▣ ─┐
-│                                                   │
-│  ┌─────────────────────────┐  Property…    ▼     │
-│  │                         │  Property…    ▼     │
-│  │  description / notes    │  Property…    ▼     │
-│  │  (large multi-line      │  Property…    ▼     │
-│  │   text area, can hold   │                     │
-│  │   up to the 250-char    │                     │
-│  │   description; visually │                     │
-│  │   prominent)            │                     │
-│  │                         │                     │
-│  └─────────────────────────┘                     │
-│                                                   │
-│  Delete (red)                       [ Save ]      │
-└───────────────────────────────────────────────────┘
-```
-
-**Region-by-region:**
-
-- **Title bar** — `New Item` (create) / item title (edit). Editable in place via `ItemContentManager.renameItem`.
-- **Top-right action buttons** — icon picker + view-toggle (compact-vs-expanded). Exact actions TBD; SymbolPicker integration retires the TextField fallback per paradigm decision #3.
-- **Left column — description/notes body** — large multi-line text area; 250-char cap retained. NOT a Markdown editor (Pages exist for that).
-- **Right column — properties** — stacked dropdown pickers, one per Item Type property. `PropertyEditorRow` dispatch per type. Replaces the popover's vertical list.
-- **Delete (red, destructive)** — edit mode only; confirms via `SidebarConfirmation`.
-- **Save (blue, primary)** — commits via `ItemContentManager.updateItem` / `createItem`. Disabled until title non-empty + schema-valid.
-
-**Implementation notes:**
-- Window is a true `WindowGroup(for: ItemRef.self)` — clicking an Item opens a separate macOS window. Depends on the cross-feature PreviewWindow primitive (`Guidelines/CRUD-Patterns.md`).
-- Same view doubles as create + edit via `mode: .create | .edit(Item)`. Create flow hides Delete.
-- Inspector toggle in top-right corner (alongside exit button) — default closed; reveals property panel as a panel to the right of the body. Pinned chips above the title behave as described above.
-
----
-
 #### Item creation surfacing
 
-Item creation runs through right-click context menus on Item Type rows + Item Collection rows in the sidebar ("New Item" scoped to the cursor's parent), plus the detail-pane footer "+ New Item" inside `ItemCollectionDetailView` and `ItemTypeDetailView`. `.newItem(...)` sheet routing is wired through `SidebarView` + `SidebarDetailView`. The polished Item Window redesign ships in a v0.3.x patch alongside the broader inspector architecture.
+Item creation runs through right-click context menus on Item Type rows + Item Collection rows in the sidebar ("New Item" scoped to the cursor's parent), plus the detail-pane footer "+ New Item" inside `ItemCollectionDetailView` and `ItemTypeDetailView`. `.newItem(...)` sheet routing is wired through `SidebarView` + `SidebarDetailView`.
 
 ---
 
 #### Item Templates (reserved for post-v1)
 
-The Item Type `_itemtype.json` sidecar carries a `template_config` field reserved for the post-v1 per-Item-Type template feature. In v0.3.0 the field is always `null`: every Item ships with the standard 250-char description cap and the default Item Window layout. Post-v1, `template_config` will let users customize per-Item-Type window layout, override the character cap, and seed default description text. UI is a Prospect — see [[Prospects]].
+The Item Type `_itemtype.json` sidecar carries a `template_config` field reserved for the post-v1 per-Item-Type template feature. Today the field is always `null` — every Item ships with the standard 250-char description cap and the default Item Window layout. The customization surface (per-Type window layout, character-cap override, default description seeds) is a Prospect — see [[Prospects]].
 
 ---
 

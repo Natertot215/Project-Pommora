@@ -18,7 +18,7 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 | Items | `tray` (or per-item override) |
 | Spaces | `rectangle.3.group` (or per-space override) |
 | Topics | `folder` (or per-topic override) |
-| Projects (formerly Sub-topics) | `folder` (or per-project override) |
+| Projects | `folder` (or per-project override) |
 | Agenda Tasks | `checkmark.circle` (or per-task override) |
 | Agenda Events | `calendar.badge.clock` (or per-event override) |
 | Homepage (Pinned section) | `house` |

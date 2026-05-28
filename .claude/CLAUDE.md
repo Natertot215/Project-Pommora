@@ -28,7 +28,7 @@ Items open in a popover-style **Item Window** (title + properties + 250-char des
 
 #### Stack
 
-Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as the contingency path — translation methodology lives at `// ReactInfo//Contingency.md`; topic-based React reference at `// ReactInfo//` folder.
+Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as a contingency path — playbook + topic files at `// ReactInfo//`.
 
 #### Core Principles
 
@@ -88,18 +88,10 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
   - `CRUD-Patterns.md` — SwiftUI patterns for per-entity CRUD UI, atomic-write discipline, manager pattern
   - `Paradigm-Decisions.md` — Confirmation protocol + registry of paradigm-solidifying decisions
 - `// Planning//` — active plans + `Superseded/` archive; index at `// Planning//README.md`
-- `// ReactInfo//` — React+Electron contingency reference
-  - `Contingency.md` — translation methodology and the update-obligation pattern
-  - `ReactInfo.md` — folder index + preserved verified-findings appendix
-  - `Editor.md`, `Spaces-DnD.md`, `Styling-Tokens.md`, `StateData.md`, `MacIntegration.md`, `Distribution.md` — topic files
-  - `Symbols-guide.md` — React-side semantic-role icon indirection
-  - `Resources.md` — React-side library catalog
-  - `v0.0.md` — preserved React+Electron-locked v0.0.0 spec
+- `// ReactInfo//` — React+Electron contingency reference (translation methodology + topic files + preserved v0.0 spec)
 
 
 Read `Handoff.md` first at session start.
-
-The React+Electron-locked predecessor spec for v0.0.0 is preserved at `// ReactInfo//v0.0.md`.
 
 ##### Active branch quirks (carry forward to every subagent dispatch)
 

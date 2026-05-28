@@ -243,9 +243,11 @@ Page Collections don't carry their own `properties` or `views` — schema is inh
 
 #### View types
 
-Five view types (per-Page-Type and per-Page-Collection scoping): **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
+Five view types: **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
 
-Saved views configured per-Page-Type in `_pagetype.json` `views[]`. Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
+**Every storage container has view surfaces** — not just the schema-bearing Types. Page Types AND Page Collections both carry `views[]`; on the Items side, Item Types AND Item Sets do too. Schema is inherited from the Type (Collections don't override schema in v1), but each container's saved view configuration is independent. A Page Collection can have a Board view filtered to a subset of its Pages while the parent Page Type shows a Table — same data, two view surfaces.
+
+Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json`). Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
 
 ---
 

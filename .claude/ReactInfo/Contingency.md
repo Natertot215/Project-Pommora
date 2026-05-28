@@ -1,12 +1,10 @@
 ### React Contingency Methodology
 
-Translation patterns for converting Swift-first Pommora work back to React+Electron if a future pivot is ever undertaken. **This document is methodology only — not decision criteria.** The stack decision is locked at SwiftUI; this file exists so React-translation patterns stay legible alongside Swift work.
+Translation patterns for converting Swift-first Pommora work back to React+Electron. **Methodology only — not decision criteria.** The stack is locked at SwiftUI; this file keeps the React-translation patterns legible alongside the Swift work.
 
 #### Update obligation
 
-When meaningful Swift implementation work lands — anything beyond a small change, or anything that has an obvious React-side equivalent worth recording — add a paired note in the relevant `// ReactInfo// <topic>.md` file. Skip for trivial Swift work where the React equivalent is uninteresting or already covered. Judgment call, not mandatory pairing.
-
-The trigger phrase is "something big OR an obvious React way" — if either applies, log it.
+When meaningful Swift work lands with an obvious React equivalent, add a paired note in the relevant `// ReactInfo//<topic>.md` file. Judgment call — skip trivial work. The trigger: "something big OR an obvious React way."
 
 #### Translation patterns
 
@@ -38,7 +36,3 @@ Visual reference for the feel: minimalist dark systems like Obsidian, ChatGPT, A
 ##### Mac OS integration
 - SwiftUI: every integration (QuickLook, CoreSpotlight, Share Extension, NSServices, Finder file-promise) is first-party.
 - React: hard ceilings on QuickLook (companion bundle), Share Extension (impossible), CoreSpotlight (electron-spotlight, fragile), Finder file-promise (broken). See `MacIntegration.md`.
-
-#### Skill drift note
-
-Continuing Swift work without direct React exposure does not freeze React capability — general programming intuition (state management, drag-and-drop algorithmic shape, file-watcher debouncing, FTS query design, atomic-write discipline) transfers. If a pivot ever happens, the Swift months count as relevant practice even though they were not React-flavored.
