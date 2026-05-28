@@ -24,6 +24,8 @@ Items open in a popover-style **Item Window** (title + properties + 250-char des
 
 - **DRY — one source of truth.** When the same logic, mapping, or rendering would live in two or more places, hoist it into a single function or type and reuse it; never copy-paste behavior across call sites.
 
+- **`Handoff.md` is a lean snapshot + Fix Log.** Maintain `Handoff.md` as current state + next focuses + a Fix Log only (1–2 sentence acknowledged-but-not-yet-fixed entries; clear on resolve). Route everything else to its canonical home. Never accumulate per-session work logs in the Handoff unless it's pending completion.
+
 #### Stack
 
 Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as the contingency path — translation methodology lives at `// ReactInfo//Contingency.md`; topic-based React reference at `// ReactInfo//` folder.
