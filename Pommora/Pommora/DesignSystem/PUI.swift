@@ -61,10 +61,16 @@ enum PUI {
     enum Pane {
         /// Standard popover frame width (View Settings + sub-panes).
         static let width: CGFloat = 300
-        /// Standard popover frame height.
-        static let height: CGFloat = 360
+        /// Minimum popover height — the floor; short panes sit here (today's look).
+        static let minHeight: CGFloat = 360
+        /// Hard cap — panes grow to fit content up to here, then scroll (2× min).
+        static let maxHeight: CGFloat = 720
         /// Inner content padding (for scrollable pane bodies).
         static let contentPadding: CGFloat = Spacing.xxl
+        /// Vertical padding above + below an in-content divider (e.g. the
+        /// icon/title field ↔ the section list). Dividers span the full
+        /// content rail; this is the breathing room around them.
+        static let dividerPaddingVertical: CGFloat = 5
 
         /// Inline header zone (PaneHeader): back chevron + title row.
         enum Header {
@@ -85,9 +91,11 @@ enum PUI {
         static let leadingFrame: CGFloat = 18
 
         /// Inline header icon (StorageMenuRoot type icon, EditPropertyPane title icon).
-        static let header: Font = .system(size: 14, weight: .medium)
+        /// Bumped to `.title3` (≈20pt) 2026-05-26 to match the popover-side
+        /// title TextField scale per Nathan's direction.
+        static let header: Font = .title3
         /// Inline header icon frame.
-        static let headerFrame: CGFloat = 22
+        static let headerFrame: CGFloat = 28
 
         /// Trailing chevron — "tap to push" affordance.
         static let chevron: Font = .system(size: 11, weight: .semibold)
@@ -114,8 +122,15 @@ enum PUI {
         static let row: Font = .callout
         /// Row subtitle (type label under a property name, etc.).
         static let rowSubtitle: Font = .caption2
-        /// Section header label (above a group of rows).
-        static let sectionHeader: Font = .caption
+        /// Section header label (above a group of rows — "Options",
+        /// "Display As"). Subheadline / emphasized, rendered vibrant
+        /// secondary at the call site. Sized down from `.headline` per
+        /// Nathan's 2026-05-27 Figma scale (section-footer feel).
+        static let sectionHeader: Font = .subheadline.weight(.semibold)
+        /// Option / select chip label — Callout / emphasized (matches the
+        /// shipping `PropertyChip` 12pt semibold). Reorder grips + inline
+        /// chip-adjacent glyphs size to this.
+        static let chip: Font = .callout.weight(.semibold)
         /// Muted / placeholder caption text.
         static let caption: Font = .caption2
     }
@@ -129,11 +144,26 @@ enum PUI {
         static let card: CGFloat = 6
         /// 8 pt — medium controls.
         static let medium: CGFloat = 8
+        /// Input field + icon-button backdrop rounding (rounded-rect, NOT
+        /// pill). Native-control feel; verify against the inspector in build.
+        static let field: CGFloat = 8
         /// 12 pt — large controls.
         static let large: CGFloat = 12
         /// 18 pt — inset list trough (NavDropdown).
         static let listTrough: CGFloat = 18
         /// 24 pt — outer popover container.
         static let popover: CGFloat = 24
+    }
+
+    // MARK: - Fills
+
+    enum Fill {
+        /// Input / icon-field backdrop — replaces the old
+        /// `Color.primary.opacity(0.06)` capsule "pill" everywhere. Uses the
+        /// system `.quinary` hierarchical fill: translucent + appearance-
+        /// adaptive, so it sits cleanly on the popover's Liquid Glass backdrop.
+        /// (`.controlBackgroundColor` was too stark; `.quaternary` too bright —
+        /// 2026-05-27.) Apply via the `.fieldBackground()` modifier.
+        static let field = AnyShapeStyle(.quinary)
     }
 }

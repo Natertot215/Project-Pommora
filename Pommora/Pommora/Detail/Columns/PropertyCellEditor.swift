@@ -16,9 +16,9 @@ import SwiftUI
 ///     display IS the affordance)
 ///   - date / datetime → DatePicker (graphical for date, graphical + time
 ///     for datetime)
-///   - select → inline Picker bound to selectOptions
-///   - multiSelect → MultiSelectChips (existing component)
-///   - status → StatusPicker (existing component)
+///   - select → ChipDropdown (.single) — pulled from the Component Library
+///   - multiSelect → ChipDropdown (.multi) — checkboxes + drag-reorder
+///   - status → ChipDropdown (.single), options flattened across groups
 ///   - url → TextField with `keyboardType` URL hint
 ///   - relation → placeholder note ("v0.3.1.x") + RelationPicker wiring
 ///     deferred until index resolver flows through to the cell
@@ -32,6 +32,10 @@ struct PropertyCellEditor: View {
 
     @State private var isPresented: Bool = false
     @State private var draft: PropertyValue?
+    // Seeds from the definition's option order when the multi-select popover
+    // opens; drag-reorder mutates this in-session. (Persisting the reordered
+    // schema order from a value cell is deferred — see plan risks.)
+    @State private var multiOptionOrder: [PropertyChipOption] = []
 
     var body: some View {
         if definition.type == .lastEditedTime {
@@ -42,23 +46,40 @@ struct PropertyCellEditor: View {
                 relationResolver: relationResolver
             )
         } else if definition.type == .checkbox {
-            // Cell IS the toggle — tap flips immediately, no popover.
-            Button {
-                let current: Bool = {
-                    if case .checkbox(let b) = value { return b }
-                    return false
-                }()
-                commit(.checkbox(!current))
-            } label: {
-                PropertyCellDisplay(
-                    definition: definition,
-                    value: value,
-                    relationResolver: relationResolver
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
+            // Cell IS the toggle — tap flips immediately, no popover. Rendered
+            // with the reusable PropertyCheckbox; a simultaneousGesture ensures
+            // the tap fires even when Table's row-selection would swallow it.
+            let checked: Bool = { if case .checkbox(let b) = value { return b }; return false }()
+            PropertyCheckbox(
+                // set is inert — the simultaneousGesture below is the single
+                // commit path (it survives Table row-selection, and routing
+                // the toggle through it avoids a double write). Display state
+                // comes from `get`, which reflects the committed value.
+                isChecked: Binding(get: { checked }, set: { _ in }),
+                color: checked ? .green : .default,
+                icon: "checkmark",
+                size: 14
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded { commit(.checkbox(!checked)) })
+        } else if isStatusBox {
+            // Status displayed as a checkbox: left-tap toggles between the
+            // first "upcoming" option (unchecked) and the first "done" option
+            // (checked); right-click opens the chip dropdown to pick any value.
+            StatusCheckbox(value: currentStatusValue, groups: statusGroups, size: 14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded { toggleStatusBox() })
+            .onSecondaryClick {
+                draft = value
+                isPresented = true
             }
-            .buttonStyle(.plain)
+            .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+                editor
+                    .presentationBackground(.clear)
+                    .onDisappear { commit(draft) }
+            }
         } else {
             Button {
                 draft = value
@@ -74,14 +95,73 @@ struct PropertyCellEditor: View {
             }
             .buttonStyle(.plain)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-                editor
-                    .padding(12)
-                    .frame(minWidth: 220)
-                    .onDisappear {
-                        commit(draft)
-                    }
+                if isChipDropdownEditor {
+                    // ChipDropdown is self-contained — it draws its own
+                    // Liquid-Glass panel. Present it chromeless (clear the
+                    // system popover background, no padding wrapper) so the
+                    // popover doesn't stack a second container around it.
+                    editor
+                        .presentationBackground(.clear)
+                        .onDisappear { commit(draft) }
+                } else {
+                    editor
+                        .padding(12)
+                        .frame(minWidth: 220)
+                        .onDisappear { commit(draft) }
+                }
             }
         }
+    }
+
+    /// Select / MultiSelect / Status use the self-contained `ChipDropdown`,
+    /// which owns its own panel — so they present without the popover's
+    /// chrome + padding (avoids a container-in-a-container).
+    private var isChipDropdownEditor: Bool {
+        switch definition.type {
+        case .select, .multiSelect, .status: return true
+        default: return false
+        }
+    }
+
+    // MARK: - Status "Box" (checkbox) display
+
+    /// A Status property whose Display As is `.box` renders as a checkbox —
+    /// a binary projection over the status (first-`upcoming` ⇄ first-`done`).
+    private var isStatusBox: Bool {
+        definition.type == .status && (definition.displayAs ?? .select) == .box
+    }
+
+    private var statusGroups: [PropertyDefinition.StatusGroup] {
+        definition.statusGroups ?? []
+    }
+
+    private var currentStatusValue: String? {
+        if case .status(let v) = value { return v }
+        return nil
+    }
+
+    /// The group the current value belongs to (nil when unset / not found).
+    private func statusGroupID(of value: String?) -> PropertyDefinition.StatusGroupID? {
+        guard let value else { return nil }
+        for group in statusGroups where group.options.contains(where: { $0.value == value }) {
+            return group.id
+        }
+        return nil
+    }
+
+    /// Checked ⟺ the current value is in the "done" group. Drives the binary
+    /// left-tap toggle (done ⇄ upcoming). The tri-state *rendering* lives in
+    /// `StatusCheckbox`; this is only the toggle pivot.
+    private var isStatusChecked: Bool {
+        statusGroupID(of: currentStatusValue) == .done
+    }
+
+    /// Toggle writes the FIRST option (schema sort order) of the target group:
+    /// checked → first "upcoming"; unchecked → first "done".
+    private func toggleStatusBox() {
+        let targetGroup: PropertyDefinition.StatusGroupID = isStatusChecked ? .upcoming : .done
+        guard let target = statusGroups.first(where: { $0.id == targetGroup })?.options.first else { return }
+        commit(.status(target.value))
     }
 
     // MARK: - Per-type editor dispatch
@@ -156,65 +236,53 @@ struct PropertyCellEditor: View {
 
     @ViewBuilder
     private var selectEditor: some View {
-        let options = definition.selectOptions ?? []
-        let binding = Binding<String?>(
-            get: {
-                if case .select(let v) = draft { return v }
-                return nil
+        let opts = (definition.selectOptions ?? []).map { $0.asChipOption() }
+        let current: String? = { if case .select(let v) = draft { return v }; return nil }()
+        ChipDropdown(
+            options: .constant(opts),
+            selectionMode: .single,
+            selectedIDs: current.map { Set([$0]) } ?? [],
+            onPick: { opt in
+                draft = .select(opt.id)
+                isPresented = false
             },
-            set: { newValue in
-                if let v = newValue {
-                    draft = .select(v)
-                } else {
-                    draft = .null
-                }
-            }
+            size: .compact
         )
-        Picker("Select", selection: binding) {
-            Text("None").tag(String?.none)
-            ForEach(options) { opt in
-                Text(opt.label).tag(String?.some(opt.value))
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.inline)
     }
 
     @ViewBuilder
     private var multiSelectEditor: some View {
-        let options = (definition.selectOptions ?? []).map(\.value)
-        let binding = Binding<[String]>(
-            get: {
-                if case .multiSelect(let ids) = draft { return ids }
-                return []
+        let selected: [String] = { if case .multiSelect(let ids) = draft { return ids }; return [] }()
+        ChipDropdown(
+            options: $multiOptionOrder,
+            selectionMode: .multi,
+            selectedIDs: Set(selected),
+            onPick: { opt in
+                var ids = selected
+                if let i = ids.firstIndex(of: opt.id) { ids.remove(at: i) } else { ids.append(opt.id) }
+                draft = ids.isEmpty ? .null : .multiSelect(ids)
             },
-            set: { newIDs in
-                draft = newIDs.isEmpty ? .null : .multiSelect(newIDs)
-            }
+            size: .compact
         )
-        MultiSelectChips(options: options, selected: binding, allowsAddingOptions: false)
+        .onAppear { multiOptionOrder = (definition.selectOptions ?? []).map { $0.asChipOption() } }
     }
 
     @ViewBuilder
     private var statusEditor: some View {
         let groups = definition.statusGroups ?? []
-        let binding = Binding<String?>(
-            get: {
-                if case .status(let v) = draft { return v }
-                return nil
+        let opts: [PropertyChipOption] = groups.flatMap { g in
+            g.options.map { $0.asChipOption(groupColor: g.color) }
+        }
+        let current: String? = { if case .status(let v) = draft { return v }; return nil }()
+        ChipDropdown(
+            options: .constant(opts),
+            selectionMode: .single,
+            selectedIDs: current.map { Set([$0]) } ?? [],
+            onPick: { opt in
+                draft = .status(opt.id)
+                isPresented = false
             },
-            set: { newValue in
-                if let v = newValue {
-                    draft = .status(v)
-                } else {
-                    draft = .null
-                }
-            }
-        )
-        StatusPicker(
-            selectedValue: binding,
-            statusGroups: groups,
-            onSelect: { _ in }
+            size: .compact
         )
     }
 

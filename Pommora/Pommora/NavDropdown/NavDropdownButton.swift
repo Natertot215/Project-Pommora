@@ -191,7 +191,7 @@ struct NavDropdownButton: View {
     @ViewBuilder
     private var recentsList: some View {
         if recentsSnapshot.isEmpty {
-            Text("Click pages, vaults, or other entities in the sidebar to populate Recents.")
+            Text("Open a page to populate Recents. Vaults, collections, and sets stay in Back/Forward.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -231,7 +231,7 @@ struct NavDropdownButton: View {
             openItemWindow(ref)
         case .agenda, .none:
             return
-        case .page, .vault, .space, .topic, .project, .collection:
+        case .page, .vault, .space, .topic, .project, .collection, .itemType, .set:
             if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                 onOpen(sel)
                 return

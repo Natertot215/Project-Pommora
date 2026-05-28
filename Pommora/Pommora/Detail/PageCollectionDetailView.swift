@@ -13,7 +13,6 @@ struct PageCollectionDetailView: View {
 
     @Environment(PageContentManager.self) private var contentManager
 
-    @State private var tableSelection: Set<String> = []
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
     /// Session-local row order override. Nil → fall back to manager order.
@@ -71,7 +70,7 @@ struct PageCollectionDetailView: View {
     }
 
     private var table: some View {
-        Table(rows, children: \.children, selection: $tableSelection) {
+        Table(of: DetailRow.self) {
             TableColumn("Title") { row in
                 Label {
                     Text(row.title)
@@ -80,12 +79,10 @@ struct PageCollectionDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { handleDoubleTap(row) }
+                // simultaneousGesture (not onTapGesture) so double-click-to-open
+                // coexists with the row drag instead of blocking it near the title.
+                .simultaneousGesture(TapGesture(count: 2).onEnded { handleDoubleTap(row) })
                 .contextMenu { menuItems(for: row) }
-                .draggable(DetailRowDragPayload(rowID: row.id, zone: .collectionItem))
-                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
-                    handleDrop(payloads: payloads, ontoRowID: row.id)
-                }
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
@@ -125,6 +122,17 @@ struct PageCollectionDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        } rows: {
+            // Row-level drag = reorder (table-specialized API). Selection
+            // highlight removed so the drag owns the gesture; multi-select
+            // returns as a hover checkbox in v0.4.0.
+            ForEach(rows) { row in
+                TableRow(row)
+                    .draggable(DetailRowDragPayload(rowID: row.id))
+            }
+            .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
+                handleDrop(payloads: payloads, toOffset: offset)
+            }
         }
     }
 
@@ -137,17 +145,15 @@ struct PageCollectionDetailView: View {
         }
     }
 
-    /// Drop handler — session-only. Same-zone only. Updates `sessionOrder`,
+    /// Row drop handler — session-only. `offset` is the insertion index the
+    /// table reports; `move` no-ops on unknown payloads. Updates `sessionOrder`,
     /// which the `rows` computed honors. Never calls a manager API.
-    @discardableResult
-    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
-        guard let payload = payloads.first else { return false }
-        guard payload.zone == .collectionItem else { return false }
+    private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
+        guard let payload = payloads.first else { return }
         let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
-        guard next != currentIDs else { return false }
+        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
+        guard next != currentIDs else { return }
         sessionOrder = next
-        return true
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
@@ -218,13 +224,8 @@ struct PageCollectionDetailView: View {
                 children: nil
             )
         }
-        guard let sessionOrder else { return baseRows }
-        let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
         // Honor session order for known rows; append any newly added rows at the end.
-        let ordered = sessionOrder.compactMap { byID[$0] }
-        let known = Set(sessionOrder)
-        let appended = baseRows.filter { !known.contains($0.id) }
-        return ordered + appended
+        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func detailKind(_ ci: ContentItem) -> DetailRow.Kind {
@@ -239,8 +240,8 @@ struct PageCollectionDetailView: View {
         switch row.kind {
         case .page, .item:
             Button("Rename") { beginRename(row) }
-            Button(isPinned(row) ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
-                togglePin(row)
+            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
+                row.togglePin()
             }
             Divider()
             Button("Delete", role: .destructive) {
@@ -249,24 +250,6 @@ struct PageCollectionDetailView: View {
         case .collection, .itemCollection:
             EmptyView()
         }
-    }
-
-    private func stateRef(for row: DetailRow) -> EntityStateRef? {
-        switch row.kind {
-        case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
-        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .collection, .itemCollection: return nil
-        }
-    }
-
-    private func isPinned(_ row: DetailRow) -> Bool {
-        guard let ref = stateRef(for: row) else { return false }
-        return AppGlobals.pinnedManager?.contains(ref) ?? false
-    }
-
-    private func togglePin(_ row: DetailRow) {
-        guard let ref = stateRef(for: row) else { return }
-        AppGlobals.pinnedManager?.toggle(ref)
     }
 
     private var renameAlertBinding: Binding<Bool> {

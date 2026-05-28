@@ -25,13 +25,13 @@ struct PropertiesListPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PaneHeader(path: $path, title: "Edit Properties")
+            PaneHeader(path: $path)
             propertyList
                 .frame(maxHeight: .infinity)
-            Divider()
+            PaneDivider()
             footer
         }
-        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 
@@ -65,20 +65,44 @@ struct PropertiesListPane: View {
         return all.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
     }
 
-    /// Resolves the parent Type's properties for any storage scope.
-    /// Collections inherit their parent Type's schema (per Properties.md).
+    /// Resolves the parent Type's properties for any storage scope by
+    /// looking up the live Type from the manager via its stable ID.
+    ///
+    /// Critical: the scope's payload (e.g. `t` in `.pageType(let t)`) is a
+    /// snapshot taken when the popover opened. Reading `t.properties`
+    /// directly would render stale state after any in-popover mutation —
+    /// delete / add / rename / duplicate all write through the manager
+    /// then leave this list re-rendering against the original snapshot.
+    /// Always extract the stable type ID and re-query the manager.
     private func resolvedProperties() -> [PropertyDefinition] {
-        switch scope {
-        case .pageType(let t):
-            return t.properties
-        case .itemType(let t):
-            return t.properties
-        case .pageCollection(let c):
-            return pageTypeManager.types.first(where: { $0.id == c.typeID })?.properties ?? []
-        case .itemCollection(let c):
-            return itemTypeManager.types.first(where: { $0.id == c.typeID })?.properties ?? []
-        default:
+        guard let typeID = scopeTypeID() else { return [] }
+        switch scopeSide() {
+        case .pages:
+            return pageTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+        case .items:
+            return itemTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+        case .none:
             return []
+        }
+    }
+
+    private enum SideKind { case pages, items }
+
+    private func scopeTypeID() -> String? {
+        switch scope {
+        case .pageType(let t): return t.id
+        case .itemType(let t): return t.id
+        case .pageCollection(let c): return c.typeID
+        case .itemCollection(let c): return c.typeID
+        default: return nil
+        }
+    }
+
+    private func scopeSide() -> SideKind? {
+        switch scope {
+        case .pageType, .pageCollection: return .pages
+        case .itemType, .itemCollection: return .items
+        default: return nil
         }
     }
 

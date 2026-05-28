@@ -3,22 +3,25 @@ import SwiftUI
 /// View Settings → Edit Properties → + New Property → type picker pane.
 ///
 /// Wraps the existing `PropertyTypePicker` for pushed-pane mode + handles
-/// the type-aware routing (locked decision):
-///   - Select / MultiSelect / Status → commit a default property of that type
-///     AND push .editProperty(propertyID:) onto the path so the user lands
-///     in the option editor immediately (these types are useless without
-///     options).
+/// the type-aware routing:
+///   - Select / MultiSelect / Status / Relation → commit a default property
+///     of that type AND push .editProperty(propertyID:) onto the path so
+///     the user lands in the configuration editor immediately (these types
+///     all need post-create setup).
 ///   - Number / Checkbox / Date / DateTime / URL / File → commit a default
 ///     property of that type AND pop back to the Properties list (simple
 ///     types are usable as-is).
-///   - Relation → defers to the existing `RelationPropertyWizard` on the
-///     sheet path until v0.3.1.5; from the popover we show a one-line
-///     "use Vault Settings" hint and pop. Full wizard wiring inside the
-///     popover is queued.
 ///
 /// Commits via PageTypeManager / ItemTypeManager addProperty. Schema lives
 /// on the Type (Collections inherit), so Collection-scope adds route to the
 /// parent Type's manager.
+///
+/// The minted property ID is generated up-front via
+/// `ReservedPropertyID.mintUserPropertyID()` so the route argument carries
+/// a real ULID. Without this, struct-by-value semantics into `addProperty`
+/// would discard the manager's internal mint and the caller would push
+/// `.editProperty(propertyID: "")` — landing on a "Property not found"
+/// dead-end.
 struct PropertyTypePickerPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
@@ -31,10 +34,11 @@ struct PropertyTypePickerPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PaneHeader(path: $path, title: "+ New Property")
+            PaneHeader(path: $path)
 
             ScrollView {
                 PropertyTypePicker(selected: $selected) { type in
+                    commitError = nil
                     Task { await commit(type) }
                 }
                 .padding(.horizontal, PUI.Spacing.xl)
@@ -49,35 +53,33 @@ struct PropertyTypePickerPane: View {
                     .padding(.vertical, PUI.Row.paddingVertical)
             }
         }
-        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Commit
 
     private func commit(_ type: PropertyType) async {
-        // Relation has its own multi-step wizard; defer to the sheet path
-        // until v0.3.1.5 wires the wizard inside the popover.
-        guard type != .relation else {
-            commitError = "Use Vault Settings → Edit Properties for Relations (v0.3.1.5)"
-            selected = nil
-            return
+        var definition = makeDefaultDefinition(for: type)
+        // Mint the property ID in the caller so the route argument carries
+        // the real ULID. The manager would otherwise mint internally and
+        // throw the value away (struct-by-value boundary).
+        if definition.id.isEmpty {
+            definition.id = ReservedPropertyID.mintUserPropertyID()
         }
-
-        let definition = makeDefaultDefinition(for: type)
 
         do {
             try await addProperty(definition)
         } catch {
-            commitError = String(describing: error)
+            commitError = PropertyEditorErrorMessage.string(for: error)
             return
         }
 
         // Type-aware routing.
         if PropertyTypePickerPane.requiresOptionConfig(type) {
             // Replace .propertyTypePicker on the stack with .editProperty so
-            // back-tap from the option editor lands on Properties, not the
-            // type picker we just left.
+            // back-tap from the editor lands on Properties, not the type
+            // picker we just left.
             if path.last == .propertyTypePicker {
                 path.removeLast()
             }
@@ -106,11 +108,12 @@ struct PropertyTypePickerPane: View {
         }
     }
 
-    /// Types that ship empty options on creation and demand the user fill
-    /// them in immediately — direct routing pushes EditPropertyPane.
+    /// Types that ship empty configuration on creation and demand the user
+    /// fill in scope / options / target before the property is useful —
+    /// auto-routes to EditPropertyPane.
     static func requiresOptionConfig(_ type: PropertyType) -> Bool {
         switch type {
-        case .select, .multiSelect, .status:
+        case .select, .multiSelect, .status, .relation:
             return true
         default:
             return false
@@ -157,9 +160,14 @@ struct PropertyTypePickerPane: View {
             return PropertyDefinition(id: "", name: name, type: .url)
         case .file:
             return PropertyDefinition(id: "", name: name, type: .file)
-        case .relation, .lastEditedTime:
-            // Relation is caught by the wizard branch above; lastEditedTime
-            // isn't user-creatable (excluded from PropertyType.userCreatable).
+        case .relation:
+            // Empty Relation property — scope / target / mirror name set
+            // by the user in EditPropertyPane's Relation editor after the
+            // auto-route. The validator accepts a nil-scope Relation.
+            return PropertyDefinition(id: "", name: name, type: .relation)
+        case .lastEditedTime:
+            // Excluded from PropertyType.userCreatable — unreachable, but
+            // the exhaustive switch requires a case.
             return PropertyDefinition(id: "", name: name, type: type)
         }
     }

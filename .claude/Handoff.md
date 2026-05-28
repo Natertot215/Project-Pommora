@@ -2,6 +2,35 @@
 
 > **Read this first at session start.** Snapshot of where things stand + what to pick up next. Detailed shipped history in `History.md`; phased roadmap in `Framework.md`.
 
+#### Latest session — Properties UIX baseline + View Settings editor redesign (2026-05-27)
+
+**Shipped (build-clean; NOT smoke-tested yet):** a written UIX baseline + the View Settings property editor rebuilt to Nathan's Figma.
+
+- **Baseline doc:** `.claude/Guidelines/UIX-Baseline.md` (NEW) — field backdrop, divider rules, type scale, selectors, back-label, native-first. `Design.md` "Liquid Glass continuity" trimmed + cross-linked.
+- **PUI foundation:** added `Fill.field` (= `Color(nsColor: .controlBackgroundColor)` — the page inspector's grouped-`Form` fill, replacing the `Color.primary.opacity(0.06)` pill), `Radius.field`, `Typography.chip`, `Pane.dividerPaddingVertical`; `Typography.sectionHeader` → subheadline-emphasized. New `.pommoraFieldBackground()` (`DesignSystem/PommoraFieldBackground.swift`) is the single encapsulation for the field backdrop.
+- **EditPropertyPane:** icon + name fields on the unified backdrop (rounded-rect, fixed-width filling the rail); full-rail dividers w/ 5pt; "Options"/"Display As" headers subheadline-secondary; Display As / number / date selectors = plain `Menu` + inline `Picker` (checkmarks, no chevron glyph); back row = "‹ <previous pane>".
+- **Option editors:** "Add" moved onto the section header (right-aligned to the rail); chip spacing 6 / header-gap 12; `line.3.horizontal` drag grip is the drag source; `OptionEditPopover` title field + `StorageMenuRoot` header pills → unified backdrop.
+- **PaneHeader:** shows the *previous* pane's label (chevron + small label); gained `rootLabel` / `showsDivider`. Sibling panes updated — **they no longer show their own title** (smoke-confirm or restore).
+- **EditOptionPane DELETED** (dead/unwired) + `.editOption` route removed. `OptionEditPopover` now opens on **right-click AND double-click** — right-click via new `SecondaryClickCatcher` (small AppKit `rightMouseDown` shim, `DesignSystem/`).
+
+**Deferred to a later version (descoped mid-session by Nathan — too large for this branch):** sidebar row context-popover; retiring `TypeSettingsSheet` / `VaultSettingsSheet`; leaf page/item value editing; Item Window. The two-surface drift (toolbar popover vs. sidebar sheets) persists by design. Full intent captured in `UIX-Baseline.md` "Deferred".
+
+**Pending Nathan smoke:** (1) confirm `PUI.Fill.field` matches the inspector by eye — adjust that ONE token if off; (2) Figma parity on EditPropertyPane (field width, 5pt full-rail dividers, "Add" rail alignment, 6/12 chip spacing, grips, subheadline headers, no-chevron dropdowns); (3) previous-pane back-label reads right on sibling panes; (4) right-click opens the option pop-out.
+
+**Caveats:** `EditOptionPane.swift` had uncommitted parallel-session edits — deleting it (Nathan-authorized) discarded them. Option-editor files (`SelectOptionsEditor` / `StatusGroupsEditor` / `OptionEditPopover`) remain parallel-session territory; built on current working-tree shapes. Plan: `~/.claude/plans/claude-handoff-md-swiftui-expert-skill-sleepy-stream.md`.
+
+**Smoke fixes (2026-05-27, rounds 1–3) — all build-clean, re-smoke pending:**
+- **Inline fields commit on blur + dismiss, not just Enter.** `@FocusState` + blur-commit on `StorageMenuRoot`'s type rename (had none) + `.onDisappear` safety net on `EditPropertyPane`'s name field; idempotent `trimmed != current` guards. Logged in `UIX-Baseline.md`.
+- **Field fill = `.quinary`** (`PUI.Fill.field`, `AnyShapeStyle`). `.controlBackgroundColor` too stark, `.quaternary` too bright — landed on `.quinary`.
+- **Header title field is full-width** (fills the rail) on Storage + Edit-Property panes. `.fixedSize` is reserved for the Status group *labels* only (caret on text, not the whole row).
+- **Status groups:** +6pt below each group's last chip for separation.
+- **New property shows on the table immediately** — `PropertyColumnBuilder` renders "unaccounted" schema props (neither visible nor hidden) as visible-by-default, matching `PropertyVisibilityPane`. (`addProperty` is schema-only; the column builder lacked the fallback.)
+- **Universal divider/footer rail.** New shared `PaneDivider` (16pt content-rail inset) used by every settings pane. Delete/Duplicate + "New property" pinned to the popover bottom at 16h/10v; Display As / format selectors scroll with their section (NOT pinned). Logged in `UIX-Baseline.md`.
+- **Drag-reorder off-by-one fixed** (pre-existing + behavioral) at all 4 sites — `srcIdx < dstIdx ? dstIdx - 1 : dstIdx`; downward drags now land on the target's slot.
+- **`OptionColorPicker.swift` deleted** (dead after the EditOptionPane removal).
+
+**Minor leftovers (non-breaking):** stale `EditOptionPane` doc-comment mentions in `PropertyEditorErrorMessage` / `ViewSettingsButton` / `PropertyCellDisplay`, and a stale `OptionColorPicker` mention in `PropertyChipColor` / `ComponentLibraryView` doc strings. No code impact.
+
 #### Current state (2026-05-27)
 
 **Folders feature reverted in full + post-revert cleanup done — committed + pushed to `origin/main`.** The third Pages-side tier (`PageType → PageCollection → Folder → Page`) was built end-to-end then removed: it duplicated Collections' rigid-grouping role and conflicted with the still-unbuilt view-organization system (Board / group-by / saved views — phasing in `Framework.md`). Full rationale + ledger in `History.md` → "Folders — tried and reverted."

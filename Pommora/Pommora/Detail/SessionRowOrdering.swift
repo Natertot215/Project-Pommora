@@ -7,22 +7,35 @@ import Foundation
 /// detail-pane reorder to per-view-config overrides; this helper bridges
 /// the gap.
 enum SessionRowOrdering {
-    /// Compute a new ordering by moving `movingID` to the position of
-    /// `ontoID`, preserving every other ID's relative order. Returns the
-    /// `base` unchanged when the move is a no-op (self-drop or unknown IDs).
-    static func apply(base: [String], movingID: String, ontoID: String) -> [String] {
-        guard movingID != ontoID else { return base }
-        guard base.contains(movingID), base.contains(ontoID) else { return base }
-        let originalTargetIdx = base.firstIndex(of: ontoID)!
-        let originalSourceIdx = base.firstIndex(of: movingID)!
+    /// Move `movingID` so it lands at `toOffset` within `base` — the insertion
+    /// index SwiftUI's row `dropDestination(for:action:)` reports (measured
+    /// against the array *before* the moved row is removed). Every other ID
+    /// keeps its relative order. Returns `base` unchanged for an unknown ID or
+    /// a no-op move (dropping a row onto its own slot).
+    static func move(base: [String], movingID: String, toOffset: Int) -> [String] {
+        guard let from = base.firstIndex(of: movingID) else { return base }
+        let target = min(max(toOffset, 0), base.count)
+        // Removing the row first shifts every later index down by one, so a
+        // target past the original position lands one slot earlier.
+        let insertAt = target > from ? target - 1 : target
+        guard insertAt != from else { return base }
         var working = base
-        working.removeAll { $0 == movingID }
-        guard let targetIdx = working.firstIndex(of: ontoID) else { return base }
-        // Drop onto a row: when moving downward, insert AFTER the target;
-        // when moving upward, insert BEFORE. Matches the user's mental
-        // model of "drop on the row to land just past it" in the down case.
-        let insertIdx = originalTargetIdx > originalSourceIdx ? targetIdx + 1 : targetIdx
-        working.insert(movingID, at: insertIdx)
+        working.remove(at: from)
+        working.insert(movingID, at: insertAt)
         return working
+    }
+
+    /// Layer a session-local order (`sessionOrder`, a list of row IDs) over the
+    /// manager's natural order (`base`). Rows named in `sessionOrder` render in
+    /// that sequence; rows added since the last reorder append at the end. Nil
+    /// session order → `base` unchanged. Shared by every detail view's `rows`.
+    static func reconcile<Element: Identifiable>(
+        base: [Element], sessionOrder: [String]?
+    ) -> [Element] where Element.ID == String {
+        guard let sessionOrder else { return base }
+        let byID = Dictionary(base.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let ordered = sessionOrder.compactMap { byID[$0] }
+        let known = Set(sessionOrder)
+        return ordered + base.filter { !known.contains($0.id) }
     }
 }

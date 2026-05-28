@@ -59,8 +59,8 @@ Section header chevrons appear **on hover only** — Apple's default for `Sectio
 Surfaces hosted inside `.popover(...)` and toolbar-anchored panels sit inside Apple's Liquid Glass chrome. Don't compete with it.
 
 - Apple drives the outer shell (translucent rounded background, drop shadow, anchor arrow, transitions). Don't add `.background(.regularMaterial)` / `.glassEffect()` / opaque fills to popover roots.
-- Use `Color.primary.opacity(0.06)` for in-popover emphasis (title pills, icon button backgrounds) — works on both appearances without breaking translucency.
-- Prefer `Menu { ... } label: { Text + chevron-down }` with `.menuStyle(.borderlessButton)` over `Picker(.menu)` for inline selectors — Pickers render a heavy macOS button background that reads as "form control" rather than inline content.
+- **Editable fields + icon buttons** use the unified `PUI.Fill.field` backdrop via `.pommoraFieldBackground()` — the page inspector's grouped-`Form` system fill, rounded-rect (not a pill, not a hand-set opacity). 
+- Prefer a plain `Menu` over `Picker(.menu)` for inline selectors (Pickers render a heavy "form control" background). The trigger is the value text with **no chevron glyph**; the menu is a vertical list with a checkmark on the current value. → `UIX-Baseline.md`.
 - Third-party popover content (e.g., SymbolPicker) must be wrapped in `.popover` with an explicit `.frame(width:height:)` — default sizing dwarfs Liquid Glass surfaces.
 - When a popover pane edits one named entity whose icon + name render inline at the top, drop the separate "Edit X" pane title — the entity row carries identity. Otherwise keep the standard `PaneHeader`.
 
@@ -97,6 +97,7 @@ AppKit wraps are confirmed during real build, not pre-cataloged. Shipped: Page e
 
 #### Reference
 
+- `UIX-Baseline.md` — concrete popover-family UIX spec (field backdrop, dividers, type scale, selectors, back-label)
 - `Symbols.md` — SF Symbol registry (Application ↔ Symbol table)
 - `CRUD-Patterns.md` — per-entity CRUD UI patterns + atomic-write discipline
 - `// Features//Sidebar.md` — right-click menu table + selection chrome spec

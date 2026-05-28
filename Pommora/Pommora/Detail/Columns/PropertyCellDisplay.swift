@@ -6,8 +6,9 @@ import SwiftUI
 /// Render shape per type (locked decisions):
 /// - Chip-family (4 types):
 ///     - Select / MultiSelect → `PropertyChip(.pill)` in option color
-///     - Status → switches on `definition.displayAs` (`.box` colored dot /
-///       `.select` colored chip / `.chip` icon-only PropertyChip.chip)
+///     - Status → switches on `definition.displayAs` (default `.select`
+///       colored chip / `.box` colored dot / `.chip` icon-only). nil resolves
+///       to `.select` to match the editor binding (which stores nil for it).
 ///     - Relation → `RelationChip` (default-grey, rounded rectangle,
 ///       resolved-target icon + title)
 /// - Non-chip (7 types):
@@ -176,7 +177,7 @@ struct PropertyCellDisplay: View {
         if case .select(let optionValue) = value,
            let opt = definition.selectOptions?.first(where: { $0.value == optionValue })
         {
-            PropertyChip(label: opt.label, color: chipColor(from: opt.color))
+            PropertyChip(label: opt.label, color: chipColor(from: opt.color), size: .compact)
         } else { emptyCell }
     }
 
@@ -186,7 +187,7 @@ struct PropertyCellDisplay: View {
             HStack(spacing: 4) {
                 ForEach(ids, id: \.self) { id in
                     if let opt = definition.selectOptions?.first(where: { $0.value == id }) {
-                        PropertyChip(label: opt.label, color: chipColor(from: opt.color))
+                        PropertyChip(label: opt.label, color: chipColor(from: opt.color), size: .compact)
                     }
                 }
             }
@@ -197,28 +198,29 @@ struct PropertyCellDisplay: View {
 
     @ViewBuilder
     private var statusCell: some View {
-        if case .status(let optionValue) = value,
-           let (option, group) = findStatusOption(value: optionValue)
-        {
-            let label = option.label
+        // nil resolves to `.select` to match the editor's binding (which writes
+        // nil for "Select") — otherwise the pill variant would be unreachable.
+        let variant = definition.displayAs ?? .select
+        if variant == .box {
+            // Box always renders the standard tri-state checkbox (empty when
+            // unset); the group→state mapping lives in StatusCheckbox.
+            StatusCheckbox(value: statusValue, groups: definition.statusGroups ?? [])
+        } else if let optionValue = statusValue,
+                  let (option, group) = findStatusOption(value: optionValue) {
             let color = chipColor(from: option.color ?? group.color)
-            switch definition.displayAs ?? .box {
-            case .box:
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(color.swiftUIColor)
-                        .frame(width: 8, height: 8)
-                    Text(label)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                }
-            case .select:
-                PropertyChip(label: label, color: color)
-            case .chip:
-                PropertyChip(icon: "square.dashed", color: color)
+            if variant == .chip {
+                PropertyChip(icon: "square.dashed", color: color, size: .compact)
+            } else {
+                PropertyChip(label: option.label, color: color, size: .compact)
             }
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
+    }
+
+    private var statusValue: String? {
+        if case .status(let v) = value { return v }
+        return nil
     }
 
     private func findStatusOption(value: String) -> (

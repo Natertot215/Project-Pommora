@@ -14,16 +14,15 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 
 **Code layer is symmetric** (PageType / PageCollection / ItemType / ItemCollection — same shape, different content). **UI vocabulary diverges per side** — Pages get the distinctive "Vault" + generic "Collection"; Items get the generic "Type" + distinctive "Set". Each side has one signature word and one shared word. All UI labels renameable via Settings.
 
-Items open in a popover-style **Item Window** (title + properties + 250-char description, not a full-frame surface); Pages open in the main detail pane. (Standalone-window previews are queued behind the cross-feature PreviewWindow primitive; not yet wired.) Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source. Pommora's stack is **SwiftUI**; React+Electron is preserved as the contingency path.
+Items open in a popover-style **Item Window** (title + properties + 250-char description, not a full-frame surface); Pages open in the main detail pane. (Standalone-window previews are queued behind the cross-feature PreviewWindow primitive; not yet wired.) Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source.
 
-#### Working with Nathan
+#### HARD RULES
 
-- Non-coder, first agentic project. Nathan directs, Claude implements. Nathan does not write code.
-- Mac user, always Mac. Lives in the Apple ecosystem.
-- Values cohesion and simplicity over ecosystem reach or feature ceilings.
-- Push back honestly when direction is unclear or a mistake is forming.
-- Vocabulary may be imprecise — clarify before assuming.
-- Studio-resident project; the Studio CLAUDE.md global rules and Nathan's NathanOS rules apply.
+- **The Component Library is the source of design.** Components and design come from the Component Library as reusable assets — stage them there and pull them into production; avoid one-off designs whenever possible.
+
+- **Condensed, exhaustive control flow.** Model a finite set of states as an `enum` and branch with a `switch` (the compiler then enforces every case), rather than chains of `if/else` or loose booleans/strings. Favor the tightest structured form that stays legible.
+
+- **DRY — one source of truth.** When the same logic, mapping, or rendering would live in two or more places, hoist it into a single function or type and reuse it; never copy-paste behavior across call sites.
 
 #### Stack
 
@@ -35,7 +34,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
-- **Files are canonical (≠ everything is Markdown).** Pages = `.md` (inside a Page Type's Page Collection sub-folder, or directly in a Page Type). Items = `.json` (inside an Item Type's Item Collection sub-folder, or directly in an Item Type). Page Type = folder + `_pagetype.json`; Item Type = folder + `_itemtype.json`. Page Collection = sub-folder + `_pagecollection.json`; Item Collection = sub-folder + `_itemcollection.json` (carries id + type_id + ordering). Agenda Tasks = `.task.json` files inside the Tasks singleton folder (root folder carrying `_taskconfig.json`). Agenda Events = `.event.json` files inside the Events singleton folder (root folder carrying `_eventconfig.json`). All operational containers live at the nexus root — no wrapper folders. Projects (tier-3 Contexts) = `.project.json` inside `.nexus/topics/<TopicFolder>/`. Settings = `.nexus/settings.json` (Phase 7). SQLite is regeneratable index — no user data trapped in it.
+- **Files are canonical (≠ everything is Markdown).** Pages = `.md`, Items = `.json` — inside their Type folder (sidecar `_pagetype.json` / `_itemtype.json`), optionally within a Collection sub-folder; Agenda = `.task.json` / `.event.json`; Projects = `.project.json`; Settings = `.nexus/settings.json`. Operational containers live at the nexus root (no wrapper folders); SQLite is a regeneratable index — no user data trapped in it. Full on-disk spec → `PommoraPRD.md` + `// Features//Architecture.md`.
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 
@@ -94,8 +93,6 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
   - `Symbols-guide.md` — React-side semantic-role icon indirection
   - `Resources.md` — React-side library catalog
   - `v0.0.md` — preserved React+Electron-locked v0.0.0 spec
-
-> **Note:** ReactInfo docs predate the RC-session domain-model revision and still describe the older 3-entity model. Sync to the new 2-layer model is deferred; the Swift-side docs are canonical. ReactInfo translation will catch up if the contingency path is ever activated.
 
 
 Read `Handoff.md` first at session start.

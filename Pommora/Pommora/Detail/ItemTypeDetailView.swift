@@ -59,9 +59,13 @@ struct ItemTypeDetailView: View {
     @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(SettingsManager.self) private var settingsManager
 
-    @State private var tableSelection: Set<String> = []
+    @State private var expanded: Set<String> = []  // set row IDs that are disclosed
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
+    /// Container-delete confirmation target — set only from a Set row's menu.
+    /// Item deletes stay direct (no confirmation); only the container case
+    /// routes here, mirroring the sidebar's delete guard.
+    @State private var deleteTarget: DetailRow?
     /// Session-local row order override. Nil → fall back to manager order.
     /// Resets on entity change. Independent of the sidebar's reorder system.
     @State private var sessionOrder: [String]?
@@ -92,6 +96,20 @@ struct ItemTypeDetailView: View {
                 Text("Rename \(row.kindLabel.lowercased()) \"\(row.title)\"")
             }
         }
+        .confirmationDialog(
+            deleteConfirmationTitle,
+            isPresented: deleteConfirmationBinding,
+            titleVisibility: .visible,
+            presenting: deleteTarget
+        ) { row in
+            Button("Delete", role: .destructive) {
+                Task { await delete(row) }
+                deleteTarget = nil
+            }
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+        } message: { _ in
+            Text("All Items inside will be deleted.")
+        }
     }
 
     private var header: some View {
@@ -120,7 +138,7 @@ struct ItemTypeDetailView: View {
     }
 
     private var table: some View {
-        Table(rows, children: \.children, selection: $tableSelection) {
+        Table(of: DetailRow.self) {
             TableColumn("Title") { row in
                 Label {
                     Text(row.title)
@@ -129,12 +147,10 @@ struct ItemTypeDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { handleDoubleTap(row) }
+                // simultaneousGesture (not onTapGesture) so double-click-to-open
+                // coexists with the row drag instead of blocking it near the title.
+                .simultaneousGesture(TapGesture(count: 2).onEnded { handleDoubleTap(row) })
                 .contextMenu { menuItems(for: row) }
-                .draggable(DetailRowDragPayload(rowID: row.id, zone: zone(for: row)))
-                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
-                    handleDrop(payloads: payloads, ontoRowID: row.id)
-                }
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
@@ -171,6 +187,31 @@ struct ItemTypeDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        } rows: {
+            // Row-level drag = reorder (table-specialized API). Only top-level
+            // rows (Sets + Type-root Items) reorder; dragging an Item nested in
+            // a Set is a no-op (its id isn't in the top-level list, so `move`
+            // returns the base unchanged). Selection highlight removed so the
+            // drag owns the gesture; multi-select returns as a hover checkbox
+            // in v0.4.0.
+            ForEach(rows) { row in
+                if let kids = row.children, !kids.isEmpty {
+                    DisclosureTableRow(row, isExpanded: expandedBinding(for: row.id)) {
+                        // Child rows aren't reorderable here (top-level only), so
+                        // they're not drag sources — avoids a lift-then-snap-back.
+                        ForEach(kids) { kid in
+                            TableRow(kid)
+                        }
+                    }
+                    .draggable(DetailRowDragPayload(rowID: row.id))
+                } else {
+                    TableRow(row)
+                        .draggable(DetailRowDragPayload(rowID: row.id))
+                }
+            }
+            .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
+                handleDrop(payloads: payloads, toOffset: offset)
+            }
         }
     }
 
@@ -195,30 +236,29 @@ struct ItemTypeDetailView: View {
         return nil
     }
 
-    // MARK: - Drag-reorder (session-local, same-zone-only)
+    // MARK: - Drag-reorder (session-local, top-level only)
 
-    private func zone(for row: DetailRow) -> DetailRowDragPayload.Zone {
-        switch row.kind {
-        case .itemCollection: return .typeSet
-        case .item: return .typeRootItem
-        case .page, .collection: return .typeRootItem  // unreachable in ItemType context
-        }
+    /// Row drop handler — session-only. `offset` is the top-level insertion
+    /// index the table reports; `move` no-ops on unknown payloads (e.g. an Item
+    /// dragged from inside a Set, whose id isn't in the top-level list). Updates
+    /// `sessionOrder`, which the `rows` computed honors. No manager API call.
+    private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
+        guard let payload = payloads.first else { return }
+        let currentIDs = rows.map(\.id)
+        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
+        guard next != currentIDs else { return }
+        sessionOrder = next
     }
 
-    /// Drop handler — session-only. Same-zone only. Cross-zone drops
-    /// (e.g. Item onto Set or vice versa) are silently rejected.
-    @discardableResult
-    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
-        guard let payload = payloads.first else { return false }
-        let currentRows = rows
-        guard let targetRow = currentRows.first(where: { $0.id == targetID }) else { return false }
-        guard payload.zone == zone(for: targetRow) else { return false }
-
-        let currentIDs = currentRows.map(\.id)
-        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
-        guard next != currentIDs else { return false }
-        sessionOrder = next
-        return true
+    /// Stable per-row disclosure binding so a Set's expanded state survives the
+    /// frequent `rows` recomputes (every manager change).
+    private func expandedBinding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { expanded.contains(id) },
+            set: { isOn in
+                if isOn { expanded.insert(id) } else { expanded.remove(id) }
+            }
+        )
     }
 
     private var footer: some View {
@@ -304,13 +344,8 @@ struct ItemTypeDetailView: View {
             itemTypeManager: itemTypeManager,
             itemContentManager: itemContentManager
         ).rows()
-        guard let sessionOrder else { return baseRows }
         // Top-level session order override; child rows retain their natural order.
-        let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
-        let ordered = sessionOrder.compactMap { byID[$0] }
-        let known = Set(sessionOrder)
-        let appended = baseRows.filter { !known.contains($0.id) }
-        return ordered + appended
+        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
@@ -326,7 +361,7 @@ struct ItemTypeDetailView: View {
         switch row.kind {
         case .item:
             Button("Rename") { beginRename(row) }
-            Button(isPinned(row) ? "Unpin Item" : "Pin Item") { togglePin(row) }
+            Button(row.isPinned ? "Unpin Item" : "Pin Item") { row.togglePin() }
             Divider()
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
@@ -335,29 +370,14 @@ struct ItemTypeDetailView: View {
             Button("Open") { handleDoubleTap(row) }
             Button("Rename") { beginRename(row) }
             Divider()
+            // Container delete is guarded — route through the confirmation
+            // dialog (mirrors the sidebar). Item deletes stay direct.
             Button("Delete", role: .destructive) {
-                Task { await delete(row) }
+                deleteTarget = row
             }
         case .page, .collection:
             EmptyView()
         }
-    }
-
-    private func stateRef(for row: DetailRow) -> EntityStateRef? {
-        switch row.kind {
-        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .itemCollection, .page, .collection: return nil
-        }
-    }
-
-    private func isPinned(_ row: DetailRow) -> Bool {
-        guard let ref = stateRef(for: row) else { return false }
-        return AppGlobals.pinnedManager?.contains(ref) ?? false
-    }
-
-    private func togglePin(_ row: DetailRow) {
-        guard let ref = stateRef(for: row) else { return }
-        AppGlobals.pinnedManager?.toggle(ref)
     }
 
     private var renameAlertBinding: Binding<Bool> {
@@ -398,6 +418,21 @@ struct ItemTypeDetailView: View {
                 // pendingError set by manager; toast surfaces.
             }
         }
+    }
+
+    /// Title for the container-delete confirmation. Mirrors the sidebar's
+    /// `confirmationTitle` — uses the configured Set label.
+    private var deleteConfirmationTitle: String {
+        guard let row = deleteTarget else { return "" }
+        let label = settingsManager.settings.labels.itemCollection.singular
+        return "Delete \(label) \"\(row.title)\"?"
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
+        )
     }
 
     private func delete(_ row: DetailRow) async {

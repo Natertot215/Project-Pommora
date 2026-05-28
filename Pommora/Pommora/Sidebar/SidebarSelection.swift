@@ -119,6 +119,8 @@ extension SidebarSelection {
         case .topic: resolved = Self.resolveTopic(id: stateRef.id, lookup: lookup)
         case .project: resolved = Self.resolveProject(id: stateRef.id, lookup: lookup)
         case .collection: resolved = Self.resolveCollection(id: stateRef.id, lookup: lookup)
+        case .itemType: resolved = Self.resolveItemType(id: stateRef.id, lookup: lookup)
+        case .set: resolved = Self.resolveItemCollection(id: stateRef.id, lookup: lookup)
         case .item, .agenda, .none: resolved = nil
         }
         guard let resolved else { return nil }

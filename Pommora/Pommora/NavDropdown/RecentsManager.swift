@@ -23,9 +23,20 @@ final class RecentsManager {
         self.nexus = nexus
     }
 
-    /// Top of the store, capped for dropdown rendering.
+    /// Top of the store, capped for dropdown rendering. Storage containers
+    /// (Vault / Collection / Type / Set) participate in the back/forward stack
+    /// and persist in `entries`, but are hidden here: the dropdown is a
+    /// quick-jump list for content leaves (Pages), while containers are reached
+    /// via the sidebar. One structure, two projections.
     var dropdownTop: [EntityStateRef] {
-        Array(entries.prefix(Self.dropdownCap))
+        Array(
+            entries.lazy
+                .filter { ref in
+                    guard let kind = ref.typedKind else { return false }
+                    return !Self.containerKinds.contains(kind)
+                }
+                .prefix(Self.dropdownCap)
+        )
     }
 
     var canStepBack: Bool { cursor < entries.count - 1 }
@@ -38,9 +49,10 @@ final class RecentsManager {
         }
         do {
             let state = try AtomicJSON.decode(NexusState.self, from: url)
-            // Drop any entries from prior versions that recorded organizational
-            // surfaces (Spaces / Topics / Projects / Vaults / Collections);
-            // those no longer belong in Recents.
+            // Drop entries whose kind is no longer steppable: Contexts (Spaces /
+            // Topics / Projects) and Items/Agenda. Pages + storage containers
+            // (Vault / Collection / Type / Set) are kept — the latter were
+            // excluded before this build, so old state.json files self-heal.
             let filtered = state.recents.filter { ref in
                 guard let kind = ref.typedKind else { return false }
                 return Self.recordableKinds.contains(kind)
@@ -55,11 +67,21 @@ final class RecentsManager {
         }
     }
 
-    /// Only Pages, Items, and Agenda entries belong in Recents. Contexts
-    /// (Spaces / Topics / Projects) and Vault containers (Vaults /
-    /// Collections) are organizational surfaces — they can still be Pinned,
-    /// but selecting them never enters the Recents history.
-    static let recordableKinds: Set<EntityStateRef.Kind> = [.page, .item, .agenda]
+    /// Kinds that enter the shared `entries` list — i.e. what the Back/Forward
+    /// stack steps through and what persists to state.json. Pages plus the four
+    /// storage containers (Vault / Collection / Type / Set). Items are omitted:
+    /// they open in a popover Item Window, not the main pane, so stepping
+    /// "back" to one doesn't fit the navigation flow. Contexts (Spaces /
+    /// Topics / Projects) stay out too — they're reached via the sidebar.
+    static let recordableKinds: Set<EntityStateRef.Kind> = [
+        .page, .vault, .collection, .itemType, .set,
+    ]
+
+    /// Storage containers recorded into `entries` (steppable) but hidden from
+    /// the Recents dropdown projection (see `dropdownTop`).
+    static let containerKinds: Set<EntityStateRef.Kind> = [
+        .vault, .collection, .itemType, .set,
+    ]
 
     func record(_ ref: EntityStateRef) {
         guard let kind = ref.typedKind, Self.recordableKinds.contains(kind) else { return }

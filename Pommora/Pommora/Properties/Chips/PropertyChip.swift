@@ -19,6 +19,31 @@ import SwiftUI
 struct PropertyChip: View {
     let content: Content
     let color: PropertyChipColor
+    var size: Size = .standard
+
+    /// Context sizing. `.standard` is the Figma spec (panel, dropdown,
+    /// Item Window); `.compact` fits a `Table` row without inflating it.
+    enum Size: Sendable {
+        case standard
+        case compact
+
+        var pillFont: Font {
+            switch self {
+            case .standard: .system(size: 12, weight: .semibold)
+            case .compact:  .system(size: 11, weight: .semibold)
+            }
+        }
+        var iconFont: Font {
+            switch self {
+            case .standard: .system(size: 11, weight: .semibold)
+            case .compact:  .system(size: 10, weight: .semibold)
+            }
+        }
+        var pillMinWidth: CGFloat { self == .standard ? 50 : 40 }
+        var minHeight: CGFloat { self == .standard ? 20 : 16 }
+        var iconMinWidth: CGFloat { self == .standard ? 32 : 26 }
+        var hPadding: CGFloat { self == .standard ? 6 : 5 }
+    }
 
     /// Discriminated content — `.pill` carries a text Label, `.chip` carries an
     /// SF Symbol icon name. The variant is implicit from the content type.
@@ -29,19 +54,22 @@ struct PropertyChip: View {
 
     // MARK: Convenience initializers
 
-    init(label: String, color: PropertyChipColor) {
+    init(label: String, color: PropertyChipColor, size: Size = .standard) {
         self.content = .pill(label: label)
         self.color = color
+        self.size = size
     }
 
-    init(icon: String, color: PropertyChipColor) {
+    init(icon: String, color: PropertyChipColor, size: Size = .standard) {
         self.content = .chip(icon: icon)
         self.color = color
+        self.size = size
     }
 
-    init(content: Content, color: PropertyChipColor) {
+    init(content: Content, color: PropertyChipColor, size: Size = .standard) {
         self.content = content
         self.color = color
+        self.size = size
     }
 
     // MARK: Body
@@ -55,19 +83,19 @@ struct PropertyChip: View {
 
     private func pillBody(label: String) -> some View {
         Text(label)
-            .font(.system(size: 12, weight: .semibold))
+            .font(size.pillFont)
             .lineSpacing(3)
             .foregroundStyle(Color.white)
-            .padding(.horizontal, 6)
-            .frame(minWidth: 50, minHeight: 20)
+            .padding(.horizontal, size.hPadding)
+            .frame(minWidth: size.pillMinWidth, minHeight: size.minHeight)
             .background(Capsule().fill(color.swiftUIColor))
     }
 
     private func chipBody(icon: String) -> some View {
         Image(systemName: icon)
-            .font(.system(size: 11, weight: .semibold))
+            .font(size.iconFont)
             .foregroundStyle(Color.white)
-            .frame(minWidth: 32, minHeight: 20)
+            .frame(minWidth: size.iconMinWidth, minHeight: size.minHeight)
             .background(Capsule().fill(color.swiftUIColor))
     }
 }

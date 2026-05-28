@@ -30,6 +30,7 @@ struct StorageMenuRoot: View {
     @State private var iconPickerOpen: Bool = false
     @State private var isRenaming: Bool = false
     @State private var renameDraft: String = ""
+    @FocusState private var renameFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,7 +39,7 @@ struct StorageMenuRoot: View {
                 .padding(.top, PUI.Pane.Header.paddingTop)
                 .padding(.bottom, PUI.Pane.Header.paddingBottom)
 
-            Divider()
+            PaneDivider()
 
             VStack(spacing: 0) {
                 activeRow(
@@ -60,7 +61,7 @@ struct StorageMenuRoot: View {
 
             Spacer(minLength: 0)
         }
-        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .measuredPaneHeight()
     }
 
     @ViewBuilder
@@ -68,12 +69,13 @@ struct StorageMenuRoot: View {
         HStack(spacing: PUI.Pane.Header.interSpacing) {
             iconAffordance
             titleAffordance
-            Spacer(minLength: 0)
         }
     }
 
     /// Tappable icon for Type scopes (opens SymbolPicker), static Image for
     /// Collection scopes (Collections don't carry icons at v0.3.1).
+    /// Faint rounded-rectangle background matches the OptionEditPopover
+    /// title-pill emphasis (per Nathan's 2026-05-26 direction).
     @ViewBuilder
     private var iconAffordance: some View {
         if isTypeScope {
@@ -84,43 +86,67 @@ struct StorageMenuRoot: View {
                     .font(PUI.Icon.header)
                     .foregroundStyle(.primary)
                     .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                    .fieldBackground()
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Change icon")
-            .sheet(isPresented: $iconPickerOpen) {
+            // Constrained popover replaces SymbolPicker's default huge
+            // sheet per Nathan's 2026-05-26 direction. Frame sized to fit
+            // SymbolPicker's internal grid + section sidebar without
+            // horizontal/vertical clipping.
+            .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
                 SymbolPicker(symbol: iconBinding)
+                    .frame(width: 540, height: 460)
             }
         } else {
             Image(systemName: headerIcon)
                 .font(PUI.Icon.header)
                 .foregroundStyle(.secondary)
                 .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                .fieldBackground()
         }
     }
 
     /// Tappable title for Type scopes (inline TextField rename), static
-    /// Text for Collection scopes (rename via sidebar context menu).
+    /// Text for Collection scopes (rename via sidebar context menu). All
+    /// variants share the faint pill background — matches OptionEditPopover
+    /// title emphasis (per Nathan's 2026-05-26 direction).
     @ViewBuilder
     private var titleAffordance: some View {
         if isTypeScope {
             if isRenaming {
-                TextField("Title", text: $renameDraft, onCommit: { Task { await commitRename() } })
-                    .textFieldStyle(.roundedBorder)
-                    .font(PUI.Typography.paneTitle)
-                    .frame(maxWidth: 200)
-                    .onAppear { renameDraft = headerTitle }
+                TextField("Title", text: $renameDraft)
+                    .textFieldStyle(.plain)
+                    .font(.title3)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fieldBackground()
+                    .focused($renameFocused)
+                    .onAppear {
+                        renameDraft = headerTitle
+                        renameFocused = true
+                    }
                     .onSubmit { Task { await commitRename() } }
+                    .onChange(of: renameFocused) { wasFocused, isFocused in
+                        // Commit on click-out (blur), not just Enter.
+                        if wasFocused && !isFocused { Task { await commitRename() } }
+                    }
             } else {
                 Button {
                     renameDraft = headerTitle
                     isRenaming = true
                 } label: {
                     Text(headerTitle)
-                        .font(PUI.Typography.paneTitle)
+                        .font(.title3)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fieldBackground()
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -128,9 +154,13 @@ struct StorageMenuRoot: View {
             }
         } else {
             Text(headerTitle)
-                .font(PUI.Typography.paneTitle)
+                .font(.title3)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fieldBackground()
         }
     }
 

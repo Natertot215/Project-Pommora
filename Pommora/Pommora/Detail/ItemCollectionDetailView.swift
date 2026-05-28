@@ -33,7 +33,6 @@ struct ItemCollectionDetailView: View {
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(ItemContentManager.self) private var itemContentManager
 
-    @State private var tableSelection: Set<String> = []
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
     /// Session-local row order override. Nil → fall back to manager order.
@@ -107,7 +106,7 @@ struct ItemCollectionDetailView: View {
     }
 
     private var table: some View {
-        Table(rows, selection: $tableSelection) {
+        Table(of: DetailRow.self) {
             TableColumn("Title") { row in
                 Label {
                     Text(row.title)
@@ -116,12 +115,10 @@ struct ItemCollectionDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { handleDoubleTap(row) }
+                // simultaneousGesture (not onTapGesture) so double-click-to-open
+                // coexists with the row drag instead of blocking it near the title.
+                .simultaneousGesture(TapGesture(count: 2).onEnded { handleDoubleTap(row) })
                 .contextMenu { menuItems(for: row) }
-                .draggable(DetailRowDragPayload(rowID: row.id, zone: .setItem))
-                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
-                    handleDrop(payloads: payloads, ontoRowID: row.id)
-                }
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
@@ -159,6 +156,17 @@ struct ItemCollectionDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        } rows: {
+            // Row-level drag = reorder (the table-specialized API). Selection
+            // highlight was removed so the drag owns the gesture; multi-select
+            // returns as a hover checkbox in v0.4.0.
+            ForEach(rows) { row in
+                TableRow(row)
+                    .draggable(DetailRowDragPayload(rowID: row.id))
+            }
+            .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
+                handleDrop(payloads: payloads, toOffset: offset)
+            }
         }
     }
 
@@ -171,20 +179,19 @@ struct ItemCollectionDetailView: View {
         }
     }
 
-    // MARK: - Drag-reorder (session-local, single-zone)
+    // MARK: - Drag-reorder (session-local, offset-based)
 
-    /// Drop handler — session-only. Accepts `.setItem` or `.collectionItem`
-    /// (synonyms in the v1 paradigm). Updates `sessionOrder`, which the
-    /// `rows` computed honors. Never calls a manager API.
-    @discardableResult
-    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
-        guard let payload = payloads.first else { return false }
-        guard payload.zone == .setItem || payload.zone == .collectionItem else { return false }
+    /// Row drop handler — session-only. `offset` is the insertion index the
+    /// table's row `dropDestination` reports. Unknown payloads (e.g. a foreign
+    /// drag) leave the order untouched — `move` returns the base unchanged.
+    /// Updates `sessionOrder`, which the `rows` computed honors. Never calls a
+    /// manager API.
+    private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
+        guard let payload = payloads.first else { return }
         let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
-        guard next != currentIDs else { return false }
+        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
+        guard next != currentIDs else { return }
         sessionOrder = next
-        return true
     }
 
     /// Stub-and-edit "New Item (in This Set)" trigger from the detail-view footer.
@@ -237,13 +244,8 @@ struct ItemCollectionDetailView: View {
             collection: collection,
             itemContentManager: itemContentManager
         ).rows()
-        guard let sessionOrder else { return baseRows }
-        let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
         // Honor session order for known rows; append any newly added rows at the end.
-        let ordered = sessionOrder.compactMap { byID[$0] }
-        let known = Set(sessionOrder)
-        let appended = baseRows.filter { !known.contains($0.id) }
-        return ordered + appended
+        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
@@ -257,7 +259,7 @@ struct ItemCollectionDetailView: View {
         switch row.kind {
         case .item:
             Button("Rename") { beginRename(row) }
-            Button(isPinned(row) ? "Unpin Item" : "Pin Item") { togglePin(row) }
+            Button(row.isPinned ? "Unpin Item" : "Pin Item") { row.togglePin() }
             Divider()
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
@@ -265,23 +267,6 @@ struct ItemCollectionDetailView: View {
         case .page, .collection, .itemCollection:
             EmptyView()
         }
-    }
-
-    private func stateRef(for row: DetailRow) -> EntityStateRef? {
-        if case .item(let i) = row.kind {
-            return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        }
-        return nil
-    }
-
-    private func isPinned(_ row: DetailRow) -> Bool {
-        guard let ref = stateRef(for: row) else { return false }
-        return AppGlobals.pinnedManager?.contains(ref) ?? false
-    }
-
-    private func togglePin(_ row: DetailRow) {
-        guard let ref = stateRef(for: row) else { return }
-        AppGlobals.pinnedManager?.toggle(ref)
     }
 
     private var renameAlertBinding: Binding<Bool> {

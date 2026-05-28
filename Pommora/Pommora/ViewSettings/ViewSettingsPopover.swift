@@ -12,9 +12,9 @@ import SwiftUI
 ///
 /// NavigationStack drives the per-route push: root menu rows append routes
 /// to `path`; `.navigationDestination(for:)` resolves each route to a
-/// pushed pane. v0.3.1 panes (PropertiesListPane / PropertyTypePickerPane /
-/// EditPropertyPane / EditOptionPane / PropertyVisibilityPane) replace
-/// these placeholders in-place at Tasks 9-12 per quirk #8.
+/// pushed pane (PropertiesListPane / PropertyTypePickerPane /
+/// EditPropertyPane / PropertyVisibilityPane). Option editing is inline via
+/// `OptionEditPopover`, not a route.
 ///
 /// Liquid Glass background is auto-applied by the toolbar-anchored popover
 /// (WWDC25 #323). Do NOT apply .background(.regularMaterial) or
@@ -34,7 +34,7 @@ struct ViewSettingsPopover: View {
                     destination(for: route)
                 }
         }
-        .frame(width: 300, height: 360)
+        .measuredPaneHeight()
     }
 
     @ViewBuilder
@@ -60,8 +60,6 @@ struct ViewSettingsPopover: View {
             PropertyTypePickerPane(scope: scope, path: $path)
         case .editProperty(let id):
             EditPropertyPane(scope: scope, propertyID: id, path: $path)
-        case .editOption(let pid, let opt):
-            EditOptionPane(scope: scope, propertyID: pid, optionValue: opt, path: $path)
         case .propertyVisibility:
             PropertyVisibilityPane(scope: scope, path: $path)
         }

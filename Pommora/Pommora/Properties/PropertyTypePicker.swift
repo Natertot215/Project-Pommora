@@ -55,91 +55,53 @@ extension PropertyType {
 
 // MARK: - PropertyTypePicker
 
-/// Grid picker for choosing one of the 10 user-creatable `PropertyType`s.
+/// Vertical list picker for choosing one of the 10 user-creatable
+/// `PropertyType`s. Each row: per-type SF Symbol + display name + trailing
+/// chevron. No descriptions, no separator lines, no selection ring — the
+/// commit-on-tap flow pops/routes immediately so the selected state is
+/// invisible by design.
 ///
-/// `.lastEditedTime` is excluded — it is auto-managed and not user-creatable.
-/// Single-pick: tapping calls `onSelect` with the chosen type.
+/// `.lastEditedTime` is excluded — auto-managed, not user-creatable.
 struct PropertyTypePicker: View {
     @Binding var selected: PropertyType?
     let onSelect: (PropertyType) -> Void
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 100, maximum: 140), spacing: 8)
-    ]
-
     var body: some View {
-        PropertyTypePickerGrid(
-            selected: selected,
-            onSelect: { type in
-                selected = type
-                onSelect(type)
-            }
-        )
-    }
-}
-
-// MARK: - PropertyTypePickerGrid (isolated sub-view)
-
-/// Isolated sub-view to avoid GRDB `SQLSpecificExpressible` overload conflicts
-/// inside ForEach closures. Receives plain value types only.
-private struct PropertyTypePickerGrid: View {
-    let selected: PropertyType?
-    let onSelect: (PropertyType) -> Void
-
-    private let columns = [
-        GridItem(.adaptive(minimum: 100, maximum: 140), spacing: 8)
-    ]
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        VStack(spacing: 0) {
             ForEach(PropertyType.userCreatable, id: \.rawValue) { type in
-                PropertyTypePickerCell(
-                    type: type,
-                    isSelected: selected == type,
-                    onSelect: onSelect
-                )
+                PropertyTypePickerRow(type: type) {
+                    selected = type
+                    onSelect(type)
+                }
             }
         }
-        .padding(4)
     }
 }
 
-// MARK: - PropertyTypePickerCell
+// MARK: - PropertyTypePickerRow
 
-private struct PropertyTypePickerCell: View {
+private struct PropertyTypePickerRow: View {
     let type: PropertyType
-    let isSelected: Bool
-    let onSelect: (PropertyType) -> Void
+    let onSelect: () -> Void
 
     var body: some View {
-        Button {
-            onSelect(type)
-        } label: {
-            VStack(spacing: 6) {
+        Button(action: onSelect) {
+            HStack(spacing: PUI.Row.interSpacing) {
                 Image(systemName: type.pickerIcon)
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .font(PUI.Icon.leading)
+                    .foregroundStyle(.primary)
+                    .frame(width: PUI.Icon.leadingFrame)
                 Text(type.displayName)
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-                    .lineLimit(2)
+                    .font(PUI.Typography.row)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(PUI.Icon.chevron)
+                    .foregroundStyle(.tertiary)
             }
-            .frame(maxWidth: .infinity)
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected
-                          ? Color.accentColor.opacity(0.12)
-                          : Color(.windowBackgroundColor).opacity(0.4))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(
-                                isSelected ? Color.accentColor : Color.clear,
-                                lineWidth: 1.5
-                            )
-                    )
-            )
+            .padding(.horizontal, PUI.Row.paddingHorizontal)
+            .padding(.vertical, PUI.Row.paddingVertical)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

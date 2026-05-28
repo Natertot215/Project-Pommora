@@ -32,8 +32,10 @@ struct PropertyColumn: Identifiable, Hashable, Sendable {
 
 /// Computes the ordered TableColumn descriptors for a container's active
 /// view. Reserved Title column always leads; reserved Last Edited Time
-/// always trails. User properties appear in between per
-/// `view.visibleProperties` order. Hidden properties are excluded.
+/// always trails. User properties appear in between: first the explicitly
+/// `visibleProperties` (in order), then any "unaccounted" schema properties
+/// (in neither visible nor hidden — e.g. freshly created) as visible-by-
+/// default. Only `hiddenProperties` are excluded.
 ///
 /// If `visibleProperties` references a property ID not present in `schema`
 /// (e.g. property was deleted but the view config wasn't cleaned up), the
@@ -43,13 +45,29 @@ enum PropertyColumnBuilder {
     static func columns(view: SavedView, schema: [PropertyDefinition]) -> [PropertyColumn] {
         var result: [PropertyColumn] = [PropertyColumn(kind: .title)]
         let lastEditedID = "_modified_at"
+        let hiddenSet = Set(view.hiddenProperties)
+
+        // Explicitly-visible properties, in the view's saved order.
         for propID in view.visibleProperties {
             // Skip the reserved trailer — it's appended separately + locked-
-            // always-visible per Task 12's PropertyVisibilityPane invariant.
+            // always-visible per PropertyVisibilityPane's invariant.
             guard propID != lastEditedID else { continue }
             guard let def = schema.first(where: { $0.id == propID }) else { continue }
             result.append(PropertyColumn(kind: .userProperty(def)))
         }
+
+        // "Unaccounted" properties — present in the schema but in NEITHER
+        // visibleProperties nor hiddenProperties (e.g. a freshly-created
+        // property, which `addProperty` writes to the schema only). Render
+        // them as visible-by-default, matching how PropertyVisibilityPane
+        // already treats them, so a new property shows as a column
+        // immediately. Reserved IDs never become user-property columns.
+        for def in schema where !view.visibleProperties.contains(def.id)
+            && !hiddenSet.contains(def.id)
+            && !ReservedPropertyID.isReserved(def.id) {
+            result.append(PropertyColumn(kind: .userProperty(def)))
+        }
+
         result.append(PropertyColumn(kind: .lastEditedTime))
         return result
     }

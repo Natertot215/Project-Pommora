@@ -28,3 +28,26 @@ struct DetailRow: Identifiable, Hashable, Sendable {
         }
     }
 }
+
+extension DetailRow {
+    /// Recents/Pinned wire-record for this row. Leaf content (Page / Item) maps
+    /// to a ref; containers (Collection / Set) return nil — they aren't pinned
+    /// from the detail-pane row menus. Single source for all four detail views.
+    var stateRef: EntityStateRef? {
+        switch kind {
+        case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
+        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
+        case .collection, .itemCollection: return nil
+        }
+    }
+
+    @MainActor var isPinned: Bool {
+        guard let ref = stateRef else { return false }
+        return AppGlobals.pinnedManager?.contains(ref) ?? false
+    }
+
+    @MainActor func togglePin() {
+        guard let ref = stateRef else { return }
+        AppGlobals.pinnedManager?.toggle(ref)
+    }
+}

@@ -2,6 +2,17 @@
 
 Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
+#### Properties UIX baseline + View Settings editor redesign (2026-05-27)
+
+Established a written UIX baseline (`.claude/Guidelines/UIX-Baseline.md`) for the popover-family surfaces and rebuilt the View Settings per-property editor to Nathan's Figma. Build-clean (two `xcodebuild` passes); not yet smoke-tested.
+
+**Locked decisions:**
+
+- **Field fill = the native grouped-`Form` system fill, not a hand-set opacity.** Single source of truth `PUI.Fill.field`; verify-and-tune that one token in build.
+- **Section headers = Subheadline/emphasized vibrant secondary; chip text = Callout/emphasized** (Nathan's Figma type ramp).
+- **Inline selectors = plain `Menu` with no chevron glyph, checkmark on current** — supersedes the earlier Design.md "Menu label = Text + chevron-down" note.
+- **Pane back affordance names the previous pane**, not the current one; entity-identity panes (EditPropertyPane) carry no duplicate title.
+
 #### Folders (third Pages-side tier) — tried and reverted (2026-05-27)
 
 Built a full `PageType → PageCollection → Folder → Page` third tier (model, `_folder.json` sidecar, SQLite table, CRUD, sidebar + detail UI) then reverted it the same cycle. The tier duplicated Collections' rigid-grouping role while conflicting with the planned view-organization system (Board / group-by / saved views, v0.6.0): you can't "group by property" and display a fixed container hierarchy in the same view, and that primitive doesn't exist yet to prove folders were even needed. Removed before more features piled onto the third tier. **Kept** from the effort: F.0's system-wide stub-and-inline-rename CRUD (`CreateWithInlineEdit` + `DefaultTitleResolver`, `68caf96`), the sidebar context-menu tweaks (no "New Vault" in the row menu — "+" header is the sole vault-creation path; plain "New X" labels), and `NexusAdopter.autoTagMissingSidecars` for Types + Collections (drag a folder structure into a Nexus via Finder and it's recognized). Full removal plan: `.claude/Planning/2026-05-27-folders-removal-plan.md`.

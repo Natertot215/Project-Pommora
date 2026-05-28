@@ -138,33 +138,38 @@ struct RecentsManagerTests {
         #expect(m.stepForward() == nil)
     }
 
-    @Test("record ignores organizational kinds (Spaces / Topics / Vaults / Collections)")
-    func recordFiltersNonContentKinds() async throws {
+    @Test("record accepts pages + storage containers; ignores Contexts and Items")
+    func recordKindFilter() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let m = RecentsManager(nexus: nexus)
         await m.load()
+        // Contexts and Items (windows) never enter the Back/Forward stack.
         m.record(EntityStateRef(kind: .space, id: "S", title: "Space"))
         m.record(EntityStateRef(kind: .topic, id: "T", title: "Topic"))
-        m.record(EntityStateRef(kind: .project, id: "ST", title: "Project"))
+        m.record(EntityStateRef(kind: .project, id: "PR", title: "Project"))
+        m.record(EntityStateRef(kind: .item, id: "I", title: "Item"))
+        m.record(EntityStateRef(kind: .agenda, id: "A", title: "Task"))
+        #expect(m.entries.isEmpty)
+        // Pages + all four storage containers do.
+        m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
         m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
         m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
-        #expect(m.entries.isEmpty)
-        m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
-        m.record(EntityStateRef(kind: .item, id: "I", title: "Item"))
-        #expect(m.entries.count == 2)
+        m.record(EntityStateRef(kind: .itemType, id: "TY", title: "Type"))
+        m.record(EntityStateRef(kind: .set, id: "SE", title: "Set"))
+        #expect(m.entries.count == 5)
     }
 
-    @Test("load strips legacy non-content entries from state.json")
+    @Test("load keeps pages + storage containers; strips Contexts and Items")
     func loadStripsLegacyKinds() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         var seed = NexusState()
         seed.recents = [
-            EntityStateRef(kind: .page, id: "keep", title: "Keep"),
-            EntityStateRef(kind: .vault, id: "drop1", title: "V"),
-            EntityStateRef(kind: .topic, id: "drop2", title: "T"),
-            EntityStateRef(kind: .item, id: "alsoKeep", title: "I"),
+            EntityStateRef(kind: .page, id: "keepPage", title: "Page"),
+            EntityStateRef(kind: .vault, id: "keepVault", title: "Vault"),
+            EntityStateRef(kind: .topic, id: "dropTopic", title: "Topic"),
+            EntityStateRef(kind: .item, id: "dropItem", title: "Item"),
         ]
         try FileManager.default.createDirectory(
             at: NexusPaths.nexusConfigDir(in: nexus), withIntermediateDirectories: true)
@@ -172,7 +177,7 @@ struct RecentsManagerTests {
         let m = RecentsManager(nexus: nexus)
         await m.load()
         #expect(m.entries.count == 2)
-        #expect(m.entries.map(\.id) == ["keep", "alsoKeep"])
+        #expect(m.entries.map(\.id) == ["keepPage", "keepVault"])
     }
 
     @Test("dropdownTop returns first 100 entries")
@@ -186,5 +191,22 @@ struct RecentsManagerTests {
         }
         #expect(m.dropdownTop.count == 100)
         #expect(m.dropdownTop.first?.id == "id149")
+    }
+
+    @Test("dropdownTop hides storage containers; entries keeps them steppable")
+    func dropdownHidesContainers() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let m = RecentsManager(nexus: nexus)
+        await m.load()
+        m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
+        m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
+        m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
+        m.record(EntityStateRef(kind: .itemType, id: "TY", title: "Type"))
+        m.record(EntityStateRef(kind: .set, id: "SE", title: "Set"))
+        // The Page + all four containers are steppable (present in entries / the Back-Forward stack)…
+        #expect(m.entries.count == 5)
+        // …but only the Page surfaces in the dropdown projection — every container kind is hidden.
+        #expect(m.dropdownTop.map(\.id) == ["P"])
     }
 }

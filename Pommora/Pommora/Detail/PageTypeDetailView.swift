@@ -15,12 +15,15 @@ struct PageTypeDetailView: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
 
-    @State private var tableSelection: Set<String> = []
-    @State private var expanded: Set<String> = []  // row IDs
+    @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
     // Rename alert state (page or item).
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
+    /// Container-delete confirmation target — set only from a Collection row's
+    /// menu. Page deletes stay direct (no confirmation); only the container
+    /// case routes here, mirroring the sidebar's delete guard.
+    @State private var deleteTarget: DetailRow?
     /// Session-local row order override. Nil → fall back to manager order.
     /// Resets on entity change. Independent of the sidebar's reorder system.
     @State private var sessionOrder: [String]?
@@ -49,6 +52,20 @@ struct PageTypeDetailView: View {
             if let row = renameTarget {
                 Text("Rename \(row.kindLabel.lowercased()) “\(row.title)”")
             }
+        }
+        .confirmationDialog(
+            deleteConfirmationTitle,
+            isPresented: deleteConfirmationBinding,
+            titleVisibility: .visible,
+            presenting: deleteTarget
+        ) { row in
+            Button("Delete", role: .destructive) {
+                Task { await delete(row) }
+                deleteTarget = nil
+            }
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+        } message: { _ in
+            Text("All Pages and Items inside will be deleted.")
         }
     }
 
@@ -82,7 +99,7 @@ struct PageTypeDetailView: View {
     }
 
     private var table: some View {
-        Table(rows, children: \.children, selection: $tableSelection) {
+        Table(of: DetailRow.self) {
             TableColumn("Title") { row in
                 Label {
                     Text(row.title)
@@ -91,12 +108,10 @@ struct PageTypeDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { handleDoubleTap(row) }
+                // simultaneousGesture (not onTapGesture) so double-click-to-open
+                // coexists with the row drag instead of blocking it near the title.
+                .simultaneousGesture(TapGesture(count: 2).onEnded { handleDoubleTap(row) })
                 .contextMenu { menuItems(for: row) }
-                .draggable(DetailRowDragPayload(rowID: row.id, zone: zone(for: row)))
-                .dropDestination(for: DetailRowDragPayload.self) { payloads, _ in
-                    handleDrop(payloads: payloads, ontoRowID: row.id)
-                }
             }
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
@@ -137,6 +152,31 @@ struct PageTypeDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 180, max: 240)
+        } rows: {
+            // Row-level drag = reorder (table-specialized API). Only top-level
+            // rows (Type-root Pages + Collections) reorder; dragging a child
+            // Page nested in a Collection is a no-op (its id isn't in the
+            // top-level list, so `move` returns the base unchanged). Selection
+            // highlight removed so the drag owns the gesture; multi-select
+            // returns as a hover checkbox in v0.4.0.
+            ForEach(rows) { row in
+                if let kids = row.children, !kids.isEmpty {
+                    DisclosureTableRow(row, isExpanded: expandedBinding(for: row.id)) {
+                        // Child rows aren't reorderable here (top-level only), so
+                        // they're not drag sources — avoids a lift-then-snap-back.
+                        ForEach(kids) { kid in
+                            TableRow(kid)
+                        }
+                    }
+                    .draggable(DetailRowDragPayload(rowID: row.id))
+                } else {
+                    TableRow(row)
+                        .draggable(DetailRowDragPayload(rowID: row.id))
+                }
+            }
+            .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
+                handleDrop(payloads: payloads, toOffset: offset)
+            }
         }
     }
 
@@ -164,30 +204,29 @@ struct PageTypeDetailView: View {
         return nil
     }
 
-    // MARK: - Drag-reorder (session-local, same-zone-only)
+    // MARK: - Drag-reorder (session-local, top-level only)
 
-    private func zone(for row: DetailRow) -> DetailRowDragPayload.Zone {
-        switch row.kind {
-        case .collection: return .vaultCollection
-        case .page, .item: return .vaultPage
-        case .itemCollection: return .vaultPage  // unreachable in PageType context
-        }
+    /// Row drop handler — session-only. `offset` is the top-level insertion
+    /// index the table reports; `move` no-ops on unknown payloads (e.g. a
+    /// dragged child Page, whose id isn't in the top-level list). Updates
+    /// `sessionOrder`, which the `rows` computed honors. No manager API call.
+    private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
+        guard let payload = payloads.first else { return }
+        let currentIDs = rows.map(\.id)
+        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
+        guard next != currentIDs else { return }
+        sessionOrder = next
     }
 
-    /// Drop handler — session-only. Same-zone only. Cross-zone drops
-    /// (e.g. Page onto Collection) are silently rejected.
-    @discardableResult
-    private func handleDrop(payloads: [DetailRowDragPayload], ontoRowID targetID: String) -> Bool {
-        guard let payload = payloads.first else { return false }
-        let currentRows = rows
-        guard let targetRow = currentRows.first(where: { $0.id == targetID }) else { return false }
-        guard payload.zone == zone(for: targetRow) else { return false }
-
-        let currentIDs = currentRows.map(\.id)
-        let next = SessionRowOrdering.apply(base: currentIDs, movingID: payload.rowID, ontoID: targetID)
-        guard next != currentIDs else { return false }
-        sessionOrder = next
-        return true
+    /// Stable per-row disclosure binding so a Collection's expanded state
+    /// survives the frequent `rows` recomputes (every manager change).
+    private func expandedBinding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { expanded.contains(id) },
+            set: { isOn in
+                if isOn { expanded.insert(id) } else { expanded.remove(id) }
+            }
+        )
     }
 
     // MARK: - Footer
@@ -316,13 +355,8 @@ struct PageTypeDetailView: View {
             )
         }
         let baseRows = rootRows + collectionRows
-        guard let sessionOrder else { return baseRows }
         // Top-level session order override; child rows retain their natural order.
-        let byID = Dictionary(uniqueKeysWithValues: baseRows.map { ($0.id, $0) })
-        let ordered = sessionOrder.compactMap { byID[$0] }
-        let known = Set(sessionOrder)
-        let appended = baseRows.filter { !known.contains($0.id) }
-        return ordered + appended
+        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func contentKind(_ ci: ContentItem) -> DetailRow.Kind {
@@ -354,15 +388,26 @@ struct PageTypeDetailView: View {
         switch row.kind {
         case .page, .item:
             Button("Rename") { beginRename(row) }
-            Button(isPinned(row) ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
-                togglePin(row)
+            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
+                row.togglePin()
             }
             Divider()
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .collection, .itemCollection:
-            EmptyView()
+        case .collection:
+            // Mirrors ItemTypeDetailView's Set menu for cross-side parity.
+            // No Pin: containers aren't pinnable from detail views today.
+            Button("Open") { handleDoubleTap(row) }
+            Button("Rename") { beginRename(row) }
+            Divider()
+            // Container delete is guarded — route through the confirmation
+            // dialog (mirrors the sidebar). Page deletes stay direct.
+            Button("Delete", role: .destructive) {
+                deleteTarget = row
+            }
+        case .itemCollection:
+            EmptyView()  // never appears in PageTypeDetailView context
         }
     }
 
@@ -407,26 +452,6 @@ struct PageTypeDetailView: View {
         return nil
     }
 
-    // MARK: - Pin
-
-    private func stateRef(for row: DetailRow) -> EntityStateRef? {
-        switch row.kind {
-        case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
-        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .collection, .itemCollection: return nil
-        }
-    }
-
-    private func isPinned(_ row: DetailRow) -> Bool {
-        guard let ref = stateRef(for: row) else { return false }
-        return AppGlobals.pinnedManager?.contains(ref) ?? false
-    }
-
-    private func togglePin(_ row: DetailRow) {
-        guard let ref = stateRef(for: row) else { return }
-        AppGlobals.pinnedManager?.toggle(ref)
-    }
-
     // MARK: - Rename
 
     private var renameAlertBinding: Binding<Bool> {
@@ -446,11 +471,15 @@ struct PageTypeDetailView: View {
         let newName = renameDraft
         renameTarget = nil
         guard !newName.isEmpty, newName != row.title else { return }
-        guard let parent = parent(for: row) else { return }
         Task {
             do {
                 switch row.kind {
+                case .collection(let c):
+                    // Collections rename via the manager directly — no parent
+                    // lookup needed (the manager resolves the on-disk folder).
+                    try await pageTypeManager.renamePageCollection(c, to: newName)
                 case .page(let p):
+                    guard let parent = parent(for: row) else { return }
                     switch parent {
                     case .collection(let coll, let t):
                         try await contentManager.renamePage(p, to: newName, in: coll, vault: t)
@@ -462,7 +491,7 @@ struct PageTypeDetailView: View {
                     // (parent lookup for Items returns nil during Phase 5, so
                     // this branch is currently unreachable).
                     break
-                case .collection, .itemCollection:
+                case .itemCollection:
                     break
                 }
             } catch {
@@ -473,11 +502,28 @@ struct PageTypeDetailView: View {
 
     // MARK: - Delete
 
+    /// Title for the container-delete confirmation. Mirrors the sidebar's
+    /// `confirmationTitle` — uses the configured Collection label.
+    private var deleteConfirmationTitle: String {
+        guard let row = deleteTarget else { return "" }
+        let label = settingsManager.settings.labels.pageCollection.singular
+        return "Delete \(label) \"\(row.title)\"?"
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
+        )
+    }
+
     private func delete(_ row: DetailRow) async {
-        guard let parent = parent(for: row) else { return }
         do {
             switch row.kind {
+            case .collection(let c):
+                try await pageTypeManager.deletePageCollection(c)
             case .page(let p):
+                guard let parent = parent(for: row) else { return }
                 switch parent {
                 case .collection(let coll, _):
                     try await contentManager.deletePage(p, in: coll)
@@ -487,7 +533,7 @@ struct PageTypeDetailView: View {
             case .item:
                 // TODO Phase 6: route through ItemContentManager.deleteItem.
                 break
-            case .collection, .itemCollection:
+            case .itemCollection:
                 break
             }
         } catch {

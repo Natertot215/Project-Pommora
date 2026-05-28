@@ -92,6 +92,8 @@ FSEventStream — external changes update SQLite + sidebar live; reconciles per-
 ##### v0.4.0 — Trash UI + cascade-delete refinements
 In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash actions. Cascade-delete reporting refinements with exact counts (Page Type → N Page Collections + M Pages). External-edit detection extended to all entity kinds.
 
+Also: **detail-view row drag-to-reorder** works (grab the row body; session-local order). Deferred — making the **title cell** a drag handle: in SwiftUI's macOS `Table`, no-highlight + double-click-to-open + drag-from-title can't coexist (selection drives both the highlight and the double-click `primaryAction`), so the title stays the open/right-click target. Optional **multi-select** (hover checkbox) can land here independently of reorder.
+
 ##### v0.5.0 — Non-Table view renderers (board / list / cards / gallery)
 v0.5.0 ships the four remaining renderer types over the single per-container `SavedView` storage already in place. Board = visual kanban (cards grouped by a property's options; editing via card UI); List / Cards / Gallery render the same underlying entities differently.
 

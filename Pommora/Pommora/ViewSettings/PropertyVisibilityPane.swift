@@ -31,10 +31,10 @@ struct PropertyVisibilityPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PaneHeader(path: $path, title: "Property Visibility")
+            PaneHeader(path: $path)
             content
         }
-        .frame(width: PUI.Pane.width, height: PUI.Pane.height)
+        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 
@@ -64,17 +64,33 @@ struct PropertyVisibilityPane: View {
         let unaccountedOrdered = schemaProps.filter {
             !view.visibleProperties.contains($0.id) && !hiddenSet.contains($0.id)
         }
+        // The reorderable section: visible + unaccounted (rendered as
+        // visible per the existing logic). Dragging amongst these rewrites
+        // visibleProperties to reflect the new order; any unaccounted
+        // property dragged here gets implicitly added to visibleProperties.
+        let reorderable = visibleOrdered + unaccountedOrdered
 
         ScrollView {
             VStack(spacing: 0) {
-                ForEach(visibleOrdered + unaccountedOrdered, id: \.id) { def in
+                ForEach(reorderable, id: \.id) { def in
                     PropertyVisibilityRow(
                         definition: def,
                         isVisible: !hiddenSet.contains(def.id),
                         onToggle: { Task { await toggle(def.id, currentlyVisible: !hiddenSet.contains(def.id)) } }
                     )
+                    .draggable(def.id)
+                    .dropDestination(for: String.self) { droppedIDs, _ in
+                        guard let droppedID = droppedIDs.first else { return false }
+                        return reorder(
+                            currentOrder: reorderable.map(\.id),
+                            droppedID: droppedID,
+                            ontoTargetID: def.id
+                        )
+                    }
                 }
                 ForEach(hiddenOrdered, id: \.id) { def in
+                    // Hidden rows are NOT draggable — drag-reorder is only
+                    // for the visible section. Tap-to-toggle still works.
                     PropertyVisibilityRow(
                         definition: def,
                         isVisible: false,
@@ -92,35 +108,101 @@ struct PropertyVisibilityPane: View {
         }
     }
 
+    /// Reorders the visible-section property IDs by moving `droppedID` to
+    /// the position of `ontoTargetID`, then persists via `updateView`. The
+    /// new order REPLACES `visibleProperties`; any property that wasn't in
+    /// `visibleProperties` before but is now part of the reorder is
+    /// implicitly added to visibleProperties (which is the intuitive UX
+    /// when dragging an "unaccounted" row into a specific position).
+    private func reorder(
+        currentOrder: [String],
+        droppedID: String,
+        ontoTargetID: String
+    ) -> Bool {
+        guard droppedID != ontoTargetID,
+              let srcIdx = currentOrder.firstIndex(of: droppedID),
+              let dstIdx = currentOrder.firstIndex(of: ontoTargetID)
+        else { return false }
+        var newOrder = currentOrder
+        let item = newOrder.remove(at: srcIdx)
+        // Removing the source first shifts everything after it left by one, so
+        // a downward move targets dstIdx - 1 to land on the target's slot.
+        let adjusted = srcIdx < dstIdx ? dstIdx - 1 : dstIdx
+        let clamped = min(max(adjusted, 0), newOrder.count)
+        newOrder.insert(item, at: clamped)
+
+        guard let view = currentView(), let cid = containerID(), let side else { return false }
+        let viewID = view.id
+        Task {
+            do {
+                switch side {
+                case .pages:
+                    try await pageTypeManager.updateView(viewID, in: cid) { v in
+                        v.visibleProperties = newOrder
+                    }
+                case .items:
+                    try await itemTypeManager.updateView(viewID, in: cid) { v in
+                        v.visibleProperties = newOrder
+                    }
+                }
+                commitError = nil
+            } catch {
+                commitError = PropertyEditorErrorMessage.string(for: error)
+            }
+        }
+        return true
+    }
+
     // MARK: - Lookups
+    //
+    // All lookups read live from the manager via stable IDs. Reading from
+    // the scope payload (`t.views`, `t.properties`, etc.) renders stale
+    // state after any in-popover mutation since `ViewSettingsScope` carries
+    // a snapshot. Extract the stable container ID + parent type ID once,
+    // then re-query the manager for every read.
 
     private func currentView() -> SavedView? {
-        switch scope {
-        case .pageType(let t):
-            return t.views.first
-        case .itemType(let t):
-            return t.views.first
-        case .pageCollection(let c):
-            return c.views.first
-        case .itemCollection(let c):
-            return c.views.first
-        default:
+        guard let cid = containerID() else { return nil }
+        switch side {
+        case .pages:
+            // Container can be either a PageType or a PageCollection.
+            if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
+                return t.views.first
+            }
+            for cols in pageTypeManager.pageCollectionsByType.values {
+                if let c = cols.first(where: { $0.id == cid }) { return c.views.first }
+            }
+            return nil
+        case .items:
+            if let t = itemTypeManager.types.first(where: { $0.id == cid }) {
+                return t.views.first
+            }
+            for cols in itemTypeManager.itemCollectionsByType.values {
+                if let c = cols.first(where: { $0.id == cid }) { return c.views.first }
+            }
+            return nil
+        case .none:
             return nil
         }
     }
 
+    /// Visible-in-pane properties: user-defined + `_modified_at` (kept as
+    /// the locked-always-visible default sort criterion). All other reserved
+    /// IDs (`_id`, `_created_at`, `_status`, `_tier1/2/3`, `_wikilinks`) are
+    /// filtered out — visibility is meaningless for system-managed columns.
     private func parentTypeProperties() -> [PropertyDefinition] {
-        switch scope {
-        case .pageType(let t):
-            return t.properties
-        case .itemType(let t):
-            return t.properties
-        case .pageCollection(let c):
-            return pageTypeManager.types.first(where: { $0.id == c.typeID })?.properties ?? []
-        case .itemCollection(let c):
-            return itemTypeManager.types.first(where: { $0.id == c.typeID })?.properties ?? []
-        default:
+        guard let typeID = parentTypeID() else { return [] }
+        let schema: [PropertyDefinition]
+        switch side {
+        case .pages:
+            schema = pageTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+        case .items:
+            schema = itemTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+        case .none:
             return []
+        }
+        return schema.filter { def in
+            !ReservedPropertyID.isReserved(def.id) || def.id == "_modified_at"
         }
     }
 
@@ -130,6 +212,16 @@ struct PropertyVisibilityPane: View {
         case .itemType(let t): return t.id
         case .pageCollection(let c): return c.id
         case .itemCollection(let c): return c.id
+        default: return nil
+        }
+    }
+
+    private func parentTypeID() -> String? {
+        switch scope {
+        case .pageType(let t): return t.id
+        case .itemType(let t): return t.id
+        case .pageCollection(let c): return c.typeID
+        case .itemCollection(let c): return c.typeID
         default: return nil
         }
     }
@@ -164,7 +256,7 @@ struct PropertyVisibilityPane: View {
             }
             commitError = nil
         } catch {
-            commitError = String(describing: error)
+            commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 

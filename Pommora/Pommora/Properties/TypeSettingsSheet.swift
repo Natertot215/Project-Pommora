@@ -480,9 +480,27 @@ private struct TypeSettingsNewPropertyConfig: View {
             if let type = vm.pendingNewType {
                 switch type {
                 case .select, .multiSelect:
-                    SelectOptionsEditor(options: $vm.pendingSelectOptions)
+                    SelectOptionsEditor(
+                        options: $vm.pendingSelectOptions,
+                        onAddOption: {
+                            let value = ULID.generate()
+                            vm.pendingSelectOptions.append(
+                                .init(value: value, label: "New option", color: nil)
+                            )
+                        }
+                    )
                 case .status:
-                    StatusGroupsEditor(groups: $vm.pendingStatusGroups)
+                    StatusGroupsEditor(
+                        groups: $vm.pendingStatusGroups,
+                        onAddOption: { groupID in
+                            let value = "opt_\(ULID.generate())"
+                            if let i = vm.pendingStatusGroups.firstIndex(where: { $0.id == groupID }) {
+                                vm.pendingStatusGroups[i].options.append(
+                                    .init(value: value, label: "New option", color: nil, groupID: groupID)
+                                )
+                            }
+                        }
+                    )
                 case .number:
                     NumberFormatPicker(format: $vm.pendingNumberFormat)
                 case .file:

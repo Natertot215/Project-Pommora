@@ -228,6 +228,13 @@ private struct ChipsGallery: View {
                 ) {
                     PropertyCheckboxShowcase()
                 }
+
+                GallerySection(
+                    title: "Status Checkbox",
+                    summary: "Tri-state checkbox projection of a Status value (Display As = Box): empty for the 'upcoming' group, the value's color + minus for 'in_progress', the value's color + checkmark for 'done'. The group→state mapping is standardized in StatusCheckbox so every status-checkbox surface renders identically."
+                ) {
+                    StatusCheckboxShowcase()
+                }
             }
             .padding(.vertical, 24)
         }
@@ -831,126 +838,46 @@ private struct PropertyCheckboxShowcase: View {
     }
 }
 
-// MARK: - PropertyChipOption (showcase scaffolding)
+// MARK: - StatusCheckbox Showcase
 
-struct PropertyChipOption: Identifiable, Hashable {
-    let id: String
-    let label: String
-    let color: PropertyChipColor
-}
-
-// MARK: - ChipDropdown — Liquid Glass panel, compressed, drag-reorder
-
-enum SelectionMode {
-    case single
-    case multi
-}
-
-private struct ChipDropdown: View {
-    @Binding var options: [PropertyChipOption]
-    let selectionMode: SelectionMode
-    let selectedIDs: Set<String>
-    let onPick: (PropertyChipOption) -> Void
+private struct StatusCheckboxShowcase: View {
+    private let groups: [PropertyDefinition.StatusGroup] = [
+        PropertyDefinition.StatusGroup(
+            id: .upcoming, label: "Upcoming", color: .gray,
+            options: [PropertyDefinition.StatusOption(value: "reserved", label: "Reserved", color: nil, groupID: .upcoming)]
+        ),
+        PropertyDefinition.StatusGroup(
+            id: .inProgress, label: "In Progress", color: .blue,
+            options: [PropertyDefinition.StatusOption(value: "active", label: "Active", color: nil, groupID: .inProgress)]
+        ),
+        PropertyDefinition.StatusGroup(
+            id: .done, label: "Done", color: .green,
+            options: [PropertyDefinition.StatusOption(value: "complete", label: "Complete", color: nil, groupID: .done)]
+        ),
+    ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(options) { opt in
-                rowView(for: opt)
-            }
+        HStack(spacing: 24) {
+            sample("reserved", "upcoming → empty")
+            sample("active", "in_progress → minus")
+            sample("complete", "done → checkmark")
+            sample(nil, "unset → empty")
+        }
+        .padding(.horizontal)
+    }
+
+    private func sample(_ value: String?, _ label: String) -> some View {
+        VStack(spacing: 6) {
+            StatusCheckbox(value: value, groups: groups, size: 18)
+            Text(label)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.tertiary)
         }
         .padding(8)
-        // Explicit Liquid Glass background — always-on so the panel reads the
-        // same in any host context (popover, overlay, eventual inline embed).
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.white.opacity(0.10), lineWidth: 0.5)
-                )
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(.controlBackgroundColor).opacity(0.4))
         )
-        .clipShape(.rect(cornerRadius: 12))
-        // Content-driven sizing — `.fixedSize` collapses to the natural
-        // VStack width (longest row + padding). No List = no forced fill.
-        .fixedSize(horizontal: true, vertical: true)
-    }
-
-    @ViewBuilder
-    private func rowView(for opt: PropertyChipOption) -> some View {
-        let row = ChipDropdownRow(
-            option: opt,
-            isSelected: selectedIDs.contains(opt.id),
-            showCheckbox: selectionMode == .multi,
-            onPick: { onPick(opt) }
-        )
-
-        switch selectionMode {
-        case .single:
-            row
-        case .multi:
-            // Drag-reorder via Transferable on the option's id (String).
-            // Multi-select only — single-select rows have nothing to reorder.
-            row
-                .draggable(opt.id)
-                .dropDestination(for: String.self) { droppedIDs, _ in
-                    handleDrop(droppedIDs, ontoID: opt.id)
-                }
-        }
-    }
-
-    private func handleDrop(_ droppedIDs: [String], ontoID targetID: String) -> Bool {
-        guard let droppedID = droppedIDs.first,
-              droppedID != targetID,
-              let srcIdx = options.firstIndex(where: { $0.id == droppedID }),
-              let dstIdx = options.firstIndex(where: { $0.id == targetID })
-        else { return false }
-        let item = options.remove(at: srcIdx)
-        // After remove(), dstIdx already points at the correct insert slot
-        // for both upward and downward drags (the source shift is implicit).
-        let insertAt = srcIdx < dstIdx ? dstIdx : dstIdx
-        options.insert(item, at: insertAt)
-        return true
-    }
-}
-
-private struct ChipDropdownRow: View {
-    let option: PropertyChipOption
-    let isSelected: Bool
-    let showCheckbox: Bool
-    let onPick: () -> Void
-
-    @State private var isHovered: Bool = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            if showCheckbox {
-                PropertyCheckbox(
-                    isChecked: Binding(
-                        get: { isSelected },
-                        set: { _ in onPick() }
-                    ),
-                    color: .blue,
-                    icon: "checkmark",
-                    size: 16
-                )
-            }
-
-            Button(action: onPick) {
-                HStack(spacing: 4) {
-                    PropertyChip(label: option.label, color: option.color)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isHovered ? Color(.textBackgroundColor).opacity(0.2) : .clear)
-        )
-        .onHover { isHovered = $0 }
     }
 }
 

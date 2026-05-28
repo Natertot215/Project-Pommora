@@ -74,15 +74,38 @@ enum PropertyChipColor: String, Codable, CaseIterable, Sendable, Hashable {
         }
     }
 
-    /// The 10 user-pickable colors rendered by `OptionColorPicker`'s 5×2
-    /// swatch grid. Excludes `.default` (= "no color"; surfaced as a
-    /// separate clear/None affordance) and `.accent` (= current Nexus
-    /// accent; can't render reliably as a fixed swatch since it's a
-    /// configurable runtime value, not a static color).
+    /// The 10 user-pickable colors rendered by the inline option edit
+    /// popover's 5×2 swatch grid. Order matches Nathan's 2026-05-26 design:
+    /// warm tones top row (red → brown), cool tones + pink bottom row
+    /// (purple → pink). Excludes `.default` (= "no color"; cleared via the
+    /// row's right-click context menu) and `.accent` (= current Nexus
+    /// accent; can't render reliably as a fixed swatch).
     static let selectablePalette: [PropertyChipColor] = [
-        .red, .orange, .yellow, .green, .blue,
-        .teal, .indigo, .purple, .pink, .brown,
+        .red, .orange, .yellow, .green, .brown,
+        .purple, .blue, .indigo, .teal, .pink,
     ]
+
+    /// Render the persistence-layer `PropertyDefinition.SelectColor` (9
+    /// cases) as a `PropertyChipColor` (12 cases). Used wherever an option's
+    /// stored color needs to drive a `PropertyChip` preview. Nil maps to
+    /// `.default` (the gray-ish nil-fallback render).
+    init(selectColor: PropertyDefinition.SelectColor?) {
+        guard let selectColor else {
+            self = .default
+            return
+        }
+        switch selectColor {
+        case .gray: self = .default
+        case .brown: self = .brown
+        case .orange: self = .orange
+        case .yellow: self = .yellow
+        case .green: self = .green
+        case .blue: self = .blue
+        case .purple: self = .purple
+        case .pink: self = .pink
+        case .red: self = .red
+        }
+    }
 }
 
 // MARK: - Color hex helper (file-private)
