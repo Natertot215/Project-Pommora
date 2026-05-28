@@ -4,24 +4,19 @@
 - 
 
 
-#### Current state (2026-05-27)
+#### Current state (2026-05-28)
 
-Everything below is on **`origin/main`** — today's work (spanning multiple sessions) was just committed + pushed. First action next session: `git pull origin main`.
+Working tree on `origin/main`. The Relations Redesign Plan is the active deliverable from this session.
 
-**Today shipped:**
+**Relations Redesign — planning complete.** Executable plan at `// Planning//Relations-Redesign-Plan.md` (22 phases, ~78 tasks, TDD per file, stub-and-progressively-replace sequencing). Plan is self-contained — every decision lives in the plan header table or inline; the prior planning brief is not required on disk. Execution mode chosen: subagent-driven (one fresh subagent per task, review between tasks). Next action: begin Phase 0 (baseline check).
 
-1. **Document cleanup** — trimmed accumulated bloat across `.claude/` docs; established CLAUDE.md HARD RULES (Component Library is the source of design; exhaustive `switch`/`enum`; DRY).
-2. **UIX refinement** — View Settings, the context menu, and the table view brought to spec (chip dropdowns pulled from the Component Library, tri-state status checkbox, unified field backdrop, etc.).
-3. **Table-level reworking** — detail-view table rendering + inline cell editors.
-4. **Bug fixes** — back/forward navigation; collection context menu.
-
-**Open sessions:** this one + a parallel session on **table drag (row reordering)**. Both just pushed to `origin/main`.
+Plan rests on nine brainstorming locks (tier label scope = per-Type override; validator signature = cascade; ContextDetailPlaceholder = untouched/defer; singleton type IDs = `_agenda_tasks`/`_agenda_events`; History wording = "rebuilt"; CLAUDE.md branch quirk #16 line citation fix = 325-331; tier column ordering = rightmost Project/Topic/Space reorderable; tier props in Type Settings = inline + no-delete; tier in-line cell editor = existing Status/Select/Multi-Select pattern), three late-stage UX clarifications (single-pane EditPropertyPane editor replaces the wizard; flat `ChipDropdown` + `RelationChip` rows for every picker target; `RelationChip` shows scoped target icon + title), two architectural decisions surfaced by verification (Context delete → application-layer source-side cascade across all four content managers; Agenda schema → unify to PropertyDefinition shape), and a common-sense audit pass that dropped seven over-engineered tasks (the wizard mistake's fingerprint showed up in stubs-with-no-consumer, dual-API designs, speculative helpers, dual-path "executor decides" tasks, and doc-only single-step commits).
 
 #### Next focuses
 
-1. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder).
-2. **Page Previews** — standalone-window page preview (the cross-feature PreviewWindow primitive).
-3. **Relations** — inline relation editor / picker.
+1. **Relations Redesign execution** — begin Phase 0 (baseline) and proceed phase-by-phase via subagent-driven dispatch per `// Planning//Relations-Redesign-Plan.md`.
+2. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder).
+3. **Page Previews** — standalone-window page preview (cross-feature PreviewWindow primitive).
 
 #### Fix Log
 
@@ -44,6 +39,7 @@ Acknowledged, not-yet-fixed — address soon (keep current per Handoff Rules):
 #### Document pointers
 
 - Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
+- Active plan → `Planning/Relations-Redesign-Plan.md`
 - Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md`
 - CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
 - Branch quirks + hard rules → `CLAUDE.md`
