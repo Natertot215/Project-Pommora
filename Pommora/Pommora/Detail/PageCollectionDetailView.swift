@@ -14,6 +14,7 @@ struct PageCollectionDetailView: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
+    @Environment(RelationDisplayResolver.self) private var relationDisplay
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -74,6 +75,19 @@ struct PageCollectionDetailView: View {
         }
     }
 
+    /// Relation + tier target IDs across every visible Page row — drives the
+    /// resolver warm so cells render icon + title instead of "(missing)".
+    private var visibleRelationIDs: [String] {
+        let relationColumns = userPropertyColumns.filter { $0.type == .relation }
+        return rows.flatMap { row -> [String] in
+            guard case .page(let pageMeta) = row.kind else { return [] }
+            let fm = pageMeta.frontmatter
+            let tiers = fm.tier1 + fm.tier2 + fm.tier3
+            let props = relationColumns.flatMap { fm.relationIDs(forPropertyID: $0.id) }
+            return tiers + props
+        }
+    }
+
     private var table: some View {
         Table(of: DetailRow.self) {
             TableColumn("Title") { row in
@@ -97,7 +111,7 @@ struct PageCollectionDetailView: View {
                             value: def.type == .relation
                                 ? .relation(pageMeta.frontmatter.relationIDs(forPropertyID: def.id))
                                 : pageMeta.frontmatter.properties[def.id],
-                            relationResolver: { _ in nil },
+                            relationResolver: { relationDisplay.resolve($0) },
                             commit: { newValue in
                                 Task {
                                     try? await contentManager.updatePageProperty(
@@ -115,7 +129,7 @@ struct PageCollectionDetailView: View {
                         PropertyCellDisplay(
                             definition: def,
                             value: nil,
-                            relationResolver: { _ in nil }
+                            relationResolver: { relationDisplay.resolve($0) }
                         )
                     }
                 }
@@ -141,6 +155,9 @@ struct PageCollectionDetailView: View {
             .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
                 handleDrop(payloads: payloads, toOffset: offset)
             }
+        }
+        .task(id: visibleRelationIDs) {
+            await relationDisplay.warm(visibleRelationIDs)
         }
     }
 

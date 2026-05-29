@@ -34,6 +34,7 @@ struct ItemCollectionDetailView: View {
     @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
+    @Environment(RelationDisplayResolver.self) private var relationDisplay
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -110,6 +111,18 @@ struct ItemCollectionDetailView: View {
         }
     }
 
+    /// Relation + tier target IDs across every visible Item row — drives the
+    /// resolver warm so cells render icon + title instead of "(missing)".
+    private var visibleRelationIDs: [String] {
+        let relationColumns = userPropertyColumns.filter { $0.type == .relation }
+        return rows.flatMap { row -> [String] in
+            guard case .item(let item) = row.kind else { return [] }
+            let tiers = item.tier1 + item.tier2 + item.tier3
+            let props = relationColumns.flatMap { item.relationIDs(forPropertyID: $0.id) }
+            return tiers + props
+        }
+    }
+
     private var table: some View {
         Table(of: DetailRow.self) {
             TableColumn("Title") { row in
@@ -135,7 +148,7 @@ struct ItemCollectionDetailView: View {
                             value: def.type == .relation
                                 ? .relation(item.relationIDs(forPropertyID: def.id))
                                 : item.properties[def.id],
-                            relationResolver: { _ in nil },
+                            relationResolver: { relationDisplay.resolve($0) },
                             commit: { newValue in
                                 Task {
                                     try? await itemContentManager.updateItemProperty(
@@ -153,7 +166,7 @@ struct ItemCollectionDetailView: View {
                         PropertyCellDisplay(
                             definition: def,
                             value: nil,
-                            relationResolver: { _ in nil }
+                            relationResolver: { relationDisplay.resolve($0) }
                         )
                     }
                 }
@@ -175,6 +188,9 @@ struct ItemCollectionDetailView: View {
             .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
                 handleDrop(payloads: payloads, toOffset: offset)
             }
+        }
+        .task(id: visibleRelationIDs) {
+            await relationDisplay.warm(visibleRelationIDs)
         }
     }
 
