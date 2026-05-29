@@ -49,6 +49,46 @@ struct TierRelationsEmitTests {
         )
     }
 
+    private func makeAgendaTask(
+        title: String = "Buy milk",
+        tier1: [String] = [],
+        tier2: [String] = [],
+        tier3: [String] = []
+    ) -> AgendaTask {
+        let now = Date()
+        return AgendaTask(
+            id: ULID.generate(), title: title, icon: nil,
+            description: "",
+            dueAt: nil, dueFloating: false, dueAllDay: false,
+            startAt: nil, completed: false, completedAt: nil,
+            priority: 0, recurrence: nil, alarmOffsets: [],
+            calendarID: nil, eventkitUUID: nil,
+            tier1: tier1, tier2: tier2, tier3: tier3,
+            createdAt: now, modifiedAt: now,
+            properties: [:]
+        )
+    }
+
+    private func tierLinkCount(entityID: String, db index: PommoraIndex) throws -> Int {
+        try index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM tier_links WHERE entity_id = ?",
+                arguments: [entityID]
+            ) ?? -1
+        }
+    }
+
+    private func relationCount(sourceID: String, db index: PommoraIndex) throws -> Int {
+        try index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM relations WHERE source_id = ?",
+                arguments: [sourceID]
+            ) ?? -1
+        }
+    }
+
     // MARK: - IndexUpdater (incremental) — Page tier1
 
     @Test func upsertPageEmitsTier1RelationRow() async throws {
@@ -120,6 +160,60 @@ struct TierRelationsEmitTests {
         #expect(incomingTopic.contains { $0.id == item.id })
         let incomingProject = try await IndexQuery(idx).incomingRelations(targetID: projectID)
         #expect(incomingProject.contains { $0.id == item.id })
+    }
+
+    // MARK: - IndexUpdater (incremental) — AgendaTask tier1
+
+    @Test func upsertAgendaTaskEmitsTier1RelationRow() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        let contextID = ULID.generate()
+        let task = makeAgendaTask(tier1: [contextID])
+        try updater.upsertAgendaTask(task)
+
+        // The relations row exists and carries the reserved tier property id.
+        let count = try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx)
+        #expect(count == 1)
+
+        // incomingRelations (reverse view over `relations`) finds the task.
+        let incoming = try await IndexQuery(idx).incomingRelations(targetID: contextID)
+        #expect(incoming.contains { $0.id == task.id })
+
+        // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "space").
+        let targetKind = try await idx.dbQueue.read { db in
+            try String.fetchOne(
+                db,
+                sql: "SELECT target_kind FROM relations WHERE target_id = ? AND property_id = ?",
+                arguments: [contextID, ReservedPropertyID.tier1]
+            )
+        }
+        #expect(targetKind == RelationTargetKind.string(from: .contextTier(1)))
+    }
+
+    // MARK: - IndexUpdater (incremental) — deleteAgendaTask cleans relations + tier_links
+
+    @Test func deleteAgendaTaskClearsRelationsAndTierLinks() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        let contextID = ULID.generate()
+        let task = makeAgendaTask(tier1: [contextID])
+        try updater.upsertAgendaTask(task)
+
+        // Sanity: rows were written by the upsert.
+        #expect(try relationCount(sourceID: task.id, db: idx) == 1)
+        #expect(try tierLinkCount(entityID: task.id, db: idx) == 1)
+
+        try updater.deleteAgendaTask(id: task.id)
+
+        // Both tables are cleaned for the deleted task.
+        #expect(try relationCount(sourceID: task.id, db: idx) == 0)
+        #expect(try tierLinkCount(entityID: task.id, db: idx) == 0)
     }
 
     // MARK: - IndexUpdater (incremental) — re-upsert does not duplicate or wipe

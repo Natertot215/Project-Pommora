@@ -248,15 +248,31 @@ struct IndexUpdater: Sendable {
                     propsJSON, iso(task.modifiedAt),
                 ]
             )
+            try reconcileRelations(
+                db: db,
+                sourceID: task.id,
+                sourceKind: "agenda_task",
+                properties: task.properties,
+                tier1: task.tier1,
+                tier2: task.tier2,
+                tier3: task.tier3
+            )
+            try reconcileTierLinks(
+                db: db,
+                entityID: task.id,
+                kind: "agenda_task",
+                tier1: task.tier1,
+                tier2: task.tier2,
+                tier3: task.tier3
+            )
         }
     }
 
     func deleteAgendaTask(id: String) throws {
         try index.dbQueue.write { db in
-            try db.execute(
-                sql: "DELETE FROM agenda_tasks WHERE id = ?",
-                arguments: [id]
-            )
+            try db.execute(sql: "DELETE FROM agenda_tasks WHERE id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM tier_links WHERE entity_id = ?", arguments: [id])
         }
     }
 
@@ -277,15 +293,31 @@ struct IndexUpdater: Sendable {
                     propsJSON, iso(event.modifiedAt),
                 ]
             )
+            try reconcileRelations(
+                db: db,
+                sourceID: event.id,
+                sourceKind: "agenda_event",
+                properties: event.properties,
+                tier1: event.tier1,
+                tier2: event.tier2,
+                tier3: event.tier3
+            )
+            try reconcileTierLinks(
+                db: db,
+                entityID: event.id,
+                kind: "agenda_event",
+                tier1: event.tier1,
+                tier2: event.tier2,
+                tier3: event.tier3
+            )
         }
     }
 
     func deleteAgendaEvent(id: String) throws {
         try index.dbQueue.write { db in
-            try db.execute(
-                sql: "DELETE FROM agenda_events WHERE id = ?",
-                arguments: [id]
-            )
+            try db.execute(sql: "DELETE FROM agenda_events WHERE id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM tier_links WHERE entity_id = ?", arguments: [id])
         }
     }
 
