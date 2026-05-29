@@ -59,6 +59,7 @@ struct ItemTypeDetailView: View {
     @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
+    @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var expanded: Set<String> = []  // set row IDs that are disclosed
     @State private var renameTarget: DetailRow?
@@ -131,7 +132,10 @@ struct ItemTypeDetailView: View {
     /// collapses to the legacy Title/Modified shape.
     private var userPropertyColumns: [PropertyDefinition] {
         guard let view = type.views.first else { return [] }
-        let cols = PropertyColumnBuilder.columns(view: view, schema: type.properties)
+        let cols = PropertyColumnBuilder.columns(
+            view: view,
+            schema: type.resolvedProperties(tierConfig: tierConfigManager.config)
+        )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }
             return nil
@@ -159,7 +163,9 @@ struct ItemTypeDetailView: View {
                         let parentSet = setContaining(itemID: item.id)
                         PropertyCellEditor(
                             definition: def,
-                            value: item.properties[def.id],
+                            value: def.type == .relation
+                                ? .relation(item.relationIDs(forPropertyID: def.id))
+                                : item.properties[def.id],
                             relationResolver: { _ in nil },
                             commit: { newValue in
                                 Task {

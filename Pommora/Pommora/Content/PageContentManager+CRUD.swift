@@ -644,7 +644,9 @@ extension PageContentManager {
         do {
             let pageFile = try PageFile.load(from: page.url)
             var fm = pageFile.frontmatter
-            if let newValue {
+            if case .relation(let ids)? = newValue {
+                fm.setRelationIDs(ids, forPropertyID: propertyID)   // tier→root, user→properties, empty→omit
+            } else if let newValue {
                 fm.properties[propertyID] = newValue
             } else {
                 fm.properties.removeValue(forKey: propertyID)

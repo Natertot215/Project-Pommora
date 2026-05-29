@@ -318,11 +318,11 @@ struct PropertyCellEditor: View {
             RelationPicker(
                 selectedIDs: Binding(
                     get: { if case .relation(let ids) = draft { return ids }; return [] },
-                    set: { draft = $0.isEmpty ? .null : .relation($0) }
+                    set: { draft = .relation($0) }
                 ),
                 scope: target,
                 index: index,
-                onSelect: { draft = $0.isEmpty ? .null : .relation($0) }
+                onSelect: { draft = .relation($0) }
             )
         } else {
             // Defensive: the property validator prevents a relation without a

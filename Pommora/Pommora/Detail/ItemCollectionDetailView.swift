@@ -33,6 +33,7 @@ struct ItemCollectionDetailView: View {
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(NexusManager.self) private var nexusManager
+    @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -99,7 +100,10 @@ struct ItemCollectionDetailView: View {
         guard let view = collection.views.first,
               let parent = itemTypeManager.parentItemType(for: collection)
         else { return [] }
-        let cols = PropertyColumnBuilder.columns(view: view, schema: parent.properties)
+        let cols = PropertyColumnBuilder.columns(
+            view: view,
+            schema: parent.resolvedProperties(tierConfig: tierConfigManager.config)
+        )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }
             return nil
@@ -128,7 +132,9 @@ struct ItemCollectionDetailView: View {
                     {
                         PropertyCellEditor(
                             definition: def,
-                            value: item.properties[def.id],
+                            value: def.type == .relation
+                                ? .relation(item.relationIDs(forPropertyID: def.id))
+                                : item.properties[def.id],
                             relationResolver: { _ in nil },
                             commit: { newValue in
                                 Task {

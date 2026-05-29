@@ -617,7 +617,9 @@ extension ItemContentManager {
 
             var updated = try AtomicJSON.decode(Item.self, from: url)
             updated.title = item.title  // filename derives title (not persisted on Item)
-            if let newValue {
+            if case .relation(let ids)? = newValue {
+                updated.setRelationIDs(ids, forPropertyID: propertyID)   // tier→root, user→properties, empty→omit
+            } else if let newValue {
                 updated.properties[propertyID] = newValue
             } else {
                 updated.properties.removeValue(forKey: propertyID)

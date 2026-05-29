@@ -13,6 +13,7 @@ struct PageCollectionDetailView: View {
 
     @Environment(PageContentManager.self) private var contentManager
     @Environment(NexusManager.self) private var nexusManager
+    @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -63,7 +64,10 @@ struct PageCollectionDetailView: View {
     /// visibleProperties configured — collapses to legacy Title/Kind/Modified.
     private var userPropertyColumns: [PropertyDefinition] {
         guard let view = collection.views.first else { return [] }
-        let cols = PropertyColumnBuilder.columns(view: view, schema: vault.properties)
+        let cols = PropertyColumnBuilder.columns(
+            view: view,
+            schema: vault.resolvedProperties(tierConfig: tierConfigManager.config)
+        )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }
             return nil
@@ -90,7 +94,9 @@ struct PageCollectionDetailView: View {
                     if case .page(let pageMeta) = row.kind {
                         PropertyCellEditor(
                             definition: def,
-                            value: pageMeta.frontmatter.properties[def.id],
+                            value: def.type == .relation
+                                ? .relation(pageMeta.frontmatter.relationIDs(forPropertyID: def.id))
+                                : pageMeta.frontmatter.properties[def.id],
                             relationResolver: { _ in nil },
                             commit: { newValue in
                                 Task {

@@ -26,6 +26,7 @@ struct PropertyVisibilityPane: View {
 
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var commitError: String?
 
@@ -186,23 +187,34 @@ struct PropertyVisibilityPane: View {
         }
     }
 
-    /// Visible-in-pane properties: user-defined + `_modified_at` (kept as
-    /// the locked-always-visible default sort criterion). All other reserved
-    /// IDs (`_id`, `_created_at`, `_status`, `_tier1/2/3`, `_wikilinks`) are
-    /// filtered out — visibility is meaningless for system-managed columns.
+    /// Visible-in-pane properties: user-defined + the three tier relations +
+    /// `_modified_at` (kept as the locked-always-visible default sort
+    /// criterion). The remaining reserved IDs (`_id`, `_created_at`,
+    /// `_status`, `_wikilinks`) are filtered out — visibility is meaningless
+    /// for system-managed columns. Tier columns are surfaced via
+    /// `resolvedProperties` (the schema doesn't store them; they're merged in)
+    /// so users can hide/show them like any other column.
     private func parentTypeProperties() -> [PropertyDefinition] {
         guard let typeID = parentTypeID() else { return [] }
         let schema: [PropertyDefinition]
         switch side {
         case .pages:
-            schema = pageTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+            schema = pageTypeManager.types.first(where: { $0.id == typeID })?
+                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         case .items:
-            schema = itemTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+            schema = itemTypeManager.types.first(where: { $0.id == typeID })?
+                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         case .none:
             return []
         }
+        let surfaced: Set<String> = [
+            ReservedPropertyID.modifiedAt,
+            ReservedPropertyID.tier1,
+            ReservedPropertyID.tier2,
+            ReservedPropertyID.tier3,
+        ]
         return schema.filter { def in
-            !ReservedPropertyID.isReserved(def.id) || def.id == "_modified_at"
+            !ReservedPropertyID.isReserved(def.id) || surfaced.contains(def.id)
         }
     }
 

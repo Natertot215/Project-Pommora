@@ -15,6 +15,7 @@ struct PageTypeDetailView: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
+    @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
@@ -92,7 +93,10 @@ struct PageTypeDetailView: View {
     /// configured — collapses to the legacy Title/Kind/Modified shape.
     private var userPropertyColumns: [PropertyDefinition] {
         guard let view = pageType.views.first else { return [] }
-        let cols = PropertyColumnBuilder.columns(view: view, schema: pageType.properties)
+        let cols = PropertyColumnBuilder.columns(
+            view: view,
+            schema: pageType.resolvedProperties(tierConfig: tierConfigManager.config)
+        )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }
             return nil
@@ -120,7 +124,9 @@ struct PageTypeDetailView: View {
                         let parentCollection = collectionContaining(pageID: pageMeta.id)
                         PropertyCellEditor(
                             definition: def,
-                            value: pageMeta.frontmatter.properties[def.id],
+                            value: def.type == .relation
+                                ? .relation(pageMeta.frontmatter.relationIDs(forPropertyID: def.id))
+                                : pageMeta.frontmatter.properties[def.id],
                             relationResolver: { _ in nil },
                             commit: { newValue in
                                 Task {
