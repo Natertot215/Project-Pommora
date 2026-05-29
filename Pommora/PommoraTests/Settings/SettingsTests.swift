@@ -33,10 +33,11 @@ struct SettingsTests {
         #expect(s.labels.agendaEvent.plural == "Events")
 
         // Sidebar sections — only Pages + Items; no Agenda heading per Phase 8.3.
-        // Defaults use each side's PLURAL signature word (flatlayout/2.2.1):
-        // Pages-side signature → "Vaults"; Items-side container plural → "Types".
+        // Pages-side defaults to its signature plural "Vaults"; the Items-side
+        // section defaults to "Items" (browse-my-Items framing, 2026-05-25 decision —
+        // distinct from itemType.plural "Types").
         #expect(s.labels.sidebarSections.pages == "Vaults")
-        #expect(s.labels.sidebarSections.items == "Types")
+        #expect(s.labels.sidebarSections.items == "Items")
     }
 
     @Test("Codable round-trip preserves all fields")

@@ -41,14 +41,14 @@ struct UILabelThreadingTests {
 
     // MARK: - Test 2: Default sidebar section values are correct strings
 
-    @Test("Default sidebar section labels are Spaces / Topics / Vaults / Types")
+    @Test("Default sidebar section labels are Spaces / Topics / Vaults / Items")
     func defaultSidebarSectionStrings() async throws {
         let m = try await makeSettingsManager()
         let s = m.settings.labels.sidebarSections
         #expect(s.spaces == "Spaces")
         #expect(s.topics == "Topics")
         #expect(s.pages  == "Vaults")
-        #expect(s.items  == "Types")
+        #expect(s.items  == "Items")
     }
 
     // MARK: - Test 3: Default page-type label is "Vault"
@@ -112,7 +112,7 @@ struct UILabelThreadingTests {
         // Items-side labels should be unchanged.
         #expect(m.settings.labels.itemType.singular == "Type")
         #expect(m.settings.labels.itemCollection.singular == "Set")
-        #expect(m.settings.labels.sidebarSections.items == "Types")
+        #expect(m.settings.labels.sidebarSections.items == "Items")
     }
 
     // MARK: - Test 7: agendaTask label defaults to "Task"
