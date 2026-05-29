@@ -9,6 +9,11 @@ struct PropertyChipOption: Identifiable, Hashable {
 
 enum SelectionMode { case single, multi }
 
+/// How a `ChipDropdown` row renders its option label.
+/// `.chip` → the standard `PropertyChip` pill (Select / Multi / Status).
+/// `.plainText` → bare `Text` (relations, until a relation chip design exists).
+enum ChipDropdownLabelStyle { case chip, plainText }
+
 /// Liquid-Glass chip dropdown pulled from the Component Library. The pill is
 /// the trigger (hosted by the caller's `.popover`); this is the panel.
 /// `.single` picks one; `.multi` toggles + drag-reorders the options binding.
@@ -19,6 +24,7 @@ struct ChipDropdown: View {
     let selectedIDs: Set<String>
     let onPick: (PropertyChipOption) -> Void
     var size: PropertyChip.Size = .standard
+    var labelStyle: ChipDropdownLabelStyle = .chip
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
