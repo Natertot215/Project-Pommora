@@ -24,7 +24,7 @@ Each entity belongs to one Type. Every Type carries a schema in its per-kind sid
 | AgendaTask (singleton) | `<Tasks>/_taskconfig.json` |
 | AgendaEvent (singleton) | `<Events>/_eventconfig.json` |
 
-Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation scopes, etc.). Member entities store property VALUES conforming to that schema.
+Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation targets, etc.). Member entities store property VALUES conforming to that schema.
 
 Page Collections and Item Collections do not carry their own schemas — they inherit from their parent Type. Their sidecars (`_pagecollection.json` / `_itemcollection.json`) carry only id + ordering + Collection-level UI preferences (pinned chips).
 
@@ -42,7 +42,7 @@ Page Collections and Item Collections do not carry their own schemas — they in
 | **Multi-select** | `["<value>", ...]` | `{ "select_options": [...] }` (same shape as Select) | Tag-style multi-pick. Each chip in its option's color. Option order defines sort. Options NOT created by typing. |
 | **Status** | `{"$status": "<option value>"}` (tagged object) | `{ "status_groups": [{ "id", "label", "color", "options" }, ...] }` (3 fixed groups: `upcoming` / `in_progress` / `done`) | Grouped picker popover, 3 sections, single-pick. Pill color resolves option override > group default. Group labels renameable; 3 group slots fixed. Sort = group position first, then option order. Options NOT created by typing. Stored as tagged object (mirrors `$rel` pattern) so external agents can identify status values from any file without consulting the schema; bare-string would shape-collide with Select. |
 | **URL** | `"https://..."` | `{}` | URL input; clickable link with favicon. |
-| **Relation** | `{"$rel": "01HXYZ..."}` (single) or `[{"$rel": "..."}, ...]` (multi) | `{ "relation_scope": {...}, "allows_multiple": bool, "dual_property": {...}? }` | Scope-aware picker. Stored as tagged JSON object so external agents can identify cross-entity edges from any file without consulting schema. Displayed as the target's current title — styled colored inline text (wikilink look). Renames update automatically. |
+| **Relation** | `[{"$rel": "01HXYZ..."}, ...]` (always an array; a single value is a 1-element array) | `{ "relation_target": {...}, "dual_property": {...}? }` | Always multi-value. Target-aware picker; target kinds are Page Type, Item Type, Agenda Tasks, Agenda Events (Context tiers are internal-only). Stored as tagged JSON objects so external agents can identify cross-entity edges from any file without consulting schema. Each value renders as the target's icon + current title in plain styled colored text (wikilink look). Renames update automatically. |
 | **Last Edited Time** | *(not stored — derived from `modified_at`)* | `{}` | Read-only, sortable. Default sort, descending. |
 | **File / Attachment** | `[{ "path": "<nexus-relative>", "original_name", "added_at", "mime_type" }, ...]` (array; multi-file) | `{ "accept": ["pdf", "image/*"]? }` | Drag-drop + click-to-pick + thumbnail strip. Files copy into `<nexus>/.nexus/attachments/<entity-id>/<original-filename>` on attach; property stores nexus-relative paths. |
 
@@ -94,10 +94,10 @@ modified_at: 2026-05-24T...
 icon: doc.text
 tier1: [01HSPACE...]
 tier2: [01HTOPIC...]
-prop_01HXY...: { $status: active }       # display name: "Status" — tagged-object form
-prop_01HAB...: ["research", "frontend"]  # display name: "Tags"  (Multi-select stays bare-array)
-prop_01HSEL...: "in_review"              # display name: "Stage" (Select stays bare-string)
-prop_01HREL...: { $rel: 01HTARGET... }   # display name: "Project" (Relation, single)
+prop_01HXY...: { $status: active }         # display name: "Status" — tagged-object form
+prop_01HAB...: ["research", "frontend"]    # display name: "Tags"  (Multi-select stays bare-array)
+prop_01HSEL...: "in_review"                # display name: "Stage" (Select stays bare-string)
+prop_01HREL...: [{ $rel: 01HTARGET... }]   # display name: "Project" (Relation — always an array)
 ```
 
 ```json
@@ -107,7 +107,7 @@ prop_01HREL...: { $rel: 01HTARGET... }   # display name: "Project" (Relation, si
   "properties": {
     "prop_01HXY...": { "$status": "active" },
     "prop_01HAB...": ["research", "frontend"],
-    "prop_01HREL...": { "$rel": "01HTARGET..." }
+    "prop_01HREL...": [{ "$rel": "01HTARGET..." }]
   }
 }
 ```
@@ -146,9 +146,9 @@ Wikilinks resolve by ID. Disk format: `[[Title|01HXYZ...]]` — title is the ren
 
 ---
 
-#### Per-tier multi-relations
+#### Per-tier relations
 
-Operational entities (Pages, Items, Agenda Tasks, Agenda Events) each carry three built-in multi-valued ID arrays pointing to Contexts:
+Operational entities (Pages, Items, Agenda Tasks, Agenda Events) each carry three tier relation properties pointing to Contexts. They store at the frontmatter / JSON root (not under `properties`) as ID arrays:
 
 ```yaml
 tier1: [<space-id>, ...]   # Spaces (Context tier 1)
@@ -156,7 +156,7 @@ tier2: [<topic-id>, ...]   # Topics (Context tier 2)
 tier3: [<project-id>, ...] # Projects (Context tier 3)
 ```
 
-These are built-in (not user-defined) and edited via the property panel's relation pickers alongside user-defined properties. They appear in the same surface as user-defined properties.
+Tier values ARE relations — they flow through the same property pipeline as user-defined relations. Three pre-configured relation properties (`_tier1` / `_tier2` / `_tier3`, each a `relation` with a `context_tier` target) merge into every Type's resolved schema via `BuiltInRelationProperties`, picking up per-Nexus tier labels + icons. They render, sort, group, and pick exactly like any relation property; they edit via the property panel's relation pickers alongside user-defined properties and appear in the same surface. Built-in (not user-defined): the schema editor can't create or delete them.
 
 ---
 
@@ -213,47 +213,49 @@ Reserved property ID `_status` on both AgendaTask and AgendaEvent schemas. Users
 
 #### Relation values bind to specific entities
 
-The VALUE of a relation property is always a specific entity's ULID — a specific Page, a specific Item, a specific Context. Never a Type-abstraction, never a Collection-abstraction.
+The VALUE of a relation property is always one or more specific entities' ULIDs — specific Pages, specific Items, specific Agenda items, specific Contexts. Never a Type-abstraction, never a Collection-abstraction.
 
-**"Scope" is the picker constraint, not what the value points at.** Scope narrows the picker from "any entity in the Nexus" down to "any Page in PageType X" or "any Item in ItemCollection Y." The user picks one specific entity from that filtered set; the stored value is that entity's ULID alone.
+**The target is the picker constraint, not what the value points at.** The target narrows the picker from "any entity in the Nexus" down to "any Page in Page Type X" or "any Item in Item Type Y." The user picks specific entities from that filtered set; the stored value is those entities' ULIDs alone.
 
-Notion-model exactly. A relation property's definition points at a database (= container in Pommora terms — Vault / Type / Collection). Each row's value is one or more specific pages from that database.
+Notion-model exactly. A relation property's definition points at a database (= container in Pommora terms — a Vault / Type or an Agenda side). Each row's value is one or more specific entries from that database.
 
-Example: A Page Type "Notes" has a relation property called "Project" scoped to Page Collection "Active Projects." A specific Note Page sets the property:
+Example: A Page Type "Notes" has a relation property called "Project" targeting Page Type "Active Projects." A specific Note Page sets the property:
 
-- **Schema:** `{"id": "prop_01HPROJ...", "name": "Project", "type": "relation", "relation_scope": {"kind": "page_collection", "page_collection_id": "01HACTIVE..."}, "allows_multiple": false}`
-- **Picker UX:** dropdown lists all Pages in the "Active Projects" Page Collection
+- **Schema:** `{"id": "prop_01HPROJ...", "name": "Project", "type": "relation", "relation_target": {"kind": "page_type", "page_type_id": "01HACTIVE..."}}`
+- **Picker UX:** dropdown lists all Pages in the "Active Projects" Page Type; multiple entries selectable
 - **User picks:** "Q3 Launch" Page
-- **Value on disk:** `prop_01HPROJ...: {"$rel": "01HQ3LAUNCH..."}`
-- **Display:** "Q3 Launch" rendered as styled inline text
+- **Value on disk:** `prop_01HPROJ...: [{"$rel": "01HQ3LAUNCH..."}]`
+- **Display:** "Q3 Launch" rendered as the target's icon + title in styled inline text
 - **If target "Q3 Launch" is renamed:** display updates; stored ULID never changes
 - **If the property "Project" is renamed:** schema-only update; `prop_01HPROJ...` is still the key in frontmatter
 
-Scope hierarchy (broadest → narrowest): Vault (Page Type / Item Type) → Collection (Page Collection / Item Collection) → Context tier. Scope can be set at the Vault / Type root (picker shows all members across all Collections) or drilled into a specific Collection / Set (picker is narrowed). The VALUE is always specific.
+Relations are always multi-value — there is no single/multi toggle. A single chosen entity is stored as a 1-element array. The VALUE is always specific.
 
 ---
 
-#### Relation scope
+#### Relation target
 
-Each Relation property targets exactly one container at creation. For a second container, create a second Relation property. Five scope kinds; no fallback "anywhere" scope.
+Each Relation property points at exactly one target at creation. For a second target, create a second Relation property. The schema stores the target under the `relation_target` key as a tagged object; no fallback "anywhere" target.
+
+Four user-creatable target kinds:
 
 ```json
 { "kind": "page_type", "page_type_id": "01HPAGETYPEID..." }
 { "kind": "item_type", "item_type_id": "01HITEMTYPEID..." }
-{ "kind": "page_collection", "page_collection_id": "01HPAGECOLLID..." }
-{ "kind": "item_collection", "item_collection_id": "01HITEMCOLLID..." }
-{ "kind": "context_tier", "tier": 2 }
+{ "kind": "agenda_tasks" }
+{ "kind": "agenda_events" }
 ```
 
-| Scope kind | Picker source | Bidirectional? |
+| Target kind | Picker source | Paired? |
 |---|---|---|
 | `page_type` | All Pages in the specified Page Type | Required dual — paired reverse property on the target Page Type's `_pagetype.json` |
 | `item_type` | All Items in the specified Item Type | Required dual — paired reverse property on the target Item Type's `_itemtype.json` |
-| `page_collection` | All Pages in the specified Page Collection | Required dual — paired reverse on the parent Page Type's `_pagetype.json` |
-| `item_collection` | All Items in the specified Item Collection | Required dual — paired reverse on the parent Item Type's `_itemtype.json` |
-| `context_tier` | All Contexts at the specified tier (1=Spaces / 2=Topics / 3=Projects) | One-way — no paired property; reverse view derived via SQLite query |
+| `agenda_tasks` | All Agenda Tasks in the Nexus | Required dual — paired reverse property on `_taskconfig.json` |
+| `agenda_events` | All Agenda Events in the Nexus | Required dual — paired reverse property on `_eventconfig.json` |
 
-**Cross-side relations (Item ↔ Page) are supported.** Item-side Relation pickers list Page Types / Page Collections alongside Item Types / Item Collections; Page-side pickers do the inverse. Unified picker, no side-locking. Cross-side *promotion* (transforming an Item into a Page or vice versa) is a separate concept — post-v1 Prospect.
+One internal-only target kind, `context_tier`, is reserved for the built-in tier relations (`_tier1` / `_tier2` / `_tier3` → Spaces / Topics / Projects). It carries the tier number (`{ "kind": "context_tier", "tier": 2 }`) and is never user-selectable in the editor — Contexts have no `properties[]` schema, so its reverse view is SQLite-query-derived rather than paired. (`page_collection` / `item_collection` kinds are read-tolerated for migration only and never offered in the editor.)
+
+**Cross-side relations (Item ↔ Page) are supported.** Item-side Relation pickers list Page Types alongside Item Types and the two Agenda sides; Page-side pickers do the inverse. Unified picker, no side-locking. Cross-side *promotion* (transforming an Item into a Page or vice versa) is a separate concept — post-v1 Prospect.
 
 Relation pickers query the SQLite index.
 
@@ -261,9 +263,9 @@ Relation pickers query the SQLite index.
 
 #### Dual relations
 
-Creating a Relation property targeting a Page Type, Item Type, Page Collection, or Item Collection is always paired — Pommora creates two property definitions, one on each side, synchronized. No opt-out — without naming both sides, the reverse side can't identify its relationship.
+Every user-created Relation property is paired — Pommora creates two property definitions, one on each side, synchronized. The paired/reverse relation resolves all four target kinds: Page Type, Item Type, Agenda Tasks, Agenda Events. No opt-out — without naming both sides, the reverse side can't identify its relationship.
 
-Config shape inside the source Relation property:
+Config shape inside the home Relation property:
 
 ```json
 {
@@ -274,36 +276,45 @@ Config shape inside the source Relation property:
 }
 ```
 
-The reverse property in the target Type carries the mirror config pointing back (by property ID). The `synced_property_defined_on_type_id` field always points at a Page Type or Item Type (the parent Type) — never at a Collection directly, since Collection-scoped reverses are stored in the parent Type's per-kind sidecar.
+The reverse property in the target Type carries the mirror config pointing back (by property ID). The `synced_property_defined_on_type_id` field points at the target's schema carrier — a Page Type, an Item Type, or the Agenda Tasks / Agenda Events config.
 
 Lifecycle:
 
-- **Creation** — schema editor asks for BOTH names (source + target). Both definitions land atomically; either write failing rolls back both.
+- **Creation** — the relation editor sets the home side, a reverse (mirror) name, and a reverse icon. Both definitions land atomically; either write failing rolls back both.
 - **Value setting** — setting a relation on Page A1 mirrors a back-reference on target Page B1; removing the relation removes both ends.
 - **Renaming either side** — schema-only write that updates the `name` field on this side. The OTHER side's `dual_property` reference is by ID, so it's untouched. Paired identity survives.
 - **Deleting either side** — confirmation dialog ("Deleting this property will also remove '<reverseName>' from <Type X>"). On confirm, BOTH definitions deleted + mirrored values cleared both sides.
 - **Moving a Page across Page Types (or an Item across Item Types) with a paired relation** — strip rule applies: source's value goes; target side's reverse value loses the source's ULID.
 
-Dual relations are mandatory for the four container scopes (`page_type` / `item_type` / `page_collection` / `item_collection`) and unavailable for `context_tier` (Contexts have no `properties[]` schema). Schema editor omits the reverse-name prompt for `context_tier`. The reverse view is query-derived via SQLite.
+The built-in tier relations (`context_tier` target) are not paired — Contexts have no `properties[]` schema, so their reverse view is query-derived via SQLite. They're internal, not created through the relation editor.
 
-##### Creating a Relation property — guided flow
+##### Creating a Relation property — the relation editor
 
-Multi-step wizard:
+A single-pane editor handles both create and edit. It sets the home target plus the reverse (mirror) name and reverse icon — no multi-step wizard:
 
 ```
 Example: User in Page Type Y wants to relate to Pages in Page Type X.
 
 1. "+ Add property" in Page Type Y's schema editor
-2. Pick type "Relation"
-3. Pick scope kind: ◉ Page Type   ◯ Page Collection   ◯ Item Type   ◯ Item Collection   ◯ Context tier
-4. Pick target: Page Type X (searchable list, filtered to the chosen scope kind)
-5. Property name in THIS Type (Y):       "Sources"
-6. Reverse property name in TARGET (X):  "Cited By"
-7. Allow multiple values?  ✓ Yes
-8. Save → atomically creates Page Type Y's "Sources" + Page Type X's "Cited By".
+2. Pick type "Relation" → the relation editor opens
+3. Pick target kind + target: ◉ Page Type → Page Type X
+       (◯ Item Type   ◯ Agenda Tasks   ◯ Agenda Events; searchable list)
+4. Home property name in THIS Type (Y):    "Sources"
+5. Reverse property name in TARGET (X):    "Cited By"   + reverse icon
+6. Save → atomically creates Page Type Y's "Sources" + Page Type X's "Cited By".
 ```
 
-Context-tier scope omits step 6. Pickers are unified across sides — a Pages-side wizard lists Page Types / Page Collections AND Item Types / Item Collections as targets.
+Pickers are unified across sides — a Pages-side editor lists Page Types AND Item Types AND the two Agenda sides as targets.
+
+---
+
+#### Agenda Tasks and Events as relation targets
+
+Agenda Tasks and Agenda Events are first-class relation targets. A Relation property on any Type (or on the other Agenda side) can target `agenda_tasks` or `agenda_events`; the picker lists all Agenda Tasks / Agenda Events in the Nexus, multi-select. Each is a singleton target (no per-container drilldown — there's one Tasks side and one Events side). The reverse property lands on `_taskconfig.json` / `_eventconfig.json` exactly like a Page-Type / Item-Type reverse. This lets, say, a "Meeting Notes" Page relate to the Agenda Events it documents, or an Item relate to its blocking Tasks.
+
+#### Context-side linked-from picker
+
+A Context (Space / Topic / Project) shows what links to it through a dropdown surface — `LinkedFromDropdown`. Because the built-in tier relations are one-directional (Contexts carry no `properties[]` schema), the Context can't store an explicit reverse list; instead the dropdown reads the incoming edges live from the SQLite index via `IndexQuery.incomingRelations(targetID:)`, which returns every entity whose `tier1` / `tier2` / `tier3` (or any user relation) points at that Context. Each row renders through the same `RelationChip` primitive (target icon + title). This is the Context-side counterpart to a paired reverse property; the full surface is a follow-on.
 
 ---
 
@@ -406,8 +417,8 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 2. Property `name` non-empty.
 3. Property `id` uniqueness within the Type.
 4. Reserved property IDs (block user-defined properties from claiming these): `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`.
-5. Dual relation requires `page_type` / `item_type` / `page_collection` / `item_collection` scope; `context_tier` scope rejects dual.
-6. Relation scope's target ULID must resolve to a live entity at save time. Cross-side targets are allowed.
+5. User-created relations are paired and require a `page_type` / `item_type` / `agenda_tasks` / `agenda_events` target; the internal `context_tier` target rejects dual.
+6. A relation target's ULID must resolve to a live entity at save time. Cross-side targets are allowed.
 7. Select / Multi-select: at least one option; option `value` uniqueness within property.
 8. Built-in `_status` on the AgendaTask and AgendaEvent schemas is non-deletable.
 
@@ -429,7 +440,7 @@ The schema editor for a Vault / Type. Reached from the Type detail view toolbar 
 
 | Section | Contents |
 |---|---|
-| **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, scope, dual reverse name, status groups, etc.). |
+| **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, relation target, dual reverse name + icon, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates (Page / Item templates pre-filling body + properties at creation). Reserved post-v1. |
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
@@ -456,7 +467,7 @@ Per-view configuration via the consolidated `slider.horizontal.3` toolbar button
 
 **Chip primitives** (`Pommora/Properties/Chips/`):
 
-- `RelationChip` — default-grey, RoundedRectangle cornerRadius 4, target entity icon + title. Distinct from `PropertyChip` (Capsule, vivid colors).
+- `RelationChip` — the single rendering primitive for relation property values across every surface (Table cells, property panel, Pulldown, page-editor inspector, Item Window, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. A dedicated chip visual (boxed, colored) is a future design.
 - `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
 - `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
 - `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance.
@@ -504,7 +515,7 @@ Sort-by-property in the detail-pane Table view. Click a column header to sort; c
 - **Select / Multi-select** — schema option order
 - **Status** — group position first (Upcoming < In Progress < Done), then option order within group
 - **URL** — alphabetical on `absoluteString`
-- **Relation** — alphabetical on resolved current title of the target
+- **Relation** — alphabetical on the resolved current title of the first target value
 - **File / Attachment** — by count, then by `original_name` of the first file
 
 ##### Per-Type default sort
@@ -519,7 +530,7 @@ If a hidden property is selected as the sort criterion or as the Group By criter
 
 #### Group By compatibility (v0.6.0)
 
-Only single-value property types support Group By:
+Only property types that hold one value per entity support Group By:
 
 | Type | Compatible? | Why / Why not |
 |---|---|---|
@@ -528,8 +539,8 @@ Only single-value property types support Group By:
 | Status | ✓ | Each option becomes a group; groups inherit Status group colors |
 | Date / Date & Time | ✓ | Groups by day / week / month |
 | Checkbox | ✓ | Two groups: true / false |
-| URL | ⚠ Not useful | Technically single-value; rarely meaningful |
-| Relation | ✓ | Each target entity becomes a group |
+| URL | ⚠ Not useful | Holds one value; rarely meaningful |
+| Relation | ✗ | Multiple target values per entity; ambiguous group membership (same as Multi-select) |
 | Multi-select | ✗ | Multiple values per entity; ambiguous group membership |
 | Last Edited Time | ✓ | Groups by day / week / month |
 | File / Attachment | ✗ | Multi-value by nature; same ambiguity as Multi-select |
@@ -550,6 +561,12 @@ Three orderings, three layers:
 |---|---|---|---|
 | **Schema-level option order** (Edit Properties → drag-reorder options) | Per-kind sidecar `properties[i].select_options[]` (or `status_groups[i].options[]`) | Drives default sort nexus-wide; changes the property itself | All views, all members of the Type |
 | **View-level group order** (Group By config — drag-reorder group sections) | Per-kind sidecar `views[i].group_by.order: [String]` | Reorders sections IN THIS VIEW only; doesn't touch the property | One saved view at a time |
+
+---
+
+#### Built-in tier columns in Table views
+
+The three tier relations (Spaces / Topics / Projects) surface in a Table view as pre-configured relation columns at the RIGHTMOST content positions — after every user-property column and immediately before the trailing Last Edited Time column. Order is Project, then Topic, then Space (`_tier3`, `_tier2`, `_tier1`). They render through `RelationChip` like any relation column and are reorderable + hideable like any column (hidden via Property Visibility). A schema without tiers (e.g. a Type that doesn't carry them) gets no tier columns.
 
 ---
 

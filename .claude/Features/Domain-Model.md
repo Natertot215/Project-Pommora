@@ -99,15 +99,17 @@ Detail → `Homepage.md`.
 
 #### Cross-layer relations
 
-Operational-layer entities (Pages, Items, Agenda Tasks, Agenda Events) carry **per-tier multi-relation fields** pointing to Contexts:
+Operational-layer entities (Pages, Items, Agenda Tasks, Agenda Events) carry **per-tier multi-relation fields** pointing to Contexts, stored at the frontmatter / JSON root as arrays of tagged target objects:
 
 ```yaml
-tier1: [<space-id>, ...]
-tier2: [<topic-id>, ...]
-tier3: [<project-id>, ...]
+tier1: [{ $rel: <space-id> }, ...]
+tier2: [{ $rel: <topic-id> }, ...]
+tier3: [{ $rel: <project-id> }, ...]
 ```
 
-Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three. Each tier renders as its own value-row inline in whichever property surface the entity uses (`tierRow` in the property pulldown / panel; also surfaced by `FrontmatterInspector` — see [[Properties]] § "Where Properties Live"). User-defined Relation properties scoped to `context_tier(N)` query the same index surface (`IndexQuery.entitiesByTarget`) and stay one-way (no reverse property since Contexts carry no `properties[]` schema).
+Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three.
+
+**Tier values ARE relations.** Spaces / Topics / Projects (`tier1` / `tier2` / `tier3`) are pre-configured Relation properties — `relation_target: { kind: "context_tier", tier: N }` — merged onto every Type's schema via `BuiltInRelationProperties`. They edit inline through the normal property-editing row (`PropertyEditorRow`) like any Relation property, and their values render as the target Context's icon + title in plain styled colored text. In Table views the three tiers appear as default-visible columns at the rightmost content positions (after all user-property columns, before Last Edited Time); each is individually hideable. They stay one-way — no reverse property, since Contexts carry no `properties[]` schema; reverse lookups resolve through the index (`IndexQuery.entitiesByTarget`).
 
 ---
 
@@ -129,10 +131,10 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 | Link | Stored as | Purpose |
 |---|---|---|
 | Page → Page (wikilink) | `[[Page Name\|01HXYZ...]]` in body (title for display, ULID for resolution) | Inline reference |
-| Page → Context (tier N) | `tierN: [<id>]` in frontmatter | Categorical assignment |
-| Item → Context (tier N) | `tierN: [<id>]` in `.json` | Categorical assignment |
-| Agenda Task → Context (tier N) | `tierN: [<id>]` in `.task.json` | Categorical assignment |
-| Agenda Event → Context (tier N) | `tierN: [<id>]` in `.event.json` | Categorical assignment |
+| Page → Context (tier N) | `tierN: [{ $rel: <id> }]` in frontmatter | Categorical assignment |
+| Item → Context (tier N) | `tierN: [{ $rel: <id> }]` in `.json` | Categorical assignment |
+| Agenda Task → Context (tier N) | `tierN: [{ $rel: <id> }]` in `.task.json` | Categorical assignment |
+| Agenda Event → Context (tier N) | `tierN: [{ $rel: <id> }]` in `.event.json` | Categorical assignment |
 | Context → Context | `parents` (file-structural) + `linked_relations` (property) | Hierarchy + cross-cutting relations |
 | Page → Page Type / Page Collection | Implicit by file location | Membership |
 | Item → Item Type / Item Collection | Implicit by file location | Membership |

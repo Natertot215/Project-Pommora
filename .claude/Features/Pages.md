@@ -113,3 +113,12 @@ Right-click on a Page row in the sidebar gives Rename / Delete. Right-click in a
 - **Untargeted `[[Page Name]]`** (typed without going through autocomplete, or pasted from another tool) resolves by current basename match. If multiple Pages share that name, the editor underlines it as ambiguous and the autocomplete picker prompts for disambiguation at insertion.
 - Wikilinks render as styled colored inline text (Obsidian-style hyperlink), not as Notion-style chips/pills.
 - Obsidian-compat degrades gracefully — Obsidian sees `[[Page Name|01HXYZ...]]` and renders the title as the alias; just loses Pommora's rename-safety guarantees outside Pommora.
+
+**Wikilinks vs relations.** These are two distinct linking mechanisms, in two different places:
+
+| | Where it lives | How it renders |
+|---|---|---|
+| **Wikilink** | inline in the Markdown **body** (`[[Page Name\|ULID]]`) | styled colored inline text, in the prose flow |
+| **Relation** | a **frontmatter** property value (target's ID) | the target's **icon + title in styled colored text**, in the property panel — never a chip/pill |
+
+A wikilink is body content the editor renders in place; a relation is a typed property whose value is shown in the property surface (Properties Pulldown / inspector), resolved from the target's current icon + title. Both resolve their target by ID and stay rename-safe, but they never share a surface — wikilinks never appear in the property panel, relation values never appear inline in the body.

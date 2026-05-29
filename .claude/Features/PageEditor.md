@@ -63,7 +63,7 @@ What the editor renders and supports today.
 
 **Inline marks** (engine regex tokenizer + caret-aware marker-shrink):
 - Bold (`**` / `__`), italic (`*` / `_`), bold-italic (`***`), inline code (`` ` ``)
-- Wikilinks (`[[Name]]`) — rendered as styled inline text; click resolution lands with the Pommora-side resolver (see Deferred)
+- Wikilinks (`[[Name]]`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Wikilinks live only in the body — relation properties are frontmatter, surfaced in the inspector ([[Pages]] § "Wikilinks vs relations"), never typed into the editor canvas.
 - Standard Markdown links (`[text](url)`)
 - Image embeds (`![[name]]`) — render hook present; Pommora-side image provider deferred
 

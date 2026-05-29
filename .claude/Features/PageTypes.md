@@ -90,11 +90,10 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
       "name": "sources",
       "icon": "doc.text.magnifyingglass",
       "type": "relation",
-      "relation_scope": {
+      "relation_target": {
         "kind": "page_type",
         "page_type_id": "01HMATERIALSPAGETYPE..."
       },
-      "allows_multiple": true,
       "dual_property": {
         "synced_property_id": "prop_01HCITEDBY...",
         "synced_property_defined_on_type_id": "01HMATERIALSPAGETYPE..."
@@ -103,8 +102,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
     {
       "name": "related topics",
       "type": "relation",
-      "relation_scope": { "kind": "context_tier", "tier": 2 },
-      "allows_multiple": true
+      "relation_target": { "kind": "context_tier", "tier": 2 }
     }
   ],
   "default_sort": { "property_id": "_modified_at", "direction": "descending" },
@@ -120,17 +118,18 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 
 Title = folder name. Schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `hidden_properties` (per-Type column visibility) and `panel_hidden_properties` (per-entity hide-list) are deferred from v0.3.0 — the Pages Pulldown's lazy mode handles "hide empty" implicitly there; Inspectors are eager, so explicit `panel_hidden_properties` ships post-v0.3.0 if users need to exclude properties from inspector visibility. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively.
 
-**Paired relation properties** — the `sources` Relation above (`relation_scope.kind: "page_type"` + `dual_property`) is one half of a paired relation. The target Page Type (`01HMATERIALSPAGETYPE...`) carries the reverse `"Cited By"` in its own `_pagetype.json`:
+**Relation values are always multi-valued.** A relation property holds an array of tagged target objects — `[{"$rel": "<ULID>"}]` — in the member file's frontmatter / JSON, one entry per linked target (a single target is a one-element array). Values render as the target's **icon + title in plain styled colored text** (never chips/pills), resolved live from the target entity.
+
+**Paired relation properties** — the `sources` Relation above (`relation_target.kind: "page_type"` + `dual_property`) is one half of a paired relation. The target Page Type (`01HMATERIALSPAGETYPE...`) carries the reverse `"Cited By"` in its own `_pagetype.json`:
 
 ```json
 {
   "name": "Cited By",
   "type": "relation",
-  "relation_scope": {
+  "relation_target": {
     "kind": "page_type",
     "page_type_id": "01HTHISPAGETYPE..."
   },
-  "allows_multiple": true,
   "dual_property": {
     "synced_property_id": "prop_01HSOURCES...",
     "synced_property_defined_on_type_id": "01HTHISPAGETYPE..."
@@ -245,6 +244,8 @@ Page Collections don't carry their own `properties` or `views` — schema is inh
 
 Five view types: **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
 
+Table views carry **pre-configured tier columns** — Spaces / Topics / Projects (`tier1` / `tier2` / `tier3`) — at the rightmost content positions, between the last user-property column and the trailing Last Edited Time column. Each is a relation column rendering target icon + title, default-visible and individually hideable.
+
 **Every storage container has view surfaces** — not just the schema-bearing Types. Page Types AND Page Collections both carry `views[]`; on the Items side, Item Types AND Item Sets do too. Schema is inherited from the Type (Collections don't override schema in v1), but each container's saved view configuration is independent. A Page Collection can have a Board view filtered to a subset of its Pages while the parent Page Type shows a Table — same data, two view surfaces.
 
 Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json`). Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
@@ -281,7 +282,7 @@ Opening any folder as a Nexus — including pre-existing user folders that have 
 Shape detection per root folder:
 
 - **Fresh** — no recognized sidecar. Content-sniff (recursive `.md` vs `.json` count): `.md` dominant → Page Type candidate; `.json` dominant → Item Type candidate; empty → default Page Type.
-- **Legacy Vault sidecar** — folder carries the deprecated `_vault` filename; renamed in place to `_pagetype.json`. Any sub-folder carrying the old `_collection` sidecar is renamed to `_pagecollection.json`.
+- **Legacy Vault sidecar** — folder carries the `_vault` filename; renamed in place to `_pagetype.json`. Any sub-folder carrying a `_collection` sidecar is renamed to `_pagecollection.json`.
 - **Legacy wrapper layout** — folder is one of the legacy wrappers (`Pages` / `Items` / `Agenda` at root, each containing children with a unified `_schema` sidecar). The adopter unwraps each child up to the nexus root and renames the legacy unified sidecar to the appropriate per-kind name based on parent + depth — Page Type children become `_pagetype.json`, their nested Collections become `_pagecollection.json`, the Items wrapper's children become `_itemtype.json` / `_itemcollection.json`, the Agenda wrapper's `Tasks` child becomes the Tasks singleton with `_taskconfig.json`, and the Agenda wrapper's `Events` child becomes the Events singleton with `_eventconfig.json`.
 - **Already flat (target)** — folder carries one of the six per-kind sidecars at the right depth. No-op (with a cleanup pass to delete any co-located legacy orphan sidecars).
 

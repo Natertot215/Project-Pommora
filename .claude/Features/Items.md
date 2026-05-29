@@ -50,7 +50,7 @@ Each Item file holds:
 - `description` — plain text, **hard cap 250 chars**. Fits in the Item Window without scrolling. This IS Items' body field — the place free-form text goes (Items don't have Markdown bodies). Not Markdown — Pages exist for Markdown.
 - `icon` — optional, same catalog as Pages
 - `properties` — values conforming to the parent Item Type's schema
-- `tier1` / `tier2` / `tier3` — per-tier multi-valued relation arrays to Contexts. Independent per tier.
+- `tier1` / `tier2` / `tier3` — per-tier multi-valued relation arrays to Contexts (`[{"$rel": "<ULID>"}]`, one entry per linked Context). Independent per tier.
 - `created_at` / `modified_at` — ISO-8601 timestamps
 
 No `name` field — filename IS the name.
@@ -59,7 +59,7 @@ No `name` field — filename IS the name.
 
 #### When to use Items vs Pages vs Agenda
 
-The decision is per-Type, made at creation time (you pick which side's container to open the new entry under):
+The decision is per-Type, made at creation time (you pick which side's container to create the entry under):
 
 - **Item** — row-shaped data without prose: contacts, wishlist, bookmarks, citations, music releases, recipes-as-rows, references. Created inside an Item Type; opens in Item Window popover.
 - **Page** — prose-bearing content: notes, papers, project briefs, journal entries, reading reports. Created inside a Page Type; opens in the main detail pane with the editor.
@@ -73,7 +73,7 @@ If an Item later needs prose, the user creates a Page under a Page Type and link
 
 - Hold typed properties from the parent Item Type's schema (same catalog as Pages; full type list → [[Properties]])
 - Hold typed relations to any other entity in the Nexus (Pages, Items, Agenda Tasks, Agenda Events, Contexts, Page Types, Item Types) by ID — rename-safe
-- Appear in any view (table / board / list / cards / gallery) defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`
+- Appear in any view (table / board / list / cards / gallery) defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`. Table views carry pre-configured tier columns (Spaces / Topics / Projects) at the rightmost content positions, before Last Edited Time; each is default-visible and hideable
 - Relate to Contexts via `tier1` / `tier2` / `tier3` multi-relation fields — surface on those Contexts' composed pages via embedded views
 - Be linked-to from a Context page's link-list widget, an embedded Item Collection view, or wikilinks in body content
 
@@ -95,7 +95,7 @@ The inspector renders eagerly (all schema properties, void-or-fill inline); **pi
 - **Icon** — optional SF Symbol; in the placeholder, edited as a plain TextField (the SymbolPicker-backed `IconPickerField` used in `NewItemSheet` / `EditPropertyPane` / `StorageMenuRoot` swaps in with the redesign).
 - **Properties** — typed inputs for each property in the parent Item Type's schema, via `PropertyEditorRow` dispatching to per-type controls (TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select).
 - **Description** — plain-text body field, **hard cap 250 characters**. Sized to fit the Item Window without scrolling; keeps the JSON file small and cloud-sync-friendly. This IS Items' body field (Items don't have Markdown bodies; description fills that role at a deliberately short size).
-- **Tier 1 / Tier 2 / Tier 3 relations** — in the placeholder window they render as static labeled rows in `relationsSection`. The chip-picker treatment used on the Pages side (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also `FrontmatterInspector`) lands with the Item Window redesign.
+- **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target: { kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`. They edit inline through the same property-editing row as any Relation property, and their values render as the target Context's icon + title in plain styled colored text.
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem` (with a `renameItem` pre-step if the title changed). No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.

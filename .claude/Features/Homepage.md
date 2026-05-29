@@ -54,6 +54,8 @@ Same block types as Contexts:
 
 All widgets render as **live, fully-editable views of their source** — never read-only snapshots. Edits flow to source files via atomic write. Inline-editing principle → `// Features//Domain-Model.md`.
 
+**Value rendering inside widgets** mirrors the rest of the app: relation property values (including the tier relations Spaces / Topics / Projects) render as the target entity's **icon + title in plain styled colored text** — never chips/pills — resolved live from the target; body wikilinks render as inline styled colored text. Both resolve by ID, so renaming a target updates the rendered label without rewriting the source.
+
 ---
 
 #### Pinned-section integration

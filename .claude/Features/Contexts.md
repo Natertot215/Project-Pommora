@@ -83,7 +83,20 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. Each tier renders as its own value-row inline in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`). User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — the target tier is chosen in `EditPropertyPane`, which swaps the relation target field for a tier Picker when the scope is `contextTier`; these stay one-way (Contexts have no `properties[]` schema, so no reverse property is created; the reverse view is SQLite-query-derived via `IndexQuery.entitiesByTarget(.contextTier(N))`).
+Each tier is a multi-value relation, filled independently. Each renders as its own value-row in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`); each value displays as the target Context's **icon + title in styled colored text** — the relation-value rendering shared across every surface, not a chip or pill. User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — the target tier is chosen in `EditPropertyPane`, which swaps the relation target field for a tier Picker when the scope is `contextTier`.
+
+A tier relation is a **dual surface**:
+
+- **Outbound (entity → Context).** The operational entity tags the Context by holding its ID in `tier1` / `tier2` / `tier3`. This is the writable side — the value lives in the entity's frontmatter; the Context carries no `properties[]` schema and no reverse field.
+- **Inbound (Context → entities).** The Context reads back every entity that tags it. Because tier values emit one row each into the SQLite `relations` table (`property_id` = the reserved tier ID), the inbound view is a pure index query — no reverse property to maintain.
+
+---
+
+#### Linked-from
+
+A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Items / Agenda Tasks / Agenda Events / lower-tier Contexts).
+
+The dropdown is powered by `IndexQuery.incomingRelations(targetID:)`, which reads the `relations` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. Tier links and user-defined Relation properties land in the same `relations` table, so a single query returns both the tier-tagged entities and any Context-targeting Relation property values. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
 
 ---
 

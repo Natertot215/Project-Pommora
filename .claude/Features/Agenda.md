@@ -15,6 +15,14 @@ UX-wise both entities behave identically to [[Items]] — Item Window popover, t
 
 ---
 
+#### Agenda Tasks and Events as relation targets
+
+Both kinds are **first-class relation targets**. A Relation property on any Page Type or Item Type (or on the other Agenda kind) can point at Agenda Tasks or Agenda Events, the same way it points at a Page Type or Item Type — `PropertyDefinition.RelationTarget` carries `.agendaTasks` and `.agendaEvents` cases alongside `.pageType` / `.itemType` / `.contextTier`. The relation picker resolves candidate targets through `IndexQuery.entitiesByTarget(.agendaTasks)` / `.agendaEvents`, and each assigned value renders as the target's **icon + title in styled colored text**.
+
+Because a Task or Event is a target, it also surfaces its own inbound links: every entity whose Relation property (or tier relation) points at it is found via `IndexQuery.incomingRelations(targetID:)` against the SQLite `relations` table — the same reverse-view query every other target uses.
+
+---
+
 #### On disk
 
 ```
@@ -38,6 +46,8 @@ Both singleton folders are **eagerly created on launch**. `AgendaTaskManager.loa
 ---
 
 #### Schema
+
+Both `_taskconfig.json` and `_eventconfig.json` carry `properties: [PropertyDefinition]` — the one property shape shared with Page Types and Item Types. Built-in fields and user-defined properties live in the same array, each a `PropertyDefinition` keyed by stable ID; the three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInRelationProperties` for surfaces that show them. One uniform shape across every schema-bearing kind.
 
 ##### Agenda Task schema (`_taskconfig.json` inside the Tasks singleton)
 
@@ -79,7 +89,7 @@ Built-in fields (not user-creatable):
 Both kinds carry exactly one built-in property: a non-deletable `_status` Status property (reserved ID `_status`). Every other property on either kind is user-defined. The Status type's structure (3 fixed EventKit-aligned groups Upcoming / In Progress / Done, renameable labels, user-editable options, default seed, the 3-slot rule, and the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
 
 - The group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly, so the sync layer needs no translation logic.
-- AgendaEvent's `status` is user-set and decoupled from `start_at` / `end_at` date math — it tracks the user's engagement with the event ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own status field (`.tentative` / `.confirmed`) is a separate EventKit concept; the sync layer chooses how to bridge Pommora's Status as the design evolves.
+- AgendaEvent's `status` is user-set and decoupled from `start_at` / `end_at` date math — it tracks the user's engagement with the event ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own status field (`.tentative` / `.confirmed`) is a separate EventKit concept; how the sync layer bridges Pommora's Status to it is an open sync-layer question.
 - Neither kind ships a built-in `type` field — Status is the sole built-in workflow indicator. A `type` taxonomy can be added via the schema editor like any other Select.
 
 ---
