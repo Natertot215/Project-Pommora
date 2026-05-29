@@ -1,26 +1,26 @@
 ### Pommora — Session Handoff
 
  - **Read first at session start.** Current state + next focuses + fix log only. Shipped history → `History.md`; roadmap → `Framework.md`; branch quirks + hard rules → `CLAUDE.md`; locked decisions → `History.md` + `Guidelines/Paradigm-Decisions.md`.
-- 
-
 
 #### Current state (2026-05-28)
 
-Working tree on `origin/main`. The Relations Redesign Plan is the active deliverable from this session.
+Working tree on `main`. The Relations Redesign is the active deliverable.
 
-**Relations Redesign — EXECUTING on `main`** (subagent-driven: implementer writes → background `xcodebuild` verify → hand-review → commit; never commits red to `main`). Read the plan's **"Reconciliation pass"** section first — it supersedes stale body premises. Phase tracking lives in the session task list.
+**Relations Redesign — Phases 0–10 SHIPPED to `main`; Phases 12–22 remain.** Subagent-driven execution: implementer writes → background `xcodebuild` verify → hand-review → commit; never commits red to `main`. **Read the plan's "Reconciliation pass" section first** (`// Planning//Relations-Redesign-Plan.md`) — it supersedes stale plan-body premises.
 
-**Shipped (Phases 0–5):** baseline + stale-label-test cleanup; foundational types (`ReservedPropertyID` named constants, `ReservedTypeID`, `MigrationEvent`); `reverseName`/`reverseIcon` on `PropertyDefinition`; Agenda schemas verified already on `PropertyDefinition` (no migration needed); `BuiltInRelationProperties.merge` + `resolvedProperties(tierConfig:)` on the 4 schema types + `TierConfigManager` env injection (tier rows now surface in the Type Settings list, locked-for-now). Re-verification found **Phase 2** (stageBackRefClear port) and **Phase 4** (Agenda Property→PropertyDefinition) already done in the live tree — both rescoped/obsolete.
+**Shipped (0–10):** foundational types (`ReservedPropertyID`/`ReservedTypeID`/`MigrationEvent`); `reverseName`/`reverseIcon` on `PropertyDefinition`; `BuiltInRelationProperties.merge` + `resolvedProperties(tierConfig:)` + `TierConfigManager` env injection (tier rows surface in the Type Settings list); `PropertyValue.relation` → `[String]` always-multi + `allowsMultiple` dropped; **tier value adapter** (`relationIDs`/`setRelationIDs` — the root↔property translator on all 4 entities); `RelationScope`→`RelationTarget` rename + Agenda cases + dual-key decode tolerance; `DualRelationCoordinator` supports Agenda targets + paired creation resolves all 4 target kinds (cross-side + Agenda); index layer (`@Observable PommoraIndex`, `entitiesByTarget`, `incomingRelations`, shared `RelationTargetKind` — incl. correct `target_kind` on incremental writes via `PropertyDefinition.indexConfigJSON`); **single-pane relation editor** (create/edit; home + mirror name + icon all persist; reverse name via the `reverseName` field) + retired `RelationPropertyWizard` (+ its protocol/mock). Phases 2 & 4 were found already-done in the live tree (rescoped/obsolete). Also landed: **XCTest launch-modal guard** (`NexusManager.loadOnLaunch` early-returns under test — fixed the test-host permission prompts + runner hangs; quirk #17) + CLAUDE.md quirks #17/#18.
 
-**In progress:** Phase 6 — `PropertyValue.relation` → `[String]` (always-multi) + drop `allowsMultiple`. **Remaining:** 6.5 tier value adapter (translator), 7 RelationScope→RelationTarget, 8 Agenda dual-relations, 9 index, 10 single-pane editor, 12 validator cascade, 13–16 picker/cell/chips/columns, 17 env+LinkedFromDropdown stub, 18 context-delete cascade, 19 migration/adoption, 20 tier_links retire, 21 docs, 22 deferred log.
+**Remaining (12–22):** 12 validator cascade (`validate(_:in:nexus:)` + relation-target rules, retire Rule 6, ~20 call sites); 13 relation value picker (flat `ChipDropdown` + `RelationChip` rows); 14 `PropertyCellEditor` relation case (wire `RelationPicker` via the Phase-6.5 adapter); 15 chip-everywhere (convert `tierRow`/`relationLine`/`tier{1,2,3}Names` → `RelationChip` across PropertyPanel/PropertiesPulldown/FrontmatterInspector/ItemWindow); 16 tier-column injection in Tables (rightmost Project/Topic/Space, hideable; read via `resolvedProperties(tierConfig:)` — `TierConfigManager` is in the env); 17 inject `PommoraIndex` into env + stub `LinkedFromDropdown`; 18 Context-delete source-side cascade (`unlinkTier(contextID:tier:)` on all 4 content managers **via the Phase-6.5 adapter, NOT `properties["_tierN"]`** + wire Space/Topic/Project delete); 19 migration/adoption (**ALSO add a tier-label stale-default migration "Sub-topic(s)"→"Project(s)"**, guarded to the exact old default; Agenda `LegacyProperty` decode tolerance already covers old `_taskconfig`/`_eventconfig`); 20 `tier_links` table retirement (backfill `relations` from tier1/2/3 first); 21 docs rewrite (forward-only); 22 deferred-items log.
+
+> **⚠ Feature docs are mid-flight / OUTDATED.** `Features/*` specs (esp. `Properties.md`, `Pages.md`, `Contexts.md`, `Items.md`, `Agenda.md`, `PageTypes.md`) still describe the PRE-redesign Relations shape and stay outdated until **Phase 21** rewrites them. Until then trust the **code + the plan's Reconciliation pass** over the feature docs for anything Relations-related.
 
 **Ratified this session (paradigm):** relations always-multi (single-pick dropped); deleting a Context auto-removes its tag (source-side cascade); Agenda Tasks/Events ARE relation targets in v1; flat value pickers (hierarchy deferred).
 
-Plan rests on nine brainstorming locks (tier label scope = per-Type override; validator signature = cascade; ContextDetailPlaceholder = untouched/defer; singleton type IDs = `_agenda_tasks`/`_agenda_events`; History wording = "rebuilt"; CLAUDE.md branch quirk #16 line citation fix = 325-331; tier column ordering = rightmost Project/Topic/Space reorderable; tier props in Type Settings = inline + no-delete; tier in-line cell editor = existing Status/Select/Multi-Select pattern), three late-stage UX clarifications (single-pane EditPropertyPane editor replaces the wizard; flat `ChipDropdown` + `RelationChip` rows for every picker target; `RelationChip` shows scoped target icon + title), two architectural decisions surfaced by verification (Context delete → application-layer source-side cascade across all four content managers; Agenda schema → unify to PropertyDefinition shape), and a common-sense audit pass that dropped seven over-engineered tasks (the wizard mistake's fingerprint showed up in stubs-with-no-consumer, dual-API designs, speculative helpers, dual-path "executor decides" tasks, and doc-only single-step commits).
+**Intentionally deferred:** source-side editing of an EXISTING relation's mirror name/icon (edit it from the target Type for now — create-side sets both fully); `LinkedFromDropdown` real Context-side surface (bare stub → future Context-views plan); hierarchical value pickers (post-v1).
 
 #### Next focuses
 
-1. **Relations Redesign execution** — continue Phase 6 → 22 per `// Planning//Relations-Redesign-Plan.md` (Phases 0–5 shipped). Next concrete step: finish Phase 6 (drop `allowsMultiple`), then Phase 6.5 (tier value adapter).
+1. **Relations Redesign execution** — continue Phases 12 → 22 per `// Planning//Relations-Redesign-Plan.md` (0–10 shipped). Next concrete step: Phase 12 (`PropertyDefinitionValidator` cascade), then 13–16 (picker / cell editor / chip-everywhere / tier columns).
 2. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder).
 3. **Page Previews** — standalone-window page preview (cross-feature PreviewWindow primitive).
 
@@ -36,6 +36,8 @@ Acknowledged, not-yet-fixed — address soon (keep current per Handoff Rules):
 6. **Inline-edit lag.** Editing a property value inline has a noticeable performance + update buffer.
 7. **Column layout not persisted.** Table column width/order adjustments don't survive across sessions.
 8. **Handoff Skill.** Nathan wants to create an actual skill / command to handle the handoff documentation process rather than relying on listed rules or individual session judgement.
+9. **Chip Colors.** Teal + Purple render as the exact same color as blue and violet on chips; needs fixing.
+10. **Relation-add dead-end in legacy sheets.** Picking "Relation" in the Vault/Type Settings sheets (the context-menu schema editors) now silently cancels — relations are created via the View Settings popover editor. Hide the Relation option in those sheets (or route it to the editor) so it isn't a no-op. (Introduced retiring the wizard, Phase 10.4.)
 
 #### Handoff Rules
 
