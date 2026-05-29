@@ -115,6 +115,22 @@ struct AgendaEventSchema: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+// MARK: - Resolved properties
+
+extension AgendaEventSchema {
+    /// Stored `properties` plus the three pre-configured tier relation properties
+    /// (Spaces/Topics/Projects), merged via BuiltInRelationProperties. Surfaces that
+    /// must SHOW tiers read this; everything that persists or mutates the schema
+    /// keeps using the stored `properties`.
+    func resolvedProperties(tierConfig: TierConfig) -> [PropertyDefinition] {
+        BuiltInRelationProperties.merge(
+            existing: properties,
+            tierConfig: tierConfig,
+            sourceTypeID: ReservedTypeID.agendaEvents
+        )
+    }
+}
+
 // MARK: - Legacy decode helper
 
 /// Mirrors the pre-v0.3.0 nested `Property` shape stored in `_eventconfig.json`.

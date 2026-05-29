@@ -127,4 +127,12 @@ extension ItemType {
     func save(to metadataURL: URL) throws {
         try AtomicJSON.write(self, to: metadataURL)
     }
+
+    /// Stored `properties` plus the three pre-configured tier relation properties
+    /// (Spaces/Topics/Projects), merged via BuiltInRelationProperties. Surfaces that
+    /// must SHOW tiers read this; everything that persists or mutates the schema
+    /// keeps using the stored `properties`.
+    func resolvedProperties(tierConfig: TierConfig) -> [PropertyDefinition] {
+        BuiltInRelationProperties.merge(existing: properties, tierConfig: tierConfig, sourceTypeID: id)
+    }
 }
