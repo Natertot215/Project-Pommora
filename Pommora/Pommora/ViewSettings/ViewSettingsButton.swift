@@ -32,6 +32,7 @@ struct ViewSettingsButton: View {
     /// variants in Handoff.md.
     let pageTypeManager: PageTypeManager
     let itemTypeManager: ItemTypeManager
+    let tierConfigManager: TierConfigManager
 
     @State private var isPresented: Bool = false
 
@@ -49,6 +50,7 @@ struct ViewSettingsButton: View {
             ViewSettingsPopover(scope: scope)
                 .environment(pageTypeManager)
                 .environment(itemTypeManager)
+                .environment(tierConfigManager)
         }
     }
 }

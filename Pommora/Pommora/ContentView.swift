@@ -102,6 +102,7 @@ struct ContentView: View {
     private var primaryActionCapsule: some View {
         if let vaultMgr = vaultManager,
            let itemTypeMgr = itemTypeManager,
+           let tierConfigMgr = tierConfigManager,
            recentsManager != nil, pinnedManager != nil
         {
             let lookup = SidebarLookupBundle(
@@ -115,7 +116,8 @@ struct ContentView: View {
                 ViewSettingsButton(
                     scope: currentViewSettingsScope,
                     pageTypeManager: vaultMgr,
-                    itemTypeManager: itemTypeMgr
+                    itemTypeManager: itemTypeMgr,
+                    tierConfigManager: tierConfigMgr
                 )
                 NavDropdownButton(asSegment: true, lookup: lookup) { sel in
                     sidebarSelection = sel
@@ -265,7 +267,8 @@ struct ContentView: View {
             let savedMgr = savedConfigManager,
             let settingsMgr = settingsManager,
             let agendaTaskMgr = agendaTaskManager,
-            let agendaEventMgr = agendaEventManager
+            let agendaEventMgr = agendaEventManager,
+            let tierConfigMgr = tierConfigManager
         {
             SidebarView(
                 selection: $sidebarSelection,
@@ -282,6 +285,7 @@ struct ContentView: View {
                 .environment(settingsMgr)
                 .environment(agendaTaskMgr)
                 .environment(agendaEventMgr)
+                .environment(tierConfigMgr)
                 .overlay(alignment: .bottom) {
                     if nexusManager.isIndexing {
                         IndexingHUD()
@@ -328,7 +332,8 @@ struct ContentView: View {
             let itemTypeMgr = itemTypeManager,
             let contentMgr = contentManager,
             let itemContentMgr = itemContentManager,
-            let settingsMgr = settingsManager
+            let settingsMgr = settingsManager,
+            let tierConfigMgr = tierConfigManager
         {
             SidebarDetailView(
                 selection: $sidebarSelection,
@@ -342,6 +347,7 @@ struct ContentView: View {
             .environment(contentMgr)
             .environment(itemContentMgr)
             .environment(settingsMgr)
+            .environment(tierConfigMgr)
         } else {
             Color.clear
         }

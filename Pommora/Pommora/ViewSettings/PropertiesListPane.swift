@@ -20,6 +20,7 @@ struct PropertiesListPane: View {
 
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var searchQuery: String = ""
 
@@ -78,9 +79,11 @@ struct PropertiesListPane: View {
         guard let typeID = scopeTypeID() else { return [] }
         switch scopeSide() {
         case .pages:
-            return pageTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+            return pageTypeManager.types.first(where: { $0.id == typeID })?
+                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         case .items:
-            return itemTypeManager.types.first(where: { $0.id == typeID })?.properties ?? []
+            return itemTypeManager.types.first(where: { $0.id == typeID })?
+                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         case .none:
             return []
         }
