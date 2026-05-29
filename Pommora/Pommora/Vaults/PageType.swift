@@ -92,6 +92,26 @@ extension PageType {
         return t
     }
 
+    /// Finds the PageType whose `id` matches `id` by walking the Nexus root —
+    /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectPageTypes`
+    /// use (root child folders, skip `.`/`_` prefixes, require `_pagetype.json`).
+    /// Returns nil if no folder carries a matching sidecar. Used for cross-side
+    /// paired-relation resolution (ItemTypeManager → PageType target), where the
+    /// target lives outside the calling manager's in-memory `types`.
+    static func find(id: String, in nexus: Nexus) -> PageType? {
+        let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []
+        for folder in topLevel
+        where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
+            let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            guard Filesystem.fileExists(at: metaURL),
+                let pageType = try? PageType.load(from: metaURL),
+                pageType.id == id
+            else { continue }
+            return pageType
+        }
+        return nil
+    }
+
     func save(to metadataURL: URL) throws {
         try AtomicJSON.write(self, to: metadataURL)
     }

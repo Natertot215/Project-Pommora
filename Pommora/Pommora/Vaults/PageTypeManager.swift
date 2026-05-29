@@ -466,11 +466,11 @@ extension PageTypeManager {
     ///
     /// **Paired relations** (`definition.type == .relation && definition.dualProperty != nil`):
     /// Routed through `DualRelationCoordinator.createPairedRelation` which writes both
-    /// Type sidecars atomically. `definition.dualProperty.syncedPropertyDefinedOnTypeID`
-    /// identifies the target type (PageType only in this manager — cross-side pairing goes
-    /// via ItemTypeManager). `definition.dualProperty.syncedPropertyID` is used as the
-    /// reverse property display name (caller convention at add-time; replaced by the minted
-    /// ID after creation).
+    /// Type sidecars atomically. The authoritative target kind+id is `definition.relationTarget`;
+    /// the target `TypeKind` is resolved from it: same-side PageType from in-memory `types`,
+    /// cross-side ItemType + Agenda singletons from disk. `definition.dualProperty.syncedPropertyID`
+    /// is used as the reverse property display name (caller convention at add-time; replaced by
+    /// the minted ID after creation). Collection / context-tier targets reject dual pairing.
     func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
         do {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
@@ -484,16 +484,14 @@ extension PageTypeManager {
 
             // Paired relation: route through DualRelationCoordinator.
             if def.type == .relation, let dualConfig = def.dualProperty {
-                let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
                 guard let scope = def.relationTarget else {
                     throw PageTypeManagerError.propertyNotFound
                 }
-                // Locate the target PageType in-memory (same manager, same nexus).
-                guard let targetType = types.first(where: { $0.id == targetTypeID }) else {
-                    throw PageTypeManagerError.typeNotFound
-                }
                 let sourceKind = DualRelationCoordinator.TypeKind.pageType(types[i])
-                let targetKind = DualRelationCoordinator.TypeKind.pageType(targetType)
+                // Resolve the target TypeKind from the authoritative `relationTarget`.
+                // Same-side PageType reads from in-memory `types`; cross-side ItemType
+                // and Agenda singletons load from disk (they live outside this manager).
+                let targetKind = try resolveDualTargetKind(for: scope)
                 // Reverse scope points back to source Type.
                 let targetScope = PropertyDefinition.RelationTarget.pageType(types[i].id)
                 // Reverse name: caller puts desired reverse name in syncedPropertyID at add-time.
@@ -513,8 +511,12 @@ extension PageTypeManager {
                 if let reloaded = try? PageType.load(from: meta) {
                     types[i] = reloaded
                 }
-                // Also reload target type if it's a different type.
-                if targetTypeID != typeID, let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                // Also reload the target if it's another PageType in this manager. Cross-side /
+                // Agenda targets aren't in `types`; a later UI refresh / loadAll surfaces them.
+                if case .pageType(let targetID) = scope, targetID != typeID,
+                    let targetType = types.first(where: { $0.id == targetID }),
+                    let j = types.firstIndex(where: { $0.id == targetID })
+                {
                     let targetMeta = NexusPaths.vaultMetadataURL(forTitle: targetType.title, in: nexus)
                     if let reloaded = try? PageType.load(from: targetMeta) {
                         types[j] = reloaded
@@ -552,6 +554,40 @@ extension PageTypeManager {
         } catch {
             self.pendingError = error
             throw error
+        }
+    }
+
+    /// Resolves a paired-relation's target `DualRelationCoordinator.TypeKind` from
+    /// its `RelationTarget`. Same-side PageType reads in-memory `types`; cross-side
+    /// ItemType + Agenda singletons load from disk (they live outside this manager).
+    /// Collection / context-tier targets never carry a `dualProperty` in practice —
+    /// they throw here (context-tier is additionally rejected inside the coordinator).
+    private func resolveDualTargetKind(
+        for scope: PropertyDefinition.RelationTarget
+    ) throws -> DualRelationCoordinator.TypeKind {
+        switch scope {
+        case .pageType(let id):
+            guard let pt = types.first(where: { $0.id == id }) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            return .pageType(pt)
+        case .itemType(let id):
+            guard let it = ItemType.find(id: id, in: nexus) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            return .itemType(it)
+        case .agendaTasks:
+            let schema = try AtomicJSON.decode(
+                AgendaTaskSchema.self, from: NexusPaths.taskSchemaURL(in: nexus))
+            return .agendaTasks(schema)
+        case .agendaEvents:
+            let schema = try AtomicJSON.decode(
+                AgendaEventSchema.self, from: NexusPaths.eventSchemaURL(in: nexus))
+            return .agendaEvents(schema)
+        case .pageCollection, .itemCollection, .contextTier:
+            // Collections are legacy / not user-creatable; context-tier carries no
+            // dualProperty. None reaches a dual-pair create in practice.
+            throw PageTypeManagerError.propertyNotFound
         }
     }
 

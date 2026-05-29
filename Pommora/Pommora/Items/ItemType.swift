@@ -124,6 +124,26 @@ extension ItemType {
         return t
     }
 
+    /// Finds the ItemType whose `id` matches `id` by walking the Nexus root —
+    /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectItemTypes`
+    /// use (root child folders, skip `.`/`_` prefixes, require `_itemtype.json`).
+    /// Returns nil if no folder carries a matching sidecar. Used for cross-side
+    /// paired-relation resolution (PageTypeManager → ItemType target), where the
+    /// target lives outside the calling manager's in-memory `types`.
+    static func find(id: String, in nexus: Nexus) -> ItemType? {
+        let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []
+        for folder in topLevel
+        where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
+            let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
+            guard Filesystem.fileExists(at: metaURL),
+                let itemType = try? ItemType.load(from: metaURL),
+                itemType.id == id
+            else { continue }
+            return itemType
+        }
+        return nil
+    }
+
     func save(to metadataURL: URL) throws {
         try AtomicJSON.write(self, to: metadataURL)
     }
