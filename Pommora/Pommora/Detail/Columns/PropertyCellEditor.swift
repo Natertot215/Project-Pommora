@@ -20,8 +20,8 @@ import SwiftUI
 ///   - multiSelect → ChipDropdown (.multi) — checkboxes + drag-reorder
 ///   - status → ChipDropdown (.single), options flattened across groups
 ///   - url → TextField with `keyboardType` URL hint
-///   - relation → placeholder note ("v0.3.1.x") + RelationPicker wiring
-///     deferred until index resolver flows through to the cell
+///   - relation → RelationPicker (always-multi, self-paneled) bound to the
+///     cell's `.relation(ids)` value; candidates load from the threaded index
 ///   - file → FileAttachmentEditor (existing component)
 ///   - lastEditedTime → read-only display, no popover
 struct PropertyCellEditor: View {
@@ -29,6 +29,10 @@ struct PropertyCellEditor: View {
     let value: PropertyValue?
     let relationResolver: (String) -> (icon: String, title: String)?
     let commit: (PropertyValue?) -> Void
+    /// Live SQLite index, threaded from the host detail view
+    /// (`nexusManager.currentIndex`). Powers the inline RelationPicker's
+    /// candidate load. Nil → RelationPicker renders its own empty state.
+    let index: PommoraIndex?
 
     @State private var isPresented: Bool = false
     @State private var draft: PropertyValue?
@@ -114,11 +118,12 @@ struct PropertyCellEditor: View {
     }
 
     /// Select / MultiSelect / Status use the self-contained `ChipDropdown`,
-    /// which owns its own panel — so they present without the popover's
-    /// chrome + padding (avoids a container-in-a-container).
+    /// and Relation uses `RelationPicker` — both draw their own Liquid-Glass
+    /// panel, so they present without the popover's chrome + padding (avoids a
+    /// container-in-a-container).
     private var isChipDropdownEditor: Bool {
         switch definition.type {
-        case .select, .multiSelect, .status: return true
+        case .select, .multiSelect, .status, .relation: return true
         default: return false
         }
     }
@@ -184,7 +189,7 @@ struct PropertyCellEditor: View {
         case .url:
             urlEditor
         case .relation:
-            relationPlaceholder
+            relationEditor
         case .file:
             filePlaceholder
         case .checkbox, .lastEditedTime:
@@ -308,14 +313,23 @@ struct PropertyCellEditor: View {
     }
 
     @ViewBuilder
-    private var relationPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Relation editor")
-                .font(.headline)
-            Text("Inline relation picker ships in v0.3.1.x once IndexQuery flows to cell editors. Use the Item Window inspector to set relation values today.")
+    private var relationEditor: some View {
+        if let target = definition.relationTarget {
+            RelationPicker(
+                selectedIDs: Binding(
+                    get: { if case .relation(let ids) = draft { return ids }; return [] },
+                    set: { draft = $0.isEmpty ? .null : .relation($0) }
+                ),
+                scope: target,
+                index: index,
+                onSelect: { draft = $0.isEmpty ? .null : .relation($0) }
+            )
+        } else {
+            // Defensive: the property validator prevents a relation without a
+            // target, but `relationTarget` is typed optional.
+            Text("Relation has no target")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: 220, alignment: .leading)
         }
     }
 

@@ -14,6 +14,7 @@ struct PageTypeDetailView: View {
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
+    @Environment(NexusManager.self) private var nexusManager
 
     @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
@@ -131,7 +132,8 @@ struct PageTypeDetailView: View {
                                         collection: parentCollection
                                     )
                                 }
-                            }
+                            },
+                            index: nexusManager.currentIndex
                         )
                     } else {
                         PropertyCellDisplay(

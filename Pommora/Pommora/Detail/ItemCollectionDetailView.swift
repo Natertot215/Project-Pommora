@@ -32,6 +32,7 @@ struct ItemCollectionDetailView: View {
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(ItemContentManager.self) private var itemContentManager
+    @Environment(NexusManager.self) private var nexusManager
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -139,7 +140,8 @@ struct ItemCollectionDetailView: View {
                                         collection: collection
                                     )
                                 }
-                            }
+                            },
+                            index: nexusManager.currentIndex
                         )
                     } else {
                         PropertyCellDisplay(

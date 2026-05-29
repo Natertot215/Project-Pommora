@@ -58,6 +58,7 @@ struct ItemTypeDetailView: View {
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(SettingsManager.self) private var settingsManager
+    @Environment(NexusManager.self) private var nexusManager
 
     @State private var expanded: Set<String> = []  // set row IDs that are disclosed
     @State private var renameTarget: DetailRow?
@@ -170,7 +171,8 @@ struct ItemTypeDetailView: View {
                                         collection: parentSet
                                     )
                                 }
-                            }
+                            },
+                            index: nexusManager.currentIndex
                         )
                     } else {
                         PropertyCellDisplay(

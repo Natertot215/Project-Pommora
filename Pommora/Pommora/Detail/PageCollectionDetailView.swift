@@ -12,6 +12,7 @@ struct PageCollectionDetailView: View {
     @State private var isCreatingPage: Bool = false
 
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(NexusManager.self) private var nexusManager
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -101,7 +102,8 @@ struct PageCollectionDetailView: View {
                                         collection: collection
                                     )
                                 }
-                            }
+                            },
+                            index: nexusManager.currentIndex
                         )
                     } else {
                         PropertyCellDisplay(
