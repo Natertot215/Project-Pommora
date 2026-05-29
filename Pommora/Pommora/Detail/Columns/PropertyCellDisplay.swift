@@ -248,13 +248,22 @@ struct PropertyCellDisplay: View {
 
     @ViewBuilder
     private var relationCell: some View {
-        if case .relation(let targetID) = value {
-            if let resolved = relationResolver(targetID) {
-                RelationChip(icon: resolved.icon, title: resolved.title)
-            } else {
-                Text("(missing)")
-                    .font(.system(size: 12).italic())
-                    .foregroundStyle(.tertiary)
+        if case .relation(let targetIDs) = value, !targetIDs.isEmpty {
+            HStack(spacing: 4) {
+                ForEach(Array(targetIDs.prefix(3).enumerated()), id: \.offset) { _, targetID in
+                    if let resolved = relationResolver(targetID) {
+                        RelationChip(icon: resolved.icon, title: resolved.title)
+                    } else {
+                        Text("(missing)")
+                            .font(.system(size: 12).italic())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                if targetIDs.count > 3 {
+                    Text("+\(targetIDs.count - 3)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
         } else { emptyCell }
     }

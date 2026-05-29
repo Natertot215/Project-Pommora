@@ -5,7 +5,7 @@ import Foundation
 /// - JSON number → `.number(Double)`
 /// - JSON bool   → `.checkbox(Bool)`
 /// - JSON null   → `.null`
-/// - JSON object `{"$rel": "..."}` → `.relation(String)` (ULID of target entity)
+/// - JSON array of objects `[{"$rel": "..."}, ...]` → `.relation([String])` (ULIDs of target entities)
 /// - JSON object `{"$status": "..."}` → `.status(String)` (option value)
 /// - JSON array of strings → `.multiSelect([String])`
 /// - JSON array of objects → `.file([FileRef])`
@@ -13,9 +13,11 @@ import Foundation
 ///                  ISO-8601 strings decode as `.datetime` if they include time, `.date` if not;
 ///                  URLs validate via `URL(string:)`; anything else is `.select`)
 ///
-/// Relation encoding: `.relation(id)` writes `{"$rel": id}` so external agents and the
-/// graph-view indexer can identify cross-entity edges from any single file without consulting
-/// the Type schema. Satisfies Pommora load-bearing constraint #3.
+/// Relation encoding: relations are always multi-valued. `.relation(ids)` writes an array of
+/// tagged objects `[{"$rel": id}, ...]` (a single target is a one-element array) so external
+/// agents and the graph-view indexer can identify cross-entity edges from any single file
+/// without consulting the Type schema. A legacy single `{"$rel": id}` object still decodes to
+/// `.relation([id])`. Satisfies Pommora load-bearing constraint #3.
 ///
 /// Status encoding: `.status(value)` writes `{"$status": value}` for the same reason — it
 /// disambiguates status (grouped picker) from `.select` (flat picker) at the value layer,
@@ -37,7 +39,7 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
     case select(String)
     case multiSelect([String])
     case status(String)  // option value; encodes as {"$status": value}
-    case relation(String)  // ULID of target entity; encodes as {"$rel": id}
+    case relation([String])  // ULIDs of target entities; encodes as [{"$rel": id}, ...]
     case url(URL)
     case file([FileRef])
     case lastEditedTime  // virtual — never persisted; encoding throws
@@ -59,6 +61,17 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
             self = .number(n)
             return
         }
+        // Relation array (always-multi): `[{"$rel": id}, ...]`. Must precede the
+        // [FileRef] checks — FileRef object-arrays lack a `$rel` key so they won't
+        // match here, and a bare `[String]` isn't `[[String: String]]`. The non-empty
+        // guard excludes `[]` so empty arrays keep falling through to `.file([])`.
+        if let arr = try? c.decode([[String: String]].self),
+           !arr.isEmpty,
+           arr.allSatisfy({ $0["$rel"] != nil })
+        {
+            self = .relation(arr.compactMap { $0["$rel"] })
+            return
+        }
         // Array branch: prefer file (array of objects) over multi-select (array of strings)
         if let files = try? c.decode([FileRef].self), !files.isEmpty {
             self = .file(files)
@@ -75,9 +88,10 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
             return
         }
         // Tagged-object: {"$rel": "01H..."} or {"$status": "value"}
+        // Legacy single `$rel` object decodes to a one-element relation array.
         if let obj = try? c.decode([String: String].self), obj.count == 1 {
             if let id = obj["$rel"] {
-                self = .relation(id)
+                self = .relation([id])
                 return
             }
             if let value = obj["$status"] {
@@ -124,7 +138,7 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
         case .select(let s): try c.encode(s)
         case .multiSelect(let xs): try c.encode(xs)
         case .status(let value): try c.encode(["$status": value])
-        case .relation(let id): try c.encode(["$rel": id])
+        case .relation(let ids): try c.encode(ids.map { ["$rel": $0] })
         case .url(let u): try c.encode(u.absoluteString)
         case .file(let refs): try c.encode(refs)
         case .null: try c.encodeNil()

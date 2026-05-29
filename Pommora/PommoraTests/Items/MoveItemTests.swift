@@ -152,7 +152,7 @@ struct MoveItemTests {
         let itemY = Item(
             id: itemYID, title: "ProjectY", icon: nil, description: "",
             tier1: [], tier2: [], tier3: [],
-            properties: ["prop_rev": .relation(itemXID)],
+            properties: ["prop_rev": .relation([itemXID])],
             createdAt: Date(), modifiedAt: Date()
         )
         let yURL = NexusPaths.itemFileURL(forTitle: "ProjectY", in: projectsFolder)
@@ -163,7 +163,7 @@ struct MoveItemTests {
         let itemX = Item(
             id: itemXID, title: "TaskX", icon: nil, description: "",
             tier1: [], tier2: [], tier3: [],
-            properties: ["prop_rel": .relation(itemYID)],
+            properties: ["prop_rel": .relation([itemYID])],
             createdAt: Date(), modifiedAt: Date()
         )
         let xURL = NexusPaths.itemFileURL(forTitle: "TaskX", in: typeAFolder)
@@ -185,7 +185,7 @@ struct MoveItemTests {
         let backRefCleared =
             revVal == nil
             || revVal == .null
-            || revVal == .relation("")
+            || revVal == .relation([])
         #expect(backRefCleared)
     }
 

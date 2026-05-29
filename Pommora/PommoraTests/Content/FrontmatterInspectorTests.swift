@@ -136,8 +136,8 @@ struct FrontmatterInspectorTests {
     @Test("handlePropertyChange updates draftProperties for .relation type")
     func relationPropertyEditable() {
         let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_rel", name: "Linked", type: .relation)])
-        vm.handlePropertyChange("prop_rel", .relation("01HREF"))
-        #expect(vm.draftProperties["prop_rel"] == .relation("01HREF"))
+        vm.handlePropertyChange("prop_rel", .relation(["01HREF"]))
+        #expect(vm.draftProperties["prop_rel"] == .relation(["01HREF"]))
     }
 
     @Test("handlePropertyChange updates draftProperties for .file type")
@@ -211,7 +211,7 @@ struct FrontmatterInspectorTests {
         vm.handlePropertyChange("p6", .multiSelect(["a"]))
         vm.handlePropertyChange("p7", .status("done"))
         vm.handlePropertyChange("p8", .url(URL(string: "https://a.com")!))
-        vm.handlePropertyChange("p9", .relation("01HREL"))
+        vm.handlePropertyChange("p9", .relation(["01HREL"]))
         vm.handlePropertyChange("p10", .lastEditedTime)
         vm.handlePropertyChange("p11", .file([]))
 

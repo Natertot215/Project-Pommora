@@ -372,8 +372,8 @@ struct IndexUpdater: Sendable {
 
     // MARK: - Private: relation + tier-link reconciliation
 
-    /// Extracts all `.relation(id)` values from `properties` and re-indexes them
-    /// in the `relations` table for `sourceID`. Clears existing rows first —
+    /// Extracts all `.relation([ids])` values from `properties` and re-indexes them
+    /// in the `relations` table for `sourceID` (one row per target id). Clears existing rows first —
     /// ensures removed relation values are cleaned up cleanly.
     private func reconcileRelations(
         db: Database,
@@ -386,7 +386,8 @@ struct IndexUpdater: Sendable {
             arguments: [sourceID]
         )
         for (propertyID, value) in properties {
-            if case .relation(let targetID) = value {
+            guard case .relation(let targetIDs) = value else { continue }
+            for targetID in targetIDs {
                 let relID = ULID.generate()
                 try db.execute(
                     sql: """

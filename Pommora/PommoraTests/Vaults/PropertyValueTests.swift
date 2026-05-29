@@ -19,7 +19,7 @@ struct PropertyValueTests {
             "status": .select("Active"),
             "tags": .multiSelect(["urgent", "review"]),
             "link": .url(URL(string: "https://example.com")!),
-            "relatedItem": .relation("01HTARGET"),
+            "relatedItem": .relation(["01HTARGET"]),
             "missing": .null,
         ]
         let data = try JSONEncoder().encode(original)
@@ -30,14 +30,41 @@ struct PropertyValueTests {
         }
     }
 
-    @Test("relation encodes as tagged $rel object and round-trips")
-    func relationTagged() throws {
-        let original = PropertyValue.relation("01HTARGET")
-        let data = try JSONEncoder().encode(original)
+    @Test("relation encodes as an array of tagged $rel objects")
+    func relationEncodesAsArrayOfTaggedObjects() throws {
+        let data = try JSONEncoder().encode(PropertyValue.relation(["01A", "01B"]))
         let raw = String(data: data, encoding: .utf8)!
-        #expect(raw == "{\"$rel\":\"01HTARGET\"}")
+        // Array of tagged objects, both IDs present in $rel form.
+        #expect(raw == "[{\"$rel\":\"01A\"},{\"$rel\":\"01B\"}]")
+    }
+
+    @Test("relation array round-trips encode -> decode")
+    func relationArrayRoundTrips() throws {
+        let original = PropertyValue.relation(["01A"])
+        let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(PropertyValue.self, from: data)
-        #expect(decoded == original)
+        #expect(decoded == .relation(["01A"]))
+    }
+
+    @Test("decoder tolerates a legacy single $rel object")
+    func decoderToleratesLegacySingleRelObject() throws {
+        let data = "{\"$rel\":\"01A\"}".data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PropertyValue.self, from: data)
+        #expect(decoded == .relation(["01A"]))
+    }
+
+    @Test("decoder accepts the new $rel array shape")
+    func decoderAcceptsNewRelArray() throws {
+        let data = "[{\"$rel\":\"01A\"},{\"$rel\":\"01B\"}]".data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PropertyValue.self, from: data)
+        #expect(decoded == .relation(["01A", "01B"]))
+    }
+
+    @Test("a bare string array still decodes as multiSelect, not relation")
+    func bareStringArrayDecodesAsMultiSelect() throws {
+        let data = "[\"a\",\"b\"]".data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PropertyValue.self, from: data)
+        #expect(decoded == .multiSelect(["a", "b"]))
     }
 
     @Test("null values serialize as JSON null")

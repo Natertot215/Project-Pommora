@@ -302,7 +302,6 @@ private enum FilterBuilder {
         case .checkbox(let b):  return ("?", [b ? 1 : 0])
         case .select(let s):    return ("?", [s])
         case .status(let s):    return ("?", [s])
-        case .relation(let id): return ("?", [id])
         case .url(let u):       return ("?", [u.absoluteString])
         case .date(let d):
             let f = DateFormatter()
@@ -315,6 +314,12 @@ private enum FilterBuilder {
             return ("?", [iso.string(from: d)])
         case .multiSelect(let xs):
             let json = (try? String(data: JSONEncoder().encode(xs), encoding: .utf8)) ?? "[]"
+            return ("?", [json])
+        case .relation(let ids):
+            // Relations are always-multi; mirror multiSelect and serialize the id array.
+            // Edge-resolution queries hit the `relations` table directly (one row per target),
+            // not this scalar value column — this branch only feeds raw-value comparisons.
+            let json = (try? String(data: JSONEncoder().encode(ids), encoding: .utf8)) ?? "[]"
             return ("?", [json])
         case .file, .lastEditedTime, .null:
             return ("NULL", [])

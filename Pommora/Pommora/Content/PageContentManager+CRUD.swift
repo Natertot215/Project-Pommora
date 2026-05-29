@@ -429,7 +429,7 @@ extension PageContentManager {
                 // The reverse property lives on the target Type (page type or item type).
                 // Pull the current value from the page's frontmatter (pre-strip).
                 guard let value = pageFile.frontmatter.properties[def.id] else { continue }
-                // Relation values: single `.relation(id)` or `.multiSelect([id,...])`.
+                // Relation values: `.relation([id,...])` or legacy `.multiSelect([id,...])`.
                 let targetIDs = Self.extractRelationIDs(from: value)
                 guard !targetIDs.isEmpty else { continue }
 
@@ -505,10 +505,11 @@ extension PageContentManager {
     // MARK: - Private move helpers
 
     /// Extracts target entity IDs from a relation property value.
-    /// Handles `.relation(id)` (single) and `.multiSelect([ids])` (multi-pick).
+    /// Handles `.relation([ids])` and legacy `.multiSelect([ids])` (bare-array relations
+    /// stored before the always-multi migration still decode as multiSelect).
     private static func extractRelationIDs(from value: PropertyValue) -> [String] {
         switch value {
-        case .relation(let id): return [id]
+        case .relation(let ids): return ids
         case .multiSelect(let ids): return ids
         default: return []
         }
@@ -599,13 +600,14 @@ extension PageContentManager {
     }
 
     /// Removes `idToRemove` from a relation property value.
-    /// - `.relation(id)` where id matches → `.null`
+    /// - `.relation([ids])` → `.relation` with the id filtered out (nil if empty)
     /// - `.multiSelect([ids])` → `.multiSelect` with the id filtered out (nil if empty)
     /// - Other cases → value unchanged
     private static func removeID(_ idToRemove: String, from value: PropertyValue) -> PropertyValue? {
         switch value {
-        case .relation(let id):
-            return id == idToRemove ? .null : value
+        case .relation(let ids):
+            let filtered = ids.filter { $0 != idToRemove }
+            return filtered.isEmpty ? .null : .relation(filtered)
         case .multiSelect(let ids):
             let filtered = ids.filter { $0 != idToRemove }
             return filtered.isEmpty ? .null : .multiSelect(filtered)

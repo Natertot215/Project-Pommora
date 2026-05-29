@@ -181,7 +181,7 @@ struct MovePageTests {
         let fmY = PageFrontmatter(
             id: pageYID, icon: nil,
             tier1: [], tier2: [], tier3: [],
-            properties: ["prop_rev": .relation(pageXID)],
+            properties: ["prop_rev": .relation([pageXID])],
             createdAt: Date()
         )
         let yURL = NexusPaths.pageFileURL(
@@ -194,7 +194,7 @@ struct MovePageTests {
         let fmX = PageFrontmatter(
             id: pageXID, icon: nil,
             tier1: [], tier2: [], tier3: [],
-            properties: ["prop_rel": .relation(pageYID)],
+            properties: ["prop_rel": .relation([pageYID])],
             createdAt: Date()
         )
         let xURL = NexusPaths.pageFileURL(
@@ -222,7 +222,7 @@ struct MovePageTests {
         let backRefCleared =
             revVal == nil
             || revVal == .null
-            || revVal == .relation("")
+            || revVal == .relation([])
         #expect(backRefCleared)
     }
 

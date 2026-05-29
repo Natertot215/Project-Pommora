@@ -587,16 +587,18 @@ final class IndexBuilder {
     ) throws {
         let schemaByID = Dictionary(uniqueKeysWithValues: schema.map { ($0.id, $0) })
         for (propID, value) in properties {
-            guard case .relation(let targetID) = value else { continue }
+            guard case .relation(let targetIDs) = value else { continue }
             let def = schemaByID[propID]
             let targetKind = targetKindString(for: def?.relationScope)
-            let relationID = UUID().uuidString
-            try db.execute(
-                literal: """
-                    INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                    VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
-                    """
-            )
+            for targetID in targetIDs {
+                let relationID = UUID().uuidString
+                try db.execute(
+                    literal: """
+                        INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                        VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
+                        """
+                )
+            }
         }
     }
 

@@ -492,7 +492,7 @@ extension ItemContentManager {
 
     private static func extractRelationIDs(from value: PropertyValue) -> [String] {
         switch value {
-        case .relation(let id): return [id]
+        case .relation(let ids): return ids
         case .multiSelect(let ids): return ids
         default: return []
         }
@@ -575,8 +575,9 @@ extension ItemContentManager {
 
     private static func removeID(_ idToRemove: String, from value: PropertyValue) -> PropertyValue? {
         switch value {
-        case .relation(let id):
-            return id == idToRemove ? .null : value
+        case .relation(let ids):
+            let filtered = ids.filter { $0 != idToRemove }
+            return filtered.isEmpty ? .null : .relation(filtered)
         case .multiSelect(let ids):
             let filtered = ids.filter { $0 != idToRemove }
             return filtered.isEmpty ? .null : .multiSelect(filtered)

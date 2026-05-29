@@ -177,7 +177,7 @@ struct DualRelationCoordinatorTests {
         let fm = PageFrontmatter(
             id: ULID.generate(), icon: nil,
             tier1: [], tier2: [], tier3: [],
-            properties: [sourceID: .relation("task-01")],
+            properties: [sourceID: .relation(["task-01"])],
             createdAt: Date()
         )
         try AtomicYAMLMarkdown.write(frontmatter: fm, body: "body\n", to: pageFile)
@@ -231,7 +231,7 @@ struct DualRelationCoordinatorTests {
         let pageFM = PageFrontmatter(
             id: ULID.generate(), icon: nil,
             tier1: [], tier2: [], tier3: [],
-            properties: [sourceID: .relation("task-01")],
+            properties: [sourceID: .relation(["task-01"])],
             createdAt: Date()
         )
         try AtomicYAMLMarkdown.write(frontmatter: pageFM, body: "body\n", to: pageFile)
@@ -242,7 +242,7 @@ struct DualRelationCoordinatorTests {
         let item = Item(
             id: "task-01", title: "task-01", icon: nil, description: "",
             tier1: [], tier2: [], tier3: [],
-            properties: [targetID: .relation("proj-01")],
+            properties: [targetID: .relation(["proj-01"])],
             createdAt: now, modifiedAt: now
         )
         try AtomicJSON.write(item, to: itemFile)

@@ -396,7 +396,7 @@ struct IndexUpdaterTests {
         let item = Item(
             id: ULID.generate(), title: "Widget", icon: nil, description: "",
             tier1: [], tier2: [], tier3: [],
-            properties: [propID: .relation(targetID)],
+            properties: [propID: .relation([targetID])],
             createdAt: now, modifiedAt: now
         )
         try updater.upsertItem(item, itemTypeID: it.id, itemCollectionID: nil)

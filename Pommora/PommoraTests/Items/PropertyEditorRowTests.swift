@@ -111,7 +111,7 @@ struct PropertyEditorRowTests {
 
     @Test("PropertyEditorRow constructs for .relation")
     func constructsForRelation() {
-        var value: PropertyValue = .relation("01HRELID")
+        var value: PropertyValue = .relation(["01HRELID"])
         let row = PropertyEditorRow(
             definition: makeDef(type: .relation),
             value: Binding(get: { value }, set: { value = $0 })
