@@ -154,3 +154,30 @@ extension AgendaTask {
         try AtomicJSON.write(self, to: url)
     }
 }
+
+extension AgendaTask {
+    /// Canonical READ for any relation-typed property, including the three built-in
+    /// tier properties whose values live at the task root.
+    func relationIDs(forPropertyID id: String) -> [String] {
+        switch id {
+        case ReservedPropertyID.tier1: return tier1
+        case ReservedPropertyID.tier2: return tier2
+        case ReservedPropertyID.tier3: return tier3
+        default:
+            if case .relation(let ids)? = properties[id] { return ids }
+            return []
+        }
+    }
+
+    /// Canonical WRITE. Tier IDs route to the root field; user relations route to
+    /// `properties`. An empty user-relation value OMITS the key (no empty array on
+    /// disk) so the schema-blind decoder never sees an ambiguous `[]`.
+    mutating func setRelationIDs(_ ids: [String], forPropertyID id: String) {
+        switch id {
+        case ReservedPropertyID.tier1: tier1 = ids
+        case ReservedPropertyID.tier2: tier2 = ids
+        case ReservedPropertyID.tier3: tier3 = ids
+        default: properties[id] = ids.isEmpty ? nil : .relation(ids)
+        }
+    }
+}
