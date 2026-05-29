@@ -660,6 +660,125 @@ extension ItemContentManager {
             throw error
         }
     }
+
+    // MARK: - Context-delete cascade (Phase 18b)
+
+    /// Removes a deleted Context's ID from the `tier` array of every Item that
+    /// references it. Source-side cascade: invoked at the Context-delete call
+    /// site (×4, once per content manager) **before** the Context file is removed.
+    ///
+    /// Mirrors `PageContentManager.unlinkTier` exactly — see that method for the
+    /// full contract. Each Item that references `contextID` is located from the
+    /// index (no in-hand URL), loaded, mutated through the `setRelationIDs`
+    /// adapter (tiers route to the Item root, NOT `properties["_tierN"]`),
+    /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
+    /// re-indexed so the stale `relations` / `tier_links` rows reconcile away.
+    ///
+    /// Resilient per-entity: an Item that can't be located or loaded is skipped
+    /// (the first failure is recorded on `pendingError`) so one bad file never
+    /// aborts the cascade.
+    func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
+        guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
+
+        let refs = try await IndexQuery(index).incomingRelations(targetID: contextID)
+        let itemRefs = refs.filter { $0.kind == .item }
+
+        for ref in itemRefs {
+            do {
+                guard
+                    let container = try await IndexQuery(index)
+                        .entityContainer(id: ref.id, kind: .item),
+                    let url = locateItemFile(id: ref.id, container: container)
+                else { continue }
+
+                var item = try Item.load(from: url)
+                let current = item.relationIDs(forPropertyID: tierPropID)
+                guard current.contains(contextID) else { continue }
+
+                item.setRelationIDs(current.filter { $0 != contextID }, forPropertyID: tierPropID)
+                item.modifiedAt = Date()
+                try item.save(to: url)
+
+                refreshItemCache(item, container: container)
+
+                if let updater = indexUpdater {
+                    do {
+                        try updater.upsertItem(
+                            item,
+                            itemTypeID: container.typeID,
+                            itemCollectionID: container.collectionID
+                        )
+                    } catch {
+                        self.pendingError = error
+                    }
+                }
+            } catch {
+                // Continue-on-individual-failure: a single unreadable / unwritable
+                // Item must not block the rest of the cascade.
+                self.pendingError = error
+                continue
+            }
+        }
+    }
+
+    /// Locates an Item's `.json` file from its index container. The folder is
+    /// built from the container titles; the file is found by walking that folder
+    /// and matching `id` — nesting-proof for Type-root Items that physically live
+    /// in a deeper non-Collection sub-folder (whose files roll up to the Type
+    /// root with `item_collection_id == nil`).
+    private func locateItemFile(id: String, container: EntityContainer) -> URL? {
+        let folder: URL
+        if let collectionTitle = container.collectionTitle {
+            folder = NexusPaths.itemCollectionFolderURL(
+                in: nexus.rootURL,
+                typeFolderName: container.typeTitle,
+                collectionFolderName: collectionTitle
+            )
+        } else {
+            folder = NexusPaths.itemTypeFolderURL(
+                in: nexus.rootURL, typeFolderName: container.typeTitle
+            )
+        }
+        let candidate = NexusPaths.itemFileURL(forTitle: container.entityTitle, in: folder)
+        if Filesystem.fileExists(at: candidate),
+           let loaded = try? Item.load(from: candidate),
+           loaded.id == id
+        {
+            return candidate
+        }
+        // Fall back to a descendant walk matching by id (handles nested Type-root
+        // Items + any title/filename divergence).
+        let matches = (try? Filesystem.descendantFiles(of: folder) { url in
+            url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+        }) ?? []
+        for url in matches {
+            if let loaded = try? Item.load(from: url), loaded.id == id {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// Refreshes the in-memory `Item` for `updated` in whichever cache bucket
+    /// holds it (Collection-scoped or Type-root), if present. No-op when the Item
+    /// isn't loaded — the on-disk write + index upsert are the source of truth.
+    private func refreshItemCache(_ updated: Item, container: EntityContainer) {
+        if let collectionID = container.collectionID {
+            if var arr = itemsByCollection[collectionID],
+               let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                itemsByCollection[collectionID] = arr
+            }
+        } else {
+            if var arr = itemsByTypeRoot[container.typeID],
+               let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                itemsByTypeRoot[container.typeID] = arr
+            }
+        }
+    }
 }
 
 /// Errors surfaced by `ItemContentManager` CRUD methods during the

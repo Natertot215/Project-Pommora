@@ -45,4 +45,17 @@ enum ReservedPropertyID {
     static func mintUserPropertyID() -> String {
         "prop_\(ULID.generate())"
     }
+
+    /// Maps a tier level (1/2/3) to its reserved tier property ID. Returns `nil`
+    /// for any other level — the single source of truth for the
+    /// `tier → _tierN` mapping used by the Context-delete cascade (`unlinkTier`)
+    /// across all four content managers.
+    nonisolated static func tierPropertyID(forTier tier: Int) -> String? {
+        switch tier {
+        case 1: return tier1
+        case 2: return tier2
+        case 3: return tier3
+        default: return nil
+        }
+    }
 }

@@ -120,6 +120,86 @@ struct IndexQuery: Sendable {
         }
     }
 
+    // MARK: - Container lookup (Context-delete cascade)
+
+    /// Resolves the container (Type + optional Collection) that a Page or Item
+    /// lives in, by joining the entity row to its owning-Type / -Collection rows.
+    /// Returns the container **titles** (which derive the on-disk folder URL via
+    /// `NexusPaths`) plus the container **IDs** (which the manager re-supplies to
+    /// `IndexUpdater.upsert…` after a mutation).
+    ///
+    /// Backs `unlinkTier` on `PageContentManager` / `ItemContentManager`: those
+    /// managers receive only an entity id + kind from `incomingRelations` (no URL),
+    /// and hold no `PageTypeManager` / `ItemTypeManager` reference, so the index
+    /// is the single source of truth for an entity's container.
+    ///
+    /// Returns `nil` for a dangling id, an Agenda kind (Agenda files live in a flat
+    /// singleton folder — the manager derives their URL from the title alone), or
+    /// any non-operational kind.
+    func entityContainer(id: String, kind: EntityKind) async throws -> EntityContainer? {
+        try await index.dbQueue.read { db -> EntityContainer? in
+            switch kind {
+            case .page:
+                guard
+                    let row = try Row.fetchOne(
+                        db,
+                        sql: "SELECT title, page_type_id, page_collection_id FROM pages WHERE id = ?",
+                        arguments: [id]
+                    )
+                else { return nil }
+                let typeID: String = row["page_type_id"]
+                let typeTitle = try String.fetchOne(
+                    db, sql: "SELECT title FROM page_types WHERE id = ?", arguments: [typeID]
+                )
+                guard let typeTitle else { return nil }
+                let collectionID: String? = row["page_collection_id"]
+                var collectionTitle: String?
+                if let collectionID {
+                    collectionTitle = try String.fetchOne(
+                        db, sql: "SELECT title FROM page_collections WHERE id = ?",
+                        arguments: [collectionID]
+                    )
+                }
+                return EntityContainer(
+                    entityTitle: row["title"], kind: .page,
+                    typeID: typeID, typeTitle: typeTitle,
+                    collectionID: collectionID, collectionTitle: collectionTitle
+                )
+
+            case .item:
+                guard
+                    let row = try Row.fetchOne(
+                        db,
+                        sql: "SELECT title, item_type_id, item_collection_id FROM items WHERE id = ?",
+                        arguments: [id]
+                    )
+                else { return nil }
+                let typeID: String = row["item_type_id"]
+                let typeTitle = try String.fetchOne(
+                    db, sql: "SELECT title FROM item_types WHERE id = ?", arguments: [typeID]
+                )
+                guard let typeTitle else { return nil }
+                let collectionID: String? = row["item_collection_id"]
+                var collectionTitle: String?
+                if let collectionID {
+                    collectionTitle = try String.fetchOne(
+                        db, sql: "SELECT title FROM item_collections WHERE id = ?",
+                        arguments: [collectionID]
+                    )
+                }
+                return EntityContainer(
+                    entityTitle: row["title"], kind: .item,
+                    typeID: typeID, typeTitle: typeTitle,
+                    collectionID: collectionID, collectionTitle: collectionTitle
+                )
+
+            case .agendaTask, .agendaEvent, .pageType, .itemType,
+                 .pageCollection, .itemCollection, .space, .topic, .project:
+                return nil
+            }
+        }
+    }
+
     // MARK: - Filter queries
 
     /// Filter entities in `target` by criteria. Composed via AND.
@@ -466,6 +546,19 @@ struct EntityRef: Equatable, Hashable, Sendable {
     let id: String
     let kind: EntityKind
     let title: String
+}
+
+/// The on-disk container of a Page or Item, resolved from the index by
+/// `IndexQuery.entityContainer(id:kind:)`. Titles derive the folder URL via
+/// `NexusPaths`; IDs re-supply `IndexUpdater.upsert…` after a mutation.
+/// `collectionTitle`/`collectionID` are `nil` for Type-root entities.
+struct EntityContainer: Equatable, Sendable {
+    let entityTitle: String
+    let kind: EntityKind  // `.page` or `.item`
+    let typeID: String
+    let typeTitle: String
+    let collectionID: String?
+    let collectionTitle: String?
 }
 
 enum TargetRef: Sendable {

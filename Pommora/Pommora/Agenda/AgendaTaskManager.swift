@@ -208,6 +208,70 @@ final class AgendaTaskManager {
             try? Filesystem.moveToTrash(attachmentsURL, in: nexus)
         }
     }
+
+    // MARK: - Context-delete cascade (Phase 18b)
+
+    /// Removes a deleted Context's ID from the `tier` array of every AgendaTask
+    /// that references it. Source-side cascade: invoked at the Context-delete
+    /// call site (×4, once per content manager) **before** the Context file is
+    /// removed.
+    ///
+    /// Mirrors `PageContentManager.unlinkTier` — see that method for the full
+    /// contract. Agenda files live in a flat singleton folder, so (unlike Pages /
+    /// Items) there is no container to resolve: the on-disk URL derives directly
+    /// from the title carried by `incomingRelations` (sourced from the
+    /// `agenda_tasks` table), with an in-memory fallback for index/disk drift.
+    /// Each referencing Task is loaded, mutated through the `setRelationIDs`
+    /// adapter (tiers route to the Task root, NOT `properties["_tierN"]`),
+    /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
+    /// re-indexed so the stale `relations` / `tier_links` rows reconcile away.
+    ///
+    /// Resilient per-entity: a Task that can't be located or loaded is skipped
+    /// (the first failure is recorded on `pendingError`) so one bad file never
+    /// aborts the cascade.
+    func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
+        guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
+
+        let refs = try await IndexQuery(index).incomingRelations(targetID: contextID)
+        let taskRefs = refs.filter { $0.kind == .agendaTask }
+
+        for ref in taskRefs {
+            do {
+                guard let url = locateTaskFile(ref: ref) else { continue }
+
+                var task = try AgendaTask.load(from: url)
+                let current = task.relationIDs(forPropertyID: tierPropID)
+                guard current.contains(contextID) else { continue }
+
+                task.setRelationIDs(current.filter { $0 != contextID }, forPropertyID: tierPropID)
+                task.modifiedAt = Date()
+                try task.save(to: url)
+
+                if let i = tasks.firstIndex(where: { $0.id == task.id }) {
+                    tasks[i] = task
+                }
+
+                if let updater = indexUpdater {
+                    do { try updater.upsertAgendaTask(task) } catch { self.pendingError = error }
+                }
+            } catch {
+                // Continue-on-individual-failure: a single unreadable / unwritable
+                // Task must not block the rest of the cascade.
+                self.pendingError = error
+                continue
+            }
+        }
+    }
+
+    /// Resolves an AgendaTask's `.task.json` URL from an `incomingRelations`
+    /// ref. Prefers the in-memory record's current title (rename-fresh), falling
+    /// back to the index-sourced `ref.title`; returns the title-derived URL only
+    /// if a file exists there.
+    private func locateTaskFile(ref: EntityRef) -> URL? {
+        let title = tasks.first(where: { $0.id == ref.id })?.title ?? ref.title
+        let url = NexusPaths.taskFileURL(forTitle: title, in: nexus)
+        return Filesystem.fileExists(at: url) ? url : nil
+    }
 }
 
 // MARK: - Schema CRUD errors

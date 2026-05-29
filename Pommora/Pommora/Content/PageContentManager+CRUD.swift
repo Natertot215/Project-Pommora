@@ -691,4 +691,133 @@ extension PageContentManager {
             throw error
         }
     }
+
+    // MARK: - Context-delete cascade (Phase 18b)
+
+    /// Removes a deleted Context's ID from the `tier` array of every Page that
+    /// references it. Source-side cascade: invoked at the Context-delete call
+    /// site (×4, once per content manager) **before** the Context file is removed.
+    ///
+    /// `index` is queried via `IndexQuery.incomingRelations(targetID:)` (which
+    /// reads the `relations` table — tier links are mirrored there for all four
+    /// entity kinds). Each Page that references `contextID` is located from the
+    /// index (no in-hand URL), loaded, mutated through the `setRelationIDs`
+    /// adapter (tiers route to the frontmatter root, NOT `properties["_tierN"]`),
+    /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
+    /// re-indexed so the stale `relations` / `tier_links` rows reconcile away.
+    ///
+    /// Resilient per-entity: a Page that can't be located or loaded is skipped so
+    /// one bad file doesn't abort the cascade. The first such failure is recorded
+    /// on `pendingError` (matching the manager's best-effort index-write discipline)
+    /// but never thrown — the cascade always runs to completion across the rest.
+    func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
+        guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
+
+        let refs = try await IndexQuery(index).incomingRelations(targetID: contextID)
+        let pageRefs = refs.filter { $0.kind == .page }
+
+        for ref in pageRefs {
+            do {
+                guard
+                    let container = try await IndexQuery(index)
+                        .entityContainer(id: ref.id, kind: .page),
+                    let url = locatePageFile(id: ref.id, container: container)
+                else { continue }
+
+                var pageFile = try PageFile.load(from: url)
+                let current = pageFile.frontmatter.relationIDs(forPropertyID: tierPropID)
+                guard current.contains(contextID) else { continue }
+
+                let newIDs = current.filter { $0 != contextID }
+                pageFile.frontmatter.setRelationIDs(newIDs, forPropertyID: tierPropID)
+                pageFile.frontmatter.modifiedAt = Date()
+
+                let updatedFile = PageFile(
+                    frontmatter: pageFile.frontmatter, body: pageFile.body, title: pageFile.title
+                )
+                try updatedFile.save(to: url)
+
+                let updatedMeta = PageMeta(
+                    id: ref.id, title: pageFile.title, url: url, frontmatter: pageFile.frontmatter
+                )
+                refreshPageCache(updatedMeta, container: container)
+
+                if let updater = indexUpdater {
+                    do {
+                        try updater.upsertPage(
+                            updatedMeta,
+                            pageTypeID: container.typeID,
+                            pageCollectionID: container.collectionID
+                        )
+                    } catch {
+                        self.pendingError = error
+                    }
+                }
+            } catch {
+                // Continue-on-individual-failure: a single unreadable / unwritable
+                // Page must not block the rest of the cascade.
+                self.pendingError = error
+                continue
+            }
+        }
+    }
+
+    /// Locates a Page's `.md` file from its index container. The folder is built
+    /// from the container titles; the file is found by walking that folder and
+    /// matching `frontmatter.id` — nesting-proof for Type-root Pages that
+    /// physically live in a deeper non-Collection sub-folder (whose files roll up
+    /// to the Type root with `page_collection_id == nil`).
+    private func locatePageFile(id: String, container: EntityContainer) -> URL? {
+        let folder: URL
+        if let collectionTitle = container.collectionTitle {
+            folder = NexusPaths.pageCollectionFolderURL(
+                in: nexus.rootURL,
+                typeFolderName: container.typeTitle,
+                collectionFolderName: collectionTitle
+            )
+        } else {
+            folder = NexusPaths.pageTypeFolderURL(
+                in: nexus.rootURL, typeFolderName: container.typeTitle
+            )
+        }
+        let candidate = NexusPaths.pageFileURL(forTitle: container.entityTitle, in: folder)
+        if Filesystem.fileExists(at: candidate),
+           let fm = try? PageFile.load(from: candidate).frontmatter,
+           fm.id == id
+        {
+            return candidate
+        }
+        // Fall back to a descendant walk matching by id (handles nested Type-root
+        // Pages + any title/filename divergence).
+        let matches = (try? Filesystem.descendantFiles(of: folder) { url in
+            url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
+        }) ?? []
+        for url in matches {
+            if let fm = try? PageFile.load(from: url).frontmatter, fm.id == id {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// Refreshes the in-memory `PageMeta` for `updated` in whichever cache bucket
+    /// holds it (Collection-scoped or Type-root), if present. No-op when the Page
+    /// isn't loaded — the on-disk write + index upsert are the source of truth.
+    private func refreshPageCache(_ updated: PageMeta, container: EntityContainer) {
+        if let collectionID = container.collectionID {
+            if var arr = pagesByCollection[collectionID],
+               let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesByCollection[collectionID] = arr
+            }
+        } else {
+            if var arr = pagesByTypeRoot[container.typeID],
+               let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesByTypeRoot[container.typeID] = arr
+            }
+        }
+    }
 }
