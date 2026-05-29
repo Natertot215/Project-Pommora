@@ -216,6 +216,13 @@ private struct ChipsGallery: View {
                 }
 
                 GallerySection(
+                    title: "Relation Chip",
+                    summary: "Relation property values — the target entity's icon + title in a standard-button-radius rounded rectangle with a quaternary fill + hairline stroke (distinct from PropertyChip's Capsule). One primitive; every relation surface (table cells, picker rows, tier rows) routes through it."
+                ) {
+                    RelationChipShowcase()
+                }
+
+                GallerySection(
                     title: "Chip Dropdown",
                     summary: "The pill itself opens the dropdown — no surrounding trigger frame. Multi-select renders selected pills inline in the trigger area, in the dropdown's option order (drag-reorder to change). Liquid Glass panel, always-on."
                 ) {
@@ -610,6 +617,71 @@ private struct PropertyChipShowcase: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(.controlBackgroundColor).opacity(0.4))
         )
+    }
+}
+
+// MARK: - RelationChip Showcase
+
+/// Showcases the relation-value chip: target icon + title in a button-radius
+/// rounded rectangle with a quaternary fill + hairline stroke. The single
+/// render primitive every relation surface routes through.
+private struct RelationChipShowcase: View {
+    private let samples: [(icon: String, title: String)] = [
+        ("square.dashed", "Relation"),
+        ("doc.text", "Project Brief"),
+        ("folder", "Q3 Planning"),
+        ("checklist", "Follow up with Sam"),
+        ("calendar", "Design review"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            section(title: "Default — target icon + title, quaternary fill, button radius") {
+                FlowingHStack {
+                    ForEach(samples, id: \.title) { s in
+                        RelationChip(icon: s.icon, title: s.title)
+                    }
+                }
+            }
+
+            section(title: "Against surfaces — the stroke keeps it legible on any background") {
+                HStack(spacing: 16) {
+                    surfaceCell(Color(.windowBackgroundColor), "window")
+                    surfaceCell(Color(.controlBackgroundColor), "control")
+                    surfaceCell(Color(.textBackgroundColor), "text")
+                }
+            }
+
+            CodeBlock(
+                title: "Usage",
+                code: """
+                // The single render primitive for every relation value.
+                // icon + title resolve from the LINKED target entity
+                // (via RelationDisplayResolver), never the source property.
+                RelationChip(icon: "doc.text", title: "Project Brief")
+                """
+            )
+            .padding(.horizontal)
+        }
+    }
+
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.headline)
+            content()
+        }
+        .padding(.horizontal)
+    }
+
+    private func surfaceCell(_ surface: Color, _ label: String) -> some View {
+        VStack(spacing: 8) {
+            RelationChip(icon: "square.dashed", title: "Relation")
+            Text(label)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 8).fill(surface))
     }
 }
 

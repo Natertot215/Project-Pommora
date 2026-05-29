@@ -19,9 +19,11 @@ import SwiftUI
 /// happens at the consumer (via IndexQuery / the content managers); this
 /// primitive receives pre-resolved `String` values and stays purely visual.
 ///
-/// **Visual:** renders the target object's icon + title as plain text (no
-/// pill / box / chrome) — interim treatment until a dedicated relation chip is
-/// designed.
+/// **Visual:** the target's icon + title inside a standard-button-radius
+/// rounded rectangle with a `.quaternary` fill and a hairline separator stroke
+/// (so it pops against standard surfaces) — distinct from `PropertyChip`'s
+/// Capsule. Staged in the Component Library (Chips → Relation Chip) per
+/// Nathan's 2026-05-29 design.
 ///
 /// Stays at this path (`Properties/Chips/`). Do NOT move.
 struct RelationChip: View {
@@ -29,14 +31,24 @@ struct RelationChip: View {
     let title: String
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .regular))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
             Text(title)
-                .font(.system(size: 12))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(.quaternary)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 0.5)
+        )
     }
 }
