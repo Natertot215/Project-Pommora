@@ -8,6 +8,8 @@ Working tree on `main`, green (only the known `PageEditorViewModelTests.debounce
 
 **Relations Redesign — COMPLETE (Phases 0–22).** Relations and tiers are one linking system: tiers flow through the relation pipeline and the SQLite `relations` table (the `tier_links` table is retired); relations are always-multi (`[{"$rel":"<ULID>"}]`); `RelationTarget` covers Page Type / Item Type / Agenda Tasks / Agenda Events (+ internal `context_tier`); a single-pane editor creates/edits both sides (home + reverse name + reverse icon); deleting a Context cascades source-side; Agenda Tasks/Events are relation targets. The Lean adoption migration normalizes legacy sidecars on a one-time re-save (Type sidecar `schemaVersion` 1→2; index DB `currentSchemaVersion` 2→3 forces a rebuild that backfills tiers) — lossless changes apply silently, and the one lossy step (dropping a context-tier-targeted property) is gated behind an acknowledgment in the adoption preview. Relation values render as the target's **icon + title** in styled colored text (interim — chip visual is Next focus #1). Full play-by-play → `History.md` (2026-05-29 entry); paradigm decisions #8–#12 → `Guidelines/Paradigm-Decisions.md`; `Features/*` specs rewritten forward-only (Phase 21).
 
+**Docs aligned to code (2026-05-29).** Every `Features/*` spec + `PommoraPRD.md` was audited against the source — contradictions fixed (incl. pre-existing ones), bloat trimmed (~2,100 words), the retired `tier_links` table dropped from the PRD's SQLite schema. **Property surfaces (planned, not yet wired):** properties on Pages, Contexts, and storage views will move to a dropdown (`PropertiesPulldown`) so the inspector can host the LLM/CLI interface; the property panel stays for Items, Page Previews, and Agenda items. Today Pages use the property panel in the inspector (`FrontmatterInspector`). Canonical: `Features/Properties.md` § Where Properties Live.
+
 #### Next focuses
 
 1. **Relation chips + hierarchical value pickers (asap — Nathan's priority).**
@@ -17,6 +19,17 @@ Working tree on `main`, green (only the known `PageEditorViewModelTests.debounce
 3. **Page Previews** — standalone-window page preview (cross-feature PreviewWindow primitive).
 
 Open relation fixes: legacy Vault/Type Settings "Relation" dead-end (Fix Log #10); edit-side editing of an existing relation's reverse name/icon (create-side sets both; no source-side edit path yet); `LinkedFromDropdown` real Context-side surface (bare stub → logged in `Prospects.md`).
+
+#### Verification gaps — may harbor mistakes
+
+The redesign is unit-test-green (978 tests; only the documented `debounceCoalescesRapidEdits` flake fails). What was **not** verified, and where Claude may have erred:
+
+- **No live smoke test.** The single-pane relation editor, the Context-delete cascade, the tier columns, and the adoption-preview consent gate all pass unit tests but were never clicked through in the running app — runtime + UX behavior is unverified.
+- **Migration never run on the real nexus.** The Type-sidecar `schemaVersion` 1→2 re-save and the index-DB `currentSchemaVersion` 2→3 rebuild fire on the next launch (test-verified, not yet exercised on real data). No legacy relation data is expected (the old wizard never persisted), so it should be a benign one-time normalization — but watch the next launch.
+- **"icon + title everywhere" is the documented contract, not the current code on every surface.** `ItemWindow` renders tier values as raw joined IDs (TODO left in code); the tier-row panels may show title-only (Fix Log #11). Trust the code over the doc where they differ.
+- **The docs audit was subagent-delegated + spot-reviewed**, not re-read line-by-line (~2,100 words trimmed + many code-grounded edits across ~15 docs). Residual over-trim or inaccuracy is possible — the code is ground truth if a doc disagrees.
+- **Open subagent flags:** `Architecture.md`'s `SchemaTransaction` internal-shape claim wasn't line-verified against the type; the stale `<nexus>/Items/<TypeFolder>/` wrapper comment in `ItemContentManager+CRUD.swift` is still there.
+- **Phases 12–22 were executed by implementer subagents** (I built + committed on green). Test-covered, but the breadth means a subtle spec↔implementation gap that tests don't catch is possible.
 
 #### Fix Log
 
