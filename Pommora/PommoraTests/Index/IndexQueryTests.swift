@@ -195,9 +195,9 @@ struct IndexQueryTests {
         #expect(results.map(\.id) == ["P51", "P52", "P50"])
     }
 
-    // MARK: - Scope queries
+    // MARK: - Target queries
 
-    @Test func entitiesByScopePageTypeReturnsAllInType() async throws {
+    @Test func entitiesByTargetPageTypeReturnsAllInType() async throws {
         let (dir, idx) = try await setupIndex()
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -212,16 +212,16 @@ struct IndexQueryTests {
             """)
         }
 
-        let results = try await IndexQuery(idx).entitiesByScope(.pageType("PT7"))
+        let results = try await IndexQuery(idx).entitiesByTarget(.pageType("PT7"))
         #expect(results.count == 2)
         let ids = Set(results.map(\.id))
         #expect(ids == ["P60", "P61"])
         #expect(results.allSatisfy { $0.kind == .page })
     }
 
-    // MARK: - Scope queries: contextTier
+    // MARK: - Target queries: contextTier
 
-    @Test func entitiesByScopeContextTierReturnsViaTierLinks() async throws {
+    @Test func entitiesByTargetContextTierReturnsViaTierLinks() async throws {
         let (dir, idx) = try await setupIndex()
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -234,7 +234,7 @@ struct IndexQueryTests {
             """)
         }
 
-        let results = try await IndexQuery(idx).entitiesByScope(.contextTier(1))
+        let results = try await IndexQuery(idx).entitiesByTarget(.contextTier(1))
         #expect(results.count == 2)
         #expect(results.allSatisfy { $0.kind == .space })
         let titles = Set(results.map(\.title))
@@ -307,5 +307,50 @@ struct IndexQueryTests {
         #expect(broken[0].targetID == "GHOST1")
         #expect(broken[0].targetKind == .page)
         #expect(broken[0].sourceKind == .page)
+    }
+
+    // MARK: - Incoming relations (reverse view)
+
+    @Test func incomingRelationsReturnsSourcesPointingAtTarget() async throws {
+        let (dir, idx) = try await setupIndex()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try await idx.dbQueue.write { db in
+            // Two pages + one item that all point AT the shared target "TARGET1";
+            // plus a fourth relation pointing elsewhere (must be excluded).
+            try db.execute(sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_IR', 'IR', '2026-05-24T00:00:00Z')")
+            try db.execute(sql: "INSERT INTO item_types(id, title, modified_at) VALUES ('IT_IR', 'IR', '2026-05-24T00:00:00Z')")
+            try db.execute(sql: """
+                INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                ('PSRC1', 'PT_IR', 'Source Page One', '{}', '2026-05-24T00:00:00Z'),
+                ('PSRC2', 'PT_IR', 'Source Page Two', '{}', '2026-05-24T00:00:00Z'),
+                ('POTHER', 'PT_IR', 'Other Page',     '{}', '2026-05-24T00:00:00Z')
+            """)
+            try db.execute(sql: """
+                INSERT INTO items(id, item_type_id, title, properties, modified_at) VALUES
+                ('ISRC1', 'IT_IR', 'Source Item One', '{}', '2026-05-24T00:00:00Z')
+            """)
+            try db.execute(sql: """
+                INSERT INTO relations(id, source_id, source_kind, target_id, target_kind, property_id, modified_at) VALUES
+                ('REL1', 'PSRC1', 'page', 'TARGET1', 'unknown', 'prop_X', '2026-05-24T00:00:00Z'),
+                ('REL2', 'PSRC2', 'page', 'TARGET1', 'unknown', 'prop_X', '2026-05-24T00:00:00Z'),
+                ('REL3', 'ISRC1', 'item', 'TARGET1', 'unknown', 'prop_Y', '2026-05-24T00:00:00Z'),
+                ('REL4', 'POTHER', 'page', 'OTHER_TARGET', 'unknown', 'prop_X', '2026-05-24T00:00:00Z')
+            """)
+        }
+
+        let incoming = try await IndexQuery(idx).incomingRelations(targetID: "TARGET1")
+
+        #expect(incoming.count == 3)
+        let ids = Set(incoming.map(\.id))
+        #expect(ids == ["PSRC1", "PSRC2", "ISRC1"])
+        // POTHER points at a different target — must be excluded.
+        #expect(!ids.contains("POTHER"))
+        // Titles resolve from the source's owning table (relations carries no title).
+        let byID = Dictionary(uniqueKeysWithValues: incoming.map { ($0.id, $0) })
+        #expect(byID["PSRC1"]?.kind == .page)
+        #expect(byID["PSRC1"]?.title == "Source Page One")
+        #expect(byID["ISRC1"]?.kind == .item)
+        #expect(byID["ISRC1"]?.title == "Source Item One")
     }
 }

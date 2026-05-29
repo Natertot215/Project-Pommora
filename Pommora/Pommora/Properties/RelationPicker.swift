@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Scope-aware relation picker. Uses `IndexQuery.entitiesByScope(_:)` to load
+/// Scope-aware relation picker. Uses `IndexQuery.entitiesByTarget(_:)` to load
 /// the candidate list from SQLite. Relations are always multi-pick: selections
 /// accumulate; tapping a selected entity removes it (chip-removal semantics).
 /// Nil `index` renders an empty-state placeholder without crashing.
@@ -71,7 +71,7 @@ struct RelationPicker: View {
         guard let idx = index else { return }
         isLoading = true
         do {
-            loadedEntities = try await IndexQuery(idx).entitiesByScope(scope)
+            loadedEntities = try await IndexQuery(idx).entitiesByTarget(scope)
         } catch {
             loadedEntities = []
         }

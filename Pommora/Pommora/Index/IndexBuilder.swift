@@ -589,7 +589,7 @@ final class IndexBuilder {
         for (propID, value) in properties {
             guard case .relation(let targetIDs) = value else { continue }
             let def = schemaByID[propID]
-            let targetKind = targetKindString(for: def?.relationTarget)
+            let targetKind = RelationTargetKind.string(from: def?.relationTarget)
             for targetID in targetIDs {
                 let relationID = UUID().uuidString
                 try db.execute(
@@ -599,23 +599,6 @@ final class IndexBuilder {
                         """
                 )
             }
-        }
-    }
-
-    private nonisolated static func targetKindString(for scope: PropertyDefinition.RelationTarget?) -> String {
-        guard let scope else { return "unknown" }
-        switch scope {
-        case .pageType, .pageCollection: return "page"
-        case .itemType, .itemCollection: return "item"
-        case .contextTier(let tier):
-            switch tier {
-            case 1: return "space"
-            case 2: return "topic"
-            case 3: return "project"
-            default: return "context"
-            }
-        case .agendaTasks:  return "agenda_task"
-        case .agendaEvents: return "agenda_event"
         }
     }
 

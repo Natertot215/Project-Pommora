@@ -8,12 +8,12 @@ struct IndexQuery: Sendable {
 
     init(_ index: PommoraIndex) { self.index = index }
 
-    // MARK: - Scope queries
+    // MARK: - Target queries
 
     /// Returns all entities matching a target (Page Type, Item Type, etc.).
-    func entitiesByScope(_ scope: PropertyDefinition.RelationTarget) async throws -> [EntityRef] {
+    func entitiesByTarget(_ target: PropertyDefinition.RelationTarget) async throws -> [EntityRef] {
         try await index.dbQueue.read { db in
-            switch scope {
+            switch target {
             case .pageType(let id):
                 return try Row.fetchAll(db, sql: "SELECT id, title FROM pages WHERE page_type_id = ?", arguments: [id])
                     .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"]) }
@@ -45,6 +45,77 @@ struct IndexQuery: Sendable {
             case .agendaEvents:
                 return try Row.fetchAll(db, sql: "SELECT id, title FROM agenda_events", arguments: [])
                     .map { EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"]) }
+            }
+        }
+    }
+
+    // MARK: - Reverse-view query
+
+    /// Every operational entity whose `relations` rows point AT the given target ID
+    /// (the canonical reverse-view query; powers the future LinkedFromDropdown).
+    ///
+    /// One `EntityRef` per `relations` row, built from `source_id` + `source_kind`.
+    /// `source_kind` resolves to `EntityKind` via the same string map as
+    /// `brokenLinks`; the source's current title is read by joining `source_id`
+    /// to its source-kind table (mirrors how `entitiesByTarget` sources titles —
+    /// `relations` itself carries no title). Sources whose row is dangling (no
+    /// matching entity) fall back to an empty title.
+    func incomingRelations(targetID: String) async throws -> [EntityRef] {
+        // Inline kind conversion to avoid calling actor-isolated helpers inside the @Sendable closure
+        // (mirrors `brokenLinks`).
+        let kindFromString: @Sendable (String) -> EntityKind = { s in
+            switch s {
+            case "page":            return .page
+            case "item":            return .item
+            case "agenda_task":     return .agendaTask
+            case "agenda_event":    return .agendaEvent
+            case "page_type":       return .pageType
+            case "item_type":       return .itemType
+            case "page_collection": return .pageCollection
+            case "item_collection": return .itemCollection
+            case "space":           return .space
+            case "topic":           return .topic
+            case "project":         return .project
+            default:                return .page
+            }
+        }
+
+        return try await index.dbQueue.read { db in
+            // Maps a source_kind string to the table holding its title row.
+            let kindTableMap: [String: String] = [
+                "page": "pages",
+                "item": "items",
+                "agenda_task": "agenda_tasks",
+                "agenda_event": "agenda_events",
+                "space": "contexts",
+                "topic": "contexts",
+                "project": "contexts",
+                "page_type": "page_types",
+                "item_type": "item_types",
+                "page_collection": "page_collections",
+                "item_collection": "item_collections",
+            ]
+
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT source_id, source_kind FROM relations WHERE target_id = ?",
+                arguments: [targetID]
+            )
+
+            return try rows.map { row -> EntityRef in
+                let sourceID: String = row["source_id"]
+                let sourceKindStr: String = row["source_kind"]
+                let kind = kindFromString(sourceKindStr)
+                // Resolve the current title from the source's owning table (one row per source).
+                var title = ""
+                if let table = kindTableMap[sourceKindStr] {
+                    title = try String.fetchOne(
+                        db,
+                        sql: "SELECT title FROM \(table) WHERE id = ?",
+                        arguments: [sourceID]
+                    ) ?? ""
+                }
+                return EntityRef(id: sourceID, kind: kind, title: title)
             }
         }
     }

@@ -1,11 +1,23 @@
 import Foundation
 import GRDB
+import Observation
 
 /// Per-Nexus SQLite index DB (regeneratable — no user data). Backs the
 /// Notion-style filter query API + relation picker + broken-links surface.
 /// Stored at `<nexus>/.nexus/index.db`. Schema version bumps force a full
 /// rebuild via IndexBuilder (Phase E.4).
-final class PommoraIndex {
+///
+/// `@Observable` makes the class injectable via `@Environment(PommoraIndex.self)`.
+/// It carries no `var` state, so observation tracks nothing — env-injectability
+/// is the sole goal. The macro adds a mutable `ObservationRegistrar` (itself
+/// `Sendable`), which drops the implicit all-`let` class Sendability the type
+/// previously relied on; we restore it with an explicit `@unchecked Sendable`
+/// conformance. Safe: the registrar is `Sendable`, the only shared mutable
+/// state (the GRDB `DatabaseQueue`) is internally serialized, and the class is
+/// accessed from async GRDB read/write closures — so it stays actor-free
+/// (no `@MainActor`).
+@Observable
+final class PommoraIndex: @unchecked Sendable {
     // v2 (2026-05-27): bumped on the Folders revert. v1 dev databases created
     // during the Folders era carry a now-dormant `folders` table + a
     // `page_folder_id` column on `pages` (the schema added them via

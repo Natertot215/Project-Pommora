@@ -387,6 +387,19 @@ struct IndexUpdater: Sendable {
         )
         for (propertyID, value) in properties {
             guard case .relation(let targetIDs) = value else { continue }
+            // TODO(target_kind): write the real coarse target kind via
+            // `RelationTargetKind.string(from: def.relationTarget)`. The def is
+            // NOT reachable here: `reconcileRelations` only receives raw
+            // `[String: PropertyValue]` (no schema), `upsertPage`/`upsertItem`
+            // don't carry the `PropertyDefinition` set, and the index DB doesn't
+            // persist `relationTarget` (`configJSON(for:)` serializes only
+            // number_format / date_includes_time / select_options). Resolving it
+            // would require plumbing the schema into the upsert path or persisting
+            // the target in `property_definitions.config` + a per-row lookup —
+            // both larger than this task. For now `nil` → "unknown" (matched by
+            // `IndexBuilder` only when a def is missing); broken-link/reverse
+            // queries resolve the real kind from the target's table at query time.
+            let targetKind = RelationTargetKind.string(from: nil)  // "unknown"
             for targetID in targetIDs {
                 let relID = ULID.generate()
                 try db.execute(
@@ -397,7 +410,7 @@ struct IndexUpdater: Sendable {
                         """,
                     arguments: [
                         relID, sourceID, sourceKind,
-                        targetID, "unknown",   // target_kind resolved at query time
+                        targetID, targetKind,
                         propertyID, nowISO(),
                     ]
                 )
