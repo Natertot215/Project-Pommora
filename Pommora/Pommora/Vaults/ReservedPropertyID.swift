@@ -9,20 +9,24 @@ import Foundation
 enum ReservedPropertyID {
     // MARK: - Named constants
 
-    static let id          = "_id"
-    static let createdAt   = "_created_at"
-    static let modifiedAt  = "_modified_at"
-    static let status      = "_status"
-    static let type        = "_type"
-    static let tier1       = "_tier1"
-    static let tier2       = "_tier2"
-    static let tier3       = "_tier3"
-    static let wikilinks   = "_wikilinks"
+    // `nonisolated`: pure immutable `String` constants, read from both @MainActor
+    // (schema editor / validators) and nonisolated contexts (the index layer's
+    // off-actor GRDB-write closures — e.g. IndexBuilder's tier-relations emit).
+    // The project default isolation is @MainActor, so these opt out explicitly.
+    nonisolated static let id          = "_id"
+    nonisolated static let createdAt   = "_created_at"
+    nonisolated static let modifiedAt  = "_modified_at"
+    nonisolated static let status      = "_status"
+    nonisolated static let type        = "_type"
+    nonisolated static let tier1       = "_tier1"
+    nonisolated static let tier2       = "_tier2"
+    nonisolated static let tier3       = "_tier3"
+    nonisolated static let wikilinks   = "_wikilinks"
 
     // MARK: - Catalog
 
     /// All reserved IDs Pommora knows about as of v0.3.0.
-    static let all: Set<String> = [
+    nonisolated static let all: Set<String> = [
         id, createdAt, modifiedAt,
         status,
         type,
@@ -33,7 +37,7 @@ enum ReservedPropertyID {
     // MARK: - Helpers
 
     /// True iff `id` is in the reserved catalog. Used by the schema-editor validator.
-    static func isReserved(_ id: String) -> Bool {
+    nonisolated static func isReserved(_ id: String) -> Bool {
         all.contains(id)
     }
 

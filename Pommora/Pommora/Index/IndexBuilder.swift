@@ -607,33 +607,39 @@ final class IndexBuilder {
             for coll in pt.collections {
                 for page in coll.pages {
                     try insertTierLinkRows(db, entityID: page.id, entityKind: "page",
-                        tier1: page.tier1, tier2: page.tier2, tier3: page.tier3)
+                        tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
+                        modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
                 try insertTierLinkRows(db, entityID: page.id, entityKind: "page",
-                    tier1: page.tier1, tier2: page.tier2, tier3: page.tier3)
+                    tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
+                    modifiedAt: page.modifiedAt)
             }
         }
         for it in snapshot.itemTypes {
             for coll in it.collections {
                 for item in coll.items {
                     try insertTierLinkRows(db, entityID: item.id, entityKind: "item",
-                        tier1: item.tier1, tier2: item.tier2, tier3: item.tier3)
+                        tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
+                        modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
                 try insertTierLinkRows(db, entityID: item.id, entityKind: "item",
-                    tier1: item.tier1, tier2: item.tier2, tier3: item.tier3)
+                    tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
+                    modifiedAt: item.modifiedAt)
             }
         }
         for task in snapshot.tasks {
             try insertTierLinkRows(db, entityID: task.id, entityKind: "agenda_task",
-                tier1: task.tier1, tier2: task.tier2, tier3: task.tier3)
+                tier1: task.tier1, tier2: task.tier2, tier3: task.tier3,
+                modifiedAt: task.modifiedAt)
         }
         for event in snapshot.events {
             try insertTierLinkRows(db, entityID: event.id, entityKind: "agenda_event",
-                tier1: event.tier1, tier2: event.tier2, tier3: event.tier3)
+                tier1: event.tier1, tier2: event.tier2, tier3: event.tier3,
+                modifiedAt: event.modifiedAt)
         }
     }
 
@@ -643,7 +649,8 @@ final class IndexBuilder {
         entityKind: String,
         tier1: [String],
         tier2: [String],
-        tier3: [String]
+        tier3: [String],
+        modifiedAt: Date
     ) throws {
         for targetID in tier1 {
             try db.execute(literal: "INSERT OR IGNORE INTO tier_links (entity_id, entity_kind, tier, target_id) VALUES (\(entityID), \(entityKind), 1, \(targetID))")
@@ -653,6 +660,43 @@ final class IndexBuilder {
         }
         for targetID in tier3 {
             try db.execute(literal: "INSERT OR IGNORE INTO tier_links (entity_id, entity_kind, tier, target_id) VALUES (\(entityID), \(entityKind), 3, \(targetID))")
+        }
+        // Additively mirror each tier value into the `relations` table so the
+        // reverse-view query (`IndexQuery.incomingRelations`) — which reads
+        // `relations`, not `tier_links` — surfaces tier-based links to a Context.
+        // `tier_links` above is kept exactly as-is (retired in a later phase).
+        try insertTierRelationRows(db, sourceID: entityID, sourceKind: entityKind,
+            tier1: tier1, tier2: tier2, tier3: tier3, modifiedAt: modifiedAt)
+    }
+
+    /// Emits one `relations` row per tier value (mirroring the `tier_links` rows).
+    /// `target_kind` derives from `RelationTargetKind.string(from: .contextTier(n))`
+    /// (DRY — shared with property relations); `property_id` is the reserved tier ID.
+    private nonisolated static func insertTierRelationRows(
+        _ db: Database,
+        sourceID: String,
+        sourceKind: String,
+        tier1: [String],
+        tier2: [String],
+        tier3: [String],
+        modifiedAt: Date
+    ) throws {
+        let tiers: [(Int, [String], String)] = [
+            (1, tier1, ReservedPropertyID.tier1),
+            (2, tier2, ReservedPropertyID.tier2),
+            (3, tier3, ReservedPropertyID.tier3),
+        ]
+        for (level, targetIDs, propertyID) in tiers {
+            let targetKind = RelationTargetKind.string(from: .contextTier(level))
+            for targetID in targetIDs {
+                let relationID = UUID().uuidString
+                try db.execute(
+                    literal: """
+                        INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                        VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propertyID), \(iso8601(modifiedAt)))
+                        """
+                )
+            }
         }
     }
 

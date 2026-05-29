@@ -115,7 +115,10 @@ struct IndexUpdater: Sendable {
                 db: db,
                 sourceID: meta.id,
                 sourceKind: "page",
-                properties: meta.frontmatter.properties
+                properties: meta.frontmatter.properties,
+                tier1: meta.frontmatter.tier1,
+                tier2: meta.frontmatter.tier2,
+                tier3: meta.frontmatter.tier3
             )
             try reconcileTierLinks(
                 db: db,
@@ -204,7 +207,10 @@ struct IndexUpdater: Sendable {
                 db: db,
                 sourceID: item.id,
                 sourceKind: "item",
-                properties: item.properties
+                properties: item.properties,
+                tier1: item.tier1,
+                tier2: item.tier2,
+                tier3: item.tier3
             )
             try reconcileTierLinks(
                 db: db,
@@ -374,12 +380,20 @@ struct IndexUpdater: Sendable {
 
     /// Extracts all `.relation([ids])` values from `properties` and re-indexes them
     /// in the `relations` table for `sourceID` (one row per target id). Clears existing rows first —
-    /// ensures removed relation values are cleaned up cleanly.
+    /// ensures removed relation values are cleaned up cleanly. Tier values
+    /// (`tier1`/`tier2`/`tier3`) are mirrored into the same `relations` table here —
+    /// after the DELETE, so the new rows survive — letting the reverse-view query
+    /// (`IndexQuery.incomingRelations`, which reads `relations`) surface tier-based
+    /// links to a Context. The parallel `tier_links` emit (`reconcileTierLinks`) is
+    /// kept untouched (retired in a later phase).
     private func reconcileRelations(
         db: Database,
         sourceID: String,
         sourceKind: String,
-        properties: [String: PropertyValue]
+        properties: [String: PropertyValue],
+        tier1: [String],
+        tier2: [String],
+        tier3: [String]
     ) throws {
         try db.execute(
             sql: "DELETE FROM relations WHERE source_id = ?",
@@ -394,6 +408,31 @@ struct IndexUpdater: Sendable {
             // rebuild would. Missing row / missing target falls back to "unknown".
             let target = relationTarget(forPropertyID: propertyID, db: db)
             let targetKind = RelationTargetKind.string(from: target)
+            for targetID in targetIDs {
+                let relID = ULID.generate()
+                try db.execute(
+                    sql: """
+                        INSERT INTO relations
+                            (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                    arguments: [
+                        relID, sourceID, sourceKind,
+                        targetID, targetKind,
+                        propertyID, nowISO(),
+                    ]
+                )
+            }
+        }
+        // Tier relations — emitted after the DELETE above so they aren't wiped.
+        let tiers: [(Int, [String], String)] = [
+            (1, tier1, ReservedPropertyID.tier1),
+            (2, tier2, ReservedPropertyID.tier2),
+            (3, tier3, ReservedPropertyID.tier3),
+        ]
+        for (level, targetIDs, propertyID) in tiers {
+            // `target_kind` via the shared mapper (DRY): tier 1→"space" / 2→"topic" / 3→"project".
+            let targetKind = RelationTargetKind.string(from: .contextTier(level))
             for targetID in targetIDs {
                 let relID = ULID.generate()
                 try db.execute(
