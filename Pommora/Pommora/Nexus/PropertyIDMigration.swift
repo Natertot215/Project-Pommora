@@ -106,6 +106,28 @@ enum PropertyIDMigration {
             pageTypeMigrations.flatMap(\.events) + itemTypeMigrations.flatMap(\.events)
         }
 
+        /// True iff the migration contains a LOSSY change the user must explicitly
+        /// acknowledge before commit (today: dropping a context-tier-targeted
+        /// relation property). Lossless normalizations do not require consent and
+        /// apply silently. Single source of truth for both the launch-gate
+        /// (NexusManager) and the Adopt-button gate (AdoptionPreviewView).
+        var requiresAcknowledgment: Bool {
+            allEvents.contains { event in
+                if case .contextTierDropped = event { return true }
+                return false
+            }
+        }
+
+        /// Per-tier counts of context-tier-drop events, for preview display.
+        /// Key = tier (1/2/3), value = number of relation properties dropped.
+        var contextTierDropCountsByTier: [Int: Int] {
+            var counts: [Int: Int] = [:]
+            for case let .contextTierDropped(_, tier, _) in allEvents {
+                counts[tier, default: 0] += 1
+            }
+            return counts
+        }
+
         static func empty(at root: URL) -> Plan {
             Plan(
                 nexusRoot: root,

@@ -306,49 +306,63 @@ final class NexusManager {
         // Type sidecar — fast even on large nexuses.
         let migrationPlan = PropertyIDMigration.scan(at: url)
 
-        // Present the preview if EITHER adoption or migration has work to do.
-        // The sheet renders the union — when only one side has work, the
-        // other section is empty.
-        let needsPreview = plan.hasAnythingToAdopt || migrationPlan.hasAnyMigration
-        guard needsPreview else { return }
+        // The preview is a CONSENT surface — show it only when the user
+        // genuinely needs to decide: adopting a new folder, or acknowledging a
+        // LOSSY migration change (context-tier-targeted relation drop). A pure
+        // lossless normalization (`hasAnyMigration` but no
+        // `requiresAcknowledgment`) applies SILENTLY — no surprise launch modal.
+        let needsPreview = plan.hasAnythingToAdopt || migrationPlan.requiresAcknowledgment
 
-        // The sheet should be visible WITHOUT the indexing HUD competing for
-        // attention behind it. Drop the indexing flag before awaiting the
-        // user's decision, then re-raise it only while `apply` is writing
-        // sidecars.
-        isIndexing = false
-        let confirmed = await presentAdoptionPreview(plan, migrationPlan: migrationPlan)
-        guard confirmed else { return }
+        if needsPreview {
+            // The sheet should be visible WITHOUT the indexing HUD competing for
+            // attention behind it. Drop the indexing flag before awaiting the
+            // user's decision, then re-raise it only while `apply` is writing
+            // sidecars.
+            isIndexing = false
+            let confirmed = await presentAdoptionPreview(plan, migrationPlan: migrationPlan)
+            guard confirmed else { return }
 
-        isIndexing = true
-        // Adoption apply: best-effort + idempotent (decision #11) — never
-        // throws. Skipped when nothing to adopt.
-        if plan.hasAnythingToAdopt {
-            let result = NexusAdopter.apply(plan)
-            if result.failedCount > 0 {
-                let preview = result.failedFolders.prefix(3)
-                    .map { "\($0.folderURL.lastPathComponent): \($0.message)" }
-                    .joined(separator: "; ")
-                pendingError = .initFailed(
-                    "Adoption completed with \(result.failedCount) failures (\(preview))."
-                )
+            isIndexing = true
+            // Adoption apply: best-effort + idempotent (decision #11) — never
+            // throws. Skipped when nothing to adopt.
+            if plan.hasAnythingToAdopt {
+                let result = NexusAdopter.apply(plan)
+                if result.failedCount > 0 {
+                    let preview = result.failedFolders.prefix(3)
+                        .map { "\($0.folderURL.lastPathComponent): \($0.message)" }
+                        .joined(separator: "; ")
+                    pendingError = .initFailed(
+                        "Adoption completed with \(result.failedCount) failures (\(preview))."
+                    )
+                }
             }
-        }
-
-        // Property-ID migration apply: same best-effort + idempotent contract.
-        // Per-Type failures isolated in `migration.failedTypes`; surface a
-        // summary via the pending-error toast.
-        if migrationPlan.hasAnyMigration {
-            let migration = PropertyIDMigration.apply(migrationPlan)
-            if !migration.failedTypes.isEmpty {
-                let preview = migration.failedTypes.prefix(3)
-                    .map { "\($0.typeFolderURL.lastPathComponent): \($0.message)" }
-                    .joined(separator: "; ")
-                pendingError = .initFailed(
-                    "Property-ID migration completed with \(migration.failedTypes.count) failures (\(preview))."
-                )
+            // Migration apply: same best-effort + idempotent contract. Runs for
+            // ANY migration work the confirmed plan carries (lossy + lossless),
+            // not just the acknowledged drop.
+            if migrationPlan.hasAnyMigration {
+                applyMigrationSurfacingFailures(migrationPlan)
             }
+        } else if migrationPlan.hasAnyMigration {
+            // Pure lossless normalization — no adoption, no lossy events.
+            // Apply HEADLESSLY (no preview). `isIndexing` is already true here
+            // from the function top; the existing `defer` clears it.
+            applyMigrationSurfacingFailures(migrationPlan)
         }
+        // else: nothing to adopt + nothing to migrate — return (handled by defer).
+    }
+
+    /// Applies a property-ID migration plan and surfaces any per-Type failures
+    /// via `pendingError`. Single source of truth for the failure-summary
+    /// string so the preview-confirmed path and the headless path stay DRY.
+    private func applyMigrationSurfacingFailures(_ migrationPlan: PropertyIDMigration.Plan) {
+        let migration = PropertyIDMigration.apply(migrationPlan)
+        guard !migration.failedTypes.isEmpty else { return }
+        let preview = migration.failedTypes.prefix(3)
+            .map { "\($0.typeFolderURL.lastPathComponent): \($0.message)" }
+            .joined(separator: "; ")
+        pendingError = .initFailed(
+            "Property-ID migration completed with \(migration.failedTypes.count) failures (\(preview))."
+        )
     }
 
     /// Publishes `plan` (and an optional `migrationPlan`) for ContentView's
