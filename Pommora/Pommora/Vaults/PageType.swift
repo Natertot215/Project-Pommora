@@ -13,8 +13,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var views: [SavedView]  // saved views (empty placeholder in v0.2)
     var modifiedAt: Date
     /// Forward-compat: pre-v0.3.0 sidecars decode as `0` (signal for migration).
-    /// New sidecars write `1`. Phase C.3 migration bumps existing sidecars to 1
-    /// when it rewrites them with synthesised PropertyDefinition `id`s. Per EC2.
+    /// New sidecars write `PropertyIDMigration.currentTypeSchemaVersion` (2).
+    /// PropertyIDMigration bumps existing sidecars to that version when it
+    /// re-saves them (minting PropertyDefinition `id`s and/or normalizing legacy
+    /// Relations JSON). Per EC2.
     var schemaVersion: Int
 
     // Persisted display order for direct children (v0.2.8.0). All nil until the
@@ -40,7 +42,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     init(
         id: String, title: String, icon: String?,
         properties: [PropertyDefinition], views: [SavedView], modifiedAt: Date,
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
         collectionOrder: [String]? = nil,
         pageOrder: [String]? = nil,
         defaultSort: DefaultSortConfig? = nil

@@ -19,7 +19,7 @@ import Foundation
 ///
 /// **What it does (per migrating Type):**
 /// 1. Mints `prop_<ulid>` IDs for every property whose `id` is empty.
-/// 2. Bumps `schemaVersion` to `1`.
+/// 2. Bumps `schemaVersion` to `currentTypeSchemaVersion` (2).
 /// 3. Builds a name → id map covering every property (existing IDs + minted).
 /// 4. Walks every member file under that Type:
 ///    - PageType: `.md` files (Pages) in the Type root + every Page
@@ -38,6 +38,18 @@ import Foundation
 ///
 /// **Idempotent:** scan returns `Plan.empty` for already-migrated nexuses.
 enum PropertyIDMigration {
+
+    /// Current on-disk **Type-sidecar** schema version (`_pagetype.json` /
+    /// `_itemtype.json`). Distinct from the index-DB
+    /// `PommoraIndex.currentSchemaVersion`. Bumped 1 → 2 for the Relations
+    /// redesign: re-encoding a Type sidecar during scan already normalizes
+    /// legacy JSON for free (drops a removed `allows_multiple` key, renames
+    /// `relation_scope` → `relation_target`, wraps single `$rel` objects into
+    /// arrays), so widening the trigger to `< 2` forces a one-time normalizing
+    /// re-save of every legacy v1 sidecar. `scan` stamps this; the matching
+    /// `PageType.init` / `ItemType.init` defaults keep freshly-created Types
+    /// current so they never re-migrate.
+    static let currentTypeSchemaVersion = 2
 
     // MARK: - Plan
 
@@ -71,6 +83,13 @@ enum PropertyIDMigration {
         var totalMemberFileCandidates: Int {
             pageTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
                 + itemTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
+        }
+
+        /// Every per-property MigrationEvent across all migrating Types, flattened
+        /// for the adoption preview sheet. Empty until a later task populates the
+        /// per-Type `events` channel (Relations redesign).
+        var allEvents: [MigrationEvent] {
+            pageTypeMigrations.flatMap(\.events) + itemTypeMigrations.flatMap(\.events)
         }
 
         static func empty(at root: URL) -> Plan {
@@ -107,9 +126,13 @@ enum PropertyIDMigration {
         var nameToID: [String: String]
 
         /// Pre-encoded updated Type sidecar JSON (with minted IDs +
-        /// `schemaVersion: 1`). Apply stages this directly via
-        /// SchemaTransaction.
+        /// `schemaVersion: currentTypeSchemaVersion`). Apply stages this
+        /// directly via SchemaTransaction.
         var updatedSchemaJSON: Data
+
+        /// Per-property MigrationEvents surfaced in the adoption preview.
+        /// Empty until a later task populates it (Relations redesign).
+        var events: [MigrationEvent] = []
     }
 
     // MARK: - Report (post-apply)
@@ -209,7 +232,7 @@ enum PropertyIDMigration {
 
         var mutable = pageType
         let mintResult = mintMissingIDs(in: &mutable.properties)
-        mutable.schemaVersion = 1
+        mutable.schemaVersion = currentTypeSchemaVersion
         mutable.modifiedAt = Date()
 
         guard let encoded = try? AtomicJSON.encode(mutable) else { return nil }
@@ -223,7 +246,8 @@ enum PropertyIDMigration {
             propertiesToMint: mintResult.minted,
             memberFileCandidates: candidateCount,
             nameToID: mintResult.nameToID,
-            updatedSchemaJSON: encoded
+            updatedSchemaJSON: encoded,
+            events: []
         )
     }
 
@@ -234,7 +258,7 @@ enum PropertyIDMigration {
 
         var mutable = itemType
         let mintResult = mintMissingIDs(in: &mutable.properties)
-        mutable.schemaVersion = 1
+        mutable.schemaVersion = currentTypeSchemaVersion
         mutable.modifiedAt = Date()
 
         guard let encoded = try? AtomicJSON.encode(mutable) else { return nil }
@@ -248,7 +272,8 @@ enum PropertyIDMigration {
             propertiesToMint: mintResult.minted,
             memberFileCandidates: candidateCount,
             nameToID: mintResult.nameToID,
-            updatedSchemaJSON: encoded
+            updatedSchemaJSON: encoded,
+            events: []
         )
     }
 
@@ -326,14 +351,18 @@ enum PropertyIDMigration {
 
     // MARK: - Shared helpers
 
-    /// True iff at least one property has an empty `id` OR the schema is
-    /// pre-v0.3.0 (`schemaVersion < 1`).
+    /// True iff at least one property has an empty `id` OR the sidecar predates
+    /// the current Type-sidecar schema version (`schemaVersion <
+    /// currentTypeSchemaVersion`). The version arm catches legacy v1 sidecars
+    /// (IDs already present) and re-saves them once to normalize their JSON.
     private static func needsMigration(_ pt: PageType) -> Bool {
-        pt.schemaVersion < 1 || pt.properties.contains(where: { $0.id.isEmpty })
+        pt.schemaVersion < currentTypeSchemaVersion
+            || pt.properties.contains(where: { $0.id.isEmpty })
     }
 
     private static func needsMigration(_ it: ItemType) -> Bool {
-        it.schemaVersion < 1 || it.properties.contains(where: { $0.id.isEmpty })
+        it.schemaVersion < currentTypeSchemaVersion
+            || it.properties.contains(where: { $0.id.isEmpty })
     }
 
     private struct MintResult {

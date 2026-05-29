@@ -131,7 +131,7 @@ import Testing
 
         // Verify schema gained prop_<ulid> IDs
         let pt = try PageType.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
-        #expect(pt.schemaVersion == 1)
+        #expect(pt.schemaVersion == 2)
         #expect(pt.properties.allSatisfy { $0.id.hasPrefix("prop_") })
 
         // Build name → id map from schema
@@ -190,7 +190,8 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        // schemaVersion: 1 + every property already has a real id => no migration.
+        // schemaVersion: 2 (init default) + every property already has a real id
+        // => no migration.
         let folder = nexus.appendingPathComponent("Pre-migrated", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let alreadyMigrated = PageType(
@@ -227,7 +228,7 @@ import Testing
         #expect(report.memberFilesRewritten == 1)
 
         let it = try ItemType.load(from: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-        #expect(it.schemaVersion == 1)
+        #expect(it.schemaVersion == 2)
         let stageID = it.properties.first!.id
         #expect(stageID.hasPrefix("prop_"))
 
@@ -356,7 +357,7 @@ import Testing
 
         // Same end state as runIfNeeded would produce
         let pt = try PageType.load(from: pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
-        #expect(pt.schemaVersion == 1)
+        #expect(pt.schemaVersion == 2)
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         let pf = try PageFile.load(from: pageURL)
         #expect(pf.frontmatter.properties[statusID] == .select("active"))
@@ -380,5 +381,90 @@ import Testing
         let plan2 = PropertyIDMigration.scan(at: nexus)
         #expect(!plan2.hasAnyMigration)
         #expect(plan2.totalTypes == 0)
+    }
+
+    // MARK: - schemaVersion 2 trigger (Relations redesign — normalizing re-save)
+
+    /// Writes a v1 PageType sidecar: `schema_version: 1` with every property
+    /// ID already minted. Pre-Relations-redesign this needed no migration; the
+    /// broadened `< 2` trigger now re-saves it once to normalize the JSON.
+    @discardableResult
+    private static func makeV1PageType(
+        in nexusRoot: URL,
+        title: String,
+        properties: [(id: String, name: String, type: PropertyType)]
+    ) throws -> URL {
+        let folder = nexusRoot.appendingPathComponent(title, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let sidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let propsJSON: [[String: Any]] = properties.map {
+            ["id": $0.id, "name": $0.name, "type": $0.type.rawValue]
+        }
+        let dict: [String: Any] = [
+            "id": "01HPT\(UUID().uuidString.prefix(8))",
+            "schema_version": 1,
+            "modified_at": ISO8601DateFormatter().string(from: Date()),
+            "properties": propsJSON,
+            "views": [],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted])
+        try data.write(to: sidecar, options: [.atomic])
+        return folder
+    }
+
+    @Test func v1SidecarReMigratesAndBumpsToVersion2() throws {
+        // A v1 Type sidecar (schemaVersion 1, all IDs present) now triggers
+        // migration so its JSON gets a normalizing re-save; the sidecar lands
+        // at schemaVersion 2 after apply (no new property IDs minted).
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let folder = try Self.makeV1PageType(
+            in: nexus, title: "Notes",
+            properties: [("prop_01HSTATUS", "Status", .select)])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+        #expect(plan.hasAnyMigration)
+        #expect(plan.pageTypeMigrations.count == 1)
+        #expect(plan.pageTypeMigrations[0].propertiesToMint == 0)  // IDs already present
+
+        let report = PropertyIDMigration.apply(plan)
+        #expect(report.typesMigrated == 1)
+        #expect(report.propertiesMinted == 0)
+
+        let pt = try PageType.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        #expect(pt.schemaVersion == 2)
+        #expect(pt.properties.first?.id == "prop_01HSTATUS")  // preserved
+    }
+
+    @Test func freshPageTypeIsSchemaVersion2() {
+        // Newly-constructed Types are stamped current so they never re-migrate.
+        let pt = PageType(
+            id: "01HP", title: "X", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
+        #expect(pt.schemaVersion == 2)
+    }
+
+    @Test func freshItemTypeIsSchemaVersion2() {
+        let it = ItemType(
+            id: "01HI", title: "X", icon: nil,
+            properties: [], views: [], modifiedAt: Date())
+        #expect(it.schemaVersion == 2)
+    }
+
+    @Test func planAllEventsEmptyForPlainIDMintMigration() throws {
+        // The events channel exists but no task populates it yet — a plain
+        // ID-mint migration carries no MigrationEvents.
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        try Self.makeLegacyPageType(
+            in: nexus, title: "Notes", properties: [("Status", .select)])
+        try Self.makeLegacyItemType(
+            in: nexus, title: "Bookmarks", properties: [("Stage", .select)])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+        #expect(plan.hasAnyMigration)
+        #expect(plan.allEvents.isEmpty)
     }
 }

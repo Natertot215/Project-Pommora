@@ -18,7 +18,8 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var views: [SavedView]  // saved views (empty placeholder in v0.2)
     var templateConfig: ItemTemplateConfig?  // reserved for post-v1 templates
     var modifiedAt: Date
-    /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. Per EC2.
+    /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. New sidecars write
+    /// `PropertyIDMigration.currentTypeSchemaVersion` (2). Per EC2.
     var schemaVersion: Int
 
     // Persisted display order for direct children. Nil until the user reorders
@@ -50,7 +51,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         views: [SavedView],
         templateConfig: ItemTemplateConfig? = nil,
         modifiedAt: Date,
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
         collectionOrder: [String]? = nil,
         itemOrder: [String]? = nil,
         defaultSort: DefaultSortConfig? = nil,

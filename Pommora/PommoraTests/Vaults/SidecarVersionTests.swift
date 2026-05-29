@@ -2,21 +2,24 @@ import Foundation
 import Testing
 @testable import Pommora
 
-/// Verifies the EC2 `schema_version: 1` forward-compat field on all four
+/// Verifies the EC2 `schema_version` forward-compat field on all four
 /// non-Agenda sidecars (PageType, PageCollection, ItemType, ItemCollection).
-/// AgendaTaskSchema + AgendaEventSchema were already on `schemaVersion: 1`
-/// (camelCase on-disk key, pre-existing convention) — those are not retested
-/// here; their existing tests already cover round-trip.
+/// PageType + ItemType are stamped `2` (Relations-redesign re-migration bump);
+/// PageCollection + ItemCollection stay on `1` (no schema change). Legacy
+/// sidecars still decode missing versions as `0`. AgendaTaskSchema +
+/// AgendaEventSchema were already on `schemaVersion: 1` (camelCase on-disk key,
+/// pre-existing convention) — those are not retested here; their existing tests
+/// already cover round-trip.
 @Suite("SidecarVersion") struct SidecarVersionTests {
 
     // MARK: - PageType
 
-    @Test func pageTypeFreshDefaultsToSchemaVersion1() throws {
+    @Test func pageTypeFreshDefaultsToSchemaVersion2() throws {
         let pt = PageType(
             id: "01HP", title: "X", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        #expect(pt.schemaVersion == 1)
+        #expect(pt.schemaVersion == 2)
     }
 
     @Test func pageTypeEncodesSchemaVersionKey() throws {
@@ -26,7 +29,7 @@ import Testing
         )
         let data = try AtomicJSON.encode(pt)
         let s = String(data: data, encoding: .utf8)!
-        #expect(s.contains(#""schema_version" : 1"#))
+        #expect(s.contains(#""schema_version" : 2"#))
     }
 
     @Test func pageTypeLegacyDecodeDefaultsToZero() throws {
@@ -71,12 +74,12 @@ import Testing
 
     // MARK: - ItemType
 
-    @Test func itemTypeFreshDefaultsToSchemaVersion1() {
+    @Test func itemTypeFreshDefaultsToSchemaVersion2() {
         let it = ItemType(
             id: "01HI", title: "X", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        #expect(it.schemaVersion == 1)
+        #expect(it.schemaVersion == 2)
     }
 
     @Test func itemTypeEncodesSchemaVersionKey() throws {
@@ -86,7 +89,7 @@ import Testing
         )
         let data = try AtomicJSON.encode(it)
         let s = String(data: data, encoding: .utf8)!
-        #expect(s.contains(#""schema_version" : 1"#))
+        #expect(s.contains(#""schema_version" : 2"#))
     }
 
     @Test func itemTypeLegacyDecodeDefaultsToZero() throws {
