@@ -53,6 +53,15 @@ struct ContentView: View {
     @State private var mainWindowRouter: MainWindowRouter?
     @State private var settingsManager: SettingsManager?
 
+    /// Shared relation/tier display resolver (icon + title from the index).
+    /// Built per-Nexus in `constructManagers` (mirrors the other managers) so
+    /// its cache is fresh per Nexus; its index closure captures `nexusManager`
+    /// and reads `.currentIndex` lazily, so it tracks index swaps within a
+    /// Nexus. Injected at the root environment chain AND the `.detail` chain
+    /// (quirk #16) so detail views can read it via `@Environment` without a
+    /// SIGTRAP once Task 3 wires consumers.
+    @State private var relationResolver: RelationDisplayResolver?
+
     /// Maps a `SidebarSelection` to a `ViewSettingsScope`. Static + pure so the
     /// scope-mapping logic is unit-testable without bootstrapping a full
     /// `ContentView` instance + its env values.
@@ -228,6 +237,7 @@ struct ContentView: View {
         .environment(recentsManager)
         .environment(pinnedManager)
         .environment(mainWindowRouter)
+        .environment(relationResolver)
         .task {
             await nexusManager.loadOnLaunch()
         }
@@ -333,7 +343,8 @@ struct ContentView: View {
             let contentMgr = contentManager,
             let itemContentMgr = itemContentManager,
             let settingsMgr = settingsManager,
-            let tierConfigMgr = tierConfigManager
+            let tierConfigMgr = tierConfigManager,
+            let relationRes = relationResolver
         {
             SidebarDetailView(
                 selection: $sidebarSelection,
@@ -348,6 +359,7 @@ struct ContentView: View {
             .environment(itemContentMgr)
             .environment(settingsMgr)
             .environment(tierConfigMgr)
+            .environment(relationRes)
         } else {
             Color.clear
         }
@@ -399,6 +411,7 @@ struct ContentView: View {
             tierConfigManager = nil
             savedConfigManager = nil
             settingsManager = nil
+            relationResolver = nil
             return
         }
 
@@ -476,6 +489,11 @@ struct ContentView: View {
         let settingsMgr = SettingsManager(nexus: nexus)
         let router = MainWindowRouter()
 
+        // Shared relation/tier display resolver. Captures `nexusManager` (the
+        // stable @Observable instance) and reads `.currentIndex` lazily so it
+        // tracks index swaps within this Nexus.
+        let relationRes = RelationDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
+
         // Phase E.7.5: wire IndexUpdater into all 6 CRUD managers before publishing.
         // IndexUpdater is Sendable — a single value can be shared across all 6.
         // If currentIndex is nil (degraded mode), updater stays nil and every
@@ -503,6 +521,7 @@ struct ContentView: View {
         self.pinnedManager = pinnedMgr
         self.settingsManager = settingsMgr
         self.mainWindowRouter = router
+        self.relationResolver = relationRes
 
         // Publish manager refs so standalone WindowGroup scenes can reach
         // them without restructuring the ContentView dependency graph.
