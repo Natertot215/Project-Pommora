@@ -26,6 +26,12 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     var selectOptions: [SelectOption]?  // select + multiSelect
     var statusGroups: [StatusGroup]?  // status — 3 fixed groups; see StatusGroup.defaultSeed()
     var relationScope: RelationScope?  // relation
+    /// Reverse-side display name override. v1 semantics: populated only on tier
+    /// property entries (_tier1/_tier2/_tier3) where the target is a Context.
+    /// User-created relations leave this nil.
+    var reverseName: String? = nil
+    /// Reverse-side icon override. Same semantics as reverseName.
+    var reverseIcon: String? = nil
     var allowsMultiple: Bool?  // relation — single-pick vs multi-pick
     var dualProperty: DualPropertyConfig?  // relation — paired reverse on target Type
     var accept: [String]?  // file — MIME-type whitelist (e.g. ["application/pdf", "image/*"])
@@ -42,6 +48,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         selectOptions: [SelectOption]? = nil,
         statusGroups: [StatusGroup]? = nil,
         relationScope: RelationScope? = nil,
+        reverseName: String? = nil,
+        reverseIcon: String? = nil,
         allowsMultiple: Bool? = nil,
         dualProperty: DualPropertyConfig? = nil,
         accept: [String]? = nil,
@@ -57,6 +65,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.selectOptions = selectOptions
         self.statusGroups = statusGroups
         self.relationScope = relationScope
+        self.reverseName = reverseName
+        self.reverseIcon = reverseIcon
         self.allowsMultiple = allowsMultiple
         self.dualProperty = dualProperty
         self.accept = accept
@@ -238,6 +248,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         case selectOptions = "select_options"
         case statusGroups = "status_groups"
         case relationScope = "relation_scope"
+        case reverseName = "reverse_name"
+        case reverseIcon = "reverse_icon"
         case allowsMultiple = "allows_multiple"
         case dualProperty = "dual_property"
         case accept
@@ -258,6 +270,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.selectOptions = try c.decodeIfPresent([SelectOption].self, forKey: .selectOptions)
         self.statusGroups = try c.decodeIfPresent([StatusGroup].self, forKey: .statusGroups)
         self.relationScope = try c.decodeIfPresent(RelationScope.self, forKey: .relationScope)
+        self.reverseName = try c.decodeIfPresent(String.self, forKey: .reverseName)
+        self.reverseIcon = try c.decodeIfPresent(String.self, forKey: .reverseIcon)
         self.allowsMultiple = try c.decodeIfPresent(Bool.self, forKey: .allowsMultiple)
         self.dualProperty = try c.decodeIfPresent(DualPropertyConfig.self, forKey: .dualProperty)
         self.accept = try c.decodeIfPresent([String].self, forKey: .accept)
@@ -276,6 +290,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(selectOptions, forKey: .selectOptions)
         try c.encodeIfPresent(statusGroups, forKey: .statusGroups)
         try c.encodeIfPresent(relationScope, forKey: .relationScope)
+        try c.encodeIfPresent(reverseName, forKey: .reverseName)
+        try c.encodeIfPresent(reverseIcon, forKey: .reverseIcon)
         try c.encodeIfPresent(allowsMultiple, forKey: .allowsMultiple)
         try c.encodeIfPresent(dualProperty, forKey: .dualProperty)
         try c.encodeIfPresent(accept, forKey: .accept)

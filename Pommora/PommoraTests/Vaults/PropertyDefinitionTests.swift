@@ -141,6 +141,38 @@ import Testing
         #expect(decoded == dual)
     }
 
+    // MARK: - reverseName / reverseIcon (Phase 3)
+
+    @Test func reverseFieldsRoundTrip() throws {
+        let def = PropertyDefinition(
+            id: "_tier1",
+            name: "Branch",
+            type: .relation,
+            relationScope: .contextTier(1),
+            reverseName: "Books from this Branch",
+            reverseIcon: "book"
+        )
+        let data = try JSONEncoder().encode(def)
+        let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: data)
+        #expect(decoded.reverseName == "Books from this Branch")
+        #expect(decoded.reverseIcon == "book")
+    }
+
+    @Test func legacyDecodeWithoutReverseKeys() throws {
+        // JSON that has no reverse_name / reverse_icon keys — both must decode to nil.
+        let json = """
+        {
+            "id": "_tier1",
+            "name": "Branch",
+            "type": "relation",
+            "relation_scope": {"kind": "context_tier", "tier": 1}
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: json)
+        #expect(decoded.reverseName == nil)
+        #expect(decoded.reverseIcon == nil)
+    }
+
     @Test func statusPropertyDefinitionRoundTripWithGroups() throws {
         let def = PropertyDefinition(
             id: "_status", name: "Status", type: .status,
