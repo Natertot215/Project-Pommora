@@ -107,7 +107,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three. Each tier renders as its own value-row inline in whichever property surface the entity uses (`tierRow` in the property pulldown / panel; also surfaced by `FrontmatterInspector` — see [[Properties]] § "Where Properties Live"). User-defined Relation properties scoped to `context_tier(N)` query the same index surface (`IndexQuery.entitiesByScope`) and stay one-way (no reverse property since Contexts carry no `properties[]` schema).
+Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three. Each tier renders as its own value-row inline in whichever property surface the entity uses (`tierRow` in the property pulldown / panel; also surfaced by `FrontmatterInspector` — see [[Properties]] § "Where Properties Live"). User-defined Relation properties scoped to `context_tier(N)` query the same index surface (`IndexQuery.entitiesByTarget`) and stay one-way (no reverse property since Contexts carry no `properties[]` schema).
 
 ---
 

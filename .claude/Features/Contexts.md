@@ -83,7 +83,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. Each tier renders as its own value-row inline in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`). User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — the target tier is chosen in `EditPropertyPane`, which swaps the relation target field for a tier Picker when the scope is `contextTier`; these stay one-way (Contexts have no `properties[]` schema, so no reverse property is created; the reverse view is SQLite-query-derived via `IndexQuery.entitiesByScope(.contextTier(N))`).
+Each tier filled independently. Each tier renders as its own value-row inline in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`). User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — the target tier is chosen in `EditPropertyPane`, which swaps the relation target field for a tier Picker when the scope is `contextTier`; these stay one-way (Contexts have no `properties[]` schema, so no reverse property is created; the reverse view is SQLite-query-derived via `IndexQuery.entitiesByTarget(.contextTier(N))`).
 
 ---
 
