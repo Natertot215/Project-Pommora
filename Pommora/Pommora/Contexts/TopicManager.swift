@@ -16,6 +16,14 @@ final class TopicManager {
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 
+    /// Injected by ContentView.constructManagers. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    /// Topics index into `contexts` as tier 2 and Projects as tier 3 via the
+    /// `upsertContext(_:)` overloads — without this, the inline tier pickers
+    /// (`IndexQuery.entitiesByTarget(.contextTier(2/3))`) never see Topics/Projects
+    /// created or edited since the last full IndexBuilder rebuild.
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus, contextProvider: @escaping @MainActor () -> NexusContext) {
         self.nexus = nexus
         self.contextProvider = contextProvider
@@ -67,6 +75,20 @@ final class TopicManager {
             )
             self.projectsByParent = loadedProjects
             self.pendingError = nil
+
+            // Defensive index sync (quirk #15). Topics (tier 2) + Projects
+            // (tier 3) arriving outside CRUD (adopted / externally-added /
+            // pre-existing folders) must land in the `contexts` table so the
+            // tier-2/3 pickers can surface them. INSERT OR REPLACE is
+            // idempotent; failures swallowed (index is regeneratable).
+            if let updater = indexUpdater {
+                for topic in self.topics {
+                    try? updater.upsertContext(topic)
+                    for project in self.projectsByParent[topic.id] ?? [] {
+                        try? updater.upsertContext(project)
+                    }
+                }
+            }
         } catch {
             self.topics = []
             self.projectsByParent = [:]
@@ -95,6 +117,10 @@ final class TopicManager {
             let folder = NexusPaths.topicFolderURL(forTitle: name, in: nexus)
             let meta = NexusPaths.topicMetadataURL(forTitle: name, in: nexus)
             try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: topic)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(topic) } catch { self.pendingError = error }
+            }
 
             topics.append(topic)
             projectsByParent[topic.id] = []
@@ -141,6 +167,10 @@ final class TopicManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
+
             if let i = topics.firstIndex(where: { $0.id == topic.id }) {
                 topics[i] = updated
                 topics = OrderResolver.resolve(
@@ -171,6 +201,12 @@ final class TopicManager {
             let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
             try updated.save(to: meta)
 
+            // `parent_topic_id` (first parent) is an indexed `contexts` column —
+            // re-upsert so the index reflects the reparented Topic.
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
+
             if let i = topics.firstIndex(where: { $0.id == topic.id }) {
                 topics[i] = updated
             }
@@ -187,6 +223,10 @@ final class TopicManager {
             updated.modifiedAt = Date()
             let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
             try updated.save(to: meta)
+            // `icon` is an indexed `contexts` column — re-upsert.
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
             if let i = topics.firstIndex(where: { $0.id == topic.id }) {
                 topics[i] = updated
             }
@@ -211,6 +251,18 @@ final class TopicManager {
 
             let folder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
+
+            // Drop stale `contexts` rows: the Topic itself, plus each child
+            // Project (whether promoted into a fresh tier-2 row by
+            // `promoteProjectToTopic` above, or trashed with the folder when
+            // not promoting — either way the old tier-3 Project row is stale).
+            if let updater = indexUpdater {
+                do { try updater.deleteContext(id: topic.id) } catch { self.pendingError = error }
+                for project in projects {
+                    do { try updater.deleteContext(id: project.id) } catch { self.pendingError = error }
+                }
+            }
+
             topics.removeAll { $0.id == topic.id }
             projectsByParent.removeValue(forKey: topic.id)
         } catch {
@@ -237,6 +289,13 @@ final class TopicManager {
         let folder = NexusPaths.topicFolderURL(forTitle: promotedName, in: nexus)
         let meta = NexusPaths.topicMetadataURL(forTitle: promotedName, in: nexus)
         try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: topic)
+
+        // Index the freshly-minted tier-2 Topic (its old tier-3 Project row is
+        // dropped by the deleteTopic caller after promotion completes).
+        if let updater = indexUpdater {
+            do { try updater.upsertContext(topic) } catch { self.pendingError = error }
+        }
+
         topics.append(topic)
         projectsByParent[topic.id] = []
     }
@@ -274,6 +333,10 @@ final class TopicManager {
                 forTitle: name, inTopicTitled: parent.title, in: nexus
             )
             try project.save(to: url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(project) } catch { self.pendingError = error }
+            }
 
             var arr = projectsByParent[parent.id] ?? []
             arr.append(project)
@@ -335,6 +398,10 @@ final class TopicManager {
                 }
             }
 
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
+
             var arr = projectsByParent[parent.id] ?? []
             if let i = arr.firstIndex(where: { $0.id == project.id }) {
                 arr[i] = updated
@@ -384,6 +451,12 @@ final class TopicManager {
                 }
             }
 
+            // `parent_topic_id` is an indexed `contexts` column — re-upsert so
+            // the moved Project's reverse-view membership reflects its new parent.
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
+
             var oldArr = projectsByParent[oldParent.id] ?? []
             oldArr.removeAll { $0.id == project.id }
             projectsByParent[oldParent.id] = oldArr
@@ -414,6 +487,10 @@ final class TopicManager {
                 forTitle: project.title, inTopicTitled: parent.title, in: nexus
             )
             try Filesystem.moveToTrash(url, in: nexus)
+            // Drop the stale tier-3 `contexts` row.
+            if let updater = indexUpdater {
+                do { try updater.deleteContext(id: project.id) } catch { self.pendingError = error }
+            }
             var arr = projectsByParent[parent.id] ?? []
             arr.removeAll { $0.id == project.id }
             projectsByParent[parent.id] = arr
@@ -436,6 +513,10 @@ final class TopicManager {
                 forTitle: project.title, inTopicTitled: parent.title, in: nexus
             )
             try updated.save(to: url)
+            // `icon` is an indexed `contexts` column — re-upsert.
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
             var arr = projectsByParent[parent.id] ?? []
             if let i = arr.firstIndex(where: { $0.id == project.id }) {
                 arr[i] = updated

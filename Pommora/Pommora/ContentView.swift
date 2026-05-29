@@ -494,11 +494,14 @@ struct ContentView: View {
         // tracks index swaps within this Nexus.
         let relationRes = RelationDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
 
-        // Phase E.7.5: wire IndexUpdater into all 6 CRUD managers before publishing.
-        // IndexUpdater is Sendable — a single value can be shared across all 6.
+        // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
+        // (Space + Topic added so Contexts sync to the `contexts` index table).
+        // IndexUpdater is Sendable — a single value can be shared across all of them.
         // If currentIndex is nil (degraded mode), updater stays nil and every
         // manager's `if let updater = indexUpdater` guard skips index writes.
         let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
+        spaceMgr.indexUpdater = updater
+        topicMgr.indexUpdater = updater
         vaultMgr.indexUpdater = updater
         itemTypeMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater

@@ -13,6 +13,13 @@ final class SpaceManager {
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 
+    /// Injected by ContentView.constructManagers. Nil until wired; CRUD methods
+    /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
+    /// Spaces index into `contexts` as tier 1 via `upsertContext(_:)` — without this,
+    /// `IndexQuery.entitiesByTarget(.contextTier(1))` (the inline tier picker source)
+    /// never sees Spaces created/edited since the last full IndexBuilder rebuild.
+    var indexUpdater: IndexUpdater?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -31,6 +38,17 @@ final class SpaceManager {
                 titleKeyPath: \Space.title
             )
             self.pendingError = nil
+
+            // Defensive index sync (quirk #15). Spaces arriving outside CRUD
+            // (adopted / externally-added / pre-existing folders) must land in
+            // the `contexts` table so the tier-1 picker can surface them.
+            // INSERT OR REPLACE is idempotent; failures swallowed (index is
+            // regeneratable, no user data lost).
+            if let updater = indexUpdater {
+                for space in self.spaces {
+                    try? updater.upsertContext(space)
+                }
+            }
         } catch {
             self.spaces = []
             self.pendingError = error
@@ -54,6 +72,10 @@ final class SpaceManager {
             try NexusPaths.ensureDirectoryExists(dir)
             let url = NexusPaths.spaceFileURL(forTitle: name, in: nexus)
             try space.save(to: url)
+
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(space) } catch { self.pendingError = error }
+            }
 
             spaces.append(space)
             spaces = OrderResolver.resolve(
@@ -94,6 +116,10 @@ final class SpaceManager {
                     self.pendingError = combined
                     throw combined
                 }
+            }
+
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
             }
 
             if let i = spaces.firstIndex(where: { $0.id == space.id }) {
@@ -145,6 +171,11 @@ final class SpaceManager {
             updated.modifiedAt = Date()
             let url = NexusPaths.spaceFileURL(forTitle: space.title, in: nexus)
             try updated.save(to: url)
+            // `icon` is an indexed `contexts` column — re-upsert so the tier
+            // picker (which displays icon + title) reflects the change.
+            if let updater = indexUpdater {
+                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
+            }
             if let i = spaces.firstIndex(where: { $0.id == space.id }) {
                 spaces[i] = updated
             }
@@ -173,6 +204,10 @@ final class SpaceManager {
         do {
             let url = NexusPaths.spaceFileURL(forTitle: space.title, in: nexus)
             try Filesystem.moveToTrash(url, in: nexus)
+            // Drop the stale `contexts` row (closes the stale-index-row-on-delete gap).
+            if let updater = indexUpdater {
+                do { try updater.deleteContext(id: space.id) } catch { self.pendingError = error }
+            }
             spaces.removeAll { $0.id == space.id }
         } catch {
             self.pendingError = error
