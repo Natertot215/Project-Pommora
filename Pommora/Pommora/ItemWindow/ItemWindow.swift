@@ -265,6 +265,9 @@ struct ItemWindow: View {
     }
 
     private func relationLine(label: String, ids: [String]) -> some View {
+        // TODO: placeholder Item Window — renders tier relation values as raw
+        // joined IDs. When the real Item Window is built, route each value
+        // through RelationChip (target icon + title) per Features/Properties.md.
         HStack {
             Text(label).frame(width: 140, alignment: .leading).foregroundStyle(.secondary)
             Text(ids.isEmpty ? "—" : ids.joined(separator: ", "))

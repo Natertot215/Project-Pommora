@@ -1,6 +1,6 @@
 ### swift-markdown-engine — vendored
 
-Pommora vendors a subset of [`nodes-app/swift-markdown-engine`](https://github.com/nodes-app/swift-markdown-engine) at `Pommora/Pommora/PageEditor/Engine/`. The upstream is licensed Apache 2.0 (see `LICENSE`). The engine is consumed as source files (not a Swift Package) so Pommora can replace the regex parser + styler with Apple-AST-backed implementations.
+Pommora vendors a subset of [`nodes-app/swift-markdown-engine`](https://github.com/nodes-app/swift-markdown-engine) at `External/MarkdownEngine/`. The upstream is licensed Apache 2.0 (see `LICENSE`). The engine is consumed as source files (not a Swift Package) so Pommora can replace the regex parser + styler with Apple-AST-backed implementations.
 
 #### Upstream commit
 

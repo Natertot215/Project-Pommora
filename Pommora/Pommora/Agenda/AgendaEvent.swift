@@ -32,7 +32,7 @@ struct AgendaEvent: Codable, Equatable, Identifiable, Hashable, Sendable {
     var tier3: [String]
     var createdAt: Date
     var modifiedAt: Date
-    var properties: [String: PropertyValue]  // includes built-in `type` Select (NO status)
+    var properties: [String: PropertyValue]  // includes the built-in `_status` (Status)
 
     enum CodingKeys: String, CodingKey {
         case id, icon, description, location, recurrence

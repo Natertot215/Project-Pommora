@@ -2,13 +2,12 @@ import SwiftUI
 
 /// **The single rendering primitive for relation property values across every
 /// Pommora surface.** Every surface that displays a relation value routes
-/// through this primitive; adding a parallel rendering path violates the
-/// chip-everywhere paradigm.
+/// through this primitive; adding a parallel rendering path duplicates it.
 ///
 /// Consumers:
 /// - `PropertyCellDisplay` (Table cells)
 /// - `PropertyPanel` (single-entity property panel)
-/// - `PropertiesPulldown` (nav-pulldown property summary)
+/// - `PropertiesPulldown` (planned property dropdown — not yet wired)
 /// - `FrontmatterInspector` (page editor inspector)
 /// - `ItemWindow` (item popover)
 /// - `RelationPicker` (value-assignment popover rows)

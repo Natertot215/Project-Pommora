@@ -136,7 +136,7 @@ struct FrontmatterInspector: View {
         }
     }
 
-    // MARK: - Tiers section (read-only in inspector — editable via PropertiesPulldown)
+    // MARK: - Tiers section (read-only here; the planned properties dropdown will host editing)
 
     private var tiersSection: some View {
         Section("Tiers") {
