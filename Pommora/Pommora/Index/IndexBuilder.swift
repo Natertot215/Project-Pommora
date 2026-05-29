@@ -145,7 +145,7 @@ final class IndexBuilder {
             try insertAgendaEvents(db, snapshot: snapshot)
             try insertContexts(db, snapshot: snapshot)
             try insertRelations(db, snapshot: snapshot)
-            try insertTierLinks(db, snapshot: snapshot)
+            try insertTierRelations(db, snapshot: snapshot)
         }
     }
 
@@ -401,7 +401,6 @@ final class IndexBuilder {
     // MARK: - Phase 2: DB inserts (inside @Sendable GRDB write closure — no @MainActor calls)
 
     private nonisolated static func clearAllTables(_ db: Database) throws {
-        try db.execute(sql: "DELETE FROM tier_links")
         try db.execute(sql: "DELETE FROM relations")
         try db.execute(sql: "DELETE FROM property_definitions")
         try db.execute(sql: "DELETE FROM pages")
@@ -602,17 +601,17 @@ final class IndexBuilder {
         }
     }
 
-    private nonisolated static func insertTierLinks(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertTierRelations(_ db: Database, snapshot: NexusSnapshot) throws {
         for pt in snapshot.pageTypes {
             for coll in pt.collections {
                 for page in coll.pages {
-                    try insertTierLinkRows(db, entityID: page.id, entityKind: "page",
+                    try insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
                         tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                         modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
-                try insertTierLinkRows(db, entityID: page.id, entityKind: "page",
+                try insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
                     tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                     modifiedAt: page.modifiedAt)
             }
@@ -620,56 +619,30 @@ final class IndexBuilder {
         for it in snapshot.itemTypes {
             for coll in it.collections {
                 for item in coll.items {
-                    try insertTierLinkRows(db, entityID: item.id, entityKind: "item",
+                    try insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
                         tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                         modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
-                try insertTierLinkRows(db, entityID: item.id, entityKind: "item",
+                try insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
                     tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                     modifiedAt: item.modifiedAt)
             }
         }
         for task in snapshot.tasks {
-            try insertTierLinkRows(db, entityID: task.id, entityKind: "agenda_task",
+            try insertTierRelationRows(db, sourceID: task.id, sourceKind: "agenda_task",
                 tier1: task.tier1, tier2: task.tier2, tier3: task.tier3,
                 modifiedAt: task.modifiedAt)
         }
         for event in snapshot.events {
-            try insertTierLinkRows(db, entityID: event.id, entityKind: "agenda_event",
+            try insertTierRelationRows(db, sourceID: event.id, sourceKind: "agenda_event",
                 tier1: event.tier1, tier2: event.tier2, tier3: event.tier3,
                 modifiedAt: event.modifiedAt)
         }
     }
 
-    private nonisolated static func insertTierLinkRows(
-        _ db: Database,
-        entityID: String,
-        entityKind: String,
-        tier1: [String],
-        tier2: [String],
-        tier3: [String],
-        modifiedAt: Date
-    ) throws {
-        for targetID in tier1 {
-            try db.execute(literal: "INSERT OR IGNORE INTO tier_links (entity_id, entity_kind, tier, target_id) VALUES (\(entityID), \(entityKind), 1, \(targetID))")
-        }
-        for targetID in tier2 {
-            try db.execute(literal: "INSERT OR IGNORE INTO tier_links (entity_id, entity_kind, tier, target_id) VALUES (\(entityID), \(entityKind), 2, \(targetID))")
-        }
-        for targetID in tier3 {
-            try db.execute(literal: "INSERT OR IGNORE INTO tier_links (entity_id, entity_kind, tier, target_id) VALUES (\(entityID), \(entityKind), 3, \(targetID))")
-        }
-        // Additively mirror each tier value into the `relations` table so the
-        // reverse-view query (`IndexQuery.incomingRelations`) — which reads
-        // `relations`, not `tier_links` — surfaces tier-based links to a Context.
-        // `tier_links` above is kept exactly as-is (retired in a later phase).
-        try insertTierRelationRows(db, sourceID: entityID, sourceKind: entityKind,
-            tier1: tier1, tier2: tier2, tier3: tier3, modifiedAt: modifiedAt)
-    }
-
-    /// Emits one `relations` row per tier value (mirroring the `tier_links` rows).
+    /// Emits one `relations` row per tier value.
     /// `target_kind` derives from `RelationTargetKind.string(from: .contextTier(n))`
     /// (DRY — shared with property relations); `property_id` is the reserved tier ID.
     private nonisolated static func insertTierRelationRows(

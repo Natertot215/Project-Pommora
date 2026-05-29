@@ -228,7 +228,7 @@ final class AgendaEventManager {
     /// Each referencing Event is loaded, mutated through the `setRelationIDs`
     /// adapter (tiers route to the Event root, NOT `properties["_tierN"]`),
     /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
-    /// re-indexed so the stale `relations` / `tier_links` rows reconcile away.
+    /// re-indexed so the stale `relations` rows reconcile away.
     ///
     /// Resilient per-entity: an Event that can't be located or loaded is skipped
     /// (the first failure is recorded on `pendingError`) so one bad file never

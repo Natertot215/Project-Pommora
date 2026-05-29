@@ -7,9 +7,9 @@ import GRDB
 /// rebuilt via `IndexBuilder` (Phase E.4).
 ///
 /// All upserts use `INSERT OR REPLACE INTO ...` so concurrent manager writes
-/// are idempotent. Relation and tier-link reconciliation does a full DELETE
-/// then re-insert for the source entity — correct because the source entity
-/// is always written atomically before the index call.
+/// are idempotent. Relation reconciliation does a full DELETE then re-insert
+/// for the source entity — correct because the source entity is always written
+/// atomically before the index call.
 struct IndexUpdater: Sendable {
     let index: PommoraIndex
 
@@ -120,14 +120,6 @@ struct IndexUpdater: Sendable {
                 tier2: meta.frontmatter.tier2,
                 tier3: meta.frontmatter.tier3
             )
-            try reconcileTierLinks(
-                db: db,
-                entityID: meta.id,
-                kind: "page",
-                tier1: meta.frontmatter.tier1,
-                tier2: meta.frontmatter.tier2,
-                tier3: meta.frontmatter.tier3
-            )
         }
     }
 
@@ -135,7 +127,6 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM pages WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM tier_links WHERE entity_id = ?", arguments: [id])
         }
     }
 
@@ -212,14 +203,6 @@ struct IndexUpdater: Sendable {
                 tier2: item.tier2,
                 tier3: item.tier3
             )
-            try reconcileTierLinks(
-                db: db,
-                entityID: item.id,
-                kind: "item",
-                tier1: item.tier1,
-                tier2: item.tier2,
-                tier3: item.tier3
-            )
         }
     }
 
@@ -227,7 +210,6 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM items WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM tier_links WHERE entity_id = ?", arguments: [id])
         }
     }
 
@@ -257,14 +239,6 @@ struct IndexUpdater: Sendable {
                 tier2: task.tier2,
                 tier3: task.tier3
             )
-            try reconcileTierLinks(
-                db: db,
-                entityID: task.id,
-                kind: "agenda_task",
-                tier1: task.tier1,
-                tier2: task.tier2,
-                tier3: task.tier3
-            )
         }
     }
 
@@ -272,7 +246,6 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM agenda_tasks WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM tier_links WHERE entity_id = ?", arguments: [id])
         }
     }
 
@@ -302,14 +275,6 @@ struct IndexUpdater: Sendable {
                 tier2: event.tier2,
                 tier3: event.tier3
             )
-            try reconcileTierLinks(
-                db: db,
-                entityID: event.id,
-                kind: "agenda_event",
-                tier1: event.tier1,
-                tier2: event.tier2,
-                tier3: event.tier3
-            )
         }
     }
 
@@ -317,7 +282,6 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM agenda_events WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM tier_links WHERE entity_id = ?", arguments: [id])
         }
     }
 
@@ -416,8 +380,7 @@ struct IndexUpdater: Sendable {
     /// (`tier1`/`tier2`/`tier3`) are mirrored into the same `relations` table here —
     /// after the DELETE, so the new rows survive — letting the reverse-view query
     /// (`IndexQuery.incomingRelations`, which reads `relations`) surface tier-based
-    /// links to a Context. The parallel `tier_links` emit (`reconcileTierLinks`) is
-    /// kept untouched (retired in a later phase).
+    /// links to a Context.
     private func reconcileRelations(
         db: Database,
         sourceID: String,
@@ -478,34 +441,6 @@ struct IndexUpdater: Sendable {
                         targetID, targetKind,
                         propertyID, nowISO(),
                     ]
-                )
-            }
-        }
-    }
-
-    /// Writes tier-link rows for `entityID` by tier. Clears existing rows first.
-    private func reconcileTierLinks(
-        db: Database,
-        entityID: String,
-        kind: String,
-        tier1: [String],
-        tier2: [String],
-        tier3: [String]
-    ) throws {
-        try db.execute(
-            sql: "DELETE FROM tier_links WHERE entity_id = ? AND entity_kind = ?",
-            arguments: [entityID, kind]
-        )
-        let groups: [(Int, [String])] = [(1, tier1), (2, tier2), (3, tier3)]
-        for (tier, ids) in groups {
-            for targetID in ids {
-                try db.execute(
-                    sql: """
-                        INSERT OR IGNORE INTO tier_links
-                            (entity_id, entity_kind, tier, target_id)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                    arguments: [entityID, kind, tier, targetID]
                 )
             }
         }

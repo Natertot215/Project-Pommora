@@ -306,7 +306,7 @@ struct IndexBuilderTests {
         #expect(count == 1)
     }
 
-    @Test func populateTierLinksFromPageTierFields() async throws {
+    @Test func populateTierRelationsFromPageTierFields() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
@@ -337,16 +337,20 @@ struct IndexBuilderTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)
 
-        let linkCount = try await idx.dbQueue.read { db in
+        // The page's tier1 value emits one `relations` row carrying the reserved
+        // tier-1 property id and the space as target.
+        let relCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db,
-                sql: "SELECT COUNT(*) FROM tier_links WHERE entity_kind = 'page' AND tier = 1"
+                sql: "SELECT COUNT(*) FROM relations WHERE source_kind = 'page' AND property_id = ?",
+                arguments: [ReservedPropertyID.tier1]
             ) ?? -1
         }
-        #expect(linkCount == 1)
+        #expect(relCount == 1)
 
         let targetID = try await idx.dbQueue.read { db in
             try String.fetchOne(db,
-                sql: "SELECT target_id FROM tier_links WHERE entity_kind = 'page' AND tier = 1"
+                sql: "SELECT target_id FROM relations WHERE source_kind = 'page' AND property_id = ?",
+                arguments: [ReservedPropertyID.tier1]
             )
         }
         #expect(targetID == space.id)

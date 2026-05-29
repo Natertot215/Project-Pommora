@@ -704,7 +704,7 @@ extension PageContentManager {
     /// index (no in-hand URL), loaded, mutated through the `setRelationIDs`
     /// adapter (tiers route to the frontmatter root, NOT `properties["_tierN"]`),
     /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
-    /// re-indexed so the stale `relations` / `tier_links` rows reconcile away.
+    /// re-indexed so the stale `relations` rows reconcile away.
     ///
     /// Resilient per-entity: a Page that can't be located or loaded is skipped so
     /// one bad file doesn't abort the cascade. The first such failure is recorded

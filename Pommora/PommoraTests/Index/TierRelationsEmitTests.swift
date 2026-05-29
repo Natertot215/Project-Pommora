@@ -6,11 +6,10 @@ import Testing
 
 // MARK: - Suite
 
-/// Tier values (`tier1`/`tier2`/`tier3`) must be mirrored into the `relations`
-/// table — not only the legacy `tier_links` table — so the reverse-view query
-/// `IndexQuery.incomingRelations(targetID:)` (which reads `relations`) surfaces
-/// tier-based links to a Context. Covers both index paths:
-/// `IndexUpdater` (incremental upsert) and `IndexBuilder` (full rebuild).
+/// Tier values (`tier1`/`tier2`/`tier3`) must be emitted into the `relations`
+/// table so the reverse-view query `IndexQuery.incomingRelations(targetID:)`
+/// (which reads `relations`) surfaces tier-based links to a Context. Covers both
+/// index paths: `IndexUpdater` (incremental upsert) and `IndexBuilder` (full rebuild).
 ///
 /// Struct name MATCHES the filename (`-only-testing:PommoraTests/TierRelationsEmitTests`
 /// — Swift Testing filters by suite/type name, not source filename).
@@ -67,16 +66,6 @@ struct TierRelationsEmitTests {
             createdAt: now, modifiedAt: now,
             properties: [:]
         )
-    }
-
-    private func tierLinkCount(entityID: String, db index: PommoraIndex) throws -> Int {
-        try index.dbQueue.read { db in
-            try Int.fetchOne(
-                db,
-                sql: "SELECT COUNT(*) FROM tier_links WHERE entity_id = ?",
-                arguments: [entityID]
-            ) ?? -1
-        }
     }
 
     private func relationCount(sourceID: String, db index: PommoraIndex) throws -> Int {
@@ -193,9 +182,9 @@ struct TierRelationsEmitTests {
         #expect(targetKind == RelationTargetKind.string(from: .contextTier(1)))
     }
 
-    // MARK: - IndexUpdater (incremental) — deleteAgendaTask cleans relations + tier_links
+    // MARK: - IndexUpdater (incremental) — deleteAgendaTask cleans relations
 
-    @Test func deleteAgendaTaskClearsRelationsAndTierLinks() async throws {
+    @Test func deleteAgendaTaskClearsRelations() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try makeIndex(at: nexus)
@@ -205,15 +194,13 @@ struct TierRelationsEmitTests {
         let task = makeAgendaTask(tier1: [contextID])
         try updater.upsertAgendaTask(task)
 
-        // Sanity: rows were written by the upsert.
+        // Sanity: the relations row was written by the upsert.
         #expect(try relationCount(sourceID: task.id, db: idx) == 1)
-        #expect(try tierLinkCount(entityID: task.id, db: idx) == 1)
 
         try updater.deleteAgendaTask(id: task.id)
 
-        // Both tables are cleaned for the deleted task.
+        // The relations table is cleaned for the deleted task.
         #expect(try relationCount(sourceID: task.id, db: idx) == 0)
-        #expect(try tierLinkCount(entityID: task.id, db: idx) == 0)
     }
 
     // MARK: - IndexUpdater (incremental) — re-upsert does not duplicate or wipe

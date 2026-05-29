@@ -26,10 +26,10 @@ final class PommoraIndex: @unchecked Sendable {
     // folders-free schema; IndexBuilder repopulates. Safe — the index holds no
     // user data.
     //
-    // v3 (2026-05-29): Relations Redesign. Tier values (`_tier1/2/3`) now emit
-    // into the `relations` table — not only `tier_links` — so the Context-delete
-    // cascade's reverse query (`IndexQuery.incomingRelations`) can see tier→Context
-    // links. A v2 DB built before that change has no tier rows in `relations` for
+    // v3 (2026-05-29): Relations Redesign. Tier values (`_tier1/2/3`) emit into
+    // the `relations` table so the Context-delete cascade's reverse query
+    // (`IndexQuery.incomingRelations`) can see tier→Context links. A v2 DB built
+    // before that change has no tier rows in `relations` for
     // un-edited entities, so the cascade would silently miss them. Bumping to 3
     // forces every existing DB through one delete+rebuild, which backfills tiers
     // into `relations` via the updated IndexBuilder. Same throwaway-cache rationale

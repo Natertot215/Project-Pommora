@@ -224,7 +224,7 @@ final class AgendaTaskManager {
     /// Each referencing Task is loaded, mutated through the `setRelationIDs`
     /// adapter (tiers route to the Task root, NOT `properties["_tierN"]`),
     /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
-    /// re-indexed so the stale `relations` / `tier_links` rows reconcile away.
+    /// re-indexed so the stale `relations` rows reconcile away.
     ///
     /// Resilient per-entity: a Task that can't be located or loaded is skipped
     /// (the first failure is recorded on `pendingError`) so one bad file never
