@@ -32,7 +32,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     var reverseName: String? = nil
     /// Reverse-side icon override. Same semantics as reverseName.
     var reverseIcon: String? = nil
-    var allowsMultiple: Bool?  // relation — single-pick vs multi-pick
     var dualProperty: DualPropertyConfig?  // relation — paired reverse on target Type
     var accept: [String]?  // file — MIME-type whitelist (e.g. ["application/pdf", "image/*"])
     var displayAs: DisplayVariant?  // status — render variant (nil = .box default)
@@ -50,7 +49,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         relationScope: RelationScope? = nil,
         reverseName: String? = nil,
         reverseIcon: String? = nil,
-        allowsMultiple: Bool? = nil,
         dualProperty: DualPropertyConfig? = nil,
         accept: [String]? = nil,
         displayAs: DisplayVariant? = nil,
@@ -67,7 +65,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.relationScope = relationScope
         self.reverseName = reverseName
         self.reverseIcon = reverseIcon
-        self.allowsMultiple = allowsMultiple
         self.dualProperty = dualProperty
         self.accept = accept
         self.displayAs = displayAs
@@ -250,7 +247,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         case relationScope = "relation_scope"
         case reverseName = "reverse_name"
         case reverseIcon = "reverse_icon"
-        case allowsMultiple = "allows_multiple"
         case dualProperty = "dual_property"
         case accept
         case displayAs = "display_as"
@@ -272,7 +268,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.relationScope = try c.decodeIfPresent(RelationScope.self, forKey: .relationScope)
         self.reverseName = try c.decodeIfPresent(String.self, forKey: .reverseName)
         self.reverseIcon = try c.decodeIfPresent(String.self, forKey: .reverseIcon)
-        self.allowsMultiple = try c.decodeIfPresent(Bool.self, forKey: .allowsMultiple)
         self.dualProperty = try c.decodeIfPresent(DualPropertyConfig.self, forKey: .dualProperty)
         self.accept = try c.decodeIfPresent([String].self, forKey: .accept)
         self.displayAs = try c.decodeIfPresent(DisplayVariant.self, forKey: .displayAs)
@@ -292,7 +287,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(relationScope, forKey: .relationScope)
         try c.encodeIfPresent(reverseName, forKey: .reverseName)
         try c.encodeIfPresent(reverseIcon, forKey: .reverseIcon)
-        try c.encodeIfPresent(allowsMultiple, forKey: .allowsMultiple)
         try c.encodeIfPresent(dualProperty, forKey: .dualProperty)
         try c.encodeIfPresent(accept, forKey: .accept)
         try c.encodeIfPresent(displayAs, forKey: .displayAs)

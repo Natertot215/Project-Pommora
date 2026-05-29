@@ -21,7 +21,6 @@ struct RelationPropertyWizardTests {
             let sourceScopeKind: String
             let targetTypeID: String
             let targetPropertyName: String
-            let allowsMultiple: Bool
         }
 
         var capturedCalls: [CapturedCall] = []
@@ -42,8 +41,7 @@ struct RelationPropertyWizardTests {
                 sourcePropertyName: sourcePropertyName,
                 sourceScopeKind: "\(sourceScope)",
                 targetTypeID: targetKind.typeID,
-                targetPropertyName: targetPropertyName,
-                allowsMultiple: false
+                targetPropertyName: targetPropertyName
             ))
             return ("src_prop_001", "tgt_prop_001")
         }
@@ -58,7 +56,7 @@ struct RelationPropertyWizardTests {
 
     // MARK: - Test 1: full 5-step container-scope flow
 
-    @Test("Full 5-step pageType-scope flow advances through all steps correctly")
+    @Test("Full 4-step pageType-scope flow advances through all steps correctly")
     @MainActor
     func fullContainerScopeFlow() {
         let vm = makeVM()
@@ -79,15 +77,11 @@ struct RelationPropertyWizardTests {
         vm.advance()
         #expect(vm.currentStep == .reverseName)
 
-        // Step 4: reverse name (other side) — NOT skipped for container scopes
+        // Step 4: reverse name (other side) — last step for container scopes
         vm.reverseName = "Source Items"
-        vm.advance()
-        #expect(vm.currentStep == .allowMultiple)
+        #expect(vm.isLastStep)
 
-        // Step 5: configure allowsMultiple
-        vm.allowsMultiple = true
-
-        // Final step built args should reflect all inputs
+        // Built args should reflect all inputs
         let scope = vm.buildSourceScope()
         if case .pageType(let id) = scope {
             #expect(id == "pt_target_01")
@@ -96,12 +90,11 @@ struct RelationPropertyWizardTests {
         }
         #expect(vm.propertyName == "Related Pages")
         #expect(vm.reverseName == "Source Items")
-        #expect(vm.allowsMultiple)
     }
 
     // MARK: - Test 2: contextTier skips step 4
 
-    @Test("contextTier scope skips step 4 (reverseName)")
+    @Test("contextTier scope skips step 4 (reverseName) — propName is the last step")
     @MainActor
     func contextTierSkipsReverseName() {
         let vm = makeVM()
@@ -116,10 +109,11 @@ struct RelationPropertyWizardTests {
         #expect(vm.currentStep == .propName)
 
         vm.propertyName = "My Tier Relations"
+        // propName is the last step for contextTier (no reverseName, no allowMultiple)
+        #expect(vm.isLastStep)
         vm.advance()
-
-        // Should skip reverseName and go directly to allowMultiple
-        #expect(vm.currentStep == .allowMultiple)
+        // advance() is a no-op on contextTier propName (save is triggered by isLastStep)
+        #expect(vm.currentStep == .propName)
     }
 
     // MARK: - Test 3: cancel at any step doesn't advance

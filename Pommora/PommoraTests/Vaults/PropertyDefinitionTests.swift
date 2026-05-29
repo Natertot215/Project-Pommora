@@ -42,7 +42,6 @@ import Testing
             selectOptions: nil,
             statusGroups: nil,
             relationScope: .pageType("01HTARGET"),
-            allowsMultiple: true,
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: "prop_01HREVERSE",
                 syncedPropertyDefinedOnTypeID: "01HTARGET"
@@ -182,5 +181,37 @@ import Testing
         let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: data)
         #expect(decoded == def)
         #expect(decoded.statusGroups?.count == 3)
+    }
+
+    // MARK: - allows_multiple legacy tolerance (Relations Redesign)
+
+    @Test func decoderToleratesLegacyAllowsMultipleField() throws {
+        // Old on-disk JSON that still contains "allows_multiple": true must decode
+        // without error; the unknown key is simply ignored.
+        let json = """
+        {
+            "id": "prop_01HLEGACY",
+            "name": "Related Items",
+            "type": "relation",
+            "relation_scope": {"kind": "item_type", "item_type_id": "t1"},
+            "allows_multiple": true
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: json)
+        #expect(decoded.id == "prop_01HLEGACY")
+    }
+
+    @Test func encoderDoesNotEmitAllowsMultiple() throws {
+        // Encoding a relation PropertyDefinition must not include "allows_multiple"
+        // in the output — the field no longer exists.
+        let def = PropertyDefinition(
+            id: "prop_01HREL",
+            name: "Links",
+            type: .relation,
+            relationScope: .itemType("t1")
+        )
+        let data = try JSONEncoder().encode(def)
+        let json = String(data: data, encoding: .utf8)!
+        #expect(!json.contains("allows_multiple"))
     }
 }

@@ -17,14 +17,12 @@ struct RelationPickerTests {
     private func makePicker(
         selectedIDs: [String] = [],
         scope: PropertyDefinition.RelationScope = .contextTier(2),
-        allowsMultiple: Bool = true,
         index: PommoraIndex? = nil
     ) -> RelationPicker {
         var ids = selectedIDs
         return RelationPicker(
             selectedIDs: Binding(get: { ids }, set: { ids = $0 }),
             scope: scope,
-            allowsMultiple: allowsMultiple,
             index: index,
             onSelect: { _ in }
         )
@@ -56,25 +54,26 @@ struct RelationPickerTests {
         _ = picker
     }
 
-    // MARK: - Test 4: allowsMultiple false — selecting new entity replaces existing
+    // MARK: - Test 4: selecting a new entity accumulates (always multi-pick)
 
-    @Test("allowsMultiple: false — selecting new entity replaces existing selection")
-    func singlePickReplacesSelection() {
-        let picker = makePicker(allowsMultiple: false)
+    @Test("Selecting a new entity accumulates without replacing existing selection")
+    func newSelectionAccumulates() {
+        let picker = makePicker()
         let result = picker.computeSelection(
             id: "01H_NEW",
             wasSelected: false,
             current: ["01H_OLD"]
         )
-        #expect(result == ["01H_NEW"])
-        #expect(!result.contains("01H_OLD"))
+        #expect(result.contains("01H_OLD"))
+        #expect(result.contains("01H_NEW"))
+        #expect(result.count == 2)
     }
 
-    // MARK: - Test 5: allowsMultiple true — selections accumulate
+    // MARK: - Test 5: selections accumulate across multiple taps
 
-    @Test("allowsMultiple: true — new selection accumulates without removing existing")
+    @Test("New selection accumulates without removing existing")
     func multiPickAccumulates() {
-        let picker = makePicker(allowsMultiple: true)
+        let picker = makePicker()
         let result = picker.computeSelection(
             id: "01H_B",
             wasSelected: false,
@@ -85,11 +84,11 @@ struct RelationPickerTests {
         #expect(result.count == 2)
     }
 
-    // MARK: - Test 6: allowsMultiple true — tapping selected removes it
+    // MARK: - Test 6: tapping selected removes it (chip removal)
 
-    @Test("allowsMultiple: true — tapping a selected entity removes it (chip removal)")
+    @Test("Tapping a selected entity removes it (chip removal)")
     func multiPickRemovesOnReselect() {
-        let picker = makePicker(allowsMultiple: true)
+        let picker = makePicker()
         let result = picker.computeSelection(
             id: "01H_A",
             wasSelected: true,
@@ -100,11 +99,11 @@ struct RelationPickerTests {
         #expect(result.count == 1)
     }
 
-    // MARK: - Test 7: allowsMultiple false — tapping selected clears selection
+    // MARK: - Test 7: tapping the only selected entity clears selection
 
-    @Test("allowsMultiple: false — tapping the currently selected entity clears selection")
-    func singlePickDeselects() {
-        let picker = makePicker(allowsMultiple: false)
+    @Test("Tapping the currently selected entity clears selection")
+    func deselect() {
+        let picker = makePicker()
         let result = picker.computeSelection(
             id: "01H_SAME",
             wasSelected: true,

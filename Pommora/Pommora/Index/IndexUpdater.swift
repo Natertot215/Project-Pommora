@@ -444,7 +444,6 @@ struct IndexUpdater: Sendable {
         if let opts = def.selectOptions {
             dict["select_options"] = opts.map { ["value": $0.value, "label": $0.label] }
         }
-        if let am = def.allowsMultiple { dict["allows_multiple"] = am }
         guard let data = try? JSONSerialization.data(withJSONObject: dict),
             let str = String(data: data, encoding: .utf8)
         else { return "{}" }

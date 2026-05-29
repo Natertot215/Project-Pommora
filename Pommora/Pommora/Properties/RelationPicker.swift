@@ -1,17 +1,12 @@
 import SwiftUI
 
 /// Scope-aware relation picker. Uses `IndexQuery.entitiesByScope(_:)` to load
-/// the candidate list from SQLite. Supports single-pick and multi-pick modes.
-///
-/// - Single-pick (`allowsMultiple: false`): selecting a new entity replaces any
-///   existing selection.
-/// - Multi-pick (`allowsMultiple: true`): selections accumulate; tapping a
-///   selected entity removes it (chip-removal semantics).
-/// - Nil `index`: renders an empty-state placeholder without crashing.
+/// the candidate list from SQLite. Relations are always multi-pick: selections
+/// accumulate; tapping a selected entity removes it (chip-removal semantics).
+/// Nil `index` renders an empty-state placeholder without crashing.
 struct RelationPicker: View {
     @Binding var selectedIDs: [String]
     let scope: PropertyDefinition.RelationScope
-    let allowsMultiple: Bool
     let index: PommoraIndex?
     let onSelect: ([String]) -> Void
 
@@ -64,14 +59,10 @@ struct RelationPicker: View {
     // MARK: - Selection logic
 
     /// Pure selection computation — takes current selection array, returns the
-    /// new array after toggling `id`. Exposed (non-private) so tests can call it
-    /// directly without a live SwiftUI button tap.
+    /// new array after toggling `id`. Relations are always multi-pick.
+    /// Exposed (non-private) so tests can call it directly without a live SwiftUI button tap.
     func computeSelection(id: String, wasSelected: Bool, current: [String]) -> [String] {
-        if allowsMultiple {
-            return wasSelected ? current.filter { $0 != id } : current + [id]
-        } else {
-            return wasSelected ? [] : [id]
-        }
+        wasSelected ? current.filter { $0 != id } : current + [id]
     }
 
     // MARK: - Data loading

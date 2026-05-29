@@ -70,7 +70,6 @@ enum WizardStep: Int, CaseIterable, Sendable {
     case target    = 2
     case propName  = 3
     case reverseName = 4
-    case allowMultiple = 5
 }
 
 /// View-model for `RelationPropertyWizard`. All mutation on the MainActor.
@@ -86,8 +85,6 @@ final class RelationPropertyWizardViewModel {
     var propertyName: String = ""
     // Step 4
     var reverseName: String = ""
-    // Step 5
-    var allowsMultiple: Bool = false
 
     var currentStep: WizardStep = .scopeKind
     var isCancelled = false
@@ -96,11 +93,10 @@ final class RelationPropertyWizardViewModel {
 
     var canAdvance: Bool {
         switch currentStep {
-        case .scopeKind:     return true
-        case .target:        return !targetID.isEmpty
-        case .propName:      return !propertyName.trimmingCharacters(in: .whitespaces).isEmpty
-        case .reverseName:   return !reverseName.trimmingCharacters(in: .whitespaces).isEmpty
-        case .allowMultiple: return true
+        case .scopeKind:   return true
+        case .target:      return !targetID.isEmpty
+        case .propName:    return !propertyName.trimmingCharacters(in: .whitespaces).isEmpty
+        case .reverseName: return !reverseName.trimmingCharacters(in: .whitespaces).isEmpty
         }
     }
 
@@ -111,34 +107,39 @@ final class RelationPropertyWizardViewModel {
         case .target:
             currentStep = .propName
         case .propName:
-            // Skip step 4 for contextTier
-            currentStep = selectedScopeKind.requiresReverseName ? .reverseName : .allowMultiple
+            // Skip step 4 for contextTier; otherwise reverseName is the last step
+            if selectedScopeKind.requiresReverseName {
+                currentStep = .reverseName
+            }
+            // contextTier: stay on propName until Save is triggered
         case .reverseName:
-            currentStep = .allowMultiple
-        case .allowMultiple:
             break  // handled by Save
         }
     }
 
     func back() {
         switch currentStep {
-        case .scopeKind:     break
-        case .target:        currentStep = .scopeKind
-        case .propName:      currentStep = .target
-        case .reverseName:   currentStep = .propName
-        case .allowMultiple: currentStep = selectedScopeKind.requiresReverseName ? .reverseName : .propName
+        case .scopeKind:   break
+        case .target:      currentStep = .scopeKind
+        case .propName:    currentStep = .target
+        case .reverseName: currentStep = .propName
         }
     }
 
     var isFirstStep: Bool { currentStep == .scopeKind }
 
+    var isLastStep: Bool {
+        selectedScopeKind.requiresReverseName
+            ? currentStep == .reverseName
+            : currentStep == .propName
+    }
+
     var stepTitle: String {
         switch currentStep {
-        case .scopeKind:     return "Choose Scope"
-        case .target:        return "Choose Target"
-        case .propName:      return "Property Name"
-        case .reverseName:   return "Reverse Name"
-        case .allowMultiple: return "Allow Multiple"
+        case .scopeKind:   return "Choose Scope"
+        case .target:      return "Choose Target"
+        case .propName:    return "Property Name"
+        case .reverseName: return "Reverse Name"
         }
     }
 
@@ -189,7 +190,7 @@ struct RelationPropertyWizard: View {
                 Spacer()
                 Button("Cancel") { onCancel() }
                     .buttonStyle(.borderless)
-                if vm.currentStep == .allowMultiple {
+                if vm.isLastStep {
                     Button("Save") { commitSave() }
                         .buttonStyle(.borderedProminent)
                 } else {
@@ -220,8 +221,6 @@ struct RelationPropertyWizard: View {
             WizardNameStep(label: "Property name (this side):", value: $vm.propertyName)
         case .reverseName:
             WizardNameStep(label: "Reverse name (other side):", value: $vm.reverseName)
-        case .allowMultiple:
-            WizardAllowMultipleStep(allowsMultiple: $vm.allowsMultiple)
         }
     }
 
@@ -336,10 +335,3 @@ private struct WizardNameStep: View {
     }
 }
 
-private struct WizardAllowMultipleStep: View {
-    @Binding var allowsMultiple: Bool
-
-    var body: some View {
-        Toggle("Allow multiple relations", isOn: $allowsMultiple)
-    }
-}

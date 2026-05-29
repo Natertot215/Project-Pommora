@@ -294,7 +294,6 @@ struct EditPropertyPane: View {
             if !isContextTierScope(def.relationScope) {
                 relationMirrorRow(def: def)
             }
-            relationAllowsMultipleRow(def: def)
         }
     }
 
@@ -364,18 +363,6 @@ struct EditPropertyPane: View {
             Text("Display name for the mirror property created on the target Type. Pairing lands in a follow-up.")
                 .font(PUI.Typography.caption)
                 .foregroundStyle(.tertiary)
-        }
-    }
-
-    @ViewBuilder
-    private func relationAllowsMultipleRow(def: PropertyDefinition) -> some View {
-        HStack(spacing: PUI.Spacing.md) {
-            Text("Allow multiple")
-                .font(PUI.Typography.row)
-                .foregroundStyle(.primary)
-            Spacer()
-            Toggle("", isOn: bindingForRelationAllowsMultiple(def: def))
-                .labelsHidden()
         }
     }
 
@@ -500,19 +487,6 @@ struct EditPropertyPane: View {
                                     transformee.dualProperty?.syncedPropertyDefinedOnTypeID ?? ""
                             )
                         }
-                    }
-                }
-            }
-        )
-    }
-
-    private func bindingForRelationAllowsMultiple(def: PropertyDefinition) -> Binding<Bool> {
-        Binding(
-            get: { def.allowsMultiple ?? false },
-            set: { newValue in
-                Task {
-                    await applyTransform { transformee in
-                        transformee.allowsMultiple = newValue
                     }
                 }
             }

@@ -717,7 +717,6 @@ final class IndexBuilder {
             var selectOptions: [PropertyDefinition.SelectOption]?
             var statusGroups: [PropertyDefinition.StatusGroup]?
             var relationScope: PropertyDefinition.RelationScope?
-            var allowsMultiple: Bool?
             var accept: [String]?
 
             enum CodingKeys: String, CodingKey {
@@ -726,7 +725,6 @@ final class IndexBuilder {
                 case selectOptions = "select_options"
                 case statusGroups = "status_groups"
                 case relationScope = "relation_scope"
-                case allowsMultiple = "allows_multiple"
                 case accept
             }
         }
@@ -736,7 +734,6 @@ final class IndexBuilder {
             selectOptions: def.selectOptions,
             statusGroups: def.statusGroups,
             relationScope: def.relationScope,
-            allowsMultiple: def.allowsMultiple,
             accept: def.accept
         )
         let encoder = JSONEncoder()
