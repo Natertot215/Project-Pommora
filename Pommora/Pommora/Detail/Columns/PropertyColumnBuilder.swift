@@ -37,6 +37,14 @@ struct PropertyColumn: Identifiable, Hashable, Sendable {
 /// (in neither visible nor hidden — e.g. freshly created) as visible-by-
 /// default. Only `hiddenProperties` are excluded.
 ///
+/// The three tier relation columns (Project / Topic / Space → `_tier3`,
+/// `_tier2`, `_tier1`) are emitted rightmost-before-Modified, in that order,
+/// after all user-property columns and immediately before the trailing
+/// `.lastEditedTime`. Callers pass `resolvedProperties(tierConfig:)` so the
+/// tier defs are present in `schema`; each tier is hideable (skipped when its
+/// ID is in `hiddenProperties`) and only emitted when its def is actually in
+/// `schema` (defensive — a schema without tiers gets no tier columns).
+///
 /// If `visibleProperties` references a property ID not present in `schema`
 /// (e.g. property was deleted but the view config wasn't cleaned up), the
 /// ID is silently skipped — defensive parity with quirk #15's "in-memory
@@ -65,6 +73,18 @@ enum PropertyColumnBuilder {
         for def in schema where !view.visibleProperties.contains(def.id)
             && !hiddenSet.contains(def.id)
             && !ReservedPropertyID.isReserved(def.id) {
+            result.append(PropertyColumn(kind: .userProperty(def)))
+        }
+
+        // Tier relation columns — rightmost content columns, before Modified.
+        // Order is Project / Topic / Space (tier3, tier2, tier1). Each tier is
+        // hideable via `hiddenProperties`, and only emitted when its def is
+        // present in `schema` (callers pass `resolvedProperties(tierConfig:)`;
+        // a schema without tiers gets none). They never appear as user-property
+        // columns above because both user loops exclude reserved IDs.
+        for tierID in [ReservedPropertyID.tier3, ReservedPropertyID.tier2, ReservedPropertyID.tier1] {
+            guard !hiddenSet.contains(tierID) else { continue }
+            guard let def = schema.first(where: { $0.id == tierID }) else { continue }
             result.append(PropertyColumn(kind: .userProperty(def)))
         }
 
