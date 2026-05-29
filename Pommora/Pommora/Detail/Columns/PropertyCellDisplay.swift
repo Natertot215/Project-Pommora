@@ -328,6 +328,8 @@ struct PropertyCellDisplay: View {
         case .purple: return .purple
         case .pink: return .pink
         case .red: return .red
+        case .teal: return .teal
+        case .indigo: return .indigo
         }
     }
 }

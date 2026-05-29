@@ -85,7 +85,7 @@ enum PropertyChipColor: String, Codable, CaseIterable, Sendable, Hashable {
         .purple, .blue, .indigo, .teal, .pink,
     ]
 
-    /// Render the persistence-layer `PropertyDefinition.SelectColor` (9
+    /// Render the persistence-layer `PropertyDefinition.SelectColor` (11
     /// cases) as a `PropertyChipColor` (12 cases). Used wherever an option's
     /// stored color needs to drive a `PropertyChip` preview. Nil maps to
     /// `.default` (the gray-ish nil-fallback render).
@@ -104,6 +104,8 @@ enum PropertyChipColor: String, Codable, CaseIterable, Sendable, Hashable {
         case .purple: self = .purple
         case .pink: self = .pink
         case .red: self = .red
+        case .teal: self = .teal
+        case .indigo: self = .indigo
         }
     }
 }

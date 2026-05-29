@@ -82,7 +82,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     }
 
     enum SelectColor: String, Codable, CaseIterable, Hashable, Sendable {
-        case gray, brown, orange, yellow, green, blue, purple, pink, red
+        case gray, brown, orange, yellow, green, blue, purple, pink, red, teal, indigo
     }
 
     enum NumberFormat: String, Codable, CaseIterable, Hashable, Sendable {

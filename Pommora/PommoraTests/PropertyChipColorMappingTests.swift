@@ -18,9 +18,14 @@ struct PropertyChipColorMappingTests {
         #expect(PropertyChipColor.accent.toSelectColor() == nil)
     }
 
-    @Test func tealAndIndigoFallBackToNearestPersisted() {
-        #expect(PropertyChipColor.teal.toSelectColor() == .blue)
-        #expect(PropertyChipColor.indigo.toSelectColor() == .purple)
+    @Test func tealAndIndigoPersistDirectly() {
+        // Fix Log #9: teal/indigo are now first-class persisted SelectColors,
+        // not collapsed to blue/purple on save.
+        #expect(PropertyChipColor.teal.toSelectColor() == .teal)
+        #expect(PropertyChipColor.indigo.toSelectColor() == .indigo)
+        // Round-trips back to the same UI color.
+        #expect(PropertyChipColor(selectColor: .teal) == .teal)
+        #expect(PropertyChipColor(selectColor: .indigo) == .indigo)
     }
 
     @Test func selectOptionMapsToChipOption() {
