@@ -56,17 +56,22 @@ The only pure text field is the **title** (the filename, not a property). Where 
 
 #### Where Properties Live (surface architecture)
 
-A Page's properties surface in the main-window inspector; an Item's surface in the Item Window. Every surface renders **eager** — ALL schema properties from the parent Type render regardless of fill state, so the full schema is discoverable in one view. Populated entries show their value; empty entries render as void inputs ready to fill. The user voids or fills inline through `PropertyEditorRow`; there is no "+ Add property" picker over the schema (every schema entry is already visible). Adding a NEW property to the schema happens in Vault / Type Settings.
+The **target** surface architecture gives properties two homes, split by where the entity opens:
 
-| Surface | Property home | State |
+- **Properties dropdown** (`PropertiesPulldown`) — for **Pages, Contexts, and storage views** (the main content pane); a dropdown frees the trailing inspector to host the LLM / CLI interface.
+- **Property panel** (in a pop-out inspector) — for **Items, Page Previews, and Agenda items**, plus always-on pinned-property chips above an Item Window's title.
+
+This split is **planned — not yet wired**: today Pages surface their properties in the property panel (`FrontmatterInspector`, the window `.inspector`) and the dropdown scaffold is unbuilt. The State column tracks where each surface stands.
+
+| Surface | Home (target) | State |
 |---|---|---|
-| **Page in main window** | `FrontmatterInspector` mounted as the window `.inspector` | Inspector toggle; open/closed persists per-Page |
-| **Item Window** (popover) | Property panel inside the popover's inspector + always-on pinned-property chips above the title | Inspector toggle, default closed; pinned chips render whenever the Collection has any, independent of the toggle |
-| **Page Preview** (standalone window) | Property panel inside the window's inspector | *Pending* — queued behind the cross-feature PreviewWindow primitive; not yet wired |
+| **Page** (main pane) | Properties dropdown | Planned — currently the property panel in the editor's `.inspector` (`FrontmatterInspector`); migrating to free the inspector for the LLM |
+| **Context / storage view** | Properties dropdown | Planned (same migration) |
+| **Item Window** (popover) | Property panel in the popover inspector + pinned chips above the title | Inspector toggle, default closed; pinned chips render whenever the Collection has any |
+| **Page Preview** (standalone window) | Property panel in the window inspector | *Pending* — queued behind the PreviewWindow primitive |
+| **Agenda item** | Property panel | — |
 
-`FrontmatterInspector` is the current main-window inspector content. Title is excluded from every property surface (filename plays the title role). Auto-managed `id` + `created_at` sit at the bottom of each surface in a divider-separated section, collapsed by default. `modified_at` appears in the main list as **Last Edited Time** for sortability.
-
-**Planned surface migration.** Properties on Pages, Contexts, and storage views move to a dedicated dropdown (`PropertiesPulldown`), freeing the main-window inspector to become a CLI interface. The property panel stays the surface for Items, Previews, and Agenda items. The Pulldown scaffold exists in code but isn't wired yet — Pages currently surface properties through `FrontmatterInspector` (above).
+Property-panel surfaces render **eager**: all schema properties show regardless of fill state (empty ones as void inputs), edited inline through `PropertyEditorRow` — no "+ Add property" picker (every entry is already visible). Adding a NEW property to the schema happens in Vault / Type Settings. Title is excluded everywhere (filename plays that role); auto-managed `id` + `created_at` collapse to a divider-separated bottom section; `modified_at` surfaces as **Last Edited Time** for sortability.
 
 ---
 
