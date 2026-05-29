@@ -22,9 +22,6 @@ final class VaultSettingsViewModel {
     /// Whether the sheet is currently showing the type picker for a new property.
     var showingTypePicker: Bool = false
 
-    /// Whether the sheet is showing the relation wizard for a pending add.
-    var showingRelationWizard: Bool = false
-
     /// Type chosen in the picker; drives the inline config sub-view.
     var pendingNewType: PropertyType? = nil
 
@@ -124,15 +121,6 @@ final class VaultSettingsViewModel {
         resetNewPropertyState()
     }
 
-    /// Called after successfully completing a RelationPropertyWizard to register
-    /// the two new property IDs as pending adds (coordinator handles the disk write).
-    func recordRelationAdd(sourcePropID: String, reversePropID: String?) {
-        // The manager already wrote to disk via DualRelationCoordinator.
-        // We record the source side as a "virtual" add so the draft reflects the change.
-        // The actual state will be refreshed from the manager after Save.
-        resetNewPropertyState()
-    }
-
     /// Resets ephemeral new-property UI state.
     func resetNewPropertyState() {
         pendingNewType = nil
@@ -142,7 +130,6 @@ final class VaultSettingsViewModel {
         pendingNumberFormat = .decimal
         pendingAccept = ""
         showingTypePicker = false
-        showingRelationWizard = false
     }
 
     // MARK: - Queries
@@ -274,31 +261,6 @@ struct VaultSettingsSheet: View {
             }
         }
         .frame(minWidth: 480, minHeight: 400)
-        .sheet(isPresented: $vm.showingRelationWizard) {
-            RelationPropertyWizard(
-                sourceTypeID: pageType.id,
-                sourceTypeKind: .pageType,
-                coordinator: DualRelationCoordinator(),
-                index: index,
-                onComplete: { result in
-                    switch result {
-                    case .success(let ids):
-                        vm.recordRelationAdd(
-                            sourcePropID: ids.sourcePropertyID,
-                            reversePropID: ids.reversePropertyID
-                        )
-                    case .failure(let error):
-                        vm.pendingError = error
-                    }
-                    vm.showingRelationWizard = false
-                },
-                onCancel: {
-                    vm.showingRelationWizard = false
-                    vm.resetNewPropertyState()
-                }
-            )
-            .padding()
-        }
         .alert(
             "Error",
             isPresented: Binding(
@@ -388,7 +350,7 @@ private struct VaultSettingsPropertiesSection: View {
             }
 
             // New-property inline config (shown after type is picked)
-            if vm.pendingNewType != nil && !vm.showingRelationWizard {
+            if vm.pendingNewType != nil {
                 VaultSettingsNewPropertyConfig(vm: vm)
             }
 
@@ -402,8 +364,10 @@ private struct VaultSettingsPropertiesSection: View {
                         selected: $vm.pendingNewType,
                         onSelect: { type in
                             if type == .relation {
-                                vm.showingRelationWizard = true
-                                vm.showingTypePicker = false
+                                // Relation creation is handled by the View Settings popover
+                                // (PropertyTypePickerPane → EditPropertyPane .newRelation route).
+                                // Silently cancel here rather than entering a broken wizard path.
+                                vm.resetNewPropertyState()
                             } else {
                                 vm.showingTypePicker = false
                             }

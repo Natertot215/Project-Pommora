@@ -13,7 +13,6 @@ final class TypeSettingsViewModel {
     var draftProperties: [PropertyDefinition]
     var pendingError: (any Error)?
     var showingTypePicker: Bool = false
-    var showingRelationWizard: Bool = false
     var pendingNewType: PropertyType? = nil
     var pendingNewName: String = ""
     var pendingSelectOptions: [PropertyDefinition.SelectOption] = []
@@ -94,10 +93,6 @@ final class TypeSettingsViewModel {
         resetNewPropertyState()
     }
 
-    func recordRelationAdd(sourcePropID: String, reversePropID: String?) {
-        resetNewPropertyState()
-    }
-
     func resetNewPropertyState() {
         pendingNewType = nil
         pendingNewName = ""
@@ -106,7 +101,6 @@ final class TypeSettingsViewModel {
         pendingNumberFormat = .decimal
         pendingAccept = ""
         showingTypePicker = false
-        showingRelationWizard = false
     }
 
     // MARK: - Queries
@@ -228,31 +222,6 @@ struct TypeSettingsSheet: View {
             }
         }
         .frame(minWidth: 480, minHeight: 400)
-        .sheet(isPresented: $vm.showingRelationWizard) {
-            RelationPropertyWizard(
-                sourceTypeID: itemType.id,
-                sourceTypeKind: .itemType,
-                coordinator: DualRelationCoordinator(),
-                index: index,
-                onComplete: { result in
-                    switch result {
-                    case .success(let ids):
-                        vm.recordRelationAdd(
-                            sourcePropID: ids.sourcePropertyID,
-                            reversePropID: ids.reversePropertyID
-                        )
-                    case .failure(let error):
-                        vm.pendingError = error
-                    }
-                    vm.showingRelationWizard = false
-                },
-                onCancel: {
-                    vm.showingRelationWizard = false
-                    vm.resetNewPropertyState()
-                }
-            )
-            .padding()
-        }
         .alert(
             "Error",
             isPresented: Binding(
@@ -341,7 +310,7 @@ private struct TypeSettingsPropertiesSection: View {
             }
 
             // New-property inline config
-            if vm.pendingNewType != nil && !vm.showingRelationWizard {
+            if vm.pendingNewType != nil {
                 TypeSettingsNewPropertyConfig(vm: vm)
             }
 
@@ -355,8 +324,10 @@ private struct TypeSettingsPropertiesSection: View {
                         selected: $vm.pendingNewType,
                         onSelect: { type in
                             if type == .relation {
-                                vm.showingRelationWizard = true
-                                vm.showingTypePicker = false
+                                // Relation creation is handled by the View Settings popover
+                                // (PropertyTypePickerPane → EditPropertyPane .newRelation route).
+                                // Silently cancel here rather than entering a broken wizard path.
+                                vm.resetNewPropertyState()
                             } else {
                                 vm.showingTypePicker = false
                             }
