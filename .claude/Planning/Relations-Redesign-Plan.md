@@ -726,42 +726,44 @@ git commit -m "feat(properties): implement BuiltInRelationProperties merge logic
 ```swift
 @Test func pageTypePropertiesIncludeThreeTierEntries() async throws {
     // Setup nexus + PageType with no sidecar tier overrides
-    // Verify that pageType.properties contains _tier1, _tier2, _tier3 entries
+    // Verify pageType.resolvedProperties(tierConfig:) contains _tier1/2/3 (stored .properties does NOT)
 }
 ```
 
-- [ ] **Step 2: Make `properties` return the merged list**
+- [ ] **Step 2: Add a `resolvedProperties(tierConfig:)` accessor (Option B — do NOT overload `.properties`)**
 
-Use private storage + public computed merge — single API, no consumer confusion:
+> **Design correction (2026-05-28 investigation).** Managers mutate `type.properties` directly (~8 append/remove/subscript/reassign sites in PageTypeManager + ItemTypeManager) and `.properties` is custom-`Codable`/stored — overloading it as a computed merge would not compile and would risk persisting synthetic tier rows. Also `TierConfig` is NOT on the type; it lives on `TierConfigManager` (not yet in the environment).
+
+Keep `.properties` exactly as-is (stored, Codable, writer-mutated — UNCHANGED). Add a read-only accessor that takes the config:
 
 ```swift
-struct PageType {
-    private var storedProperties: [PropertyDefinition]  // on-disk list
-
-    /// User-visible properties, including pre-configured tier relation entries
-    /// merged from BuiltInRelationProperties. ALL consumers read this.
-    var properties: [PropertyDefinition] {
-        BuiltInRelationProperties.merge(
-            existing: storedProperties,
-            tierConfig: tierConfig,
-            sourceTypeID: id
-        )
+extension PageType {
+    /// `.properties` + the three pre-configured tier relation properties. Surfaces that
+    /// SHOW tiers call this; persistence/mutation keeps using stored `.properties`.
+    func resolvedProperties(tierConfig: TierConfig) -> [PropertyDefinition] {
+        BuiltInRelationProperties.merge(existing: properties, tierConfig: tierConfig, sourceTypeID: id)
     }
-
-    // Writers (schema edits) modify storedProperties directly; reads always merge.
 }
 ```
 
-`Codable` encodes only `storedProperties` (round-trip preserves on-disk shape; merged tier entries never persist). Repeat the pattern verbatim for ItemType / AgendaTaskSchema / AgendaEventSchema.
+Same method on `ItemType` (uses `id`) and `AgendaTaskSchema` / `AgendaEventSchema` (`sourceTypeID` = `ReservedTypeID.agendaTasks` / `agendaEvents`). No Codable change; a user-customised `_tier1` entry sits in `.properties` and the merge treats it as the sidecar override.
 
-Consumers (PropertyColumnBuilder, PropertyVisibilityPane, PropertyPanel, EditPropertyPane, Table column builders) need no changes — they already read `.properties` and now get tier entries for free.
+- [ ] **Step 2b: Inject `TierConfigManager` into the environment** (needed by every tier-rendering surface — Step 2c + Phases 13–16)
+
+`TierConfigManager` (`@MainActor @Observable`, created in `ContentView`) is never injected. Add it following the EXACT existing manager-injection shape — match how the other managers are threaded (optional-unwrap guard if it's stored optional, plus the `.environment(...)` chain), covering the sidebar host AND the detail chain. Branch quirk #16: a view declaring `@Environment(TierConfigManager.self)` with no injection crashes `EXC_BREAKPOINT` at mount (unit tests will NOT catch this — the controller reviews the ContentView diff by hand).
+
+- [ ] **Step 2c: Point the Type Settings property list at the merge**
+
+`PropertiesListPane` already has a private `resolvedProperties()` returning the live type's `.properties`; change it to call `…resolvedProperties(tierConfig: tierConfigManager.config)` and add `@Environment(TierConfigManager.self)`. Tier rows now appear in Edit Properties (the Phase-11-consolidated responsibility). Columns / visibility / panels / cell editors are wired in Phases 16 / 15 / 14 / 13, each calling `resolvedProperties(tierConfig:)`.
+
+Tests: `pageType.resolvedProperties(tierConfig: .defaultSeed())` contains `_tier1/2/3`; stored `pageType.properties` does NOT (tiers never persist); same for ItemType + both Agenda schemas.
 
 - [ ] **Step 3: Run tests** — PASS for new test AND no regression in existing tests.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git commit -m "feat(properties): wire BuiltInRelationProperties via merged-public/stored-private pattern"
+git commit -m "feat(properties): resolvedProperties(tierConfig:) accessor + TierConfigManager env injection"
 ```
 
 ---
