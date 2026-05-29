@@ -20,19 +20,14 @@ import SwiftUI
 /// happens at the consumer (via IndexQuery / the content managers); this
 /// primitive receives pre-resolved `String` values and stays purely visual.
 ///
-/// **Visual:** distinct from `PropertyChip`'s Capsule — a RoundedRectangle
-/// (cornerRadius 4) so relation values read as a different visual class from
-/// Select/Multi/Status pills. Default-grey fill across all relations
-/// (per-property color override deferred).
+/// **Visual:** renders the target object's icon + title as plain text (no
+/// pill / box / chrome) — interim treatment until a dedicated relation chip is
+/// designed.
 ///
 /// Stays at this path (`Properties/Chips/`). Do NOT move.
 struct RelationChip: View {
     let icon: String
     let title: String
-
-    private let cornerRadius: CGFloat = 4
-    private let horizontalPadding: CGFloat = 6
-    private let verticalPadding: CGFloat = 3
 
     var body: some View {
         HStack(spacing: 4) {
@@ -44,11 +39,5 @@ struct RelationChip: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.vertical, verticalPadding)
-        .background(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(Color(.tertiarySystemFill))
-        )
     }
 }
