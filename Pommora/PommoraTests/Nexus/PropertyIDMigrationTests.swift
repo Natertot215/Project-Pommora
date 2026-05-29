@@ -453,8 +453,8 @@ import Testing
     }
 
     @Test func planAllEventsEmptyForPlainIDMintMigration() throws {
-        // The events channel exists but no task populates it yet — a plain
-        // ID-mint migration carries no MigrationEvents.
+        // A plain ID-mint / version-bump migration (no Collection or
+        // context_tier relation targets) carries no MigrationEvents.
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
@@ -466,5 +466,257 @@ import Testing
         let plan = PropertyIDMigration.scan(at: nexus)
         #expect(plan.hasAnyMigration)
         #expect(plan.allEvents.isEmpty)
+    }
+
+    // MARK: - Relation transforms (Collection→Type rewrite + context_tier drop)
+
+    /// Decodes a TypeMigration's staged `updatedSchemaJSON` (pre-apply `Data`)
+    /// with the same ISO-8601 date strategy AtomicJSON uses on disk. The decoded
+    /// `title` is "" (derived from folder name only by `load(from:)`), so assert
+    /// on property `id`s rather than title.
+    private static func decodeStaged<T: Codable>(_ type: T.Type, _ data: Data) throws -> T {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(type, from: data)
+    }
+
+    /// Persists a PageType value at `<nexus>/<title>/_pagetype.json` with
+    /// `schemaVersion: 1` (so it migrates) and the given properties — including
+    /// any `relationTarget`s, encoded through PageType's real encoder. Returns
+    /// the parent PageType's ULID.
+    @discardableResult
+    private static func writeRelationPageType(
+        in nexusRoot: URL,
+        title: String,
+        properties: [PropertyDefinition]
+    ) throws -> (folder: URL, typeID: String) {
+        let folder = nexusRoot.appendingPathComponent(title, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let typeID = "01HPT\(UUID().uuidString.prefix(8))"
+        let pt = PageType(
+            id: typeID, title: title, icon: nil,
+            properties: properties, views: [], modifiedAt: Date(),
+            schemaVersion: 1)
+        try pt.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        return (folder, typeID)
+    }
+
+    /// Mirror of `writeRelationPageType` for ItemType.
+    @discardableResult
+    private static func writeRelationItemType(
+        in nexusRoot: URL,
+        title: String,
+        properties: [PropertyDefinition]
+    ) throws -> (folder: URL, typeID: String) {
+        let folder = nexusRoot.appendingPathComponent(title, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let typeID = "01HIT\(UUID().uuidString.prefix(8))"
+        let it = ItemType(
+            id: typeID, title: title, icon: nil,
+            properties: properties, views: [], modifiedAt: Date(),
+            schemaVersion: 1)
+        try it.save(to: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
+        return (folder, typeID)
+    }
+
+    /// Creates a PageCollection sub-folder inside `typeFolder` and persists its
+    /// `_pagecollection.json` sidecar. Returns the Collection's ULID.
+    @discardableResult
+    private static func writePageCollection(
+        in typeFolder: URL, parentTypeID: String, title: String
+    ) throws -> String {
+        let folder = typeFolder.appendingPathComponent(title, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let collectionID = "01HPC\(UUID().uuidString.prefix(8))"
+        let collection = PageCollection(
+            id: collectionID, typeID: parentTypeID, title: title,
+            folderURL: folder, modifiedAt: Date())
+        try collection.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        return collectionID
+    }
+
+    /// Mirror of `writePageCollection` for ItemCollection.
+    @discardableResult
+    private static func writeItemCollection(
+        in typeFolder: URL, parentTypeID: String, title: String
+    ) throws -> String {
+        let folder = typeFolder.appendingPathComponent(title, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let collectionID = "01HIC\(UUID().uuidString.prefix(8))"
+        let collection = ItemCollection(
+            id: collectionID, typeID: parentTypeID, title: title,
+            folderURL: folder, modifiedAt: Date())
+        try collection.save(to: folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
+        return collectionID
+    }
+
+    @Test func rewritesPageCollectionTargetToParentPageType() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        // "Books" PageType with a "Fiction" PageCollection sub-folder.
+        let books = try Self.writeRelationPageType(in: nexus, title: "Books", properties: [])
+        let fictionID = try Self.writePageCollection(
+            in: books.folder, parentTypeID: books.typeID, title: "Fiction")
+
+        // A second PageType "Notes" carries a relation property pointed at the
+        // Fiction collection — that target must rewrite to the Books type.
+        let relProp = PropertyDefinition(
+            id: "prop_01HREL", name: "Reading", type: .relation,
+            relationTarget: .pageCollection(fictionID))
+        let notes = try Self.writeRelationPageType(
+            in: nexus, title: "Notes", properties: [relProp])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+
+        // Find the Notes migration and assert its event + rewritten target.
+        let notesMig = try #require(
+            plan.pageTypeMigrations.first(where: { $0.typeTitle == "Notes" }))
+        #expect(
+            notesMig.events.contains(
+                .pageCollectionRewritten(propertyID: "prop_01HREL", from: fictionID, to: books.typeID)
+            ))
+
+        let decoded = try Self.decodeStaged(PageType.self, notesMig.updatedSchemaJSON)
+        let prop = try #require(decoded.properties.first(where: { $0.id == "prop_01HREL" }))
+        #expect(prop.relationTarget == .pageType(books.typeID))
+        _ = notes  // silence unused warning
+    }
+
+    @Test func rewritesItemCollectionTargetToParentItemType() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let library = try Self.writeRelationItemType(in: nexus, title: "Library", properties: [])
+        let sciFiID = try Self.writeItemCollection(
+            in: library.folder, parentTypeID: library.typeID, title: "SciFi")
+
+        let relProp = PropertyDefinition(
+            id: "prop_01HIREL", name: "Sourced", type: .relation,
+            relationTarget: .itemCollection(sciFiID))
+        try Self.writeRelationItemType(in: nexus, title: "Sources", properties: [relProp])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+
+        let sourcesMig = try #require(
+            plan.itemTypeMigrations.first(where: { $0.typeTitle == "Sources" }))
+        #expect(
+            sourcesMig.events.contains(
+                .itemCollectionRewritten(propertyID: "prop_01HIREL", from: sciFiID, to: library.typeID)
+            ))
+
+        let decoded = try Self.decodeStaged(ItemType.self, sourcesMig.updatedSchemaJSON)
+        let prop = try #require(decoded.properties.first(where: { $0.id == "prop_01HIREL" }))
+        #expect(prop.relationTarget == .itemType(library.typeID))
+    }
+
+    @Test func dropsContextTierRelationProperty() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        // A user property pointed at a context tier must be dropped from the
+        // schema; a sibling normal property must survive.
+        let tierProp = PropertyDefinition(
+            id: "prop_01HTIER", name: "Linked Topic", type: .relation,
+            relationTarget: .contextTier(2))
+        let keepProp = PropertyDefinition(
+            id: "prop_01HKEEP", name: "Status", type: .select)
+        let result = try Self.writeRelationPageType(
+            in: nexus, title: "Tasks", properties: [tierProp, keepProp])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+
+        let mig = try #require(
+            plan.pageTypeMigrations.first(where: { $0.typeTitle == "Tasks" }))
+        #expect(
+            mig.events.contains(
+                .contextTierDropped(propertyID: "prop_01HTIER", tier: 2, typeID: result.typeID)))
+
+        let decoded = try Self.decodeStaged(PageType.self, mig.updatedSchemaJSON)
+        #expect(!decoded.properties.contains(where: { $0.id == "prop_01HTIER" }))
+        #expect(decoded.properties.contains(where: { $0.id == "prop_01HKEEP" }))  // sibling preserved
+    }
+
+    @Test func normalRelationTargetsProduceNoTransformEvents() throws {
+        // Control: a Type whose relation targets are already plain .pageType /
+        // .itemType produces no rewrite/drop events.
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let pageRel = PropertyDefinition(
+            id: "prop_01HPAGE", name: "Page Ref", type: .relation,
+            relationTarget: .pageType("01HSOMEPAGETYPE"))
+        let itemRel = PropertyDefinition(
+            id: "prop_01HITEM", name: "Item Ref", type: .relation,
+            relationTarget: .itemType("01HSOMEITEMTYPE"))
+        try Self.writeRelationPageType(
+            in: nexus, title: "Mixed", properties: [pageRel, itemRel])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+
+        let mig = try #require(
+            plan.pageTypeMigrations.first(where: { $0.typeTitle == "Mixed" }))
+        #expect(mig.events.isEmpty)
+        // Targets untouched.
+        let decoded = try Self.decodeStaged(PageType.self, mig.updatedSchemaJSON)
+        #expect(decoded.properties.count == 2)
+        #expect(
+            decoded.properties.first(where: { $0.id == "prop_01HPAGE" })?.relationTarget
+                == .pageType("01HSOMEPAGETYPE"))
+    }
+
+    @Test func orphanCollectionTargetIsLeftUnchanged() throws {
+        // A .pageCollection target whose collection isn't in the map (orphan /
+        // external) must be left untouched — never break an unresolvable target.
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let orphanRel = PropertyDefinition(
+            id: "prop_01HORPH", name: "Dangling", type: .relation,
+            relationTarget: .pageCollection("01HCNOTREAL"))
+        try Self.writeRelationPageType(
+            in: nexus, title: "Orphans", properties: [orphanRel])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+
+        let mig = try #require(
+            plan.pageTypeMigrations.first(where: { $0.typeTitle == "Orphans" }))
+        #expect(mig.events.isEmpty)
+        let decoded = try Self.decodeStaged(PageType.self, mig.updatedSchemaJSON)
+        #expect(
+            decoded.properties.first(where: { $0.id == "prop_01HORPH" })?.relationTarget
+                == .pageCollection("01HCNOTREAL"))
+    }
+
+    @Test func planAllEventsAggregatesAcrossTypes() throws {
+        // scan should flatten events from multiple migrating Types into allEvents.
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        // Books + Fiction collection; Notes points a relation at Fiction.
+        let books = try Self.writeRelationPageType(in: nexus, title: "Books", properties: [])
+        let fictionID = try Self.writePageCollection(
+            in: books.folder, parentTypeID: books.typeID, title: "Fiction")
+        let pageRel = PropertyDefinition(
+            id: "prop_01HPC", name: "Reading", type: .relation,
+            relationTarget: .pageCollection(fictionID))
+        try Self.writeRelationPageType(in: nexus, title: "Notes", properties: [pageRel])
+
+        // A separate ItemType drops a context_tier property.
+        let tierProp = PropertyDefinition(
+            id: "prop_01HTIER", name: "Linked Space", type: .relation,
+            relationTarget: .contextTier(1))
+        let agendaLike = try Self.writeRelationItemType(
+            in: nexus, title: "Tasks", properties: [tierProp])
+
+        let plan = PropertyIDMigration.scan(at: nexus)
+
+        #expect(
+            plan.allEvents.contains(
+                .pageCollectionRewritten(propertyID: "prop_01HPC", from: fictionID, to: books.typeID)))
+        #expect(
+            plan.allEvents.contains(
+                .contextTierDropped(propertyID: "prop_01HTIER", tier: 1, typeID: agendaLike.typeID)))
+        #expect(plan.allEvents.count == 2)
     }
 }
