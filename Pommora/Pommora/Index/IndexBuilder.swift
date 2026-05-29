@@ -696,34 +696,8 @@ final class IndexBuilder {
     }
 
     private nonisolated static func definitionConfigJSON(_ def: PropertyDefinition) throws -> String {
-        struct ConfigOnly: Encodable {
-            var numberFormat: PropertyDefinition.NumberFormat?
-            var dateIncludesTime: Bool?
-            var selectOptions: [PropertyDefinition.SelectOption]?
-            var statusGroups: [PropertyDefinition.StatusGroup]?
-            var relationTarget: PropertyDefinition.RelationTarget?
-            var accept: [String]?
-
-            enum CodingKeys: String, CodingKey {
-                case numberFormat = "number_format"
-                case dateIncludesTime = "date_includes_time"
-                case selectOptions = "select_options"
-                case statusGroups = "status_groups"
-                case relationTarget = "relation_target"
-                case accept
-            }
-        }
-        let config = ConfigOnly(
-            numberFormat: def.numberFormat,
-            dateIncludesTime: def.dateIncludesTime,
-            selectOptions: def.selectOptions,
-            statusGroups: def.statusGroups,
-            relationTarget: def.relationTarget,
-            accept: def.accept
-        )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = []
-        let data = try encoder.encode(config)
-        return String(data: data, encoding: .utf8) ?? "{}"
+        // Single source of truth for the `property_definitions.config` blob —
+        // shared with `IndexUpdater` so both paths write the same shape.
+        def.indexConfigJSON()
     }
 }

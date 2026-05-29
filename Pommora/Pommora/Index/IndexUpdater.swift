@@ -387,19 +387,13 @@ struct IndexUpdater: Sendable {
         )
         for (propertyID, value) in properties {
             guard case .relation(let targetIDs) = value else { continue }
-            // TODO(target_kind): write the real coarse target kind via
-            // `RelationTargetKind.string(from: def.relationTarget)`. The def is
-            // NOT reachable here: `reconcileRelations` only receives raw
-            // `[String: PropertyValue]` (no schema), `upsertPage`/`upsertItem`
-            // don't carry the `PropertyDefinition` set, and the index DB doesn't
-            // persist `relationTarget` (`configJSON(for:)` serializes only
-            // number_format / date_includes_time / select_options). Resolving it
-            // would require plumbing the schema into the upsert path or persisting
-            // the target in `property_definitions.config` + a per-row lookup —
-            // both larger than this task. For now `nil` → "unknown" (matched by
-            // `IndexBuilder` only when a def is missing); broken-link/reverse
-            // queries resolve the real kind from the target's table at query time.
-            let targetKind = RelationTargetKind.string(from: nil)  // "unknown"
+            // Resolve the coarse target kind from the property's persisted
+            // `relation_target`. `property_definitions.config` round-trips it via
+            // the shared `indexConfigJSON()` serializer (same shape IndexBuilder
+            // writes), so a lookup-by-id decode yields the same kind a full
+            // rebuild would. Missing row / missing target falls back to "unknown".
+            let target = relationTarget(forPropertyID: propertyID, db: db)
+            let targetKind = RelationTargetKind.string(from: target)
             for targetID in targetIDs {
                 let relID = ULID.generate()
                 try db.execute(
@@ -449,17 +443,39 @@ struct IndexUpdater: Sendable {
     // MARK: - Private: config JSON
 
     /// Serialises type-specific config fields into the `config` JSON blob
-    /// stored in `property_definitions.config`. Only non-nil fields are included.
+    /// stored in `property_definitions.config`. Delegates to the single source
+    /// of truth shared with `IndexBuilder` so rows written by either path
+    /// round-trip identically — notably `relation_target`, which
+    /// `reconcileRelations` reads back to derive `relations.target_kind`.
     private func configJSON(for def: PropertyDefinition) -> String {
-        var dict: [String: Any] = [:]
-        if let fmt = def.numberFormat { dict["number_format"] = fmt.rawValue }
-        if let dit = def.dateIncludesTime { dict["date_includes_time"] = dit }
-        if let opts = def.selectOptions {
-            dict["select_options"] = opts.map { ["value": $0.value, "label": $0.label] }
+        def.indexConfigJSON()
+    }
+
+    /// Decodes a relation property's `relationTarget` from its persisted
+    /// `property_definitions.config` blob (`relation_target` key — the shape the
+    /// shared `indexConfigJSON()` serializer writes). Used by
+    /// `reconcileRelations` to derive `relations.target_kind` on incremental
+    /// writes. Returns `nil` if the row is absent or carries no relation target
+    /// (→ caller falls back to `RelationTargetKind` "unknown").
+    private func relationTarget(
+        forPropertyID propertyID: String,
+        db: Database
+    ) -> PropertyDefinition.RelationTarget? {
+        struct TargetOnly: Decodable {
+            var relationTarget: PropertyDefinition.RelationTarget?
+            enum CodingKeys: String, CodingKey {
+                case relationTarget = "relation_target"
+            }
         }
-        guard let data = try? JSONSerialization.data(withJSONObject: dict),
-            let str = String(data: data, encoding: .utf8)
-        else { return "{}" }
-        return str
+        guard
+            let configJSON = try? String.fetchOne(
+                db,
+                sql: "SELECT config FROM property_definitions WHERE id = ?",
+                arguments: [propertyID]
+            ),
+            let data = configJSON.data(using: .utf8),
+            let decoded = try? JSONDecoder().decode(TargetOnly.self, from: data)
+        else { return nil }
+        return decoded.relationTarget
     }
 }

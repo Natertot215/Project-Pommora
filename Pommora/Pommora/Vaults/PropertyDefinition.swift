@@ -321,4 +321,49 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(displayAs, forKey: .displayAs)
         try c.encodeIfPresent(dateFormat, forKey: .dateFormat)
     }
+
+    // MARK: - SQLite index config blob
+
+    /// Serialises this definition's type-specific config fields into the JSON
+    /// blob stored in `property_definitions.config`. Single source of truth for
+    /// that column — used by both `IndexBuilder` (full rebuild) and
+    /// `IndexUpdater` (incremental upsert) so a row written by either path
+    /// round-trips identically (notably `relation_target`, decoded back out by
+    /// `IndexUpdater.reconcileRelations` to derive `relations.target_kind`).
+    /// `relation_target` is encoded via `RelationTarget`'s own Codable, so the
+    /// on-disk and in-DB shapes match. `nonisolated`: pure computation, callable
+    /// from `IndexBuilder`'s off-actor GRDB-write closures.
+    nonisolated func indexConfigJSON() -> String {
+        struct ConfigOnly: Encodable {
+            var numberFormat: PropertyDefinition.NumberFormat?
+            var dateIncludesTime: Bool?
+            var selectOptions: [PropertyDefinition.SelectOption]?
+            var statusGroups: [PropertyDefinition.StatusGroup]?
+            var relationTarget: PropertyDefinition.RelationTarget?
+            var accept: [String]?
+
+            enum CodingKeys: String, CodingKey {
+                case numberFormat = "number_format"
+                case dateIncludesTime = "date_includes_time"
+                case selectOptions = "select_options"
+                case statusGroups = "status_groups"
+                case relationTarget = "relation_target"
+                case accept
+            }
+        }
+        let config = ConfigOnly(
+            numberFormat: numberFormat,
+            dateIncludesTime: dateIncludesTime,
+            selectOptions: selectOptions,
+            statusGroups: statusGroups,
+            relationTarget: relationTarget,
+            accept: accept
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = []
+        guard let data = try? encoder.encode(config),
+            let str = String(data: data, encoding: .utf8)
+        else { return "{}" }
+        return str
+    }
 }
