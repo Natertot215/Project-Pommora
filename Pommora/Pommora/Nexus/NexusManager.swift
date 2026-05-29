@@ -70,6 +70,15 @@ final class NexusManager {
     /// Called from `ContentView.task` on launch. Resolves the saved bookmark
     /// from app-level state.json, or presents the picker if no bookmark exists.
     func loadOnLaunch() async {
+        // Under a unit-test run (XCTest sets this env var) the test-host app must
+        // NOT auto-restore the last nexus: resolving a security-scoped bookmark
+        // raises a macOS folder-grant prompt and `pickNexus()` opens an NSOpenPanel
+        // — both are modal and block the test runner from establishing connection
+        // ("test runner hung before establishing connection"), besides interrupting
+        // the user. Unit tests build their own temporary nexuses, so skipping
+        // launch-restore here is safe. Real app launches never set this var.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+
         let stateURL: URL
         do {
             stateURL = try NexusStore.appStateURL()
