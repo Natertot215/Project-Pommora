@@ -25,7 +25,17 @@ final class PommoraIndex: @unchecked Sendable {
     // v1 DB stale so `open(at:)` deletes + recreates it fresh from the
     // folders-free schema; IndexBuilder repopulates. Safe — the index holds no
     // user data.
-    static let currentSchemaVersion: Int = 2
+    //
+    // v3 (2026-05-29): Relations Redesign. Tier values (`_tier1/2/3`) now emit
+    // into the `relations` table — not only `tier_links` — so the Context-delete
+    // cascade's reverse query (`IndexQuery.incomingRelations`) can see tier→Context
+    // links. A v2 DB built before that change has no tier rows in `relations` for
+    // un-edited entities, so the cascade would silently miss them. Bumping to 3
+    // forces every existing DB through one delete+rebuild, which backfills tiers
+    // into `relations` via the updated IndexBuilder. Same throwaway-cache rationale
+    // as v2 — no user data is at risk. (This is the INDEX-DB version; distinct from
+    // the per-Type sidecar `schemaVersion` migrated by adoption.)
+    static let currentSchemaVersion: Int = 3
 
     let dbQueue: DatabaseQueue   // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
