@@ -525,9 +525,10 @@ extension ItemTypeManager {
     /// Routed through `DualRelationCoordinator.createPairedRelation` which writes both
     /// Type sidecars atomically. The authoritative target kind+id is `definition.relationTarget`;
     /// the target `TypeKind` is resolved from it: same-side ItemType from in-memory `types`,
-    /// cross-side PageType + Agenda singletons from disk. `definition.dualProperty.syncedPropertyID`
-    /// is used as the reverse property display name (caller convention at add-time; replaced by
-    /// the minted ID after creation). Collection / context-tier targets reject dual pairing.
+    /// cross-side PageType + Agenda singletons from disk. `definition.reverseName` carries the
+    /// reverse property display name (caller convention at add-time); the coordinator mints the
+    /// reverse property and writes its ID into `dualProperty.syncedPropertyID` after creation.
+    /// Collection / context-tier targets reject dual pairing.
     func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
         do {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
@@ -539,8 +540,11 @@ extension ItemTypeManager {
                 def.id = ReservedPropertyID.mintUserPropertyID()
             }
 
-            // Paired relation: route through DualRelationCoordinator.
-            if def.type == .relation, let dualConfig = def.dualProperty {
+            // Paired relation: a non-nil `dualProperty` is the pairing signal;
+            // route through DualRelationCoordinator. The reverse name now flows
+            // via `def.reverseName` (the empty `syncedPropertyID` is filled with
+            // the minted reverse-property ID by the coordinator post-creation).
+            if def.type == .relation, def.dualProperty != nil {
                 guard let scope = def.relationTarget else {
                     throw ItemTypeManagerError.propertyNotFound
                 }
@@ -550,7 +554,9 @@ extension ItemTypeManager {
                 // and Agenda singletons load from disk (they live outside this manager).
                 let targetKind = try resolveDualTargetKind(for: scope)
                 let targetScope = PropertyDefinition.RelationTarget.itemType(types[i].id)
-                let reverseName = dualConfig.syncedPropertyID.isEmpty ? def.name : dualConfig.syncedPropertyID
+                // Reverse name: caller carries the reverse display name in `reverseName`
+                // at add-time; the coordinator later mints the reverse property's ID.
+                let reverseName = (def.reverseName?.isEmpty == false) ? def.reverseName! : def.name
 
                 let (srcID, _) = try DualRelationCoordinator.createPairedRelation(
                     source: sourceKind,
@@ -559,6 +565,8 @@ extension ItemTypeManager {
                     target: targetKind,
                     targetPropertyName: reverseName,
                     targetScope: targetScope,
+                    sourceIcon: def.icon,
+                    targetIcon: def.reverseIcon,
                     nexus: nexus
                 )
                 // Reload source type from disk.

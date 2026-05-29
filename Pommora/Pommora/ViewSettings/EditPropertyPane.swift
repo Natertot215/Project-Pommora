@@ -43,10 +43,23 @@ import SymbolPicker
 ///   - Date / DateTime → empty middle + Date Format pinned bottom
 ///   - Number → empty middle + Number Format pinned bottom
 ///   - URL / File / Checkbox → empty middle, no bottom picker
-///   - Relation → read-only scope summary in scroll body, no bottom picker
+///   - Relation (edit) → resolved read-only target + tier/paired reverse rows
+///   - Relation (create-draft) → full single-pane editor, Save commits the pair
+///
+/// **Two modes** (`Mode`):
+///   - `.edit(propertyID:)` — loads an existing definition and live-saves edits.
+///   - `.createRelation` — holds an in-memory `relationDraft` and only writes
+///     when Save fires (routes here from the type picker's `.relation` pick).
 struct EditPropertyPane: View {
+    /// What the pane is doing: editing a stored property, or drafting a brand
+    /// new relation that hasn't been written yet.
+    enum Mode: Hashable {
+        case edit(propertyID: String)
+        case createRelation
+    }
+
     let scope: ViewSettingsScope
-    let propertyID: String
+    let mode: Mode
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageTypeManager.self) private var pageTypeManager
@@ -56,9 +69,33 @@ struct EditPropertyPane: View {
     @State private var draftName: String = ""
     @State private var commitError: String?
     @State private var iconPickerOpen: Bool = false
+    @State private var reverseIconPickerOpen: Bool = false
     @FocusState private var nameFocused: Bool
 
+    // Create-relation draft state (used only in `.createRelation` mode).
+    @State private var relationDraft = PropertyDefinition(id: "", name: "", type: .relation)
+    @State private var relationReverseName: String = ""
+
+    /// Convenience accessor for the edit-mode property ID. Empty in
+    /// create-relation mode (there is no stored property yet).
+    private var propertyID: String {
+        if case .edit(let id) = mode { return id }
+        return ""
+    }
+
     var body: some View {
+        switch mode {
+        case .edit:
+            editBody
+        case .createRelation:
+            createRelationBody
+        }
+    }
+
+    // MARK: - Edit-existing body
+
+    @ViewBuilder
+    private var editBody: some View {
         VStack(spacing: 0) {
             // Back affordance only ("‹ Edit Properties"). The property's own
             // icon + name field below carries identity — no duplicate title.
@@ -86,7 +123,8 @@ struct EditPropertyPane: View {
                 }
                 .frame(maxHeight: .infinity)
 
-                // Pinned bottom: ONLY the Delete / Duplicate footer.
+                // Pinned bottom: ONLY the Delete / Duplicate footer (suppressed
+                // for reserved properties such as the tier entries).
                 bottomBlock(for: def)
             } else {
                 ContentUnavailableView(
@@ -104,6 +142,125 @@ struct EditPropertyPane: View {
         }
     }
 
+    // MARK: - Create-relation body
+
+    /// Single-pane relation create-draft. Target picker + Home name/icon +
+    /// Mirror name/icon, with a Save action that commits the pair through the
+    /// source manager's `addProperty`. Nothing is written until Save fires.
+    @ViewBuilder
+    private var createRelationBody: some View {
+        VStack(spacing: 0) {
+            PaneHeader(path: $path, showsDivider: false)
+            createRelationIconTitleRow
+            fieldDivider
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
+                    RelationDraftTargetSection(
+                        catalog: catalog,
+                        selection: $relationDraft.relationTarget
+                    )
+                    RelationDraftMirrorSection(
+                        reverseName: $relationReverseName,
+                        reverseIcon: $relationDraft.reverseIcon
+                    )
+                }
+                .padding(.horizontal, PUI.Pane.contentPadding)
+                .padding(.vertical, PUI.Pane.contentPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: .infinity)
+
+            PaneDivider()
+            createRelationFooter
+                .padding(.horizontal, PUI.Pane.contentPadding)
+                .padding(.vertical, PUI.Spacing.lg)
+        }
+        .measuredPaneHeight()
+        .navigationBarBackButtonHidden(true)
+    }
+
+    /// Home-side icon + name field for the create draft. Mirrors the
+    /// edit-mode `iconTitleRow` chrome, bound to the draft instead of a stored
+    /// definition.
+    @ViewBuilder
+    private var createRelationIconTitleRow: some View {
+        HStack(spacing: PUI.Row.interSpacing) {
+            Button {
+                iconPickerOpen = true
+            } label: {
+                Image(systemName: relationDraft.icon ?? PropertyType.relation.pickerIcon)
+                    .font(PUI.Icon.header)
+                    .foregroundStyle(.primary)
+                    .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                    .fieldBackground()
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Change icon")
+            .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
+                SymbolPicker(symbol: $relationDraft.icon)
+                    .frame(width: 540, height: 460)
+            }
+
+            // `draftName` is the source of truth for the home name; the Save
+            // builder reads it directly (no need to mirror into the draft).
+            TextField("Relation name", text: $draftName)
+                .textFieldStyle(.plain)
+                .font(.title3)
+                .padding(.horizontal, PUI.Spacing.lg)
+                .padding(.vertical, PUI.Spacing.xs)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fieldBackground()
+                .focused($nameFocused)
+        }
+        .padding(.horizontal, PUI.Pane.contentPadding)
+        .padding(.top, PUI.Spacing.xs)
+        .padding(.bottom, PUI.Spacing.xs)
+    }
+
+    /// Pinned Save footer for the create draft. Disabled until home name,
+    /// target, and reverse name are all present.
+    @ViewBuilder
+    private var createRelationFooter: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.md) {
+            HStack {
+                Spacer()
+                Button {
+                    Task { await commitRelationDraft() }
+                } label: {
+                    Text("Save")
+                        .font(PUI.Typography.row)
+                        .foregroundStyle(canSaveRelationDraft ? Color.accentColor : .secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSaveRelationDraft)
+            }
+
+            if let err = commitError {
+                Text(err)
+                    .font(PUI.Typography.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    /// Save gate: home name, target, and reverse name all non-empty.
+    private var canSaveRelationDraft: Bool {
+        !draftName.trimmingCharacters(in: .whitespaces).isEmpty
+            && relationDraft.relationTarget != nil
+            && !relationReverseName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Catalog of selectable relation targets, built from the live managers.
+    private var catalog: RelationTargetCatalog {
+        RelationTargetCatalog(
+            pageTypes: pageTypeManager.types,
+            itemTypes: itemTypeManager.types
+        )
+    }
+
     /// Top-level divider between the icon/title field and the scroll body.
     /// Flush to the content rail (same horizontal inset as the field + scroll
     /// content), with breathing room above/below. NOT inset/squished.
@@ -117,12 +274,25 @@ struct EditPropertyPane: View {
     /// middle-content height): just the lower divider + the Delete | Duplicate
     /// row, on the universal `PaneDivider` + "New property" footer rail (16h /
     /// 10v). Display As / format is NOT here — it scrolls with the options.
+    ///
+    /// Reserved properties (the tier entries `_tier1/2/3`) carry no
+    /// Delete/Duplicate affordance — the footer collapses to error display
+    /// only so the divider doesn't float over empty space.
     @ViewBuilder
     private func bottomBlock(for def: PropertyDefinition) -> some View {
-        PaneDivider()
-        footerRow(def: def)
-            .padding(.horizontal, PUI.Pane.contentPadding)
-            .padding(.vertical, PUI.Spacing.lg)
+        if !ReservedPropertyID.isReserved(def.id) {
+            PaneDivider()
+            footerRow(def: def)
+                .padding(.horizontal, PUI.Pane.contentPadding)
+                .padding(.vertical, PUI.Spacing.lg)
+        } else if let err = commitError {
+            PaneDivider()
+            Text(err)
+                .font(PUI.Typography.caption)
+                .foregroundStyle(.red)
+                .padding(.horizontal, PUI.Pane.contentPadding)
+                .padding(.vertical, PUI.Spacing.lg)
+        }
     }
 
     // MARK: - Icon + name field row
@@ -200,7 +370,7 @@ struct EditPropertyPane: View {
                 }
             )
         case .relation:
-            relationTargetSummary(def: def)
+            relationEditSection(def: def)
         case .number, .date, .datetime, .checkbox, .url, .file, .lastEditedTime:
             EmptyView()
         }
@@ -274,221 +444,152 @@ struct EditPropertyPane: View {
         }
     }
 
-    /// Minimal Relation editor (v0.3.1.0.2):
-    ///   - Scope kind: Picker (5 cases)
-    ///   - Target ID: TextField (for container scopes) OR tier Picker (for
-    ///     contextTier)
-    ///   - Mirror name: TextField (non-context only; stored as
-    ///     `dualProperty.syncedPropertyID` per the wizard's at-add convention)
-    ///   - Allows multiple: Toggle
-    ///
-    /// Full paired-relation creation (DualRelationCoordinator) is deferred
-    /// — this editor writes the relation metadata, but the reverse property
-    /// on the target Type is not yet auto-minted. That arrives with the
-    /// searchable target picker in a later slice.
+    /// Edit-existing Relation section (Phase 10.3b).
+    ///   - Target: READ-ONLY resolved row (target is fixed at creation; no
+    ///     re-pairing). For a tier entry it shows the tier label.
+    ///   - Reverse: a TIER entry edits its `reverseName` / `reverseIcon`
+    ///     (Phase-3 fields, live-saved via `applyTransform`); a normal paired
+    ///     relation shows the reverse side as read-only guidance (cross-type
+    ///     rename is deferred — edit it from the target's own settings).
     @ViewBuilder
-    private func relationTargetSummary(def: PropertyDefinition) -> some View {
-        VStack(alignment: .leading, spacing: PUI.Spacing.lg) {
-            relationKindRow(def: def)
-            relationTargetRow(def: def)
-            if !isContextTierScope(def.relationTarget) {
-                relationMirrorRow(def: def)
+    private func relationEditSection(def: PropertyDefinition) -> some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
+            relationTargetReadonlyRow(def: def)
+            if isContextTierTarget(def.relationTarget) {
+                relationTierReverseRows(def: def)
+            } else {
+                relationPairedReverseRow
             }
         }
     }
 
+    /// Read-only resolved target: icon + label + a fixed-at-creation caption.
     @ViewBuilder
-    private func relationKindRow(def: PropertyDefinition) -> some View {
-        HStack(spacing: PUI.Spacing.md) {
-            Text("Scope")
-                .font(PUI.Typography.row)
-                .foregroundStyle(.primary)
-            Spacer()
-            Picker("Scope", selection: bindingForRelationKind(def: def)) {
-                Text("Unset").tag(RelationTargetKind?.none)
-                Text("Page Type").tag(RelationTargetKind?.some(.pageType))
-                Text("Item Type").tag(RelationTargetKind?.some(.itemType))
-                Text("Page Collection").tag(RelationTargetKind?.some(.pageCollection))
-                Text("Item Collection").tag(RelationTargetKind?.some(.itemCollection))
-                Text("Context Tier").tag(RelationTargetKind?.some(.contextTier))
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
-        }
-    }
-
-    @ViewBuilder
-    private func relationTargetRow(def: PropertyDefinition) -> some View {
-        if isContextTierScope(def.relationTarget) {
-            HStack(spacing: PUI.Spacing.md) {
-                Text("Target")
+    private func relationTargetReadonlyRow(def: PropertyDefinition) -> some View {
+        let resolved = resolvedTargetDisplay(def.relationTarget)
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            Text("Target")
+                .font(PUI.Typography.sectionHeader)
+                .foregroundStyle(.secondary)
+            HStack(spacing: PUI.Row.interSpacing) {
+                Image(systemName: resolved.icon)
+                    .font(PUI.Icon.leading)
+                    .foregroundStyle(.secondary)
+                    .frame(width: PUI.Icon.leadingFrame)
+                Text(resolved.label)
                     .font(PUI.Typography.row)
                     .foregroundStyle(.primary)
                 Spacer()
-                Picker("Target", selection: bindingForRelationTier(def: def)) {
-                    Text("Spaces").tag(1)
-                    Text("Topics").tag(2)
-                    Text("Projects").tag(3)
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
             }
-        } else {
-            VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
-                Text("Target ID")
-                    .font(PUI.Typography.sectionHeader)
-                    .foregroundStyle(.secondary)
-                TextField("Type / Collection ID", text: bindingForRelationTargetID(def: def))
-                    .textFieldStyle(.plain)
-                    .font(PUI.Typography.row)
-                    .onSubmit { /* binding setter handles commit */ }
-                Text("Paste the target's ID. A searchable picker lands in a follow-up.")
-                    .font(PUI.Typography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func relationMirrorRow(def: PropertyDefinition) -> some View {
-        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
-            Text("Mirror name")
-                .font(PUI.Typography.sectionHeader)
-                .foregroundStyle(.secondary)
-            TextField("Reverse property name on target", text: bindingForRelationMirrorName(def: def))
-                .textFieldStyle(.plain)
-                .font(PUI.Typography.row)
-            Text("Display name for the mirror property created on the target Type. Pairing lands in a follow-up.")
+            Text("The target is fixed when the relation is created.")
                 .font(PUI.Typography.caption)
                 .foregroundStyle(.tertiary)
         }
     }
 
-    private func isContextTierScope(_ scope: PropertyDefinition.RelationTarget?) -> Bool {
-        if case .some(.contextTier) = scope { return true }
+    /// Tier-relation reverse editing: the Phase-3 `reverseName` (+ optional
+    /// `reverseIcon`) live on the tier property itself.
+    @ViewBuilder
+    private func relationTierReverseRows(def: PropertyDefinition) -> some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            Text("Reverse name")
+                .font(PUI.Typography.sectionHeader)
+                .foregroundStyle(.secondary)
+            HStack(spacing: PUI.Row.interSpacing) {
+                Button {
+                    reverseIconPickerOpen = true
+                } label: {
+                    Image(systemName: def.reverseIcon ?? def.icon ?? PropertyType.relation.pickerIcon)
+                        .font(PUI.Icon.leading)
+                        .foregroundStyle(.secondary)
+                        .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                        .fieldBackground()
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Change reverse icon")
+                .popover(isPresented: $reverseIconPickerOpen, arrowEdge: .bottom) {
+                    SymbolPicker(symbol: reverseIconBinding)
+                        .frame(width: 540, height: 460)
+                }
+
+                TextField("Reverse name on the Context", text: bindingForReverseName(def: def))
+                    .textFieldStyle(.plain)
+                    .font(PUI.Typography.row)
+                    .padding(.horizontal, PUI.Spacing.lg)
+                    .padding(.vertical, PUI.Spacing.xs)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fieldBackground()
+            }
+            Text("Shown on the Context side of this tier relation.")
+                .font(PUI.Typography.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    /// Normal paired-relation reverse: read-only guidance. The reverse
+    /// property is its own entry on the target Type — rename it there.
+    @ViewBuilder
+    private var relationPairedReverseRow: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            Text("Reverse")
+                .font(PUI.Typography.sectionHeader)
+                .foregroundStyle(.secondary)
+            Text("This relation has a paired property on the target. Edit the reverse from the target's settings.")
+                .font(PUI.Typography.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func isContextTierTarget(_ target: PropertyDefinition.RelationTarget?) -> Bool {
+        if case .some(.contextTier) = target { return true }
         return false
     }
 
-    /// UI-side projection of the relation target kinds surfaced in this picker.
-    private enum RelationTargetKind: Hashable {
-        case pageType, itemType, pageCollection, itemCollection, contextTier
-    }
-
-    private func scopeKind(of scope: PropertyDefinition.RelationTarget?) -> RelationTargetKind? {
-        switch scope {
-        case .pageType:       return .pageType
-        case .itemType:       return .itemType
-        case .pageCollection: return .pageCollection
-        case .itemCollection: return .itemCollection
-        case .contextTier:    return .contextTier
-        case .agendaTasks:    return nil  // singleton targets not yet surfaced in this picker
-        case .agendaEvents:   return nil
-        case .none:           return nil
+    /// Resolves a stored relation target to a display (icon + label) for the
+    /// read-only edit row. Container / Agenda targets resolve via the catalog;
+    /// tier targets map to their fixed tier label; anything unresolvable shows
+    /// a neutral fallback.
+    private func resolvedTargetDisplay(
+        _ target: PropertyDefinition.RelationTarget?
+    ) -> (icon: String, label: String) {
+        switch target {
+        case .some(.contextTier(let tier)):
+            switch tier {
+            case 1: return ("square.stack.3d.up", "Spaces")
+            case 2: return ("folder", "Topics")
+            default: return ("list.bullet.rectangle", "Projects")
+            }
+        case .some(let concrete):
+            if let row = catalog.resolve(concrete) {
+                return (row.icon, row.label)
+            }
+            return ("arrow.triangle.branch", "Unknown target")
+        case .none:
+            return ("arrow.triangle.branch", "No target")
         }
     }
 
-    /// Construct a default RelationTarget for a given kind. Container kinds
-    /// start with an empty target ID; contextTier starts at tier 1.
-    private func defaultScope(for kind: RelationTargetKind) -> PropertyDefinition.RelationTarget {
-        switch kind {
-        case .pageType: return .pageType("")
-        case .itemType: return .itemType("")
-        case .pageCollection: return .pageCollection("")
-        case .itemCollection: return .itemCollection("")
-        case .contextTier: return .contextTier(1)
-        }
-    }
+    // MARK: - Relation edit bindings (tier reverse only)
 
-    private func targetID(of scope: PropertyDefinition.RelationTarget?) -> String {
-        switch scope {
-        case .pageType(let id), .itemType(let id),
-             .pageCollection(let id), .itemCollection(let id):
-            return id
-        default:
-            return ""
-        }
-    }
-
-    private func tier(of scope: PropertyDefinition.RelationTarget?) -> Int {
-        if case .contextTier(let t) = scope { return t }
-        return 1
-    }
-
-    /// Build a new RelationTarget keeping the current kind but replacing the
-    /// target. No-op if kind is `.contextTier` (use tier-binding instead).
-    private func withTargetID(_ id: String, kind: RelationTargetKind) -> PropertyDefinition.RelationTarget {
-        switch kind {
-        case .pageType: return .pageType(id)
-        case .itemType: return .itemType(id)
-        case .pageCollection: return .pageCollection(id)
-        case .itemCollection: return .itemCollection(id)
-        case .contextTier: return .contextTier(1)
-        }
-    }
-
-    // MARK: - Relation bindings
-
-    private func bindingForRelationKind(def: PropertyDefinition) -> Binding<RelationTargetKind?> {
+    /// Edit-mode binding for a tier relation's `reverseIcon` override.
+    private var reverseIconBinding: Binding<String?> {
         Binding(
-            get: { scopeKind(of: def.relationTarget) },
-            set: { newKind in
-                Task {
-                    await applyTransform { transformee in
-                        if let k = newKind {
-                            transformee.relationTarget = defaultScope(for: k)
-                        } else {
-                            transformee.relationTarget = nil
-                        }
-                    }
-                }
+            get: { currentDefinition()?.reverseIcon },
+            set: { newIcon in
+                Task { await applyTransform { $0.reverseIcon = newIcon } }
             }
         )
     }
 
-    private func bindingForRelationTargetID(def: PropertyDefinition) -> Binding<String> {
+    private func bindingForReverseName(def: PropertyDefinition) -> Binding<String> {
         Binding(
-            get: { targetID(of: def.relationTarget) },
-            set: { newID in
-                Task {
-                    await applyTransform { transformee in
-                        guard let kind = scopeKind(of: transformee.relationTarget) else { return }
-                        transformee.relationTarget = withTargetID(newID, kind: kind)
-                    }
-                }
-            }
-        )
-    }
-
-    private func bindingForRelationTier(def: PropertyDefinition) -> Binding<Int> {
-        Binding(
-            get: { tier(of: def.relationTarget) },
-            set: { newTier in
-                Task {
-                    await applyTransform { transformee in
-                        transformee.relationTarget = .contextTier(newTier)
-                    }
-                }
-            }
-        )
-    }
-
-    private func bindingForRelationMirrorName(def: PropertyDefinition) -> Binding<String> {
-        Binding(
-            get: { def.dualProperty?.syncedPropertyID ?? "" },
+            get: { currentDefinition()?.reverseName ?? "" },
             set: { newName in
                 Task {
                     await applyTransform { transformee in
-                        if newName.trimmingCharacters(in: .whitespaces).isEmpty {
-                            transformee.dualProperty = nil
-                        } else {
-                            transformee.dualProperty = PropertyDefinition.DualPropertyConfig(
-                                syncedPropertyID: newName,
-                                syncedPropertyDefinedOnTypeID:
-                                    transformee.dualProperty?.syncedPropertyDefinedOnTypeID ?? ""
-                            )
-                        }
+                        let trimmed = newName.trimmingCharacters(in: .whitespaces)
+                        transformee.reverseName = trimmed.isEmpty ? nil : newName
                     }
                 }
             }
@@ -600,7 +701,9 @@ struct EditPropertyPane: View {
     @ViewBuilder
     private func footerRow(def: PropertyDefinition) -> some View {
         // Placement (horizontal + vertical) is owned by `bottomBlock`, which
-        // pins this row to the popover bottom on the standard rail.
+        // pins this row to the popover bottom on the standard rail and only
+        // renders this row for non-reserved properties (tier entries get no
+        // Delete/Duplicate affordance at all).
         HStack(spacing: 0) {
             Button(role: .destructive) {
                 Task { await commitDelete() }
@@ -611,7 +714,6 @@ struct EditPropertyPane: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(ReservedPropertyID.isReserved(def.id))
 
             Spacer()
 
@@ -624,7 +726,6 @@ struct EditPropertyPane: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(ReservedPropertyID.isReserved(def.id))
         }
 
         if let err = commitError {
@@ -816,6 +917,116 @@ struct EditPropertyPane: View {
             if !path.isEmpty { path.removeLast() }
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
+        }
+    }
+
+    /// Create-relation Save. Builds the finished draft (target + home
+    /// name/icon + reverse name) via `RelationDraftBuilder`, then commits the
+    /// pair through the SOURCE manager's `addProperty` — `pageTypeManager`
+    /// when the scope side is pages, `itemTypeManager` when items. Source side
+    /// + typeID are derived from the pane's `side` / `parentTypeID()` helpers
+    /// (both read `scope`). On success pops back to the properties list.
+    private func commitRelationDraft() async {
+        guard let typeID = parentTypeID(), let side else { return }
+        guard let target = relationDraft.relationTarget else {
+            commitError = "Choose a target before saving."
+            return
+        }
+        guard
+            let finished = RelationDraftBuilder.makeFinishedDraft(
+                existingID: relationDraft.id,
+                name: draftName,
+                icon: relationDraft.icon,
+                target: target,
+                reverseName: relationReverseName,
+                reverseIcon: relationDraft.reverseIcon
+            )
+        else {
+            commitError = "This target can't back a relation."
+            return
+        }
+
+        do {
+            switch side {
+            case .pages:
+                try await pageTypeManager.addProperty(finished, to: typeID)
+            case .items:
+                try await itemTypeManager.addProperty(finished, to: typeID)
+            }
+            commitError = nil
+            if !path.isEmpty { path.removeLast() }
+        } catch {
+            commitError = PropertyEditorErrorMessage.string(for: error)
+        }
+    }
+}
+
+// MARK: - Create-relation sub-views (isolated, plain value types)
+
+/// Target picker section for the create draft. Isolated into its own struct
+/// (plain value props + a single `@Binding`) to keep GRDB `String` overload
+/// pollution out of the parent `@ViewBuilder` — see branch quirk #13.
+private struct RelationDraftTargetSection: View {
+    let catalog: RelationTargetCatalog
+    @Binding var selection: PropertyDefinition.RelationTarget?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            Text("Target")
+                .font(PUI.Typography.sectionHeader)
+                .foregroundStyle(.secondary)
+            RelationTargetMenu(catalog: catalog, selection: $selection)
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            Text("Pick the Vault, Item Type, or Agenda surface this relation points to.")
+                .font(PUI.Typography.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+/// Mirror (reverse) section for the create draft: reverse-name field + an
+/// optional reverse icon. Isolated for the same reason as the target section.
+private struct RelationDraftMirrorSection: View {
+    @Binding var reverseName: String
+    @Binding var reverseIcon: String?
+
+    @State private var iconPickerOpen = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            Text("Mirror name")
+                .font(PUI.Typography.sectionHeader)
+                .foregroundStyle(.secondary)
+            HStack(spacing: PUI.Row.interSpacing) {
+                Button {
+                    iconPickerOpen = true
+                } label: {
+                    Image(systemName: reverseIcon ?? PropertyType.relation.pickerIcon)
+                        .font(PUI.Icon.leading)
+                        .foregroundStyle(.secondary)
+                        .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                        .fieldBackground()
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Change reverse icon")
+                .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
+                    SymbolPicker(symbol: $reverseIcon)
+                        .frame(width: 540, height: 460)
+                }
+
+                TextField("Reverse property name on the target", text: $reverseName)
+                    .textFieldStyle(.plain)
+                    .font(PUI.Typography.row)
+                    .padding(.horizontal, PUI.Spacing.lg)
+                    .padding(.vertical, PUI.Spacing.xs)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fieldBackground()
+            }
+            Text("The paired property created on the target Type.")
+                .font(PUI.Typography.caption)
+                .foregroundStyle(.tertiary)
         }
     }
 }

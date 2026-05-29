@@ -25,16 +25,18 @@ struct DualRelationWiringTests {
         let projects = manager.types.first { $0.title == "Projects" }!
         let tasks = manager.types.first { $0.title == "Tasks" }!
 
-        // Build a paired-relation definition. Convention: `syncedPropertyID` holds
-        // the reverse property's desired display name at add-time.
+        // Build a paired-relation definition. Convention: `reverseName` holds the
+        // reverse property's desired display name at add-time; `dualProperty` is
+        // the pairing signal with an empty `syncedPropertyID`.
         let def = PropertyDefinition(
             id: "",
             name: "Tasks",
             type: .relation,
             relationTarget: .pageType(tasks.id),
+            reverseName: "Projects",                          // reverse display name (add-time)
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Projects",             // reverse display name (add-time convention)
-                syncedPropertyDefinedOnTypeID: tasks.id   // target Type
+                syncedPropertyID: "",                         // coordinator mints the reverse ID
+                syncedPropertyDefinedOnTypeID: tasks.id       // target Type
             )
         )
         try await manager.addProperty(def, to: projects.id)
@@ -81,8 +83,9 @@ struct DualRelationWiringTests {
             name: "Tasks",
             type: .relation,
             relationTarget: .pageType(tasks.id),
+            reverseName: "Projects",
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Projects",
+                syncedPropertyID: "",
                 syncedPropertyDefinedOnTypeID: tasks.id
             )
         )
@@ -123,8 +126,9 @@ struct DualRelationWiringTests {
             name: "Authors",
             type: .relation,
             relationTarget: .itemType(authors.id),
+            reverseName: "Books",
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Books",
+                syncedPropertyID: "",
                 syncedPropertyDefinedOnTypeID: authors.id
             )
         )
@@ -161,8 +165,9 @@ struct DualRelationWiringTests {
             name: "Authors",
             type: .relation,
             relationTarget: .itemType(authors.id),
+            reverseName: "Books",
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Books",
+                syncedPropertyID: "",
                 syncedPropertyDefinedOnTypeID: authors.id
             )
         )

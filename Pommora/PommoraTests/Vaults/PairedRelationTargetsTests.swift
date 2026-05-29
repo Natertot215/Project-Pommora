@@ -59,8 +59,9 @@ struct PairedRelationTargetsTests {
             name: "Authors",
             type: .relation,
             relationTarget: .itemType(authors.id),
+            reverseName: "Notes",  // reverse display name (add-time)
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Notes",  // reverse display name (add-time convention)
+                syncedPropertyID: "",  // coordinator mints the reverse ID
                 syncedPropertyDefinedOnTypeID: authors.id
             )
         )
@@ -106,8 +107,9 @@ struct PairedRelationTargetsTests {
             name: "RelatedTask",
             type: .relation,
             relationTarget: .agendaTasks,
+            reverseName: "Notes",
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Notes",
+                syncedPropertyID: "",
                 syncedPropertyDefinedOnTypeID: ReservedTypeID.agendaTasks
             )
         )
@@ -155,8 +157,9 @@ struct PairedRelationTargetsTests {
             name: "Reviews",
             type: .relation,
             relationTarget: .pageType(reviews.id),
+            reverseName: "Books",
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Books",
+                syncedPropertyID: "",
                 syncedPropertyDefinedOnTypeID: reviews.id
             )
         )
@@ -201,8 +204,9 @@ struct PairedRelationTargetsTests {
             name: "RelatedEvent",
             type: .relation,
             relationTarget: .agendaEvents,
+            reverseName: "Books",
             dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "Books",
+                syncedPropertyID: "",
                 syncedPropertyDefinedOnTypeID: ReservedTypeID.agendaEvents
             )
         )

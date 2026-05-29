@@ -59,7 +59,9 @@ struct ViewSettingsPopover: View {
         case .propertyTypePicker:
             PropertyTypePickerPane(scope: scope, path: $path)
         case .editProperty(let id):
-            EditPropertyPane(scope: scope, propertyID: id, path: $path)
+            EditPropertyPane(scope: scope, mode: .edit(propertyID: id), path: $path)
+        case .newRelation:
+            EditPropertyPane(scope: scope, mode: .createRelation, path: $path)
         case .propertyVisibility:
             PropertyVisibilityPane(scope: scope, path: $path)
         }

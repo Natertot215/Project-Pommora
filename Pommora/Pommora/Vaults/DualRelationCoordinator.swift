@@ -131,6 +131,8 @@ struct DualRelationCoordinator: Sendable {
         target targetKind: TypeKind,
         targetPropertyName: String,
         targetScope: PropertyDefinition.RelationTarget,
+        sourceIcon: String? = nil,
+        targetIcon: String? = nil,
         nexus: Nexus
     ) throws -> (sourcePropertyID: String, targetPropertyID: String) {
         try assertNotContextTier(sourceScope)
@@ -143,6 +145,7 @@ struct DualRelationCoordinator: Sendable {
             id: sourceID,
             name: sourcePropertyName,
             type: .relation,
+            icon: sourceIcon,
             relationTarget: sourceScope,
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: targetID,
@@ -154,6 +157,7 @@ struct DualRelationCoordinator: Sendable {
             id: targetID,
             name: targetPropertyName,
             type: .relation,
+            icon: targetIcon,
             relationTarget: targetScope,
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: sourceID,
