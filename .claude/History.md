@@ -2,6 +2,19 @@
 
 Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
+#### Relations Redesign — relations + tiers unified (2026-05-29)
+
+**Relations property layer rebuilt per the Relations Redesign plan** (`Planning/Relations-Redesign-Plan.md`). One linking system replaces two: tier tagging and relation properties now share a single pipeline.
+
+- **Tiers are relations.** `tier1` / `tier2` / `tier3` (root frontmatter arrays) flow through the property pipeline via the tier value adapter and emit into the SQLite `relations` table; the `tier_links` table is retired (one reverse-lookup path, `IndexQuery.incomingRelations`).
+- **Always-multi.** The `allows_multiple` toggle is dropped; a relation value is always an array of `{"$rel": "<ULID>"}` (single = one-element array). `RelationScope` → `RelationTarget`: user-creatable kinds are Page Type / Item Type / Agenda Tasks / Agenda Events; `context_tier` is internal-only.
+- **One editor, one rendering.** A single-pane relation editor (create + edit, home side + reverse name + reverse icon) replaces the retired multi-step wizard. Relation values render as the target's icon + title in styled colored text via the single `RelationChip` primitive — a dedicated chip visual is deferred.
+- **Context-delete cascades source-side** — deleting a Space / Topic / Project removes its tier reference from every Page, Item, and Agenda entry, orchestrated at the sidebar delete call sites.
+- **Adoption + migration (Lean).** Per-Type sidecar `schemaVersion` 1 → 2 triggers a one-time normalizing re-save (array shape, `relation_target` key, Collection targets rewritten to their parent Type) applied silently; the one lossy change — dropping a relation property targeting a context tier — is gated behind an explicit acknowledgment in the adoption preview. Index DB `currentSchemaVersion` 2 → 3 forces a one-time rebuild that backfills tiers into `relations`.
+- **Deferred** (logged in `Prospects.md`): relation chip visual design; source-side editing of an existing relation's reverse name/icon; the real Context-side `LinkedFromDropdown` surface; hierarchical value pickers.
+
+Registry decisions #8–#12 added in `Guidelines/Paradigm-Decisions.md`. Landed green across the session (only the known `debounceCoalescesRapidEdits` editor-timing flake fails).
+
 #### View Settings editor redesign + Design.md consolidation (2026-05-27)
 
 Rebuilt the View Settings per-property editor to Nathan's Figma. The popover-family UIX lessons that fell out of the rebuild (PaneDivider rail standard, pinned destructive footers, Subheadline / Callout type scale, chip dimensions, back-label pane affordance, idempotent inline-`TextField` commit on Enter / blur / disappear, plain `Menu` over `Picker(.menu)` for inline selectors) folded into `Guidelines/Design.md`; the standalone `UIX-Baseline.md` file was removed (one fact, one home). Build-clean (two `xcodebuild` passes); not yet smoke-tested.
