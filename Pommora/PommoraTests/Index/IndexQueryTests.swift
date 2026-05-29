@@ -221,7 +221,7 @@ struct IndexQueryTests {
 
     // MARK: - Target queries: contextTier
 
-    @Test func entitiesByTargetContextTierReturnsViaTierLinks() async throws {
+    @Test func entitiesByTargetContextTierReturnsContextsForTier() async throws {
         let (dir, idx) = try await setupIndex()
         defer { try? FileManager.default.removeItem(at: dir) }
 

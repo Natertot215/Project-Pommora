@@ -286,10 +286,15 @@ struct IndexQuery: Sendable {
                 "space": "contexts",
                 "topic": "contexts",
                 "project": "contexts",
-                "pageType": "page_types",
-                "itemType": "item_types",
-                "pageCollection": "page_collections",
-                "itemCollection": "item_collections",
+                // `target_kind` is stored coarse ("page"/"item" for any
+                // type/collection target — see RelationTargetKind.string), so real
+                // rows resolve via the keys above. These fine-grained keys stay
+                // snake_case for consistency with this function's `kindFromString`
+                // and `incomingRelations`.
+                "page_type": "page_types",
+                "item_type": "item_types",
+                "page_collection": "page_collections",
+                "item_collection": "item_collections",
             ]
 
             let distinctKinds = try String.fetchAll(db, sql: "SELECT DISTINCT target_kind FROM relations")
