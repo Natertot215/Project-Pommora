@@ -58,6 +58,28 @@ Code re-verification this session (four Explore passes against the live tree) fo
 
 ---
 
+#### Execution addendum (2026-05-29) — progress + further supersessions
+
+**Shipped to `main` (all green except the known `debounceCoalescesRapidEdits` flake):** Phases 0–16 + 18, plus index fixes — 12 validator cascade, 13 relation picker, 14 cell-editor relation case, 15 relation rendering, 16 tier columns, 18 Context-delete cascade; index tier-emit→`relations` + Agenda incremental reconcile. One session owns all of it (a mid-session "parallel session" was a misread — the stray uncommitted changes were this session's own work).
+
+**Further corrections — supersede the body AND the 2026-05-28 pass where they conflict:**
+
+a. **Relation rendering = the target object's ICON + TITLE in plain text, NOT chips** (Nathan, 2026-05-29). `RelationChip` dropped its pill/box — it renders `Image(icon) + Text(title)` only. This supersedes the "chip-everywhere / `RelationChip` pill" framing in Phases 13 & 15 and the value-picker's chip rows: relations are plain icon+title everywhere (picker rows + table cells); the tier-row panel surfaces already render plain text. **Phase 15 is DONE** via this. A real relation-chip visual is deferred until designed — do NOT reintroduce chips. (The `ChipDropdown.labelStyle` scaffolding from an abandoned "route the picker through ChipDropdown" approach was added then removed — gone.)
+
+b. **Phase 12 validator** shipped using a new `NexusContext.forTypeResolution(in:)` disk-resolving factory — the 4 schema managers (PageType / Item / AgendaTask / AgendaEvent) do NOT carry the `@MainActor @escaping () -> NexusContext` closure (quirk #5 applies only to TopicManager / PageContentManager / ItemContentManager). Supersedes Task 12.2's premise.
+
+c. **Phase 13/14 picker** — `RelationPicker` takes `index: PommoraIndex?` as a PARAM (threaded from `NexusManager.currentIndex`, the `PropertyPanel` pattern), NOT `@Environment`. Wired into `PropertyCellEditor`'s `.relation` case; relation cell read/write routes through the Phase-6.5 `setRelationIDs`/`relationIDs` adapter (tiers→root, user→`properties`).
+
+d. **Phase 17.1 is OBSOLETE** — `PommoraIndex` is param-threaded, NOT injected via `@Environment(PommoraIndex.self)`. Only **17.2** (`LinkedFromDropdown` bare stub) remains of Phase 17.
+
+e. **Phase 18 cascade SHIPPED + reframed.** `unlinkTier(contextID:tier:index:)` on all 4 content managers — resolves each referencing entity via `IndexQuery.entityContainer(id:kind:)` (Page/Item) or flat-folder title derivation (Agenda) → load → `setRelationIDs` remove → atomic save → re-upsert index. **Orchestrated at the CALL SITE** (`SidebarView` delete handlers), NOT inside the Context managers (which hold no content-manager refs) — supersedes Task 18.5's `extension SpaceManager { func delete … }` premise. Topic "Delete All" also unlinks tier 3 for each child Project. Projects are managed by `TopicManager` (`deleteProject`); there is NO separate ProjectManager. Use the shared `ReservedPropertyID.tierPropertyID(forTier:)` for tier→`_tierN`.
+
+f. **Phase 20 tier-emit DONE EARLY (reordered before 18).** Tier values now emit into the `relations` table (not only `tier_links`) for all 4 entities — IndexBuilder (full rebuild) + IndexUpdater (incremental `reconcileRelations`) + the Agenda incremental-reconcile gap closed. Required so the Phase-18 cascade's `incomingRelations` sees tier→Context links. **REMAINING for Phase 20:** (i) **FIRST bump `PommoraIndex.currentSchemaVersion` (2→3)** so existing index DBs do a one-time rebuild that backfills `relations` with tier rows — REQUIRED, else the cascade misses tiers on pre-existing entities (Handoff Fix Log #11; this is the INDEX-DB version, distinct from the per-Type sidecar `schemaVersion` Phase 19.10 bumps); (ii) drop the `tier_links` DDL + remove its read/write refs. Phase 20.1's separate "backfill" step folds into (i)'s rebuild.
+
+**Remaining order:** `currentSchemaVersion` bump (first) → Phase 19 migration/adoption → Phase 20 finalize → 21 docs (forward-only) → 22 deferred-log. Open fixes: Fix Log #10 (legacy-sheet Relation dead-end), edit-side relation mirror name/icon, 17.2 `LinkedFromDropdown` stub.
+
+---
+
 #### Phase 0 — Working tree baseline
 
 ##### Task 0.1 — Confirm clean baseline
