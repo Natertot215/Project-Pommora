@@ -164,7 +164,7 @@ Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility)
 
 Schema editor. Each row: icon (if set) + name, type badge, per-property menu (Rename / Change Type / Edit Options or Groups / Delete / Move Up-Down).
 
-"+ Add property" opens the type picker → per-type config sub-view. Relation creation triggers `RelationPropertyWizard` (scope kind → target → name here → reverse name → allow multiple). Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status).
+"+ Add property" opens the type picker → per-type config sub-view. Relation properties are created and edited via the View Settings popover (`EditPropertyPane` `.newRelation` route); selecting Relation in these legacy sheets cancels silently and defers to that path. Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status).
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
 
