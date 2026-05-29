@@ -2,9 +2,7 @@
 
 The operational layer's **Pages-side** schema-bearing container. A Page Type is a folder containing a `_pagetype.json` sidecar that defines the property schema shared by every Page inside. Page Collections are organizational sub-folders within a Page Type carrying their own `_pagecollection.json` sidecar (sharing the Type's schema; no properties of their own).
 
-**UI label divergence:** Page Types render as **"Vault"** in the Pommora app by default; Page Collections render as **"Collection"**. (Doc prose continues to say "Page Type" / "Page Collection" for conceptual clarity — only the UI label diverges.) Both labels renameable via the Settings scaffold (v0.3.0 storage / v0.6.0 editing UI).
-
-Items have a parallel structure on the Items side — see [[Items]] for **Item Type** (UI: "Type") and **Item Collection** (UI: "Set"). Each side has one signature UI word + one shared UI word — Pages get the distinctive "Vault" + generic "Collection"; Items get the generic "Type" + distinctive "Set". In generic prose discussing properties or queries, the term "Type" covers both; "Collection" covers both.
+**UI labels:** Page Types render as **"Vault"** by default, Page Collections as **"Collection"** (both renameable via Settings). Doc prose says "Page Type" / "Page Collection" for conceptual clarity. The parallel Items-side container is the [[Items|Item Type]] (UI: "Type") + Item Collection (UI: "Set"); see CLAUDE.md for the full vocabulary split.
 
 Maps to PARA's "Resources" alongside Item Types and Agenda.
 
@@ -15,7 +13,7 @@ Maps to PARA's "Resources" alongside Item Types and Agenda.
 | Entity | Role | On disk |
 |---|---|---|
 | **Page Type** | Folder with property schema; every Page inside shares the schema | Folder at the nexus root containing `_pagetype.json` |
-| **Page Collection** | Organizational sub-folder inside a Page Type; inherits the Type's schema | Folder inside a Page Type containing its own `_pagecollection.json` (id + ordering only — no properties) |
+| **Page Collection** | Organizational sub-folder inside a Page Type; inherits the Type's property schema | Folder inside a Page Type containing its own `_pagecollection.json` (no `properties` — carries id, ordering, own `views`) |
 | **Content** | Pages only (`.md`) | Files inside a Page Collection, or directly inside the Page Type |
 
 Page Collections share the parent Page Type's schema for simplicity (Collection-local overrides are a post-v1 Prospect). Items are NOT inside Page Types — they live on the Items side; see [[Items]].
@@ -105,8 +103,8 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
       "relation_target": { "kind": "context_tier", "tier": 2 }
     }
   ],
+  "schema_version": 2,
   "default_sort": { "property_id": "_modified_at", "direction": "descending" },
-  "hidden_properties": [],
   "views": [
     /* per-view saved configurations (table / board / list / cards / gallery) — ships v0.6.0 */
   ],
@@ -116,7 +114,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 }
 ```
 
-Title = folder name. Schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `hidden_properties` (per-Type column visibility) and `panel_hidden_properties` (per-entity hide-list) are deferred from v0.3.0 — the Pages Pulldown's lazy mode handles "hide empty" implicitly there; Inspectors are eager, so explicit `panel_hidden_properties` ships post-v0.3.0 if users need to exclude properties from inspector visibility. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively.
+Title = folder name. The schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively. Per-property and per-panel visibility hide-lists are a post-v1 deferral (the inspector renders all schema properties today).
 
 **Relation values are always multi-valued.** A relation property holds an array of tagged target objects — `[{"$rel": "<ULID>"}]` — in the member file's frontmatter / JSON, one entry per linked target (a single target is a one-element array). Values render as the target's **icon + title in plain styled colored text** (never chips/pills), resolved live from the target entity.
 
@@ -145,16 +143,13 @@ The schema editor for a Page Type. UI label: "Vault Settings…" by default (ren
 
 ##### Reaching Page Type Settings
 
-- **PageTypeDetailView toolbar** — gear (`gearshape`) at top-right
-- **Page Type row right-click** in sidebar — "Vault Settings…"
-- **"+" column header in Table view** — opens Edit Properties + Add Property flow
-- **Column header right-click → "Edit property…"** — jumps to the relevant row
+The schema-editor sheet opens from the **Page Type row right-click → "Vault Settings…"** in the sidebar. (Per-view configuration is a separate surface — the View Settings popover off the window toolbar; see § "Sections".)
 
 ##### Sections
 
 | Section | Contents |
 |---|---|
-| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, scope, dual reverse name, status groups, etc.). |
+| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, relation target, dual reverse name, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
 Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings**, which ships at v0.6.0 alongside saved views. A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.
@@ -169,28 +164,15 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### Settings JSON shape
 
-Page Type Settings reads/writes these `_pagetype.json` fields:
-
-```json
-{
-  "properties": [ /* schema; see Properties.md for full shape */ ],
-  "default_sort": {
-    "property_id": "_modified_at",
-    "direction": "descending"
-  },
-  "template_config": null
-}
-```
-
-Saved views (with their own filter / group_by / layout / property_visibility) live in `views[]`, populated at v0.6.0 when the saved-views system ships.
+Page Type Settings reads/writes the `properties` and `default_sort` fields of `_pagetype.json` (full shape above). Saved views (with their own filter / group_by / layout / property_visibility) live in `views[]`, populated at v0.6.0 when the saved-views system ships.
 
 ---
 
 #### No Page Type templates
 
-Page Type creation does NOT seed default properties — name + icon only. Users add Status (or anything else) manually via Page Type Settings → Edit Properties → "+ Add property". Status is built-in on both AgendaTask and AgendaEvent (where EventKit needs it); on user-created Page Types and Item Types, Status is opt-in.
+Page Type creation does NOT seed default properties — name + icon only. Users add Status (or anything else) manually via Page Type Settings → Edit Properties → "+ Add property". Status is built-in on AgendaTask and AgendaEvent (where EventKit needs it); on user-created Page Types and Item Types it is opt-in.
 
-Future **content-level templates** (Page, Notion-style pre-fill at creation) are reserved for post-v1; v0.3.0 keeps the scaffold compatible. Property type catalog, scope shapes, Status groups, dual-relation semantics → [[Properties]]. Implementation plan → `// Planning//v0.3.0-Properties-plan.md`.
+Content-level templates (Notion-style pre-fill at creation) are reserved for post-v1. Property type catalog, relation targets, Status groups, dual-relation semantics → [[Properties]].
 
 ---
 
@@ -206,7 +188,7 @@ Tasks and Events live in the Tasks singleton and Events singleton respectively (
 
 #### Page Collections (sub-folders within a Page Type)
 
-Filesystem folders inside a Page Type with a minimal sidecar. Pages-only — Page Collections never contain Items. They share the parent Page Type's schema (properties + views live on the Type) but persist stable identity for rename-safe references. Exist for visual / structural grouping inside large Page Types.
+Filesystem folders inside a Page Type with a minimal sidecar. Pages-only — Page Collections never contain Items. They inherit the parent Page Type's property schema but carry their own saved `views[]` (see § "View types"). Exist for visual / structural grouping inside large Page Types.
 
 **`_pagecollection.json` sidecar** (Page Collection):
 
@@ -214,12 +196,14 @@ Filesystem folders inside a Page Type with a minimal sidecar. Pages-only — Pag
 {
   "id": "01H...",
   "type_id": "01H...",
-  "modified_at": "2026-05-22T...",
-  "page_order": []
+  "schema_version": 1,
+  "page_order": [],
+  "views": [],
+  "modified_at": "2026-05-22T..."
 }
 ```
 
-Page Collections don't carry their own `properties` or `views` — schema is inherited from the parent Page Type. The sidecar carries only `id`, `type_id` (parent Page Type reference), `page_order` (user-arranged sequence of child Pages), and `modified_at`. Making `type_id` an explicit on-disk property keeps external query/parsing tools from inferring it via filesystem nesting, and gives Page Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
+Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `page_order` (user-arranged child Pages), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
 
 - Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id/type_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page between Collections in the same Page Type = pure filesystem move, properties unchanged.
 
@@ -235,8 +219,8 @@ Page Collections don't carry their own `properties` or `views` — schema is inh
 - **Items, Agenda Tasks, Agenda Events do NOT appear in the sidebar** — Items live in detail-pane Tables under their Item Type; Tasks + Events surface via the Calendar pin entry
 - Clicking a Page Type opens `PageTypeDetailView` — hierarchical Finder-style Table over Collections (expandable for contained Pages)
 - Clicking a Page Collection opens `PageCollectionDetailView` — flat Table of Pages
-- Clicking a Page opens it in the main detail pane via TextKit-2 editor (shipped v0.2.7.0; spec → [[PageEditor]])
-- **Creation is right-click-only** — right-click a Page Type row → "New Vault / New Collection / New Page" (UI labels); right-click a Page Collection → "New Page". See [[Sidebar]] for the full table.
+- Clicking a Page opens it in the main detail pane via the TextKit-2 editor (spec → [[PageEditor]])
+- A new Page Type is created from the "+" button in the Pages section header. Right-clicking a Page Type row creates its children — "New Collection" / "New Page"; right-clicking a Page Collection gives "New Page". See [[Sidebar]] for the full table.
 
 ---
 
@@ -244,9 +228,9 @@ Page Collections don't carry their own `properties` or `views` — schema is inh
 
 Five view types: **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
 
-Table views carry **pre-configured tier columns** — Spaces / Topics / Projects (`tier1` / `tier2` / `tier3`) — at the rightmost content positions, between the last user-property column and the trailing Last Edited Time column. Each is a relation column rendering target icon + title, default-visible and individually hideable.
+Table views carry **pre-configured tier columns** — rendered left-to-right as Project / Topic / Space (`tier3` / `tier2` / `tier1`) — at the rightmost content positions, between the last user-property column and the trailing Last Edited Time column. Each is a relation column rendering target icon + title, default-visible and individually hideable.
 
-**Every storage container has view surfaces** — not just the schema-bearing Types. Page Types AND Page Collections both carry `views[]`; on the Items side, Item Types AND Item Sets do too. Schema is inherited from the Type (Collections don't override schema in v1), but each container's saved view configuration is independent. A Page Collection can have a Board view filtered to a subset of its Pages while the parent Page Type shows a Table — same data, two view surfaces.
+**Every storage container has view surfaces** — not just the schema-bearing Types. Page Types AND Page Collections both carry `views[]`; on the Items side, Item Types AND Item Sets do too. The property schema is inherited from the Type, but each container's saved view configuration is independent — a Page Collection can show a Board filtered to a subset of its Pages while the parent Page Type shows a Table.
 
 Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json`). Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
 
@@ -277,7 +261,7 @@ Enforced at every file write:
 
 #### Adopting existing folders
 
-Opening any folder as a Nexus — including pre-existing user folders that have never seen Pommora — runs an idempotent scan. The adopter classifies each root folder independently and tolerates mixed states: fresh folders, legacy sidecars from earlier shapes, the wrapper layout from a prior refactor, and the already-flat target state can all coexist in one Nexus, and each folder is migrated on its own.
+Opening any folder as a Nexus — including pre-existing user folders that have never seen Pommora — runs an idempotent scan. The adopter classifies and migrates each root folder independently, so fresh folders, legacy sidecars, the prior wrapper layout, and the already-flat target state can coexist in one Nexus.
 
 Shape detection per root folder:
 
@@ -292,7 +276,7 @@ Items-side adoption follows the parallel rule (root folders with `_itemtype.json
 
 Exclusion set (never adopted): any folder starting with `.` or `_` (e.g. `.nexus`, `.trash`, `.obsidian`, `.makemd`, `.space`). Hidden folders are filtered by `.skipsHiddenFiles` at the enumerator level. There are no reserved top-level folder names — `Pages/` / `Items/` / `Agenda/` exist only as legacy input shapes the adopter unwraps.
 
-`.md` files within an adopted Page Type need no Pommora-specific shape to surface — the discovery is extension-based. Pages without Pommora frontmatter open via the lenient loader (synthesized id from path-relative SHA256; details → [[Pages]]).
+`.md` files within an adopted Page Type need no Pommora-specific shape to surface — discovery is extension-based, and Pages without frontmatter open via the lenient loader ([[Pages]] § "On disk").
 
 Implementation: `NexusAdopter.scan` + `.apply` at `Pommora/Pommora/Nexus/NexusAdopter.swift`; preview sheet at `AdoptionPreviewView.swift`; both `NexusManager.openPicked` and `openExisting` call `runAdoptionIfNeeded` after identity is set. Indexing status surfaces via `NexusManager.isIndexing` → `IndexingHUD` overlay in the sidebar.
 

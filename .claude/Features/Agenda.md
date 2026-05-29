@@ -7,7 +7,7 @@ The operational layer's calendar-anchored side. Splits into two distinct entity 
 
 Both share the property catalog used elsewhere (Number / Select / Status / Relation / etc.) and both carry `tier1` / `tier2` / `tier3` Context relations.
 
-The split is **EventKit-aligned, not just structural** — `EKEvent` and `EKReminder` are peer types in EventKit (separate `EKEntityType` buckets, separate `requestFullAccessTo*` access APIs, separate Apple apps — Calendar.app vs Reminders.app). Pommora's UI already collapses Agenda (no Agenda sidebar heading; Calendar pin consolidates), and the disk layout now matches the same peer-relationship: two sibling singleton folders at the nexus root, not nested inside an `Agenda/` wrapper. EventKit sync at v0.6.0 maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
+The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate `EKEntityType` buckets, separate access APIs, separate apps — Calendar.app vs Reminders.app), so the disk layout uses two sibling singleton folders at the nexus root rather than an `Agenda/` wrapper. EventKit sync (v0.6.0) maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
 
 In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
@@ -17,7 +17,7 @@ UX-wise both entities behave identically to [[Items]] — Item Window popover, t
 
 #### Agenda Tasks and Events as relation targets
 
-Both kinds are **first-class relation targets**. A Relation property on any Page Type or Item Type (or on the other Agenda kind) can point at Agenda Tasks or Agenda Events, the same way it points at a Page Type or Item Type — `PropertyDefinition.RelationTarget` carries `.agendaTasks` and `.agendaEvents` cases alongside `.pageType` / `.itemType` / `.contextTier`. The relation picker resolves candidate targets through `IndexQuery.entitiesByTarget(.agendaTasks)` / `.agendaEvents`, and each assigned value renders as the target's **icon + title in styled colored text**.
+Both kinds are **first-class relation targets**: a Relation property on any Page Type or Item Type (or the other Agenda kind) can point at them. `PropertyDefinition.RelationTarget` carries `.agendaTasks` / `.agendaEvents` alongside `.pageType` / `.itemType`. The picker resolves candidates via `IndexQuery.entitiesByTarget(.agendaTasks)` / `.agendaEvents`; each value renders as the target's **icon + title in styled colored text**.
 
 Because a Task or Event is a target, it also surfaces its own inbound links: every entity whose Relation property (or tier relation) points at it is found via `IndexQuery.incomingRelations(targetID:)` against the SQLite `relations` table — the same reverse-view query every other target uses.
 
@@ -37,66 +37,37 @@ Because a Task or Event is a target, it also surfaces its own inbound links: eve
 
 Both folders sit at the nexus root as siblings of Page Types and Item Types — no `Agenda/` wrapper. Discovery is sidecar-driven: the Tasks singleton is whichever root folder carries `_taskconfig.json`; the Events singleton is whichever root folder carries `_eventconfig.json`. Renaming the folder in Finder Just Works. If multiple folders carry the same sidecar (pathological), first-found wins with a warning logged.
 
-`_taskconfig.json` / `_eventconfig.json` carry the `config` suffix (asymmetric with the Pages-side / Items-side sidecars) on purpose — the per-entity files use `.task.json` / `.event.json` extensions, so bare `_task.json` / `_event.json` sidecar names would visually clash. Pages-side (`.md` Pages) and Items-side (`.json` Items) don't have this collision, so they get the un-suffixed `_pagetype.json` / `_itemtype.json` / `_pagecollection.json` / `_itemcollection.json` filenames.
+The sidecars carry the `config` suffix (vs the un-suffixed Pages/Items `_pagetype.json` / `_itemtype.json`) so they don't clash with the `.task.json` / `.event.json` entity extensions. Those per-entity extensions let indexes and external agents identify the kind without opening the file.
 
-`.task.json` and `.event.json` per-entity extensions — easy to filter in indexes; agents reading files can immediately identify the kind without opening them.
-
-Both singleton folders are **eagerly created on launch**. `AgendaTaskManager.loadAll` and `AgendaEventManager.loadAll` ensure the folder exists + seed the appropriate sidecar if absent, so a fresh Nexus shows both folders at root even when empty — predictable for the user, uniform for discovery. Multiple Task / Event types per Nexus remain a post-v1 Prospect.
+Both singleton folders are **eagerly created on launch**: `AgendaTaskManager.loadAll` / `AgendaEventManager.loadAll` ensure the folder exists and seed the sidecar if absent, so a fresh Nexus shows both folders even when empty. Multiple Task / Event types per Nexus remain a post-v1 Prospect.
 
 ---
 
-#### Schema
+#### Schema (config sidecar)
 
-Both `_taskconfig.json` and `_eventconfig.json` carry `properties: [PropertyDefinition]` — the one property shape shared with Page Types and Item Types. Built-in fields and user-defined properties live in the same array, each a `PropertyDefinition` keyed by stable ID; the three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInRelationProperties` for surfaces that show them. One uniform shape across every schema-bearing kind.
+`_taskconfig.json` and `_eventconfig.json` each carry `properties: [PropertyDefinition]` — the same property shape as Page Types and Item Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); every other property is user-defined. The three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInRelationProperties` for surfaces that show them.
 
-##### Agenda Task schema (`_taskconfig.json` inside the Tasks singleton)
+The `_status` Status structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, user-editable options, default seed, the 3-slot rule, the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
 
-Built-in (non-deletable) property:
-- `status` (Status) — 3-group EventKit-aligned (Upcoming / In Progress / Done)
+- Group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly, so the sync layer needs no translation logic.
+- `_status` is user-set, decoupled from any date math — it tracks engagement ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own `.tentative` / `.confirmed` status is a separate EventKit concept; how sync bridges to it is an open sync-layer question.
+- Neither kind ships a built-in `type` field — `_status` is the sole built-in workflow indicator. A `type` taxonomy can be added via the schema editor like any other Select.
 
-Built-in fields (not user-creatable):
-- `due_at` (Date & Time, optional) — `EKReminder.dueDateComponents`
-- `due_floating` (Bool) — true = no timezone
-- `due_all_day` (Bool) — true = strip hour/minute/second
-- `start_at` (Date & Time, optional) — EKReminder "not before"
-- `completed` (Bool) — `EKReminder.isCompleted`
-- `completed_at` (Date & Time, optional) — `EKReminder.completionDate`
-- `priority` (Number 0–9) — `EKReminder.priority`
-- `recurrence` — `EKRecurrenceRule` mirror
-- `alarm_offsets` (Number[]) — negative seconds before due
-- `tier1` / `tier2` / `tier3` — Context relations
+#### Entity fields (per-entity file)
 
-##### Agenda Event schema (`_eventconfig.json` inside the Events singleton)
+The EventKit-shaped fields live at the root of each `.task.json` / `.event.json` file (on the `AgendaTask` / `AgendaEvent` struct), NOT in the config sidecar. `tier1` / `tier2` / `tier3` store there too, as bare ID arrays.
 
-Built-in (non-deletable) property:
-- `status` (Status) — 3-group EventKit-aligned (Upcoming / In Progress / Done). Same shape as AgendaTask; user-set, decoupled from `start_at` / `end_at` date math.
+**Agenda Task (`.task.json`):** `due_at` (optional, `EKReminder.dueDateComponents`), `due_floating` (Bool — true = no timezone), `due_all_day` (Bool), `start_at` (optional, "not before"), `completed` (`EKReminder.isCompleted`), `completed_at`, `priority` (Int 0–9), `recurrence`, `alarm_offsets` (`[TimeInterval]`, negative = before due), `calendar_id` + `eventkit_uuid` (sync state).
 
-Built-in fields (not user-creatable):
-- `start_at` (Date & Time, required) — `EKEvent.startDate`
-- `end_at` (Date & Time, required) — `EKEvent.endDate`
-- `all_day` (Bool) — strip time
-- `location` (String) — `EKEvent.location`
-- `recurrence` — `EKRecurrenceRule` mirror
-- `alarm_offsets` (Number[]) — negative seconds before start
-- `alarm_absolute` (Date & Time[]) — fixed-time alarms
-- `tier1` / `tier2` / `tier3` — Context relations
-
+**Agenda Event (`.event.json`):** `start_at` (required, `EKEvent.startDate`), `end_at` (required, `EKEvent.endDate`), `all_day` (Bool), `location`, `recurrence`, `alarm_offsets` (`[TimeInterval]`), `alarm_absolute` (`[Date]` — fixed-time alarms), `calendar_id` + `eventkit_uuid` (sync state).
 
 ---
 
-#### Built-in `_status` property (AgendaTask + AgendaEvent)
+#### EventKit sync (v0.6.0)
 
-Both kinds carry exactly one built-in property: a non-deletable `_status` Status property (reserved ID `_status`). Every other property on either kind is user-defined. The Status type's structure (3 fixed EventKit-aligned groups Upcoming / In Progress / Done, renameable labels, user-editable options, default seed, the 3-slot rule, and the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
+EventKit sync is opt-in (Settings → Agenda), not enabled by default; the on-disk fields exist day one so opt-in is purely additive. The design below is the sync contract — the integration itself lands at v0.6.0.
 
-- The group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly, so the sync layer needs no translation logic.
-- AgendaEvent's `status` is user-set and decoupled from `start_at` / `end_at` date math — it tracks the user's engagement with the event ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own status field (`.tentative` / `.confirmed`) is a separate EventKit concept; how the sync layer bridges Pommora's Status to it is an open sync-layer question.
-- Neither kind ships a built-in `type` field — Status is the sole built-in workflow indicator. A `type` taxonomy can be added via the schema editor like any other Select.
-
----
-
-#### EventKit mapping
-
-Each side maps to one EventKit entity. No data-driven inference — the file extension is the discriminator.
+Each side maps to one EventKit entity, discriminated by file extension (no data-driven inference).
 
 | File extension | EventKit target | Mapping |
 |---|---|---|
@@ -105,54 +76,31 @@ Each side maps to one EventKit entity. No data-driven inference — the file ext
 
 Stable identifiers: `EKEvent.eventIdentifier` for events, `EKCalendarItem.calendarItemIdentifier` for reminders. Both stored on the entity (field name `eventkit_uuid` on each Codable struct).
 
----
+##### Sandbox + permissions
 
-#### Sandbox + permissions (macOS 26.4 target)
+Sandboxed EventKit access requires:
 
-Required for EventKit access in a sandboxed build:
-
-1. **Sandbox entitlements** — `com.apple.security.personal-information.calendars` (events) AND `com.apple.security.personal-information.reminders` (tasks). Both required because the two sides hit separate EventKit APIs with separate permission grants.
-2. **Info.plist** — `NSCalendarsFullAccessUsageDescription` + `NSRemindersFullAccessUsageDescription`
-3. **Modern access APIs** — `requestFullAccessToEvents(completion:)` + `requestFullAccessToReminders(completion:)` (legacy `requestAccess` deprecated on macOS 14+)
-
-EventKit sync **NOT enabled by default** — opt-in via Settings → Agenda. Schema fields exist day one so opt-in is additive. Sync ships v0.6.0.
+1. **Entitlements** — `com.apple.security.personal-information.calendars` (events) AND `...reminders` (tasks); the two sides hit separate APIs with separate grants.
+2. **Info.plist** — `NSCalendarsFullAccessUsageDescription` + `NSRemindersFullAccessUsageDescription`.
+3. **Access APIs** — `requestFullAccessToEvents` + `requestFullAccessToReminders` (legacy `requestAccess` deprecated on macOS 14+).
 
 ##### Change observation
 
-External EKEventStore changes observed via Swift Concurrency async sequences over `NotificationCenter`. AgendaTask and AgendaEvent each get a dedicated reconciliation pass:
+External `EKEventStore` changes are observed via async sequences over the `.EKEventStoreChanged` notification; each manager re-fetches its side, compares against the `.task.json` / `.event.json` files by `eventkit_uuid` + `EKCalendarItem.lastModifiedDate`, and applies last-write-wins.
 
-```swift
-for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
-    await agendaTaskManager.reconcileWithEventKit()
-    await agendaEventManager.reconcileWithEventKit()
-}
-```
-
-Reconciliation re-fetches calendars (for events) and reminders (for tasks), compares against `.event.json` / `.task.json` files by `eventkit_uuid` + `EKCalendarItem.lastModifiedDate`, applies last-write-wins.
-
-##### Constraint: `EKRecurrenceRule` is immutable after creation
-
-Modifying recurrence requires constructing a new `EKRecurrenceRule` and reassigning. Pommora's sync layer always builds fresh from the JSON `recurrence` block — never in-place mutation. Same constraint applies to both sides.
+`EKRecurrenceRule` is immutable after creation, so the sync layer always builds a fresh rule from the JSON `recurrence` block rather than mutating in place — both sides.
 
 ---
 
 #### Sidebar treatment
 
-**Agenda has no sidebar section.** Agenda Tasks and Agenda Events surface via the **Calendar pin entry** at the top of the sidebar (heading-less Pinned section). The Calendar view shows both kinds plus EventKit-mirrored system content once sync is enabled.
-
-Access via:
-
-- The Calendar row in the Pinned section opens `CalendarDetailView` (Tasks list above, Events list below). Right-click the Calendar pin → "New Task" / "New Event" for quick capture.
-- From within a Context's composed-blocks surface (embedded "agenda items linked to this Topic" view; v0.6.0+)
-- Direct file access in Finder
+**Agenda has no sidebar section.** Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar. The Calendar row opens `CalendarDetailView` — currently a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content ship v0.6.0. Right-click the Calendar pin → "New Task" / "New Event" stubs an entity (`createTask` / `createEvent`). Also reachable from a Context's composed-blocks surface (embedded linked-agenda view; v0.6.0+) or directly in Finder.
 
 ---
 
 #### UI: Item Window for AgendaTask + AgendaEvent
 
-Both AgendaTask and AgendaEvent open in the same Item Window popover used for [[Items]] — title + properties + 250-char description, not a full-frame surface. Per-side UI variations (kind-specific quick fields, layout differences) ship with the v0.3.1 redesign.
-
-When an AgendaTask's `start_at` and `due_at` would carry the same value, the property panel collapses to **a single "When?" date input**. Expands to two when the user wants asymmetric values. On disk, both fields persist separately — the collapse is purely UI. (AgendaEvent always shows separate start/end inputs since both are required.)
+Tasks and Events open in the same Item Window popover used for [[Items]] — title + properties + 250-char description, not a full-frame surface. (Not yet wired; rows in the placeholder Calendar list aren't yet clickable.) Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
 
 ---
 
@@ -160,18 +108,9 @@ When an AgendaTask's `start_at` and `due_at` would carry the same value, the pro
 
 Enforced at every file write:
 
-**AgendaTask (`.task.json`):**
-1. Conforms to the Tasks singleton's `_taskconfig.json` (`_status` property cannot be removed; options editable)
-2. `due_at` is optional; `start_at` is optional ("not before" hint)
-3. `due_all_day` only meaningful when `due_at` is set
-4. `completed_at` only meaningful when `completed = true`
-5. Filename = title
+**AgendaTask (`.task.json`):** conforms to `_taskconfig.json` (`_status` non-removable; options editable); `due_at` and `start_at` optional; `due_all_day` meaningful only when `due_at` set; `completed_at` meaningful only when `completed`; filename = title.
 
-**AgendaEvent (`.event.json`):**
-1. Conforms to the Events singleton's `_eventconfig.json` (`_status` property cannot be removed; options editable)
-2. `start_at` AND `end_at` both required; `end_at >= start_at`
-3. `all_day` only meaningful when `start_at` is set
-4. Filename = title
+**AgendaEvent (`.event.json`):** conforms to `_eventconfig.json` (`_status` non-removable); `start_at` + `end_at` both required, `end_at >= start_at`; filename = title.
 
 ---
 

@@ -1,8 +1,8 @@
 ### Architecture — Data Layer + Nexus
 
-How Pommora's data layer actually works: the on-disk Nexus, the manager + cache surface, the SQLite index that stays in sync with it, the atomic-write contract that makes saves crash-safe, the adopter that opens any folder as a Nexus, and the file-watcher that keeps everything in sync with external edits.
+How Pommora's data layer works: the on-disk Nexus, the manager + cache surface, the SQLite index, the atomic-write contract, the adopter that opens any folder as a Nexus, and the file-watcher for external edits.
 
-PRD carries the high-altitude storage model + SQLite DDL. This doc covers the **dynamics** — how the layers cooperate, what invariants hold, and the rules that keep the whole thing legible to external agents.
+PRD carries the high-altitude storage model + SQLite DDL; this doc covers the **dynamics** — how the layers cooperate and what invariants hold.
 
 ---
 
@@ -103,9 +103,9 @@ The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a mo
 
 **Query surface.** `IndexQuery` (`Index/IndexQuery.swift`) is a Notion-style filter/sort/group/broken-links facade — it composes parameterized SQL using SQLite's JSON1 extension to reach into the `properties` JSON column, and reads the `relations` table for relation lookups. Embedded views in Contexts / Homepage flow through this surface.
 
-**Reverse-view query (Context-side Linked-from).** `IndexQuery.incomingRelations(targetID:)` reads the `relations` table for every row whose `target_id` equals a given ID, returning one `EntityRef` per row built from `source_id` + `source_kind`, with each source's current title resolved by joining `source_id` to its owning-kind table. It powers a Context's Linked-from surface — every operational entity that links to that Context. **Tier relations route through the same query.** Each `tier1` / `tier2` / `tier3` value emits one row into `relations` (`property_id` = the reserved tier ID, `target_kind` = `contextTier`), so tier-tagged entities and user-defined Relation-property values both surface from a single `relations` read — no separate per-tier table to join.
+**Reverse-view query (Context-side Linked-from).** `IndexQuery.incomingRelations(targetID:)` reads the `relations` table for every row whose `target_id` equals a given ID, returning one `EntityRef` per row built from `source_id` + `source_kind`, with each source's current title resolved by joining `source_id` to its source-kind table. It powers a Context's Linked-from surface — every operational entity that links to that Context. **Tier relations route through the same query.** Each `tier1` / `tier2` / `tier3` value emits one row into `relations` (`property_id` = the reserved tier ID `_tier1` / `_tier2` / `_tier3`, `target_kind` = the coarse `space` / `topic` / `project`), so tier-tagged entities and user-defined Relation-property values both surface from a single `relations` read — no separate per-tier table to join. The `target_kind` string is derived by `RelationTargetKind.string(from:)`, shared between the full rebuild and incremental upsert paths.
 
-**Update path: `IndexUpdater`.** Wired into all six entity managers; mid-session mutations propagate to the DB without waiting for a restart. Pattern: every manager mutation method (`createX`, `updateX`, `deleteX`, `renameX`) calls the corresponding `IndexUpdater.x` after the atomic file write succeeds.
+**Update path: `IndexUpdater`.** Wired into the per-entity content + type managers (Pages, Items, Page/Item Types, Agenda Tasks, Agenda Events) plus Contexts and property definitions; mid-session mutations propagate to the DB without waiting for a restart. Pattern: every manager mutation method (`upsertX`, `deleteX`) runs after the atomic file write succeeds.
 
 **FK constraint shape.** Most relationships cascade-delete in SQLite (`ON DELETE CASCADE` on `page_type_id` / `item_type_id` / etc.). The `page_collection_id` and `item_collection_id` fields on `pages` and `items` are `ON DELETE SET NULL` so deleting a Collection doesn't cascade-delete its child Pages / Items — they move back to the Type root in the index until the next `loadAll` reconciles.
 
@@ -125,17 +125,15 @@ Every file write goes through one of three atomic-write helpers:
 
 ---
 
-#### File-watcher contract (deferred; v0.3.3)
+#### File-watcher contract (deferred — `Framework.md` v0.3.3)
 
-External edits — files changed by Obsidian / vim / Finder rename / cloud-sync mtime drift — need to propagate to the SQLite index + the in-memory caches + the sidebar UI without restarting Pommora.
+External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. Planned shape:
 
-**Tool choice: FSEventStream.** `DispatchSource.makeFileSystemObjectSource` is per-fd (no recursion) — wrong shape. FSEventStream via Swift wrapper (`EonilFSEvents` or hand-rolled `FSEventStreamCreate`) gives recursive watch on the Nexus root with a per-event payload.
+- **FSEventStream** — recursive watch on the Nexus root with a per-event payload (`DispatchSource.makeFileSystemObjectSource` is per-fd, no recursion).
+- **Self-write filtering** — debounce 50–100ms by path; track outbound mtimes so Pommora's own `.tmp` + rename writes don't round-trip through the watcher.
+- **Lost-update protection** — on entity save, compare on-disk mtime to the last-loaded version; prompt to reload before overwriting if it drifted.
 
-**APFS atomic-rename gotchas.** Editor save = `.tmp` write + rename emits create+delete events for the temp. Debounce 50–100ms by path; track outbound mtimes to ignore Pommora's own writes (otherwise every save round-trips through the watcher).
-
-**Lost-update protection.** On Page / Item / AgendaTask / AgendaEvent save, compare on-disk mtime to the version Pommora last loaded. If external mtime drifted, prompt the user to reload before overwriting.
-
-Roadmap entry: `Framework.md` v0.3.3 (FSEventStream + FTS5 + external-edit detection). The data layer's atomic-write discipline + IndexUpdater shape was designed to support this — adding the watcher is a wiring task, not an architectural change.
+The atomic-write discipline + IndexUpdater shape already support this — the watcher is a wiring task, not an architectural change.
 
 ---
 
@@ -149,26 +147,20 @@ Roadmap entry: `Framework.md` v0.3.3 (FSEventStream + FTS5 + external-edit detec
 
 Pommora carries two migration mechanisms:
 
-**1. Index-side schema version.** The SQLite index file stamps a `meta.schema_version`. On open, `PommoraIndex.open` compares against the code's `currentSchemaVersion`; mismatch deletes the file and rebuilds from disk via `IndexBuilder`. Adding a new index column / table is a `currentSchemaVersion += 1` + one new DDL — no per-user migration.
+**1. Index-side schema version** — covered above (`PommoraIndex.currentSchemaVersion` is 3; a mismatch deletes + rebuilds, no per-user migration).
 
-**2. File-side schema version + property migration.** Each Pommora-written Type sidecar carries a `schema_version` (Page/Item Types at 2). Legacy decode with no version reads as 0; any sidecar below the current version is migrated. `PropertyIDMigration` runs on every Nexus open: it mints stable ULID `id`s for name-keyed properties, normalizes relation shapes (array-wrapped values, the `relation_target` key, Collection targets rewritten to their parent Type), and rewrites entity files to reference properties by ID. Two-phase (scan / apply). Lossless normalization applies silently; the one lossy change — dropping a relation property that targets a context tier — surfaces in the preview sheet behind an explicit acknowledgment. Idempotent.
+**2. File-side schema version + property migration.** Each Pommora-written Type sidecar carries a `schema_version` (Page/Item Types at 2; legacy decode with no version reads as 0). `PropertyIDMigration` runs on every Nexus open: it mints stable ULID `id`s for name-keyed properties, normalizes relation shapes (array-wrapped values, the `relation_target` key, Collection targets rewritten to their parent Type), and rewrites entity files to reference properties by ID. Two-phase (scan / apply), idempotent. Lossless normalization applies silently; the one lossy change — dropping a relation property that targets a context tier — surfaces in the preview sheet behind an explicit acknowledgment.
 
 **Settings auto-migration.** `Settings.defaultsVersion: Int` + `Settings.migrate(_:)` step-function scaffold. `SettingsManager.loadOrSeed` calls `migrate` after decode + re-persists only when changed (mtime stays stable on no-op launches). Bump the constant + add a migration step when defaults change.
 
 ---
 
-#### What this data layer enables — and what it leaves to the OS
+#### What this data layer leaves to the OS
 
-**Enabled by file-canonicality:**
+File-canonicality's payoffs (external-editor compatibility, agent legibility, cloud-sync-for-free) are the two load-bearing principles above. What's deliberately *not* built:
 
-- **External editor compatibility.** Files open cleanly in Obsidian / Bear / pandoc / iA Writer / GitHub / vim — Pages are standard CommonMark, sidecars are plain JSON, frontmatter is YAML.
-- **External agent legibility.** Claude via MCP, any filesystem tool, any future agent reads the entire graph directly. No tool-call round-trips to Pommora.
-- **Cloud sync for free.** The Nexus folder can sit in iCloud Drive / Dropbox / any synced folder; per-file conflict resolution is the syncer's job. Real cloud sync (Supabase, etc.) arrives as additive translation — the on-disk model maps cleanly to a cloud DB.
-
-**Deliberately left to OS-level tools:**
-
-- **Versioning / file history / backup.** Time Machine, `git` on the Nexus, filesystem snapshots. No internal version store, no auto-commit. In-session undo is free from the editor.
-- **Cross-device sync (v1).** User picks the Nexus location; placing it in a synced folder gives device-to-device sync. Real cloud sync is a long-term Prospect.
+- **Versioning / file history / backup** — Time Machine, `git` on the Nexus, filesystem snapshots. No internal version store, no auto-commit; in-session undo is free from the editor.
+- **Cross-device sync (v1)** — user picks the Nexus location; placing it in a synced folder gives device-to-device sync. Real cloud sync is a long-term Prospect.
 
 ---
 

@@ -83,7 +83,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier is a multi-value relation, filled independently. Each renders as its own value-row in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`); each value displays as the target Context's **icon + title in styled colored text** — the relation-value rendering shared across every surface, not a chip or pill. User-defined Relation properties on Page Types and Item Types can also target Contexts at a chosen tier via the `context_tier` `RelationScope` — the target tier is chosen in `EditPropertyPane`, which swaps the relation target field for a tier Picker when the scope is `contextTier`.
+Each tier is a multi-value relation, filled independently. Each renders as its own value-row in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`); each value displays as the target Context's **icon + title in styled colored text** — the relation-value rendering shared across every surface, not a chip or pill. The `context_tier` target is internal-only — it backs the three built-in tier relations and is never offered as a user-selectable target. User-defined relations target a Page Type, Item Type, or an Agenda side; `EditPropertyPane` renders a tier target read-only (it can't be created or re-pointed from the editor).
 
 A tier relation is a **dual surface**:
 

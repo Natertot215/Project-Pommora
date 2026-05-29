@@ -1,12 +1,12 @@
 ### Items
 
-An Item is a **row-shaped record** stored as a `.json` file: properties + relations + a 250-char plain-text description (the body field — short by design; fits in the Item Window without scrolling), opened in an **Item Window** (popover, Calendar-event-detail pattern). Items support cross-side relations to Pages and Page Collections — see [[Properties]] § "Relation scope".
+An Item is a **row-shaped record** stored as a `.json` file: properties + relations + a 250-char plain-text description, opened in an **Item Window** (popover, Calendar-event-detail pattern). Items carry typed relations to any other entity by ID — see [[Properties]] § "Relation target".
 
 Items live inside an **Item Type** — the schema-bearing container parallel to a [[PageTypes|Page Type]] on the Pages side. **Item Collections** are organizational sub-folders inside an Item Type, parallel to Page Collections on the Pages side.
 
-**UI label divergence:** the Pommora app renders Item Types as **"Type"** and Item Collections as **"Set"** by default — Items-side gets the generic word for container + distinctive word for sub-folder. The Pages-side inverts this: Page Types render as **"Vault"** (distinctive) and Page Collections as **"Collection"** (generic). Each side has one signature word + one shared word; the asymmetry visually reinforces which side you're on. Code, data, and on-disk references always say "ItemType" / "ItemCollection"; only the UI label diverges. All labels renameable via the Settings scaffold (v0.3.0 storage / v0.6.0 editing UI).
+**UI labels:** Item Types render as **"Type"** and Item Collections as **"Set"** by default; code and on-disk names always say "ItemType" / "ItemCollection". Renameable via Settings. (Per-side label divergence — distinctive vs generic word per side — is canonical in [[CLAUDE]].)
 
-**Tasks and calendar events are NOT Items** — they are Agenda Tasks (`.task.json`, EKReminder-shaped) or Agenda Events (`.event.json`, EKEvent-shaped). See [[Agenda]]. (Agenda surfaces via the Calendar pin entry, not a dedicated sidebar section.)
+**Tasks and calendar events are NOT Items** — they are Agenda Tasks or Agenda Events. See [[Agenda]].
 
 In generic prose discussing properties or queries, the term "Type" covers both Page Type and Item Type; "Collection" covers both Page Collection and Item Collection.
 
@@ -16,13 +16,11 @@ In generic prose discussing properties or queries, the term "Type" covers both P
 
 The Items-side container layer mirrors the Pages-side ([[PageTypes]]) shape.
 
-**Item Type** — a folder at the nexus root carrying an `_itemtype.json` sidecar. The sidecar defines the property schema shared by every Item inside (the Type itself plus every Item Collection underneath). Folder name = Item Type title; renaming the folder renames the Type. Schema fields: `id`, `icon`, `properties`, `views`, `modified_at`, `collection_order`, `item_order`, `template_config` (reserved — see "Item Templates" below). UI label: **"Type"** by default. Discovery is sidecar-driven: any root folder carrying `_itemtype.json` is an Item Type, regardless of folder name.
+**Item Type** — a folder at the nexus root carrying an `_itemtype.json` sidecar (`schema_version: 2`). The sidecar defines the property schema shared by every Item inside (the Type plus every Item Collection underneath). Folder name = title; renaming the folder renames the Type. Sidecar fields: `id`, `singular`, `icon`, `properties`, `views`, `template_config` (reserved), `modified_at`, `schema_version`, `collection_order`, `item_order`, `default_sort`. Discovery is sidecar-driven: any root folder carrying `_itemtype.json` is an Item Type, regardless of name.
 
-**Item Collection** — a sub-folder inside an Item Type carrying its own `_itemcollection.json`. The Collection's sidecar holds only `id`, `type_id`, `modified_at`, and `item_order` — properties + views are inherited from the parent Item Type (no per-Collection schema override in v0.3.0). Folder name = Collection title; renaming the folder renames the Collection. UI label: **"Set"** by default.
+**Item Collection** — a sub-folder inside an Item Type carrying its own `_itemcollection.json` (`id`, `type_id`, `modified_at`, `schema_version`, `item_order`, `pinned_properties`, `views`). It inherits the parent Item Type's **schema** (no per-Collection property override in v1) but carries its **own** `views`. Folder name = title; renaming the folder renames the Collection.
 
-**Quick-capture by Type.** New-Item entry points scope to a Type ("New Bookmark"), not to a container ("New Item in X"). The dialog selects an Item Collection (or "directly in Type") at create time.
-
-**Item Window opens an Item.** Properties shown in the window are inherited from the parent Item Type's schema; the Item itself only stores values. (Window UX detail later in this doc.)
+New-Item entry points scope to a Type ("New Bookmark"), not to a container. The Item Window shows properties inherited from the parent Item Type's schema; the Item itself only stores values.
 
 ---
 
@@ -40,17 +38,15 @@ The Items-side container layer mirrors the Pages-side ([[PageTypes]]) shape.
     Hacker-News.json            ← Item directly in Item Type root
 ```
 
-Item Types are siblings of Page Types and the Agenda singletons at the nexus root — no `Items/` wrapper folder. Sidecar filename alone classifies each root folder.
-
-Renaming in UI renames the file. Inbound relations stay intact (by `id`, not name).
+Item Types sit at the nexus root as siblings of Page Types and the Agenda singletons — no `Items/` wrapper. Renaming in the UI renames the file; inbound relations stay intact (by `id`, not name).
 
 Each Item file holds:
 
 - `id` — ULID, stable across renames
-- `description` — plain text, **hard cap 250 chars**. Fits in the Item Window without scrolling. This IS Items' body field — the place free-form text goes (Items don't have Markdown bodies). Not Markdown — Pages exist for Markdown.
+- `description` — plain text, **hard cap 250 chars**. This IS Items' body field (Items have no Markdown body — that's what Pages are for).
 - `icon` — optional, same catalog as Pages
-- `properties` — values conforming to the parent Item Type's schema
-- `tier1` / `tier2` / `tier3` — per-tier multi-valued relation arrays to Contexts (`[{"$rel": "<ULID>"}]`, one entry per linked Context). Independent per tier.
+- `properties` — values conforming to the parent Item Type's schema; relation values are tagged arrays (`[{"$rel": "<ULID>"}]`)
+- `tier1` / `tier2` / `tier3` — per-tier Context relations, stored at the JSON root as bare ID arrays (`[<ULID>, ...]`). Independent per tier.
 - `created_at` / `modified_at` — ISO-8601 timestamps
 
 No `name` field — filename IS the name.
@@ -63,7 +59,7 @@ The decision is per-Type, made at creation time (you pick which side's container
 
 - **Item** — row-shaped data without prose: contacts, wishlist, bookmarks, citations, music releases, recipes-as-rows, references. Created inside an Item Type; opens in Item Window popover.
 - **Page** — prose-bearing content: notes, papers, project briefs, journal entries, reading reports. Created inside a Page Type; opens in the main detail pane with the editor.
-- **Agenda Task** / **Agenda Event** — calendar-anchored. Lives in the Tasks singleton (root folder carrying `_taskconfig.json`) or the Events singleton (root folder carrying `_eventconfig.json`), NOT in an Item Type. EventKit-integrable. See [[Agenda]].
+- **Agenda Task** / **Agenda Event** — calendar-anchored; lives in the Tasks / Events singletons, not an Item Type. See [[Agenda]].
 
 If an Item later needs prose, the user creates a Page under a Page Type and links the two by ID. No in-place promotion in v1 (see [[Prospects]]).
 
@@ -71,66 +67,55 @@ If an Item later needs prose, the user creates a Page under a Page Type and link
 
 #### Capabilities
 
-- Hold typed properties from the parent Item Type's schema (same catalog as Pages; full type list → [[Properties]])
-- Hold typed relations to any other entity in the Nexus (Pages, Items, Agenda Tasks, Agenda Events, Contexts, Page Types, Item Types) by ID — rename-safe
-- Appear in any view (table / board / list / cards / gallery) defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`. Table views carry pre-configured tier columns (Spaces / Topics / Projects) at the rightmost content positions, before Last Edited Time; each is default-visible and hideable
-- Relate to Contexts via `tier1` / `tier2` / `tier3` multi-relation fields — surface on those Contexts' composed pages via embedded views
-- Be linked-to from a Context page's link-list widget, an embedded Item Collection view, or wikilinks in body content
-
-Item Collections inherit their **schema** from the parent Item Type (no per-Collection schema override in v1 — that's a Prospect), but carry their own `views[]` — a Set can configure a Board view independent of the parent Type's Table.
+- Hold typed properties (same catalog as Pages → [[Properties]]) and typed relations to any entity by ID, rename-safe
+- Appear in any view defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`. Tier columns in Table views → [[Properties]] § "Built-in tier columns".
+- Relate to Contexts via `tier1` / `tier2` / `tier3`, surfacing on those Contexts via embedded views; be linked-to from a Context's link-list widget, an embedded view, or body wikilinks
 
 ---
 
 #### Sidebar visibility
 
-**Items do NOT appear in the sidebar.** They live in detail-pane Tables (`ItemTypeDetailView` hierarchical; `ItemCollectionDetailView` flat). Sidebar shows the container layer only — Item Type rows (UI label "Type") and Item Collection rows (UI label "Set"). Paradigm decision 2026-05-17 — same rule applies to Agenda Tasks and Agenda Events.
+**Items do NOT appear in the sidebar.** They live in detail-pane Tables (`ItemTypeDetailView` hierarchical; `ItemCollectionDetailView` flat); the sidebar shows the container layer only (Item Type + Item Collection rows). Same rule applies to Agenda Tasks and Agenda Events.
 
 #### Item Window
 
-Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. Not a tab, not a full page, not part of the main-window inspector (which is Claude chat). The Item Window has **its own** inspector — toggle button in the popover's top-right; default closed — that hosts the property panel when opened. Current design is a placeholder, polished UIX will be implemented soon.
+Items open in a popover-style floating surface anchored to the trigger (row click, cell, wikilink, embedded row). Reference: Calendar.app event-detail popover; Finder's Get Info. The Item Window has **its own** inspector — a top-right toggle, default closed — that renders the property panel when opened. Current design is a placeholder.
 
-The inspector renders eagerly (all schema properties, void-or-fill inline); **pinned-property chips** above the title give always-on access without opening it. Two Item-specific rules: Items in a Type root (no Collection) get no pinning controls (the pinned set persists per Item Collection), and stale pinned IDs referencing deleted schema properties are filtered on render. Persistence shape + pin/unpin mechanics + rendering modes are canonical in [[Properties]] § "Where Properties Live" + § "Item Inspector → Pinned Properties".
+**Pinned-property chips** above the title give always-on access to selected properties without opening the inspector. Two Item-specific rules: items in a Type root (no Collection) get no pinning controls (the pinned set persists per Item Collection), and stale pinned IDs referencing deleted schema properties are filtered on render. Persistence shape + pin/unpin mechanics are canonical in [[Properties]] § "Where Properties Live" + § "Item Inspector → Pinned Properties".
 
 - **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
-- **Icon** — optional SF Symbol; in the placeholder, edited as a plain TextField (the SymbolPicker-backed `IconPickerField` used in `NewItemSheet` / `EditPropertyPane` / `StorageMenuRoot` swaps in with the redesign).
+- **Icon** — optional SF Symbol; edited as a plain TextField in the placeholder (a `SymbolPicker`-backed picker swaps in with the redesign).
 - **Properties** — typed inputs for each property in the parent Item Type's schema, via `PropertyEditorRow` dispatching to per-type controls (TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select).
-- **Description** — plain-text body field, **hard cap 250 characters**. Sized to fit the Item Window without scrolling; keeps the JSON file small and cloud-sync-friendly. This IS Items' body field (Items don't have Markdown bodies; description fills that role at a deliberately short size).
-- **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target: { kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`. They edit inline through the same property-editing row as any Relation property, and their values render as the target Context's icon + title in plain styled colored text.
+- **Description** — plain-text body field, **hard cap 250 characters**. This IS Items' body field (Items have no Markdown body).
+- **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target` `{ kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`, edited inline like any Relation property. Values render as the target's icon + title in plain styled colored text (the placeholder currently shows raw IDs).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
-Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem` (with a `renameItem` pre-step if the title changed). No body, no blocks, no `@Columns`. If the entry needs a body, it should be a Page.
+Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem`. No body, no blocks, no `@Columns` — if the entry needs a body, it should be a Page.
 
 ---
 
 #### Item creation surfacing
 
-Item creation runs through right-click context menus on Item Type rows + Item Collection rows in the sidebar ("New Item" scoped to the cursor's parent), plus the detail-pane footer "+ New Item" inside `ItemCollectionDetailView` and `ItemTypeDetailView`. `.newItem(...)` sheet routing is wired through `SidebarView` + `SidebarDetailView`.
+Item creation runs through right-click context menus on Item Type / Item Collection rows ("New Item" scoped to the cursor's parent) and the detail-pane footer "+ New Item" inside `ItemCollectionDetailView` / `ItemTypeDetailView`. Each "New Item" stubs an item with a default title and flips its row into inline-rename (the F.0 stub-and-inline-rename CRUD pattern; no creation sheet).
 
 ---
 
 #### Item Templates (reserved for post-v1)
 
-The Item Type `_itemtype.json` sidecar carries a `template_config` field reserved for the post-v1 per-Item-Type template feature. Today the field is always `null` — every Item ships with the standard 250-char description cap and the default Item Window layout. The customization surface (per-Type window layout, character-cap override, default description seeds) is a Prospect — see [[Prospects]].
+The `_itemtype.json` sidecar carries a `template_config` field (always `null` today) reserving the on-disk shape for a post-v1 per-Item-Type template feature — per-Type window layout, character-cap override, default description seeds. See [[Prospects]].
 
 ---
 
 #### Constraints
 
-- An Item belongs to **exactly one Item Type** (the Item Type whose folder it physically lives in, possibly via an Item Collection sub-folder). No multi-Item-Type membership.
-- Items conform to the parent Item Type's schema. Item Collections share the parent Item Type's schema — no per-Collection schema override in v0.3.0 (Prospect for post-v1).
-- Moving an Item across Item Types triggers the **move-strip rule** — properties not in the destination Item Type's schema are dropped, with a confirmation warning listing what will be stripped. Within the same Item Type (between Item Collections), no strip — schema is shared.
-- An Item's filename cannot be empty — it's the title equivalent (same as Pages).
+- An Item belongs to **exactly one Item Type** — the one whose folder it physically lives in. No multi-Item-Type membership.
+- Items conform to the parent Item Type's schema, shared across its Item Collections (no per-Collection override in v1 — a Prospect).
+- Moving an Item across Item Types triggers the **move-strip rule** (→ [[Properties]]); moving between Item Collections of the same Type strips nothing (schema is shared).
+- Filename cannot be empty — it's the title.
 - No in-place promotion to Page in v1 (see [[Prospects]]).
-- Tasks/events use **Agenda Tasks** / **Agenda Events**, not Items, in v1. See [[Agenda]].
 
 ---
 
 #### Why Items exist as a separate paradigm from Pages
 
-Notion conflates "row in a database" with "page with a body" — every database entry is a full page. Pommora keeps them as separate paradigms: **Items are pure rows** (properties + 250-char description, no Markdown body); **Pages are prose-bearing** (Markdown body + frontmatter properties). The parallel container structure (Item Type + Item Collection vs Page Type + Page Collection) means each side has its own schema mechanics without forcing one to absorb the other.
-
-This:
-- Keeps the nexus scannable — Item `.json` is small and EditorViewer-friendly
-- Maps cleanly to cloud sync (parallel `items` / `pages` tables keyed by type ID)
-- Preserves agent legibility (each Item is its own openable JSON file)
-- Lets quick-capture scope to a Type ("New Bookmark") rather than to a container ("New Item in X Vault")
+Notion conflates "row in a database" with "page with a body". Pommora keeps them separate: **Items are pure rows** (properties + 250-char description, no Markdown body); **Pages are prose-bearing** (Markdown body + frontmatter). Each side carries its own schema mechanics via parallel containers (Item Type + Item Collection vs Page Type + Page Collection), keeping `.json` Items small, agent-legible, and cleanly mappable to cloud sync, and letting quick-capture scope to a Type ("New Bookmark") rather than a container.

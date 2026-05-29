@@ -283,15 +283,6 @@ CREATE TABLE relations (
   modified_at TEXT NOT NULL
 );
 
--- Tier-link index — tier1/tier2/tier3 membership (composite PK)
-CREATE TABLE tier_links (
-  entity_id TEXT NOT NULL,
-  entity_kind TEXT NOT NULL,          -- 'page' | 'item' | 'agenda_task' | 'agenda_event'
-  tier INTEGER NOT NULL,              -- 1 | 2 | 3
-  target_id TEXT NOT NULL,            -- Context ID
-  PRIMARY KEY (entity_id, entity_kind, tier, target_id)
-);
-
 -- Property-definition index (one row per property in any Type's schema)
 CREATE TABLE property_definitions (
   id TEXT PRIMARY KEY,
@@ -313,21 +304,19 @@ CREATE INDEX idx_item_collections_item_type_id ON item_collections(item_type_id)
 CREATE INDEX idx_relations_source_id ON relations(source_id);
 CREATE INDEX idx_relations_target_id ON relations(target_id);
 CREATE INDEX idx_relations_property_id ON relations(property_id);
-CREATE INDEX idx_tier_links_entity ON tier_links(entity_id, entity_kind);
-CREATE INDEX idx_tier_links_target ON tier_links(target_id);
 CREATE INDEX idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
 CREATE INDEX idx_contexts_tier ON contexts(tier);
 CREATE INDEX idx_contexts_parent_topic ON contexts(parent_topic_id);
 ```
 
-The internal `meta(key, value)` table holds the global `schema_version`; on mismatch with the code's `currentSchemaVersion`, the whole index file is deleted and rebuilt. Queries use SQLite's JSON1 extension to reach into the `properties` JSON, and join `tier_links` / `relations` for tier-relation and paired-relation lookups:
+The internal `meta(key, value)` table holds the global `schema_version`; on mismatch with the code's `currentSchemaVersion`, the whole index file is deleted and rebuilt. Queries use SQLite's JSON1 extension to reach into the `properties` JSON, and join `relations` for tier-relation and paired-relation lookups (each tier value emits one `relations` row, keyed by the reserved tier property ID):
 
 ```sql
 -- All Pages in the "Notes" Page Type tagged to a specific Topic
 SELECT p.* FROM pages p
-JOIN tier_links tl ON tl.entity_id = p.id AND tl.entity_kind = 'page' AND tl.tier = 2
+JOIN relations r ON r.source_id = p.id AND r.source_kind = 'page' AND r.property_id = '_tier2'
 WHERE p.page_type_id = '01H...notes-page-type-id'
-  AND tl.target_id = '01H...topic-id';
+  AND r.target_id = '01H...topic-id';
 
 -- All Agenda Tasks due in the next 7 days
 SELECT * FROM agenda_tasks

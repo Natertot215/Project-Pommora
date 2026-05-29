@@ -26,7 +26,7 @@ Each entity belongs to one Type. Every Type carries a schema in its per-kind sid
 
 Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation targets, etc.). Member entities store property VALUES conforming to that schema.
 
-Page Collections and Item Collections do not carry their own schemas — they inherit from their parent Type. Their sidecars (`_pagecollection.json` / `_itemcollection.json`) carry only id + ordering + Collection-level UI preferences (pinned chips).
+Page Collections and Item Collections do not carry their own property schemas — they inherit from their parent Type. Their sidecars (`_pagecollection.json` / `_itemcollection.json`) carry id, parent-Type linkage, and per-view config (`views[]`); `_itemcollection.json` additionally holds the Collection's pinned-property chips.
 
 ---
 
@@ -56,24 +56,17 @@ The only pure text field is the **title** (the filename, not a property). Where 
 
 #### Where Properties Live (surface architecture)
 
-Properties live in three surfaces depending on context:
+A Page's properties surface in the main-window inspector; an Item's surface in the Item Window. Every surface renders **eager** — ALL schema properties from the parent Type render regardless of fill state, so the full schema is discoverable in one view. Populated entries show their value; empty entries render as void inputs ready to fill. The user voids or fills inline through `PropertyEditorRow`; there is no "+ Add property" picker over the schema (every schema entry is already visible). Adding a NEW property to the schema happens in Vault / Type Settings.
 
-| Surface | Property home | Render mode |
+| Surface | Property home | State |
 |---|---|---|
-| **Page in main window** | NavDropdown-style pulldown at top of content; "+ Add property" picker over schema | **Lazy** — populated properties only; empty schema entries invisible until populated via the picker |
-| **Page Preview** (standalone window) | Property panel inside the window's inspector (toggle, default closed) | **Eager** — ALL schema properties shown; user can void or fill each from there |
-| **Item Window** (popover) | Property panel inside the popover's inspector (toggle, default closed) + pinned-property chips above title | **Eager** — ALL schema properties shown in the inspector; user can void or fill each |
-| **Main window inspector** | Claude chat (CLI subprocess bridge). Property panel never lives in the main-window inspector. | n/a |
+| **Page in main window** | `FrontmatterInspector` mounted as the window `.inspector` | Inspector toggle; open/closed persists per-Page |
+| **Item Window** (popover) | Property panel inside the popover's inspector + always-on pinned-property chips above the title | Inspector toggle, default closed; pinned chips render whenever the Collection has any, independent of the toggle |
+| **Page Preview** (standalone window) | Property panel inside the window's inspector | *Pending* — queued behind the cross-feature PreviewWindow primitive; not yet wired |
 
-Title is excluded from every property surface (filename plays the title role). Auto-managed `id` + `created_at` sit at the bottom of each surface in a divider-separated section, collapsed by default. `modified_at` appears in the main list as **Last Edited Time** for sortability.
+`FrontmatterInspector` is the current main-window inspector content. Title is excluded from every property surface (filename plays the title role). Auto-managed `id` + `created_at` sit at the bottom of each surface in a divider-separated section, collapsed by default. `modified_at` appears in the main list as **Last Edited Time** for sortability.
 
-##### Render modes
-
-The Pages Pulldown is **lazy**: only populated properties render; empty schema entries are invisible. The Pulldown's "+ Add property" picker lists schema properties NOT yet populated on this Page — selecting one populates the entry with an empty/default value, ready to edit. Empty-state: when a Page has zero populated properties, the Pulldown renders an explicit "No properties" message + "+ Add property" affordance. Never collapses to invisible.
-
-The Page Preview inspector + Item Window inspector are **eager**: ALL schema properties from the parent Type render regardless of fill state. Populated entries show their value; empty entries render as void inputs ready to fill. The user voids or fills inline — no "+ Add property" picker over the schema (every schema entry is already visible). Adding a NEW property to the schema happens in Vault / Type Settings.
-
-The Pages Pulldown is content-focused — populated-only keeps the surface tight against the Markdown body. The Inspectors are property-focused — eager rendering makes the full schema discoverable in one view.
+**Planned surface migration.** Properties on Pages, Contexts, and storage views move to a dedicated dropdown (`PropertiesPulldown`), freeing the main-window inspector to become a CLI interface. The property panel stays the surface for Items, Previews, and Agenda items. The Pulldown scaffold exists in code but isn't wired yet — Pages currently surface properties through `FrontmatterInspector` (above).
 
 ---
 
@@ -325,7 +318,7 @@ Option creation, renaming, recoloring, deletion, and reorder happen only via the
 Three commit paths:
 
 1. **Vault / Type Settings → Edit Properties → expand property → option list** — canonical. Drag-reorder, "+ Add option", per-option color picker, rename TextField, delete. Batched with the sheet's Save.
-2. **Right-click a property LABEL** (pulldown row, panel row, Item Window row) → "Add option…" — small structured popover (Name + Color + Group-for-Status + Save / Cancel) with its own commit boundary.
+2. **Right-click a property LABEL** (inspector row, panel row, Item Window row) → "Add option…" — small structured popover (Name + Color + Group-for-Status + Save / Cancel) with its own commit boundary.
 3. **Right-click a property VALUE** (pill, chip, status indicator) → "Edit options…" — routes to Vault / Type Settings → Edit Properties at that property's row. Value pickers themselves do not accept typed new options; they show a "Manage options…" link routing to the same destination.
 
 For Status, the editor also exposes per-group label TextFields + drag-between-groups across Upcoming / In Progress / Done.
@@ -363,9 +356,9 @@ The right-click "Add option…" popover is a third commit boundary — its own S
 
 | Mutation | Effect on existing values |
 |---|---|
-| **Add a property** | Appears empty on every member (visible in eager surfaces; invisible in lazy Pulldown until populated). No member writes until a value is set. |
+| **Add a property** | Appears empty on every member (rendered as a void input across every surface). No member writes until a value is set. |
 | **Rename a property** | Schema-only write (the `name` field updates on the schema entry; member files untouched because frontmatter / JSON is keyed by property ID). |
-| **Change a property's type** | Lossless only at v0.3.0 (Date → Date & Time, Select → Multi-select). Otherwise user must confirm; conflicting values are dropped. |
+| **Change a property's type** | Lossless conversions (Date → Date & Time, Select → Multi-select) apply directly. Other type changes require confirmation; conflicting values are dropped. |
 | **Delete a property** | Schema row removed; values removed from every member (the member's `properties` block loses the property-ID key). No quarantine. |
 | **Reorder properties** | Schema-only (members are dictionary-keyed by ID); affects property panel order. No member writes. |
 | **Editing Select / Multi-select / Status options** | Add / reorder / rename labels = schema-only. Deleting an option voids member references per the universal void-on-delete rule. |
@@ -380,7 +373,7 @@ Schema mutations that touch multiple files (type-change with value-drop / delete
 
 Moving a Page across Page Types (or an Item across Item Types) strips properties not in the destination schema. Confirmation warning lists what will be stripped; user can cancel, add the property to the destination first, or accept. Within the same Type (between Page Collections, or between Item Collections), no strip — schema is shared.
 
-Cross-side promotion (Item → Page, Page → Item) is NOT supported in v1 — post-v1 Prospect. No quarantine / orphan archive / undo-strip in v0.3.0.
+Cross-side promotion (Item → Page, Page → Item) is NOT supported in v1 — post-v1 Prospect. There is no quarantine, orphan archive, or undo-strip.
 
 The "what would be stripped" computation compares the source's property-ID set against the destination Type's property-ID set. Same-name properties with different IDs (semantically different properties that happen to share a display name) are stripped — correct behavior under ID-truth (the user is moving between unrelated property definitions).
 
@@ -416,7 +409,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 1. Property `name` uniqueness within the Type (case-insensitive) — display sanity, not identity.
 2. Property `name` non-empty.
 3. Property `id` uniqueness within the Type.
-4. Reserved property IDs (block user-defined properties from claiming these): `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`.
+4. Reserved property IDs are blocked from user-defined properties (canonical list in § Property identity vs name).
 5. User-created relations are paired and require a `page_type` / `item_type` / `agenda_tasks` / `agenda_events` target; the internal `context_tier` target rejects dual.
 6. A relation target's ULID must resolve to a live entity at save time. Cross-side targets are allowed.
 7. Select / Multi-select: at least one option; option `value` uniqueness within property.
@@ -467,7 +460,7 @@ Per-view configuration via the consolidated `slider.horizontal.3` toolbar button
 
 **Chip primitives** (`Pommora/Properties/Chips/`):
 
-- `RelationChip` — the single rendering primitive for relation property values across every surface (Table cells, property panel, Pulldown, page-editor inspector, Item Window, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. A dedicated chip visual (boxed, colored) is a future design.
+- `RelationChip` — the single rendering primitive for relation property values across every surface (Table cells, property panel, page-editor inspector, Item Window, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. A dedicated chip visual (boxed, colored) is a future design.
 - `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
 - `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
 - `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance.

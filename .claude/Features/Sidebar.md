@@ -8,12 +8,14 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 
 #### Layout
 
-Five top-level groups (all labels renameable via Settings scaffold — v0.3.0 storage + label-threading / v0.6.0 editing UI):
+Five top-level groups:
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
 - **Spaces** — flat rows for tier-1 Contexts
 - **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
-- **Items** (default label — Items-side) — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set"). Per `SidebarSectionLabels.defaults()`, the Items-side section header defaults to the operational-concept word "Items" (NOT the container-plural "Types").
-- **Vaults** (default label — Pages-side) — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection"). Per `SidebarSectionLabels.defaults()`, section header defaults to the Pages-side signature plural — "Vaults".
+- **Items** — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set").
+- **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection").
+
+Section-header defaults come from `SidebarSectionLabels.defaults()`: `Spaces` / `Topics` / `Items` / `Vaults` (Items-side uses the operational word "Items", not the container-plural "Types"). All renameable via Settings.
 
 The Items section sits above Vaults — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens `CalendarDetailView` (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
 
@@ -52,13 +54,13 @@ No always-visible "+ New" buttons — creation is **right-click first**, complem
 
 ##### Section grouping (sidecar-driven)
 
-There are no wrapper folders on disk — Page Types, Item Types, and the Agenda singletons all live as siblings at the nexus root. The sidebar groups each root folder by reading its **per-kind sidecar filename**, not by inspecting a wrapper directory:
+There are no wrapper folders on disk (see [[Architecture]]); the sidebar groups each root folder by its **per-kind sidecar filename**:
 
-- Any root folder carrying `_pagetype.json` → grouped under the **Vaults** section heading (Pages-side default)
-- Any root folder carrying `_itemtype.json` → grouped under the **Items** section heading (Items-side default)
-- Root folders carrying `_taskconfig.json` (Tasks singleton) and `_eventconfig.json` (Events singleton) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry (CalendarDetailView)
+- `_pagetype.json` → **Vaults** section
+- `_itemtype.json` → **Items** section
+- `_taskconfig.json` / `_eventconfig.json` (Tasks / Events singletons) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry
 
-The section headings ("Vaults" / "Items") are pure UI groupings with no on-disk counterpart, defaulted via `SidebarSectionLabels.defaults()` and renameable via Settings. Folders without a recognized sidecar are unrecognized and trigger the adopter on next launch (only when there's something to migrate — fresh non-Pommora folders stay invisible to discovery per `2d42d63`).
+The section headings are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar trigger the adopter on next launch — but only when there's something to migrate; fresh non-Pommora folders stay invisible to discovery.
 
 ---
 
@@ -155,8 +157,6 @@ Fuller global creation path lands via **quick-capture** (Cmd+Shift+N or menu-bar
 - Icons use `.symbolRenderingMode(.monochrome)` so `.foregroundStyle(.accentColor)` applies
 - Chrome is applied at each row file's body root via `.listRowBackground(SelectionChrome(...))`, deriving `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. `SelectableRow` itself is pure content — no chrome. Implementation in `Pommora/Pommora/Sidebar/SidebarView.swift`.
 
-Rationale / trade-offs preserved in git history.
-
 ---
 
 #### Indentation mechanisms (working vocabulary)
@@ -176,16 +176,6 @@ User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned
 
 ---
 
-#### Flat Detail Spec (Cool Experiment)
-
-Captured intent from v0.0 spike (not committed): hand-rolling chevron + member ForEach in Page Collection rows gives Finder-style flush-left flat rows. Verified in v0.0. Revisit once Page Type → Page Collection → Page chain is observed against real data.
-
----
-
 #### Open until content lands
 
-Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `tagging_style` default, and Page-row icon hover behavior — all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.
-
----
-
-Both Pages-side and Items-side rows are built per this spec — context menus (Vault Settings… / Type Settings…), sheet wiring (`VaultSettingsSheet` / `TypeSettingsSheet`), drag-reorder. Both sides' detail panes render a real `Table`. Agenda surfaces via the Calendar pin entry (`CalendarDetailView` + right-click quick-create).
+Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `tagging_style` default, and Page-row icon hover behavior all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.

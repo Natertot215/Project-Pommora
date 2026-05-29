@@ -10,10 +10,10 @@ The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are b
 
 | Layer | Source |
 |---|---|
-| **Parser** | Apple **`swift-markdown`** 0.8.0 — full GFM AST including BlockQuote, Table, ThematicBreak, Strikethrough, Strong, Emphasis, Heading, lists, code, links, images, line/soft breaks, HTMLBlock, BlockDirective. SPM dep on `swiftlang/swift-markdown`. |
-| **Renderer** | Apple **`NSAttributedString` + `NSTextView` + `NSTextLayoutManager`** — font, color, paragraph styling, link rendering, selection, find, native context menu, Writing Tools (15.1+), spell-check, autocorrect, IME, drag-select all free. |
-| **Live-preview chassis** | **`swift-markdown-engine`** (vendored as a local Swift Package at [`External/MarkdownEngine/`](../../External/MarkdownEngine/), upstream `nodes-app/swift-markdown-engine`, Apache 2.0, Swift 5.9). Contributes the two load-bearing features Apple's bare NSTextView doesn't ship: **dynamic syntax** (markers shrink when caret leaves AST node, expand when entered — Bear/Notion/iA Writer pattern) + **Markdown-aware typing helpers** (list continuation; block auto-wrap for `$$`/`![[`; character-pair auto-pair added Pommora-side). |
-| **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` in the vendored engine — walks `Document(parsing:)` for BlockQuote / Strikethrough / Table / ThematicBreak and composes attributes on top of the engine's primary regex tokenizer/styler. |
+| **Parser** | Apple **`swift-markdown`** 0.8.0 (`swiftlang/swift-markdown`) — full GFM AST. |
+| **Renderer** | Apple **`NSAttributedString` + `NSTextView` + `NSTextLayoutManager`** — font/color/paragraph styling, link rendering, selection, find, native context menu, Writing Tools (15.1+), spell-check, autocorrect, IME, drag-select all free. |
+| **Live-preview chassis** | **`swift-markdown-engine`** (vendored as a local Swift Package at [`External/MarkdownEngine/`](../../External/MarkdownEngine/); upstream `nodes-app/swift-markdown-engine`, Apache 2.0). Contributes the two features Apple's bare NSTextView lacks: **dynamic syntax** (markers shrink when the caret leaves an AST node, expand when entered) + **Markdown-aware typing helpers** (list continuation; block auto-wrap; Pommora-side character-pair auto-pair). |
+| **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` in the vendored engine — walks `Document(parsing:)` for BlockQuote / Strikethrough / Table / ThematicBreak, composing attributes on top of the engine's regex tokenizer/styler. |
 | **Domain wiring** | `PageRef`, `PageFile`, `PageContentManager.updatePage`, `PageEditorViewModel`, `PageEditorHost`, `AppGlobals`, inspector + sidebar wiring — editor-library-agnostic. |
 
 Engine vendoring rationale + per-file modification log → `// Guidelines//Markdown.md` §1.2 + `External/MarkdownEngine/NOTICE.md`.
@@ -29,7 +29,7 @@ Engine vendoring rationale + per-file modification log → `// Guidelines//Markd
 
 The inspector + its toolbar toggle live in `ContentView`, not here — so the inspector renders at the window's trailing edge rather than inside this sub-view. A cover-image / banner drops into the same overlay VStack above the title with no engine changes.
 
-The Page-editor titlebar carries no properties pulldown — page properties surface via the pop-out inspector pane, and the main-window inspector slot is reserved for the Claude chat interface (see [`Prospects.md`](Prospects.md)).
+The Page-editor titlebar carries no properties pulldown — page properties surface via the pop-out inspector pane (`FrontmatterInspector`, the only inspector content today). A Claude chat interface in the inspector is a [`Prospect`](Prospects.md).
 
 ---
 
@@ -63,7 +63,7 @@ What the editor renders and supports today.
 
 **Inline marks** (engine regex tokenizer + caret-aware marker-shrink):
 - Bold (`**` / `__`), italic (`*` / `_`), bold-italic (`***`), inline code (`` ` ``)
-- Wikilinks (`[[Name]]`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Wikilinks live only in the body — relation properties are frontmatter, surfaced in the inspector ([[Pages]] § "Wikilinks vs relations"), never typed into the editor canvas.
+- Wikilinks (`[[Name]]`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Distinct from relation properties → [[Pages]] § "Wikilinks vs relations".
 - Standard Markdown links (`[text](url)`)
 - Image embeds (`![[name]]`) — render hook present; Pommora-side image provider deferred
 
@@ -93,17 +93,13 @@ What the editor renders and supports today.
 
 #### Tables — to be implemented
 
-Tables are a **major future deliverable**, not a polish pass. Pommora is just getting started, and proper Apple-Notes-style inline-grid tables (drag-resize columns, double-click popover cell editor, structural context menu for add/delete row/column + cell alignment) are a real named feature on the roadmap.
+Apple-Notes-style inline-grid tables (drag-resize columns, double-click popover cell editor, structural context menu for add/delete row/column + cell alignment) are a named roadmap deliverable.
 
 **Current ship:** GFM `| col | col |` syntax parses and renders with monospace + faint background + hidden pipes + hidden separator row. No grid alignment, no editing affordances, no drag-resize.
 
-**Target experience:** inline grid that looks and feels like Apple Notes' table — cell-by-cell alignment, drag-to-resize column widths, double-click any cell for a popover editor, right-click for structural operations.
+**Open question — inline-column alignment.** Laid out as inline text in TextKit 2, cells don't visually align unless source is padded to equal column widths. `NSTextTable` is rejected — it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade. The direction (`// Guidelines//Markdown.md` §9.2 + §9.6): source on disk stays uniformly padded via `Markup.format()`, column widths live in frontmatter, the render layer applies overrides — making *inline* layout honor custom widths is the unsolved part. The popover cell editor and structural context menu don't depend on this and can land independently. Full design → `// Guidelines//Markdown.md` §1.3 + §6.10.
 
-**Central open question — inline-column alignment.** With unpadded source laid out as inline text in TextKit 2, cells don't visually align unless source is padded to equal column widths. `NSTextTable` is rejected — it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade (`// Guidelines//Markdown.md` §1.3 + §6.10). Nathan's locked direction (`// Guidelines//Markdown.md` §9.2 + §9.6): source on disk stays uniformly padded via `Markup.format()`, column widths live in frontmatter, the render layer applies overrides — but making *inline* layout honor custom widths is non-trivial. Three candidate strategies (A / B / C / hybrid) remain open; the decision waits on accumulated experience with other editor features.
-
-**Independently shippable pieces** that don't depend on the alignment question: the popover cell editor (hosts its own column-aligned SwiftUI Grid) and the structural context menu. Those can land while the inline-grid architecture is still being decided.
-
-> The `pommora_table_widths` frontmatter key is grandfathered per the CLAUDE.md "Pommora prohibited in on-disk schemas" rule; rename when Tables ship.
+> The `pommora_table_widths` frontmatter key is grandfathered (CLAUDE.md); rename when Tables ship.
 
 ---
 

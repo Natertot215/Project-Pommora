@@ -1,10 +1,8 @@
 ### Nav Dropdown
 
-Pommora's primary navigation-history surface — a **Liquid Glass dropdown button** at the toolbar's trailing edge opening a **popover panel** with two toggleable lists: **Pinned** (user-curated, right-click) and **Recents** (auto-tracked). Replaces the v0.0–v0.2.6 horizontal tab strip.
+Pommora's primary navigation-history surface — a **Liquid Glass dropdown button** at the toolbar's trailing edge opening a **popover panel** with two toggleable lists: **Pinned** (user-curated, right-click) and **Recents** (auto-tracked).
 
-![NavDropdown visual reference](assets/NavDropdown-mockup.png)
-
-The functional layer, click model, context-menu Pin, and detail-view context menus all work.
+The functional layer, click model, context-menu Pin, and detail-view context menus all work. The dropdown's Item-open path is stubbed (see Open flow).
 
 ---
 
@@ -12,14 +10,15 @@ The functional layer, click model, context-menu Pin, and detail-view context men
 
 Explicit follow-ups not yet wired:
 
-1. **Open-in-preview wiring** — when the cross-feature PreviewWindow primitive is built for Pages, Page Types, Page Collections, Item Types, Item Collections, Spaces, Topics, Projects, Items, Agenda Tasks, and Agenda Events, light up the dropdown's preview-on-click affordance. **Until that primitive exists, no "open in standalone window" UI ships here** — single/double-click both route to the main detail pane (Items route to ItemWindow). See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
-2. **Drag-to-reorder Pinned** — `.onMove` wiring is in place but drag doesn't initiate inside the popover's List. Likely a SwiftUI List + popover view-host interaction issue.
-3. **Remove type chip** — drop trailing "Page / Vault / Topic" chip text; rely on the leading icon for type identification. Cleaner rows.
-4. **Segmented Pinned/Recents UI polish** — slight opacity / contrast pass on the picker pill. Not blocking.
+1. **Item-open wiring** — `openItemWindow` walks `ItemTypeManager` + `ItemContentManager` to find the Item, then `AppGlobals.presentItemAction?(item)` (Phase 6).
+2. **Open-in-preview wiring** — when the cross-feature PreviewWindow primitive exists, light up the dropdown's preview-on-click affordance. Until then no "open in standalone window" UI ships here. See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
+3. **Drag-to-reorder Pinned** — `.onMove` is wired but drag doesn't initiate inside the popover's List (a SwiftUI List + popover view-host interaction issue).
+4. **Remove type chip** — drop the trailing chip, rely on the leading icon.
+5. **Segmented Pinned/Recents UI polish** — opacity / contrast pass on the picker pill.
 
-##### Possible scope cuts (under consideration)
+##### Possible scope cut (under consideration)
 
-Nathan may **drop Spaces, Topics, Projects, Page Types, Page Collections, Item Types, and Item Collections** from Recents + Pinned in favor of only **Pages, Items, and Agenda Tasks / Events** — working-set view rather than universal navigator. Decision deferred; if locked, EntityStateRef.Kind stays unchanged but `RecentsManager.record` + `PinnedManager.toggle` would gate by kind, and the entity roster table contracts.
+Nathan may **drop the container kinds** (Spaces, Topics, Projects, Page/Item Types, Page/Item Collections) from Recents + Pinned, keeping only Pages, Items, and Agenda — a working-set view rather than a universal navigator. If taken, `EntityStateRef.Kind` is unchanged but `RecentsManager.record` + `PinnedManager.toggle` gate by kind, and the roster table contracts.
 
 ---
 
@@ -77,7 +76,6 @@ Window title suppressed (`.windowToolbarStyle(.unified(showsTitle: false))`).
 - Height: `minHeight: 300, maxHeight: 400`
 - **Segmented picker** at top with "Pinned" and "Recents" tabs (`PanelMode.pinned` is the default)
 - **Row separators**: hairline (`.listRowSeparator(.visible)`)
-- **Reference**: `assets/NavDropdown-mockup.png` (dark-mode Figma export)
 
 Panel is a fixed envelope around a scrollable list — scrolling doesn't expand it.
 
@@ -93,7 +91,7 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 [icon] [title — truncates with ellipsis] [type chip]
 ```
 
-- **Icon** — entity's symbol (Page = `doc.text`, Page Type (UI "Vault") = `book`, Item Type (UI "Type") = `tray.full`, Page Collection (UI "Collection") = `folder`, Item Collection (UI "Set") = `square.stack.3d.up`, Space = `rectangle.3.group`, Topic / Project = `folder`, Item = `tray`, Agenda Task = `checkmark.circle`, Agenda Event = `calendar.badge.clock`)
+- **Icon** — by `ref.typedKind` (`EntityRow.iconName`): Page = `doc.text`, Vault = `book`, Type (Item Type) = `tray.full`, Collection (Page Collection) = `tray.2`, Set (Item Collection) = `folder`, Space = `rectangle.3.group`, Topic / Project = `folder`, Item = `tray`, Agenda = `calendar`, unknown kind = `questionmark.circle`
 - **Title** — `Text(ref.title).lineLimit(1).truncationMode(.tail)`
 - **Type chip** — full-word, `.font(.caption)`, `.foregroundStyle(.secondary)`, trailing
 
@@ -111,23 +109,23 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 
 On double-click, `handleOpen(ref)` dispatches by `ref.typedKind`:
 
-- **`.page` / `.vault` / `.space` / `.topic` / `.project` / `.collection`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
-- **`.item`** — closes popover, looks up the Item via `ItemContentManager.items(in: itemType/collection)` (brute-force walk; SQLite in v0.4.0 → O(1)), calls `AppGlobals.presentItemAction?(item)` to open `ItemWindow`.
+- **`.page` / `.vault` / `.space` / `.topic` / `.project` / `.collection` / `.itemType` / `.set`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:lookup:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
+- **`.item`** — calls `openItemWindow(ref)`, currently a **no-op stub** (TODO Phase 6: walk `ItemTypeManager` + `ItemContentManager` to find the Item, then `AppGlobals.presentItemAction?(item)`). Back/Forward already routes Items through `presentItemAction`; the dropdown row does not yet.
 - **`.agenda` / `.none`** — no-op. Agenda surfaces ship v0.6.0.
 
 ##### Routing architecture
 
-NavDropdownButton takes `onOpen: (SidebarSelection) -> Void` at construction. ContentView passes `{ sel in sidebarSelection = sel }`. The closure captures ContentView's `@State` write path — writes propagate via SwiftUI's normal binding mechanism, reliable across view-host boundaries.
+NavDropdownButton takes `onOpen: (SidebarSelection) -> Void` at construction. ContentView passes `{ sel in sidebarSelection = sel }`. The closure captures ContentView's `@State` write path — writes propagate via SwiftUI's normal binding, reliable across view-host boundaries.
 
-**Why not MainWindowRouter for the dropdown's open path?** `MainWindowRouter` is `@Observable` in `AppGlobals`. Writing through it from the popover view host doesn't trigger ContentView's `.onChange` reliably — same root cause as the snapshot pattern. Dropdown bypasses the router; `MainWindowRouter` stays for back/forward (driven by `BackForwardButtons` from the main toolbar view host, where `.onChange(of: mainWindowRouter?.bringToFrontTick)` fires reliably).
+The dropdown **bypasses `MainWindowRouter`**: writing through that `@Observable` from the popover view host doesn't fire ContentView's `.onChange` reliably (same root cause as the snapshot pattern). `MainWindowRouter` stays for back/forward, driven by `BackForwardButtons` from the main toolbar view host where `.onChange(of: bringToFrontTick)` fires reliably.
 
 ##### Lazy-load fallback
 
-If `SidebarSelection.init?(stateRef:)` returns nil for a page or collection (host vault's content not loaded this session — `PageContentManager` lazy-loads per-collection on detail-view appear), `handleOpen` falls back to an async walk of `vaultManager.vaults` calling `contentMgr.loadAll(for: vault)` + each collection, retrying at each step. SQLite v0.4.0 makes this O(1) and removes the walk.
+If `SidebarSelection.init?(stateRef:lookup:)` returns nil for a page or collection (the host vault's content lazy-loads per-collection on detail-view appear), `handleOpen` falls back to an async walk of `AppGlobals.pageTypeManager.types` calling `loadAll(for:)` on each vault + collection, retrying at each step. SQLite v0.4.0 makes this O(1) and removes the walk.
 
 ##### Standalone preview windows — deferred
 
-The v0.2.7.2 first attempt added a `WindowGroup(id: "entity", for: EntityRef.self)` scene + `EntityWindowHost` spawning a separate window for full-frame entities, with an Expand button to commit to the main pane. All deleted in v0.2.7.1. A real **PreviewWindow primitive** is the future home for "open in preview"; when it lands, NavDropdown can selectively light up preview-on-click per kind. See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
+A real **PreviewWindow primitive** is the future home for "open in preview"; when it lands, NavDropdown can selectively light up preview-on-click per kind. See `Guidelines/CRUD-Patterns.md → Preview-window prerequisite`.
 
 ---
 
@@ -168,14 +166,16 @@ The v0.2.7.2 first attempt added a `WindowGroup(id: "entity", for: EntityRef.sel
 | Page | "Page" | main-frame land | ✓ |
 | Vault | "Vault" | main-frame land | ✓ |
 | Collection | "Collection" | main-frame land (via `.collection(c)` SidebarSelection) | ✓ |
+| Type (Item Type) | "Type" | main-frame land | ✓ |
+| Set (Item Collection) | "Set" | main-frame land | ✓ |
 | Space | "Space" | main-frame land | ✓ |
 | Topic | "Topic" | main-frame land | ✓ |
 | Project | "Project" | main-frame land | ✓ |
-| Item | "Item" | popover open (`ItemWindow`) | ✓ |
+| Item | "Item" | `ItemWindow.onAppear` | ✗ — dropdown open stubbed (Phase 6) |
 | Agenda | **"Task"** | (TBD at v0.6.0) | ✗ — v0.6.0+ |
 | Homepage | — | excluded | never |
 
-"Task" is a chip-label override for Agenda items (underlying stays `.agenda.json`; only the chip reads "Task").
+"Task" is a chip-label override for Agenda items (underlying files stay `.task.json` / `.event.json`; only the chip reads "Task").
 
 ---
 
@@ -210,23 +210,21 @@ The v0.2.7.2 first attempt added a `WindowGroup(id: "entity", for: EntityRef.sel
 }
 ```
 
-**`EntityStateRef` fields:**
+**`EntityStateRef` fields** (`kind` / `id` / `title`):
 
-- `kind` — raw String mapped to `Kind` enum: `page` / `vault` / `collection` / `space` / `topic` / `project` / `item` / `agenda`. Raw String allows forward-compat.
+- `kind` — raw String mapped to the `Kind` enum (`page` / `vault` / `collection` / `space` / `topic` / `project` / `item` / `agenda` / `itemType` / `set`). Raw String allows forward-compat — an unknown kind decodes with `typedKind == nil` and is skipped.
 - `id` — ULID of the underlying entity (rename-safe)
 - `title` — denormalized, refreshed on resolve. Used for orphan display after deletion.
-- `cursor` (top-level) — position in Recents for back/forward; 0 = newest active
+
+`NexusState` also holds a top-level `cursor` (Recents position for back/forward; 0 = newest) and per-section order arrays (`spaceOrder` / `topicOrder` / `vaultOrder` / `itemTypeOrder`, the persisted sidebar reorder; nil until the user reorders).
 
 **Equality / hash** by `(kind, id)` — a renamed entity stays the same record.
 
-**Atomic-write contract** — same as `SavedConfigManager` / `AppState`. `AtomicJSON.write` uses `Data.write(to:options:.atomic)` (temp file + atomic rename).
+**Atomic-write contract** — `AtomicJSON.write` (temp file + atomic rename), shared with the other `.nexus/` config managers.
 
-##### Backward-compat: `favorites` → `pinned` key rename
+##### Backward-compat: `favorites` → `pinned` key
 
-JSON key renamed at v0.2.7.1 with the class rename. `NexusState.CodingKeys` defines both `case pinned` and `case favoritesLegacy = "favorites"`. Decoder reads `pinned` first, falls back to `favoritesLegacy`. Encoder only writes `pinned`, so legacy disappears on first save. Two `NexusStateTests`:
-
-- `decodesLegacyFavoritesKey()` — feeds JSON with `"favorites": [...]`, verifies it lands in `pinned`
-- `encoderWritesOnlyPinnedKey()` — round-trips a `NexusState`, verifies output contains `"pinned"` but NOT `"favorites"`
+The legacy `favorites` key decodes into `pinned`: `NexusState.CodingKeys` defines both `case pinned` and `case favoritesLegacy = "favorites"`; the decoder reads `pinned` first then falls back, the encoder writes only `pinned` (so the legacy key disappears on first save). Covered by `NexusStateTests.decodesLegacyFavoritesKey()` + `encoderWritesOnlyPinnedKey()`.
 
 ---
 
@@ -245,19 +243,15 @@ Sidebar `Recents` pin and dropdown Recents share `RecentsManager` but render dif
 
 ---
 
-#### Detail-view context menus (v0.2.7.1 additive scope)
+#### Detail-view context menus
 
 Right-click on a Page or Item row inside `PageTypeDetailView` or `PageCollectionDetailView` opens a `.contextMenu` with three items:
 
-- **Rename** — `.alert("Rename", isPresented:)` with TextField + Rename / Cancel. Commits via `PageContentManager.renamePage(_:to:in:vault:)` / `ItemContentManager.renameItem` (collection-hosted) or `renamePage(_:to:inVaultRoot:)` / `renameItem(_:to:inTypeRoot:)` (root-hosted).
-- **Pin / Unpin {kind}** — toggles `AppGlobals.pinnedManager?.toggle(ref)`. Label reflects current state + row kind.
-- **Delete** — destructive role. Mirrors the sidebar's no-confirmation pattern (PageRow / ProjectRow context menus). Routes to `PageContentManager.deletePage(_:in:)` / `deletePage(_:inVaultRoot:)` / `ItemContentManager.deleteItem` overload by parent.
+- **Rename** — `.alert` with TextField. Commits via the collection-hosted vs root-hosted `renamePage` / `renameItem` overloads (`…in:vault:` / `…inVaultRoot:` and `…inTypeRoot:`).
+- **Pin / Unpin {kind}** — toggles `AppGlobals.pinnedManager?.toggle(ref)`; label reflects current state + row kind.
+- **Delete** — destructive role, no confirmation (mirrors the sidebar). Routes to the `deletePage` / `deleteItem` overload by parent.
 
-PageTypeDetailView uses a `parent(for: DetailRow) -> PageParent?` helper scanning `contentManager.pages(in: vault)` / `items(in: vault)` for vault-root match, then iterating `vaultManager.collections(in: vault)`. O(N × M); fine v0.2.7.1 (SQLite v0.4.0 → O(1)).
-
-PageCollectionDetailView's parent is always `.collection(collection, vault: vault)` — no lookup.
-
-Collection rows in PageTypeDetailView intentionally have NO context menu — sidebar's `PageCollectionRow` is canonical for collection rename/delete.
+PageTypeDetailView resolves a row's parent via a `parent(for: DetailRow) -> PageParent?` helper (scans vault-root pages/items, then collections; SQLite v0.4.0 → O(1)). PageCollectionDetailView's parent is always its collection — no lookup. Collection rows in PageTypeDetailView intentionally have NO context menu — sidebar's `PageCollectionRow` is canonical for collection rename/delete.
 
 ---
 
@@ -268,7 +262,7 @@ Collection rows in PageTypeDetailView intentionally have NO context menu — sid
 - **`RecentsManager`** (`Pommora/Pommora/NavDropdown/RecentsManager.swift`) — `@MainActor @Observable`. Holds `entries`, `cursor`, `isNavigatingHistory`. Provides `record(_:)`, `stepBack()`, `stepForward()`, `canStepBack`, `canStepForward`, `dropdownTop`, `load()`, `save()`.
 - **`PinnedManager`** (`Pommora/Pommora/NavDropdown/PinnedManager.swift`) — `@MainActor @Observable`. Holds `entries`. Provides `contains(_:)`, `toggle(_:)`, `move(fromOffsets:toOffset:)`, `load()`, `save()`.
 - **`MainWindowRouter`** (`Pommora/Pommora/NavDropdown/MainWindowRouter.swift`) — `@MainActor @Observable` bridge for back/forward. `Intent` enum (`.directNavigation` / `.stepHistory`). `requestOpen(to:)` / `requestStep(to:)`. Dropdown bypasses (direct closure from ContentView); only BackForwardButtons + ContentView's `onChange(of: bringToFrontTick)` use it.
-- **`SidebarSelection.init?(stateRef:)`** (`Pommora/Pommora/Sidebar/SidebarSelection.swift`) — bridges `EntityStateRef` → `SidebarSelection` via `AppGlobals` managers. Returns nil for non-main-pane kinds (`.item`, `.agenda`) and deleted entities.
+- **`SidebarSelection.init?(stateRef:lookup:)`** (`Pommora/Pommora/Sidebar/SidebarSelection.swift`) — bridges `EntityStateRef` → `SidebarSelection`, resolving each kind against a `SidebarLookupBundle` of live managers. Returns nil for non-main-pane kinds (`.item`, `.agenda`, `.none`) and deleted entities.
 - **`EntityRow`** (`Pommora/Pommora/NavDropdown/EntityRow.swift`) — single row view in both lists. Takes `ref: EntityStateRef`, `isPinned: Bool`, `pinAction: () -> Void`. Renders icon + title + chip + hover-tint background + `.contextMenu` with "Pin {chip}" / "Unpin {chip}".
 - **`NavDropdownButton`** (`Pommora/Pommora/NavDropdown/NavDropdownButton.swift`) — toolbar trigger + popover panel. Takes `asSegment: Bool` (default `false`) and `onOpen: (SidebarSelection) -> Void`. Owns snapshot state.
 - **`BackForwardButtons`** (`Pommora/Pommora/NavDropdown/BackForwardButtons.swift`) — `‹ ›` toolbar pair. Reads `AppGlobals.recentsManager` directly. Wires `⌘[` / `⌘]`.

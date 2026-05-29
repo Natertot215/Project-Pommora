@@ -1,8 +1,6 @@
 ### Homepage
 
-Pommora's **singleton dashboard entity** — one per Nexus, fixed location, no parents, no tier. Composed-blocks surface that can embed any entity; the user's landing surface.
-
-Shares the composed-blocks pattern with Contexts (same `blocks` field, widget types, inline editability) but differs in **identity / parenting**: Contexts are tiered entities things relate *to*; Homepage is a singleton that pulls things *in*.
+Pommora's **singleton dashboard entity** — one per Nexus, fixed location, no `id` / tier / parents. The user's landing surface. It shares the composed-blocks pattern with Contexts (same `blocks` field, widget types, inline editability) but differs in identity: Contexts are tiered entities things relate *to*; Homepage is a singleton that pulls things *in*.
 
 ---
 
@@ -14,7 +12,7 @@ Shares the composed-blocks pattern with Contexts (same `blocks` field, widget ty
     homepage.json          ← singleton; fixed location
 ```
 
-Seeded on first launch with a minimal default (welcome heading + empty callout). User-deletion not supported (regenerates if removed externally).
+Seeded on first launch with empty `blocks`. Not user-deletable (regenerates if removed externally).
 
 ---
 
@@ -24,35 +22,28 @@ Seeded on first launch with a minimal default (welcome heading + empty callout).
 {
   "schemaVersion": 1,
   "icon": "house",
-  "blocks": [
-    /* composed-blocks tree — text, headings, callouts, columns,
-       embedded-collection-view, embedded-context-view,
-       linked-pages, link-list, mini-calendar (Agenda), etc. */
-  ],
+  "blocks": [ /* composed-blocks tree — types below */ ],
   "modified_at": 1716480000
 }
 ```
 
-Notable absences vs. Context entities:
-- **No `id`** — the file location IS the identity
-- **No `tier`** — Homepage isn't part of the tier system
-- **No `parents`** — it's not parented to anything
-- **No `title`** — UI label comes from `saved-config.json` (renamable)
+No `id` / `tier` / `parents` (the file location is the identity), and no `title` — the sidebar label comes from `saved-config.json` (renameable). See [[Sidebar]].
 
 ---
 
 #### Composition surface
 
-Same block types as Contexts:
+The block catalog (shared with Contexts; `ContextBlock` is an empty placeholder until the composed-blocks editor ships v0.9):
+
 - Text: paragraph, heading, list, callout, code, quote, divider, columns
 - Widgets:
-  - `embedded-collection-view` — saved Vault view, rendered inline (editable)
-  - `embedded-context-view` — auto-collected linked-content from a Context
-  - `linked-pages` — Pages whose `tierN` includes a specified Context (queried via `IndexQuery.entitiesByTarget(.contextTier(N))`)
+  - `embedded-collection-view` — a saved Type/Collection view, rendered inline
+  - `embedded-context-view` — auto-collected linked content from a Context
+  - `linked-pages` — entities linked to a specified Context, resolved via `IndexQuery.incomingRelations(targetID:)`
   - `link-list` — manually curated links
   - `mini-calendar` — small Agenda view (ships v0.8.0)
 
-All widgets render as **live, fully-editable views of their source** — never read-only snapshots. Edits flow to source files via atomic write. Inline-editing principle → `// Features//Domain-Model.md`.
+Every widget is a **live, fully-editable view of its source**, never a read-only snapshot; edits flow to source files via atomic write (inline-editing principle → [[Domain-Model]]).
 
 **Value rendering inside widgets** mirrors the rest of the app: relation property values (including the tier relations Spaces / Topics / Projects) render as the target entity's **icon + title in plain styled colored text** — never chips/pills — resolved live from the target; body wikilinks render as inline styled colored text. Both resolve by ID, so renaming a target updates the rendered label without rewriting the source.
 
@@ -60,19 +51,7 @@ All widgets render as **live, fully-editable views of their source** — never r
 
 #### Pinned-section integration
 
-The pinned section at the top of the sidebar (heading-less in v0.2; gains "Saved" header when user-pinning ships) contains the `Homepage` entry that opens this file in the main pane. Label is renamable via Settings → Saved Section; the `homepage` code key is fixed.
-
-```json
-// .nexus/saved-config.json
-{
-  "schemaVersion": 1,
-  "items": [
-    { "key": "homepage", "label": "Homepage" },
-    { "key": "calendar", "label": "Calendar" },
-    { "key": "recents",  "label": "Recents" }
-  ]
-}
-```
+The pinned section at the top of the sidebar holds the `Homepage` entry that opens this file in the main pane. Its label is renameable via `saved-config.json` (the `homepage` key is fixed). Pinned-section structure + `saved-config.json` shape are canonical in [[Sidebar]] / [[NavDropdown]].
 
 ---
 
@@ -80,7 +59,7 @@ The pinned section at the top of the sidebar (heading-less in v0.2; gains "Saved
 
 - **Create**: Seeded on first launch — no user-creation action (Homepage is a singleton)
 - **Read**: Top of sidebar → Homepage opens in the main detail pane
-- **Update**: Composed-blocks editor (Phase 10 in implementation plan); inline-edit any embedded widget per the inline-editing principle
+- **Update**: composed-blocks editor (ships v0.9); inline-edit any embedded widget per the inline-editing principle
 - **Delete**: Not user-deletable; regenerates if removed externally
 
 ---
