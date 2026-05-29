@@ -8,13 +8,19 @@
 
 Working tree on `origin/main`. The Relations Redesign Plan is the active deliverable from this session.
 
-**Relations Redesign — planning complete.** Executable plan at `// Planning//Relations-Redesign-Plan.md` (22 phases, ~78 tasks, TDD per file, stub-and-progressively-replace sequencing). Plan is self-contained — every decision lives in the plan header table or inline; the prior planning brief is not required on disk. Execution mode chosen: subagent-driven (one fresh subagent per task, review between tasks). Next action: begin Phase 0 (baseline check).
+**Relations Redesign — EXECUTING on `main`** (subagent-driven: implementer writes → background `xcodebuild` verify → hand-review → commit; never commits red to `main`). Read the plan's **"Reconciliation pass"** section first — it supersedes stale body premises. Phase tracking lives in the session task list.
+
+**Shipped (Phases 0–5):** baseline + stale-label-test cleanup; foundational types (`ReservedPropertyID` named constants, `ReservedTypeID`, `MigrationEvent`); `reverseName`/`reverseIcon` on `PropertyDefinition`; Agenda schemas verified already on `PropertyDefinition` (no migration needed); `BuiltInRelationProperties.merge` + `resolvedProperties(tierConfig:)` on the 4 schema types + `TierConfigManager` env injection (tier rows now surface in the Type Settings list, locked-for-now). Re-verification found **Phase 2** (stageBackRefClear port) and **Phase 4** (Agenda Property→PropertyDefinition) already done in the live tree — both rescoped/obsolete.
+
+**In progress:** Phase 6 — `PropertyValue.relation` → `[String]` (always-multi) + drop `allowsMultiple`. **Remaining:** 6.5 tier value adapter (translator), 7 RelationScope→RelationTarget, 8 Agenda dual-relations, 9 index, 10 single-pane editor, 12 validator cascade, 13–16 picker/cell/chips/columns, 17 env+LinkedFromDropdown stub, 18 context-delete cascade, 19 migration/adoption, 20 tier_links retire, 21 docs, 22 deferred log.
+
+**Ratified this session (paradigm):** relations always-multi (single-pick dropped); deleting a Context auto-removes its tag (source-side cascade); Agenda Tasks/Events ARE relation targets in v1; flat value pickers (hierarchy deferred).
 
 Plan rests on nine brainstorming locks (tier label scope = per-Type override; validator signature = cascade; ContextDetailPlaceholder = untouched/defer; singleton type IDs = `_agenda_tasks`/`_agenda_events`; History wording = "rebuilt"; CLAUDE.md branch quirk #16 line citation fix = 325-331; tier column ordering = rightmost Project/Topic/Space reorderable; tier props in Type Settings = inline + no-delete; tier in-line cell editor = existing Status/Select/Multi-Select pattern), three late-stage UX clarifications (single-pane EditPropertyPane editor replaces the wizard; flat `ChipDropdown` + `RelationChip` rows for every picker target; `RelationChip` shows scoped target icon + title), two architectural decisions surfaced by verification (Context delete → application-layer source-side cascade across all four content managers; Agenda schema → unify to PropertyDefinition shape), and a common-sense audit pass that dropped seven over-engineered tasks (the wizard mistake's fingerprint showed up in stubs-with-no-consumer, dual-API designs, speculative helpers, dual-path "executor decides" tasks, and doc-only single-step commits).
 
 #### Next focuses
 
-1. **Relations Redesign execution** — begin Phase 0 (baseline) and proceed phase-by-phase via subagent-driven dispatch per `// Planning//Relations-Redesign-Plan.md`.
+1. **Relations Redesign execution** — continue Phase 6 → 22 per `// Planning//Relations-Redesign-Plan.md` (Phases 0–5 shipped). Next concrete step: finish Phase 6 (drop `allowsMultiple`), then Phase 6.5 (tier value adapter).
 2. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder).
 3. **Page Previews** — standalone-window page preview (cross-feature PreviewWindow primitive).
 
