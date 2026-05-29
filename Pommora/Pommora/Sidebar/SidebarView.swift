@@ -6,6 +6,10 @@ struct SidebarView: View {
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(ItemContentManager.self) private var itemContentManager
+    @Environment(AgendaTaskManager.self) private var agendaTaskManager
+    @Environment(AgendaEventManager.self) private var agendaEventManager
+    @Environment(NexusManager.self) private var nexusManager
     @Environment(SettingsManager.self) private var settingsManager
 
     @Binding var selection: SidebarSelection
@@ -143,6 +147,7 @@ struct SidebarView: View {
         case .deleteSpace(let s):
             Button("Delete", role: .destructive) {
                 Task {
+                    await cascadeUnlinkTier(contextID: s.id, tier: 1)
                     do { try await spaceManager.delete(s) } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
@@ -152,6 +157,7 @@ struct SidebarView: View {
             if count > 0 {
                 Button("Delete & Promote Projects", role: .destructive) {
                     Task {
+                        await cascadeUnlinkTier(contextID: t.id, tier: 2)
                         do { try await topicManager.deleteTopic(t, promotingProjects: true) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
@@ -159,6 +165,12 @@ struct SidebarView: View {
                 }
                 Button("Delete All", role: .destructive) {
                     Task {
+                        // Promoting false deletes the Topic's child Projects too, so
+                        // cascade-unlink each Project's tier-3 refs before the tier-2 Topic unlink.
+                        for project in topicManager.projects(in: t) {
+                            await cascadeUnlinkTier(contextID: project.id, tier: 3)
+                        }
+                        await cascadeUnlinkTier(contextID: t.id, tier: 2)
                         do { try await topicManager.deleteTopic(t, promotingProjects: false) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
@@ -167,6 +179,7 @@ struct SidebarView: View {
             } else {
                 Button("Delete", role: .destructive) {
                     Task {
+                        await cascadeUnlinkTier(contextID: t.id, tier: 2)
                         do { try await topicManager.deleteTopic(t, promotingProjects: true) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         confirmingDelete = nil
@@ -177,6 +190,7 @@ struct SidebarView: View {
         case .deleteProject(let p):
             Button("Delete", role: .destructive) {
                 Task {
+                    await cascadeUnlinkTier(contextID: p.id, tier: 3)
                     do { try await topicManager.deleteProject(p) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
@@ -220,6 +234,18 @@ struct SidebarView: View {
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
         }
+    }
+
+    /// Removes a Context's ID from every referencing entity's tier array across all
+    /// four content kinds, BEFORE the Context file is deleted (the unlink queries the
+    /// SQLite `relations` index, so the refs must still resolve at call time).
+    /// Best-effort per manager — one failure must not block the others or the delete.
+    private func cascadeUnlinkTier(contextID: String, tier: Int) async {
+        guard let index = nexusManager.currentIndex else { return }  // degraded mode: skip cascade
+        try? await contentManager.unlinkTier(contextID: contextID, tier: tier, index: index)
+        try? await itemContentManager.unlinkTier(contextID: contextID, tier: tier, index: index)
+        try? await agendaTaskManager.unlinkTier(contextID: contextID, tier: tier, index: index)
+        try? await agendaEventManager.unlinkTier(contextID: contextID, tier: tier, index: index)
     }
 }
 
