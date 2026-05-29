@@ -242,7 +242,8 @@ extension AgendaEventManager {
                 def.id = ReservedPropertyID.mintUserPropertyID()
             }
 
-            try PropertyDefinitionValidator.validate(def, in: schema.properties)
+            try PropertyDefinitionValidator.validate(
+                def, in: schema.properties, nexus: NexusContext.forTypeResolution(in: nexus))
 
             var updated = schema
             updated.properties.append(def)
@@ -291,7 +292,8 @@ extension AgendaEventManager {
             // rule doesn't fire. We only care about the name-uniqueness check here.
             var validationDef = renamedDef
             validationDef.id = ReservedPropertyID.mintUserPropertyID()
-            try PropertyDefinitionValidator.validate(validationDef, in: otherProps)
+            try PropertyDefinitionValidator.validate(
+                validationDef, in: otherProps, nexus: NexusContext.forTypeResolution(in: nexus))
 
             var updated = schema
             updated.properties[propIndex] = renamedDef

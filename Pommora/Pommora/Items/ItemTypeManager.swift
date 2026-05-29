@@ -602,7 +602,8 @@ extension ItemTypeManager {
                 return
             }
 
-            try PropertyDefinitionValidator.validate(def, in: types[i].properties)
+            try PropertyDefinitionValidator.validate(
+                def, in: types[i].properties, nexus: NexusContext.forTypeResolution(in: nexus))
 
             var updated = types[i]
             updated.properties.append(def)
@@ -684,7 +685,8 @@ extension ItemTypeManager {
             // the name-uniqueness check here.
             var validationDef = renamedDef
             validationDef.id = ReservedPropertyID.mintUserPropertyID()
-            try PropertyDefinitionValidator.validate(validationDef, in: otherProps)
+            try PropertyDefinitionValidator.validate(
+                validationDef, in: otherProps, nexus: NexusContext.forTypeResolution(in: nexus))
 
             var updated = types[typeIndex]
             updated.properties[propIndex] = renamedDef
@@ -781,7 +783,8 @@ extension ItemTypeManager {
             duplicated.name = "\(duplicated.name) (copy)"
             duplicated.dualProperty = nil  // Defer relation dup re-pairing to v0.3.1.5.
 
-            try PropertyDefinitionValidator.validate(duplicated, in: types[i].properties)
+            try PropertyDefinitionValidator.validate(
+                duplicated, in: types[i].properties, nexus: NexusContext.forTypeResolution(in: nexus))
 
             var updatedType = types[i]
             updatedType.properties.append(duplicated)
@@ -830,7 +833,8 @@ extension ItemTypeManager {
 
             var siblings = types[i].properties
             siblings.remove(at: j)
-            try PropertyDefinitionValidator.validate(updatedDef, in: siblings)
+            try PropertyDefinitionValidator.validate(
+                updatedDef, in: siblings, nexus: NexusContext.forTypeResolution(in: nexus))
 
             var updatedType = types[i]
             updatedType.properties[j] = updatedDef

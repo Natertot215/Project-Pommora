@@ -30,7 +30,7 @@ struct PropertyDefinitionValidatorTests {
 
     @Test func rejectsEmptyName() {
         #expect(throws: PropertyDefinitionValidator.ValidationError.emptyName) {
-            try PropertyDefinitionValidator.validate(makeDef(name: ""), in: [])
+            try PropertyDefinitionValidator.validate(makeDef(name: ""), in: [], nexus: .empty)
         }
     }
 
@@ -38,7 +38,7 @@ struct PropertyDefinitionValidatorTests {
 
     @Test func rejectsWhitespaceOnlyName() {
         #expect(throws: PropertyDefinitionValidator.ValidationError.emptyName) {
-            try PropertyDefinitionValidator.validate(makeDef(name: "   "), in: [])
+            try PropertyDefinitionValidator.validate(makeDef(name: "   "), in: [], nexus: .empty)
         }
     }
 
@@ -46,7 +46,7 @@ struct PropertyDefinitionValidatorTests {
 
     @Test func rejectsReservedID() {
         #expect(throws: PropertyDefinitionValidator.ValidationError.reservedID) {
-            try PropertyDefinitionValidator.validate(makeDef(id: "_status"), in: [])
+            try PropertyDefinitionValidator.validate(makeDef(id: "_status"), in: [], nexus: .empty)
         }
     }
 
@@ -55,7 +55,8 @@ struct PropertyDefinitionValidatorTests {
     @Test func rejectsDuplicateID() {
         let existing = [makeDef(id: "prop_abc", name: "Existing")]
         #expect(throws: PropertyDefinitionValidator.ValidationError.duplicateID) {
-            try PropertyDefinitionValidator.validate(makeDef(id: "prop_abc", name: "New"), in: existing)
+            try PropertyDefinitionValidator.validate(
+                makeDef(id: "prop_abc", name: "New"), in: existing, nexus: .empty)
         }
     }
 
@@ -64,24 +65,78 @@ struct PropertyDefinitionValidatorTests {
     @Test func rejectsCaseInsensitiveDuplicateName() {
         let existing = [makeDef(id: "prop_xyz", name: "Priority")]
         #expect(throws: PropertyDefinitionValidator.ValidationError.duplicateName) {
-            try PropertyDefinitionValidator.validate(makeDef(id: "prop_abc", name: "PRIORITY"), in: existing)
+            try PropertyDefinitionValidator.validate(
+                makeDef(id: "prop_abc", name: "PRIORITY"), in: existing, nexus: .empty)
         }
     }
 
-    // MARK: - Rule 6: dualRelationOnContextTier
+    // MARK: - Relation: missing target
 
-    @Test func rejectsDualRelationOnContextTier() {
-        let dual = PropertyDefinition.DualPropertyConfig(
-            syncedPropertyID: "prop_rev",
-            syncedPropertyDefinedOnTypeID: "type_123"
-        )
-        let def = makeDef(
-            type: .relation,
-            relationTarget: .contextTier(3),
-            dualProperty: dual
-        )
-        #expect(throws: PropertyDefinitionValidator.ValidationError.dualRelationOnContextTier) {
-            try PropertyDefinitionValidator.validate(def, in: [])
+    @Test func rejectsRelationWithNoTarget() {
+        let def = makeDef(type: .relation, relationTarget: nil)
+        #expect(throws: PropertyDefinitionValidator.ValidationError.relationMissingTarget) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
+        }
+    }
+
+    // MARK: - Relation: unresolvable PageType target
+
+    @Test func rejectsRelationWithUnresolvablePageTypeTarget() {
+        let def = makeDef(type: .relation, relationTarget: .pageType("does_not_exist"))
+        #expect(
+            throws: PropertyDefinitionValidator.ValidationError.relationTargetNotResolvable(
+                typeID: "does_not_exist")
+        ) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
+        }
+    }
+
+    // MARK: - Relation: unresolvable ItemType target
+
+    @Test func rejectsRelationWithUnresolvableItemTypeTarget() {
+        let def = makeDef(type: .relation, relationTarget: .itemType("missing_item_type"))
+        #expect(
+            throws: PropertyDefinitionValidator.ValidationError.relationTargetNotResolvable(
+                typeID: "missing_item_type")
+        ) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
+        }
+    }
+
+    // MARK: - Relation: legacy Collection targets rejected at save time
+
+    @Test func rejectsRelationWithLegacyCollectionTarget() {
+        let def = makeDef(type: .relation, relationTarget: .pageCollection("legacy_collection"))
+        #expect(
+            throws: PropertyDefinitionValidator.ValidationError.relationTargetNotResolvable(
+                typeID: "legacy_collection")
+        ) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
+        }
+    }
+
+    // MARK: - Relation: Agenda singleton targets accepted without catalog lookup
+
+    @Test func acceptsRelationWithAgendaTasksTarget() {
+        let def = makeDef(type: .relation, relationTarget: .agendaTasks)
+        #expect(throws: Never.self) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
+        }
+    }
+
+    @Test func acceptsRelationWithAgendaEventsTarget() {
+        let def = makeDef(type: .relation, relationTarget: .agendaEvents)
+        #expect(throws: Never.self) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
+        }
+    }
+
+    // MARK: - Relation: contextTier accepted without catalog lookup (Rule 6 retired)
+
+    @Test func acceptsRelationWithContextTierTarget() {
+        let def = makeDef(type: .relation, relationTarget: .contextTier(3))
+        #expect(throws: Never.self) {
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
         }
     }
 
@@ -90,7 +145,7 @@ struct PropertyDefinitionValidatorTests {
     @Test func rejectsSelectWithZeroOptions() {
         let def = makeDef(type: .select, selectOptions: [])
         #expect(throws: PropertyDefinitionValidator.ValidationError.selectMissingOptions) {
-            try PropertyDefinitionValidator.validate(def, in: [])
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
         }
     }
 
@@ -103,7 +158,7 @@ struct PropertyDefinitionValidatorTests {
         ]
         let def = makeDef(type: .select, selectOptions: options)
         #expect(throws: PropertyDefinitionValidator.ValidationError.duplicateSelectOptionValue) {
-            try PropertyDefinitionValidator.validate(def, in: [])
+            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
         }
     }
 }

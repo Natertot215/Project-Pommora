@@ -35,8 +35,10 @@ enum PropertyEditorErrorMessage {
             return "A property with that ID already exists."
         case .duplicateName:
             return "A property with that name already exists."
-        case .dualRelationOnContextTier:
-            return "Context-tier relations can't have a mirrored property."
+        case .relationMissingTarget:
+            return "Pick what this relation links to."
+        case .relationTargetNotResolvable:
+            return "That relation target no longer exists."
         case .selectMissingOptions:
             return "Select properties need at least one option."
         case .duplicateSelectOptionValue:

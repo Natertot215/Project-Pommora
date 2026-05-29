@@ -6,12 +6,18 @@ enum PropertyDefinitionValidator {
         case reservedID
         case duplicateID
         case duplicateName
-        case dualRelationOnContextTier
         case selectMissingOptions
         case duplicateSelectOptionValue
+        /// A `.relation` property carries no `relationTarget`.
+        case relationMissingTarget
+        /// A `.relation` property's target Type ID doesn't resolve in the nexus,
+        /// or it targets a legacy Collection kind (rejected at save time).
+        case relationTargetNotResolvable(typeID: String)
     }
 
-    static func validate(_ def: PropertyDefinition, in existing: [PropertyDefinition]) throws {
+    static func validate(
+        _ def: PropertyDefinition, in existing: [PropertyDefinition], nexus: NexusContext
+    ) throws {
         // Rule 1 & 2: name must be non-empty after trimming whitespace
         let trimmedName = def.name.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else { throw ValidationError.emptyName }
@@ -28,10 +34,31 @@ enum PropertyDefinitionValidator {
             throw ValidationError.duplicateName
         }
 
-        // Rule 6: context-tier relation may not carry a dual-property config
-        if def.type == .relation, def.dualProperty != nil {
-            if case .some(.contextTier) = def.relationTarget {
-                throw ValidationError.dualRelationOnContextTier
+        // Relation-target rules (apply only to .relation properties). Relations now
+        // treat context_tier as a normal internal target — the former dual-on-context-tier
+        // rejection (Rule 6) is retired.
+        if def.type == .relation {
+            // Relation must carry a target.
+            guard let target = def.relationTarget else { throw ValidationError.relationMissingTarget }
+
+            // Target must resolve. Type targets require a live catalog entry; singleton /
+            // system targets accept without lookup; legacy Collection targets are rejected
+            // at save time (read-tolerance for existing ones is handled by migration).
+            switch target {
+            case .pageType(let id):
+                guard nexus.lookupVault(id) != nil else {
+                    throw ValidationError.relationTargetNotResolvable(typeID: id)
+                }
+            case .itemType(let id):
+                guard nexus.lookupItemType(id) != nil else {
+                    throw ValidationError.relationTargetNotResolvable(typeID: id)
+                }
+            case .agendaTasks, .agendaEvents, .contextTier:
+                // Singletons / system targets — no catalog lookup, accept.
+                break
+            case .pageCollection(let id), .itemCollection(let id):
+                // Legacy targets — reject creating NEW relations against them.
+                throw ValidationError.relationTargetNotResolvable(typeID: id)
             }
         }
 
