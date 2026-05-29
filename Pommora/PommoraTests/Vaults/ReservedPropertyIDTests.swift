@@ -37,4 +37,22 @@ import Testing
         let b = ReservedPropertyID.mintUserPropertyID()
         #expect(a != b)
     }
+
+    @Test func namedConstantsMatchExpectedRawValues() {
+        #expect(ReservedPropertyID.id         == "_id")
+        #expect(ReservedPropertyID.createdAt  == "_created_at")
+        #expect(ReservedPropertyID.modifiedAt == "_modified_at")
+        #expect(ReservedPropertyID.status     == "_status")
+        #expect(ReservedPropertyID.type       == "_type")
+        #expect(ReservedPropertyID.tier1      == "_tier1")
+        #expect(ReservedPropertyID.tier2      == "_tier2")
+        #expect(ReservedPropertyID.tier3      == "_tier3")
+        #expect(ReservedPropertyID.wikilinks  == "_wikilinks")
+    }
+
+    @Test func tierConstantsAreReserved() {
+        #expect(ReservedPropertyID.isReserved(ReservedPropertyID.tier1))
+        #expect(ReservedPropertyID.isReserved(ReservedPropertyID.tier2))
+        #expect(ReservedPropertyID.isReserved(ReservedPropertyID.tier3))
+    }
 }
