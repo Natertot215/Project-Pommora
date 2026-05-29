@@ -15,37 +15,78 @@ struct IndexQuery: Sendable {
         try await index.dbQueue.read { db in
             switch target {
             case .pageType(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title FROM pages WHERE page_type_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"]) }
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM pages WHERE page_type_id = ?", arguments: [id])
+                    .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
 
             case .itemType(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title FROM items WHERE item_type_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"]) }
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM items WHERE item_type_id = ?", arguments: [id])
+                    .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
 
             case .pageCollection(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title FROM pages WHERE page_collection_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"]) }
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM pages WHERE page_collection_id = ?", arguments: [id])
+                    .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
 
             case .itemCollection(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title FROM items WHERE item_collection_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"]) }
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM items WHERE item_collection_id = ?", arguments: [id])
+                    .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
 
             case .contextTier(let tier):
-                return try Row.fetchAll(db, sql: "SELECT id, title, tier FROM contexts WHERE tier = ?", arguments: [tier])
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon, tier FROM contexts WHERE tier = ?", arguments: [tier])
                     .map { row -> EntityRef in
                         let t = (row["tier"] as Int?) ?? tier
                         let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
-                        return EntityRef(id: row["id"], kind: kind, title: row["title"])
+                        return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
                     }
 
             case .agendaTasks:
-                return try Row.fetchAll(db, sql: "SELECT id, title FROM agenda_tasks", arguments: [])
-                    .map { EntityRef(id: $0["id"], kind: .agendaTask, title: $0["title"]) }
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM agenda_tasks", arguments: [])
+                    .map { EntityRef(id: $0["id"], kind: .agendaTask, title: $0["title"], icon: $0["icon"]) }
 
             case .agendaEvents:
-                return try Row.fetchAll(db, sql: "SELECT id, title FROM agenda_events", arguments: [])
-                    .map { EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"]) }
+                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM agenda_events", arguments: [])
+                    .map { EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"], icon: $0["icon"]) }
             }
+        }
+    }
+
+    // MARK: - Batch ID resolution (relation/tier display)
+
+    /// Batch-resolve relation/tier target IDs to their current display (icon + title).
+    /// Searches every table a relation value can point at (pages, items, contexts,
+    /// agenda tasks/events). IDs are globally-unique ULIDs, so a hit in one table is
+    /// authoritative. Missing IDs are absent from the result (caller renders the
+    /// "(missing)" fallback).
+    func resolveEntities(ids: [String]) async throws -> [String: EntityRef] {
+        guard !ids.isEmpty else { return [:] }
+        return try await index.dbQueue.read { db in
+            var out: [String: EntityRef] = [:]
+            let qs = databaseQuestionMarks(count: ids.count)
+            // Build per-statement arguments (one fresh consuming pass each) to avoid
+            // any cross-statement reuse quirk in GRDB's StatementArguments.
+            func collect(_ sql: String, _ make: (Row) -> EntityRef) throws {
+                for row in try Row.fetchAll(db, sql: sql, arguments: StatementArguments(ids)) {
+                    let r = make(row)
+                    out[r.id] = r
+                }
+            }
+            try collect("SELECT id, title, icon FROM pages WHERE id IN (\(qs))") {
+                EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"])
+            }
+            try collect("SELECT id, title, icon FROM items WHERE id IN (\(qs))") {
+                EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"])
+            }
+            try collect("SELECT id, title, icon, tier FROM contexts WHERE id IN (\(qs))") { row in
+                let t = (row["tier"] as Int?) ?? 1
+                let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
+                return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
+            }
+            try collect("SELECT id, title, icon FROM agenda_tasks WHERE id IN (\(qs))") {
+                EntityRef(id: $0["id"], kind: .agendaTask, title: $0["title"], icon: $0["icon"])
+            }
+            try collect("SELECT id, title, icon FROM agenda_events WHERE id IN (\(qs))") {
+                EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"], icon: $0["icon"])
+            }
+            return out
         }
     }
 
@@ -551,6 +592,13 @@ struct EntityRef: Equatable, Hashable, Sendable {
     let id: String
     let kind: EntityKind
     let title: String
+    let icon: String?
+    nonisolated init(id: String, kind: EntityKind, title: String, icon: String? = nil) {
+        self.id = id
+        self.kind = kind
+        self.title = title
+        self.icon = icon
+    }
 }
 
 /// The on-disk container of a Page or Item, resolved from the index by

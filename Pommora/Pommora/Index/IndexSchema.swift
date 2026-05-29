@@ -65,6 +65,7 @@ enum IndexSchema {
             page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
             page_collection_id TEXT REFERENCES page_collections(id) ON DELETE SET NULL,
             title TEXT NOT NULL,
+            icon TEXT,
             properties TEXT NOT NULL DEFAULT '{}',
             modified_at TEXT NOT NULL
         );
@@ -76,6 +77,7 @@ enum IndexSchema {
             item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
             item_collection_id TEXT REFERENCES item_collections(id) ON DELETE SET NULL,
             title TEXT NOT NULL,
+            icon TEXT,
             description TEXT NOT NULL DEFAULT '',
             properties TEXT NOT NULL DEFAULT '{}',
             modified_at TEXT NOT NULL
@@ -86,6 +88,7 @@ enum IndexSchema {
         CREATE TABLE IF NOT EXISTS agenda_tasks (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
+            icon TEXT,
             due_at TEXT,
             properties TEXT NOT NULL DEFAULT '{}',
             modified_at TEXT NOT NULL
@@ -96,6 +99,7 @@ enum IndexSchema {
         CREATE TABLE IF NOT EXISTS agenda_events (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
+            icon TEXT,
             start_at TEXT NOT NULL,
             end_at TEXT NOT NULL,
             properties TEXT NOT NULL DEFAULT '{}',
@@ -108,6 +112,7 @@ enum IndexSchema {
             id TEXT PRIMARY KEY,
             tier INTEGER NOT NULL,
             title TEXT NOT NULL,
+            icon TEXT,
             parent_topic_id TEXT
         );
         """

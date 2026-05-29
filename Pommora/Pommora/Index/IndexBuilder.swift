@@ -26,6 +26,7 @@ private struct PageCollectionSnapshot: Sendable {
 private struct PageSnapshot: Sendable {
     let id: String
     let title: String
+    let icon: String?
     let properties: [String: PropertyValue]
     let modifiedAt: Date
     let pageTypeID: String
@@ -57,6 +58,7 @@ private struct ItemCollectionSnapshot: Sendable {
 private struct ItemSnapshot: Sendable {
     let id: String
     let title: String
+    let icon: String?
     let description: String?
     let properties: [String: PropertyValue]
     let modifiedAt: Date
@@ -70,6 +72,7 @@ private struct ItemSnapshot: Sendable {
 private struct AgendaTaskSnapshot: Sendable {
     let id: String
     let title: String
+    let icon: String?
     let dueAt: Date?
     let properties: [String: PropertyValue]
     let modifiedAt: Date
@@ -81,6 +84,7 @@ private struct AgendaTaskSnapshot: Sendable {
 private struct AgendaEventSnapshot: Sendable {
     let id: String
     let title: String
+    let icon: String?
     let startAt: Date
     let endAt: Date
     let properties: [String: PropertyValue]
@@ -94,6 +98,7 @@ private struct ContextSnapshot: Sendable {
     let id: String
     let tier: Int
     let title: String
+    let icon: String?
     let parentTopicID: String?
 }
 
@@ -220,6 +225,7 @@ final class IndexBuilder {
             return PageSnapshot(
                 id: fm.id,
                 title: pf.title,
+                icon: fm.icon,
                 properties: fm.properties,
                 modifiedAt: fm.modifiedAt ?? fm.createdAt,
                 pageTypeID: pageTypeID,
@@ -288,6 +294,7 @@ final class IndexBuilder {
             return ItemSnapshot(
                 id: item.id,
                 title: item.title,
+                icon: item.icon,
                 description: item.description,
                 properties: item.properties,
                 modifiedAt: item.modifiedAt,
@@ -311,6 +318,7 @@ final class IndexBuilder {
             return AgendaTaskSnapshot(
                 id: task.id,
                 title: task.title,
+                icon: task.icon,
                 dueAt: task.dueAt,
                 properties: task.properties,
                 modifiedAt: task.modifiedAt,
@@ -340,6 +348,7 @@ final class IndexBuilder {
             return AgendaEventSnapshot(
                 id: event.id,
                 title: event.title,
+                icon: event.icon,
                 startAt: event.startAt,
                 endAt: event.endAt,
                 properties: event.properties,
@@ -370,7 +379,7 @@ final class IndexBuilder {
             }) ?? []
             for url in urls {
                 guard let space = try? Space.load(from: url) else { continue }
-                result.append(ContextSnapshot(id: space.id, tier: 1, title: space.title, parentTopicID: nil))
+                result.append(ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon, parentTopicID: nil))
             }
         }
 
@@ -383,14 +392,14 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: metaURL),
                     let topic = try? Topic.load(from: metaURL)
                 else { continue }
-                result.append(ContextSnapshot(id: topic.id, tier: 2, title: topic.title, parentTopicID: nil))
+                result.append(ContextSnapshot(id: topic.id, tier: 2, title: topic.title, icon: topic.icon, parentTopicID: nil))
 
                 let projectURLs = (try? Filesystem.children(of: folder) { url in
                     url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "project"
                 }) ?? []
                 for url in projectURLs {
                     guard let project = try? Project.load(from: url) else { continue }
-                    result.append(ContextSnapshot(id: project.id, tier: 3, title: project.title, parentTopicID: topic.id))
+                    result.append(ContextSnapshot(id: project.id, tier: 3, title: project.title, icon: project.icon, parentTopicID: topic.id))
                 }
             }
         }
@@ -446,8 +455,8 @@ final class IndexBuilder {
         let propsJSON = (try? propertiesJSON(page.properties)) ?? "{}"
         try db.execute(
             literal: """
-                INSERT INTO pages (id, page_type_id, page_collection_id, title, properties, modified_at)
-                VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(propsJSON), \(iso8601(page.modifiedAt)))
+                INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
+                VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
                 """
         )
     }
@@ -484,8 +493,8 @@ final class IndexBuilder {
         let propsJSON = (try? propertiesJSON(item.properties)) ?? "{}"
         try db.execute(
             literal: """
-                INSERT INTO items (id, item_type_id, item_collection_id, title, description, properties, modified_at)
-                VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
+                INSERT INTO items (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
+                VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.icon), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
                 """
         )
     }
@@ -499,8 +508,8 @@ final class IndexBuilder {
             let propsJSON = (try? propertiesJSON(task.properties)) ?? "{}"
             try db.execute(
                 literal: """
-                    INSERT INTO agenda_tasks (id, title, due_at, properties, modified_at)
-                    VALUES (\(task.id), \(task.title), \(task.dueAt.map { iso8601($0) }), \(propsJSON), \(iso8601(task.modifiedAt)))
+                    INSERT INTO agenda_tasks (id, title, icon, due_at, properties, modified_at)
+                    VALUES (\(task.id), \(task.title), \(task.icon), \(task.dueAt.map { iso8601($0) }), \(propsJSON), \(iso8601(task.modifiedAt)))
                     """
             )
         }
@@ -515,8 +524,8 @@ final class IndexBuilder {
             let propsJSON = (try? propertiesJSON(event.properties)) ?? "{}"
             try db.execute(
                 literal: """
-                    INSERT INTO agenda_events (id, title, start_at, end_at, properties, modified_at)
-                    VALUES (\(event.id), \(event.title), \(iso8601(event.startAt)), \(iso8601(event.endAt)), \(propsJSON), \(iso8601(event.modifiedAt)))
+                    INSERT INTO agenda_events (id, title, icon, start_at, end_at, properties, modified_at)
+                    VALUES (\(event.id), \(event.title), \(event.icon), \(iso8601(event.startAt)), \(iso8601(event.endAt)), \(propsJSON), \(iso8601(event.modifiedAt)))
                     """
             )
         }
@@ -526,8 +535,8 @@ final class IndexBuilder {
         for ctx in snapshot.contexts {
             try db.execute(
                 literal: """
-                    INSERT INTO contexts (id, tier, title, parent_topic_id)
-                    VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.parentTopicID))
+                    INSERT INTO contexts (id, tier, title, icon, parent_topic_id)
+                    VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon), \(ctx.parentTopicID))
                     """
             )
         }

@@ -106,10 +106,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO pages
-                        (id, page_type_id, page_collection_id, title, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                arguments: [meta.id, pageTypeID, pageCollectionID, meta.title, propsJSON, modifiedAt]
+                arguments: [meta.id, pageTypeID, pageCollectionID, meta.title, meta.frontmatter.icon, propsJSON, modifiedAt]
             )
             try reconcileRelations(
                 db: db,
@@ -186,12 +186,12 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO items
-                        (id, item_type_id, item_collection_id, title, description, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     item.id, itemTypeID, itemCollectionID,
-                    item.title, item.description, propsJSON, iso(item.modifiedAt),
+                    item.title, item.icon, item.description, propsJSON, iso(item.modifiedAt),
                 ]
             )
             try reconcileRelations(
@@ -221,11 +221,11 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO agenda_tasks
-                        (id, title, due_at, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?)
+                        (id, title, icon, due_at, properties, modified_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
-                    task.id, task.title,
+                    task.id, task.title, task.icon,
                     task.dueAt.map { iso($0) },
                     propsJSON, iso(task.modifiedAt),
                 ]
@@ -257,11 +257,11 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO agenda_events
-                        (id, title, start_at, end_at, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (id, title, icon, start_at, end_at, properties, modified_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
-                    event.id, event.title,
+                    event.id, event.title, event.icon,
                     iso(event.startAt), iso(event.endAt),
                     propsJSON, iso(event.modifiedAt),
                 ]
@@ -292,10 +292,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
-                        (id, tier, title, parent_topic_id)
-                    VALUES (?, ?, ?, ?)
+                        (id, tier, title, icon, parent_topic_id)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                arguments: [space.id, 1, space.title, nil]
+                arguments: [space.id, 1, space.title, space.icon, nil]
             )
         }
     }
@@ -307,10 +307,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
-                        (id, tier, title, parent_topic_id)
-                    VALUES (?, ?, ?, ?)
+                        (id, tier, title, icon, parent_topic_id)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                arguments: [topic.id, 2, topic.title, firstParent]
+                arguments: [topic.id, 2, topic.title, topic.icon, firstParent]
             )
         }
     }
@@ -321,10 +321,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
-                        (id, tier, title, parent_topic_id)
-                    VALUES (?, ?, ?, ?)
+                        (id, tier, title, icon, parent_topic_id)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                arguments: [project.id, 3, project.title, parentTopicID]
+                arguments: [project.id, 3, project.title, project.icon, parentTopicID]
             )
         }
     }

@@ -35,7 +35,10 @@ final class PommoraIndex: @unchecked Sendable {
     // into `relations` via the updated IndexBuilder. Same throwaway-cache rationale
     // as v2 — no user data is at risk. (This is the INDEX-DB version; distinct from
     // the per-Type sidecar `schemaVersion` migrated by adoption.)
-    static let currentSchemaVersion: Int = 3
+    //
+    // v4 (2026-05-29): denormalize entity icon into pages/items/contexts/agenda_*
+    // so relation values resolve to icon+title from the index.
+    static let currentSchemaVersion: Int = 4
 
     let dbQueue: DatabaseQueue   // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
