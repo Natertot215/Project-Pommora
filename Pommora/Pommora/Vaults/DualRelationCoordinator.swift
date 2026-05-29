@@ -34,6 +34,8 @@ struct DualRelationCoordinator: Sendable {
     enum TypeKind: Sendable {
         case pageType(PageType)
         case itemType(ItemType)
+        case agendaTasks(AgendaTaskSchema)
+        case agendaEvents(AgendaEventSchema)
     }
 
     // MARK: - Private helpers
@@ -45,14 +47,20 @@ struct DualRelationCoordinator: Sendable {
             return NexusPaths.vaultMetadataURL(forTitle: pt.title, in: nexus)
         case .itemType(let it):
             return NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: it.title)
+        case .agendaTasks:
+            return NexusPaths.taskSchemaURL(in: nexus)
+        case .agendaEvents:
+            return NexusPaths.eventSchemaURL(in: nexus)
         }
     }
 
     /// Returns the current `properties` array from a `TypeKind`.
     private static func properties(of kind: TypeKind) -> [PropertyDefinition] {
         switch kind {
-        case .pageType(let pt): return pt.properties
-        case .itemType(let it): return it.properties
+        case .pageType(let pt):      return pt.properties
+        case .itemType(let it):      return it.properties
+        case .agendaTasks(let s):    return s.properties
+        case .agendaEvents(let s):   return s.properties
         }
     }
 
@@ -67,6 +75,14 @@ struct DualRelationCoordinator: Sendable {
             it.properties = properties
             it.modifiedAt = Date()
             return .itemType(it)
+        case .agendaTasks(var s):
+            s.properties = properties
+            s.modifiedAt = Date()
+            return .agendaTasks(s)
+        case .agendaEvents(var s):
+            s.properties = properties
+            s.modifiedAt = Date()
+            return .agendaEvents(s)
         }
     }
 
@@ -78,6 +94,10 @@ struct DualRelationCoordinator: Sendable {
             try tx.stage(pt, to: url)
         case .itemType(let it):
             try tx.stage(it, to: url)
+        case .agendaTasks(let s):
+            try tx.stage(s, to: url)
+        case .agendaEvents(let s):
+            try tx.stage(s, to: url)
         }
     }
 
@@ -236,7 +256,8 @@ struct DualRelationCoordinator: Sendable {
     // MARK: - Private: member-file value strip
 
     /// Stages value-strip rewrites for every member file owned by `kind` that carries
-    /// the given `propertyID`. Handles PageType (`.md`) and ItemType (`.json`) separately.
+    /// the given `propertyID`. Handles PageType (`.md`), ItemType (`.json`), and
+    /// Agenda singletons (`.task.json` / `.event.json`) separately.
     private static func stageValueStrip(
         propertyID: String,
         from kind: TypeKind,
@@ -272,6 +293,30 @@ struct DualRelationCoordinator: Sendable {
                 item.properties.removeValue(forKey: propertyID)
                 tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
             }
+
+        case .agendaTasks:
+            let dir = NexusPaths.tasksDir(in: nexus)
+            let taskFiles = try Filesystem.children(of: dir) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
+            }
+            for taskURL in taskFiles {
+                var task = try AtomicJSON.decode(AgendaTask.self, from: taskURL)
+                guard task.properties[propertyID] != nil else { continue }
+                task.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(task), to: taskURL)
+            }
+
+        case .agendaEvents:
+            let dir = NexusPaths.eventsDir(in: nexus)
+            let eventFiles = try Filesystem.children(of: dir) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
+            }
+            for eventURL in eventFiles {
+                var event = try AtomicJSON.decode(AgendaEvent.self, from: eventURL)
+                guard event.properties[propertyID] != nil else { continue }
+                event.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(event), to: eventURL)
+            }
         }
     }
 }
@@ -279,11 +324,14 @@ struct DualRelationCoordinator: Sendable {
 // MARK: - TypeKind convenience
 
 extension DualRelationCoordinator.TypeKind {
-    /// The stable ULID of the underlying type.
+    /// The stable identifier of the underlying type. For singleton Agenda schemas
+    /// this returns the reserved string identifier rather than a ULID.
     var typeID: String {
         switch self {
-        case .pageType(let pt): return pt.id
-        case .itemType(let it): return it.id
+        case .pageType(let pt):   return pt.id
+        case .itemType(let it):   return it.id
+        case .agendaTasks:        return ReservedTypeID.agendaTasks
+        case .agendaEvents:       return ReservedTypeID.agendaEvents
         }
     }
 }
