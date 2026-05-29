@@ -16,7 +16,7 @@ struct RelationPickerTests {
 
     private func makePicker(
         selectedIDs: [String] = [],
-        scope: PropertyDefinition.RelationScope = .contextTier(2),
+        scope: PropertyDefinition.RelationTarget = .contextTier(2),
         index: PommoraIndex? = nil
     ) -> RelationPicker {
         var ids = selectedIDs
@@ -112,11 +112,11 @@ struct RelationPickerTests {
         #expect(result.isEmpty)
     }
 
-    // MARK: - Test 8: all RelationScope kinds are accepted
+    // MARK: - Test 8: all RelationTarget kinds are accepted
 
-    @Test("RelationPicker accepts all RelationScope kinds without crashing")
+    @Test("RelationPicker accepts all RelationTarget kinds without crashing")
     func allScopeKindsAccepted() {
-        let scopes: [PropertyDefinition.RelationScope] = [
+        let scopes: [PropertyDefinition.RelationTarget] = [
             .pageType("01H"),
             .itemType("01H"),
             .pageCollection("01H"),

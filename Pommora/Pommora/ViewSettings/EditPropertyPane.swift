@@ -200,7 +200,7 @@ struct EditPropertyPane: View {
                 }
             )
         case .relation:
-            relationScopeSummary(def: def)
+            relationTargetSummary(def: def)
         case .number, .date, .datetime, .checkbox, .url, .file, .lastEditedTime:
             EmptyView()
         }
@@ -287,11 +287,11 @@ struct EditPropertyPane: View {
     /// on the target Type is not yet auto-minted. That arrives with the
     /// searchable target picker in a later slice.
     @ViewBuilder
-    private func relationScopeSummary(def: PropertyDefinition) -> some View {
+    private func relationTargetSummary(def: PropertyDefinition) -> some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.lg) {
             relationKindRow(def: def)
             relationTargetRow(def: def)
-            if !isContextTierScope(def.relationScope) {
+            if !isContextTierScope(def.relationTarget) {
                 relationMirrorRow(def: def)
             }
         }
@@ -305,12 +305,12 @@ struct EditPropertyPane: View {
                 .foregroundStyle(.primary)
             Spacer()
             Picker("Scope", selection: bindingForRelationKind(def: def)) {
-                Text("Unset").tag(RelationScopeKind?.none)
-                Text("Page Type").tag(RelationScopeKind?.some(.pageType))
-                Text("Item Type").tag(RelationScopeKind?.some(.itemType))
-                Text("Page Collection").tag(RelationScopeKind?.some(.pageCollection))
-                Text("Item Collection").tag(RelationScopeKind?.some(.itemCollection))
-                Text("Context Tier").tag(RelationScopeKind?.some(.contextTier))
+                Text("Unset").tag(RelationTargetKind?.none)
+                Text("Page Type").tag(RelationTargetKind?.some(.pageType))
+                Text("Item Type").tag(RelationTargetKind?.some(.itemType))
+                Text("Page Collection").tag(RelationTargetKind?.some(.pageCollection))
+                Text("Item Collection").tag(RelationTargetKind?.some(.itemCollection))
+                Text("Context Tier").tag(RelationTargetKind?.some(.contextTier))
             }
             .labelsHidden()
             .pickerStyle(.menu)
@@ -320,7 +320,7 @@ struct EditPropertyPane: View {
 
     @ViewBuilder
     private func relationTargetRow(def: PropertyDefinition) -> some View {
-        if isContextTierScope(def.relationScope) {
+        if isContextTierScope(def.relationTarget) {
             HStack(spacing: PUI.Spacing.md) {
                 Text("Target")
                     .font(PUI.Typography.row)
@@ -366,30 +366,32 @@ struct EditPropertyPane: View {
         }
     }
 
-    private func isContextTierScope(_ scope: PropertyDefinition.RelationScope?) -> Bool {
+    private func isContextTierScope(_ scope: PropertyDefinition.RelationTarget?) -> Bool {
         if case .some(.contextTier) = scope { return true }
         return false
     }
 
-    /// UI-side projection of the 5-case scope discriminator.
-    private enum RelationScopeKind: Hashable {
+    /// UI-side projection of the relation target kinds surfaced in this picker.
+    private enum RelationTargetKind: Hashable {
         case pageType, itemType, pageCollection, itemCollection, contextTier
     }
 
-    private func scopeKind(of scope: PropertyDefinition.RelationScope?) -> RelationScopeKind? {
+    private func scopeKind(of scope: PropertyDefinition.RelationTarget?) -> RelationTargetKind? {
         switch scope {
-        case .pageType: return .pageType
-        case .itemType: return .itemType
+        case .pageType:       return .pageType
+        case .itemType:       return .itemType
         case .pageCollection: return .pageCollection
         case .itemCollection: return .itemCollection
-        case .contextTier: return .contextTier
-        case .none: return nil
+        case .contextTier:    return .contextTier
+        case .agendaTasks:    return nil  // singleton targets not yet surfaced in this picker
+        case .agendaEvents:   return nil
+        case .none:           return nil
         }
     }
 
-    /// Construct a default RelationScope for a given kind. Container kinds
+    /// Construct a default RelationTarget for a given kind. Container kinds
     /// start with an empty target ID; contextTier starts at tier 1.
-    private func defaultScope(for kind: RelationScopeKind) -> PropertyDefinition.RelationScope {
+    private func defaultScope(for kind: RelationTargetKind) -> PropertyDefinition.RelationTarget {
         switch kind {
         case .pageType: return .pageType("")
         case .itemType: return .itemType("")
@@ -399,7 +401,7 @@ struct EditPropertyPane: View {
         }
     }
 
-    private func targetID(of scope: PropertyDefinition.RelationScope?) -> String {
+    private func targetID(of scope: PropertyDefinition.RelationTarget?) -> String {
         switch scope {
         case .pageType(let id), .itemType(let id),
              .pageCollection(let id), .itemCollection(let id):
@@ -409,14 +411,14 @@ struct EditPropertyPane: View {
         }
     }
 
-    private func tier(of scope: PropertyDefinition.RelationScope?) -> Int {
+    private func tier(of scope: PropertyDefinition.RelationTarget?) -> Int {
         if case .contextTier(let t) = scope { return t }
         return 1
     }
 
-    /// Build a new RelationScope keeping the current kind but replacing the
+    /// Build a new RelationTarget keeping the current kind but replacing the
     /// target. No-op if kind is `.contextTier` (use tier-binding instead).
-    private func withTargetID(_ id: String, kind: RelationScopeKind) -> PropertyDefinition.RelationScope {
+    private func withTargetID(_ id: String, kind: RelationTargetKind) -> PropertyDefinition.RelationTarget {
         switch kind {
         case .pageType: return .pageType(id)
         case .itemType: return .itemType(id)
@@ -428,16 +430,16 @@ struct EditPropertyPane: View {
 
     // MARK: - Relation bindings
 
-    private func bindingForRelationKind(def: PropertyDefinition) -> Binding<RelationScopeKind?> {
+    private func bindingForRelationKind(def: PropertyDefinition) -> Binding<RelationTargetKind?> {
         Binding(
-            get: { scopeKind(of: def.relationScope) },
+            get: { scopeKind(of: def.relationTarget) },
             set: { newKind in
                 Task {
                     await applyTransform { transformee in
                         if let k = newKind {
-                            transformee.relationScope = defaultScope(for: k)
+                            transformee.relationTarget = defaultScope(for: k)
                         } else {
-                            transformee.relationScope = nil
+                            transformee.relationTarget = nil
                         }
                     }
                 }
@@ -447,12 +449,12 @@ struct EditPropertyPane: View {
 
     private func bindingForRelationTargetID(def: PropertyDefinition) -> Binding<String> {
         Binding(
-            get: { targetID(of: def.relationScope) },
+            get: { targetID(of: def.relationTarget) },
             set: { newID in
                 Task {
                     await applyTransform { transformee in
-                        guard let kind = scopeKind(of: transformee.relationScope) else { return }
-                        transformee.relationScope = withTargetID(newID, kind: kind)
+                        guard let kind = scopeKind(of: transformee.relationTarget) else { return }
+                        transformee.relationTarget = withTargetID(newID, kind: kind)
                     }
                 }
             }
@@ -461,11 +463,11 @@ struct EditPropertyPane: View {
 
     private func bindingForRelationTier(def: PropertyDefinition) -> Binding<Int> {
         Binding(
-            get: { tier(of: def.relationScope) },
+            get: { tier(of: def.relationTarget) },
             set: { newTier in
                 Task {
                     await applyTransform { transformee in
-                        transformee.relationScope = .contextTier(newTier)
+                        transformee.relationTarget = .contextTier(newTier)
                     }
                 }
             }

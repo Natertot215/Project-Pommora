@@ -10,8 +10,8 @@ struct IndexQuery: Sendable {
 
     // MARK: - Scope queries
 
-    /// Returns all entities matching a scope (Page Type, Item Type, etc.).
-    func entitiesByScope(_ scope: PropertyDefinition.RelationScope) async throws -> [EntityRef] {
+    /// Returns all entities matching a target (Page Type, Item Type, etc.).
+    func entitiesByScope(_ scope: PropertyDefinition.RelationTarget) async throws -> [EntityRef] {
         try await index.dbQueue.read { db in
             switch scope {
             case .pageType(let id):
@@ -37,6 +37,14 @@ struct IndexQuery: Sendable {
                         let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
                         return EntityRef(id: row["id"], kind: kind, title: row["title"])
                     }
+
+            case .agendaTasks:
+                return try Row.fetchAll(db, sql: "SELECT id, title FROM agenda_tasks", arguments: [])
+                    .map { EntityRef(id: $0["id"], kind: .agendaTask, title: $0["title"]) }
+
+            case .agendaEvents:
+                return try Row.fetchAll(db, sql: "SELECT id, title FROM agenda_events", arguments: [])
+                    .map { EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"]) }
             }
         }
     }

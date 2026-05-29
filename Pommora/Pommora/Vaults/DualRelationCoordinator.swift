@@ -81,9 +81,9 @@ struct DualRelationCoordinator: Sendable {
         }
     }
 
-    /// Validates that a `RelationScope` is not a `contextTier` (which rejects dual pairing).
-    private static func assertNotContextTier(_ scope: PropertyDefinition.RelationScope) throws {
-        if case .contextTier = scope {
+    /// Validates that a `RelationTarget` is not a `contextTier` (which rejects dual pairing).
+    private static func assertNotContextTier(_ target: PropertyDefinition.RelationTarget) throws {
+        if case .contextTier = target {
             throw DualRelationCoordinatorError.contextTierScopeRejected
         }
     }
@@ -107,10 +107,10 @@ struct DualRelationCoordinator: Sendable {
     static func createPairedRelation(
         source sourceKind: TypeKind,
         sourcePropertyName: String,
-        sourceScope: PropertyDefinition.RelationScope,
+        sourceScope: PropertyDefinition.RelationTarget,
         target targetKind: TypeKind,
         targetPropertyName: String,
-        targetScope: PropertyDefinition.RelationScope,
+        targetScope: PropertyDefinition.RelationTarget,
         nexus: Nexus
     ) throws -> (sourcePropertyID: String, targetPropertyID: String) {
         try assertNotContextTier(sourceScope)
@@ -123,7 +123,7 @@ struct DualRelationCoordinator: Sendable {
             id: sourceID,
             name: sourcePropertyName,
             type: .relation,
-            relationScope: sourceScope,
+            relationTarget: sourceScope,
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: targetID,
                 syncedPropertyDefinedOnTypeID: targetKind.typeID
@@ -134,7 +134,7 @@ struct DualRelationCoordinator: Sendable {
             id: targetID,
             name: targetPropertyName,
             type: .relation,
-            relationScope: targetScope,
+            relationTarget: targetScope,
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: sourceID,
                 syncedPropertyDefinedOnTypeID: sourceKind.typeID

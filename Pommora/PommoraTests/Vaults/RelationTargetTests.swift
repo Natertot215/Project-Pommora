@@ -2,12 +2,12 @@ import Foundation
 import Testing
 @testable import Pommora
 
-@Suite("RelationScope") struct RelationScopeTests {
-    typealias Scope = PropertyDefinition.RelationScope
+@Suite("RelationTargetTests") struct RelationTargetTests {
+    typealias Target = PropertyDefinition.RelationTarget
 
     @Test func decodePageTypeScope() throws {
         let json = #"{"kind": "page_type", "page_type_id": "01HPAGETYPE"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Scope.self, from: json)
+        let s = try JSONDecoder().decode(Target.self, from: json)
         guard case let .pageType(id) = s else {
             #expect(Bool(false), "expected .pageType, got \(s)")
             return
@@ -17,7 +17,7 @@ import Testing
 
     @Test func decodeItemTypeScope() throws {
         let json = #"{"kind": "item_type", "item_type_id": "01HITEMTYPE"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Scope.self, from: json)
+        let s = try JSONDecoder().decode(Target.self, from: json)
         guard case let .itemType(id) = s else {
             #expect(Bool(false), "expected .itemType, got \(s)")
             return
@@ -27,7 +27,7 @@ import Testing
 
     @Test func decodePageCollectionScope() throws {
         let json = #"{"kind": "page_collection", "page_collection_id": "01HPC"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Scope.self, from: json)
+        let s = try JSONDecoder().decode(Target.self, from: json)
         guard case let .pageCollection(id) = s else {
             #expect(Bool(false), "expected .pageCollection, got \(s)")
             return
@@ -37,7 +37,7 @@ import Testing
 
     @Test func decodeItemCollectionScope() throws {
         let json = #"{"kind": "item_collection", "item_collection_id": "01HIC"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Scope.self, from: json)
+        let s = try JSONDecoder().decode(Target.self, from: json)
         guard case let .itemCollection(id) = s else {
             #expect(Bool(false), "expected .itemCollection, got \(s)")
             return
@@ -47,7 +47,7 @@ import Testing
 
     @Test func decodeContextTier() throws {
         let json = #"{"kind": "context_tier", "tier": 2}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Scope.self, from: json)
+        let s = try JSONDecoder().decode(Target.self, from: json)
         guard case let .contextTier(tier) = s else {
             #expect(Bool(false), "expected .contextTier, got \(s)")
             return
@@ -56,7 +56,7 @@ import Testing
     }
 
     @Test func encodePageType() throws {
-        let s: Scope = .pageType("01HPAGETYPE")
+        let s: Target = .pageType("01HPAGETYPE")
         let data = try JSONEncoder().encode(s)
         let str = String(data: data, encoding: .utf8)!
         #expect(str.contains(#""kind":"page_type""#))
@@ -64,7 +64,7 @@ import Testing
     }
 
     @Test func encodeContextTier() throws {
-        let s: Scope = .contextTier(3)
+        let s: Target = .contextTier(3)
         let data = try JSONEncoder().encode(s)
         let str = String(data: data, encoding: .utf8)!
         #expect(str.contains(#""kind":"context_tier""#))
@@ -72,7 +72,7 @@ import Testing
     }
 
     @Test func roundTripAllFiveCases() throws {
-        let cases: [Scope] = [
+        let cases: [Target] = [
             .pageType("01H1"),
             .itemType("01H2"),
             .pageCollection("01H3"),
@@ -81,7 +81,7 @@ import Testing
         ]
         for s in cases {
             let data = try JSONEncoder().encode(s)
-            let decoded = try JSONDecoder().decode(Scope.self, from: data)
+            let decoded = try JSONDecoder().decode(Target.self, from: data)
             #expect(decoded == s)
         }
     }
@@ -89,7 +89,7 @@ import Testing
     @Test func decodeUnknownKindThrows() throws {
         let json = #"{"kind": "galaxy_brain", "id": "x"}"#.data(using: .utf8)!
         #expect(throws: DecodingError.self) {
-            _ = try JSONDecoder().decode(Scope.self, from: json)
+            _ = try JSONDecoder().decode(Target.self, from: json)
         }
     }
 
@@ -100,7 +100,42 @@ import Testing
         // toast per L21).
         let json = #""same_vault""#.data(using: .utf8)!
         #expect(throws: DecodingError.self) {
-            _ = try JSONDecoder().decode(Scope.self, from: json)
+            _ = try JSONDecoder().decode(Target.self, from: json)
         }
+    }
+
+    // MARK: - Phase 7: agendaTasks / agendaEvents
+
+    @Test func agendaCasesRoundTripJSON() throws {
+        let cases: [Target] = [.agendaTasks, .agendaEvents]
+        for target in cases {
+            let data = try JSONEncoder().encode(target)
+            let decoded = try JSONDecoder().decode(Target.self, from: data)
+            #expect(decoded == target)
+        }
+    }
+
+    @Test func agendaTasksEncodesExpectedJSON() throws {
+        let data = try JSONEncoder().encode(Target.agendaTasks)
+        let str = String(data: data, encoding: .utf8)!
+        #expect(str.contains(#""kind":"agenda_tasks""#))
+    }
+
+    @Test func agendaEventsEncodesExpectedJSON() throws {
+        let data = try JSONEncoder().encode(Target.agendaEvents)
+        let str = String(data: data, encoding: .utf8)!
+        #expect(str.contains(#""kind":"agenda_events""#))
+    }
+
+    @Test func agendaTasksDecodesFromKindString() throws {
+        let json = #"{"kind":"agenda_tasks"}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(Target.self, from: json)
+        #expect(decoded == .agendaTasks)
+    }
+
+    @Test func agendaEventsDecodesFromKindString() throws {
+        let json = #"{"kind":"agenda_events"}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(Target.self, from: json)
+        #expect(decoded == .agendaEvents)
     }
 }

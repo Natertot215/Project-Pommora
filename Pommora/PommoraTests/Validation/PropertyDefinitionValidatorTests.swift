@@ -13,7 +13,7 @@ struct PropertyDefinitionValidatorTests {
         name: String = "My Property",
         type: PropertyType = .number,
         selectOptions: [PropertyDefinition.SelectOption]? = nil,
-        relationScope: PropertyDefinition.RelationScope? = nil,
+        relationTarget: PropertyDefinition.RelationTarget? = nil,
         dualProperty: PropertyDefinition.DualPropertyConfig? = nil
     ) -> PropertyDefinition {
         PropertyDefinition(
@@ -21,7 +21,7 @@ struct PropertyDefinitionValidatorTests {
             name: name,
             type: type,
             selectOptions: selectOptions,
-            relationScope: relationScope,
+            relationTarget: relationTarget,
             dualProperty: dualProperty
         )
     }
@@ -77,7 +77,7 @@ struct PropertyDefinitionValidatorTests {
         )
         let def = makeDef(
             type: .relation,
-            relationScope: .contextTier(3),
+            relationTarget: .contextTier(3),
             dualProperty: dual
         )
         #expect(throws: PropertyDefinitionValidator.ValidationError.dualRelationOnContextTier) {

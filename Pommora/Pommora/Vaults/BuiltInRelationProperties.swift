@@ -23,8 +23,8 @@ enum BuiltInRelationProperties {
     /// - Display name: sidecar override → TierConfig plural → "Tier N" fallback.
     /// - Icon: sidecar override → hardcoded fallback.
     ///   TODO: icon override beyond sidecar→fallback awaits a future IconConfig effort.
-    /// - `relationScope` is structurally locked to `.contextTier(N)` — any sidecar
-    ///   `relationScope` value is ignored.
+    /// - `relationTarget` is structurally locked to `.contextTier(N)` — any sidecar
+    ///   `relationTarget` value is ignored.
     /// - `reverseName` / `reverseIcon` propagate from the sidecar if present.
     ///
     /// - Parameters:
@@ -54,7 +54,7 @@ enum BuiltInRelationProperties {
                 name: sidecar?.name ?? tier?.plural ?? "Tier \(d.tierNumber)",
                 type: .relation,
                 icon: sidecar?.icon ?? d.fallbackIcon,
-                relationScope: .contextTier(d.tierNumber),  // locked; sidecar override ignored
+                relationTarget: .contextTier(d.tierNumber),  // locked; sidecar override ignored
                 reverseName: sidecar?.reverseName,
                 reverseIcon: sidecar?.reverseIcon
             )

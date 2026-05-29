@@ -31,7 +31,7 @@ struct DualRelationWiringTests {
             id: "",
             name: "Tasks",
             type: .relation,
-            relationScope: .pageType(tasks.id),
+            relationTarget: .pageType(tasks.id),
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: "Projects",             // reverse display name (add-time convention)
                 syncedPropertyDefinedOnTypeID: tasks.id   // target Type
@@ -80,7 +80,7 @@ struct DualRelationWiringTests {
             id: "",
             name: "Tasks",
             type: .relation,
-            relationScope: .pageType(tasks.id),
+            relationTarget: .pageType(tasks.id),
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: "Projects",
                 syncedPropertyDefinedOnTypeID: tasks.id
@@ -122,7 +122,7 @@ struct DualRelationWiringTests {
             id: "",
             name: "Authors",
             type: .relation,
-            relationScope: .itemType(authors.id),
+            relationTarget: .itemType(authors.id),
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: "Books",
                 syncedPropertyDefinedOnTypeID: authors.id
@@ -160,7 +160,7 @@ struct DualRelationWiringTests {
             id: "",
             name: "Authors",
             type: .relation,
-            relationScope: .itemType(authors.id),
+            relationTarget: .itemType(authors.id),
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: "Books",
                 syncedPropertyDefinedOnTypeID: authors.id

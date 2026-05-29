@@ -41,7 +41,7 @@ import Testing
             dateIncludesTime: nil,
             selectOptions: nil,
             statusGroups: nil,
-            relationScope: .pageType("01HTARGET"),
+            relationTarget: .pageType("01HTARGET"),
             dualProperty: PropertyDefinition.DualPropertyConfig(
                 syncedPropertyID: "prop_01HREVERSE",
                 syncedPropertyDefinedOnTypeID: "01HTARGET"
@@ -147,7 +147,7 @@ import Testing
             id: "_tier1",
             name: "Branch",
             type: .relation,
-            relationScope: .contextTier(1),
+            relationTarget: .contextTier(1),
             reverseName: "Books from this Branch",
             reverseIcon: "book"
         )
@@ -208,10 +208,53 @@ import Testing
             id: "prop_01HREL",
             name: "Links",
             type: .relation,
-            relationScope: .itemType("t1")
+            relationTarget: .itemType("t1")
         )
         let data = try JSONEncoder().encode(def)
         let json = String(data: data, encoding: .utf8)!
         #expect(!json.contains("allows_multiple"))
+    }
+
+    // MARK: - Phase 7: dual-key decode tolerance + encoder key
+
+    @Test func decoderAcceptsBothRelationScopeAndRelationTargetKeys() throws {
+        // JSON using the legacy "relation_scope" key
+        let legacyJSON = """
+        {
+            "id": "prop_01HLEG",
+            "name": "Legacy Rel",
+            "type": "relation",
+            "relation_scope": {"kind": "page_type", "page_type_id": "01HPTYPE"}
+        }
+        """.data(using: .utf8)!
+
+        // JSON using the new "relation_target" key
+        let newJSON = """
+        {
+            "id": "prop_01HNEW",
+            "name": "New Rel",
+            "type": "relation",
+            "relation_target": {"kind": "page_type", "page_type_id": "01HPTYPE"}
+        }
+        """.data(using: .utf8)!
+
+        let decodedLegacy = try JSONDecoder().decode(PropertyDefinition.self, from: legacyJSON)
+        let decodedNew = try JSONDecoder().decode(PropertyDefinition.self, from: newJSON)
+
+        #expect(decodedLegacy.relationTarget == .pageType("01HPTYPE"))
+        #expect(decodedNew.relationTarget == .pageType("01HPTYPE"))
+    }
+
+    @Test func encoderEmitsRelationTargetKeyNotRelationScope() throws {
+        let def = PropertyDefinition(
+            id: "prop_01HENCODE",
+            name: "My Relation",
+            type: .relation,
+            relationTarget: .pageType("01HPTYPE")
+        )
+        let data = try JSONEncoder().encode(def)
+        let json = String(data: data, encoding: .utf8)!
+        #expect(json.contains("\"relation_target\""))
+        #expect(!json.contains("\"relation_scope\""))
     }
 }

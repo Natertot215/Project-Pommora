@@ -589,7 +589,7 @@ final class IndexBuilder {
         for (propID, value) in properties {
             guard case .relation(let targetIDs) = value else { continue }
             let def = schemaByID[propID]
-            let targetKind = targetKindString(for: def?.relationScope)
+            let targetKind = targetKindString(for: def?.relationTarget)
             for targetID in targetIDs {
                 let relationID = UUID().uuidString
                 try db.execute(
@@ -602,7 +602,7 @@ final class IndexBuilder {
         }
     }
 
-    private nonisolated static func targetKindString(for scope: PropertyDefinition.RelationScope?) -> String {
+    private nonisolated static func targetKindString(for scope: PropertyDefinition.RelationTarget?) -> String {
         guard let scope else { return "unknown" }
         switch scope {
         case .pageType, .pageCollection: return "page"
@@ -614,6 +614,8 @@ final class IndexBuilder {
             case 3: return "project"
             default: return "context"
             }
+        case .agendaTasks:  return "agenda_task"
+        case .agendaEvents: return "agenda_event"
         }
     }
 
@@ -716,7 +718,7 @@ final class IndexBuilder {
             var dateIncludesTime: Bool?
             var selectOptions: [PropertyDefinition.SelectOption]?
             var statusGroups: [PropertyDefinition.StatusGroup]?
-            var relationScope: PropertyDefinition.RelationScope?
+            var relationTarget: PropertyDefinition.RelationTarget?
             var accept: [String]?
 
             enum CodingKeys: String, CodingKey {
@@ -724,7 +726,7 @@ final class IndexBuilder {
                 case dateIncludesTime = "date_includes_time"
                 case selectOptions = "select_options"
                 case statusGroups = "status_groups"
-                case relationScope = "relation_scope"
+                case relationTarget = "relation_target"
                 case accept
             }
         }
@@ -733,7 +735,7 @@ final class IndexBuilder {
             dateIncludesTime: def.dateIncludesTime,
             selectOptions: def.selectOptions,
             statusGroups: def.statusGroups,
-            relationScope: def.relationScope,
+            relationTarget: def.relationTarget,
             accept: def.accept
         )
         let encoder = JSONEncoder()

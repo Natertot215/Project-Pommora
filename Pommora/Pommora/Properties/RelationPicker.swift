@@ -6,7 +6,7 @@ import SwiftUI
 /// Nil `index` renders an empty-state placeholder without crashing.
 struct RelationPicker: View {
     @Binding var selectedIDs: [String]
-    let scope: PropertyDefinition.RelationScope
+    let scope: PropertyDefinition.RelationTarget
     let index: PommoraIndex?
     let onSelect: ([String]) -> Void
 

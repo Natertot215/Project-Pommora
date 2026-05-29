@@ -8,10 +8,10 @@ protocol DualRelationCoordinating {
     func createPairedRelation(
         source sourceKind: DualRelationCoordinator.TypeKind,
         sourcePropertyName: String,
-        sourceScope: PropertyDefinition.RelationScope,
+        sourceScope: PropertyDefinition.RelationTarget,
         target targetKind: DualRelationCoordinator.TypeKind,
         targetPropertyName: String,
-        targetScope: PropertyDefinition.RelationScope,
+        targetScope: PropertyDefinition.RelationTarget,
         nexus: Nexus
     ) throws -> (sourcePropertyID: String, targetPropertyID: String)
 }
@@ -20,10 +20,10 @@ extension DualRelationCoordinator: DualRelationCoordinating {
     func createPairedRelation(
         source sourceKind: TypeKind,
         sourcePropertyName: String,
-        sourceScope: PropertyDefinition.RelationScope,
+        sourceScope: PropertyDefinition.RelationTarget,
         target targetKind: TypeKind,
         targetPropertyName: String,
-        targetScope: PropertyDefinition.RelationScope,
+        targetScope: PropertyDefinition.RelationTarget,
         nexus: Nexus
     ) throws -> (sourcePropertyID: String, targetPropertyID: String) {
         try DualRelationCoordinator.createPairedRelation(
@@ -145,7 +145,7 @@ final class RelationPropertyWizardViewModel {
 
     // MARK: - Built args for tests / Save
 
-    func buildSourceScope() -> PropertyDefinition.RelationScope? {
+    func buildSourceScope() -> PropertyDefinition.RelationTarget? {
         switch selectedScopeKind {
         case .pageType:       return targetID.isEmpty ? nil : .pageType(targetID)
         case .itemType:       return targetID.isEmpty ? nil : .itemType(targetID)

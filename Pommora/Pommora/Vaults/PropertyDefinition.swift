@@ -25,7 +25,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     var dateIncludesTime: Bool?  // date — irrelevant for `datetime` type
     var selectOptions: [SelectOption]?  // select + multiSelect
     var statusGroups: [StatusGroup]?  // status — 3 fixed groups; see StatusGroup.defaultSeed()
-    var relationScope: RelationScope?  // relation
+    var relationTarget: RelationTarget?  // relation
     /// Reverse-side display name override. v1 semantics: populated only on tier
     /// property entries (_tier1/_tier2/_tier3) where the target is a Context.
     /// User-created relations leave this nil.
@@ -46,7 +46,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         dateIncludesTime: Bool? = nil,
         selectOptions: [SelectOption]? = nil,
         statusGroups: [StatusGroup]? = nil,
-        relationScope: RelationScope? = nil,
+        relationTarget: RelationTarget? = nil,
         reverseName: String? = nil,
         reverseIcon: String? = nil,
         dualProperty: DualPropertyConfig? = nil,
@@ -62,7 +62,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.dateIncludesTime = dateIncludesTime
         self.selectOptions = selectOptions
         self.statusGroups = statusGroups
-        self.relationScope = relationScope
+        self.relationTarget = relationTarget
         self.reverseName = reverseName
         self.reverseIcon = reverseIcon
         self.dualProperty = dualProperty
@@ -167,21 +167,32 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         }
     }
 
-    /// Picker constraint for a Relation property. Five mutually-exclusive scope kinds;
-    /// no fallback "anywhere" scope (per Properties.md § "Relation scope").
+    /// Picker constraint for a Relation property. Seven mutually-exclusive target kinds;
+    /// no fallback "anywhere" target (per Properties.md § "Relation scope").
     ///
     /// On-disk shape is a tagged object: `{"kind": "<discriminator>", "<id-field>": "..."}`.
-    /// Container scopes (page_type / item_type / page_collection / item_collection) carry
-    /// a target ULID; context_tier carries the tier number (1/2/3).
+    /// Container targets (page_type / item_type / page_collection / item_collection) carry
+    /// a target ULID; context_tier carries the tier number (1/2/3). Agenda targets carry
+    /// no additional payload.
     ///
-    /// Container scopes are mandatorily paired with a `dual_property` reverse on the target
-    /// Type's sidecar; context_tier rejects dual (the reverse view is SQLite-query-derived).
-    enum RelationScope: Codable, Equatable, Hashable, Sendable {
+    /// Container targets are mandatorily paired with a `dual_property` reverse on the target
+    /// Type's sidecar; context_tier and agenda targets reject dual (the reverse view is
+    /// SQLite-query-derived).
+    enum RelationTarget: Codable, Equatable, Hashable, Sendable {
+        /// User-creatable: targets a specific Page Type by ULID.
         case pageType(String)
+        /// User-creatable: targets a specific Item Type by ULID.
         case itemType(String)
+        /// LEGACY — decoded for tolerance only; migration rewrites to the parent type in a later phase.
         case pageCollection(String)
+        /// LEGACY — decoded for tolerance only; migration rewrites to the parent type in a later phase.
         case itemCollection(String)
+        /// Internal-only: built-in Spaces / Topics / Projects context tiers (tier 1 / 2 / 3).
         case contextTier(Int)
+        /// User-creatable singleton target: all Agenda Tasks in the nexus.
+        case agendaTasks
+        /// User-creatable singleton target: all Agenda Events in the nexus.
+        case agendaEvents
 
         private enum CodingKeys: String, CodingKey {
             case kind
@@ -206,10 +217,14 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
                 self = .itemCollection(try c.decode(String.self, forKey: .itemCollectionID))
             case "context_tier":
                 self = .contextTier(try c.decode(Int.self, forKey: .tier))
+            case "agenda_tasks":
+                self = .agendaTasks
+            case "agenda_events":
+                self = .agendaEvents
             default:
                 throw DecodingError.dataCorruptedError(
                     forKey: .kind, in: c,
-                    debugDescription: "Unknown RelationScope.kind: \(kind)"
+                    debugDescription: "Unknown RelationTarget.kind: \(kind)"
                 )
             }
         }
@@ -232,6 +247,10 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
             case .contextTier(let tier):
                 try c.encode("context_tier", forKey: .kind)
                 try c.encode(tier, forKey: .tier)
+            case .agendaTasks:
+                try c.encode("agenda_tasks", forKey: .kind)
+            case .agendaEvents:
+                try c.encode("agenda_events", forKey: .kind)
             }
         }
     }
@@ -244,7 +263,10 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         case dateIncludesTime = "date_includes_time"
         case selectOptions = "select_options"
         case statusGroups = "status_groups"
-        case relationScope = "relation_scope"
+        /// New canonical key (Phase 7).
+        case relationTarget = "relation_target"
+        /// Legacy key (pre-Phase 7). Read-tolerated; never emitted.
+        case legacyRelationScope = "relation_scope"
         case reverseName = "reverse_name"
         case reverseIcon = "reverse_icon"
         case dualProperty = "dual_property"
@@ -265,7 +287,13 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.dateIncludesTime = try c.decodeIfPresent(Bool.self, forKey: .dateIncludesTime)
         self.selectOptions = try c.decodeIfPresent([SelectOption].self, forKey: .selectOptions)
         self.statusGroups = try c.decodeIfPresent([StatusGroup].self, forKey: .statusGroups)
-        self.relationScope = try c.decodeIfPresent(RelationScope.self, forKey: .relationScope)
+        // Dual-key tolerance: accept both the new "relation_target" key and the
+        // legacy "relation_scope" key. New key takes precedence; legacy is the fallback.
+        if let t = try c.decodeIfPresent(RelationTarget.self, forKey: .relationTarget) {
+            self.relationTarget = t
+        } else {
+            self.relationTarget = try c.decodeIfPresent(RelationTarget.self, forKey: .legacyRelationScope)
+        }
         self.reverseName = try c.decodeIfPresent(String.self, forKey: .reverseName)
         self.reverseIcon = try c.decodeIfPresent(String.self, forKey: .reverseIcon)
         self.dualProperty = try c.decodeIfPresent(DualPropertyConfig.self, forKey: .dualProperty)
@@ -284,7 +312,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(dateIncludesTime, forKey: .dateIncludesTime)
         try c.encodeIfPresent(selectOptions, forKey: .selectOptions)
         try c.encodeIfPresent(statusGroups, forKey: .statusGroups)
-        try c.encodeIfPresent(relationScope, forKey: .relationScope)
+        // Always emit the new canonical key; never emit "relation_scope".
+        try c.encodeIfPresent(relationTarget, forKey: .relationTarget)
         try c.encodeIfPresent(reverseName, forKey: .reverseName)
         try c.encodeIfPresent(reverseIcon, forKey: .reverseIcon)
         try c.encodeIfPresent(dualProperty, forKey: .dualProperty)

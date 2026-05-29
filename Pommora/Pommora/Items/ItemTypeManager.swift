@@ -540,7 +540,7 @@ extension ItemTypeManager {
             // Paired relation: route through DualRelationCoordinator.
             if def.type == .relation, let dualConfig = def.dualProperty {
                 let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
-                guard let scope = def.relationScope else {
+                guard let scope = def.relationTarget else {
                     throw ItemTypeManagerError.propertyNotFound
                 }
                 guard let targetType = types.first(where: { $0.id == targetTypeID }) else {
@@ -548,7 +548,7 @@ extension ItemTypeManager {
                 }
                 let sourceKind = DualRelationCoordinator.TypeKind.itemType(types[i])
                 let targetKind = DualRelationCoordinator.TypeKind.itemType(targetType)
-                let targetScope = PropertyDefinition.RelationScope.itemType(types[i].id)
+                let targetScope = PropertyDefinition.RelationTarget.itemType(types[i].id)
                 let reverseName = dualConfig.syncedPropertyID.isEmpty ? def.name : dualConfig.syncedPropertyID
 
                 let (srcID, _) = try DualRelationCoordinator.createPairedRelation(

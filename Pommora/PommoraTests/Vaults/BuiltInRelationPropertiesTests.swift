@@ -59,12 +59,12 @@ import Testing
         #expect(tier3?.icon == "briefcase")
     }
 
-    @Test func mergeIgnoresStructurallyLockedRelationScopeInSidecar() {
+    @Test func mergeIgnoresStructurallyLockedRelationTargetInSidecar() {
         let tamperedTier1 = PropertyDefinition(
             id: ReservedPropertyID.tier1,
             name: "Spaces",
             type: .relation,
-            relationScope: .pageType("tampered")
+            relationTarget: .pageType("tampered")
         )
         let result = BuiltInRelationProperties.merge(
             existing: [tamperedTier1],
@@ -72,6 +72,6 @@ import Testing
             sourceTypeID: "type_test"
         )
         let tier1 = result.first { $0.id == ReservedPropertyID.tier1 }
-        #expect(tier1?.relationScope == .contextTier(1))
+        #expect(tier1?.relationTarget == .contextTier(1))
     }
 }

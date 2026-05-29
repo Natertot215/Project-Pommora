@@ -30,7 +30,7 @@ enum PropertyDefinitionValidator {
 
         // Rule 6: context-tier relation may not carry a dual-property config
         if def.type == .relation, def.dualProperty != nil {
-            if case .some(.contextTier) = def.relationScope {
+            if case .some(.contextTier) = def.relationTarget {
                 throw ValidationError.dualRelationOnContextTier
             }
         }

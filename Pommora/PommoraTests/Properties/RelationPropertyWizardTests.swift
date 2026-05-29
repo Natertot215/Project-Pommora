@@ -29,10 +29,10 @@ struct RelationPropertyWizardTests {
         func createPairedRelation(
             source sourceKind: DualRelationCoordinator.TypeKind,
             sourcePropertyName: String,
-            sourceScope: PropertyDefinition.RelationScope,
+            sourceScope: PropertyDefinition.RelationTarget,
             target targetKind: DualRelationCoordinator.TypeKind,
             targetPropertyName: String,
-            targetScope: PropertyDefinition.RelationScope,
+            targetScope: PropertyDefinition.RelationTarget,
             nexus: Nexus
         ) throws -> (sourcePropertyID: String, targetPropertyID: String) {
             if let err = shouldThrow { throw err }
@@ -160,9 +160,9 @@ struct RelationPropertyWizardTests {
         #expect(vm.canAdvance)
     }
 
-    // MARK: - Test 5: contextTier scope uses .contextTier RelationScope
+    // MARK: - Test 5: contextTier scope uses .contextTier RelationTarget
 
-    @Test("contextTier scope kind produces .contextTier RelationScope with correct tier")
+    @Test("contextTier scope kind produces .contextTier RelationTarget with correct tier")
     @MainActor
     func contextTierScopeBuildsCorrectly() {
         let vm = makeVM()
@@ -190,12 +190,12 @@ struct RelationPropertyWizardTests {
         #expect(vm.currentStep == .scopeKind)
     }
 
-    // MARK: - Test 7: all container scope kinds produce the right RelationScope
+    // MARK: - Test 7: all container scope kinds produce the right RelationTarget
 
-    @Test("All container scope kinds produce matching RelationScope values")
+    @Test("All container scope kinds produce matching RelationTarget values")
     @MainActor
     func allContainerScopesMatch() {
-        let cases: [(WizardScopeKind, PropertyDefinition.RelationScope)] = [
+        let cases: [(WizardScopeKind, PropertyDefinition.RelationTarget)] = [
             (.pageType,       .pageType("id_01")),
             (.itemType,       .itemType("id_01")),
             (.pageCollection, .pageCollection("id_01")),

@@ -485,7 +485,7 @@ extension PageTypeManager {
             // Paired relation: route through DualRelationCoordinator.
             if def.type == .relation, let dualConfig = def.dualProperty {
                 let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
-                guard let scope = def.relationScope else {
+                guard let scope = def.relationTarget else {
                     throw PageTypeManagerError.propertyNotFound
                 }
                 // Locate the target PageType in-memory (same manager, same nexus).
@@ -495,7 +495,7 @@ extension PageTypeManager {
                 let sourceKind = DualRelationCoordinator.TypeKind.pageType(types[i])
                 let targetKind = DualRelationCoordinator.TypeKind.pageType(targetType)
                 // Reverse scope points back to source Type.
-                let targetScope = PropertyDefinition.RelationScope.pageType(types[i].id)
+                let targetScope = PropertyDefinition.RelationTarget.pageType(types[i].id)
                 // Reverse name: caller puts desired reverse name in syncedPropertyID at add-time.
                 let reverseName = dualConfig.syncedPropertyID.isEmpty ? def.name : dualConfig.syncedPropertyID
 
