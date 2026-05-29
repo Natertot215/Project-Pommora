@@ -47,6 +47,8 @@ struct RelationPicker: View {
                 onSelect(updated)
             }
         )
+        .padding(8)
+        .chipDropdownPanel()
     }
 
     private func emptyState(_ message: String) -> some View {
@@ -91,7 +93,7 @@ private struct RelationPickerList: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: 4) {
                 ForEach(entityRows, id: \.rowID) { row in
                     RelationPickerRow(
                         row: row,
@@ -101,6 +103,9 @@ private struct RelationPickerList: View {
                 }
             }
         }
+        // Cap height so long candidate lists scroll inside the panel rather
+        // than growing the popover unbounded.
+        .frame(maxHeight: 280)
     }
 
     private var entityRows: [RelationEntityRow] {
@@ -110,33 +115,37 @@ private struct RelationPickerList: View {
 
 // MARK: - RelationPickerRow
 
+/// A single candidate row: leading selection checkbox + a `RelationChip`
+/// rendering the target entity's icon + title. Matches the Select/Multi-Select
+/// visual family (checkbox + chip). The whole row is tappable — both the
+/// checkbox and the chip area toggle the same selection via `onTap`. Mirrors
+/// `ChipDropdownRow`'s checkbox-plus-pill layout (the proven pattern).
 private struct RelationPickerRow: View {
     let row: RelationEntityRow
     let isSelected: Bool
     let onTap: (String, Bool) -> Void
 
     var body: some View {
-        Button {
-            onTap(row.rowID, isSelected)
-        } label: {
-            HStack {
-                Image(systemName: row.icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                Text(row.title)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
-                        .font(.caption)
+        HStack(spacing: 6) {
+            PropertyCheckbox(
+                isChecked: Binding(get: { isSelected }, set: { _ in onTap(row.rowID, isSelected) }),
+                color: .blue,
+                icon: "checkmark",
+                size: 16
+            )
+            Button {
+                onTap(row.rowID, isSelected)
+            } label: {
+                HStack(spacing: 4) {
+                    RelationChip(icon: row.icon, title: row.title)
+                    Spacer(minLength: 0)
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 }
 

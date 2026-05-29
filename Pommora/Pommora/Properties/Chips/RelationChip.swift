@@ -1,20 +1,31 @@
 import SwiftUI
 
-/// Rendering primitive for Relation property values.
+/// **The single rendering primitive for relation property values across every
+/// Pommora surface.** Every surface that displays a relation value routes
+/// through this primitive; adding a parallel rendering path violates the
+/// chip-everywhere paradigm.
 ///
-/// Distinct from `PropertyChip`'s Capsule shape — RelationChip uses a
-/// RoundedRectangle (cornerRadius 4) so relation cells read as a different
-/// visual class from Select/Multi/Status pills. Default-grey fill across
-/// all relations (no per-property color at v0.3.1; per-property override
-/// deferred).
+/// Consumers:
+/// - `PropertyCellDisplay` (Table cells)
+/// - `PropertyPanel` (single-entity property panel)
+/// - `PropertiesPulldown` (nav-pulldown property summary)
+/// - `FrontmatterInspector` (page editor inspector)
+/// - `ItemWindow` (item popover)
+/// - `RelationPicker` (value-assignment popover rows)
+/// - `LinkedFromDropdown` (Context-side reverse view — stub in v1; deferred)
 ///
-/// Takes a pre-resolved `icon: String` (SF Symbol of the target entity
-/// kind — `doc.text` for pages, `tray` for items, etc.) + the target's
-/// current `title: String`. Lookup of those values from a relation
-/// PropertyValue ULID is the caller's responsibility (IndexQuery /
-/// PageContentManager / etc.) — keeps this primitive purely visual.
+/// **Data-model contract:** both `icon` and `title` resolve from the LINKED
+/// target entity — the Page / Item / Task / Event / Context the chip references
+/// — NEVER from the source-side relation property's icon/name. Resolution
+/// happens at the consumer (via IndexQuery / the content managers); this
+/// primitive receives pre-resolved `String` values and stays purely visual.
 ///
-/// Used by `PropertyCellDisplay` for Relation column rendering.
+/// **Visual:** distinct from `PropertyChip`'s Capsule — a RoundedRectangle
+/// (cornerRadius 4) so relation values read as a different visual class from
+/// Select/Multi/Status pills. Default-grey fill across all relations
+/// (per-property color override deferred).
+///
+/// Stays at this path (`Properties/Chips/`). Do NOT move.
 struct RelationChip: View {
     let icon: String
     let title: String

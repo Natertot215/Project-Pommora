@@ -25,17 +25,9 @@ struct ChipDropdown: View {
             ForEach(options) { opt in rowView(for: opt) }
         }
         .padding(8)
-        // Explicit Liquid Glass background — always-on so the panel reads the
-        // same in any host context (popover, overlay, inline embed).
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.white.opacity(0.10), lineWidth: 0.5)
-                )
-        )
-        .clipShape(.rect(cornerRadius: 12))
+        // Shared Liquid Glass panel surface (material fill + hairline + clip) —
+        // always-on so the panel reads the same in any host context.
+        .chipDropdownPanel()
         // Content-driven sizing — collapses to the natural VStack width.
         .fixedSize(horizontal: true, vertical: true)
     }

@@ -130,4 +130,33 @@ struct RelationPickerTests {
             _ = picker
         }
     }
+
+    // MARK: - Test 9: a new selection appends to the END (preserves order)
+    // The reskinned checkbox+chip rows render candidates in scope order; the
+    // selection array must append new picks rather than prepend, so chip order
+    // stays stable as the user toggles.
+
+    @Test("Selecting a new entity appends to the end, preserving prior order")
+    func newSelectionAppendsToEnd() {
+        let picker = makePicker()
+        let result = picker.computeSelection(
+            id: "01H_C",
+            wasSelected: false,
+            current: ["01H_A", "01H_B"]
+        )
+        #expect(result == ["01H_A", "01H_B", "01H_C"])
+    }
+
+    // MARK: - Test 10: removing a middle selection keeps the rest in order
+
+    @Test("Removing a middle selection keeps the remaining order intact")
+    func removeMiddlePreservesOrder() {
+        let picker = makePicker()
+        let result = picker.computeSelection(
+            id: "01H_B",
+            wasSelected: true,
+            current: ["01H_A", "01H_B", "01H_C"]
+        )
+        #expect(result == ["01H_A", "01H_C"])
+    }
 }
