@@ -20,7 +20,7 @@ import SwiftUI
 /// primitive receives pre-resolved `String` values and stays purely visual.
 ///
 /// **Visual:** the target's icon + title inside a standard-button-radius
-/// rounded rectangle with a `.quaternary` fill and a hairline separator stroke
+/// rounded rectangle with a `.quinary` fill and a hairline separator stroke
 /// (so it pops against standard surfaces) — distinct from `PropertyChip`'s
 /// Capsule. Staged in the Component Library (Chips → Relation Chip) per
 /// Nathan's 2026-05-29 design.
@@ -33,7 +33,7 @@ struct RelationChip: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
             Text(title)
                 .font(.system(size: 12, weight: .medium))
@@ -44,7 +44,7 @@ struct RelationChip: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.quaternary)
+                .fill(.quinary)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6, style: .continuous)

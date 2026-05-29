@@ -217,7 +217,7 @@ private struct ChipsGallery: View {
 
                 GallerySection(
                     title: "Relation Chip",
-                    summary: "Relation property values — the target entity's icon + title in a standard-button-radius rounded rectangle with a quaternary fill + hairline stroke (distinct from PropertyChip's Capsule). One primitive; every relation surface (table cells, picker rows, tier rows) routes through it."
+                    summary: "Relation property values — the target entity's icon + title in a standard-button-radius rounded rectangle with a quinary fill + hairline stroke (distinct from PropertyChip's Capsule). One primitive; every relation surface (table cells, picker rows, tier rows) routes through it."
                 ) {
                     RelationChipShowcase()
                 }
@@ -623,7 +623,7 @@ private struct PropertyChipShowcase: View {
 // MARK: - RelationChip Showcase
 
 /// Showcases the relation-value chip: target icon + title in a button-radius
-/// rounded rectangle with a quaternary fill + hairline stroke. The single
+/// rounded rectangle with a quinary fill + hairline stroke. The single
 /// render primitive every relation surface routes through.
 private struct RelationChipShowcase: View {
     private let samples: [(icon: String, title: String)] = [
@@ -636,7 +636,7 @@ private struct RelationChipShowcase: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            section(title: "Default — target icon + title, quaternary fill, button radius") {
+            section(title: "Default — target icon + title, quinary fill, button radius") {
                 FlowingHStack {
                     ForEach(samples, id: \.title) { s in
                         RelationChip(icon: s.icon, title: s.title)
