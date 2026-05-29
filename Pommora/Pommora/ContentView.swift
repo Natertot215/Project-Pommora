@@ -509,6 +509,18 @@ struct ContentView: View {
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
+        // Cross-manager paired-relation refresh hook (snapshot-closure pattern, quirk #5).
+        // When a paired relation is created/deleted, the CROSS-side reverse Type lives in the
+        // OTHER manager and otherwise wouldn't refresh in-memory until restart. Each manager
+        // calls this with the cross-side target ID; we route to both — `reloadTypeFromDisk`
+        // is a no-op for an ID the manager doesn't own, so calling both is safe and DRY.
+        let reloadTypeAcrossManagers: @MainActor (String) -> Void = { [vaultMgr, itemTypeMgr] id in
+            vaultMgr.reloadTypeFromDisk(id: id)
+            itemTypeMgr.reloadTypeFromDisk(id: id)
+        }
+        vaultMgr.reloadTypeByID = reloadTypeAcrossManagers
+        itemTypeMgr.reloadTypeByID = reloadTypeAcrossManagers
+
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr

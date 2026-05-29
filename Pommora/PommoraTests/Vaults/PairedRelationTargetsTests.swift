@@ -185,6 +185,104 @@ struct PairedRelationTargetsTests {
         #expect(reverseProp?.dualProperty?.syncedPropertyID == sourceProp?.id)
     }
 
+    // MARK: - page → item DELETE (cross-manager cascade — regression for orphaned reverse)
+
+    /// Regression: deleting a paired relation owned by a PageType whose partner is a
+    /// cross-manager ItemType must cascade — both sidecars lose the relation. The earlier
+    /// in-memory-only reverse lookup orphaned the ItemType side (and a follow-up delete of
+    /// the orphan errored). The delete path now resolves the reverse cross-manager via the
+    /// same resolver `addProperty` uses.
+    @Test("page → item DELETE: cascades to the cross-manager ItemType sidecar")
+    func pageToItemDeleteCrossManagerCascades() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let pageManager = PageTypeManager(nexus: nexus)
+        let itemManager = ItemTypeManager(nexus: nexus)
+        await pageManager.loadAll()
+        await itemManager.loadAll()
+
+        try await pageManager.createPageType(name: "Notes", icon: nil)
+        try await itemManager.createItemType(name: "Authors", icon: nil)
+
+        let notes = pageManager.types.first { $0.title == "Notes" }!
+        let authors = itemManager.types.first { $0.title == "Authors" }!
+
+        let def = PropertyDefinition(
+            id: "",
+            name: "Authors",
+            type: .relation,
+            relationTarget: .itemType(authors.id),
+            reverseName: "Notes",
+            dualProperty: PropertyDefinition.DualPropertyConfig(
+                syncedPropertyID: "",
+                syncedPropertyDefinedOnTypeID: authors.id
+            )
+        )
+        try await pageManager.addProperty(def, to: notes.id)
+
+        // Source property ID (read from disk — the in-memory cross-manager ItemType isn't
+        // refreshed here since no reloadTypeByID hook is wired in this unit test).
+        let sourcePropertyID = try PageType.load(
+            from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
+        ).properties.first { $0.type == .relation }!.id
+
+        try await pageManager.deleteProperty(id: sourcePropertyID, in: notes.id)
+
+        // BOTH sidecars must lose the relation — the ItemType reverse must NOT be orphaned.
+        let diskNotes = try PageType.load(
+            from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
+        let diskAuthors = try ItemType.load(
+            from: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "Authors"))
+        #expect(diskNotes.properties.contains { $0.type == .relation } == false)
+        #expect(diskAuthors.properties.contains { $0.type == .relation } == false)
+    }
+
+    /// Regression mirror: deleting from the ItemType side of a cross-manager pair cascades
+    /// to the PageType partner.
+    @Test("item → page DELETE: cascades to the cross-manager PageType sidecar")
+    func itemToPageDeleteCrossManagerCascades() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let pageManager = PageTypeManager(nexus: nexus)
+        let itemManager = ItemTypeManager(nexus: nexus)
+        await pageManager.loadAll()
+        await itemManager.loadAll()
+
+        try await itemManager.createItemType(name: "Books", icon: nil)
+        try await pageManager.createPageType(name: "Reviews", icon: nil)
+
+        let books = itemManager.types.first { $0.title == "Books" }!
+        let reviews = pageManager.types.first { $0.title == "Reviews" }!
+
+        let def = PropertyDefinition(
+            id: "",
+            name: "Reviews",
+            type: .relation,
+            relationTarget: .pageType(reviews.id),
+            reverseName: "Books",
+            dualProperty: PropertyDefinition.DualPropertyConfig(
+                syncedPropertyID: "",
+                syncedPropertyDefinedOnTypeID: reviews.id
+            )
+        )
+        try await itemManager.addProperty(def, to: books.id)
+
+        let sourcePropertyID = try ItemType.load(
+            from: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "Books")
+        ).properties.first { $0.type == .relation }!.id
+
+        try await itemManager.deleteProperty(id: sourcePropertyID, in: books.id)
+
+        let diskBooks = try ItemType.load(
+            from: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "Books"))
+        let diskReviews = try PageType.load(
+            from: NexusPaths.vaultMetadataURL(forTitle: "Reviews", in: nexus))
+        #expect(diskBooks.properties.contains { $0.type == .relation } == false)
+        #expect(diskReviews.properties.contains { $0.type == .relation } == false)
+    }
+
     // MARK: - item → agendaEvents (Agenda singleton, loaded from disk)
 
     @Test("item → agendaEvents: AgendaEventSchema sidecar gains the reverse property")

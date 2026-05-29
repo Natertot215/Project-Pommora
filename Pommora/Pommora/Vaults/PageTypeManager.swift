@@ -18,12 +18,36 @@ final class PageTypeManager {
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     var indexUpdater: IndexUpdater?
 
+    /// Cross-manager in-memory refresh hook. Injected in `ContentView.constructManagers`
+    /// (snapshot-closure pattern, quirk #5). Given any Type ID, the closure finds the
+    /// owning manager (PageTypeManager / ItemTypeManager / Agenda) and reloads that type
+    /// from disk into its in-memory `types`. Paired-relation create/delete call it for the
+    /// CROSS-side target (which lives in the OTHER manager) so the reverse property
+    /// appears/disappears immediately instead of only after restart. Same-manager targets
+    /// are reloaded inline and never routed here. Nil until wired.
+    var reloadTypeByID: (@MainActor (String) -> Void)?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
 
     func pageCollections(in pageType: PageType) -> [PageCollection] {
         pageCollectionsByType[pageType.id] ?? []
+    }
+
+    /// Reloads a single PageType from disk into the in-memory `types` array by ID.
+    /// No-op if the ID isn't one of this manager's types (the cross-manager router
+    /// only dispatches IDs it has already matched to this manager). Best-effort: a
+    /// load failure leaves the stale in-memory copy in place (disk is canonical; a
+    /// later loadAll converges). Used by the cross-manager `reloadTypeByID` hook so a
+    /// paired-relation reverse created/deleted by the OTHER manager surfaces here
+    /// without a restart.
+    func reloadTypeFromDisk(id: String) {
+        guard let i = types.firstIndex(where: { $0.id == id }) else { return }
+        let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+        if let reloaded = try? PageType.load(from: meta) {
+            types[i] = reloaded
+        }
     }
 
     // MARK: - Load
@@ -518,15 +542,19 @@ extension PageTypeManager {
                 if let reloaded = try? PageType.load(from: meta) {
                     types[i] = reloaded
                 }
-                // Also reload the target if it's another PageType in this manager. Cross-side /
-                // Agenda targets aren't in `types`; a later UI refresh / loadAll surfaces them.
-                if case .pageType(let targetID) = scope, targetID != typeID,
-                    let targetType = types.first(where: { $0.id == targetID }),
-                    let j = types.firstIndex(where: { $0.id == targetID })
-                {
-                    let targetMeta = NexusPaths.vaultMetadataURL(forTitle: targetType.title, in: nexus)
-                    if let reloaded = try? PageType.load(from: targetMeta) {
-                        types[j] = reloaded
+                // Reload the target so the reverse property appears immediately (not after
+                // restart). Same-manager (another PageType) reloads inline; cross-manager
+                // (ItemType) routes through the injected hook so the OTHER manager refreshes.
+                // Agenda targets reject dual pairing and never reach here.
+                let targetID = targetKind.typeID
+                if targetID != typeID {
+                    if let j = types.firstIndex(where: { $0.id == targetID }) {
+                        let targetMeta = NexusPaths.vaultMetadataURL(forTitle: types[j].title, in: nexus)
+                        if let reloaded = try? PageType.load(from: targetMeta) {
+                            types[j] = reloaded
+                        }
+                    } else {
+                        reloadTypeByID?(targetID)
                     }
                 }
                 if let updater = indexUpdater {
@@ -827,37 +855,42 @@ extension PageTypeManager {
             let prop = types[typeIndex].properties[propIndex]
 
             // Paired relation: route through DualRelationCoordinator (cascades both sides).
-            if prop.type == .relation, let dualConfig = prop.dualProperty {
-                let targetTypeID = dualConfig.syncedPropertyDefinedOnTypeID
+            // The reverse Type may live in EITHER manager — resolve it cross-manager via the
+            // SAME resolver `addProperty` uses (`prop.relationTarget` is the scope pointing at
+            // the reverse Type). The earlier in-memory-only lookup orphaned the reverse whenever
+            // the partner was an ItemType (cross-manager); this path fixes that.
+            if prop.type == .relation, let dualConfig = prop.dualProperty,
+                let scope = prop.relationTarget
+            {
+                let reverseKind = try resolveDualTargetKind(for: scope)
                 let ownerKind = DualRelationCoordinator.TypeKind.pageType(types[typeIndex])
-                // Locate reverse Type (PageType-to-PageType).
-                if let targetType = types.first(where: { $0.id == targetTypeID }) {
-                    let reverseKind = DualRelationCoordinator.TypeKind.pageType(targetType)
-                    try DualRelationCoordinator.deletePair(
-                        propertyID: propertyID,
-                        owner: ownerKind,
-                        reverse: reverseKind,
-                        nexus: nexus
-                    )
-                    // Reload both types in-memory.
-                    let meta = NexusPaths.vaultMetadataURL(forTitle: types[typeIndex].title, in: nexus)
-                    if let reloaded = try? PageType.load(from: meta) {
-                        types[typeIndex] = reloaded
-                    }
-                    if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
-                        let tMeta = NexusPaths.vaultMetadataURL(forTitle: targetType.title, in: nexus)
-                        if let reloaded = try? PageType.load(from: tMeta) {
-                            types[j] = reloaded
-                        }
-                    }
-                    if let updater = indexUpdater {
-                        do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-                        do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch { self.pendingError = error }
-                    }
-                    return
+                let targetTypeID = reverseKind.typeID  // == dualConfig.syncedPropertyDefinedOnTypeID
+                try DualRelationCoordinator.deletePair(
+                    propertyID: propertyID,
+                    owner: ownerKind,
+                    reverse: reverseKind,
+                    nexus: nexus
+                )
+                // Reload the owning (source) type in-memory.
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[typeIndex].title, in: nexus)
+                if let reloaded = try? PageType.load(from: meta) {
+                    types[typeIndex] = reloaded
                 }
-                // Target not found in-memory: fall through to simple delete of source only.
-                _ = ownerKind
+                // Reload the reverse type in-memory: same-manager (another PageType) inline,
+                // cross-manager (ItemType) via the injected router hook so it doesn't need a restart.
+                if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                    let tMeta = NexusPaths.vaultMetadataURL(forTitle: types[j].title, in: nexus)
+                    if let reloaded = try? PageType.load(from: tMeta) {
+                        types[j] = reloaded
+                    }
+                } else {
+                    reloadTypeByID?(targetTypeID)
+                }
+                if let updater = indexUpdater {
+                    do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch { self.pendingError = error }
+                }
+                return
             }
 
             var updated = types[typeIndex]
