@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import os
 
 // MARK: - Sendable snapshot types (pure data, passed across actor boundaries)
 
@@ -124,12 +125,17 @@ private struct NexusSnapshot: Sendable {
 
 /// Populates a fresh PommoraIndex from on-disk Nexus content. Used on first
 /// launch + on schema_version mismatch (rebuild) + on explicit "rebuild index"
-/// from Settings. Idempotent — runs inside a single transaction; failures
-/// roll the DB back to pre-call state.
+/// from Settings.
 ///
-/// Idempotence strategy: DELETE all rows from each table before re-inserting.
-/// Since the DB is a regeneratable index (no user data), a full wipe + repopulate
-/// is safe and simpler than INSERT OR REPLACE across compound-key tables.
+/// Strategy: `clearAllTables` then re-insert everything inside one transaction.
+/// Each row insert is *resilient* — a single bad on-disk row (a duplicate
+/// primary key from a legacy/adoption id collision, an orphaned foreign key) is
+/// skipped + logged via `attemptInsert` rather than aborting the whole rebuild.
+/// SQLite's default `ABORT` conflict resolution rolls back only the failing
+/// statement, so the surrounding transaction stays alive and every *valid*
+/// entity — notably the Contexts that back the tier pickers — still lands.
+/// Since the DB is a regeneratable index (no user data), skipping a malformed
+/// row is safe; the canonical fix is to repair the file on disk.
 final class IndexBuilder {
 
     // MARK: - Public API
@@ -144,13 +150,13 @@ final class IndexBuilder {
         // No @MainActor calls happen inside here — all data is pre-collected in `snapshot`.
         try await index.dbQueue.write { db in
             try clearAllTables(db)
-            try insertPageTypes(db, snapshot: snapshot)
-            try insertItemTypes(db, snapshot: snapshot)
-            try insertAgendaTasks(db, snapshot: snapshot)
-            try insertAgendaEvents(db, snapshot: snapshot)
-            try insertContexts(db, snapshot: snapshot)
-            try insertRelations(db, snapshot: snapshot)
-            try insertTierRelations(db, snapshot: snapshot)
+            insertPageTypes(db, snapshot: snapshot)
+            insertItemTypes(db, snapshot: snapshot)
+            insertAgendaTasks(db, snapshot: snapshot)
+            insertAgendaEvents(db, snapshot: snapshot)
+            insertContexts(db, snapshot: snapshot)
+            insertRelations(db, snapshot: snapshot)
+            insertTierRelations(db, snapshot: snapshot)
         }
     }
 
@@ -409,6 +415,37 @@ final class IndexBuilder {
 
     // MARK: - Phase 2: DB inserts (inside @Sendable GRDB write closure — no @MainActor calls)
 
+    /// Rebuild diagnostics. A skipped row is logged here (visible in Console.app)
+    /// rather than surfaced as a user-facing error — the index is a regeneratable
+    /// cache, so a malformed on-disk row is non-fatal.
+    private nonisolated static let log = Logger(subsystem: "Pommora", category: "IndexBuilder")
+
+    /// Runs a single index insert in isolation so one bad on-disk row can't
+    /// abort the whole rebuild. SQLite's default `ABORT` conflict resolution
+    /// rolls back only the *failing statement* — the enclosing `populate`
+    /// transaction stays alive — so a duplicate primary key or an orphaned
+    /// foreign key is skipped + logged instead of rolling the WHOLE rebuild back
+    /// and leaving the index (and its Contexts) empty. Returns `true` on success
+    /// so a caller can skip a parent's subtree when the parent itself fails.
+    @discardableResult
+    private nonisolated static func attemptInsert(
+        _ describe: @autoclosure () -> String,
+        _ insert: () throws -> Void
+    ) -> Bool {
+        do {
+            try insert()
+            return true
+        } catch {
+            // Evaluate the (non-escaping) autoclosure into a plain String first:
+            // Logger.error takes its message as an @escaping autoclosure, which
+            // can't capture a non-escaping parameter directly. Binding here keeps
+            // the deferral — `describe()` still only runs on the failure path.
+            let detail = describe()
+            log.error("Index rebuild skipped \(detail, privacy: .public): \(String(describing: error), privacy: .public)")
+            return false
+        }
+    }
+
     private nonisolated static func clearAllTables(_ db: Database) throws {
         try db.execute(sql: "DELETE FROM relations")
         try db.execute(sql: "DELETE FROM property_definitions")
@@ -423,137 +460,159 @@ final class IndexBuilder {
         try db.execute(sql: "DELETE FROM item_types")
     }
 
-    private nonisolated static func insertPageTypes(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertPageTypes(_ db: Database, snapshot: NexusSnapshot) {
         for pt in snapshot.pageTypes {
-            try db.execute(
-                literal: """
-                    INSERT INTO page_types (id, title, icon, modified_at, schema_version)
-                    VALUES (\(pt.id), \(pt.title), \(pt.icon), \(iso8601(pt.modifiedAt)), \(pt.schemaVersion))
-                    """
-            )
-            try insertPropertyDefinitions(db, properties: pt.properties,
+            // Parent must land before its children; if it can't (e.g. a duplicate
+            // id), skip the whole subtree — the children would only FK-fail.
+            guard attemptInsert("page_type \(pt.title) [\(pt.id)]", {
+                try db.execute(
+                    literal: """
+                        INSERT INTO page_types (id, title, icon, modified_at, schema_version)
+                        VALUES (\(pt.id), \(pt.title), \(pt.icon), \(iso8601(pt.modifiedAt)), \(pt.schemaVersion))
+                        """
+                )
+            }) else { continue }
+
+            insertPropertyDefinitions(db, properties: pt.properties,
                 owningTypeID: pt.id, owningTypeKind: "page_type")
 
             for coll in pt.collections {
-                try db.execute(
-                    literal: """
-                        INSERT INTO page_collections (id, page_type_id, title, modified_at, schema_version)
-                        VALUES (\(coll.id), \(pt.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
-                        """
-                )
+                guard attemptInsert("page_collection \(coll.title) [\(coll.id)]", {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO page_collections (id, page_type_id, title, modified_at, schema_version)
+                            VALUES (\(coll.id), \(pt.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
+                            """
+                    )
+                }) else { continue }
                 for page in coll.pages {
-                    try insertPage(db, page: page)
+                    insertPage(db, page: page)
                 }
             }
             for page in pt.directPages {
-                try insertPage(db, page: page)
+                insertPage(db, page: page)
             }
         }
     }
 
-    private nonisolated static func insertPage(_ db: Database, page: PageSnapshot) throws {
+    private nonisolated static func insertPage(_ db: Database, page: PageSnapshot) {
         let propsJSON = (try? propertiesJSON(page.properties)) ?? "{}"
-        try db.execute(
-            literal: """
-                INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
-                VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
-                """
-        )
-    }
-
-    private nonisolated static func insertItemTypes(_ db: Database, snapshot: NexusSnapshot) throws {
-        for it in snapshot.itemTypes {
+        attemptInsert("page \(page.title) [\(page.id)]", {
             try db.execute(
                 literal: """
-                    INSERT INTO item_types (id, title, icon, modified_at, schema_version)
-                    VALUES (\(it.id), \(it.title), \(it.icon), \(iso8601(it.modifiedAt)), \(it.schemaVersion))
+                    INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
+                    VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
                     """
             )
-            try insertPropertyDefinitions(db, properties: it.properties,
+        })
+    }
+
+    private nonisolated static func insertItemTypes(_ db: Database, snapshot: NexusSnapshot) {
+        for it in snapshot.itemTypes {
+            guard attemptInsert("item_type \(it.title) [\(it.id)]", {
+                try db.execute(
+                    literal: """
+                        INSERT INTO item_types (id, title, icon, modified_at, schema_version)
+                        VALUES (\(it.id), \(it.title), \(it.icon), \(iso8601(it.modifiedAt)), \(it.schemaVersion))
+                        """
+                )
+            }) else { continue }
+
+            insertPropertyDefinitions(db, properties: it.properties,
                 owningTypeID: it.id, owningTypeKind: "item_type")
 
             for coll in it.collections {
-                try db.execute(
-                    literal: """
-                        INSERT INTO item_collections (id, item_type_id, title, modified_at, schema_version)
-                        VALUES (\(coll.id), \(it.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
-                        """
-                )
+                guard attemptInsert("item_collection \(coll.title) [\(coll.id)]", {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO item_collections (id, item_type_id, title, modified_at, schema_version)
+                            VALUES (\(coll.id), \(it.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
+                            """
+                    )
+                }) else { continue }
                 for item in coll.items {
-                    try insertItem(db, item: item)
+                    insertItem(db, item: item)
                 }
             }
             for item in it.directItems {
-                try insertItem(db, item: item)
+                insertItem(db, item: item)
             }
         }
     }
 
-    private nonisolated static func insertItem(_ db: Database, item: ItemSnapshot) throws {
+    private nonisolated static func insertItem(_ db: Database, item: ItemSnapshot) {
         let propsJSON = (try? propertiesJSON(item.properties)) ?? "{}"
-        try db.execute(
-            literal: """
-                INSERT INTO items (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
-                VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.icon), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
-                """
-        )
+        attemptInsert("item \(item.title) [\(item.id)]", {
+            try db.execute(
+                literal: """
+                    INSERT INTO items (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
+                    VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.icon), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
+                    """
+            )
+        })
     }
 
-    private nonisolated static func insertAgendaTasks(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertAgendaTasks(_ db: Database, snapshot: NexusSnapshot) {
         if let schema = snapshot.taskSchema {
-            try insertPropertyDefinitions(db, properties: schema.properties,
+            insertPropertyDefinitions(db, properties: schema.properties,
                 owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema")
         }
         for task in snapshot.tasks {
             let propsJSON = (try? propertiesJSON(task.properties)) ?? "{}"
-            try db.execute(
-                literal: """
-                    INSERT INTO agenda_tasks (id, title, icon, due_at, properties, modified_at)
-                    VALUES (\(task.id), \(task.title), \(task.icon), \(task.dueAt.map { iso8601($0) }), \(propsJSON), \(iso8601(task.modifiedAt)))
-                    """
-            )
+            attemptInsert("agenda_task \(task.title) [\(task.id)]", {
+                try db.execute(
+                    literal: """
+                        INSERT INTO agenda_tasks (id, title, icon, due_at, properties, modified_at)
+                        VALUES (\(task.id), \(task.title), \(task.icon), \(task.dueAt.map { iso8601($0) }), \(propsJSON), \(iso8601(task.modifiedAt)))
+                        """
+                )
+            })
         }
     }
 
-    private nonisolated static func insertAgendaEvents(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertAgendaEvents(_ db: Database, snapshot: NexusSnapshot) {
         if let schema = snapshot.eventSchema {
-            try insertPropertyDefinitions(db, properties: schema.properties,
+            insertPropertyDefinitions(db, properties: schema.properties,
                 owningTypeID: "agenda_events", owningTypeKind: "agenda_event_schema")
         }
         for event in snapshot.events {
             let propsJSON = (try? propertiesJSON(event.properties)) ?? "{}"
-            try db.execute(
-                literal: """
-                    INSERT INTO agenda_events (id, title, icon, start_at, end_at, properties, modified_at)
-                    VALUES (\(event.id), \(event.title), \(event.icon), \(iso8601(event.startAt)), \(iso8601(event.endAt)), \(propsJSON), \(iso8601(event.modifiedAt)))
-                    """
-            )
+            attemptInsert("agenda_event \(event.title) [\(event.id)]", {
+                try db.execute(
+                    literal: """
+                        INSERT INTO agenda_events (id, title, icon, start_at, end_at, properties, modified_at)
+                        VALUES (\(event.id), \(event.title), \(event.icon), \(iso8601(event.startAt)), \(iso8601(event.endAt)), \(propsJSON), \(iso8601(event.modifiedAt)))
+                        """
+                )
+            })
         }
     }
 
-    private nonisolated static func insertContexts(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertContexts(_ db: Database, snapshot: NexusSnapshot) {
         for ctx in snapshot.contexts {
-            try db.execute(
-                literal: """
-                    INSERT INTO contexts (id, tier, title, icon, parent_topic_id)
-                    VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon), \(ctx.parentTopicID))
-                    """
-            )
+            attemptInsert("context tier-\(ctx.tier) \(ctx.title) [\(ctx.id)]", {
+                try db.execute(
+                    literal: """
+                        INSERT INTO contexts (id, tier, title, icon, parent_topic_id)
+                        VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon), \(ctx.parentTopicID))
+                        """
+                )
+            })
         }
     }
 
-    private nonisolated static func insertRelations(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertRelations(_ db: Database, snapshot: NexusSnapshot) {
         // Pages
         for pt in snapshot.pageTypes {
             let schema = pt.properties
             for coll in pt.collections {
                 for page in coll.pages {
-                    try insertRelationRows(db, properties: page.properties, schema: schema,
+                    insertRelationRows(db, properties: page.properties, schema: schema,
                         sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
-                try insertRelationRows(db, properties: page.properties, schema: schema,
+                insertRelationRows(db, properties: page.properties, schema: schema,
                     sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
             }
         }
@@ -562,25 +621,25 @@ final class IndexBuilder {
             let schema = it.properties
             for coll in it.collections {
                 for item in coll.items {
-                    try insertRelationRows(db, properties: item.properties, schema: schema,
+                    insertRelationRows(db, properties: item.properties, schema: schema,
                         sourceID: item.id, sourceKind: "item", modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
-                try insertRelationRows(db, properties: item.properties, schema: schema,
+                insertRelationRows(db, properties: item.properties, schema: schema,
                     sourceID: item.id, sourceKind: "item", modifiedAt: item.modifiedAt)
             }
         }
         // Tasks
         let taskSchema = snapshot.taskSchema?.properties ?? []
         for task in snapshot.tasks {
-            try insertRelationRows(db, properties: task.properties, schema: taskSchema,
+            insertRelationRows(db, properties: task.properties, schema: taskSchema,
                 sourceID: task.id, sourceKind: "agenda_task", modifiedAt: task.modifiedAt)
         }
         // Events
         let eventSchema = snapshot.eventSchema?.properties ?? []
         for event in snapshot.events {
-            try insertRelationRows(db, properties: event.properties, schema: eventSchema,
+            insertRelationRows(db, properties: event.properties, schema: eventSchema,
                 sourceID: event.id, sourceKind: "agenda_event", modifiedAt: event.modifiedAt)
         }
     }
@@ -592,7 +651,7 @@ final class IndexBuilder {
         sourceID: String,
         sourceKind: String,
         modifiedAt: Date
-    ) throws {
+    ) {
         let schemaByID = Dictionary(uniqueKeysWithValues: schema.map { ($0.id, $0) })
         for (propID, value) in properties {
             guard case .relation(let targetIDs) = value else { continue }
@@ -600,27 +659,29 @@ final class IndexBuilder {
             let targetKind = RelationTargetKind.string(from: def?.relationTarget)
             for targetID in targetIDs {
                 let relationID = UUID().uuidString
-                try db.execute(
-                    literal: """
-                        INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                        VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
-                        """
-                )
+                attemptInsert("relation \(sourceKind) \(sourceID) → \(targetID)", {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                            VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
+                            """
+                    )
+                })
             }
         }
     }
 
-    private nonisolated static func insertTierRelations(_ db: Database, snapshot: NexusSnapshot) throws {
+    private nonisolated static func insertTierRelations(_ db: Database, snapshot: NexusSnapshot) {
         for pt in snapshot.pageTypes {
             for coll in pt.collections {
                 for page in coll.pages {
-                    try insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
+                    insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
                         tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                         modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
-                try insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
+                insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
                     tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                     modifiedAt: page.modifiedAt)
             }
@@ -628,24 +689,24 @@ final class IndexBuilder {
         for it in snapshot.itemTypes {
             for coll in it.collections {
                 for item in coll.items {
-                    try insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
+                    insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
                         tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                         modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
-                try insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
+                insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
                     tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                     modifiedAt: item.modifiedAt)
             }
         }
         for task in snapshot.tasks {
-            try insertTierRelationRows(db, sourceID: task.id, sourceKind: "agenda_task",
+            insertTierRelationRows(db, sourceID: task.id, sourceKind: "agenda_task",
                 tier1: task.tier1, tier2: task.tier2, tier3: task.tier3,
                 modifiedAt: task.modifiedAt)
         }
         for event in snapshot.events {
-            try insertTierRelationRows(db, sourceID: event.id, sourceKind: "agenda_event",
+            insertTierRelationRows(db, sourceID: event.id, sourceKind: "agenda_event",
                 tier1: event.tier1, tier2: event.tier2, tier3: event.tier3,
                 modifiedAt: event.modifiedAt)
         }
@@ -662,7 +723,7 @@ final class IndexBuilder {
         tier2: [String],
         tier3: [String],
         modifiedAt: Date
-    ) throws {
+    ) {
         let tiers: [(Int, [String], String)] = [
             (1, tier1, ReservedPropertyID.tier1),
             (2, tier2, ReservedPropertyID.tier2),
@@ -672,12 +733,14 @@ final class IndexBuilder {
             let targetKind = RelationTargetKind.string(from: .contextTier(level))
             for targetID in targetIDs {
                 let relationID = UUID().uuidString
-                try db.execute(
-                    literal: """
-                        INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                        VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propertyID), \(iso8601(modifiedAt)))
-                        """
-                )
+                attemptInsert("tier-\(level) relation \(sourceKind) \(sourceID) → \(targetID)", {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                            VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propertyID), \(iso8601(modifiedAt)))
+                            """
+                    )
+                })
             }
         }
     }
@@ -687,18 +750,20 @@ final class IndexBuilder {
         properties: [PropertyDefinition],
         owningTypeID: String,
         owningTypeKind: String
-    ) throws {
+    ) {
         for (position, def) in properties.enumerated() {
             guard !def.id.isEmpty else { continue }
             let configJSON = (try? definitionConfigJSON(def)) ?? "{}"
             let modAt = iso8601(Date())
-            try db.execute(
-                literal: """
-                    INSERT INTO property_definitions
-                        (id, owning_type_id, owning_type_kind, name, type, config, position, modified_at)
-                    VALUES (\(def.id), \(owningTypeID), \(owningTypeKind), \(def.name), \(def.type.rawValue), \(configJSON), \(position), \(modAt))
-                    """
-            )
+            attemptInsert("property_definition \(def.name) [\(def.id)] on \(owningTypeKind) \(owningTypeID)", {
+                try db.execute(
+                    literal: """
+                        INSERT INTO property_definitions
+                            (id, owning_type_id, owning_type_kind, name, type, config, position, modified_at)
+                        VALUES (\(def.id), \(owningTypeID), \(owningTypeKind), \(def.name), \(def.type.rawValue), \(configJSON), \(position), \(modAt))
+                        """
+                )
+            })
         }
     }
 

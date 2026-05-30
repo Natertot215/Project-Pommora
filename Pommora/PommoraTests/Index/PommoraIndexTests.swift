@@ -13,9 +13,14 @@ struct PommoraIndexTests {
         return dir
     }
 
-    // MARK: - Test 1: freshOpenCreatesDBAndMetaWithSchemaVersion1
+    // MARK: - Test 1: fresh open creates DB + meta but DEFERS the version stamp
 
-    @Test func freshOpenCreatesDBAndMetaWithCurrentSchemaVersion() throws {
+    /// A fresh open creates the DB + meta table and signals needsRebuild, but
+    /// must NOT stamp `schema_version` yet — that's deferred to
+    /// `markSchemaVersionCurrent()` after a successful populate, so a
+    /// rolled-back rebuild can't lock an empty index in place. After stamping,
+    /// the version reads back as current.
+    @Test func freshOpenDefersSchemaVersionStampUntilMarked() throws {
         let root = tempNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
@@ -23,10 +28,18 @@ struct PommoraIndexTests {
         #expect(needsRebuild == true)
         #expect(FileManager.default.fileExists(atPath: index.dbURL.path))
 
-        try index.dbQueue.read { db in
-            let row = try Row.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'schema_version'")
-            #expect(row?["value"] as String? == String(PommoraIndex.currentSchemaVersion))
+        // Version is NOT stamped on fresh open (the bug was stamping it here).
+        let before = try index.dbQueue.read { db in
+            try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'schema_version'")
         }
+        #expect(before == nil)
+
+        // Stamping (what NexusManager does after populate) writes the current version.
+        try index.markSchemaVersionCurrent()
+        let after = try index.dbQueue.read { db in
+            try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'schema_version'")
+        }
+        #expect(after == String(PommoraIndex.currentSchemaVersion))
     }
 
     // MARK: - Test 2: reopeningSameDBReturnsNotNeedsRebuild
@@ -35,7 +48,10 @@ struct PommoraIndexTests {
         let root = tempNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        _ = try PommoraIndex.open(at: root)
+        // Stamp after the first open (mirrors NexusManager stamping post-populate);
+        // only then does a re-open see a matching version and skip the rebuild.
+        let (idx, _) = try PommoraIndex.open(at: root)
+        try idx.markSchemaVersionCurrent()
         let (_, needsRebuild) = try PommoraIndex.open(at: root)
         #expect(needsRebuild == false)
     }
@@ -46,8 +62,10 @@ struct PommoraIndexTests {
         let root = tempNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        // First open seeds the current schema version.
+        // First open + stamp seeds the current schema version, then we force a
+        // mismatch by writing a bogus version.
         let (idx1, _) = try PommoraIndex.open(at: root)
+        try idx1.markSchemaVersionCurrent()
         try idx1.dbQueue.write { db in
             try db.execute(sql: "UPDATE meta SET value = '99' WHERE key = 'schema_version'")
         }

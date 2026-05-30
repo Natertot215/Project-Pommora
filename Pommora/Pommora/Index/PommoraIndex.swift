@@ -38,7 +38,17 @@ final class PommoraIndex: @unchecked Sendable {
     //
     // v4 (2026-05-29): denormalize entity icon into pages/items/contexts/agenda_*
     // so relation values resolve to icon+title from the index.
-    static let currentSchemaVersion: Int = 4
+    //
+    // v5 (2026-05-29): rebuild-resilience fix. The prior flow stamped
+    // schema_version during open() *before* IndexBuilder.populate ran, and
+    // populate was all-or-nothing — one bad on-disk row (a duplicate-id page
+    // from a legacy collision, an orphaned FK) rolled the WHOLE rebuild back,
+    // leaving the index (and its Contexts) empty while the version was already
+    // persisted, so no relaunch ever retried. The fix (a) skips+logs bad rows
+    // instead of rolling the rebuild back, and (b) defers the schema_version
+    // stamp until populate succeeds (`markSchemaVersionCurrent()`). Bumping
+    // 4 → 5 forces any index left stuck-empty at v4 through one clean rebuild.
+    static let currentSchemaVersion: Int = 5
 
     let dbQueue: DatabaseQueue   // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
@@ -105,6 +115,23 @@ final class PommoraIndex: @unchecked Sendable {
                 value TEXT NOT NULL
             );
         """)
-        try db.execute(sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?);", arguments: [String(currentSchemaVersion)])
+        // NOTE: schema_version is intentionally NOT stamped here. A fresh DB is
+        // returned with needsRebuild = true; the caller stamps the version via
+        // `markSchemaVersionCurrent()` only AFTER `IndexBuilder.populate`
+        // succeeds. So a failed/rolled-back rebuild leaves the version absent
+        // and the next launch retries — instead of locking in an empty index.
+    }
+
+    /// Stamps the DB as fully populated at `currentSchemaVersion`. Call only
+    /// after a successful `IndexBuilder.populate` (or when no populate is
+    /// needed). Until this is written, `open(at:)` sees an absent/stale version
+    /// and rebuilds — the guard that stops a half-built index from sticking.
+    func markSchemaVersionCurrent() throws {
+        try dbQueue.write { db in
+            try db.execute(
+                sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?);",
+                arguments: [String(Self.currentSchemaVersion)]
+            )
+        }
     }
 }
