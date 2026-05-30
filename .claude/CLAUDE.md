@@ -26,7 +26,7 @@ Items open in a popover-style **Item Window** (title + properties + 250-char des
 
 - **DRY — one source of truth.** When the same logic, mapping, or rendering would live in two or more places, hoist it into a single function or type and reuse it; never copy-paste behavior across call sites.
 
-- **`Handoff.md` is a lean snapshot + Fix Log.** Maintain `Handoff.md` as current state + next focuses + a Fix Log only (1–2 sentence acknowledged-but-not-yet-fixed entries; clear on resolve). Route everything else to its canonical home. Never accumulate per-session work logs in the Handoff unless it's pending completion.
+- **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md` / `Guidelines/Paradigm-Decisions.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. Never accumulate per-session work logs.
 
  - **Re-assess the plan between green commits.**  After each task ships green, read the active plan against what just landed. If the task surfaced wrong assumptions, missing prerequisites, scope drift, or shortened/expanded downstream tasks, rewrite the affected later tasks before dispatching the next one. The plan is the controller's live working theory of the work, not a fixed script — only green commits are facts. Pairs with #4 — #4 keeps the build green between tasks; #13 keeps the plan accurate between tasks.
 
