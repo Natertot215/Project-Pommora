@@ -31,7 +31,7 @@
 
 - **One component, data-driven.** Groups present → sub-menu pop-out; no groups → flat standard rows. The property **editor's target selector** (scopes to Vaults/Item-Types only — *storages, never ID'd items*) therefore renders as flat rows automatically; it needs no sub-menu and no special "editor mode."
 - **Sub-menu = side POP-OUT, NOT inline disclosure** (confirmed 2026-05-30). A chevron Collection/Set row opens its members in a **second panel beside the main one** (native-macOS-submenu behavior) — built as an **HStack of two `chipDropdownPanel` panels inside the one popover** (main panel + active collection's member panel, with a gap), NOT a nested `.popover`, NOT a floating window, NOT an in-place expand. The popover grows wider when a collection opens.
-- **Sizing is PROPORTIONAL, not literal.** The Figma mockups (~160×235, 8pt) are *proportional, not point-accurate* to real components. Match the ~2:3 portrait proportion + relative spacing; the concrete frame is tuned by eye against live SwiftUI **Body** type + standard macOS metrics at build. A **fixed frame is retained regardless** (the `9deb818` anti-collapse guarantee — a chromeless popover with no fixed size collapses to a glass blob). Type = **Body**; **8pt** between list items; scrolls past the panel height.
+- **Sizing is PROPORTIONAL, not literal — 2:4 (width:height ≈ 1:2).** Per Nathan (2026-05-30) the panel is a **2:4** proportion (taller than the original ~2:3 mockup). Figma numbers are *proportional, not point-accurate*; match the 2:4 proportion + relative spacing, tuning the concrete frame by eye against live SwiftUI **Body** type + standard macOS metrics at build. A **fixed frame is retained regardless** (the `9deb818` anti-collapse guarantee — a chromeless popover with no fixed size collapses to a glass blob). Type = **Body**; **8pt** between list items; **each panel scrolls vertically when its rows overflow the fixed height.**
 - **Divider:** a slight separator between the Collection/Set rows and the Page/Item rows, **inset to align with the list-item padding** so it does NOT touch the panel edges — same principle as the properties-editor dropdown divider.
 - **Row types:**
   - **Collection/Set row:** folder glyph + title + trailing **chevron** (`chevron.right`). Whole row pops out that collection's member panel to the side (sets `activeGroupID`).
@@ -41,7 +41,7 @@
   - **Pop-out:** clicking a Collection/Set row opens its members in the right-hand panel — ONE open at a time (click another collection swaps it; click the open one again closes it — toggles `activeGroupID`). Native-macOS-submenu behavior.
   - **Select + dismiss:** a leaf tap toggles selection (multi-select; checkmarks accumulate) and does NOT dismiss — keep picking. Commit the `[ID]` array live per toggle (as today). The picker dismisses on click-away / Esc (standard popover).
   - **States:** subtle rounded fill on row hover; the open Collection row keeps a persistent highlight while its panel shows; brief emphasis on press.
-  - **Frame:** ~160×235 per panel (proportional, tuned to Body type); ~328 wide with a collection open; fixed frame retained (the `9deb818` anti-collapse); each panel scrolls vertically past 235.
+  - **Frame:** ~160×320 per panel (**2:4**, proportional — tuned to Body type at build); ~328 wide with a collection open; fixed frame retained (the `9deb818` anti-collapse); **each panel scrolls vertically when rows overflow.**
   - **Checkmark:** `SelectionCheckmark` (blue rounded square + white check, ~18–20pt), trailing, rendered ONLY when selected (an equal-width spacer when not, so titles stay aligned).
   - **Empty/loading:** render the fixed frame immediately (never content-size, or it collapses); quiet placeholder until grouped data loads.
 
@@ -128,10 +128,10 @@ func entitiesByTargetGrouped(_ target: PropertyDefinition.RelationTarget) async 
 - [ ] **Step 4 — Picker state + data load.** Replace the flat-list body — and **drop the current single outer `.frame(width:).padding(8).chipDropdownPanel()` wrapper** (`RelationPicker.swift:22-28`); each panel below now owns its own sizing + chrome. Load grouped data in `.task`; track which collection is open.
 
 ```swift
-// Proportional placeholders — Figma ~160×235 is NOT point-accurate. Tune by eye at
-// build against live Body type; fixed frame retained for the 9deb818 anti-collapse.
+// Proportional placeholders — 2:4 (w:h ~ 1:2), NOT point-accurate. Tune by eye at build
+// against live Body type; fixed frame retained (9deb818 anti-collapse); scrolls on overflow.
 private static let panelWidth: CGFloat = 160
-private static let panelHeight: CGFloat = 235
+private static let panelHeight: CGFloat = 320
 @State private var grouped: GroupedEntities = .init(groups: [], rootEntities: [])
 @State private var activeGroupID: String? = nil   // nil = no sub-menu open
 
@@ -208,23 +208,28 @@ private func leafRow(_ e: EntityRef) -> some View {
 
 **Files:** `ItemWindow/ItemWindow.swift` (`relationLine`), `Properties/PropertyPanel.swift` (`tierRow`)
 
+**Note (2026-05-30):** the reusable investment is `PropertyPanel.tierRow` (a kept component — Items / Page Previews / Agenda all use it) + the shared chip-render path; the placeholder `ItemWindow.relationLine` is updated as a demonstration only (that window is being replaced — see Task 6 intent).
+
 - [ ] **Step 1 — Item Window tier rows.** Add `@Environment(RelationDisplayResolver.self) private var relationDisplay` (use the name the four detail views already use — DRY/convention) + a `.task` warming `item.tier1 + item.tier2 + item.tier3`. Replace the raw-ID `Text` with a chip row (`RelationChip(icon:title:)` per resolved ID; `"(missing)"` fallback when unresolved; `"—"` when empty). Delete the existing raw-ID TODO comment.
 - [ ] **Step 2 — PropertyPanel tier rows.** Apply the identical chip pattern to `PropertyPanel.tierRow`; add the same `@Environment` + warm `.task`.
 - [ ] **Step 3 — Build green; commit.** Manual check: tiers show icon + title (chips) in the Item Window + property panel.
 
 ---
 
-### Task 6: Editable relation/status in `PropertyEditorRow` + editable Page tiers
+### Task 6: Inline property-editing CAPABILITY (reusable) — relation/status editors, picker hosting, editable Page tiers
 
-**Files:** `ItemWindow/PropertyEditorRow.swift` + hosts, `Pages/FrontmatterInspector.swift`, `ContentView.swift` (env, quirk #16)
+**Intent (Nathan, 2026-05-30) — build the CAPABILITY, not the placeholder's UIX.** The current Item Window is a placeholder slated for replacement; do NOT invest in its layout. Build inline editing as **reusable infrastructure**: an editable `PropertyEditorRow` that hosts the relation/status picker with correct **picker positioning** in a window/panel context + a clean value-commit contract, so **any future Item Window design can drop in property selection + inline editing**. The current Item Window is wired only as a **demonstration / smoke-test host**. `FrontmatterInspector` (a real, kept Page surface) gets editable tiers for real. A **documented integration process** (Step 8) is a primary deliverable, so the eventual rebuild follows a known pattern instead of reverse-engineering this work.
+
+**Files:** `ItemWindow/PropertyEditorRow.swift` (the reusable row), `Pages/FrontmatterInspector.swift`, `Properties/PropertyPanel.swift`, `ContentView.swift` (env, quirk #16), `Guidelines/CRUD-Patterns.md` (the documented process). Touch the placeholder `ItemWindow.swift` only enough to host the row as a demonstration.
 
 - [ ] **Step 1 — `PropertyEditorRow` gains `index`.** Add `var index: PommoraIndex? = nil` to the struct head (defaulted so existing call sites compile).
 - [ ] **Step 2 — Real relation editor** (replace placeholder `:32-33`) — mirror `PropertyCellEditor.relationEditor` (`:327-349`, audit-corrected) (the now-grouped `RelationPicker` with `selectedIDs` binding + `scope: target` + `index:` + `onSelect`). Falls back to `Text("Relation has no target")` when `relationTarget == nil`.
 - [ ] **Step 3 — Real status editor** (replace read-only text `:116-124`) — mirror `PropertyCellEditor.statusEditor` (`:284-304`, audit-corrected) (`ChipDropdown(.single)` over flattened status groups). Leave `file` deferred with a one-line comment pointing at the `filePlaceholder` (`PropertyCellEditor.swift:351`).
-- [ ] **Step 4 — Thread `index` from hosts.** In `ItemWindow.swift` + `PropertyPanel.swift`, pass `index: nexusManager.currentIndex` (add `@Environment(NexusManager.self)` if absent).
+- [ ] **Step 4 — Thread `index` from hosts (keep it generic).** In `PropertyPanel.swift` (kept component) + `ItemWindow.swift` (demonstration host), pass `index: nexusManager.currentIndex` (add `@Environment(NexusManager.self)` if absent). The contract: a host supplies `index` + the value binding; nothing Item-Window-shaped leaks into `PropertyEditorRow`, so any future window reuses it unchanged.
 - [ ] **Step 5 — Editable `FrontmatterInspector` tiers.** Add `@Environment(NexusManager.self)`; replace the read-only `tiersSection` (`:139-147`) with a `RelationPicker` per tier bound to the VM's `draftTier1/2/3` + `handleTierChange(tier,$0)` (scope `.contextTier(n)`, `index: nexusManager.currentIndex`).
 - [ ] **Step 6 — Inject env at the RIGHT site (quirk #16; audit-corrected).** `FrontmatterInspector` mounts in `ContentView.inspectorContent` (`:318-336`), **NOT `detail`** — its env chain currently carries only `spaceMgr` + `vaultMgr` (`:331-332`). Add `@Environment(NexusManager.self)` there (+ `RelationDisplayResolver` if its tiers render via chips). For any `.task`-bearing DETAIL view that newly reads an env, add it to the `.detail` env chain instead (`:355-362`; the optional-unwrap guard is `:339-348`). SIGTRAP otherwise — verify via a real test bootstrap, not just compile.
-- [ ] **Step 7 — Build green; commit.** Manual check: a Page's Spaces/Topics/Projects are editable from the inspector; Item relation + status properties are editable in the Item Window.
+- [ ] **Step 7 — Build green; commit.** Smoke-check (when home): a Page's Spaces/Topics/Projects are editable from the inspector; the demonstration Item Window hosts editable relation + status properties via the same reusable `PropertyEditorRow`.
+- [ ] **Step 8 — Document the integration process (primary deliverable).** In `Guidelines/CRUD-Patterns.md`, add a concise **"Inline property editing + picker hosting"** section: how a window/panel hosts `PropertyEditorRow`; how the relation/tier picker is presented + positioned (popover anchor, chromeless `.presentationBackground(.clear)`, fixed-frame so it can't collapse — the `9deb818` rule); env requirements (quirk #16 — `RelationDisplayResolver` + `index` / `NexusManager`); and the value-binding + commit contract. Goal: the future Item Window rebuild wires property editing by following this doc, not by reverse-engineering the placeholder.
 
 ---
 
