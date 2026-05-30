@@ -38,9 +38,6 @@ struct ItemCollectionDetailView: View {
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
-    /// Session-local row order override. Nil → fall back to manager order.
-    /// Resets on entity change. Independent of the sidebar's reorder system.
-    @State private var sessionOrder: [String]?
     @State private var isCreatingItem: Bool = false
 
     var body: some View {
@@ -52,7 +49,6 @@ struct ItemCollectionDetailView: View {
             footer
         }
         .task(id: collection.id) {
-            sessionOrder = nil
             await itemContentManager.loadAll(for: collection)
         }
         .alert("Rename", isPresented: renameAlertBinding) {
@@ -197,19 +193,17 @@ struct ItemCollectionDetailView: View {
         }
     }
 
-    // MARK: - Drag-reorder (session-local, offset-based)
+    // MARK: - Drag-reorder (persisted via manager)
 
-    /// Row drop handler — session-only. `offset` is the insertion index the
-    /// table's row `dropDestination` reports. Unknown payloads (e.g. a foreign
-    /// drag) leave the order untouched — `move` returns the base unchanged.
-    /// Updates `sessionOrder`, which the `rows` computed honors. Never calls a
-    /// manager API.
+    /// Row drop handler — persists via manager. `offset` is the insertion index
+    /// the table's row `dropDestination` reports. Unknown payloads and no-ops
+    /// are dropped by the planner.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
-        guard next != currentIDs else { return }
-        sessionOrder = next
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        if plan.kind == .item {
+            itemContentManager.reorderItems(in: collection, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
+        }
     }
 
     /// Stub-and-edit "New Item (in This Set)" trigger from the detail-view footer.
@@ -258,12 +252,10 @@ struct ItemCollectionDetailView: View {
     }
 
     private var rows: [DetailRow] {
-        let baseRows = ItemCollectionDetailRowComposer(
+        ItemCollectionDetailRowComposer(
             collection: collection,
             itemContentManager: itemContentManager
         ).rows()
-        // Honor session order for known rows; append any newly added rows at the end.
-        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func handleDoubleTap(_ row: DetailRow) {

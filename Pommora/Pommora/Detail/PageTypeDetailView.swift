@@ -27,9 +27,6 @@ struct PageTypeDetailView: View {
     /// menu. Page deletes stay direct (no confirmation); only the container
     /// case routes here, mirroring the sidebar's delete guard.
     @State private var deleteTarget: DetailRow?
-    /// Session-local row order override. Nil → fall back to manager order.
-    /// Resets on entity change. Independent of the sidebar's reorder system.
-    @State private var sessionOrder: [String]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,7 +38,6 @@ struct PageTypeDetailView: View {
         }
         .task(id: pageType.id) {
             // Load Page-Type-root Pages + every PageCollection's content
-            sessionOrder = nil
             await contentManager.loadAll(for: pageType)
             for coll in pageTypeManager.pageCollections(in: pageType) {
                 await contentManager.loadAll(for: coll)
@@ -234,18 +230,23 @@ struct PageTypeDetailView: View {
         return nil
     }
 
-    // MARK: - Drag-reorder (session-local, top-level only)
+    // MARK: - Drag-reorder (persisted via manager, top-level only)
 
-    /// Row drop handler — session-only. `offset` is the top-level insertion
-    /// index the table reports; `move` no-ops on unknown payloads (e.g. a
-    /// dragged child Page, whose id isn't in the top-level list). Updates
-    /// `sessionOrder`, which the `rows` computed honors. No manager API call.
+    /// Row drop handler — persists via manager. `offset` is the top-level
+    /// insertion index the table reports. The planner no-ops on unknown payloads
+    /// (e.g. a dragged child Page whose id isn't in the top-level list) and
+    /// dispatches to the correct manager method based on kind.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
-        guard next != currentIDs else { return }
-        sessionOrder = next
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        switch plan.kind {
+        case .page:
+            contentManager.reorderPages(inVault: pageType, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
+        case .collection:
+            pageTypeManager.reorderPageCollections(in: pageType, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
+        default:
+            break
+        }
     }
 
     /// Stable per-row disclosure binding so a Collection's expanded state
@@ -384,9 +385,7 @@ struct PageTypeDetailView: View {
                 children: kids
             )
         }
-        let baseRows = rootRows + collectionRows
-        // Top-level session order override; child rows retain their natural order.
-        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
+        return rootRows + collectionRows
     }
 
     private func contentKind(_ ci: ContentItem) -> DetailRow.Kind {

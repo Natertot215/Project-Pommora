@@ -19,10 +19,6 @@ struct PageCollectionDetailView: View {
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
-    /// Session-local row order override. Nil → fall back to manager order.
-    /// Resets on entity change (.task(id:)) per spec. Independent of the
-    /// sidebar's persistent reorder system.
-    @State private var sessionOrder: [String]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -33,7 +29,6 @@ struct PageCollectionDetailView: View {
             footer
         }
         .task(id: collection.id) {
-            sessionOrder = nil
             await contentManager.loadAll(for: collection)
         }
         .alert("Rename", isPresented: renameAlertBinding) {
@@ -179,15 +174,14 @@ struct PageCollectionDetailView: View {
         }
     }
 
-    /// Row drop handler — session-only. `offset` is the insertion index the
-    /// table reports; `move` no-ops on unknown payloads. Updates `sessionOrder`,
-    /// which the `rows` computed honors. Never calls a manager API.
+    /// Row drop handler — persists via manager. `offset` is the insertion index
+    /// the table reports; unknown payloads and no-ops are dropped by the planner.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
-        guard next != currentIDs else { return }
-        sessionOrder = next
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        if plan.kind == .page {
+            contentManager.reorderPages(in: collection, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
+        }
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
@@ -248,7 +242,7 @@ struct PageCollectionDetailView: View {
         // future plan surfaces cross-side embedding (out of scope here).
         let pages = contentManager.pages(in: collection).map { ContentItem.page($0) }
         let items: [ContentItem] = []
-        let baseRows: [DetailRow] = (pages + items).map { ci in
+        return (pages + items).map { ci in
             DetailRow(
                 id: ci.id,
                 title: ci.title,
@@ -258,8 +252,6 @@ struct PageCollectionDetailView: View {
                 children: nil
             )
         }
-        // Honor session order for known rows; append any newly added rows at the end.
-        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func detailKind(_ ci: ContentItem) -> DetailRow.Kind {

@@ -69,9 +69,6 @@ struct ItemTypeDetailView: View {
     /// Item deletes stay direct (no confirmation); only the container case
     /// routes here, mirroring the sidebar's delete guard.
     @State private var deleteTarget: DetailRow?
-    /// Session-local row order override. Nil → fall back to manager order.
-    /// Resets on entity change. Independent of the sidebar's reorder system.
-    @State private var sessionOrder: [String]?
     @State private var isCreatingItem: Bool = false
     @State private var isCreatingCollection: Bool = false
 
@@ -84,7 +81,6 @@ struct ItemTypeDetailView: View {
             footer
         }
         .task(id: type.id) {
-            sessionOrder = nil
             await itemContentManager.loadAll(for: type)
             for set in itemTypeManager.itemCollections(in: type) {
                 await itemContentManager.loadAll(for: set)
@@ -268,18 +264,23 @@ struct ItemTypeDetailView: View {
         return nil
     }
 
-    // MARK: - Drag-reorder (session-local, top-level only)
+    // MARK: - Drag-reorder (persisted via manager, top-level only)
 
-    /// Row drop handler — session-only. `offset` is the top-level insertion
-    /// index the table reports; `move` no-ops on unknown payloads (e.g. an Item
-    /// dragged from inside a Set, whose id isn't in the top-level list). Updates
-    /// `sessionOrder`, which the `rows` computed honors. No manager API call.
+    /// Row drop handler — persists via manager. `offset` is the top-level
+    /// insertion index the table reports. The planner no-ops on unknown payloads
+    /// (e.g. an Item dragged from inside a Set, whose id isn't in the top-level
+    /// list) and dispatches to the correct manager method based on kind.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        let currentIDs = rows.map(\.id)
-        let next = SessionRowOrdering.move(base: currentIDs, movingID: payload.rowID, toOffset: offset)
-        guard next != currentIDs else { return }
-        sessionOrder = next
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        switch plan.kind {
+        case .item:
+            itemContentManager.reorderItems(inType: type, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
+        case .itemCollection:
+            itemTypeManager.reorderItemCollections(in: type, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
+        default:
+            break
+        }
     }
 
     /// Stable per-row disclosure binding so a Set's expanded state survives the
@@ -371,13 +372,11 @@ struct ItemTypeDetailView: View {
     }
 
     private var rows: [DetailRow] {
-        let baseRows = ItemTypeDetailRowComposer(
+        ItemTypeDetailRowComposer(
             type: type,
             itemTypeManager: itemTypeManager,
             itemContentManager: itemContentManager
         ).rows()
-        // Top-level session order override; child rows retain their natural order.
-        return SessionRowOrdering.reconcile(base: baseRows, sessionOrder: sessionOrder)
     }
 
     private func handleDoubleTap(_ row: DetailRow) {
