@@ -88,6 +88,7 @@ struct PropertyPanel: View {
     @Binding var tier3: [String]
     let autoManaged: AutoManagedFields
     let index: PommoraIndex?
+    let relationDisplay: RelationDisplayResolver
     let onValueChange: (String, PropertyValue) -> Void
     let onTierChange: (Int, [String]) -> Void
 
@@ -115,18 +116,18 @@ struct PropertyPanel: View {
                 }
             }
 
-            // Tier relations — always rendered
-            tierRow(label: "Spaces", tier: 1, ids: tier1)
+            // Tier relations — always rendered (icon + title chips via the shared resolver)
+            RelationChipRow(label: "Spaces", ids: tier1, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
             Divider()
                 .padding(.horizontal, 12)
-            tierRow(label: "Topics", tier: 2, ids: tier2)
+            RelationChipRow(label: "Topics", ids: tier2, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
             Divider()
                 .padding(.horizontal, 12)
-            tierRow(label: "Projects", tier: 3, ids: tier3)
+            RelationChipRow(label: "Projects", ids: tier3, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
 
@@ -157,27 +158,6 @@ struct PropertyPanel: View {
     }
 
     // MARK: - Sub-views
-
-    private func tierRow(label: String, tier: Int, ids: [String]) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .frame(width: 100, alignment: .leading)
-                .foregroundStyle(.secondary)
-                .font(.callout)
-            if ids.isEmpty {
-                Text("None")
-                    .foregroundStyle(.tertiary)
-                    .font(.callout)
-            } else {
-                Text(ids.joined(separator: ", "))
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            Spacer()
-        }
-    }
 
     private func autoManagedRow(label: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ItemWindow: View {
     let item: Item
+    let relationDisplay: RelationDisplayResolver
     @Environment(\.dismiss) private var dismiss
 
     @Environment(ItemTypeManager.self) private var itemTypeManager
@@ -258,25 +259,10 @@ struct ItemWindow: View {
     private var relationsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Relations").font(.caption).foregroundStyle(.secondary)
-            relationLine(label: "Spaces", ids: item.tier1)
-            relationLine(label: "Topics", ids: item.tier2)
-            relationLine(label: "Projects", ids: item.tier3)
+            RelationChipRow(label: "Spaces", ids: item.tier1, resolver: relationDisplay, labelWidth: 140)
+            RelationChipRow(label: "Topics", ids: item.tier2, resolver: relationDisplay, labelWidth: 140)
+            RelationChipRow(label: "Projects", ids: item.tier3, resolver: relationDisplay, labelWidth: 140)
         }
-    }
-
-    private func relationLine(label: String, ids: [String]) -> some View {
-        // TODO: placeholder Item Window — renders tier relation values as raw
-        // joined IDs. When the real Item Window is built, route each value
-        // through RelationChip (target icon + title) per Features/Properties.md.
-        HStack {
-            Text(label).frame(width: 140, alignment: .leading).foregroundStyle(.secondary)
-            Text(ids.isEmpty ? "—" : ids.joined(separator: ", "))
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        }
-        .font(.callout)
     }
 
     private var metaSection: some View {

@@ -10,6 +10,7 @@ struct SidebarDetailView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(RelationDisplayResolver.self) private var relationDisplay
 
     var body: some View {
         Group {
@@ -123,7 +124,7 @@ struct SidebarDetailView: View {
             }
         }
         .sheet(item: $presentedItem) { item in
-            ItemWindow(item: item)
+            ItemWindow(item: item, relationDisplay: relationDisplay)
         }
         .onAppear {
             AppGlobals.presentItemAction = { item in
