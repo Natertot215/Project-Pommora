@@ -89,14 +89,23 @@ struct PageTypeDetailView: View {
 
     // MARK: - Table
 
-    /// User-defined property columns derived from `pageType.views[0]` +
+    /// The live Type from the `@Observable` manager (by id), so schema/view edits
+    /// (add / delete property, change-type) re-render this table IMMEDIATELY instead
+    /// of only after a reselect. The `pageType` init param is a value snapshot taken
+    /// at selection time and goes stale on schema mutation; reading the manager keeps
+    /// this view reactive. Falls back to the snapshot if the manager hasn't loaded it.
+    private var livePageType: PageType {
+        pageTypeManager.types.first { $0.id == pageType.id } ?? pageType
+    }
+
+    /// User-defined property columns derived from `livePageType.views[0]` +
     /// schema. Empty when the active SavedView has no visibleProperties
     /// configured — collapses to the legacy Title/Kind/Modified shape.
     private var userPropertyColumns: [PropertyDefinition] {
-        guard let view = pageType.views.first else { return [] }
+        guard let view = livePageType.views.first else { return [] }
         let cols = PropertyColumnBuilder.columns(
             view: view,
-            schema: pageType.resolvedProperties(tierConfig: tierConfigManager.config)
+            schema: livePageType.resolvedProperties(tierConfig: tierConfigManager.config)
         )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }

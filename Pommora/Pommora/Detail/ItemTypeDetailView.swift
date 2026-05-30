@@ -131,11 +131,19 @@ struct ItemTypeDetailView: View {
     /// User-defined property columns derived from `type.views[0]` +
     /// type schema. Empty when the SavedView has no visibleProperties —
     /// collapses to the legacy Title/Modified shape.
+    /// Live Type from the `@Observable` manager (by id) so schema/view edits (add /
+    /// delete property, change-type) re-render the table IMMEDIATELY instead of only
+    /// after a reselect — the `type` param is a value snapshot that goes stale on
+    /// schema mutation. Mirrors `PageTypeDetailView.livePageType`.
+    private var liveType: ItemType {
+        itemTypeManager.typesByID[type.id] ?? type
+    }
+
     private var userPropertyColumns: [PropertyDefinition] {
-        guard let view = type.views.first else { return [] }
+        guard let view = liveType.views.first else { return [] }
         let cols = PropertyColumnBuilder.columns(
             view: view,
-            schema: type.resolvedProperties(tierConfig: tierConfigManager.config)
+            schema: liveType.resolvedProperties(tierConfig: tierConfigManager.config)
         )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }

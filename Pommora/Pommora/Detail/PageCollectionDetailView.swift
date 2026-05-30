@@ -12,6 +12,7 @@ struct PageCollectionDetailView: View {
     @State private var isCreatingPage: Bool = false
 
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(RelationDisplayResolver.self) private var relationDisplay
@@ -63,11 +64,23 @@ struct PageCollectionDetailView: View {
     /// parent vault's schema (Collections inherit schema from the parent
     /// PageType per locked decision). Empty when the SavedView has no
     /// visibleProperties configured — collapses to legacy Title/Kind/Modified.
+    /// Live vault + collection from the `@Observable` manager (by id) so schema/view
+    /// edits re-render the table IMMEDIATELY instead of only after a reselect — the
+    /// `vault` + `collection` params are value snapshots that go stale on mutation.
+    /// Collections inherit the parent Type's schema, so the schema reads from the
+    /// live vault; the visible columns read from the live collection's view.
+    private var liveVault: PageType {
+        pageTypeManager.types.first { $0.id == vault.id } ?? vault
+    }
+    private var liveCollection: PageCollection {
+        pageTypeManager.pageCollections(in: liveVault).first { $0.id == collection.id } ?? collection
+    }
+
     private var userPropertyColumns: [PropertyDefinition] {
-        guard let view = collection.views.first else { return [] }
+        guard let view = liveCollection.views.first else { return [] }
         let cols = PropertyColumnBuilder.columns(
             view: view,
-            schema: vault.resolvedProperties(tierConfig: tierConfigManager.config)
+            schema: liveVault.resolvedProperties(tierConfig: tierConfigManager.config)
         )
         return cols.compactMap { col in
             if case .userProperty(let def) = col.kind { return def }

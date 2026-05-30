@@ -97,9 +97,18 @@ struct ItemCollectionDetailView: View {
     /// User-defined property columns derived from `collection.views[0]` +
     /// parent ItemType's schema. Empty when the SavedView has no
     /// visibleProperties — collapses to legacy Title/Modified shape.
+    /// Live collection from the `@Observable` manager (by id) so view edits re-render
+    /// immediately; the parent Type (schema source) is already a live manager lookup
+    /// (`parentItemType`), so schema reactivity comes for free — this just makes the
+    /// collection's own view source live too (the `collection` param is a stale snapshot).
+    private var liveCollection: ItemCollection {
+        guard let parent = itemTypeManager.parentItemType(for: collection) else { return collection }
+        return itemTypeManager.itemCollections(in: parent).first { $0.id == collection.id } ?? collection
+    }
+
     private var userPropertyColumns: [PropertyDefinition] {
-        guard let view = collection.views.first,
-              let parent = itemTypeManager.parentItemType(for: collection)
+        guard let view = liveCollection.views.first,
+            let parent = itemTypeManager.parentItemType(for: collection)
         else { return [] }
         let cols = PropertyColumnBuilder.columns(
             view: view,
@@ -141,7 +150,7 @@ struct ItemCollectionDetailView: View {
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
                     if case .item(let item) = row.kind,
-                       let parent = itemTypeManager.parentItemType(for: collection)
+                        let parent = itemTypeManager.parentItemType(for: collection)
                     {
                         PropertyCellEditor(
                             definition: def,
