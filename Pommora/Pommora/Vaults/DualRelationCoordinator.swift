@@ -204,6 +204,59 @@ struct DualRelationCoordinator: Sendable {
         try tx.commit()
     }
 
+    // MARK: - Update paired relation (F3 stub)
+
+    /// Updates the `name` and `icon` of both sides of a paired relation atomically
+    /// via `SchemaTransaction`.
+    ///
+    /// - Parameters:
+    ///   - sourcePropertyID: The ID of the source-side `PropertyDefinition`.
+    ///   - sourceKind: The `TypeKind` that owns the source property.
+    ///   - targetKind: The `TypeKind` that owns the reverse (target) property.
+    ///   - newHomeName: New display name for the source (home) side.
+    ///   - newHomeIcon: New SF Symbol name for the source (home) side (`nil` = clear icon).
+    ///   - newReverseName: New display name for the target (reverse) side.
+    ///   - newReverseIcon: New SF Symbol name for the target (reverse) side (`nil` = clear icon).
+    ///   - nexus: The active nexus (used for sidecar URL resolution).
+    /// - Throws: `DualRelationCoordinatorError.propertyNotFound` if the source property
+    ///   is not present on `sourceKind`, or `.reversePropertyNotFound` if the reverse
+    ///   property cannot be located on the target type. Propagates `SchemaTransactionError`
+    ///   on commit failure.
+    static func updatePairedRelation(
+        sourcePropertyID: String,
+        sourceKind: TypeKind,
+        targetKind: TypeKind,
+        newHomeName: String,
+        newHomeIcon: String?,
+        newReverseName: String,
+        newReverseIcon: String?,
+        nexus: Nexus
+    ) throws {
+        var sourceProps = Self.properties(of: sourceKind)
+        guard let si = sourceProps.firstIndex(where: { $0.id == sourcePropertyID }) else {
+            throw DualRelationCoordinatorError.propertyNotFound
+        }
+        guard let syncedID = sourceProps[si].dualProperty?.syncedPropertyID else {
+            throw DualRelationCoordinatorError.propertyNotFound   // not a paired relation
+        }
+        sourceProps[si].name = newHomeName
+        sourceProps[si].icon = newHomeIcon
+
+        var targetProps = Self.properties(of: targetKind)
+        guard let ti = targetProps.firstIndex(where: { $0.id == syncedID }) else {
+            throw DualRelationCoordinatorError.reversePropertyNotFound
+        }
+        targetProps[ti].name = newReverseName
+        targetProps[ti].icon = newReverseIcon
+
+        let updatedSource = Self.replacing(properties: sourceProps, in: sourceKind)
+        let updatedTarget = Self.replacing(properties: targetProps, in: targetKind)
+        let tx = SchemaTransaction()
+        try Self.stage(updatedSource, to: tx, nexus: nexus)
+        try Self.stage(updatedTarget, to: tx, nexus: nexus)
+        try tx.commit()
+    }
+
     // MARK: - Delete pair
 
     /// Deletes both sides of a paired relation atomically and strips all values
