@@ -636,7 +636,10 @@ extension ItemTypeManager {
 
             if let updater = indexUpdater {
                 let position = updated.properties.count - 1
-                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: position) } catch { self.pendingError = error }
+                do {
+                    try updater.upsertPropertyDefinition(
+                        def, owningTypeID: typeID, owningTypeKind: "item_type", position: position)
+                } catch { self.pendingError = error }
             }
 
             types[i] = updated
@@ -718,7 +721,10 @@ extension ItemTypeManager {
             try updated.save(to: meta)
 
             if let updater = indexUpdater {
-                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+                do {
+                    try updater.upsertPropertyDefinition(
+                        renamedDef, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex)
+                } catch { self.pendingError = error }
             }
 
             types[typeIndex] = updated
@@ -931,7 +937,9 @@ extension ItemTypeManager {
                 }
                 if let updater = indexUpdater {
                     do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch { self.pendingError = error }
+                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch {
+                        self.pendingError = error
+                    }
                 }
                 return
             }
@@ -953,9 +961,9 @@ extension ItemTypeManager {
                 where: { url in
                     url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
                 })
-            for itemURL in itemFiles {
+            MemberFileStrip.forEach(itemFiles) { itemURL in
                 var item = try AtomicJSON.decode(Item.self, from: itemURL)
-                guard item.properties[propertyID] != nil else { continue }
+                guard item.properties[propertyID] != nil else { return }
                 item.properties.removeValue(forKey: propertyID)
                 tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
             }
@@ -1009,7 +1017,10 @@ extension ItemTypeManager {
 
             if let updater = indexUpdater {
                 for (pos, def) in updated.properties.enumerated() {
-                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: pos) } catch { self.pendingError = error }
+                    do {
+                        try updater.upsertPropertyDefinition(
+                            def, owningTypeID: typeID, owningTypeKind: "item_type", position: pos)
+                    } catch { self.pendingError = error }
                 }
             }
 
@@ -1060,7 +1071,10 @@ extension ItemTypeManager {
                 try updated.save(to: meta)
                 if let updater = indexUpdater {
                     let def = updated.properties[propIndex]
-                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+                    do {
+                        try updater.upsertPropertyDefinition(
+                            def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex)
+                    } catch { self.pendingError = error }
                 }
                 types[typeIndex] = updated
                 rebuildTypesByID()
@@ -1090,9 +1104,9 @@ extension ItemTypeManager {
                 where: { url in
                     url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
                 })
-            for itemURL in itemFiles {
+            MemberFileStrip.forEach(itemFiles) { itemURL in
                 var item = try AtomicJSON.decode(Item.self, from: itemURL)
-                guard item.properties[propertyID] != nil else { continue }
+                guard item.properties[propertyID] != nil else { return }
                 item.properties.removeValue(forKey: propertyID)
                 tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
             }
@@ -1101,7 +1115,10 @@ extension ItemTypeManager {
 
             if let updater = indexUpdater {
                 let def = updated.properties[propIndex]
-                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex) } catch { self.pendingError = error }
+                do {
+                    try updater.upsertPropertyDefinition(
+                        def, owningTypeID: typeID, owningTypeKind: "item_type", position: propIndex)
+                } catch { self.pendingError = error }
             }
 
             types[typeIndex] = updated

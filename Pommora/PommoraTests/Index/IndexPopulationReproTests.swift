@@ -158,8 +158,9 @@ struct IndexPopulationReproTests {
     /// (`PageCollection.init(from:)` → `c.decode(String.self, forKey: .id)`,
     /// non-optional) makes `PageCollection.load` throw, so PageTypeManager's
     /// `try?` skips it — it never lands in `page_collections`. A child Page
-    /// upsert that still carries that Collection's id then FK-fails on
-    /// `pages.page_collection_id` (SQLite error 19).
+    /// upsert that still carries that Collection's id hits the
+    /// `pages.page_collection_id` FK; Task 8 Bug B makes that NON-fatal — the page
+    /// is retried without the missing collection and still indexed under its Vault.
     @Test func malformedCollectionSidecarOrphansChildPages() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -238,11 +239,24 @@ struct IndexPopulationReproTests {
         let orphanMeta = PageMeta(
             id: pageID, title: "Orphan", url: pageURL, frontmatter: pageFrontmatter
         )
-        #expect(throws: DatabaseError.self) {
-            try IndexUpdater(index).upsertPage(
-                orphanMeta, pageTypeID: vaultID, pageCollectionID: orphanCollID
+        // Post-fix (Task 8 Bug B): upsertPage tolerates the orphaned-collection FK.
+        // The Vault (page_type) IS indexed, so the page is retried WITHOUT the missing
+        // collection and still lands under its type — no throw, no toast.
+        try IndexUpdater(index).upsertPage(
+            orphanMeta, pageTypeID: vaultID, pageCollectionID: orphanCollID
+        )
+        let pageRowCount = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM pages WHERE id = ?", arguments: [pageID]
+            ) ?? 0
+        }
+        #expect(pageRowCount == 1)
+        let pageCollForPage = try await index.dbQueue.read { db in
+            try String.fetchOne(
+                db, sql: "SELECT page_collection_id FROM pages WHERE id = ?", arguments: [pageID]
             )
         }
+        #expect(pageCollForPage == nil)  // missing collection nulled; page kept under its Vault
     }
 
     // MARK: - Test C — malformed Topic sidecar leaves tier-2 picker empty

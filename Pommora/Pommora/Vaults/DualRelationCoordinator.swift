@@ -57,10 +57,10 @@ struct DualRelationCoordinator: Sendable {
     /// Returns the current `properties` array from a `TypeKind`.
     private static func properties(of kind: TypeKind) -> [PropertyDefinition] {
         switch kind {
-        case .pageType(let pt):      return pt.properties
-        case .itemType(let it):      return it.properties
-        case .agendaTasks(let s):    return s.properties
-        case .agendaEvents(let s):   return s.properties
+        case .pageType(let pt): return pt.properties
+        case .itemType(let it): return it.properties
+        case .agendaTasks(let s): return s.properties
+        case .agendaEvents(let s): return s.properties
         }
     }
 
@@ -275,9 +275,9 @@ struct DualRelationCoordinator: Sendable {
                 of: typeFolder,
                 where: { $0.pathExtension == "md" }
             )
-            for pageURL in pageFiles {
+            MemberFileStrip.forEach(pageFiles) { pageURL in
                 var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageURL)
-                guard fm.properties[propertyID] != nil else { continue }
+                guard fm.properties[propertyID] != nil else { return }
                 fm.properties.removeValue(forKey: propertyID)
                 let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
                 tx.stage(payload: data, to: pageURL)
@@ -291,9 +291,9 @@ struct DualRelationCoordinator: Sendable {
                 of: typeFolder,
                 where: { $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_") }
             )
-            for itemURL in itemFiles {
+            MemberFileStrip.forEach(itemFiles) { itemURL in
                 var item = try AtomicJSON.decode(Item.self, from: itemURL)
-                guard item.properties[propertyID] != nil else { continue }
+                guard item.properties[propertyID] != nil else { return }
                 item.properties.removeValue(forKey: propertyID)
                 tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
             }
@@ -303,9 +303,9 @@ struct DualRelationCoordinator: Sendable {
             let taskFiles = try Filesystem.children(of: dir) { url in
                 url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
             }
-            for taskURL in taskFiles {
+            MemberFileStrip.forEach(taskFiles) { taskURL in
                 var task = try AtomicJSON.decode(AgendaTask.self, from: taskURL)
-                guard task.properties[propertyID] != nil else { continue }
+                guard task.properties[propertyID] != nil else { return }
                 task.properties.removeValue(forKey: propertyID)
                 tx.stage(payload: try AtomicJSON.encode(task), to: taskURL)
             }
@@ -315,9 +315,9 @@ struct DualRelationCoordinator: Sendable {
             let eventFiles = try Filesystem.children(of: dir) { url in
                 url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
             }
-            for eventURL in eventFiles {
+            MemberFileStrip.forEach(eventFiles) { eventURL in
                 var event = try AtomicJSON.decode(AgendaEvent.self, from: eventURL)
-                guard event.properties[propertyID] != nil else { continue }
+                guard event.properties[propertyID] != nil else { return }
                 event.properties.removeValue(forKey: propertyID)
                 tx.stage(payload: try AtomicJSON.encode(event), to: eventURL)
             }
@@ -332,10 +332,10 @@ extension DualRelationCoordinator.TypeKind {
     /// this returns the reserved string identifier rather than a ULID.
     var typeID: String {
         switch self {
-        case .pageType(let pt):   return pt.id
-        case .itemType(let it):   return it.id
-        case .agendaTasks:        return ReservedTypeID.agendaTasks
-        case .agendaEvents:       return ReservedTypeID.agendaEvents
+        case .pageType(let pt): return pt.id
+        case .itemType(let it): return it.id
+        case .agendaTasks: return ReservedTypeID.agendaTasks
+        case .agendaEvents: return ReservedTypeID.agendaEvents
         }
     }
 }

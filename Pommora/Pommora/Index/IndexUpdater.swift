@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import os
 
 /// Per-mutation writes to the SQLite index. Called post-commit by every
 /// manager CRUD method. Failures here are non-fatal — log via `pendingError`
@@ -16,6 +17,8 @@ struct IndexUpdater: Sendable {
     init(_ index: PommoraIndex) {
         self.index = index
     }
+
+    private nonisolated static let log = Logger(subsystem: "Pommora", category: "IndexUpdater")
 
     // MARK: - ISO-8601 helpers
 
@@ -101,25 +104,52 @@ struct IndexUpdater: Sendable {
         pageCollectionID: String?
     ) throws {
         let propsJSON = propertiesJSON(meta.frontmatter.properties)
-        let modifiedAt = (try? FileManager.default.attributesOfItem(atPath: meta.url.path)[.modificationDate] as? Date).map { iso($0) } ?? nowISO()
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO pages
-                        (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                arguments: [meta.id, pageTypeID, pageCollectionID, meta.title, meta.frontmatter.icon, propsJSON, modifiedAt]
+        let modifiedAt =
+            (try? FileManager.default.attributesOfItem(atPath: meta.url.path)[.modificationDate] as? Date).map {
+                iso($0)
+            } ?? nowISO()
+        func write(collectionID: String?) throws {
+            try index.dbQueue.write { db in
+                try db.execute(
+                    sql: """
+                        INSERT OR REPLACE INTO pages
+                            (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                    arguments: [
+                        meta.id, pageTypeID, collectionID, meta.title, meta.frontmatter.icon, propsJSON, modifiedAt,
+                    ]
+                )
+                try reconcileRelations(
+                    db: db,
+                    sourceID: meta.id,
+                    sourceKind: "page",
+                    properties: meta.frontmatter.properties,
+                    tier1: meta.frontmatter.tier1,
+                    tier2: meta.frontmatter.tier2,
+                    tier3: meta.frontmatter.tier3
+                )
+            }
+        }
+        do {
+            try write(collectionID: pageCollectionID)
+        } catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT {
+            // The index is a regeneratable cache — a parent (page_type / page_collection)
+            // that isn't indexed yet must NEVER be fatal (it surfaced as the
+            // "FOREIGN KEY constraint failed" toast). If only the collection is missing,
+            // retry without it so the page still indexes under its Vault; if the Vault
+            // itself is missing, skip + log.
+            Self.log.error(
+                "upsertPage FK violation for page \(meta.id, privacy: .public): \(String(describing: error), privacy: .public)"
             )
-            try reconcileRelations(
-                db: db,
-                sourceID: meta.id,
-                sourceKind: "page",
-                properties: meta.frontmatter.properties,
-                tier1: meta.frontmatter.tier1,
-                tier2: meta.frontmatter.tier2,
-                tier3: meta.frontmatter.tier3
-            )
+            guard pageCollectionID != nil else { return }
+            do {
+                try write(collectionID: nil)
+            } catch {
+                Self.log.error(
+                    "upsertPage skipped page \(meta.id, privacy: .public) — parent type unindexed: \(String(describing: error), privacy: .public)"
+                )
+            }
         }
     }
 
@@ -182,27 +212,47 @@ struct IndexUpdater: Sendable {
 
     func upsertItem(_ item: Item, itemTypeID: String, itemCollectionID: String?) throws {
         let propsJSON = propertiesJSON(item.properties)
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO items
-                        (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                arguments: [
-                    item.id, itemTypeID, itemCollectionID,
-                    item.title, item.icon, item.description, propsJSON, iso(item.modifiedAt),
-                ]
+        func write(collectionID: String?) throws {
+            try index.dbQueue.write { db in
+                try db.execute(
+                    sql: """
+                        INSERT OR REPLACE INTO items
+                            (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                    arguments: [
+                        item.id, itemTypeID, collectionID,
+                        item.title, item.icon, item.description, propsJSON, iso(item.modifiedAt),
+                    ]
+                )
+                try reconcileRelations(
+                    db: db,
+                    sourceID: item.id,
+                    sourceKind: "item",
+                    properties: item.properties,
+                    tier1: item.tier1,
+                    tier2: item.tier2,
+                    tier3: item.tier3
+                )
+            }
+        }
+        do {
+            try write(collectionID: itemCollectionID)
+        } catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT {
+            // Mirror of upsertPage: a missing parent must never be fatal. Retry without
+            // the (missing) collection so the item still indexes under its Type; if the
+            // Type itself is missing, skip + log.
+            Self.log.error(
+                "upsertItem FK violation for item \(item.id, privacy: .public): \(String(describing: error), privacy: .public)"
             )
-            try reconcileRelations(
-                db: db,
-                sourceID: item.id,
-                sourceKind: "item",
-                properties: item.properties,
-                tier1: item.tier1,
-                tier2: item.tier2,
-                tier3: item.tier3
-            )
+            guard itemCollectionID != nil else { return }
+            do {
+                try write(collectionID: nil)
+            } catch {
+                Self.log.error(
+                    "upsertItem skipped item \(item.id, privacy: .public) — parent type unindexed: \(String(describing: error), privacy: .public)"
+                )
+            }
         }
     }
 

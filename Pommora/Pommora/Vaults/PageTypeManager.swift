@@ -583,7 +583,10 @@ extension PageTypeManager {
 
             if let updater = indexUpdater {
                 let position = updated.properties.count - 1
-                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: position) } catch { self.pendingError = error }
+                do {
+                    try updater.upsertPropertyDefinition(
+                        def, owningTypeID: typeID, owningTypeKind: "page_type", position: position)
+                } catch { self.pendingError = error }
             }
 
             types[i] = updated
@@ -664,7 +667,10 @@ extension PageTypeManager {
             try updated.save(to: meta)
 
             if let updater = indexUpdater {
-                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex) } catch { self.pendingError = error }
+                do {
+                    try updater.upsertPropertyDefinition(
+                        renamedDef, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex)
+                } catch { self.pendingError = error }
             }
 
             types[typeIndex] = updated
@@ -888,7 +894,9 @@ extension PageTypeManager {
                 }
                 if let updater = indexUpdater {
                     do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch { self.pendingError = error }
+                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch {
+                        self.pendingError = error
+                    }
                 }
                 return
             }
@@ -910,9 +918,9 @@ extension PageTypeManager {
                 where: { url in
                     url.pathExtension == "md"
                 })
-            for pageURL in pageFiles {
+            MemberFileStrip.forEach(pageFiles) { pageURL in
                 var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageURL)
-                guard fm.properties[propertyID] != nil else { continue }
+                guard fm.properties[propertyID] != nil else { return }
                 fm.properties.removeValue(forKey: propertyID)
                 let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
                 tx.stage(payload: data, to: pageURL)
@@ -966,7 +974,10 @@ extension PageTypeManager {
 
             if let updater = indexUpdater {
                 for (pos, def) in updated.properties.enumerated() {
-                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: pos) } catch { self.pendingError = error }
+                    do {
+                        try updater.upsertPropertyDefinition(
+                            def, owningTypeID: typeID, owningTypeKind: "page_type", position: pos)
+                    } catch { self.pendingError = error }
                 }
             }
 
@@ -1015,7 +1026,10 @@ extension PageTypeManager {
                 try updated.save(to: meta)
                 if let updater = indexUpdater {
                     let def = updated.properties[propIndex]
-                    do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex) } catch { self.pendingError = error }
+                    do {
+                        try updater.upsertPropertyDefinition(
+                            def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex)
+                    } catch { self.pendingError = error }
                 }
                 types[typeIndex] = updated
                 return
@@ -1044,9 +1058,9 @@ extension PageTypeManager {
                 where: { url in
                     url.pathExtension == "md"
                 })
-            for pageURL in pageFiles {
+            MemberFileStrip.forEach(pageFiles) { pageURL in
                 var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageURL)
-                guard fm.properties[propertyID] != nil else { continue }
+                guard fm.properties[propertyID] != nil else { return }
                 fm.properties.removeValue(forKey: propertyID)
                 let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
                 tx.stage(payload: data, to: pageURL)
@@ -1056,7 +1070,10 @@ extension PageTypeManager {
 
             if let updater = indexUpdater {
                 let def = updated.properties[propIndex]
-                do { try updater.upsertPropertyDefinition(def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex) } catch { self.pendingError = error }
+                do {
+                    try updater.upsertPropertyDefinition(
+                        def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex)
+                } catch { self.pendingError = error }
             }
 
             types[typeIndex] = updated
