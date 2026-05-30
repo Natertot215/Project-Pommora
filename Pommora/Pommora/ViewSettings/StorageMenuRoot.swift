@@ -5,18 +5,18 @@ import SymbolPicker
 /// scopes (PageType / PageCollection / ItemType / ItemCollection).
 ///
 /// Mirrors Notion's view-settings dropdown shape — header (icon + title,
-/// both inline-editable for Type scopes) + a stack of pane rows. Two rows
-/// are ACTIVE at v0.3.1 (Edit Properties + Property Visibility); the
-/// remaining four (Layout / Filter / Sort / Group) render muted as
-/// placeholder rows pointing at later v0.3.1.x patches.
+/// both inline-editable for all four storage scopes) + a stack of pane
+/// rows. Two rows are ACTIVE at v0.3.1 (Edit Properties + Property
+/// Visibility); the remaining four (Layout / Filter / Sort / Group) render
+/// muted as placeholder rows pointing at later v0.3.1.x patches.
 ///
-/// Header inline edits (Type scopes only; Collection scopes get a display-
-/// only header — Collections rename via the sidebar context menu, and they
-/// don't carry their own icon at v0.3.1):
-///   - Click icon → SymbolPicker sheet → commits via updatePageTypeIcon /
-///     updateItemTypeIcon
+/// Header inline edits (all four storage scopes — Types and Collections
+/// alike; Collections carry their own icon since #45 and rename via the
+/// atomic folder-move rename methods):
+///   - Click icon → SymbolPicker popover → commits via updatePageTypeIcon /
+///     updateItemTypeIcon / updatePageCollectionIcon / updateItemCollectionIcon
 ///   - Click title → inline TextField → commits via renamePageType /
-///     renameItemType on submit
+///     renameItemType / renamePageCollection / renameItemCollection on submit
 ///
 /// Push behavior lives at the popover level — this view appends routes to
 /// the `path` binding passed from the popover.
@@ -72,102 +72,76 @@ struct StorageMenuRoot: View {
         }
     }
 
-    /// Tappable icon for Type scopes (opens SymbolPicker), static Image for
-    /// Collection scopes (Collections don't carry icons at v0.3.1).
-    /// Faint rounded-rectangle background matches the OptionEditPopover
-    /// title-pill emphasis (per Nathan's 2026-05-26 direction).
+    /// Tappable icon for every storage scope — opens the SymbolPicker
+    /// popover. The faint rounded-rectangle background matches the
+    /// OptionEditPopover title-pill emphasis (per Nathan's 2026-05-26
+    /// direction).
     @ViewBuilder
     private var iconAffordance: some View {
-        if isTypeScope {
-            Button {
-                iconPickerOpen = true
-            } label: {
-                Image(systemName: headerIcon)
-                    .font(PUI.Icon.header)
-                    .foregroundStyle(.primary)
-                    .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
-                    .fieldBackground()
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Change icon")
-            // Constrained popover replaces SymbolPicker's default huge
-            // sheet per Nathan's 2026-05-26 direction. Frame sized to fit
-            // SymbolPicker's internal grid + section sidebar without
-            // horizontal/vertical clipping.
-            .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
-                SymbolPicker(symbol: iconBinding)
-                    .frame(width: 540, height: 460)
-            }
-        } else {
+        Button {
+            iconPickerOpen = true
+        } label: {
             Image(systemName: headerIcon)
                 .font(PUI.Icon.header)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
                 .fieldBackground()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Change icon")
+        // Constrained popover replaces SymbolPicker's default huge
+        // sheet per Nathan's 2026-05-26 direction. Frame sized to fit
+        // SymbolPicker's internal grid + section sidebar without
+        // horizontal/vertical clipping.
+        .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
+            SymbolPicker(symbol: iconBinding)
+                .frame(width: 540, height: 460)
         }
     }
 
-    /// Tappable title for Type scopes (inline TextField rename), static
-    /// Text for Collection scopes (rename via sidebar context menu). All
-    /// variants share the faint pill background — matches OptionEditPopover
-    /// title emphasis (per Nathan's 2026-05-26 direction).
+    /// Tappable title for every storage scope — click to reveal an inline
+    /// rename TextField (commits on submit/blur). Shares the faint pill
+    /// background with OptionEditPopover title emphasis (per Nathan's
+    /// 2026-05-26 direction).
     @ViewBuilder
     private var titleAffordance: some View {
-        if isTypeScope {
-            if isRenaming {
-                TextField("Title", text: $renameDraft)
-                    .textFieldStyle(.plain)
-                    .font(.title3)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fieldBackground()
-                    .focused($renameFocused)
-                    .onAppear {
-                        renameDraft = headerTitle
-                        renameFocused = true
-                    }
-                    .onSubmit { Task { await commitRename() } }
-                    .onChange(of: renameFocused) { wasFocused, isFocused in
-                        // Commit on click-out (blur), not just Enter.
-                        if wasFocused && !isFocused { Task { await commitRename() } }
-                    }
-            } else {
-                Button {
-                    renameDraft = headerTitle
-                    isRenaming = true
-                } label: {
-                    Text(headerTitle)
-                        .font(.title3)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fieldBackground()
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Rename")
-            }
-        } else {
-            Text(headerTitle)
+        if isRenaming {
+            TextField("Title", text: $renameDraft)
+                .textFieldStyle(.plain)
                 .font(.title3)
-                .lineLimit(1)
-                .truncationMode(.tail)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fieldBackground()
-        }
-    }
-
-    private var isTypeScope: Bool {
-        switch scope {
-        case .pageType, .itemType: return true
-        default: return false
+                .focused($renameFocused)
+                .onAppear {
+                    renameDraft = headerTitle
+                    renameFocused = true
+                }
+                .onSubmit { Task { await commitRename() } }
+                .onChange(of: renameFocused) { wasFocused, isFocused in
+                    // Commit on click-out (blur), not just Enter.
+                    if wasFocused && !isFocused { Task { await commitRename() } }
+                }
+        } else {
+            Button {
+                renameDraft = headerTitle
+                isRenaming = true
+            } label: {
+                Text(headerTitle)
+                    .font(.title3)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fieldBackground()
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Rename")
         }
     }
 
@@ -184,9 +158,9 @@ struct StorageMenuRoot: View {
     private var headerIcon: String {
         switch scope {
         case .pageType(let t): return t.icon ?? "folder"
-        case .pageCollection: return "folder"  // PageCollection doesn't carry icon yet
+        case .pageCollection(let c): return c.icon ?? "folder"
         case .itemType(let t): return t.icon ?? "tray"
-        case .itemCollection: return "tray"
+        case .itemCollection(let c): return c.icon ?? "tray"
         default: return "slider.horizontal.3"
         }
     }
@@ -208,8 +182,12 @@ struct StorageMenuRoot: View {
         switch scope {
         case .pageType(let t):
             try? await pageTypeManager.updatePageTypeIcon(t, to: newIcon)
+        case .pageCollection(let c):
+            try? await pageTypeManager.updatePageCollectionIcon(c, to: newIcon)
         case .itemType(let t):
             try? await itemTypeManager.updateItemTypeIcon(t, to: newIcon)
+        case .itemCollection(let c):
+            try? await itemTypeManager.updateItemCollectionIcon(c, to: newIcon)
         default:
             break
         }
@@ -222,8 +200,12 @@ struct StorageMenuRoot: View {
         switch scope {
         case .pageType(let t):
             try? await pageTypeManager.renamePageType(t, to: trimmed)
+        case .pageCollection(let c):
+            try? await pageTypeManager.renamePageCollection(c, to: trimmed)
         case .itemType(let t):
             try? await itemTypeManager.renameItemType(t, to: trimmed)
+        case .itemCollection(let c):
+            try? await itemTypeManager.renameItemCollection(c, to: trimmed)
         default:
             break
         }
