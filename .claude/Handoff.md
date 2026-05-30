@@ -4,6 +4,8 @@
 
 #### Current state (2026-05-29)
 
+> **✅ RESOLVED — the "empty tier picker" cluster had TWO roots, both fixed + confirmed on the real nexus.** (1) **Index all-or-nothing rebuild** — one bad row rolled back the whole rebuild → empty index (`02f8a67`: resilient per-row `IndexBuilder.attemptInsert` + defer the `schema_version` stamp until `populate` succeeds via `PommoraIndex.markSchemaVersionCurrent` + `currentSchemaVersion` 5). (2) **Picker popover collapse** — `RelationPicker`'s chromeless popover sized to its zero-size loading state and never grew → a tiny "liquid glass" blob (`9deb818`: fixed picker panel width). The data + wiring were correct the whole time — proven by reading Nathan's real index (`The Nexus/.nexus/index.db`: v5, **3 Spaces / 2 Topics / 3 Projects**); the picker assigns correctly now. Lesson → CLAUDE.md **"Layer-confusion check"** HARD RULE (confirm the data directly before blaming it). **DEFERRED — Part 3** (defensive `upsertPage` for genuinely-malformed sidecars): not needed for Nathan's data; logged at Fix Log #12. **Next = Make Relations Real Task 4** — the grouped relation **value picker**: one data-driven liquid-glass dropdown showing a side-by-side **sub-menu** when candidates have Collections (Vault/Item-Type value lists) and **flat rows** when not (tiers/contexts; the editor's storage-target selector reuses it flat). Spec locked: 150×235/panel, body-regular, 8pt rows, inset separator, Collection rows w/ chevron, leaf rows w/ blue checkmark-on-selected; `RelationChip` = assigned-value inline only. Full re-planned spec → `Planning/Make-Relations-Real-Plan.md`. Clean HEAD = `9deb818`.
+
 Working tree on `main`, green (only the known `PageEditorViewModelTests.debounceCoalescesRapidEdits` editor-timing flake fails).
 
 **Relations Redesign — COMPLETE (Phases 0–22).** Relations and tiers are one linking system: tiers flow through the relation pipeline and the SQLite `relations` table (the `tier_links` table is retired); relations are always-multi (`[{"$rel":"<ULID>"}]`); `RelationTarget` covers Page Type / Item Type / Agenda Tasks / Agenda Events (+ internal `context_tier`); a single-pane editor creates/edits both sides (home + reverse name + reverse icon); deleting a Context cascades source-side; Agenda Tasks/Events are relation targets. The Lean adoption migration normalizes legacy sidecars on a one-time re-save (Type sidecar `schemaVersion` 1→2; index DB `currentSchemaVersion` 2→3 forces a rebuild that backfills tiers) — lossless changes apply silently, and the one lossy step (dropping a context-tier-targeted property) is gated behind an acknowledgment in the adoption preview. Relation values render as the target's **icon + title** in styled colored text (interim — chip visual is Next focus #1). Full play-by-play → `History.md` (2026-05-29 entry); paradigm decisions #8–#12 → `Guidelines/Paradigm-Decisions.md`; `Features/*` specs rewritten forward-only (Phase 21).
@@ -12,10 +14,8 @@ Working tree on `main`, green (only the known `PageEditorViewModelTests.debounce
 
 #### Next focuses
 
-1. **Relation chips + hierarchical value pickers (asap — Nathan's priority).**
-   - **Relation chip visual.** Design and build the real relation chip, then restyle the single `RelationChip` primitive (interim is plain icon + title); it propagates to every relation display surface. Fold the target icon into the tier-row panel surfaces (PropertyPanel / PropertiesPulldown / FrontmatterInspector / ItemWindow) as part of this — see Fix Log #11.
-   - **Hierarchical relation value pickers.** Replace the v1 flat `ChipDropdown` rows with tree pickers: Vaults expand to Collections → member Pages; Item Types expand to Sets → member Items (root entities at top). A generic `HierarchicalEntityMenu` primitive powers both.
-2. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder).
+1. **Make Relations Real — Tasks 4–7** (active plan → `Planning/Make-Relations-Real-Plan.md`). Tasks 1–3 (render half: index icons + shared `RelationDisplayResolver` + tables render icon+title) shipped. Next: Task 4 grouped value picker (side-by-side sub-menu / flat) → Task 5 tier chips on panels (Fix Log #11) → Task 6 relation/status/tier editors in `PropertyEditorRow` + editable Page tiers → Task 7 v5 rebuild smoke-test.
+2. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder; Task 6 wires the editors it will host).
 3. **Page Previews** — standalone-window page preview (cross-feature PreviewWindow primitive).
 
 Open relation fixes: legacy Vault/Type Settings "Relation" dead-end (Fix Log #10); edit-side editing of an existing relation's reverse name/icon (create-side sets both; no source-side edit path yet); `LinkedFromDropdown` real Context-side surface (bare stub → logged in `Prospects.md`).
@@ -46,6 +46,7 @@ Acknowledged, not-yet-fixed — address soon (keep current per Handoff Rules):
 9. **Chip Colors.** Teal + Purple render as the exact same color as blue and violet on chips; needs fixing.
 10. **Relation-add dead-end in legacy sheets.** Picking "Relation" in the Vault/Type Settings sheets (the context-menu schema editors) silently cancels — relations are created via the View Settings popover editor. Hide the Relation option in those sheets (or route it to the editor) so it isn't a no-op.
 11. **Tier-row panels may show title-only.** The tier-row displays (PropertyPanel / PropertiesPulldown / FrontmatterInspector / ItemWindow) render the target's title but may omit its icon (the table cells + picker already show icon + title). Fold in with the relation-chip work (Next focus #1).
+12. **Property columns on table views don't show their icons** — that needs to be fixed. Column-sizing is also non-persistent between sessions.
 
 #### Handoff Rules
 

@@ -26,6 +26,8 @@ Items open in a popover-style **Item Window** (title + properties + 250-char des
 
 - **`Handoff.md` is a lean snapshot + Fix Log.** Maintain `Handoff.md` as current state + next focuses + a Fix Log only (1–2 sentence acknowledged-but-not-yet-fixed entries; clear on resolve). Route everything else to its canonical home. Never accumulate per-session work logs in the Handoff unless it's pending completion.
 
+- **Layer-confusion check — confirm the data before blaming it.** A wrong, empty, or "(missing)" UI surface does **not** mean the data layer is broken. The symptom sits at the *end* of a chain (store → query → load → render), and a UI fault mimics a data fault perfectly. Before touching the store, **verify the data directly** — query the SQLite index, read the on-disk file, or run the exact query the view runs — to split two distinct failures: **data is wrong** (fix the index / rebuild / file) vs. **data is correct but the view can't read or render it** (fix the UI: env injection, load timing, popover/layout sizing, live-refresh). Name the confirmed layer before proposing a fix; "the picker is empty" and "the index is empty" are different claims — prove which is true. 
+
 #### Stack
 
 Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as a contingency path — playbook + topic files at `// ReactInfo//`.

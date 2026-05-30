@@ -465,7 +465,7 @@ Per-view configuration via the consolidated `slider.horizontal.3` toolbar button
 
 **Chip primitives** (`Pommora/Properties/Chips/`):
 
-- `RelationChip` — the single rendering primitive for relation property values across every surface (Table cells, property panel, page-editor inspector, Item Window, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. A dedicated chip visual (boxed, colored) is a future design.
+- `RelationChip` — the single rendering primitive for relation property values across every surface (Table cells, property panel, page-editor inspector, Item Window, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. Resolution happens at the consumer (via `IndexQuery` against the SQLite index); the chip receives pre-resolved strings and is purely visual — the file holds only the target's `$rel` ID, and a chip that renders blank or `(missing)` means the index lookup missed (stale/unbuilt row), not that the on-disk value is gone. A dedicated chip visual (boxed, colored) is a future design.
 - `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
 - `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
 - `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance.
