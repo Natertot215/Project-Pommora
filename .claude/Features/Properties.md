@@ -26,7 +26,7 @@ Each entity belongs to one Type. Every Type carries a schema in its per-kind sid
 
 Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation targets, etc.). Member entities store property VALUES conforming to that schema.
 
-Page Collections and Item Collections do not carry their own property schemas — they inherit from their parent Type. Their sidecars (`_pagecollection.json` / `_itemcollection.json`) carry id, parent-Type linkage, and per-view config (`views[]`); `_itemcollection.json` additionally holds the Collection's pinned-property chips.
+Page Collections and Item Collections do not carry their own property schemas — they inherit from their parent Type. Their sidecars (`_pagecollection.json` / `_itemcollection.json`) carry id, parent-Type linkage, an optional `icon` (mirrored into SQLite for the relation picker), and per-view config (`views[]`); `_itemcollection.json` additionally holds the Collection's pinned-property chips.
 
 ---
 
@@ -288,7 +288,7 @@ The built-in tier relations (`context_tier` target) are not paired — Contexts 
 
 ##### Creating a Relation property — the relation editor
 
-A single-pane editor handles both create and edit. It sets the home target plus the reverse (mirror) name and reverse icon — no multi-step wizard:
+A single-pane editor handles creation: it sets the home target plus the reverse (mirror) name and reverse icon — no multi-step wizard. (Post-creation editing of a relation's name/icon is #34, pending; today renaming is per-side via the property menu — see Lifecycle above.)
 
 ```
 Example: User in Page Type Y wants to relate to Pages in Page Type X.

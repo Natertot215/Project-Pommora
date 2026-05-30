@@ -13,7 +13,7 @@ Maps to PARA's "Resources" alongside Item Types and Agenda.
 | Entity | Role | On disk |
 |---|---|---|
 | **Page Type** | Folder with property schema; every Page inside shares the schema | Folder at the nexus root containing `_pagetype.json` |
-| **Page Collection** | Organizational sub-folder inside a Page Type; inherits the Type's property schema | Folder inside a Page Type containing its own `_pagecollection.json` (no `properties` — carries id, ordering, own `views`) |
+| **Page Collection** | Organizational sub-folder inside a Page Type; inherits the Type's property schema | Folder inside a Page Type containing its own `_pagecollection.json` (no `properties` — carries id, ordering, `icon`, own `views`) |
 | **Content** | Pages only (`.md`) | Files inside a Page Collection, or directly inside the Page Type |
 
 Page Collections share the parent Page Type's schema for simplicity (Collection-local overrides are a post-v1 Prospect). Items are NOT inside Page Types — they live on the Items side; see [[Items]].
@@ -197,13 +197,14 @@ Filesystem folders inside a Page Type with a minimal sidecar. Pages-only — Pag
   "id": "01H...",
   "type_id": "01H...",
   "schema_version": 1,
+  "icon": "folder",
   "page_order": [],
   "views": [],
   "modified_at": "2026-05-22T..."
 }
 ```
 
-Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `page_order` (user-arranged child Pages), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
+Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the relation picker), `page_order` (user-arranged child Pages), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
 
 - Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id/type_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page between Collections in the same Page Type = pure filesystem move, properties unchanged.
 
