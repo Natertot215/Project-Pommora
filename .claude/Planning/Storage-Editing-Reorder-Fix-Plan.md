@@ -30,6 +30,22 @@ Nathan's decisions: **#3** = the Edit Properties pane (treat as reproduce-then-f
 
 ---
 
+### Progress + lessons (live)
+
+**Shipped green on `main` (commit):** Phase 0 — Kind column removed `bd42545`, Set breadcrumb removed `2a024ca`. Phase 1 — F1 collection icon setters `df43df1`, F2 Items reorder persistence + `setItemOrder(inType:)` `cd55084`, F3 `updatePairedRelation` `8222a2f`. Phase 4 (DRAG-WORK, **DONE**) — `DetailReorderPlanner` `f6985a9` + 4-view wiring `20674c7`. Plan docs `d43769f`/`fe9b80b`. Parallel-session UIX (RelationPicker/SelectionCheckmark, green-verified, per Nathan) `23ea94b`/`f8d649f`/`bc65d29`.
+
+**Remaining:** Phase 2 (Task 2 popover-header editable + Task 5 detail-header editable), Phase 3 (relation create/edit unification — see the targetKind note in its Save bullet), Phase 5 (#3 spike).
+
+**Lessons (carry forward):**
+- **`Array.move(fromOffsets:toOffset:)` is a SwiftUI extension** — test files using it need `import SwiftUI` (not just Foundation/Testing). Bit the 4a RED step.
+- **Layer-confusion applies to TESTS too:** a 4a GREEN "failure" was a malformed assertion (`IndexSet(subset.indices)` compared two 0-based subset index spaces), NOT an impl bug — read the test before touching correct code.
+- **Reorder sort-override hypothesis REFUTED** (don't re-investigate): no sort-by-modified/created, no column sort, `SavedView.sort` is an unused stub. The cause was purely session-only `handleDrop`. The reorder MODEL was kept (per-kind order arrays + `DetailReorderPlanner` adapter) rather than reworked to a unified `childOrder` (smaller, no migration, meets criteria); type-root stays grouped (pages then folders) — cross-kind interleaving is a deferred Prospect.
+- **F3 confirmed** the coordinator can't resolve a Type from an id → Phase 3 must resolve home+target TypeKinds and refresh both managers (in its Save bullet).
+- **pbxproj churn:** Xcode reorders the **GRDB** package entries on every build (extends quirk #6) — revert `Pommora/Pommora.xcodeproj/project.pbxproj` before each commit.
+- **Parallel session** actively iterates `RelationPicker`/`SelectionCheckmark` (relation *value* picker) — re-check the tree before Phase 3 (which edits `EditPropertyPane`, adjacent) for collisions; commit its green-verified UIX as separate labeled commits.
+
+---
+
 ### Execution order, dependencies & shared files
 
 **Dependency DAG (foundations first):** F1 → Tasks 2 & 5 · F2 → Phase 4 (Items-side) · F3 → Phase 3. Each dependent task below carries a **Depends on:** tag; don't start it until its foundation is merged green (else it hits a stub and either fails confusingly or re-implements the foundation inline).
