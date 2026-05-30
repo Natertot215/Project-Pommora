@@ -117,7 +117,7 @@ Each tier filled independently. An Agenda Task can link to a Space, a Topic, and
 
 Every entity carries two independent identifiers:
 
-- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (wikilinks, relation values, tier links, the future SQLite index).
+- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (wikilinks, relation values, tier links, the SQLite index).
 - **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else. Cross-references are NOT rewritten on rename — they're ID-keyed and resolve to the current title at render time.
 
 **Duplicate titles allowed within the same container** — two Pages named "Meeting Notes" in the same Page Type / Page Collection is fine because their IDs are distinct. Filesystem may auto-disambiguate (append `(2)` etc.) but the displayed title stays the user-typed value. The prior strict-reject duplicate-title validator behavior is dropped.

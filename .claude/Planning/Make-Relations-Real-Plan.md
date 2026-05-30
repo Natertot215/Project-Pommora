@@ -48,7 +48,7 @@
 - **Create:** `PommoraTests/Index/EntitiesByTargetGroupedTests.swift`
 - **Modify (data):** `Index/IndexQuery.swift` (+`EntityGroup`/`GroupedEntities` + `entitiesByTargetGrouped`)
 - **Modify (picker):** `Properties/RelationPicker.swift` (rewrite body: grouped + side-by-side sub-menu; keep `computeSelection` + the public API + the fixed-size guarantee from `9deb818`)
-- **Create (Component Library, if needed):** a `SelectionCheckmark` (blue badge shown only when selected) — only if no existing primitive renders check-only-when-selected (HARD RULE: stage in the Component Library, reuse)
+- **Create (Component Library):** `SelectionCheckmark` (blue rounded-square + white check, shown ONLY when selected) — **confirmed required** (audit): `PropertyCheckbox` always draws a box when unchecked, so it can't be reused. Stage under `Pommora/ComponentLibrary/` (HARD RULE).
 - **Modify (tier chips):** `ItemWindow/ItemWindow.swift`, `Properties/PropertyPanel.swift`
 - **Modify (editors):** `ItemWindow/PropertyEditorRow.swift` + hosts, `Pages/FrontmatterInspector.swift`, `ContentView.swift` (env injection, quirk #16)
 - **Tests:** `PommoraTests/Index/IconBackfillTests.swift` (v5 rebuild smoke-test)
@@ -61,7 +61,7 @@
 
 **4a — Data layer**
 
-- [ ] **Step 1 — Add the grouped query types + method to `IndexQuery`.** Only `.pageType` / `.itemType` scopes produce groups; every other scope returns flat via existing `entitiesByTarget` (DRY). Give the structs **implicit memberwise inits** (nonisolated by default — quirk #5; do NOT add explicit inits, or they become `@MainActor` and break inside the GRDB read closure).
+- [ ] **Step 1 — Add the grouped query types + method to `IndexQuery`.** Only `.pageType` / `.itemType` scopes produce groups; every other scope returns flat via existing `entitiesByTarget` (DRY). Give the structs **implicit memberwise inits** OR an explicit `nonisolated init` (quirk #5 — the requirement is *nonisolated*, not *implicit*; the shipped `EntityRef` uses an explicit `nonisolated init`. A *plain* explicit init would become `@MainActor` and break inside the GRDB read closure).
 
 ```swift
 struct EntityGroup: Sendable, Equatable { let container: EntityRef; let members: [EntityRef] }
@@ -113,7 +113,7 @@ func entitiesByTargetGrouped(_ target: PropertyDefinition.RelationTarget) async 
 
 **4b — The picker view** (rewrite `RelationPicker` body; keep the public API `selectedIDs`/`scope`/`index`/`onSelect`, `computeSelection`, and the `panelWidth` fixed-size guarantee. Per quirk #13 keep all row rendering in private value-type sub-views.)
 
-- [ ] **Step 4 — Picker state + data load.** Replace the flat-list body. Load grouped data in `.task`; track which collection is open.
+- [ ] **Step 4 — Picker state + data load.** Replace the flat-list body — and **drop the current single outer `.frame(width:).padding(8).chipDropdownPanel()` wrapper** (`RelationPicker.swift:22-28`); each panel below now owns its own sizing + chrome. Load grouped data in `.task`; track which collection is open.
 
 ```swift
 private static let panelWidth: CGFloat = 150
@@ -184,7 +184,7 @@ private func leafRow(_ e: EntityRef) -> some View {
 - [ ] **Step 6 — The row sub-views** (private structs, plain value types):
   - `RelationCollectionRow` — `Image(systemName: "folder")` + `Text(title).font(.body)` + `Spacer()` + `Image(systemName: "chevron.right")`; whole row is the drill button (`onTap`); subtle highlight when `isActive`.
   - `RelationLeafRow` — `Image(systemName: icon)` + `Text(title).font(.body)` + `Spacer()` + **the blue selection checkmark shown only when `isSelected`** (else an empty fixed-width spacer so titles align). Whole row toggles via `onTap`.
-  - **Checkmark:** reuse the existing blue-square-with-white-check primitive if one renders *check-only-when-selected*; if not, add `SelectionCheckmark` to the Component Library and reuse it (HARD RULE — no one-off). It must match the mockup: blue rounded square, white `checkmark`, ~20pt.
+  - **Checkmark:** **create `SelectionCheckmark`** (audit-confirmed: `PropertyCheckbox` always draws a box when unchecked, so it does NOT fit). Blue rounded square + white `checkmark`, ~20pt, rendered ONLY when selected; stage under `Pommora/ComponentLibrary/` and reuse (HARD RULE — no one-off).
 
 - [ ] **Step 7 — Build green; commit.** Manual check after the session: a Vault relation cell opens collections (folder + chevron) that pop a second panel to the right with members; loose pages appear below the divider; a tier cell shows a flat list (no sub-menu); selecting toggles the blue checkmark and commits the same `[ID]` value as before; the picker no longer collapses (the `9deb818` guarantee holds — fixed `frame`).
 
@@ -194,7 +194,7 @@ private func leafRow(_ e: EntityRef) -> some View {
 
 **Files:** `ItemWindow/ItemWindow.swift` (`relationLine`), `Properties/PropertyPanel.swift` (`tierRow`)
 
-- [ ] **Step 1 — Item Window tier rows.** Add `@Environment(RelationDisplayResolver.self) private var relationResolver` + a `.task` warming `item.tier1 + item.tier2 + item.tier3`. Replace the raw-ID `Text` with a chip row (`RelationChip(icon:title:)` per resolved ID; `"(missing)"` fallback when unresolved; `"—"` when empty). Delete the existing raw-ID TODO comment.
+- [ ] **Step 1 — Item Window tier rows.** Add `@Environment(RelationDisplayResolver.self) private var relationDisplay` (use the name the four detail views already use — DRY/convention) + a `.task` warming `item.tier1 + item.tier2 + item.tier3`. Replace the raw-ID `Text` with a chip row (`RelationChip(icon:title:)` per resolved ID; `"(missing)"` fallback when unresolved; `"—"` when empty). Delete the existing raw-ID TODO comment.
 - [ ] **Step 2 — PropertyPanel tier rows.** Apply the identical chip pattern to `PropertyPanel.tierRow`; add the same `@Environment` + warm `.task`.
 - [ ] **Step 3 — Build green; commit.** Manual check: tiers show icon + title (chips) in the Item Window + property panel.
 
@@ -205,11 +205,11 @@ private func leafRow(_ e: EntityRef) -> some View {
 **Files:** `ItemWindow/PropertyEditorRow.swift` + hosts, `Pages/FrontmatterInspector.swift`, `ContentView.swift` (env, quirk #16)
 
 - [ ] **Step 1 — `PropertyEditorRow` gains `index`.** Add `var index: PommoraIndex? = nil` to the struct head (defaulted so existing call sites compile).
-- [ ] **Step 2 — Real relation editor** (replace placeholder `:32-33`) — mirror `PropertyCellEditor.relationEditor:316-334` (the now-grouped `RelationPicker` with `selectedIDs` binding + `scope: target` + `index:` + `onSelect`). Falls back to `Text("Relation has no target")` when `relationTarget == nil`.
-- [ ] **Step 3 — Real status editor** (replace read-only text `:116-124`) — mirror `PropertyCellEditor.statusEditor:276-292` (`ChipDropdown(.single)` over flattened status groups). Leave `file` deferred with a one-line comment pointing at `PropertyCellEditor.swift:341`.
+- [ ] **Step 2 — Real relation editor** (replace placeholder `:32-33`) — mirror `PropertyCellEditor.relationEditor` (`:327-349`, audit-corrected) (the now-grouped `RelationPicker` with `selectedIDs` binding + `scope: target` + `index:` + `onSelect`). Falls back to `Text("Relation has no target")` when `relationTarget == nil`.
+- [ ] **Step 3 — Real status editor** (replace read-only text `:116-124`) — mirror `PropertyCellEditor.statusEditor` (`:284-304`, audit-corrected) (`ChipDropdown(.single)` over flattened status groups). Leave `file` deferred with a one-line comment pointing at the `filePlaceholder` (`PropertyCellEditor.swift:351`).
 - [ ] **Step 4 — Thread `index` from hosts.** In `ItemWindow.swift` + `PropertyPanel.swift`, pass `index: nexusManager.currentIndex` (add `@Environment(NexusManager.self)` if absent).
 - [ ] **Step 5 — Editable `FrontmatterInspector` tiers.** Add `@Environment(NexusManager.self)`; replace the read-only `tiersSection` (`:139-147`) with a `RelationPicker` per tier bound to the VM's `draftTier1/2/3` + `handleTierChange(tier,$0)` (scope `.contextTier(n)`, `index: nexusManager.currentIndex`).
-- [ ] **Step 6 — Inject env into inspector + detail chain (quirk #16).** Confirm `NexusManager` (and `RelationDisplayResolver` if tier *display* also routes through chips) is injected wherever `FrontmatterInspector` mounts AND in the `.detail` env chain for any `.task`-bearing view that newly reads them — SIGTRAP otherwise. Verify with an actual test bootstrap, not just compile.
+- [ ] **Step 6 — Inject env at the RIGHT site (quirk #16; audit-corrected).** `FrontmatterInspector` mounts in `ContentView.inspectorContent` (`:318-336`), **NOT `detail`** — its env chain currently carries only `spaceMgr` + `vaultMgr` (`:331-332`). Add `@Environment(NexusManager.self)` there (+ `RelationDisplayResolver` if its tiers render via chips). For any `.task`-bearing DETAIL view that newly reads an env, add it to the `.detail` env chain instead (`:355-362`; the optional-unwrap guard is `:339-348`). SIGTRAP otherwise — verify via a real test bootstrap, not just compile.
 - [ ] **Step 7 — Build green; commit.** Manual check: a Page's Spaces/Topics/Projects are editable from the inspector; Item relation + status properties are editable in the Item Window.
 
 ---
@@ -225,10 +225,28 @@ private func leafRow(_ e: EntityRef) -> some View {
 
 ---
 
+### Task 8: Relation-lifecycle hardening — paired-delete decode crash + orphan-parent FK (diagnosed 2026-05-29)
+
+Two live errors on the **Item-Type→Vault mirror relation**, one diagnosed root each. Both are **fix-tomorrow** (diagnosed today, evidence-backed). Do these BEFORE Task 4 if they're blocking Nathan's testing.
+
+**Bug A — "the data couldn't be read because it is missing" on paired create/delete (decode crash).**
+- **Root (verified, on-disk):** the paired cascade's value-strip loads EVERY `.md` member of the targeted Vault as `PageFrontmatter` to strip the property value — `DualRelationCoordinator.stageValueStrip` `.pageType` branch (`Vaults/DualRelationCoordinator.swift:278-284`; hard `try` at `:279`). A frontmatter-less `.md` (hand-authored doc) decodes from `"{}"`; `PageFrontmatter.init(from:)` requires `id` (`Content/PageFrontmatter.swift:63`) → `DecodingError.keyNotFound(.id)` → that exact toast (surfaced via `SidebarToast.friendlyMessage:91` / `PropertyEditorErrorMessage.string:25`, neither maps the raw `DecodingError`). The throw aborts the `SchemaTransaction` before commit → orphaned half-pair, toast every attempt. Confirmed on Nathan's `The Nexus/Systems` Vault (10 frontmatter-less `.md` files). **NOT a create-side serialization bug — the mirror is written correctly.**
+- **Fix (preferred — preserves the Page `id` invariant):** wrap the per-file load/strip in `do/catch { continue }` in `stageValueStrip`'s `.pageType` branch — a frontmatter-less page can't hold the relation value, so skipping is lossless. Apply the SAME to the sibling strip loops: `PageTypeManager.deleteProperty` (`:914`) + `changeType` (`:1048`). (Do NOT relax `PageFrontmatter.id` to optional — higher blast radius; the call-site catch is contained.)
+- **Failing test:** cross-manager pair (Item-Type relation targeting a Vault, `dualProperty` set) + a raw frontmatter-less `.md` written into the Vault folder; `deleteProperty` → pre-fix throws `keyNotFound(.id)` + sets `pendingError`; post-fix deletes cleanly + leaves the `.md` untouched. (`DualRelationWiringTests` uses same-manager pairs with zero member files, so it misses this — add a new case.)
+
+**Bug B — `SQLite error 19: FOREIGN KEY constraint failed … insert or replace into pages` (the deferred Part 3, now warranted).**
+- **Root (symptom-level):** `IndexUpdater.upsertPage` inserts a page whose parent (`page_type_id` / `page_collection_id`) isn't in the index → FK violation surfaces as a toast. The index is a regeneratable cache, so a missing parent must never be fatal. Exact trigger not yet pinned (Bug A's aborted transaction can leave the index briefly inconsistent); defensive skip makes it non-fatal regardless.
+- **Fix (defensive `upsertPage` — Part 3):** on a FK failure, **skip + `os.Logger`-log** instead of setting `pendingError`/toasting; optionally null an orphan `page_collection_id` so the page still indexes under its type. Mirror in `upsertItem`. After Bug A is fixed, confirm whether B still reproduces; if so, `log`-instrument the exact failing parent.
+- **Test:** update `IndexPopulationReproTests` Test B (currently ASSERTS the throw) to assert the resilient outcome (no throw; page indexed or skipped).
+
+**Layer note (per the Layer-confusion check):** Bug A is a genuine DATA/serialization fault (a decode); Bug B is the index (query/display) layer. Neither is the picker — verified, not assumed.
+
+---
+
 ### Risks / notes
 
 - **Don't regress `9deb818`.** Every picker panel MUST carry a fixed `.frame(width:height:)` — the chromeless popover will collapse to a blob otherwise. The HStack-of-panels keeps each panel fixed; the popover grows to the HStack. Verify the picker renders at a stable size in BOTH the flat (tier) and grouped (Vault) cases.
-- **Default-MainActor isolation (quirk #5).** `EntityGroup`/`GroupedEntities` must use implicit memberwise inits (nonisolated) so they construct inside the GRDB read closure. No explicit inits.
+- **Default-MainActor isolation (quirk #5).** `EntityGroup`/`GroupedEntities` must be *nonisolated*-constructible inside the GRDB read closure — use implicit memberwise inits OR an explicit `nonisolated init` (the shipped `EntityRef` uses the latter). A plain explicit init becomes `@MainActor` and breaks.
 - **GRDB String-overload pollution (quirk #13).** Keep all row rendering in the isolated private sub-views; use the existing `Array.containsID(_:)` helper (`first(where:)`), never `contains`.
 - **`@Environment` in the `.detail` chain (quirk #16).** Any new env a `.task`-bearing detail/inspector view reads must be injected at `ContentView.detail` — SIGTRAP otherwise. Tasks 5/6 add envs; verify via a real test bootstrap.
 - **Editor target-selector reuse.** Nathan wants the property editor's target selector to use this same picker (flat mode, since storages have no groups). It selects a *target* (a `RelationTarget`), not entity IDs — different selection semantics — so it's a thin adapter, scoped as a follow-on once the value picker ships. The picker is built data-driven specifically so this reuse is a wiring change, not a rebuild.
