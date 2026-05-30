@@ -71,9 +71,9 @@ struct IndexQuery: Sendable {
             return try await index.dbQueue.read { db in
                 let cols = try Row.fetchAll(
                     db,
-                    sql: "SELECT id, title FROM page_collections WHERE page_type_id = ? ORDER BY title",
+                    sql: "SELECT id, title, icon FROM page_collections WHERE page_type_id = ? ORDER BY title",
                     arguments: [typeID]
-                ).map { EntityRef(id: $0["id"], kind: .pageCollection, title: $0["title"]) }
+                ).map { EntityRef(id: $0["id"], kind: .pageCollection, title: $0["title"], icon: $0["icon"]) }
                 var groups: [EntityGroup] = []
                 for c in cols {
                     let members = try Row.fetchAll(
@@ -96,9 +96,9 @@ struct IndexQuery: Sendable {
             return try await index.dbQueue.read { db in
                 let cols = try Row.fetchAll(
                     db,
-                    sql: "SELECT id, title FROM item_collections WHERE item_type_id = ? ORDER BY title",
+                    sql: "SELECT id, title, icon FROM item_collections WHERE item_type_id = ? ORDER BY title",
                     arguments: [typeID]
-                ).map { EntityRef(id: $0["id"], kind: .itemCollection, title: $0["title"]) }
+                ).map { EntityRef(id: $0["id"], kind: .itemCollection, title: $0["title"], icon: $0["icon"]) }
                 var groups: [EntityGroup] = []
                 for c in cols {
                     let members = try Row.fetchAll(

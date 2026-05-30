@@ -44,6 +44,7 @@ enum IndexSchema {
             id TEXT PRIMARY KEY,
             page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
             title TEXT NOT NULL,
+            icon TEXT,
             modified_at TEXT NOT NULL,
             schema_version INTEGER NOT NULL DEFAULT 1
         );
@@ -54,6 +55,7 @@ enum IndexSchema {
             id TEXT PRIMARY KEY,
             item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
             title TEXT NOT NULL,
+            icon TEXT,
             modified_at TEXT NOT NULL,
             schema_version INTEGER NOT NULL DEFAULT 1
         );

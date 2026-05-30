@@ -13,6 +13,9 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. Per EC2.
     var schemaVersion: Int
 
+    /// Per-Collection icon (SF Symbol name), editable post-creation. #45.
+    var icon: String?
+
     // Persisted display order for direct child Pages (v0.2.8.0). Nil until the
     // user reorders inside this PageCollection; missing entries fall through to
     // OrderResolver's alphabetic tail.
@@ -25,7 +28,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     var views: [SavedView] = []
 
     enum CodingKeys: String, CodingKey {
-        case id, views
+        case id, views, icon
         case typeID = "type_id"
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
@@ -44,6 +47,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         folderURL: URL,
         modifiedAt: Date,
         schemaVersion: Int = 1,
+        icon: String? = nil,
         pageOrder: [String]? = nil,
         views: [SavedView] = []
     ) {
@@ -53,6 +57,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.folderURL = folderURL
         self.modifiedAt = modifiedAt
         self.schemaVersion = schemaVersion
+        self.icon = icon
         self.pageOrder = pageOrder
         self.views = views
     }
@@ -72,6 +77,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.folderURL = URL(fileURLWithPath: "/")  // caller overwrites
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
+        self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
@@ -82,6 +88,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(typeID, forKey: .typeID)
         try c.encode(modifiedAt, forKey: .modifiedAt)
         try c.encode(schemaVersion, forKey: .schemaVersion)
+        try c.encodeIfPresent(icon, forKey: .icon)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
         try c.encode(views, forKey: .views)
     }

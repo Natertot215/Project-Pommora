@@ -79,10 +79,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO page_collections
-                        (id, page_type_id, title, modified_at, schema_version)
-                    VALUES (?, ?, ?, ?, ?)
+                        (id, page_type_id, title, icon, modified_at, schema_version)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                arguments: [pc.id, pc.typeID, pc.title, iso(pc.modifiedAt), 1]
+                arguments: [pc.id, pc.typeID, pc.title, pc.icon, iso(pc.modifiedAt), 1]
             )
         }
     }
@@ -191,10 +191,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO item_collections
-                        (id, item_type_id, title, modified_at, schema_version)
-                    VALUES (?, ?, ?, ?, ?)
+                        (id, item_type_id, title, icon, modified_at, schema_version)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                arguments: [ic.id, ic.typeID, ic.title, iso(ic.modifiedAt), 1]
+                arguments: [ic.id, ic.typeID, ic.title, ic.icon, iso(ic.modifiedAt), 1]
             )
         }
     }

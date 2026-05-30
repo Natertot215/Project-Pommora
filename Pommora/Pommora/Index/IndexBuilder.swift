@@ -19,6 +19,7 @@ private struct PageTypeSnapshot: Sendable {
 private struct PageCollectionSnapshot: Sendable {
     let id: String
     let title: String
+    let icon: String?
     let modifiedAt: Date
     let schemaVersion: Int
     let pages: [PageSnapshot]
@@ -51,6 +52,7 @@ private struct ItemTypeSnapshot: Sendable {
 private struct ItemCollectionSnapshot: Sendable {
     let id: String
     let title: String
+    let icon: String?
     let modifiedAt: Date
     let schemaVersion: Int
     let items: [ItemSnapshot]
@@ -179,7 +181,8 @@ final class IndexBuilder {
         let topLevel = (try? Filesystem.childFolders(of: root)) ?? []
         var result: [PageTypeSnapshot] = []
 
-        for folder in topLevel where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
+        for folder in topLevel
+        where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
             let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             guard Filesystem.fileExists(at: metaURL),
                 let pageType = try? PageType.load(from: metaURL)
@@ -194,27 +197,30 @@ final class IndexBuilder {
                     let coll = try? PageCollection.load(from: collURL)
                 else { continue }
                 let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id)
-                collections.append(PageCollectionSnapshot(
-                    id: coll.id,
-                    title: coll.title,
-                    modifiedAt: coll.modifiedAt,
-                    schemaVersion: coll.schemaVersion,
-                    pages: pages
-                ))
+                collections.append(
+                    PageCollectionSnapshot(
+                        id: coll.id,
+                        title: coll.title,
+                        icon: coll.icon,
+                        modifiedAt: coll.modifiedAt,
+                        schemaVersion: coll.schemaVersion,
+                        pages: pages
+                    ))
             }
 
             let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil)
 
-            result.append(PageTypeSnapshot(
-                id: pageType.id,
-                title: pageType.title,
-                icon: pageType.icon,
-                modifiedAt: pageType.modifiedAt,
-                schemaVersion: pageType.schemaVersion,
-                properties: pageType.properties,
-                collections: collections,
-                directPages: directPages
-            ))
+            result.append(
+                PageTypeSnapshot(
+                    id: pageType.id,
+                    title: pageType.title,
+                    icon: pageType.icon,
+                    modifiedAt: pageType.modifiedAt,
+                    schemaVersion: pageType.schemaVersion,
+                    properties: pageType.properties,
+                    collections: collections,
+                    directPages: directPages
+                ))
         }
         return result
     }
@@ -248,7 +254,8 @@ final class IndexBuilder {
         let topLevel = (try? Filesystem.childFolders(of: root)) ?? []
         var result: [ItemTypeSnapshot] = []
 
-        for folder in topLevel where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
+        for folder in topLevel
+        where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
             let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
             guard Filesystem.fileExists(at: metaURL),
                 let itemType = try? ItemType.load(from: metaURL)
@@ -262,27 +269,30 @@ final class IndexBuilder {
                     let coll = try? ItemCollection.load(from: collURL)
                 else { continue }
                 let items = collectItemsInFolder(sub, itemTypeID: itemType.id, collectionID: coll.id)
-                collections.append(ItemCollectionSnapshot(
-                    id: coll.id,
-                    title: coll.title,
-                    modifiedAt: coll.modifiedAt,
-                    schemaVersion: coll.schemaVersion,
-                    items: items
-                ))
+                collections.append(
+                    ItemCollectionSnapshot(
+                        id: coll.id,
+                        title: coll.title,
+                        icon: coll.icon,
+                        modifiedAt: coll.modifiedAt,
+                        schemaVersion: coll.schemaVersion,
+                        items: items
+                    ))
             }
 
             let directItems = collectItemsInFolder(folder, itemTypeID: itemType.id, collectionID: nil)
 
-            result.append(ItemTypeSnapshot(
-                id: itemType.id,
-                title: itemType.title,
-                icon: itemType.icon,
-                modifiedAt: itemType.modifiedAt,
-                schemaVersion: itemType.schemaVersion,
-                properties: itemType.properties,
-                collections: collections,
-                directItems: directItems
-            ))
+            result.append(
+                ItemTypeSnapshot(
+                    id: itemType.id,
+                    title: itemType.title,
+                    icon: itemType.icon,
+                    modifiedAt: itemType.modifiedAt,
+                    schemaVersion: itemType.schemaVersion,
+                    properties: itemType.properties,
+                    collections: collections,
+                    directItems: directItems
+                ))
         }
         return result
     }
@@ -292,9 +302,10 @@ final class IndexBuilder {
         itemTypeID: String,
         collectionID: String?
     ) -> [ItemSnapshot] {
-        let urls = (try? Filesystem.children(of: folderURL) { url in
-            url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
-        }) ?? []
+        let urls =
+            (try? Filesystem.children(of: folderURL) { url in
+                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+            }) ?? []
         return urls.compactMap { url -> ItemSnapshot? in
             guard let item = try? Item.load(from: url) else { return nil }
             return ItemSnapshot(
@@ -316,9 +327,10 @@ final class IndexBuilder {
     private static func collectTasks(from nexus: Nexus) -> [AgendaTaskSnapshot] {
         let dir = NexusPaths.tasksDir(in: nexus)
         guard Filesystem.folderExists(at: dir) else { return [] }
-        let urls = (try? Filesystem.children(of: dir) { url in
-            url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
-        }) ?? []
+        let urls =
+            (try? Filesystem.children(of: dir) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
+            }) ?? []
         return urls.compactMap { url -> AgendaTaskSnapshot? in
             guard let task = try? AgendaTask.load(from: url) else { return nil }
             return AgendaTaskSnapshot(
@@ -346,9 +358,10 @@ final class IndexBuilder {
     private static func collectEvents(from nexus: Nexus) -> [AgendaEventSnapshot] {
         let dir = NexusPaths.eventsDir(in: nexus)
         guard Filesystem.folderExists(at: dir) else { return [] }
-        let urls = (try? Filesystem.children(of: dir) { url in
-            url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
-        }) ?? []
+        let urls =
+            (try? Filesystem.children(of: dir) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
+            }) ?? []
         return urls.compactMap { url -> AgendaEventSnapshot? in
             guard let event = try? AgendaEvent.load(from: url) else { return nil }
             return AgendaEventSnapshot(
@@ -380,12 +393,14 @@ final class IndexBuilder {
         // Spaces (tier 1)
         let spacesDir = NexusPaths.spacesDir(in: nexus)
         if Filesystem.folderExists(at: spacesDir) {
-            let urls = (try? Filesystem.children(of: spacesDir) { url in
-                url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "space"
-            }) ?? []
+            let urls =
+                (try? Filesystem.children(of: spacesDir) { url in
+                    url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "space"
+                }) ?? []
             for url in urls {
                 guard let space = try? Space.load(from: url) else { continue }
-                result.append(ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon, parentTopicID: nil))
+                result.append(
+                    ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon, parentTopicID: nil))
             }
         }
 
@@ -398,14 +413,18 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: metaURL),
                     let topic = try? Topic.load(from: metaURL)
                 else { continue }
-                result.append(ContextSnapshot(id: topic.id, tier: 2, title: topic.title, icon: topic.icon, parentTopicID: nil))
+                result.append(
+                    ContextSnapshot(id: topic.id, tier: 2, title: topic.title, icon: topic.icon, parentTopicID: nil))
 
-                let projectURLs = (try? Filesystem.children(of: folder) { url in
-                    url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "project"
-                }) ?? []
+                let projectURLs =
+                    (try? Filesystem.children(of: folder) { url in
+                        url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "project"
+                    }) ?? []
                 for url in projectURLs {
                     guard let project = try? Project.load(from: url) else { continue }
-                    result.append(ContextSnapshot(id: project.id, tier: 3, title: project.title, icon: project.icon, parentTopicID: topic.id))
+                    result.append(
+                        ContextSnapshot(
+                            id: project.id, tier: 3, title: project.title, icon: project.icon, parentTopicID: topic.id))
                 }
             }
         }
@@ -441,7 +460,8 @@ final class IndexBuilder {
             // can't capture a non-escaping parameter directly. Binding here keeps
             // the deferral — `describe()` still only runs on the failure path.
             let detail = describe()
-            log.error("Index rebuild skipped \(detail, privacy: .public): \(String(describing: error), privacy: .public)")
+            log.error(
+                "Index rebuild skipped \(detail, privacy: .public): \(String(describing: error), privacy: .public)")
             return false
         }
     }
@@ -464,27 +484,36 @@ final class IndexBuilder {
         for pt in snapshot.pageTypes {
             // Parent must land before its children; if it can't (e.g. a duplicate
             // id), skip the whole subtree — the children would only FK-fail.
-            guard attemptInsert("page_type \(pt.title) [\(pt.id)]", {
-                try db.execute(
-                    literal: """
-                        INSERT INTO page_types (id, title, icon, modified_at, schema_version)
-                        VALUES (\(pt.id), \(pt.title), \(pt.icon), \(iso8601(pt.modifiedAt)), \(pt.schemaVersion))
-                        """
-                )
-            }) else { continue }
+            guard
+                attemptInsert(
+                    "page_type \(pt.title) [\(pt.id)]",
+                    {
+                        try db.execute(
+                            literal: """
+                                INSERT INTO page_types (id, title, icon, modified_at, schema_version)
+                                VALUES (\(pt.id), \(pt.title), \(pt.icon), \(iso8601(pt.modifiedAt)), \(pt.schemaVersion))
+                                """
+                        )
+                    })
+            else { continue }
 
-            insertPropertyDefinitions(db, properties: pt.properties,
+            insertPropertyDefinitions(
+                db, properties: pt.properties,
                 owningTypeID: pt.id, owningTypeKind: "page_type")
 
             for coll in pt.collections {
-                guard attemptInsert("page_collection \(coll.title) [\(coll.id)]", {
-                    try db.execute(
-                        literal: """
-                            INSERT INTO page_collections (id, page_type_id, title, modified_at, schema_version)
-                            VALUES (\(coll.id), \(pt.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
-                            """
-                    )
-                }) else { continue }
+                guard
+                    attemptInsert(
+                        "page_collection \(coll.title) [\(coll.id)]",
+                        {
+                            try db.execute(
+                                literal: """
+                                    INSERT INTO page_collections (id, page_type_id, title, icon, modified_at, schema_version)
+                                    VALUES (\(coll.id), \(pt.id), \(coll.title), \(coll.icon), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
+                                    """
+                            )
+                        })
+                else { continue }
                 for page in coll.pages {
                     insertPage(db, page: page)
                 }
@@ -497,39 +526,50 @@ final class IndexBuilder {
 
     private nonisolated static func insertPage(_ db: Database, page: PageSnapshot) {
         let propsJSON = (try? propertiesJSON(page.properties)) ?? "{}"
-        attemptInsert("page \(page.title) [\(page.id)]", {
-            try db.execute(
-                literal: """
-                    INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
-                    VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
-                    """
-            )
-        })
+        attemptInsert(
+            "page \(page.title) [\(page.id)]",
+            {
+                try db.execute(
+                    literal: """
+                        INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
+                        VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
+                        """
+                )
+            })
     }
 
     private nonisolated static func insertItemTypes(_ db: Database, snapshot: NexusSnapshot) {
         for it in snapshot.itemTypes {
-            guard attemptInsert("item_type \(it.title) [\(it.id)]", {
-                try db.execute(
-                    literal: """
-                        INSERT INTO item_types (id, title, icon, modified_at, schema_version)
-                        VALUES (\(it.id), \(it.title), \(it.icon), \(iso8601(it.modifiedAt)), \(it.schemaVersion))
-                        """
-                )
-            }) else { continue }
+            guard
+                attemptInsert(
+                    "item_type \(it.title) [\(it.id)]",
+                    {
+                        try db.execute(
+                            literal: """
+                                INSERT INTO item_types (id, title, icon, modified_at, schema_version)
+                                VALUES (\(it.id), \(it.title), \(it.icon), \(iso8601(it.modifiedAt)), \(it.schemaVersion))
+                                """
+                        )
+                    })
+            else { continue }
 
-            insertPropertyDefinitions(db, properties: it.properties,
+            insertPropertyDefinitions(
+                db, properties: it.properties,
                 owningTypeID: it.id, owningTypeKind: "item_type")
 
             for coll in it.collections {
-                guard attemptInsert("item_collection \(coll.title) [\(coll.id)]", {
-                    try db.execute(
-                        literal: """
-                            INSERT INTO item_collections (id, item_type_id, title, modified_at, schema_version)
-                            VALUES (\(coll.id), \(it.id), \(coll.title), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
-                            """
-                    )
-                }) else { continue }
+                guard
+                    attemptInsert(
+                        "item_collection \(coll.title) [\(coll.id)]",
+                        {
+                            try db.execute(
+                                literal: """
+                                    INSERT INTO item_collections (id, item_type_id, title, icon, modified_at, schema_version)
+                                    VALUES (\(coll.id), \(it.id), \(coll.title), \(coll.icon), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
+                                    """
+                            )
+                        })
+                else { continue }
                 for item in coll.items {
                     insertItem(db, item: item)
                 }
@@ -542,62 +582,72 @@ final class IndexBuilder {
 
     private nonisolated static func insertItem(_ db: Database, item: ItemSnapshot) {
         let propsJSON = (try? propertiesJSON(item.properties)) ?? "{}"
-        attemptInsert("item \(item.title) [\(item.id)]", {
-            try db.execute(
-                literal: """
-                    INSERT INTO items (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
-                    VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.icon), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
-                    """
-            )
-        })
+        attemptInsert(
+            "item \(item.title) [\(item.id)]",
+            {
+                try db.execute(
+                    literal: """
+                        INSERT INTO items (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
+                        VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.icon), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
+                        """
+                )
+            })
     }
 
     private nonisolated static func insertAgendaTasks(_ db: Database, snapshot: NexusSnapshot) {
         if let schema = snapshot.taskSchema {
-            insertPropertyDefinitions(db, properties: schema.properties,
+            insertPropertyDefinitions(
+                db, properties: schema.properties,
                 owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema")
         }
         for task in snapshot.tasks {
             let propsJSON = (try? propertiesJSON(task.properties)) ?? "{}"
-            attemptInsert("agenda_task \(task.title) [\(task.id)]", {
-                try db.execute(
-                    literal: """
-                        INSERT INTO agenda_tasks (id, title, icon, due_at, properties, modified_at)
-                        VALUES (\(task.id), \(task.title), \(task.icon), \(task.dueAt.map { iso8601($0) }), \(propsJSON), \(iso8601(task.modifiedAt)))
-                        """
-                )
-            })
+            attemptInsert(
+                "agenda_task \(task.title) [\(task.id)]",
+                {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO agenda_tasks (id, title, icon, due_at, properties, modified_at)
+                            VALUES (\(task.id), \(task.title), \(task.icon), \(task.dueAt.map { iso8601($0) }), \(propsJSON), \(iso8601(task.modifiedAt)))
+                            """
+                    )
+                })
         }
     }
 
     private nonisolated static func insertAgendaEvents(_ db: Database, snapshot: NexusSnapshot) {
         if let schema = snapshot.eventSchema {
-            insertPropertyDefinitions(db, properties: schema.properties,
+            insertPropertyDefinitions(
+                db, properties: schema.properties,
                 owningTypeID: "agenda_events", owningTypeKind: "agenda_event_schema")
         }
         for event in snapshot.events {
             let propsJSON = (try? propertiesJSON(event.properties)) ?? "{}"
-            attemptInsert("agenda_event \(event.title) [\(event.id)]", {
-                try db.execute(
-                    literal: """
-                        INSERT INTO agenda_events (id, title, icon, start_at, end_at, properties, modified_at)
-                        VALUES (\(event.id), \(event.title), \(event.icon), \(iso8601(event.startAt)), \(iso8601(event.endAt)), \(propsJSON), \(iso8601(event.modifiedAt)))
-                        """
-                )
-            })
+            attemptInsert(
+                "agenda_event \(event.title) [\(event.id)]",
+                {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO agenda_events (id, title, icon, start_at, end_at, properties, modified_at)
+                            VALUES (\(event.id), \(event.title), \(event.icon), \(iso8601(event.startAt)), \(iso8601(event.endAt)), \(propsJSON), \(iso8601(event.modifiedAt)))
+                            """
+                    )
+                })
         }
     }
 
     private nonisolated static func insertContexts(_ db: Database, snapshot: NexusSnapshot) {
         for ctx in snapshot.contexts {
-            attemptInsert("context tier-\(ctx.tier) \(ctx.title) [\(ctx.id)]", {
-                try db.execute(
-                    literal: """
-                        INSERT INTO contexts (id, tier, title, icon, parent_topic_id)
-                        VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon), \(ctx.parentTopicID))
-                        """
-                )
-            })
+            attemptInsert(
+                "context tier-\(ctx.tier) \(ctx.title) [\(ctx.id)]",
+                {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO contexts (id, tier, title, icon, parent_topic_id)
+                            VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon), \(ctx.parentTopicID))
+                            """
+                    )
+                })
         }
     }
 
@@ -607,12 +657,14 @@ final class IndexBuilder {
             let schema = pt.properties
             for coll in pt.collections {
                 for page in coll.pages {
-                    insertRelationRows(db, properties: page.properties, schema: schema,
+                    insertRelationRows(
+                        db, properties: page.properties, schema: schema,
                         sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
-                insertRelationRows(db, properties: page.properties, schema: schema,
+                insertRelationRows(
+                    db, properties: page.properties, schema: schema,
                     sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
             }
         }
@@ -621,25 +673,29 @@ final class IndexBuilder {
             let schema = it.properties
             for coll in it.collections {
                 for item in coll.items {
-                    insertRelationRows(db, properties: item.properties, schema: schema,
+                    insertRelationRows(
+                        db, properties: item.properties, schema: schema,
                         sourceID: item.id, sourceKind: "item", modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
-                insertRelationRows(db, properties: item.properties, schema: schema,
+                insertRelationRows(
+                    db, properties: item.properties, schema: schema,
                     sourceID: item.id, sourceKind: "item", modifiedAt: item.modifiedAt)
             }
         }
         // Tasks
         let taskSchema = snapshot.taskSchema?.properties ?? []
         for task in snapshot.tasks {
-            insertRelationRows(db, properties: task.properties, schema: taskSchema,
+            insertRelationRows(
+                db, properties: task.properties, schema: taskSchema,
                 sourceID: task.id, sourceKind: "agenda_task", modifiedAt: task.modifiedAt)
         }
         // Events
         let eventSchema = snapshot.eventSchema?.properties ?? []
         for event in snapshot.events {
-            insertRelationRows(db, properties: event.properties, schema: eventSchema,
+            insertRelationRows(
+                db, properties: event.properties, schema: eventSchema,
                 sourceID: event.id, sourceKind: "agenda_event", modifiedAt: event.modifiedAt)
         }
     }
@@ -659,14 +715,16 @@ final class IndexBuilder {
             let targetKind = RelationTargetKind.string(from: def?.relationTarget)
             for targetID in targetIDs {
                 let relationID = UUID().uuidString
-                attemptInsert("relation \(sourceKind) \(sourceID) → \(targetID)", {
-                    try db.execute(
-                        literal: """
-                            INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                            VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
-                            """
-                    )
-                })
+                attemptInsert(
+                    "relation \(sourceKind) \(sourceID) → \(targetID)",
+                    {
+                        try db.execute(
+                            literal: """
+                                INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                                VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
+                                """
+                        )
+                    })
             }
         }
     }
@@ -675,13 +733,15 @@ final class IndexBuilder {
         for pt in snapshot.pageTypes {
             for coll in pt.collections {
                 for page in coll.pages {
-                    insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
+                    insertTierRelationRows(
+                        db, sourceID: page.id, sourceKind: "page",
                         tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                         modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
-                insertTierRelationRows(db, sourceID: page.id, sourceKind: "page",
+                insertTierRelationRows(
+                    db, sourceID: page.id, sourceKind: "page",
                     tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                     modifiedAt: page.modifiedAt)
             }
@@ -689,24 +749,28 @@ final class IndexBuilder {
         for it in snapshot.itemTypes {
             for coll in it.collections {
                 for item in coll.items {
-                    insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
+                    insertTierRelationRows(
+                        db, sourceID: item.id, sourceKind: "item",
                         tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                         modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
-                insertTierRelationRows(db, sourceID: item.id, sourceKind: "item",
+                insertTierRelationRows(
+                    db, sourceID: item.id, sourceKind: "item",
                     tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                     modifiedAt: item.modifiedAt)
             }
         }
         for task in snapshot.tasks {
-            insertTierRelationRows(db, sourceID: task.id, sourceKind: "agenda_task",
+            insertTierRelationRows(
+                db, sourceID: task.id, sourceKind: "agenda_task",
                 tier1: task.tier1, tier2: task.tier2, tier3: task.tier3,
                 modifiedAt: task.modifiedAt)
         }
         for event in snapshot.events {
-            insertTierRelationRows(db, sourceID: event.id, sourceKind: "agenda_event",
+            insertTierRelationRows(
+                db, sourceID: event.id, sourceKind: "agenda_event",
                 tier1: event.tier1, tier2: event.tier2, tier3: event.tier3,
                 modifiedAt: event.modifiedAt)
         }
@@ -733,14 +797,16 @@ final class IndexBuilder {
             let targetKind = RelationTargetKind.string(from: .contextTier(level))
             for targetID in targetIDs {
                 let relationID = UUID().uuidString
-                attemptInsert("tier-\(level) relation \(sourceKind) \(sourceID) → \(targetID)", {
-                    try db.execute(
-                        literal: """
-                            INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                            VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propertyID), \(iso8601(modifiedAt)))
-                            """
-                    )
-                })
+                attemptInsert(
+                    "tier-\(level) relation \(sourceKind) \(sourceID) → \(targetID)",
+                    {
+                        try db.execute(
+                            literal: """
+                                INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                                VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propertyID), \(iso8601(modifiedAt)))
+                                """
+                        )
+                    })
             }
         }
     }
@@ -755,15 +821,17 @@ final class IndexBuilder {
             guard !def.id.isEmpty else { continue }
             let configJSON = (try? definitionConfigJSON(def)) ?? "{}"
             let modAt = iso8601(Date())
-            attemptInsert("property_definition \(def.name) [\(def.id)] on \(owningTypeKind) \(owningTypeID)", {
-                try db.execute(
-                    literal: """
-                        INSERT INTO property_definitions
-                            (id, owning_type_id, owning_type_kind, name, type, config, position, modified_at)
-                        VALUES (\(def.id), \(owningTypeID), \(owningTypeKind), \(def.name), \(def.type.rawValue), \(configJSON), \(position), \(modAt))
-                        """
-                )
-            })
+            attemptInsert(
+                "property_definition \(def.name) [\(def.id)] on \(owningTypeKind) \(owningTypeID)",
+                {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO property_definitions
+                                (id, owning_type_id, owning_type_kind, name, type, config, position, modified_at)
+                            VALUES (\(def.id), \(owningTypeID), \(owningTypeKind), \(def.name), \(def.type.rawValue), \(configJSON), \(position), \(modAt))
+                            """
+                    )
+                })
         }
     }
 

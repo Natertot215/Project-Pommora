@@ -48,9 +48,16 @@ final class PommoraIndex: @unchecked Sendable {
     // instead of rolling the rebuild back, and (b) defers the schema_version
     // stamp until populate succeeds (`markSchemaVersionCurrent()`). Bumping
     // 4 → 5 forces any index left stuck-empty at v4 through one clean rebuild.
-    static let currentSchemaVersion: Int = 5
+    //
+    // v6 (2026-05-30): denormalize per-Collection/Set `icon` into the
+    // page_collections / item_collections tables (#45) so the relation picker's
+    // grouped query returns each container's icon. The sidecar JSON stays the
+    // source of truth; this column is the regeneratable fast copy. Bumping
+    // 5 → 6 forces one rebuild so existing indexes gain the new column and
+    // backfill icons from the sidecars via IndexBuilder.
+    static let currentSchemaVersion: Int = 6
 
-    let dbQueue: DatabaseQueue   // GRDB connection pool (serialized writes, concurrent reads)
+    let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
 
     private init(dbQueue: DatabaseQueue, dbURL: URL) {
@@ -109,12 +116,13 @@ final class PommoraIndex: @unchecked Sendable {
     }
 
     private static func bootstrapMeta(_ db: Database) throws {
-        try db.execute(sql: """
-            CREATE TABLE IF NOT EXISTS meta (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
-        """)
+        try db.execute(
+            sql: """
+                    CREATE TABLE IF NOT EXISTS meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    );
+                """)
         // NOTE: schema_version is intentionally NOT stamped here. A fresh DB is
         // returned with needsRebuild = true; the caller stamps the version via
         // `markSchemaVersionCurrent()` only AFTER `IndexBuilder.populate`
