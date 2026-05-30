@@ -69,7 +69,7 @@ Detail → `Contexts.md`.
 **Rules:**
 - Page Type schema applies to all Pages inside (including Pages in Page Collections — Collections inherit the parent Type's schema)
 - Item Type schema applies to all Items inside (Item Collections inherit the parent Type's schema)
-- Page Collections and Item Collections in v0.3.0 are organizational only — their per-kind sidecar (`_pagecollection.json` / `_itemcollection.json`) carries `id` + `type_id` + ordering + `modified_at`; properties and views live on the parent Type. Collection-local schema overrides are a post-v1 Prospect
+- Page Collections and Item Collections are **not** storage-only. They **inherit only the parent Type's property schema** (collection-local schema overrides remain a post-v1 Prospect), but **own** their saved `views` — and the groups, visibility, and sorts configured inside them — persisted in their per-kind sidecar (`_pagecollection.json` / `_itemcollection.json`). Item Collections (Sets) additionally persist `pinned_properties` (the Item Window's pinned-chip set). Titles are the folder name (filename = title). **Locked next (2026-05-30):** a per-Collection/Set `icon` joins the sidecar as source of truth + a mirrored SQLite column so the relation picker can query it. Canonical detail → `PageTypes.md` / `Items.md` / `Properties.md`
 - Move between Page Types (or between Item Types) strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections), no strip — schema is shared
 - Agenda Tasks and Agenda Events are separate kinds with separate schemas — the unified `AgendaItem` is gone
 
