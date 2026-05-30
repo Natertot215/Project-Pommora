@@ -1,73 +1,70 @@
 ### Pommora — Session Handoff
 
- - **Read first at session start.** Current state + next focuses + fix log only. Shipped history → `History.md`; roadmap → `Framework.md`; branch quirks + hard rules → `CLAUDE.md`; locked decisions → `History.md` + `Guidelines/Paradigm-Decisions.md`.
+ - **Read first at session start.** Maintained via `/handoff` — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Shipped history → `History.md`; roadmap → `Framework.md`; branch quirks + hard rules → `CLAUDE.md`; locked decisions → `History.md` + `Guidelines/Paradigm-Decisions.md`.
 
-#### Current state (2026-05-29)
+#### Current state (2026-05-30)
 
-> ⚡ **POST-COMPACT RESUME PROMPT — read this FIRST (Nathan's voice).** Task 8 (the two bug fixes) shipped `f1d66f6`; Tasks 4→7 are now building straight through to green (I lifted the picker gate — I'm remote and verify the picker UIX when home; complete design is locked in `Make-Relations-Real-Plan.md`).
->
-> *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess. You open the file and LOOK AT THE CODE before you assert anything.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it. We caught this AGAIN today — the plan you wrote carried stale line numbers from an old plan, and the audit caught them before they cost us a session. That audit-before-implement step is non-negotiable.*
->
-> *What we found: the "empty tier picker" was never a data problem — my index was fine the whole time (3 Spaces / 2 Topics / 3 Projects in `// The Nexus //`). It was two separate bugs, both fixed: an all-or-nothing index rebuild that wiped itself on one bad row (`02f8a67`), and a picker popover that collapsed to a glass blob (`9deb818`). The lesson is now `CLAUDE.md` quirk #18 ("Layer-confusion check") — a broken-looking UI does NOT mean broken data; confirm the data directly (query the index, read the file) before blaming the store.*
->
-> *Then I hit two MORE bugs — both DIAGNOSED, not fixed (written up as **Task 8** in the plan with verified roots): (A) deleting a relation property I made from an Item Type to its Vault mirror throws "the data couldn't be read because it is missing" (the delete cascade blindly decodes my frontmatter-less `.md` docs as Pages); (B) `SQLite error 19 … insert or replace into pages`.*
->
-> *How to proceed — IN THIS ORDER, before writing one line of code: (1) read `// Planning // Make-Relations-Real-Plan.md` end to end; (2) **review the code one more time** against the plan's claims — line numbers drift, verify don't trust; (3) **ask me questions**, especially anything unclear about feature requirements; (4) implement what I greenlight — Task 8's two fixes first (they block my testing). And the once-hard one, now resolved: **(5) the picker gate is LIFTED — I'm remote and can't verify UIX live, so I delegated the picker interaction design to Claude. Build Tasks 4→7 straight through to green against the complete design locked in `Make-Relations-Real-Plan.md` (Design § + Picker interaction — RESOLVED); I review the picker UIX when I'm home.** Don't guess. Look at the code."*
+Working tree on `main`, green (only the known `PageEditorViewModelTests.debounceCoalescesRapidEdits` editor-timing flake fails). Clean HEAD = `741ca1d`.
 
-> **✅ RESOLVED — the "empty tier picker" cluster had TWO roots, both fixed + confirmed on the real nexus.** (1) **Index all-or-nothing rebuild** — one bad row rolled back the whole rebuild → empty index (`02f8a67`: resilient per-row `IndexBuilder.attemptInsert` + defer the `schema_version` stamp until `populate` succeeds via `PommoraIndex.markSchemaVersionCurrent` + `currentSchemaVersion` 5). (2) **Picker popover collapse** — `RelationPicker`'s chromeless popover sized to its zero-size loading state and never grew → a tiny "liquid glass" blob (`9deb818`: fixed picker panel width). The data + wiring were correct the whole time — proven by reading Nathan's real index (`The Nexus/.nexus/index.db`: v5, **3 Spaces / 2 Topics / 3 Projects**); the picker assigns correctly now. Lesson → CLAUDE.md quirk #18 (**"Layer-confusion check"** — confirm the data directly before blaming it). **Part 3** (defensive `upsertPage`): the FK-19 recurred on the mirror-relation path, so it's now warranted → plan Task 8 Bug B (Fix Log #13). **Next = Make Relations Real Task 4** — the grouped relation **value picker**: one data-driven liquid-glass dropdown showing a side-by-side **sub-menu** when candidates have Collections (Vault/Item-Type value lists) and **flat rows** when not (tiers/contexts; the editor's storage-target selector reuses it flat). Spec locked: 150×235/panel, body-regular, 8pt rows, inset separator, Collection rows w/ chevron, leaf rows w/ blue checkmark-on-selected; `RelationChip` = assigned-value inline only. Full re-planned spec → `Planning/Make-Relations-Real-Plan.md`. Clean HEAD = `9deb818`.
+#### Session Summary
 
-Working tree on `main`, green (only the known `PageEditorViewModelTests.debounceCoalescesRapidEdits` editor-timing flake fails).
+**Make Relations Real — COMPLETE (Tasks 1–8).** Relations and tiers render as **icon + title** everywhere (no raw IDs / "(missing)"); the grouped pop-out **value picker** works (liquid-glass 2:4, Collection/Set rows pop a side member panel, loose entities below an inset divider, blue `SelectionCheckmark` on selected, multi-select, scroll-on-overflow); inline relation + status editors persist via the reusable `RelationValueEditor`; `FrontmatterInspector` save wired; Page tiers editable inline; the v5 rebuild backfills icons + tier links; the relation lifecycle tolerates undecodable member files + orphan-parent FK on index upsert (the `MemberFileStrip` helper). Reusable inline-edit + picker-hosting capability is documented so the to-be-replaced Item Window isn't load-bearing.
 
-**Relations Redesign — COMPLETE (Phases 0–22).** Relations and tiers are one linking system: tiers flow through the relation pipeline and the SQLite `relations` table (the `tier_links` table is retired); relations are always-multi (`[{"$rel":"<ULID>"}]`); `RelationTarget` covers Page Type / Item Type / Agenda Tasks / Agenda Events (+ internal `context_tier`); a single-pane editor creates/edits both sides (home + reverse name + reverse icon); deleting a Context cascades source-side; Agenda Tasks/Events are relation targets. The Lean adoption migration normalizes legacy sidecars on a one-time re-save (Type sidecar `schemaVersion` 1→2; index DB `currentSchemaVersion` 2→3 forces a rebuild that backfills tiers) — lossless changes apply silently, and the one lossy step (dropping a context-tier-targeted property) is gated behind an acknowledgment in the adoption preview. Relation values render as the target's **icon + title** in styled colored text (interim — chip visual is Next focus #1). Full play-by-play → `History.md` (2026-05-29 entry); paradigm decisions #8–#12 → `Guidelines/Paradigm-Decisions.md`; `Features/*` specs rewritten forward-only (Phase 21).
+**#45 — per-Collection/Set icon — SHIPPED (TDD'd, code-review CLEAN).** Optional `icon` in the `_pagecollection.json` / `_itemcollection.json` sidecar (source of truth), mirrored into a new `page_collections` / `item_collections` SQLite column (index `currentSchemaVersion` 5→6 forces one rebuild + backfill). The picker renders `container.icon ?? "folder"`. 4 RED-first outcome tests (`CollectionIconTests`): sidecar round-trip ×2, grouped-query reach, full-rebuild survival. Full `PommoraTests` green (997/998).
 
-**Docs aligned to code (2026-05-29).** Every `Features/*` spec + `PommoraPRD.md` was audited against the source — contradictions fixed (incl. pre-existing ones), bloat trimmed (~2,100 words), the retired `tier_links` table dropped from the PRD's SQLite schema. **Property surfaces (planned, not yet wired):** properties on Pages, Contexts, and storage views will move to a dropdown (`PropertiesPulldown`) so the inspector can host the LLM/CLI interface; the property panel stays for Items, Page Previews, and Agenda items. Today Pages use the property panel in the inspector (`FrontmatterInspector`). Canonical: `Features/Properties.md` § Where Properties Live.
+**Live schema reactivity (#35)** — detail tables read the live `@Observable` Type/Collection, so add/delete-property updates instantly (no reload).
 
-#### Next focuses
+**Docs aligned to code** — Collection/Set sidecar field lists gained `icon`; Domain-Model corrected (collections own their `views` + `icon`, only the property *schema* inherits); the relation-editor doc now reads "handles creation" (post-creation name/icon edit is #34, pending).
 
-1. **Make Relations Real — Tasks 4–7, building straight through to green** (active plan → `Planning/Make-Relations-Real-Plan.md`). Tasks 1–3 (render half) + Task 8 (lifecycle hardening, `f1d66f6`) shipped. **Picker gate LIFTED (Nathan remote) — complete design locked in the plan; build, don't wait; Nathan verifies the picker UIX when home.** Order: Task 4a grouped data query → 4b picker view → Task 5 tier chips (Fix Log #11) → Task 6 relation/status/tier editors + editable Page tiers → Task 7 v5 rebuild smoke-test.
-2. **Item Windows** — build the real Item Window (in-window property editing was deferred off the placeholder; Task 6 wires the editors it will host).
-3. **Page Previews** — standalone-window page preview (cross-feature PreviewWindow primitive).
+Recent commits: `741ca1d` picker render · `dfdf2af` doc align · `3cb1366` icon data layer · `c39e34c` reactivity · `a97bb54` Task 7 · `0ffd76f`/`40165fd` Task 6 · `0b71ca2` Task 5 · `a995e32`/`acebb83` Task 4 · `f1d66f6` Task 8.
 
-Open relation fixes: legacy Vault/Type Settings "Relation" dead-end (Fix Log #10); edit-side editing of an existing relation's reverse name/icon (create-side sets both; no source-side edit path yet); `LinkedFromDropdown` real Context-side surface (bare stub → logged in `Prospects.md`).
+#### Lessons Learned
 
-#### Verification gaps — may harbor mistakes
+- **TDD is the contract (Nathan-mandated):** no production code without a failing outcome test first — RED → confirm-it-fails-for-the-right-reason → GREEN. A mid-session lapse (model field then a "no-regression" build) was reverted and redone RED-first.
+- **Verify, don't guess — paid off repeatedly:** the `FrontmatterInspector` `onSave` gap (silent non-persist) was found by reading code; "store the collection icon in SQLite" was a *new feature + paradigm change*, not a storage fix (collections had no icon field at all) — pushed back, confirmed, built right with the sidecar as truth.
+- **`swift format` resolves `.swift-format` by walking up from the file's path.** Linting a file copied to `/tmp/` silently used 2-space defaults → a false "everything's broken" signal; pass `--configuration` when linting out-of-tree. (`IndexBuilder.swift` + `PommoraIndex.swift` were pre-existing non-conformant; the #45 commit carried the reflow.)
+- **Layer-confusion check (quirk #18) holds:** a broken-looking UI ≠ broken data; confirm the data directly before blaming the store.
 
-The redesign is unit-test-green (978 tests; only the documented `debounceCoalescesRapidEdits` flake fails). What was **not** verified, and where Claude may have erred:
+#### Next Session
 
-- **No live smoke test.** The single-pane relation editor, the Context-delete cascade, the tier columns, and the adoption-preview consent gate all pass unit tests but were never clicked through in the running app — runtime + UX behavior is unverified.
-- **Migration never run on the real nexus.** The Type-sidecar `schemaVersion` 1→2 re-save and the index-DB `currentSchemaVersion` 2→3 rebuild fire on the next launch (test-verified, not yet exercised on real data). No legacy relation data is expected (the old wizard never persisted), so it should be a benign one-time normalization — but watch the next launch.
-- **"icon + title everywhere" is the documented contract, not the current code on every surface.** `ItemWindow` renders tier values as raw joined IDs (TODO left in code); the tier-row panels may show title-only (Fix Log #11). Trust the code over the doc where they differ.
-- **The docs audit was subagent-delegated + spot-reviewed**, not re-read line-by-line (~2,100 words trimmed + many code-grounded edits across ~15 docs). Residual over-trim or inaccuracy is possible — the code is ground truth if a doc disagrees.
-- **Open subagent flags:** `Architecture.md`'s `SchemaTransaction` internal-shape claim wasn't line-verified against the type; the stale `<nexus>/Items/<TypeFolder>/` wrapper comment in `ItemContentManager+CRUD.swift` is still there.
-- **Phases 12–22 were executed by implementer subagents** (I built + committed on green). Test-covered, but the breadth means a subtle spec↔implementation gap that tests don't catch is possible.
-- **Superseeded Planss** Superseeded plans aren't reliable sources of codebase truth. Errors are often found, directives are changed, and what one plan says is true is often contradicted in the next session. Use superseeded plans for diagnostic hints rather than codebase truth.
+**Picker UIX gate:** the gate was lifted so I could build while Nathan is remote; the grouped value picker is now **ready for Nathan to verify live** when home. The new inline editors were also never clicked-through in the running app — runtime UX unverified.
+
+Three options:
+- **A (recommended) — finish the editing loop:** #34 (relation name/icon post-creation edit + mirror propagation) + #51 (Collection/Set icon edit affordance). Completes "the user can fully *manage* relations + container icons." #34 is specced in `Properties.md`; #51 is small.
+- **B — consolidate / test-harden:** #44 (detail-view reactivity tests) + #43 (`SelectionCheckmark` → ChipsGallery) + tidy the `upsert*Collection` `schema_version=1` latent gap.
+- **C — pivot:** build the next `Framework.md` surface (real Item Window, Page Previews, Agenda surfacing).
+
+#### Pending Focuses
+
+- **#34** — relation name/icon post-creation edit + mirror propagation. Creation is built (`createPairedRelation` + `reverseIcon`); `renameOneSide` exists (name, one side); no icon-edit, no propagating-edit loop, no UI.
+- **#51** — Collection/Set icon edit affordance: icon is plumbed end-to-end but there is no user-facing way to set it (only via the `icon:` init param in code).
+- **#44** — detail-view reactivity tests (`PageCollectionDetailView` + siblings); the reactivity fix shipped without view-level tests.
+- **#43** — surface `SelectionCheckmark` in the Component Library (ChipsGallery).
+- **#38** property-delete throws `PageTypeManagerError` toast · **#40** relabel Topic "parents" → "Spaces" (tier-1 label) in detail/supporting text.
+- **Item Windows** — build the real Item Window (the editors are built to host it). **Page Previews** — standalone PreviewWindow primitive.
+- **Latent (code-review):** `IndexUpdater.upsert{Page,Item}Collection` hardcode `schema_version = 1` instead of binding the entity's value (harmless now — collections read schemaVersion from the sidecar, not the index).
 
 #### Fix Log
 
-Acknowledged, not-yet-fixed — address soon (keep current per Handoff Rules):
+Acknowledged, not-yet-fixed — address soon (`/handoff` keeps this current):
 
 1. **Icon picker too large.** The icon picker in View Settings renders far too big; constrain its size.
 2. **Settings popout sizing.** The View Settings popout should size to its content dynamically to avoid scrolling (currently pinned to a fixed max height; Nathan likes the min height).
 3. **Column reorder broken.** Drag-reordering table columns doesn't work.
 4. **"Modified" not hideable.** Last-Edited / "Modified" can't be toggled off in the visibility settings, but it should be.
-5. **Schema changes need reload.** Changing "View As", adding properties, or other schema edits don't show until the view is reloaded — they should update live.
-6. **Inline-edit lag.** Editing a property value inline has a noticeable performance + update buffer.
-7. **Column layout not persisted.** Table column width/order adjustments don't survive across sessions.
-8. **Handoff Skill.** Nathan wants to create an actual skill / command to handle the handoff documentation process rather than relying on listed rules or individual session judgement.
-9. **Chip Colors.** Teal + Purple render as the exact same color as blue and violet on chips; needs fixing.
-10. **Relation-add dead-end in legacy sheets.** Picking "Relation" in the Vault/Type Settings sheets (the context-menu schema editors) silently cancels — relations are created via the View Settings popover editor. Hide the Relation option in those sheets (or route it to the editor) so it isn't a no-op.
-11. **Tier-row panels may show title-only.** The tier-row displays (PropertyPanel / PropertiesPulldown / FrontmatterInspector / ItemWindow) render the target's title but may omit its icon (the table cells + picker already show icon + title). Fold in with the relation-chip work → plan Task 5.
-12. **Property columns on table views don't show their icons** — that needs to be fixed. Column-sizing is also non-persistent between sessions.
+5. **Inline-edit lag.** Editing a property value inline has a noticeable performance + update buffer.
+6. **Column layout not persisted.** Table column width/order adjustments don't survive across sessions (also: property columns don't show their icons).
+7. **Handoff Skill.** Nathan wants an actual skill / command to handle the handoff process rather than relying on listed rules or per-session judgement.
+8. **Relation-add dead-end in legacy sheets.** Picking "Relation" in the Vault/Type Settings sheets (context-menu schema editors) silently cancels — relations are created via the View Settings popover editor. Hide the Relation option there (or route it to the editor) so it isn't a no-op.
 
-#### Handoff Rules
+#### Maintained via `/handoff`
 
-- **Keep the Fix Log current.** When an issue is acknowledged but not yet fixed, add it to the Fix Log above in 1–2 sentences; remove an entry once resolved.
-- **Maintain this file every session** — current state + next focuses + fix log only. Push spec/decisions to their canonical homes (`History.md` / `Framework.md` / `Features/*`); never accumulate per-session work logs here unless double-checked for importance or the work is not yet completed.
+Spec: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md` / `Guidelines/Paradigm-Decisions.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. Don't hand-edit beyond the Fix Log unless the spec contract is preserved.
 
 #### Document pointers
 
 - Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
-- Active plan → none. Relations Redesign complete — `Planning/Relations-Redesign-Plan.md` ready to archive to `Planning/Superseded/`.
+- Active plan → none. Make-Relations-Real complete — `Planning/Make-Relations-Real-Plan.md` ready to archive to `Planning/Superseded/`.
 - Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md`
 - CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
 - Branch quirks + hard rules → `CLAUDE.md`
