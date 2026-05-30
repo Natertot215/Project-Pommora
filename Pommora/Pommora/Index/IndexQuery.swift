@@ -15,28 +15,38 @@ struct IndexQuery: Sendable {
         try await index.dbQueue.read { db in
             switch target {
             case .pageType(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM pages WHERE page_type_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
+                return try Row.fetchAll(
+                    db, sql: "SELECT id, title, icon FROM pages WHERE page_type_id = ?", arguments: [id]
+                )
+                .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
 
             case .itemType(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM items WHERE item_type_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
+                return try Row.fetchAll(
+                    db, sql: "SELECT id, title, icon FROM items WHERE item_type_id = ?", arguments: [id]
+                )
+                .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
 
             case .pageCollection(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM pages WHERE page_collection_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
+                return try Row.fetchAll(
+                    db, sql: "SELECT id, title, icon FROM pages WHERE page_collection_id = ?", arguments: [id]
+                )
+                .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
 
             case .itemCollection(let id):
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM items WHERE item_collection_id = ?", arguments: [id])
-                    .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
+                return try Row.fetchAll(
+                    db, sql: "SELECT id, title, icon FROM items WHERE item_collection_id = ?", arguments: [id]
+                )
+                .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
 
             case .contextTier(let tier):
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon, tier FROM contexts WHERE tier = ?", arguments: [tier])
-                    .map { row -> EntityRef in
-                        let t = (row["tier"] as Int?) ?? tier
-                        let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
-                        return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
-                    }
+                return try Row.fetchAll(
+                    db, sql: "SELECT id, title, icon, tier FROM contexts WHERE tier = ?", arguments: [tier]
+                )
+                .map { row -> EntityRef in
+                    let t = (row["tier"] as Int?) ?? tier
+                    let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
+                    return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
+                }
 
             case .agendaTasks:
                 return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM agenda_tasks", arguments: [])
@@ -46,6 +56,69 @@ struct IndexQuery: Sendable {
                 return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM agenda_events", arguments: [])
                     .map { EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"], icon: $0["icon"]) }
             }
+        }
+    }
+
+    // MARK: - Grouped target query (value picker)
+
+    /// Collection/Set groups + loose (no-collection) leaves for the grouped value
+    /// picker. Groups appear only for `.pageType` / `.itemType` (members live in
+    /// Collections); every other scope (tiers, agenda, collection-scoped) returns its
+    /// entities flat in `rootEntities` with no groups — the picker then renders flat rows.
+    func entitiesByTargetGrouped(_ target: PropertyDefinition.RelationTarget) async throws -> GroupedEntities {
+        switch target {
+        case .pageType(let typeID):
+            return try await index.dbQueue.read { db in
+                let cols = try Row.fetchAll(
+                    db,
+                    sql: "SELECT id, title FROM page_collections WHERE page_type_id = ? ORDER BY title",
+                    arguments: [typeID]
+                ).map { EntityRef(id: $0["id"], kind: .pageCollection, title: $0["title"]) }
+                var groups: [EntityGroup] = []
+                for c in cols {
+                    let members = try Row.fetchAll(
+                        db,
+                        sql: "SELECT id, title, icon FROM pages WHERE page_collection_id = ? ORDER BY title",
+                        arguments: [c.id]
+                    ).map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
+                    groups.append(EntityGroup(container: c, members: members))
+                }
+                let root = try Row.fetchAll(
+                    db,
+                    sql:
+                        "SELECT id, title, icon FROM pages WHERE page_type_id = ? AND page_collection_id IS NULL ORDER BY title",
+                    arguments: [typeID]
+                ).map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
+                return GroupedEntities(groups: groups, rootEntities: root)
+            }
+
+        case .itemType(let typeID):
+            return try await index.dbQueue.read { db in
+                let cols = try Row.fetchAll(
+                    db,
+                    sql: "SELECT id, title FROM item_collections WHERE item_type_id = ? ORDER BY title",
+                    arguments: [typeID]
+                ).map { EntityRef(id: $0["id"], kind: .itemCollection, title: $0["title"]) }
+                var groups: [EntityGroup] = []
+                for c in cols {
+                    let members = try Row.fetchAll(
+                        db,
+                        sql: "SELECT id, title, icon FROM items WHERE item_collection_id = ? ORDER BY title",
+                        arguments: [c.id]
+                    ).map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
+                    groups.append(EntityGroup(container: c, members: members))
+                }
+                let root = try Row.fetchAll(
+                    db,
+                    sql:
+                        "SELECT id, title, icon FROM items WHERE item_type_id = ? AND item_collection_id IS NULL ORDER BY title",
+                    arguments: [typeID]
+                ).map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
+                return GroupedEntities(groups: groups, rootEntities: root)
+            }
+
+        default:
+            return GroupedEntities(groups: [], rootEntities: try await entitiesByTarget(target))
         }
     }
 
@@ -106,18 +179,18 @@ struct IndexQuery: Sendable {
         // (mirrors `brokenLinks`).
         let kindFromString: @Sendable (String) -> EntityKind = { s in
             switch s {
-            case "page":            return .page
-            case "item":            return .item
-            case "agenda_task":     return .agendaTask
-            case "agenda_event":    return .agendaEvent
-            case "page_type":       return .pageType
-            case "item_type":       return .itemType
+            case "page": return .page
+            case "item": return .item
+            case "agenda_task": return .agendaTask
+            case "agenda_event": return .agendaEvent
+            case "page_type": return .pageType
+            case "item_type": return .itemType
             case "page_collection": return .pageCollection
             case "item_collection": return .itemCollection
-            case "space":           return .space
-            case "topic":           return .topic
-            case "project":         return .project
-            default:                return .page
+            case "space": return .space
+            case "topic": return .topic
+            case "project": return .project
+            default: return .page
             }
         }
 
@@ -150,11 +223,12 @@ struct IndexQuery: Sendable {
                 // Resolve the current title from the source's owning table (one row per source).
                 var title = ""
                 if let table = kindTableMap[sourceKindStr] {
-                    title = try String.fetchOne(
-                        db,
-                        sql: "SELECT title FROM \(table) WHERE id = ?",
-                        arguments: [sourceID]
-                    ) ?? ""
+                    title =
+                        try String.fetchOne(
+                            db,
+                            sql: "SELECT title FROM \(table) WHERE id = ?",
+                            arguments: [sourceID]
+                        ) ?? ""
                 }
                 return EntityRef(id: sourceID, kind: kind, title: title)
             }
@@ -235,7 +309,7 @@ struct IndexQuery: Sendable {
                 )
 
             case .agendaTask, .agendaEvent, .pageType, .itemType,
-                 .pageCollection, .itemCollection, .space, .topic, .project:
+                .pageCollection, .itemCollection, .space, .topic, .project:
                 return nil
             }
         }
@@ -281,12 +355,15 @@ struct IndexQuery: Sendable {
         let dstKindStr = FilterBuilder.entityKindToOwningTypeKind(destTypeKind)
 
         return try await index.dbQueue.read { db in
-            let sourceRows = try Row.fetchAll(db,
+            let sourceRows = try Row.fetchAll(
+                db,
                 sql: "SELECT id, name FROM property_definitions WHERE owning_type_id = ? AND owning_type_kind = ?",
                 arguments: [sourceID, srcKindStr])
-            let destNameSet = Set(try String.fetchAll(db,
-                sql: "SELECT name FROM property_definitions WHERE owning_type_id = ? AND owning_type_kind = ?",
-                arguments: [destTypeID, dstKindStr]))
+            let destNameSet = Set(
+                try String.fetchAll(
+                    db,
+                    sql: "SELECT name FROM property_definitions WHERE owning_type_id = ? AND owning_type_kind = ?",
+                    arguments: [destTypeID, dstKindStr]))
 
             let stripped = sourceRows.filter { !destNameSet.contains($0["name"] as String) }
             return StripReport(
@@ -303,18 +380,18 @@ struct IndexQuery: Sendable {
         // Inline kind conversion to avoid calling actor-isolated helpers inside @Sendable closure.
         let kindFromString: @Sendable (String) -> EntityKind = { s in
             switch s {
-            case "page":            return .page
-            case "item":            return .item
-            case "agenda_task":     return .agendaTask
-            case "agenda_event":    return .agendaEvent
-            case "page_type":       return .pageType
-            case "item_type":       return .itemType
+            case "page": return .page
+            case "item": return .item
+            case "agenda_task": return .agendaTask
+            case "agenda_event": return .agendaEvent
+            case "page_type": return .pageType
+            case "item_type": return .itemType
             case "page_collection": return .pageCollection
             case "item_collection": return .itemCollection
-            case "space":           return .space
-            case "topic":           return .topic
-            case "project":         return .project
-            default:                return .page
+            case "space": return .space
+            case "topic": return .topic
+            case "project": return .project
+            default: return .page
             }
         }
 
@@ -359,14 +436,15 @@ struct IndexQuery: Sendable {
                 for row in rows {
                     let skStr: String = row["source_kind"]
                     let tkStr: String = row["target_kind"]
-                    reports.append(BrokenLinkReport(
-                        relationID: row["relation_id"],
-                        sourceID: row["source_id"],
-                        sourceKind: kindFromString(skStr),
-                        targetID: row["target_id"],
-                        targetKind: kindFromString(tkStr),
-                        propertyID: row["property_id"]
-                    ))
+                    reports.append(
+                        BrokenLinkReport(
+                            relationID: row["relation_id"],
+                            sourceID: row["source_id"],
+                            sourceKind: kindFromString(skStr),
+                            targetID: row["target_id"],
+                            targetKind: kindFromString(tkStr),
+                            propertyID: row["property_id"]
+                        ))
                 }
             }
             return reports
@@ -419,27 +497,29 @@ private enum FilterBuilder {
 
     // MARK: - Target helpers
 
-    nonisolated static func targetSQL(_ target: TargetRef)
+    nonisolated static func targetSQL(
+        _ target: TargetRef
+    )
         -> (String, String, String, String, [any DatabaseValueConvertible])
     {
         switch target {
-        case .pageType(let id):       return ("pages", "id", "title", "page_type_id = ?", [id])
-        case .itemType(let id):       return ("items", "id", "title", "item_type_id = ?", [id])
+        case .pageType(let id): return ("pages", "id", "title", "page_type_id = ?", [id])
+        case .itemType(let id): return ("items", "id", "title", "item_type_id = ?", [id])
         case .pageCollection(let id): return ("pages", "id", "title", "page_collection_id = ?", [id])
         case .itemCollection(let id): return ("items", "id", "title", "item_collection_id = ?", [id])
-        case .agendaTasks:            return ("agenda_tasks", "id", "title", "", [])
-        case .agendaEvents:           return ("agenda_events", "id", "title", "", [])
-        case .contextTier(let t):     return ("contexts", "id", "title", "tier = ?", [t])
+        case .agendaTasks: return ("agenda_tasks", "id", "title", "", [])
+        case .agendaEvents: return ("agenda_events", "id", "title", "", [])
+        case .contextTier(let t): return ("contexts", "id", "title", "tier = ?", [t])
         }
     }
 
     nonisolated static func targetEntityKind(_ target: TargetRef) -> EntityKind {
         switch target {
-        case .pageType, .pageCollection:  return .page
-        case .itemType, .itemCollection:  return .item
-        case .agendaTasks:                return .agendaTask
-        case .agendaEvents:               return .agendaEvent
-        case .contextTier(let t):         return t == 1 ? .space : (t == 2 ? .topic : .project)
+        case .pageType, .pageCollection: return .page
+        case .itemType, .itemCollection: return .item
+        case .agendaTasks: return .agendaTask
+        case .agendaEvents: return .agendaEvent
+        case .contextTier(let t): return t == 1 ? .space : (t == 2 ? .topic : .project)
         }
     }
 
@@ -474,12 +554,14 @@ private enum FilterBuilder {
 
         case .contains(let pid, let value):
             let (_, innerArgs) = sqlValue(value)
-            return ("""
+            return (
+                """
                 EXISTS (
                     SELECT 1 FROM json_each(json_extract(properties, '$.\(pid)'))
                     WHERE value = ?
                 )
-                """, innerArgs)
+                """, innerArgs
+            )
 
         case .exists(let pid):
             return ("json_extract(properties, '$.\(pid)') IS NOT NULL", [])
@@ -503,11 +585,11 @@ private enum FilterBuilder {
 
     nonisolated static func sqlValue(_ value: PropertyValue) -> (String, [any DatabaseValueConvertible]) {
         switch value {
-        case .number(let n):    return ("?", [n])
-        case .checkbox(let b):  return ("?", [b ? 1 : 0])
-        case .select(let s):    return ("?", [s])
-        case .status(let s):    return ("?", [s])
-        case .url(let u):       return ("?", [u.absoluteString])
+        case .number(let n): return ("?", [n])
+        case .checkbox(let b): return ("?", [b ? 1 : 0])
+        case .select(let s): return ("?", [s])
+        case .status(let s): return ("?", [s])
+        case .url(let u): return ("?", [u.absoluteString])
         case .date(let d):
             let f = DateFormatter()
             f.dateFormat = "yyyy-MM-dd"
@@ -535,34 +617,34 @@ private enum FilterBuilder {
 
     nonisolated static func entityKindToOwningTypeKind(_ kind: EntityKind) -> String {
         switch kind {
-        case .pageType:       return "page_type"
-        case .itemType:       return "item_type"
+        case .pageType: return "page_type"
+        case .itemType: return "item_type"
         case .pageCollection: return "page_collection"
         case .itemCollection: return "item_collection"
-        case .agendaTask:     return "agenda_task"
-        case .agendaEvent:    return "agenda_event"
-        case .page:           return "page"
-        case .item:           return "item"
-        case .space:          return "space"
-        case .topic:          return "topic"
-        case .project:        return "project"
+        case .agendaTask: return "agenda_task"
+        case .agendaEvent: return "agenda_event"
+        case .page: return "page"
+        case .item: return "item"
+        case .space: return "space"
+        case .topic: return "topic"
+        case .project: return "project"
         }
     }
 
     nonisolated static func entityKindFromString(_ s: String) -> EntityKind {
         switch s {
-        case "page":            return .page
-        case "item":            return .item
-        case "agenda_task":     return .agendaTask
-        case "agenda_event":    return .agendaEvent
-        case "page_type":       return .pageType
-        case "item_type":       return .itemType
+        case "page": return .page
+        case "item": return .item
+        case "agenda_task": return .agendaTask
+        case "agenda_event": return .agendaEvent
+        case "page_type": return .pageType
+        case "item_type": return .itemType
         case "page_collection": return .pageCollection
         case "item_collection": return .itemCollection
-        case "space":           return .space
-        case "topic":           return .topic
-        case "project":         return .project
-        default:                return .page
+        case "space": return .space
+        case "topic": return .topic
+        case "project": return .project
+        default: return .page
         }
     }
 }
@@ -585,7 +667,7 @@ enum SortDirection: String, Codable, Equatable, Hashable, Sendable { case ascend
 
 enum EntityKind: String, Codable, Sendable {
     case page, item, agendaTask, agendaEvent, pageType, itemType,
-         pageCollection, itemCollection, space, topic, project
+        pageCollection, itemCollection, space, topic, project
 }
 
 struct EntityRef: Equatable, Hashable, Sendable {
@@ -598,6 +680,28 @@ struct EntityRef: Equatable, Hashable, Sendable {
         self.kind = kind
         self.title = title
         self.icon = icon
+    }
+}
+
+/// A Collection/Set and its member entities, for the grouped value picker.
+struct EntityGroup: Sendable, Equatable {
+    let container: EntityRef
+    let members: [EntityRef]
+    nonisolated init(container: EntityRef, members: [EntityRef]) {
+        self.container = container
+        self.members = members
+    }
+}
+
+/// Grouped result for the value picker: Collection/Set `groups` + `rootEntities`
+/// (loose, no-collection leaves). Non-grouping scopes (tiers, agenda) return empty
+/// `groups` and put everything in `rootEntities`, so the picker renders flat rows.
+struct GroupedEntities: Sendable, Equatable {
+    let groups: [EntityGroup]
+    let rootEntities: [EntityRef]
+    nonisolated init(groups: [EntityGroup], rootEntities: [EntityRef]) {
+        self.groups = groups
+        self.rootEntities = rootEntities
     }
 }
 
