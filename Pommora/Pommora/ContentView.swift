@@ -110,9 +110,9 @@ struct ContentView: View {
     @ViewBuilder
     private var primaryActionCapsule: some View {
         if let vaultMgr = vaultManager,
-           let itemTypeMgr = itemTypeManager,
-           let tierConfigMgr = tierConfigManager,
-           recentsManager != nil, pinnedManager != nil
+            let itemTypeMgr = itemTypeManager,
+            let tierConfigMgr = tierConfigManager,
+            recentsManager != nil, pinnedManager != nil
         {
             let lookup = SidebarLookupBundle(
                 content: contentManager,
@@ -190,13 +190,14 @@ struct ContentView: View {
                     // Back/Forward navigation arrows in the leading toolbar area.
                     ToolbarItemGroup(placement: .navigation) {
                         if recentsManager != nil, let vaultMgr = vaultManager, let itemTypeMgr = itemTypeManager {
-                            BackForwardButtons(lookup: SidebarLookupBundle(
-                                content: contentManager,
-                                pageType: vaultMgr,
-                                itemType: itemTypeMgr,
-                                space: spaceManager,
-                                topic: topicManager
-                            ))
+                            BackForwardButtons(
+                                lookup: SidebarLookupBundle(
+                                    content: contentManager,
+                                    pageType: vaultMgr,
+                                    itemType: itemTypeMgr,
+                                    space: spaceManager,
+                                    topic: topicManager
+                                ))
                         }
                     }
                     // Segmented pair: NavDropdown (left) + Inspector toggle
@@ -285,25 +286,25 @@ struct ContentView: View {
                 editingID: $editingID,
                 justCreatedID: $justCreatedID
             )
-                .environment(spaceMgr)
-                .environment(topicMgr)
-                .environment(vaultMgr)
-                .environment(itemTypeMgr)
-                .environment(contentMgr)
-                .environment(itemContentMgr)
-                .environment(savedMgr)
-                .environment(settingsMgr)
-                .environment(agendaTaskMgr)
-                .environment(agendaEventMgr)
-                .environment(tierConfigMgr)
-                .overlay(alignment: .bottom) {
-                    if nexusManager.isIndexing {
-                        IndexingHUD()
-                            .transition(.opacity)
-                            .padding(10)
-                    }
+            .environment(spaceMgr)
+            .environment(topicMgr)
+            .environment(vaultMgr)
+            .environment(itemTypeMgr)
+            .environment(contentMgr)
+            .environment(itemContentMgr)
+            .environment(savedMgr)
+            .environment(settingsMgr)
+            .environment(agendaTaskMgr)
+            .environment(agendaEventMgr)
+            .environment(tierConfigMgr)
+            .overlay(alignment: .bottom) {
+                if nexusManager.isIndexing {
+                    IndexingHUD()
+                        .transition(.opacity)
+                        .padding(10)
                 }
-                .animation(.easeInOut(duration: 0.18), value: nexusManager.isIndexing)
+            }
+            .animation(.easeInOut(duration: 0.18), value: nexusManager.isIndexing)
         } else {
             VStack(spacing: 8) {
                 ProgressView()
@@ -325,11 +326,23 @@ struct ContentView: View {
             let spaceMgr = spaceManager,
             let vaultMgr = vaultManager,
             let contentMgr = contentManager,
+            let relationRes = relationResolver,
             let resolved = contentMgr.resolveParent(for: p, pageTypeManager: vaultMgr)
         {
-            FrontmatterInspector(page: p, vault: resolved.vault)
-                .environment(spaceMgr)
-                .environment(vaultMgr)
+            FrontmatterInspector(
+                page: p,
+                vault: resolved.vault,
+                index: nexusManager.currentIndex,
+                relationDisplay: relationRes,
+                onSave: { updated in
+                    Task {
+                        try? await contentMgr.updatePageFrontmatter(
+                            p, frontmatter: updated, vault: resolved.vault, collection: resolved.collection)
+                    }
+                }
+            )
+            .environment(spaceMgr)
+            .environment(vaultMgr)
         } else {
             Color.clear
         }

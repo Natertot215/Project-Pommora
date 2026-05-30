@@ -91,6 +91,8 @@ final class FrontmatterInspectorViewModel {
 struct FrontmatterInspector: View {
     let page: PageMeta
     let vault: PageType
+    let index: PommoraIndex?
+    let relationDisplay: RelationDisplayResolver?
     let onSave: ((PageFrontmatter) -> Void)?
 
     @Environment(SpaceManager.self) private var spaceManager
@@ -98,9 +100,17 @@ struct FrontmatterInspector: View {
 
     @State private var vm: FrontmatterInspectorViewModel?
 
-    init(page: PageMeta, vault: PageType, onSave: ((PageFrontmatter) -> Void)? = nil) {
+    init(
+        page: PageMeta,
+        vault: PageType,
+        index: PommoraIndex? = nil,
+        relationDisplay: RelationDisplayResolver? = nil,
+        onSave: ((PageFrontmatter) -> Void)? = nil
+    ) {
         self.page = page
         self.vault = vault
+        self.index = index
+        self.relationDisplay = relationDisplay
         self.onSave = onSave
     }
 
@@ -136,13 +146,33 @@ struct FrontmatterInspector: View {
         }
     }
 
-    // MARK: - Tiers section (read-only here; the planned properties dropdown will host editing)
+    // MARK: - Tiers section (editable via RelationValueEditor; persists through the VM's debounced onSave)
 
     private var tiersSection: some View {
         Section("Tiers") {
-            LabeledContent("Spaces", value: tier1Names)
-            LabeledContent("Topics", value: tier2Names)
-            LabeledContent("Projects", value: tier3Names)
+            if let model = vm {
+                tierRow("Spaces", tier: 1, ids: tierBinding(model, 1))
+                tierRow("Topics", tier: 2, ids: tierBinding(model, 2))
+                tierRow("Projects", tier: 3, ids: tierBinding(model, 3))
+            } else {
+                LabeledContent("Spaces", value: tier1Names)
+                LabeledContent("Topics", value: tier2Names)
+                LabeledContent("Projects", value: tier3Names)
+            }
+        }
+    }
+
+    private func tierRow(_ label: String, tier: Int, ids: Binding<[String]>) -> some View {
+        LabeledContent(label) {
+            RelationValueEditor(ids: ids, scope: .contextTier(tier), index: index, resolver: relationDisplay)
+        }
+    }
+
+    private func tierBinding(_ model: FrontmatterInspectorViewModel, _ tier: Int) -> Binding<[String]> {
+        switch tier {
+        case 1: return Binding(get: { model.draftTier1 }, set: { model.handleTierChange(1, $0) })
+        case 2: return Binding(get: { model.draftTier2 }, set: { model.handleTierChange(2, $0) })
+        default: return Binding(get: { model.draftTier3 }, set: { model.handleTierChange(3, $0) })
         }
     }
 
@@ -162,7 +192,9 @@ struct FrontmatterInspector: View {
                             value: Binding(
                                 get: { model.draftProperties[prop.id] ?? .null },
                                 set: { newVal in model.handlePropertyChange(prop.id, newVal) }
-                            )
+                            ),
+                            index: index,
+                            relationDisplay: relationDisplay
                         )
                     }
                 }

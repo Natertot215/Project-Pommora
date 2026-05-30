@@ -19,7 +19,9 @@ extension PageContentManager {
     // MARK: - Page CRUD (PageCollection-scoped)
 
     @discardableResult
-    func createPage(name: String, icon: String? = nil, in collection: PageCollection, vault: PageType) async throws -> PageMeta {
+    func createPage(
+        name: String, icon: String? = nil, in collection: PageCollection, vault: PageType
+    ) async throws -> PageMeta {
         do {
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
@@ -44,7 +46,9 @@ extension PageContentManager {
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
             if let updater = indexUpdater {
-                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: collection.id) } catch { self.pendingError = error }
+                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -85,7 +89,9 @@ extension PageContentManager {
             updated.url = newURL
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: collection.id) } catch { self.pendingError = error }
+                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -149,7 +155,9 @@ extension PageContentManager {
             try pageFile.save(to: page.url)
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: collection.id) } catch { self.pendingError = error }
+                do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -193,7 +201,9 @@ extension PageContentManager {
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
             if let updater = indexUpdater {
-                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: nil) } catch { self.pendingError = error }
+                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: nil) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -232,7 +242,9 @@ extension PageContentManager {
             updated.url = newURL
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: nil) } catch { self.pendingError = error }
+                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: nil) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -273,7 +285,7 @@ extension PageContentManager {
     private func trashAttachments(for pageID: String) {
         let attachmentsURL = NexusPaths.attachmentsDir(for: pageID, in: nexus.rootURL)
         guard FileManager.default.fileExists(atPath: attachmentsURL.path) else { return }
-        do { try Filesystem.moveToTrash(attachmentsURL, in: nexus) } catch { /* best-effort */ }
+        do { try Filesystem.moveToTrash(attachmentsURL, in: nexus) } catch { /* best-effort */  }
     }
 
     /// Type-root variant of `updatePage`. Same contract: body-only write,
@@ -295,7 +307,9 @@ extension PageContentManager {
             try pageFile.save(to: page.url)
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: nil) } catch { self.pendingError = error }
+                do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: nil) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -534,33 +548,35 @@ extension PageContentManager {
 
         // Walk all PageType folders looking for the matching type (by sidecar id).
         let nexusRoot = nexus.rootURL
-        let allDirs = (try? FileManager.default.contentsOfDirectory(
-            at: nexusRoot,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )) ?? []
+        let allDirs =
+            (try? FileManager.default.contentsOfDirectory(
+                at: nexusRoot,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
 
         for dir in allDirs {
             var isDir: ObjCBool = false
             guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir),
-                  isDir.boolValue
+                isDir.boolValue
             else { continue }
 
             // Check for PageType sidecar.
             let ptSidecar = dir.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             if FileManager.default.fileExists(atPath: ptSidecar.path) {
                 if let pt = try? AtomicJSON.decode(PageType.self, from: ptSidecar),
-                   pt.id == onTypeID
+                    pt.id == onTypeID
                 {
                     // Found the target PageType folder — walk .md files.
-                    let mdFiles = (try? Filesystem.descendantFiles(
-                        of: dir,
-                        where: { $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_") }
-                    )) ?? []
+                    let mdFiles =
+                        (try? Filesystem.descendantFiles(
+                            of: dir,
+                            where: { $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_") }
+                        )) ?? []
                     for mdURL in mdFiles {
                         var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: mdURL)
                         guard targetSet.contains(fm.id),
-                              let val = fm.properties[reversePropertyID]
+                            let val = fm.properties[reversePropertyID]
                         else { continue }
                         let cleared = removeID(sourcePageID, from: val)
                         fm.properties[reversePropertyID] = cleared
@@ -575,19 +591,20 @@ extension PageContentManager {
             let itSidecar = dir.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
             if FileManager.default.fileExists(atPath: itSidecar.path) {
                 if let it = try? AtomicJSON.decode(ItemType.self, from: itSidecar),
-                   it.id == onTypeID
+                    it.id == onTypeID
                 {
                     // Found the target ItemType folder — walk .json item files.
-                    let jsonFiles = (try? Filesystem.descendantFiles(
-                        of: dir,
-                        where: {
-                            $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_")
-                        }
-                    )) ?? []
+                    let jsonFiles =
+                        (try? Filesystem.descendantFiles(
+                            of: dir,
+                            where: {
+                                $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_")
+                            }
+                        )) ?? []
                     for jsonURL in jsonFiles {
                         var item = try AtomicJSON.decode(Item.self, from: jsonURL)
                         guard targetSet.contains(item.id),
-                              let val = item.properties[reversePropertyID]
+                            let val = item.properties[reversePropertyID]
                         else { continue }
                         let cleared = removeID(sourcePageID, from: val)
                         item.properties[reversePropertyID] = cleared
@@ -645,7 +662,7 @@ extension PageContentManager {
             let pageFile = try PageFile.load(from: page.url)
             var fm = pageFile.frontmatter
             if case .relation(let ids)? = newValue {
-                fm.setRelationIDs(ids, forPropertyID: propertyID)   // tier→root, user→properties, empty→omit
+                fm.setRelationIDs(ids, forPropertyID: propertyID)  // tier→root, user→properties, empty→omit
             } else if let newValue {
                 fm.properties[propertyID] = newValue
             } else {
@@ -661,14 +678,14 @@ extension PageContentManager {
 
             if let collection {
                 if var arr = pagesByCollection[collection.id],
-                   let i = arr.firstIndex(where: { $0.id == page.id })
+                    let i = arr.firstIndex(where: { $0.id == page.id })
                 {
                     arr[i] = updatedMeta
                     pagesByCollection[collection.id] = arr
                 }
             } else {
                 if var arr = pagesByTypeRoot[vault.id],
-                   let i = arr.firstIndex(where: { $0.id == page.id })
+                    let i = arr.firstIndex(where: { $0.id == page.id })
                 {
                     arr[i] = updatedMeta
                     pagesByTypeRoot[vault.id] = arr
@@ -682,6 +699,58 @@ extension PageContentManager {
                         pageTypeID: vault.id,
                         pageCollectionID: collection?.id
                     )
+                } catch {
+                    self.pendingError = error
+                }
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    /// Persists a wholesale frontmatter replacement for a page (all properties +
+    /// tiers), preserving the on-disk body. The Page inspector edits the full
+    /// frontmatter as a debounced draft and flushes it here; `updatePageProperty`
+    /// remains the granular per-key path (table cells). Mirrors that method's
+    /// load → mutate → atomic-save → cache-refresh → best-effort index-upsert shape.
+    func updatePageFrontmatter(
+        _ page: PageMeta,
+        frontmatter: PageFrontmatter,
+        vault: PageType,
+        collection: PageCollection?
+    ) async throws {
+        do {
+            let pageFile = try PageFile.load(from: page.url)
+            var fm = frontmatter
+            fm.modifiedAt = Date()
+
+            let updatedFile = PageFile(frontmatter: fm, body: pageFile.body, title: page.title)
+            try updatedFile.save(to: page.url)
+
+            var updatedMeta = page
+            updatedMeta.frontmatter = fm
+
+            if let collection {
+                if var arr = pagesByCollection[collection.id],
+                    let i = arr.firstIndex(where: { $0.id == page.id })
+                {
+                    arr[i] = updatedMeta
+                    pagesByCollection[collection.id] = arr
+                }
+            } else {
+                if var arr = pagesByTypeRoot[vault.id],
+                    let i = arr.firstIndex(where: { $0.id == page.id })
+                {
+                    arr[i] = updatedMeta
+                    pagesByTypeRoot[vault.id] = arr
+                }
+            }
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(
+                        updatedMeta, pageTypeID: vault.id, pageCollectionID: collection?.id)
                 } catch {
                     self.pendingError = error
                 }
@@ -782,16 +851,17 @@ extension PageContentManager {
         }
         let candidate = NexusPaths.pageFileURL(forTitle: container.entityTitle, in: folder)
         if Filesystem.fileExists(at: candidate),
-           let fm = try? PageFile.load(from: candidate).frontmatter,
-           fm.id == id
+            let fm = try? PageFile.load(from: candidate).frontmatter,
+            fm.id == id
         {
             return candidate
         }
         // Fall back to a descendant walk matching by id (handles nested Type-root
         // Pages + any title/filename divergence).
-        let matches = (try? Filesystem.descendantFiles(of: folder) { url in
-            url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-        }) ?? []
+        let matches =
+            (try? Filesystem.descendantFiles(of: folder) { url in
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
+            }) ?? []
         for url in matches {
             if let fm = try? PageFile.load(from: url).frontmatter, fm.id == id {
                 return url
@@ -806,14 +876,14 @@ extension PageContentManager {
     private func refreshPageCache(_ updated: PageMeta, container: EntityContainer) {
         if let collectionID = container.collectionID {
             if var arr = pagesByCollection[collectionID],
-               let i = arr.firstIndex(where: { $0.id == updated.id })
+                let i = arr.firstIndex(where: { $0.id == updated.id })
             {
                 arr[i] = updated
                 pagesByCollection[collectionID] = arr
             }
         } else {
             if var arr = pagesByTypeRoot[container.typeID],
-               let i = arr.firstIndex(where: { $0.id == updated.id })
+                let i = arr.firstIndex(where: { $0.id == updated.id })
             {
                 arr[i] = updated
                 pagesByTypeRoot[container.typeID] = arr
