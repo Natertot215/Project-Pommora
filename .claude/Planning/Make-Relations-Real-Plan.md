@@ -27,15 +27,23 @@
 - **`PropertyEditorRow` (ItemWindow / PropertyPanel / FrontmatterInspector / PropertiesPulldown) takes only `definition` + `@Binding value`** — no index. Relation case is a placeholder (`PropertyEditorRow.swift:32-33`); status is read-only text (`:116-124`).
 - **`FrontmatterInspector` already has tier-edit plumbing** — `draftTier1/2/3` + `handleTierChange(_:_:)` (`FrontmatterInspector.swift:39-47`); only the Tiers *section* is read-only `LabeledContent` (`:139-147`).
 
-### Design — the value picker (confirmed with Nathan + 2 mockups)
+### Design — the value picker (confirmed with Nathan + 3 mockups; static spec LOCKED 2026-05-30)
 
-- **One component, data-driven.** Groups present → sub-menu; no groups → flat standard rows. The property **editor's target selector** (scopes to Vaults/Item-Types only — *storages, never ID'd items*) therefore renders as flat rows automatically; it needs no sub-menu and no special "editor mode."
-- **Sub-menu presentation = side-by-side pop-out.** Built as an **HStack of two `chipDropdownPanel` panels inside the one popover** (main panel + the active collection's member panel, with a gap) — NOT a nested `.popover` or a floating window. The popover simply grows wider when a collection is open. This is the two-rounded-panels-with-a-gap from the mockup, achieved without nested-popover fragility.
-- **Per-panel spec:** **150 wide × 235 tall**, **body / regular** type, **8pt** spacing between rows, scrolls past 235. Separator is **inset to align with row content** (does not reach the panel edge — match the View Settings dropdown's divider inset).
+- **One component, data-driven.** Groups present → sub-menu pop-out; no groups → flat standard rows. The property **editor's target selector** (scopes to Vaults/Item-Types only — *storages, never ID'd items*) therefore renders as flat rows automatically; it needs no sub-menu and no special "editor mode."
+- **Sub-menu = side POP-OUT, NOT inline disclosure** (confirmed 2026-05-30). A chevron Collection/Set row opens its members in a **second panel beside the main one** (native-macOS-submenu behavior) — built as an **HStack of two `chipDropdownPanel` panels inside the one popover** (main panel + active collection's member panel, with a gap), NOT a nested `.popover`, NOT a floating window, NOT an in-place expand. The popover grows wider when a collection opens.
+- **Sizing is PROPORTIONAL, not literal.** The Figma mockups (~160×235, 8pt) are *proportional, not point-accurate* to real components. Match the ~2:3 portrait proportion + relative spacing; the concrete frame is tuned by eye against live SwiftUI **Body** type + standard macOS metrics at build. A **fixed frame is retained regardless** (the `9deb818` anti-collapse guarantee — a chromeless popover with no fixed size collapses to a glass blob). Type = **Body**; **8pt** between list items; scrolls past the panel height.
+- **Divider:** a slight separator between the Collection/Set rows and the Page/Item rows, **inset to align with the list-item padding** so it does NOT touch the panel edges — same principle as the properties-editor dropdown divider.
 - **Row types:**
-  - **Collection row:** folder glyph + title + trailing **chevron** (`chevron.right`). Whole row opens that collection's member panel to the right (sets `activeGroupID`).
-  - **Leaf row** (Page / Item / Context): entity **icon + title**, and a trailing **blue checkmark badge shown ONLY when selected** (unselected rows show nothing — this is the multi-select affordance; no always-visible empty checkbox). Tapping toggles selection.
-- **`RelationChip` is NOT used in the picker.** It stays the assigned-value display (Task 5 + the table cells).
+  - **Collection/Set row:** folder glyph + title + trailing **chevron** (`chevron.right`). Whole row pops out that collection's member panel to the side (sets `activeGroupID`).
+  - **Leaf row** (Page / Item / Context): entity **icon + title** (NOT a `RelationChip`), trailing **blue checkmark shown ONLY when selected** (unselected rows show nothing — the multi-select affordance; no always-visible empty box). Tapping toggles selection.
+- **`RelationChip` is NOT used in the picker** — it's the inline assigned-value display only (table cells, Item Windows, panels; Task 5).
+- **Interaction — RESOLVED (2026-05-30; Nathan delegated — remote, can't verify live; reviews when home):**
+  - **Pop-out:** clicking a Collection/Set row opens its members in the right-hand panel — ONE open at a time (click another collection swaps it; click the open one again closes it — toggles `activeGroupID`). Native-macOS-submenu behavior.
+  - **Select + dismiss:** a leaf tap toggles selection (multi-select; checkmarks accumulate) and does NOT dismiss — keep picking. Commit the `[ID]` array live per toggle (as today). The picker dismisses on click-away / Esc (standard popover).
+  - **States:** subtle rounded fill on row hover; the open Collection row keeps a persistent highlight while its panel shows; brief emphasis on press.
+  - **Frame:** ~160×235 per panel (proportional, tuned to Body type); ~328 wide with a collection open; fixed frame retained (the `9deb818` anti-collapse); each panel scrolls vertically past 235.
+  - **Checkmark:** `SelectionCheckmark` (blue rounded square + white check, ~18–20pt), trailing, rendered ONLY when selected (an equal-width spacer when not, so titles stay aligned).
+  - **Empty/loading:** render the fixed frame immediately (never content-size, or it collapses); quiet placeholder until grouped data loads.
 
 ### Scoping decisions (controller's call; veto on review)
 
@@ -55,7 +63,7 @@
 
 ---
 
-> ⛔ **STOP before Task 4 — get the picker UIX from Nathan FIRST.** The relation value picker is a precise visual surface, and its detailed UIX — exact spacing, the side-by-side reveal/dismiss behavior, the selection checkmark, hover/active/pressed states, sub-menu open-close, sizing nuances — **cannot survive compaction or be captured accurately in this doc + the mockups alone.** The spec below is the *baseline*, not the full intent. Before writing any Task 4b (picker view) code, pause and have Nathan walk through the picker specifics live. **Task 4a** (the `entitiesByTargetGrouped` data query + its test) is pure data, no UIX — it MAY proceed first with Nathan's okay; **Task 4b waits on Nathan's detailed UIX.**
+> ✅ **GATE LIFTED (2026-05-30).** Nathan is remote and can't verify UIX live, so he delegated the picker interaction design to Claude (see **Picker interaction — RESOLVED** in the Design section) and authorized building **Tasks 4 → 7 straight through to green**. Build to the complete design, verify green, finish the plan; Nathan reviews the picker UIX when he's home. Order: Task 4a (data query) → 4b (picker view) → 5 (tier chips) → 6 (editors) → 7 (v5 smoke-test).
 
 ---
 
@@ -120,7 +128,9 @@ func entitiesByTargetGrouped(_ target: PropertyDefinition.RelationTarget) async 
 - [ ] **Step 4 — Picker state + data load.** Replace the flat-list body — and **drop the current single outer `.frame(width:).padding(8).chipDropdownPanel()` wrapper** (`RelationPicker.swift:22-28`); each panel below now owns its own sizing + chrome. Load grouped data in `.task`; track which collection is open.
 
 ```swift
-private static let panelWidth: CGFloat = 150
+// Proportional placeholders — Figma ~160×235 is NOT point-accurate. Tune by eye at
+// build against live Body type; fixed frame retained for the 9deb818 anti-collapse.
+private static let panelWidth: CGFloat = 160
 private static let panelHeight: CGFloat = 235
 @State private var grouped: GroupedEntities = .init(groups: [], rootEntities: [])
 @State private var activeGroupID: String? = nil   // nil = no sub-menu open
@@ -229,9 +239,9 @@ private func leafRow(_ e: EntityRef) -> some View {
 
 ---
 
-### Task 8: Relation-lifecycle hardening — paired-delete decode crash + orphan-parent FK (diagnosed 2026-05-29)
+### Task 8: Relation-lifecycle hardening — paired-delete decode crash + orphan-parent FK — ✅ SHIPPED `f1d66f6` (2026-05-30)
 
-Two live errors on the **Item-Type→Vault mirror relation**, one diagnosed root each. Both are **fix-tomorrow** (diagnosed today, evidence-backed). Do these BEFORE Task 4 if they're blocking Nathan's testing.
+Two live errors on the **Item-Type→Vault mirror relation**, one diagnosed root each. **SHIPPED `f1d66f6`:** fixed via a shared `MemberFileStrip.forEach` resilience helper applied at **all 8** strip sites (broader than the 3 originally scoped — `DualRelationCoordinator.stageValueStrip` ×4 branches + `PageType`/`ItemTypeManager` delete+changeType) + FK-resilient `upsertPage`/`upsertItem` (catch constraint → retry without orphan collection → else skip+log). Tests green: `MemberFileStripResilienceTests` (3) + flipped `IndexPopulationReproTests` Test B; full suite 990/991 (known flake only). Original diagnosis retained below for reference.
 
 **Bug A — "the data couldn't be read because it is missing" on paired create/delete (decode crash).**
 - **Root (verified, on-disk):** the paired cascade's value-strip loads EVERY `.md` member of the targeted Vault as `PageFrontmatter` to strip the property value — `DualRelationCoordinator.stageValueStrip` `.pageType` branch (`Vaults/DualRelationCoordinator.swift:278-284`; hard `try` at `:279`). A frontmatter-less `.md` (hand-authored doc) decodes from `"{}"`; `PageFrontmatter.init(from:)` requires `id` (`Content/PageFrontmatter.swift:63`) → `DecodingError.keyNotFound(.id)` → that exact toast (surfaced via `SidebarToast.friendlyMessage:91` / `PropertyEditorErrorMessage.string:25`, neither maps the raw `DecodingError`). The throw aborts the `SchemaTransaction` before commit → orphaned half-pair, toast every attempt. Confirmed on Nathan's `The Nexus/Systems` Vault (10 frontmatter-less `.md` files). **NOT a create-side serialization bug — the mirror is written correctly.**
