@@ -116,10 +116,11 @@ struct RebuildResilienceTests {
         try PageFile(frontmatter: frontmatterB, body: "# Second\n")
             .save(to: vaultFolder.appendingPathComponent("Second.md"))
 
-        // --- Run the real rebuild. `try?` so the test continues even though
-        // current `populate` throws (the dup page rolls the transaction back).
-        // A resilient rebuild won't throw at all — it skips the dup page. ---
-        try? await IndexBuilder.populate(index: index, from: nexus)
+        // --- Run the real rebuild. With the resilient-rebuild fix, `populate`
+        // skips the duplicate-PK page instead of rolling the whole transaction
+        // back, so it does NOT throw. `try` (not `try?`) surfaces any unexpected
+        // failure as a test failure rather than silently swallowing it. ---
+        try await IndexBuilder.populate(index: index, from: nexus)
 
         // --- ASSERT the DESIRED outcome: the valid Contexts SURVIVED the
         // rebuild despite the one bad Page. On current all-or-nothing code the

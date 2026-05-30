@@ -53,7 +53,10 @@ struct PropertyCellEditor: View {
             // Cell IS the toggle — tap flips immediately, no popover. Rendered
             // with the reusable PropertyCheckbox; a simultaneousGesture ensures
             // the tap fires even when Table's row-selection would swallow it.
-            let checked: Bool = { if case .checkbox(let b) = value { return b }; return false }()
+            let checked: Bool = {
+                if case .checkbox(let b) = value { return b }
+                return false
+            }()
             PropertyCheckbox(
                 // set is inert — the simultaneousGesture below is the single
                 // commit path (it survives Table row-selection, and routing
@@ -72,18 +75,18 @@ struct PropertyCellEditor: View {
             // first "upcoming" option (unchecked) and the first "done" option
             // (checked); right-click opens the chip dropdown to pick any value.
             StatusCheckbox(value: currentStatusValue, groups: statusGroups, size: 14)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .simultaneousGesture(TapGesture().onEnded { toggleStatusBox() })
-            .onSecondaryClick {
-                draft = value
-                isPresented = true
-            }
-            .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-                editor
-                    .presentationBackground(.clear)
-                    .onDisappear { commit(draft) }
-            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .simultaneousGesture(TapGesture().onEnded { toggleStatusBox() })
+                .onSecondaryClick {
+                    draft = value
+                    isPresented = true
+                }
+                .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+                    editor
+                        .presentationBackground(.clear)
+                        .onDisappear { commit(draft) }
+                }
         } else {
             Button {
                 draft = value
@@ -242,7 +245,10 @@ struct PropertyCellEditor: View {
     @ViewBuilder
     private var selectEditor: some View {
         let opts = (definition.selectOptions ?? []).map { $0.asChipOption() }
-        let current: String? = { if case .select(let v) = draft { return v }; return nil }()
+        let current: String? = {
+            if case .select(let v) = draft { return v }
+            return nil
+        }()
         ChipDropdown(
             options: .constant(opts),
             selectionMode: .single,
@@ -257,7 +263,10 @@ struct PropertyCellEditor: View {
 
     @ViewBuilder
     private var multiSelectEditor: some View {
-        let selected: [String] = { if case .multiSelect(let ids) = draft { return ids }; return [] }()
+        let selected: [String] = {
+            if case .multiSelect(let ids) = draft { return ids }
+            return []
+        }()
         ChipDropdown(
             options: $multiOptionOrder,
             selectionMode: .multi,
@@ -278,7 +287,10 @@ struct PropertyCellEditor: View {
         let opts: [PropertyChipOption] = groups.flatMap { g in
             g.options.map { $0.asChipOption(groupColor: g.color) }
         }
-        let current: String? = { if case .status(let v) = draft { return v }; return nil }()
+        let current: String? = {
+            if case .status(let v) = draft { return v }
+            return nil
+        }()
         ChipDropdown(
             options: .constant(opts),
             selectionMode: .single,
@@ -317,7 +329,10 @@ struct PropertyCellEditor: View {
         if let target = definition.relationTarget {
             RelationPicker(
                 selectedIDs: Binding(
-                    get: { if case .relation(let ids) = draft { return ids }; return [] },
+                    get: {
+                        if case .relation(let ids) = draft { return ids }
+                        return []
+                    },
                     set: { draft = .relation($0) }
                 ),
                 scope: target,
@@ -338,10 +353,12 @@ struct PropertyCellEditor: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("File attachments")
                 .font(.headline)
-            Text("Inline file editor ships in v0.3.1.x once AttachmentManager flows to cell editors. Use the Item Window inspector to attach files today.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: 220, alignment: .leading)
+            Text(
+                "Inline file editor ships in v0.3.1.x once AttachmentManager flows to cell editors. Use the Item Window inspector to attach files today."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: 220, alignment: .leading)
         }
     }
 }

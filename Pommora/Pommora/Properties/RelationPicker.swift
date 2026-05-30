@@ -13,21 +13,34 @@ struct RelationPicker: View {
     @State private var loadedEntities: [EntityRef] = []
     @State private var isLoading = false
 
+    /// Fixed panel width so the popover establishes a stable size on first
+    /// render and can't collapse before the candidate list loads. (Without it,
+    /// the chromeless popover sizes to the zero-size loading state and never
+    /// grows when the list arrives.)
+    private static let panelWidth: CGFloat = 235
+
     var body: some View {
-        Group {
-            if index == nil {
-                emptyState("No index available")
-            } else if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            } else if loadedEntities.isEmpty {
-                emptyState("No entities found")
-            } else {
-                pickerList
-            }
-        }
-        .task {
-            await loadEntities()
+        states
+            .frame(width: Self.panelWidth)
+            .padding(8)
+            .chipDropdownPanel()
+            .task { await loadEntities() }
+    }
+
+    // MARK: - State
+
+    @ViewBuilder
+    private var states: some View {
+        if index == nil {
+            placeholder("No index available")
+        } else if isLoading {
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        } else if loadedEntities.isEmpty {
+            placeholder("No matching items")
+        } else {
+            pickerList
         }
     }
 
@@ -47,15 +60,13 @@ struct RelationPicker: View {
                 onSelect(updated)
             }
         )
-        .padding(8)
-        .chipDropdownPanel()
     }
 
-    private func emptyState(_ message: String) -> some View {
+    private func placeholder(_ message: String) -> some View {
         Text(message)
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
     }
 
     // MARK: - Selection logic
@@ -154,8 +165,8 @@ private struct RelationPickerRow: View {
 /// Plain value type wrapping an EntityRef for display. No GRDB conformances,
 /// so ForEach can resolve `Identifiable` and `==` unambiguously.
 private struct RelationEntityRow: Identifiable {
-    let id = UUID()      // ForEach identity — stable per render pass
-    let rowID: String    // entity ID passed back to onTap
+    let id = UUID()  // ForEach identity — stable per render pass
+    let rowID: String  // entity ID passed back to onTap
     let title: String
     let icon: String
 
@@ -167,27 +178,27 @@ private struct RelationEntityRow: Identifiable {
 
     private static func iconName(_ kind: EntityKind) -> String {
         switch kind {
-        case .page:           return "doc.text"
-        case .item:           return "tray"
-        case .agendaTask:     return "checkmark.circle"
-        case .agendaEvent:    return "calendar"
-        case .pageType:       return "folder"
-        case .itemType:       return "folder"
+        case .page: return "doc.text"
+        case .item: return "tray"
+        case .agendaTask: return "checkmark.circle"
+        case .agendaEvent: return "calendar"
+        case .pageType: return "folder"
+        case .itemType: return "folder"
         case .pageCollection: return "folder.badge.gearshape"
         case .itemCollection: return "folder.badge.gearshape"
-        case .space:          return "building.2"
-        case .topic:          return "tag"
-        case .project:        return "briefcase"
+        case .space: return "building.2"
+        case .topic: return "tag"
+        case .project: return "briefcase"
         }
     }
 }
 
 // MARK: - [String] containsID helper
 
-private extension Array where Element == String {
+extension Array where Element == String {
     /// Avoids GRDB's `SQLSpecificExpressible`-based `contains` overload by
     /// explicitly using `first(where:)` with a closure comparison.
-    func containsID(_ id: String) -> Bool {
+    fileprivate func containsID(_ id: String) -> Bool {
         first(where: { element in element == id }) != nil
     }
 }
