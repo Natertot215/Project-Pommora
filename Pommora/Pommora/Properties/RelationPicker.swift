@@ -1,65 +1,112 @@
 import SwiftUI
 
-/// Scope-aware relation picker. Uses `IndexQuery.entitiesByTarget(_:)` to load
-/// the candidate list from SQLite. Relations are always multi-pick: selections
-/// accumulate; tapping a selected entity removes it (chip-removal semantics).
-/// Nil `index` renders an empty-state placeholder without crashing.
+/// Scope-aware relation value picker — a chromeless liquid-glass dropdown styled
+/// like a native macOS menu. Data-driven via `IndexQuery.entitiesByTargetGrouped`:
+/// `.pageType` / `.itemType` scopes show Collection/Set rows that pop out a member
+/// panel to the side (macOS-submenu style) with loose pages/items below an inset
+/// divider; every other scope (tiers, agenda) renders a flat list (no submenu).
+///
+/// Relations are always multi-pick: selections accumulate; tapping a selected entity
+/// removes it. Selecting does not dismiss the picker — the host popover dismisses on
+/// click-away / Esc. A nil `index` renders an empty-state placeholder without crashing.
+///
+/// Sizing is a fixed 2:4 (w:h ≈ 1:2) per panel so the chromeless popover establishes
+/// a stable size on first render and can't collapse before the candidate list loads
+/// (the `9deb818` fix); each panel scrolls when its rows overflow.
 struct RelationPicker: View {
     @Binding var selectedIDs: [String]
     let scope: PropertyDefinition.RelationTarget
     let index: PommoraIndex?
     let onSelect: ([String]) -> Void
 
-    @State private var loadedEntities: [EntityRef] = []
+    @State private var grouped: GroupedEntities = .init(groups: [], rootEntities: [])
+    @State private var activeGroupID: String?
     @State private var isLoading = false
 
-    /// Fixed panel width so the popover establishes a stable size on first
-    /// render and can't collapse before the candidate list loads. (Without it,
-    /// the chromeless popover sizes to the zero-size loading state and never
-    /// grows when the list arrives.)
-    private static let panelWidth: CGFloat = 235
+    // Proportional placeholders (2:4 ≈ 1:2), tuned to Body type. Fixed so the
+    // chromeless popover never collapses; the panel scrolls past this height.
+    private static let panelWidth: CGFloat = 160
+    private static let panelHeight: CGFloat = 320
 
     var body: some View {
-        states
-            .frame(width: Self.panelWidth)
-            .padding(8)
-            .chipDropdownPanel()
-            .task { await loadEntities() }
+        HStack(alignment: .top, spacing: 8) {
+            mainPanel
+            if let active = activeGroup {
+                memberPanel(active)
+            }
+        }
+        .task { await loadGrouped() }
     }
 
-    // MARK: - State
+    // MARK: - Panels
 
-    @ViewBuilder
-    private var states: some View {
-        if index == nil {
-            placeholder("No index available")
-        } else if isLoading {
-            ProgressView()
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, minHeight: 44)
-        } else if loadedEntities.isEmpty {
-            placeholder("No matching items")
-        } else {
-            pickerList
+    private var mainPanel: some View {
+        panel {
+            if index == nil {
+                placeholder("No index available")
+            } else if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            } else if grouped.groups.isEmpty && grouped.rootEntities.isEmpty {
+                placeholder("No matching items")
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(grouped.groups, id: \.container.id) { group in
+                        RelationCollectionRow(
+                            title: group.container.title.isEmpty ? "Untitled" : group.container.title,
+                            isActive: isActiveGroup(group)
+                        ) {
+                            activeGroupID = isActiveGroup(group) ? nil : group.container.id
+                        }
+                    }
+                    if !grouped.groups.isEmpty && !grouped.rootEntities.isEmpty {
+                        Divider().padding(.horizontal, 6)  // inset to align with row content
+                    }
+                    ForEach(grouped.rootEntities, id: \.id) { entity in
+                        leafRow(entity)
+                    }
+                }
+            }
         }
     }
 
-    // MARK: - Subviews
-
-    private var pickerList: some View {
-        RelationPickerList(
-            entities: loadedEntities,
-            selectedIDs: selectedIDs,
-            onTap: { entityID, wasSelected in
-                let updated = computeSelection(
-                    id: entityID,
-                    wasSelected: wasSelected,
-                    current: selectedIDs
-                )
-                selectedIDs = updated
-                onSelect(updated)
+    private func memberPanel(_ group: EntityGroup) -> some View {
+        panel {
+            if group.members.isEmpty {
+                placeholder("Empty")
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(group.members, id: \.id) { entity in
+                        leafRow(entity)
+                    }
+                }
             }
-        )
+        }
+    }
+
+    /// Shared panel chrome: a fixed 2:4 frame, scrollable, 8pt padding, liquid-glass.
+    private func panel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ScrollView {
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+        }
+        .frame(width: Self.panelWidth, height: Self.panelHeight)
+        .chipDropdownPanel()
+    }
+
+    private func leafRow(_ entity: EntityRef) -> some View {
+        RelationLeafRow(
+            icon: entity.icon ?? RelationDisplayResolver.defaultIcon(for: entity.kind),
+            title: entity.title.isEmpty ? "Untitled" : entity.title,
+            isSelected: selectedIDs.containsID(entity.id)
+        ) {
+            let wasSelected = selectedIDs.containsID(entity.id)
+            let updated = computeSelection(id: entity.id, wasSelected: wasSelected, current: selectedIDs)
+            selectedIDs = updated
+            onSelect(updated)
+        }
     }
 
     private func placeholder(_ message: String) -> some View {
@@ -69,127 +116,105 @@ struct RelationPicker: View {
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
     }
 
+    // MARK: - Active-group helpers (plain, non-@ViewBuilder — keeps GRDB's String `==`
+    // overload out of the view body; quirk #13)
+
+    private var activeGroup: EntityGroup? {
+        grouped.groups.first(where: { $0.container.id == activeGroupID })
+    }
+
+    private func isActiveGroup(_ group: EntityGroup) -> Bool {
+        activeGroupID == group.container.id
+    }
+
     // MARK: - Selection logic
 
-    /// Pure selection computation — takes current selection array, returns the
-    /// new array after toggling `id`. Relations are always multi-pick.
-    /// Exposed (non-private) so tests can call it directly without a live SwiftUI button tap.
+    /// Pure selection computation — toggles `id` in the current selection. Relations
+    /// are always multi-pick. Non-private so tests call it without a live button tap.
     func computeSelection(id: String, wasSelected: Bool, current: [String]) -> [String] {
         wasSelected ? current.filter { $0 != id } : current + [id]
     }
 
     // MARK: - Data loading
 
-    private func loadEntities() async {
+    private func loadGrouped() async {
         guard let idx = index else { return }
         isLoading = true
         do {
-            loadedEntities = try await IndexQuery(idx).entitiesByTarget(scope)
+            grouped = try await IndexQuery(idx).entitiesByTargetGrouped(scope)
         } catch {
-            loadedEntities = []
+            grouped = .init(groups: [], rootEntities: [])
         }
         isLoading = false
     }
 }
 
-// MARK: - RelationPickerList (isolated from Binding + GRDB overloads)
+// MARK: - Rows (plain value types — isolated from GRDB String overloads, quirk #13)
 
-/// Isolated sub-view for the entity list. Receives plain value types so the
-/// compiler does not confuse GRDB's `@dynamicMemberLookup` / `==` overloads
-/// with SwiftUI's `Binding` subscript inside the ForEach closure.
-private struct RelationPickerList: View {
-    let entities: [EntityRef]
-    let selectedIDs: [String]
-    let onTap: (String, Bool) -> Void
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 4) {
-                ForEach(entityRows, id: \.rowID) { row in
-                    RelationPickerRow(
-                        row: row,
-                        isSelected: selectedIDs.containsID(row.rowID),
-                        onTap: onTap
-                    )
-                }
-            }
-        }
-        // Cap height so long candidate lists scroll inside the panel rather
-        // than growing the popover unbounded.
-        .frame(maxHeight: 280)
-    }
-
-    private var entityRows: [RelationEntityRow] {
-        entities.map { RelationEntityRow(entity: $0) }
-    }
-}
-
-// MARK: - RelationPickerRow
-
-/// A single candidate row: leading selection checkbox + a `RelationChip`
-/// rendering the target entity's icon + title. Matches the Select/Multi-Select
-/// visual family (checkbox + chip). The whole row is tappable — both the
-/// checkbox and the chip area toggle the same selection via `onTap`. Mirrors
-/// `ChipDropdownRow`'s checkbox-plus-pill layout (the proven pattern).
-private struct RelationPickerRow: View {
-    let row: RelationEntityRow
-    let isSelected: Bool
-    let onTap: (String, Bool) -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            PropertyCheckbox(
-                isChecked: Binding(get: { isSelected }, set: { _ in onTap(row.rowID, isSelected) }),
-                color: .blue,
-                icon: "checkmark",
-                size: 16
-            )
-            Button {
-                onTap(row.rowID, isSelected)
-            } label: {
-                HStack(spacing: 4) {
-                    RelationChip(icon: row.icon, title: row.title)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
-    }
-}
-
-// MARK: - RelationEntityRow (plain struct, no GRDB conformances)
-
-/// Plain value type wrapping an EntityRef for display. No GRDB conformances,
-/// so ForEach can resolve `Identifiable` and `==` unambiguously.
-private struct RelationEntityRow: Identifiable {
-    let id = UUID()  // ForEach identity — stable per render pass
-    let rowID: String  // entity ID passed back to onTap
+/// A Collection/Set row: folder glyph + title + trailing chevron. The whole row is
+/// the drill button — tapping pops out (or closes) that collection's member panel.
+private struct RelationCollectionRow: View {
     let title: String
-    let icon: String
+    let isActive: Bool
+    let onTap: () -> Void
+    @State private var isHovered = false
 
-    init(entity: EntityRef) {
-        self.rowID = entity.id
-        self.title = entity.title.isEmpty ? "Untitled" : entity.title
-        self.icon = Self.iconName(entity.kind)
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                Image(systemName: "folder").foregroundStyle(.secondary)
+                Text(title).font(.body)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(rowFill)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 
-    private static func iconName(_ kind: EntityKind) -> String {
-        switch kind {
-        case .page: return "doc.text"
-        case .item: return "tray"
-        case .agendaTask: return "checkmark.circle"
-        case .agendaEvent: return "calendar"
-        case .pageType: return "folder"
-        case .itemType: return "folder"
-        case .pageCollection: return "folder.badge.gearshape"
-        case .itemCollection: return "folder.badge.gearshape"
-        case .space: return "building.2"
-        case .topic: return "tag"
-        case .project: return "briefcase"
+    private var rowFill: Color {
+        if isActive { return Color.primary.opacity(0.10) }
+        return isHovered ? Color.primary.opacity(0.06) : Color.clear
+    }
+}
+
+/// A leaf row (Page / Item / Context): icon + title + a selection checkmark shown
+/// only when selected. The whole row toggles selection.
+private struct RelationLeafRow: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let onTap: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).foregroundStyle(.secondary)
+                Text(title).font(.body)
+                Spacer(minLength: 0)
+                SelectionCheckmark(isSelected: isSelected)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isHovered ? Color.primary.opacity(0.06) : Color.clear)
+            )
         }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
