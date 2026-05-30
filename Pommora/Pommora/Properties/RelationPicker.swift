@@ -11,9 +11,9 @@ import SwiftUI
 /// click-away / Esc. A nil `index` renders an empty-state placeholder without crashing.
 ///
 /// Each panel keeps a fixed width and a content-hugging height clamped between a
-/// 5-row floor and a compact 2:3 (w:h) cap; it scrolls once rows overflow the cap.
-/// The floor doubles as the anti-collapse guard (the `9deb818` fix): the chromeless
-/// popover only ever grows from the floor, never collapsing before the list loads.
+/// 5-row floor and a compact cap; it scrolls once rows overflow the cap. The floor
+/// doubles as the anti-collapse guard (the `9deb818` fix): the popover only ever
+/// grows from the floor, never collapsing before the list loads.
 struct RelationPicker: View {
     @Binding var selectedIDs: [String]
     let scope: PropertyDefinition.RelationTarget
@@ -24,12 +24,13 @@ struct RelationPicker: View {
     @State private var activeGroupID: String?
     @State private var isLoading = false
 
-    // Width unchanged; height hugs content between a 5-row floor and a compact 2:3
-    // (w:h) cap. The floor is also the anti-collapse guard — the panel only grows
-    // from it, so the chromeless popover can't collapse before the list loads.
+    // Fixed width; height hugs content between a 5-row floor and a compact cap. The
+    // floor is also the anti-collapse guard — the panel only grows from it, so the
+    // chromeless popover can't collapse before the list loads. (Leaf-row labels also
+    // use the trailing gutter: the checkmark only takes space on selected rows.)
     private static let panelWidth: CGFloat = 160
     private static let panelMinHeight: CGFloat = 170  // ≈ 5 callout rows
-    private static let panelMaxHeight: CGFloat = 240  // 2:3 cap → 160 × 3/2
+    private static let panelMaxHeight: CGFloat = 240  // compact cap; scrolls past
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -196,8 +197,9 @@ private struct RelationCollectionRow: View {
     }
 }
 
-/// A leaf row (Page / Item / Context): icon + title + a selection checkmark shown
-/// only when selected. The whole row toggles selection.
+/// A leaf row (Page / Item / Context): icon + title + a trailing accent checkmark
+/// rendered only on selected rows — so an unselected row gives its full width to the
+/// label (no reserved gutter). The whole row toggles selection.
 private struct RelationLeafRow: View {
     let icon: String
     let title: String
@@ -213,7 +215,9 @@ private struct RelationLeafRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 0)
-                SelectionCheckmark(isSelected: isSelected)
+                if isSelected {
+                    SelectionCheckmark()
+                }
             }
             .font(.callout)
             .contentShape(Rectangle())
