@@ -290,6 +290,28 @@ final class PageTypeManager {
         }
     }
 
+    func updatePageCollectionIcon(_ collection: PageCollection, to icon: String?) async throws {
+        do {
+            var updated = collection
+            updated.icon = icon
+            updated.modifiedAt = Date()
+            let metaURL = collection.folderURL
+                .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            try updated.save(to: metaURL)
+            if let updater = indexUpdater {
+                do { try updater.upsertPageCollection(updated) } catch { self.pendingError = error }
+            }
+            var arr = pageCollectionsByType[collection.typeID] ?? []
+            if let i = arr.firstIndex(where: { $0.id == collection.id }) {
+                arr[i] = updated
+            }
+            pageCollectionsByType[collection.typeID] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     func deletePageType(_ pageType: PageType) async throws {
         do {
             let folder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)

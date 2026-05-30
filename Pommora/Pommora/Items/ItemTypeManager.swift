@@ -319,6 +319,28 @@ final class ItemTypeManager {
         }
     }
 
+    func updateItemCollectionIcon(_ collection: ItemCollection, to icon: String?) async throws {
+        do {
+            var updated = collection
+            updated.icon = icon
+            updated.modifiedAt = Date()
+            let metaURL = collection.folderURL
+                .appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
+            try updated.save(to: metaURL)
+            if let updater = indexUpdater {
+                do { try updater.upsertItemCollection(updated) } catch { self.pendingError = error }
+            }
+            var arr = itemCollectionsByType[collection.typeID] ?? []
+            if let i = arr.firstIndex(where: { $0.id == collection.id }) {
+                arr[i] = updated
+            }
+            itemCollectionsByType[collection.typeID] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     func deleteItemType(_ itemType: ItemType) async throws {
         do {
             let folder = NexusPaths.itemTypeFolderURL(
