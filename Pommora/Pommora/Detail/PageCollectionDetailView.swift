@@ -148,10 +148,6 @@ struct PageCollectionDetailView: View {
                 }
                 .width(min: 90, ideal: 120, max: 220)
             }
-            TableColumn("Kind") { row in
-                Text(row.kindLabel).foregroundStyle(.secondary)
-            }
-            .width(min: 80, ideal: 100, max: 140)
             TableColumn("Modified") { row in
                 Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
                     .foregroundStyle(.secondary)
