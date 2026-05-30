@@ -40,6 +40,8 @@ Nathan's decisions: **#3** = the Edit Properties pane (treat as reproduce-then-f
 - `ItemTypeDetailView.swift`: **Task 5 (editable header) → Phase 4 (handleDrop)**.
 - `EditPropertyPane.swift`: Phase 3 (#1) edits it; Phase 5 (#3) only **reads** it — no collision.
 
+> **Reorder (Phase 1 re-assessment):** Phase 4 now runs **before** Task 5 (pulled ahead per Nathan's priority). On shared detail-view files the order is Task 7/4 (done) → **Phase 4 (handleDrop)** → Task 5 (header). Locate-by-content still governs (cited lines are stale). Also: the parallel session is actively iterating `RelationPicker`/`SelectionCheckmark` (relation *value* picker) — adjacent to but distinct from Phase 3's `EditPropertyPane` (relation *property* editor); re-check the tree before the Phase 3 dispatch for collisions.
+
 **Plan altitude (deliberate):** executed via `subagent-driven-development`, so per project hard rule #13 this is the controller's working theory, not a frozen script. New code (signatures, deletions, test specs) is given concretely; existing bodies a task mirrors verbatim are cited by `file:line` for the controller to lift at dispatch rather than duplicated here (keeps the plan DRY + scannable — a deliberate divergence from writing-plans' inline-everything default, justified by the controller layer).
 
 ---
@@ -100,7 +102,7 @@ Reuse the **creation** form as the **edit** interface (Nathan's explicit directi
 - Pre-fill on appear: seed `relationDraft` / `relationReverseName` / `draftName` from the loaded `PropertyDefinition` (home name+icon, `reverseName`, `reverseIcon`) — mirror the existing `.onAppear` that seeds `draftName` for `.edit`.
 - **Gate the target picker** (`RelationDraftTargetSection`, `:~159-162`) read-only/hidden in edit mode — target is fixed (re-targeting is out of scope).
 - Replace the read-only paired-relation guidance in `editBody` (`relationPairedReverseRow`, `:533-541`) with a chevron-push into that pre-filled form.
-- On Save, route to **F3** `updatePairedRelation` (not `addProperty`/single-side edits). Reuse `RelationDraftBuilder.makeFinishedDraft` (`RelationDraftBuilder.swift:49`) for packaging.
+- On Save, route to **F3** `updatePairedRelation` (not `addProperty`/single-side edits). **F3 needs BOTH TypeKinds (confirmed building F3):** the coordinator can't resolve a Type from an id, so the call site must resolve the **home** type (being edited) AND the **target** type — find the target via `def.dualProperty?.syncedPropertyDefinedOnTypeID` across `PageTypeManager`/`ItemTypeManager` (it may be either kind), wrap both as `TypeKind`, and pass them in. After the commit (which only writes sidecars, like `createPairedRelation`), **refresh in-memory state + index for BOTH affected types** — they may live on different managers. Reuse `RelationDraftBuilder.makeFinishedDraft` (`RelationDraftBuilder.swift:49`) for packaging the home draft.
 
 Behavioral coverage = the F3 propagation test; the pane verifies via build.
 
@@ -113,6 +115,12 @@ Behavioral coverage = the F3 propagation test; the pane verifies via build.
 Replace the session-only `sessionOrder = next` in each `handleDrop` with the manager reorder method the **sidebar already uses successfully** (drop API is `.dropDestination(for: DetailRowDragPayload.self)` → `(offset, payloads)`; `DetailRowDragPayload` carries only `rowID`).
 - **Homogeneous tables (clean — do first):** `PageCollectionDetailView.handleDrop` (`:189-195`) → `contentManager.reorderPages(in: collection, …)`; `ItemCollectionDetailView.handleDrop` (`:222-228`) → `itemContentManager.reorderItems(in: collection, …)` (uses **F2**). Source = `rows.firstIndex(of: payload.rowID)` → `IndexSet(integer:)`; destination = the drop `offset`.
 - **Mixed type-root tables (`PageTypeDetailView.handleDrop` `:247-253`, `ItemTypeDetailView` `:277-283`):** rows interleave pages/items **and** collections/sets, so switch on `row.kind` (the `DetailRow.Kind` discriminator; collection rows carry `"collection-"`/`"set-"`-prefixed IDs) and **remap indices into the same-kind subset** — the drop `offset` indexes the full mixed `rows`, but the manager reorders a homogeneous array (`pagesByTypeRoot` / `itemsByTypeRoot` / the collections array). Compute source+destination *within the filtered same-kind subset* before calling `reorderPages(inVault:)` / `reorderItems(inType:)` / `reorderPageCollections(in:)` / `reorderItemCollections(in:)`. This subset remap is the one piece the naive `IndexSet(integer:)` derivation does **not** cover.
+
+**Acceptance criteria + symptoms (Nathan, added mid-Phase-1 — this is the gating bug; Phase 4 PULLED FORWARD to run right after Phase 1, ahead of Phases 2–3, since its dep F2 is already green):**
+- (a) dragging an object *within a folder* reorders it freely and **persists** across navigation/relaunch;
+- (b) it must **NOT** move the parent collection or other items/folders — Nathan reports a page-drag currently *promotes the collection to the very top* (the mixed-row conflation above — the drop offset/payload is hitting the wrong row kind);
+- (c) folders (collections) are reorderable, and each folder's child order persists independently + alongside others.
+- **INVESTIGATE FIRST (Nathan's lead):** a default **sort-by-modified/created**, or the `OrderResolver` alphabetical fallback, may be re-sorting rows on load and overriding manual `pageOrder`/`itemOrder`. Confirm whether the detail-view `rows` are sorted by a column/default before `OrderResolver` applies persisted order — if a sort wins, manual reorder can never stick. Manual order must take precedence when present. Verify the real `rows`/sort pipeline before wiring drops.
 
 **Scope boundary:** same-kind reorder only — cross-kind drag (a page between collections) stays out of scope (separately-queued "cross-container drag"). `sessionOrder` becomes redundant once persistence lands (`OrderResolver` reapplies persisted order on reload — confirmed); remove it. **Doc fix:** `Framework.md:95` ("works") vs `:55` ("queued") — reconcile to "persisted" once this ships.
 
