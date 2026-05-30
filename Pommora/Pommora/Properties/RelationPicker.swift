@@ -26,8 +26,7 @@ struct RelationPicker: View {
 
     // Fixed width; height hugs content between a 5-row floor and a compact cap. The
     // floor is also the anti-collapse guard — the panel only grows from it, so the
-    // chromeless popover can't collapse before the list loads. (Leaf-row labels also
-    // use the trailing gutter: the checkmark only takes space on selected rows.)
+    // chromeless popover can't collapse before the list loads.
     private static let panelWidth: CGFloat = 160
     private static let panelMinHeight: CGFloat = 170  // ≈ 5 callout rows
     private static let panelMaxHeight: CGFloat = 240  // compact cap; scrolls past
@@ -173,7 +172,7 @@ private struct RelationCollectionRow: View {
                 Text(title)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Spacer(minLength: 0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -198,8 +197,9 @@ private struct RelationCollectionRow: View {
 }
 
 /// A leaf row (Page / Item / Context): icon + title + a trailing accent checkmark
-/// rendered only on selected rows — so an unselected row gives its full width to the
-/// label (no reserved gutter). The whole row toggles selection.
+/// rendered only on selected rows. An unselected row gives its full width to the
+/// title (no reserved checkbox column); on selection the checkmark materializes at the
+/// trailing edge and the title fills right up to it. The whole row toggles selection.
 private struct RelationLeafRow: View {
     let icon: String
     let title: String
@@ -214,7 +214,7 @@ private struct RelationLeafRow: View {
                 Text(title)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Spacer(minLength: 0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if isSelected {
                     SelectionCheckmark()
                 }
