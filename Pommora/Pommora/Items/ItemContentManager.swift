@@ -149,9 +149,11 @@ final class ItemContentManager {
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
         itemsByCollection[collection.id] = arr
-        // OrderPersister wiring for ItemCollection lands in Phase 6 alongside
-        // ItemTypeManager. The in-memory reorder above already updates the
-        // visible row order; persistence catches up when the persister exists.
+        do {
+            try OrderPersister.setItemOrder(arr.map(\.id), in: collection)
+        } catch {
+            self.pendingError = error
+        }
     }
 
     /// Reorders Items at the root of `itemType`. New ID order persists to the
@@ -166,6 +168,10 @@ final class ItemContentManager {
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
         itemsByTypeRoot[itemType.id] = arr
-        // OrderPersister wiring for Item Type itemOrder lands in Phase 6.
+        do {
+            try OrderPersister.setItemOrder(arr.map(\.id), inType: itemType, nexus: nexus)
+        } catch {
+            self.pendingError = error
+        }
     }
 }

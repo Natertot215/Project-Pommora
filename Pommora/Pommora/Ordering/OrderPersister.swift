@@ -89,6 +89,12 @@ enum OrderPersister {
         }
     }
 
+    static func setItemOrder(_ order: [String], inType itemType: ItemType, nexus: Nexus) throws {
+        try mutateItemType(itemType, nexus: nexus) { t in
+            t.itemOrder = order.isEmpty ? nil : order
+        }
+    }
+
     // MARK: - Private read-mutate-write helpers
 
     private static func mutateNexusState(
