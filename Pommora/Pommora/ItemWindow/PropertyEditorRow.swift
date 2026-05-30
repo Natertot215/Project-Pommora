@@ -3,6 +3,11 @@ import SwiftUI
 struct PropertyEditorRow: View {
     let definition: PropertyDefinition
     @Binding var value: PropertyValue
+    /// Supplied by hosts that can edit relations inline (defaulted so non-relation
+    /// call sites compile unchanged). `index` feeds the picker's candidate query;
+    /// `relationDisplay` renders the current value as icon+title chips.
+    var index: PommoraIndex? = nil
+    var relationDisplay: RelationDisplayResolver? = nil
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -30,7 +35,7 @@ struct PropertyEditorRow: View {
         case .multiSelect:
             multiSelectEditor
         case .relation:
-            Text("Relation editor coming v0.3.0").font(.caption).foregroundStyle(.tertiary)
+            relationEditor
         case .url:
             urlEditor
         case .status:
@@ -113,14 +118,41 @@ struct PropertyEditorRow: View {
         )
     }
 
+    @ViewBuilder
+    private var relationEditor: some View {
+        if let target = definition.relationTarget {
+            RelationValueEditor(
+                ids: Binding(
+                    get: { if case .relation(let ids) = value { return ids } else { return [] } },
+                    set: { value = .relation($0) }
+                ),
+                scope: target,
+                index: index,
+                resolver: relationDisplay
+            )
+        } else {
+            Text("Relation has no target")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var statusEditor: some View {
-        let currentValue: String = {
-            if case .status(let s) = value { return s }
-            return ""
+        let groups = definition.statusGroups ?? []
+        let opts: [PropertyChipOption] = groups.flatMap { g in
+            g.options.map { $0.asChipOption(groupColor: g.color) }
+        }
+        let current: String? = {
+            if case .status(let v) = value { return v }
+            return nil
         }()
-        return Text("Status: \(currentValue)")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        return ChipDropdown(
+            options: .constant(opts),
+            selectionMode: .single,
+            selectedIDs: current.map { Set([$0]) } ?? [],
+            onPick: { value = .status($0.id) },
+            size: .compact
+        )
     }
 
     private var lastEditedTimeEditor: some View {
