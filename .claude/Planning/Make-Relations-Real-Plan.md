@@ -55,6 +55,10 @@
 
 ---
 
+> ⛔ **STOP before Task 4 — get the picker UIX from Nathan FIRST.** The relation value picker is a precise visual surface, and its detailed UIX — exact spacing, the side-by-side reveal/dismiss behavior, the selection checkmark, hover/active/pressed states, sub-menu open-close, sizing nuances — **cannot survive compaction or be captured accurately in this doc + the mockups alone.** The spec below is the *baseline*, not the full intent. Before writing any Task 4b (picker view) code, pause and have Nathan walk through the picker specifics live. **Task 4a** (the `entitiesByTargetGrouped` data query + its test) is pure data, no UIX — it MAY proceed first with Nathan's okay; **Task 4b waits on Nathan's detailed UIX.**
+
+---
+
 ### Task 4: Relation value picker — grouped, side-by-side sub-menu dropdown
 
 **Files:** `Index/IndexQuery.swift`, `Properties/RelationPicker.swift`, `PommoraTests/Index/EntitiesByTargetGroupedTests.swift`

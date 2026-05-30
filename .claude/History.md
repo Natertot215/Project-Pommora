@@ -2,6 +2,16 @@
 
 Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
+#### Make Relations Real — render half + index/picker hardening (2026-05-29)
+
+Follow-on to the Relations Redesign: the stored feature wasn't rendering/editing everywhere. Render half shipped + two infrastructure bugs fixed; the value picker + editors re-planned (`Planning/Make-Relations-Real-Plan.md`).
+
+- **Render half (Tasks 1–3).** Entity `icon` denormalized into the SQLite index (`pages`/`items`/`contexts`/`agenda_*`); shared `RelationDisplayResolver` (injected at `ContentView` + the `.detail` chain) resolves any target ID → icon + title via `IndexQuery.resolveEntities`; the four table detail views render relation + tier columns as icon + title (killed "(missing)").
+- **Index resilience (`02f8a67`).** `IndexBuilder.populate` was all-or-nothing — one throwing row (e.g. a duplicate-id page) rolled back the whole rebuild → empty index; and `schema_version` was stamped before `populate` ran, so a rolled-back rebuild never retried. Fix: per-row `attemptInsert` (skip + log a bad row); stamp the version only after `populate` succeeds (`markSchemaVersionCurrent`); `currentSchemaVersion` 4 → 5. Tests: `RebuildResilienceTests`, `IndexPopulationReproTests`.
+- **Picker popover collapse (`9deb818`).** The inline tier picker rendered as a zero-size "glass blob" — `RelationPicker`'s chromeless popover sized to its loading state and never grew. Fix: fixed panel width. Data + wiring were correct throughout — confirmed by reading the real index directly.
+- **"Layer-confusion check" HARD RULE** (`CLAUDE.md`). A wrong/empty UI surface ≠ a broken data layer — confirm the data directly (query the index / read the file) before blaming the store. Earned the hard way (a popover collapse read as an empty index for hours).
+- **Diagnosed, fix queued (plan Task 8):** paired-relation (Item-Type→Vault mirror) delete throws a decode error (the cascade decodes frontmatter-less `.md` docs as Pages → `keyNotFound(.id)`); `upsertPage` FK-19 on an unindexed parent (defensive Part 3). Roots verified; fixes specified, not yet coded.
+
 #### Relations Redesign — relations + tiers unified (2026-05-29)
 
 **Relations property layer rebuilt per the Relations Redesign plan** (`Planning/Relations-Redesign-Plan.md`). One linking system replaces two: tier tagging and relation properties now share a single pipeline.
