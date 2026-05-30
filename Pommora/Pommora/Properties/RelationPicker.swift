@@ -10,9 +10,10 @@ import SwiftUI
 /// removes it. Selecting does not dismiss the picker — the host popover dismisses on
 /// click-away / Esc. A nil `index` renders an empty-state placeholder without crashing.
 ///
-/// Sizing is a fixed 2:4 (w:h ≈ 1:2) per panel so the chromeless popover establishes
-/// a stable size on first render and can't collapse before the candidate list loads
-/// (the `9deb818` fix); each panel scrolls when its rows overflow.
+/// Each panel keeps a fixed width and a content-hugging height clamped between a
+/// 5-row floor and a compact 2:3 (w:h) cap; it scrolls once rows overflow the cap.
+/// The floor doubles as the anti-collapse guard (the `9deb818` fix): the chromeless
+/// popover only ever grows from the floor, never collapsing before the list loads.
 struct RelationPicker: View {
     @Binding var selectedIDs: [String]
     let scope: PropertyDefinition.RelationTarget
@@ -23,10 +24,12 @@ struct RelationPicker: View {
     @State private var activeGroupID: String?
     @State private var isLoading = false
 
-    // Proportional placeholders (2:4 ≈ 1:2), tuned to Body type. Fixed so the
-    // chromeless popover never collapses; the panel scrolls past this height.
+    // Width unchanged; height hugs content between a 5-row floor and a compact 2:3
+    // (w:h) cap. The floor is also the anti-collapse guard — the panel only grows
+    // from it, so the chromeless popover can't collapse before the list loads.
     private static let panelWidth: CGFloat = 160
-    private static let panelHeight: CGFloat = 320
+    private static let panelMinHeight: CGFloat = 170  // ≈ 5 callout rows
+    private static let panelMaxHeight: CGFloat = 240  // 2:3 cap → 160 × 3/2
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -86,15 +89,15 @@ struct RelationPicker: View {
         }
     }
 
-    /// Shared panel chrome: a fixed 2:4 frame, scrollable, 8pt padding, liquid-glass.
+    /// Shared panel chrome: fixed width, content-hugging height (5-row floor → 2:3
+    /// cap → scroll), 8pt padding, liquid-glass.
     private func panel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        ScrollView {
-            content()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
-        }
-        .frame(width: Self.panelWidth, height: Self.panelHeight)
-        .chipDropdownPanel()
+        SizedPanel(
+            width: Self.panelWidth,
+            minHeight: Self.panelMinHeight,
+            maxHeight: Self.panelMaxHeight,
+            content: content
+        )
     }
 
     private func leafRow(_ entity: EntityRef) -> some View {
@@ -166,12 +169,15 @@ private struct RelationCollectionRow: View {
         Button(action: onTap) {
             HStack(spacing: 6) {
                 Image(systemName: icon ?? "folder").foregroundStyle(.secondary)
-                Text(title).font(.body)
+                Text(title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
+            .font(.callout)
             .contentShape(Rectangle())
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
@@ -203,10 +209,13 @@ private struct RelationLeafRow: View {
         Button(action: onTap) {
             HStack(spacing: 6) {
                 Image(systemName: icon).foregroundStyle(.secondary)
-                Text(title).font(.body)
+                Text(title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer(minLength: 0)
                 SelectionCheckmark(isSelected: isSelected)
             }
+            .font(.callout)
             .contentShape(Rectangle())
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
@@ -218,6 +227,53 @@ private struct RelationLeafRow: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+// MARK: - Sized panel (fixed width, content-hugging height with floor + cap)
+
+/// A fixed-width dropdown panel whose height hugs its content between a `minHeight`
+/// floor (also the anti-collapse guard) and a `maxHeight` cap, scrolling once content
+/// exceeds the cap. Height is driven from the measured content height via
+/// `onGeometryChange`; the content's height is independent of the panel frame, so
+/// there is no layout feedback loop. Each instance owns its own height, so the main
+/// panel and the side member panel size independently.
+private struct SizedPanel<Content: View>: View {
+    let width: CGFloat
+    let minHeight: CGFloat
+    let maxHeight: CGFloat
+    let content: Content
+    @State private var contentHeight: CGFloat = 0
+
+    init(
+        width: CGFloat,
+        minHeight: CGFloat,
+        maxHeight: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.width = width
+        self.minHeight = minHeight
+        self.maxHeight = maxHeight
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { newHeight in
+                    contentHeight = newHeight
+                }
+        }
+        .frame(
+            width: width,
+            height: min(max(contentHeight, minHeight), maxHeight),
+            alignment: .top
+        )
+        .chipDropdownPanel()
     }
 }
 
