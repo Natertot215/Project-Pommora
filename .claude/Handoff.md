@@ -2,6 +2,12 @@
 
  - **Read first at session start.** Maintained via `/handoff` — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Shipped history → `History.md`; roadmap → `Framework.md`; branch quirks + hard rules → `CLAUDE.md`; locked decisions → `History.md` + `Guidelines/Paradigm-Decisions.md`.
 
+> ⚡ **CORNERSTONE — must remain; carry into every session, emphasized for the next (Nathan's voice).**
+>
+> *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess. You open the file and LOOK AT THE CODE before you assert anything.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it. We caught this AGAIN today — the plan you wrote carried stale line numbers from an old plan, and the audit caught them before they cost us a session. That audit-before-implement step is non-negotiable."*
+>
+> Held the line again this session — the lint-config `/tmp` false signal, the `FrontmatterInspector` `onSave` gap, and the "store the collection icon in SQLite" false premise (a new feature, not a storage fix) were all caught by *looking*, not assuming. **Next session: read the code before you plan around it.**
+
 #### Current state (2026-05-30)
 
 Working tree on `main`, green (only the known `PageEditorViewModelTests.debounceCoalescesRapidEdits` editor-timing flake fails). Clean HEAD = `741ca1d`.
@@ -26,6 +32,8 @@ Recent commits: `741ca1d` picker render · `dfdf2af` doc align · `3cb1366` icon
 - **Layer-confusion check (quirk #18) holds:** a broken-looking UI ≠ broken data; confirm the data directly before blaming the store.
 
 #### Next Session
+
+**Before planning anything, read the code it touches** (see Cornerstone above): look, don't guess; verify every `file:line` and "it works like X" against the source, and ask Nathan when feature intent is ambiguous — *then* plan.
 
 **Picker UIX gate:** the gate was lifted so I could build while Nathan is remote; the grouped value picker is now **ready for Nathan to verify live** when home. The new inline editors were also never clicked-through in the running app — runtime UX unverified.
 
