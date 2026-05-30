@@ -67,22 +67,7 @@ struct ItemCollectionDetailView: View {
     }
 
     private var header: some View {
-        let parent = itemTypeManager.parentItemType(for: collection)
-        return HStack(spacing: 6) {
-            if let parent {
-                Button {
-                    selection = .itemType(parent)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.footnote)
-                        Text(parent.title)
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                Text("›").foregroundStyle(.tertiary)
-            }
+        HStack {
             Label {
                 Text(collection.title)
             } icon: {
