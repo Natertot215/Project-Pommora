@@ -54,6 +54,7 @@ struct RelationPicker: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(grouped.groups, id: \.container.id) { group in
                         RelationCollectionRow(
+                            icon: group.container.icon,
                             title: group.container.title.isEmpty ? "Untitled" : group.container.title,
                             isActive: isActiveGroup(group)
                         ) {
@@ -151,9 +152,11 @@ struct RelationPicker: View {
 
 // MARK: - Rows (plain value types — isolated from GRDB String overloads, quirk #13)
 
-/// A Collection/Set row: folder glyph + title + trailing chevron. The whole row is
-/// the drill button — tapping pops out (or closes) that collection's member panel.
+/// A Collection/Set row: the container's icon (or a folder glyph fallback) + title
+/// + trailing chevron. The whole row is the drill button — tapping pops out (or
+/// closes) that collection's member panel.
 private struct RelationCollectionRow: View {
+    let icon: String?
     let title: String
     let isActive: Bool
     let onTap: () -> Void
@@ -162,7 +165,7 @@ private struct RelationCollectionRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
-                Image(systemName: "folder").foregroundStyle(.secondary)
+                Image(systemName: icon ?? "folder").foregroundStyle(.secondary)
                 Text(title).font(.body)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
