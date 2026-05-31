@@ -235,6 +235,8 @@ Table views carry **pre-configured tier columns** — rendered left-to-right as 
 
 Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json`). Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
 
+**Row ordering (interim).** Page Type / Page Collection detail tables are display-only for row order — they mirror the sidebar's file-level order (empty-state default = creation order via the ULID id; manual order persists in `page_order` / `collection_order`). Vault/type-level drag-reorder, per-view `order`, group-by and sort are deferred to the saved-views system (v0.6.0). Flat reorder inside a Page Collection's own detail view is unaffected. Record: `Planning/2026-05-31-vault-table-displayonly-interim.md`.
+
 ---
 
 #### Cross-layer connections
