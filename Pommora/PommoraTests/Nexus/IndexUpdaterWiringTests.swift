@@ -34,9 +34,9 @@ struct IndexUpdaterWiringTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Build the 6 managers exactly as constructManagers does.
-        let vaultMgr       = PageTypeManager(nexus: nexus)
-        let itemTypeMgr    = ItemTypeManager(nexus: nexus)
-        let agendaTaskMgr  = AgendaTaskManager(nexus: nexus)
+        let vaultMgr = PageTypeManager(nexus: nexus)
+        let itemTypeMgr = ItemTypeManager(nexus: nexus)
+        let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
 
         let contentMgr: PageContentManager = PageContentManager(nexus: nexus) {
@@ -58,11 +58,11 @@ struct IndexUpdaterWiringTests {
 
         // Replicate the Phase E.7.5 wiring block from constructManagers.
         let updater: IndexUpdater? = IndexUpdater(index)
-        vaultMgr.indexUpdater       = updater
-        itemTypeMgr.indexUpdater    = updater
-        contentMgr.indexUpdater     = updater
+        vaultMgr.indexUpdater = updater
+        itemTypeMgr.indexUpdater = updater
+        contentMgr.indexUpdater = updater
         itemContentMgr.indexUpdater = updater
-        agendaTaskMgr.indexUpdater  = updater
+        agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
         // All 6 must be non-nil.
@@ -108,9 +108,9 @@ struct IndexUpdaterWiringTests {
 
         // Build managers and apply nil updater — mirrors the .map path when
         // currentIndex is nil (Optional<PommoraIndex>.none.map { ... } = nil).
-        let vaultMgr       = PageTypeManager(nexus: nexus)
-        let itemTypeMgr    = ItemTypeManager(nexus: nexus)
-        let agendaTaskMgr  = AgendaTaskManager(nexus: nexus)
+        let vaultMgr = PageTypeManager(nexus: nexus)
+        let itemTypeMgr = ItemTypeManager(nexus: nexus)
+        let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
 
         let contentMgr: PageContentManager = PageContentManager(nexus: nexus) {
@@ -130,12 +130,12 @@ struct IndexUpdaterWiringTests {
             )
         }
 
-        let updater: IndexUpdater? = nil   // simulates degraded mode
-        vaultMgr.indexUpdater       = updater
-        itemTypeMgr.indexUpdater    = updater
-        contentMgr.indexUpdater     = updater
+        let updater: IndexUpdater? = nil  // simulates degraded mode
+        vaultMgr.indexUpdater = updater
+        itemTypeMgr.indexUpdater = updater
+        contentMgr.indexUpdater = updater
         itemContentMgr.indexUpdater = updater
-        agendaTaskMgr.indexUpdater  = updater
+        agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
         // All 6 must be nil.
@@ -151,5 +151,225 @@ struct IndexUpdaterWiringTests {
         try await vaultMgr.createPageType(name: "Notes", icon: nil)
         // If we reach here without throwing, the degraded path is safe.
         #expect(vaultMgr.types.count == 1)
+    }
+
+    // MARK: - Test 4: deleteProperty removes the property_definitions row (PageTypeManager)
+
+    /// Wire a real IndexUpdater into a PageTypeManager; add a user property so a
+    /// `property_definitions` row is written; call `deleteProperty(id:in:)`; assert
+    /// the row is gone from the index. Pins the invariant that `deleteProperty`
+    /// always calls `indexUpdater.deletePropertyDefinition(id:)`.
+    @Test func deletePropertyRemovesIndexRow_pageType() async throws {
+        let (nexus, index) = try makeTempIndex()
+        defer { TempNexus.cleanup(nexus) }
+
+        let vaultMgr = PageTypeManager(nexus: nexus)
+        await vaultMgr.loadAll()
+        vaultMgr.indexUpdater = IndexUpdater(index)
+
+        // Create a PageType so we have a typeID to operate on.
+        try await vaultMgr.createPageType(name: "Journal", icon: nil)
+        guard let pageType = vaultMgr.types.first else {
+            Issue.record("Expected at least one page type after createPageType")
+            return
+        }
+
+        // Add a user property — this writes a property_definitions row via upsert.
+        let propID = ReservedPropertyID.mintUserPropertyID()
+        let def = PropertyDefinition(id: propID, name: "Priority", type: .number)
+        try await vaultMgr.addProperty(def, to: pageType.id)
+
+        // Confirm the row exists in the index before deletion.
+        let countBefore = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM property_definitions WHERE id = ?",
+                arguments: [propID]
+            ) ?? 0
+        }
+        #expect(countBefore == 1, "property_definitions row must exist after addProperty")
+
+        // Delete the property — must call indexUpdater.deletePropertyDefinition(id:).
+        try await vaultMgr.deleteProperty(id: propID, in: pageType.id)
+
+        // Assert the row is gone.
+        let countAfter = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM property_definitions WHERE id = ?",
+                arguments: [propID]
+            ) ?? 0
+        }
+        #expect(countAfter == 0, "property_definitions row must be absent after deleteProperty")
+    }
+
+    // MARK: - Test 5: reorderProperty updates positions in the index (PageTypeManager)
+
+    /// Wire a real IndexUpdater into a PageTypeManager; add two user properties so
+    /// two `property_definitions` rows are written with their initial positions; call
+    /// `reorderProperty` to swap their order; assert both rows reflect the new
+    /// positions in the index.
+    ///
+    /// **Key finding:** `reorderProperty` calls `upsertPropertyDefinition` for every
+    /// property in the schema with its new `position` value — so the index is updated
+    /// on every reorder, not skipped.
+    @Test func reorderPropertyUpdatesPositionsInIndex_pageType() async throws {
+        let (nexus, index) = try makeTempIndex()
+        defer { TempNexus.cleanup(nexus) }
+
+        let vaultMgr = PageTypeManager(nexus: nexus)
+        await vaultMgr.loadAll()
+        vaultMgr.indexUpdater = IndexUpdater(index)
+
+        try await vaultMgr.createPageType(name: "Notes", icon: nil)
+        guard let pageType = vaultMgr.types.first else {
+            Issue.record("Expected at least one page type after createPageType")
+            return
+        }
+
+        // Add two user properties — each addProperty call upserts a row with position.
+        let propAID = ReservedPropertyID.mintUserPropertyID()
+        let propBID = ReservedPropertyID.mintUserPropertyID()
+        try await vaultMgr.addProperty(
+            PropertyDefinition(id: propAID, name: "Alpha", type: .number), to: pageType.id)
+        try await vaultMgr.addProperty(
+            PropertyDefinition(id: propBID, name: "Beta", type: .number), to: pageType.id)
+
+        // Reload the manager's in-memory type to get the true ordering and index.
+        guard let typeAfterAdd = vaultMgr.types.first(where: { $0.id == pageType.id }) else {
+            Issue.record("PageType missing after addProperty calls")
+            return
+        }
+        guard let posABefore = typeAfterAdd.properties.firstIndex(where: { $0.id == propAID }),
+            let posBBefore = typeAfterAdd.properties.firstIndex(where: { $0.id == propBID })
+        else {
+            Issue.record("Added properties not found in type after addProperty")
+            return
+        }
+        // Both props are present; Alpha was added first so it precedes Beta.
+        #expect(posABefore < posBBefore, "Alpha should precede Beta after sequential addProperty")
+
+        // Move Beta before Alpha (toIndex = posABefore moves Beta to Alpha's slot).
+        try await vaultMgr.reorderProperty(id: propBID, in: pageType.id, toIndex: posABefore)
+
+        // Read positions from the index for both properties.
+        let posAInIndex = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT position FROM property_definitions WHERE id = ?",
+                arguments: [propAID]
+            )
+        }
+        let posBInIndex = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT position FROM property_definitions WHERE id = ?",
+                arguments: [propBID]
+            )
+        }
+
+        // After reorder, Beta's index position must be less than Alpha's.
+        guard let pA = posAInIndex, let pB = posBInIndex else {
+            Issue.record("property_definitions rows missing after reorderProperty")
+            return
+        }
+        #expect(pB < pA, "Beta's index position must be less than Alpha's after reorder")
+    }
+
+    // MARK: - Test 6: deleteProperty removes the property_definitions row (AgendaTaskManager)
+
+    /// Wire a real IndexUpdater into an AgendaTaskManager; add a user property so a
+    /// `property_definitions` row is written; call `deleteProperty(id:)`; assert the
+    /// row is gone. Pins the singleton-manager variant of the same contract.
+    @Test func deletePropertyRemovesIndexRow_agendaTask() async throws {
+        let (nexus, index) = try makeTempIndex()
+        defer { TempNexus.cleanup(nexus) }
+
+        let taskMgr = AgendaTaskManager(nexus: nexus)
+        await taskMgr.loadAll()
+        taskMgr.indexUpdater = IndexUpdater(index)
+
+        // Add a user property — this writes a property_definitions row.
+        let propID = ReservedPropertyID.mintUserPropertyID()
+        let def = PropertyDefinition(id: propID, name: "Context", type: .number)
+        try await taskMgr.addProperty(def)
+
+        // Confirm the row exists.
+        let countBefore = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM property_definitions WHERE id = ?",
+                arguments: [propID]
+            ) ?? 0
+        }
+        #expect(countBefore == 1, "property_definitions row must exist after addProperty")
+
+        // Delete the property.
+        try await taskMgr.deleteProperty(id: propID)
+
+        // Assert the row is gone.
+        let countAfter = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM property_definitions WHERE id = ?",
+                arguments: [propID]
+            ) ?? 0
+        }
+        #expect(countAfter == 0, "property_definitions row must be absent after deleteProperty")
+    }
+
+    // MARK: - Test 7: reorderProperty updates positions in the index (AgendaTaskManager)
+
+    /// Wire a real IndexUpdater into an AgendaTaskManager; add two user properties;
+    /// call `reorderProperty` to move the second before the first; assert the index
+    /// reflects the new positions.
+    ///
+    /// Note: the default seed contains `_status` at position 0. Added user properties
+    /// follow it. The test adds two user props and moves the later one before the earlier.
+    @Test func reorderPropertyUpdatesPositionsInIndex_agendaTask() async throws {
+        let (nexus, index) = try makeTempIndex()
+        defer { TempNexus.cleanup(nexus) }
+
+        let taskMgr = AgendaTaskManager(nexus: nexus)
+        await taskMgr.loadAll()
+        taskMgr.indexUpdater = IndexUpdater(index)
+
+        // Add two user properties sequentially.
+        let propAID = ReservedPropertyID.mintUserPropertyID()
+        let propBID = ReservedPropertyID.mintUserPropertyID()
+        try await taskMgr.addProperty(PropertyDefinition(id: propAID, name: "TagA", type: .number))
+        try await taskMgr.addProperty(PropertyDefinition(id: propBID, name: "TagB", type: .number))
+
+        // Determine Alpha's in-memory position (the slot we'll move Beta to).
+        guard let posABefore = taskMgr.schema.properties.firstIndex(where: { $0.id == propAID })
+        else {
+            Issue.record("PropA not found in schema after addProperty")
+            return
+        }
+
+        // Move Beta to Alpha's position (before Alpha).
+        try await taskMgr.reorderProperty(id: propBID, toIndex: posABefore)
+
+        // Read positions from the index.
+        let posAInIndex = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT position FROM property_definitions WHERE id = ?",
+                arguments: [propAID]
+            )
+        }
+        let posBInIndex = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT position FROM property_definitions WHERE id = ?",
+                arguments: [propBID]
+            )
+        }
+
+        guard let pA = posAInIndex, let pB = posBInIndex else {
+            Issue.record("property_definitions rows missing after reorderProperty")
+            return
+        }
+        #expect(pB < pA, "Beta's index position must be less than Alpha's after reorder")
     }
 }
