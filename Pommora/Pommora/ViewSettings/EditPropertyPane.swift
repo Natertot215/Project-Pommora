@@ -1,5 +1,4 @@
 import SwiftUI
-import SymbolPicker
 
 /// View Settings → Edit Properties → per-property editor.
 ///
@@ -70,7 +69,13 @@ struct EditPropertyPane: View {
     @State private var commitError: String?
     @State private var iconPickerOpen: Bool = false
     @State private var reverseIconPickerOpen: Bool = false
+    /// Draft for the editable Mirror (reverse) name in the paired-relation edit
+    /// row. Seeded from the current definition's `reverseName` on appear;
+    /// committed through the manager `updatePairedRelation` wrapper on
+    /// submit/blur.
+    @State private var mirrorNameDraft: String = ""
     @FocusState private var nameFocused: Bool
+    @FocusState private var mirrorNameFocused: Bool
 
     // Create-relation draft state (used only in `.createRelation` mode).
     @State private var relationDraft = PropertyDefinition(id: "", name: "", type: .relation)
@@ -138,7 +143,10 @@ struct EditPropertyPane: View {
         .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            if let def = currentDefinition() { draftName = def.name }
+            if let def = currentDefinition() {
+                draftName = def.name
+                mirrorNameDraft = def.reverseName ?? ""
+            }
         }
     }
 
@@ -198,10 +206,7 @@ struct EditPropertyPane: View {
             }
             .buttonStyle(.plain)
             .help("Edit Icon")
-            .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
-                SymbolPicker(symbol: $relationDraft.icon)
-                    .frame(width: 540, height: 460)
-            }
+            .iconPickerPopover(isPresented: $iconPickerOpen, symbol: $relationDraft.icon)
 
             // `draftName` is the source of truth for the home name; the Save
             // builder reads it directly (no need to mirror into the draft).
@@ -313,13 +318,8 @@ struct EditPropertyPane: View {
             .buttonStyle(.plain)
             .help("Edit Icon")
             .disabled(ReservedPropertyID.isReserved(def.id))
-            // Anchored popover replaces the third-party SymbolPicker's
-            // default full-screen sheet. Frame sized to fit its grid +
-            // section sidebar without clipping.
-            .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
-                SymbolPicker(symbol: iconBinding)
-                    .frame(width: 540, height: 460)
-            }
+            // Pommora-native IconPicker — a compact single-glass popover.
+            .iconPickerPopover(isPresented: $iconPickerOpen, symbol: iconBinding)
 
             // Fixed-width: fills the content rail (so width is
             // content-independent); its trailing edge defines the rail the
@@ -444,13 +444,16 @@ struct EditPropertyPane: View {
         }
     }
 
-    /// Edit-existing Relation section (Phase 10.3b).
-    ///   - Target: READ-ONLY resolved row (target is fixed at creation; no
-    ///     re-pairing). For a tier entry it shows the tier label.
-    ///   - Reverse: a TIER entry edits its `reverseName` / `reverseIcon`
-    ///     (Phase-3 fields, live-saved via `applyTransform`); a normal paired
-    ///     relation shows the reverse side as read-only guidance (cross-type
-    ///     rename is deferred — edit it from the target's own settings).
+    /// Edit-existing Relation section — the 3-row editor (Home / Target / Mirror).
+    ///   - Home: the icon + name field at the top of `editBody` (`iconTitleRow`),
+    ///     edited via the existing rename/updateProperty path. NOT rendered here.
+    ///   - Target: a LOCKED `⇄` + pill showing the resolved target (fixed at
+    ///     creation; no re-pairing). For a tier entry it shows the tier label.
+    ///   - Mirror: a TIER entry edits its `reverseName` / `reverseIcon` (Phase-3
+    ///     fields, live-saved via `applyTransform`); a normal paired relation
+    ///     edits the reverse side directly via the manager `updatePairedRelation`
+    ///     wrapper (icon button + name field), so the user never has to open the
+    ///     target's own settings.
     @ViewBuilder
     private func relationEditSection(def: PropertyDefinition) -> some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
@@ -458,19 +461,24 @@ struct EditPropertyPane: View {
             if isContextTierTarget(def.relationTarget) {
                 relationTierReverseRows(def: def)
             } else {
-                relationPairedReverseRow
+                relationPairedReverseRow(def: def)
             }
         }
     }
 
-    /// Read-only resolved target: icon + label + a fixed-at-creation caption.
+    /// Locked Target row: a leading `⇄` + a single `.fieldBackground()` pill
+    /// containing the resolved target icon + label. Non-interactive — the target
+    /// is fixed once the relation is created (a subtle `.help` says so). No
+    /// caption, matching the clean 3-row mockup.
     @ViewBuilder
     private func relationTargetReadonlyRow(def: PropertyDefinition) -> some View {
         let resolved = resolvedTargetDisplay(def.relationTarget)
-        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
-            Text("Target")
-                .font(PUI.Typography.sectionHeader)
+        HStack(spacing: PUI.Row.interSpacing) {
+            Image(systemName: "arrow.left.arrow.right")
+                .font(PUI.Icon.leading)
                 .foregroundStyle(.secondary)
+                .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+
             HStack(spacing: PUI.Row.interSpacing) {
                 Image(systemName: resolved.icon)
                     .font(PUI.Icon.leading)
@@ -481,10 +489,12 @@ struct EditPropertyPane: View {
                     .foregroundStyle(.primary)
                 Spacer()
             }
-            Text("The target is fixed when the relation is created.")
-                .font(PUI.Typography.caption)
-                .foregroundStyle(.tertiary)
+            .padding(.horizontal, PUI.Spacing.lg)
+            .padding(.vertical, PUI.Spacing.xs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fieldBackground()
         }
+        .help("The target is fixed once created.")
     }
 
     /// Tier-relation reverse editing: the Phase-3 `reverseName` (+ optional
@@ -508,10 +518,7 @@ struct EditPropertyPane: View {
                 }
                 .buttonStyle(.plain)
                 .help("Change reverse icon")
-                .popover(isPresented: $reverseIconPickerOpen, arrowEdge: .bottom) {
-                    SymbolPicker(symbol: reverseIconBinding)
-                        .frame(width: 540, height: 460)
-                }
+                .iconPickerPopover(isPresented: $reverseIconPickerOpen, symbol: reverseIconBinding)
 
                 TextField("Reverse name on the Context", text: bindingForReverseName(def: def))
                     .textFieldStyle(.plain)
@@ -527,15 +534,55 @@ struct EditPropertyPane: View {
         }
     }
 
-    /// Normal paired-relation reverse: read-only guidance. The reverse
-    /// property is its own entry on the target Type — rename it there.
+    /// Normal paired-relation Mirror row: EDITABLE. Mirrors the Home
+    /// `iconTitleRow` chrome — an icon button (`.iconPickerPopover`) + a name
+    /// `TextField`, both on `.fieldBackground()`. Both the name (on submit/blur)
+    /// and the icon (on pick) commit through the manager `updatePairedRelation`
+    /// wrapper, which rewrites only the reverse side on the target Type.
     @ViewBuilder
-    private var relationPairedReverseRow: some View {
+    private func relationPairedReverseRow(def: PropertyDefinition) -> some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
-            Text("Reverse")
+            Text("Mirror")
                 .font(PUI.Typography.sectionHeader)
                 .foregroundStyle(.secondary)
-            Text("This relation has a paired property on the target. Edit the reverse from the target's settings.")
+            HStack(spacing: PUI.Row.interSpacing) {
+                Button {
+                    reverseIconPickerOpen = true
+                } label: {
+                    Image(systemName: def.reverseIcon ?? def.icon ?? PropertyType.relation.pickerIcon)
+                        .font(PUI.Icon.leading)
+                        .foregroundStyle(.secondary)
+                        .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
+                        .fieldBackground()
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Change mirror icon")
+                .iconPickerPopover(isPresented: $reverseIconPickerOpen, symbol: mirrorIconBinding)
+
+                TextField("Reverse name on the target", text: $mirrorNameDraft)
+                    .textFieldStyle(.plain)
+                    .font(PUI.Typography.row)
+                    .padding(.horizontal, PUI.Spacing.lg)
+                    .padding(.vertical, PUI.Spacing.xs)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fieldBackground()
+                    .focused($mirrorNameFocused)
+                    .onSubmit {
+                        Task { await commitMirrorName() }
+                        mirrorNameFocused = false
+                    }
+                    .onChange(of: mirrorNameFocused) { wasFocused, isFocused in
+                        // Commit on focus loss (click outside the TextField).
+                        if wasFocused && !isFocused {
+                            Task { await commitMirrorName() }
+                        }
+                    }
+                    // Safety net: dismissing the popover (outside-click) tears the
+                    // field down without a reliable blur — commit on disappear too.
+                    .onDisappear { Task { await commitMirrorName() } }
+            }
+            Text("The paired property on the target Type.")
                 .font(PUI.Typography.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -578,6 +625,19 @@ struct EditPropertyPane: View {
             get: { currentDefinition()?.reverseIcon },
             set: { newIcon in
                 Task { await applyTransform { $0.reverseIcon = newIcon } }
+            }
+        )
+    }
+
+    /// Edit-mode binding for the editable Mirror (reverse) icon on a PAIRED
+    /// relation. The setter routes through the manager `updatePairedRelation`
+    /// wrapper — passing the just-picked icon plus the current `mirrorNameDraft`
+    /// so the single commit carries both current mirror values.
+    private var mirrorIconBinding: Binding<String?> {
+        Binding(
+            get: { currentDefinition()?.reverseIcon },
+            set: { newIcon in
+                Task { await commitMirrorIcon(newIcon) }
             }
         )
     }
@@ -884,6 +944,51 @@ struct EditPropertyPane: View {
         }
     }
 
+    /// Commits the Mirror (reverse) NAME for a paired relation. Passes the
+    /// current `mirrorNameDraft` plus the current reverse icon — each commit
+    /// carries both current mirror values, with the one just-changed. Dispatched
+    /// by `side` to the matching manager's `updatePairedRelation` wrapper.
+    private func commitMirrorName() async {
+        guard let typeID = parentTypeID(), let side else { return }
+        let name = mirrorNameDraft.trimmingCharacters(in: .whitespaces)
+        let icon = currentDefinition()?.reverseIcon
+        do {
+            switch side {
+            case .pages:
+                try await pageTypeManager.updatePairedRelation(
+                    propertyID: propertyID, newReverseName: name, newReverseIcon: icon, in: typeID)
+            case .items:
+                try await itemTypeManager.updatePairedRelation(
+                    propertyID: propertyID, newReverseName: name, newReverseIcon: icon, in: typeID)
+            }
+            commitError = nil
+        } catch {
+            commitError = PropertyEditorErrorMessage.string(for: error)
+        }
+    }
+
+    /// Commits the Mirror (reverse) ICON for a paired relation. Passes the
+    /// newly-picked icon plus the current `mirrorNameDraft` — each commit carries
+    /// both current mirror values, with the one just-changed. Dispatched by
+    /// `side` to the matching manager's `updatePairedRelation` wrapper.
+    private func commitMirrorIcon(_ newIcon: String?) async {
+        guard let typeID = parentTypeID(), let side else { return }
+        let name = mirrorNameDraft.trimmingCharacters(in: .whitespaces)
+        do {
+            switch side {
+            case .pages:
+                try await pageTypeManager.updatePairedRelation(
+                    propertyID: propertyID, newReverseName: name, newReverseIcon: newIcon, in: typeID)
+            case .items:
+                try await itemTypeManager.updatePairedRelation(
+                    propertyID: propertyID, newReverseName: name, newReverseIcon: newIcon, in: typeID)
+            }
+            commitError = nil
+        } catch {
+            commitError = PropertyEditorErrorMessage.string(for: error)
+        }
+    }
+
     private func commitDelete() async {
         guard let typeID = parentTypeID(), let side else { return }
         // Pop FIRST, then await the disk delete. If we awaited delete first,
@@ -1011,10 +1116,7 @@ private struct RelationDraftMirrorSection: View {
                 }
                 .buttonStyle(.plain)
                 .help("Change reverse icon")
-                .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
-                    SymbolPicker(symbol: $reverseIcon)
-                        .frame(width: 540, height: 460)
-                }
+                .iconPickerPopover(isPresented: $iconPickerOpen, symbol: $reverseIcon)
 
                 TextField("Reverse property name on the target", text: $reverseName)
                     .textFieldStyle(.plain)

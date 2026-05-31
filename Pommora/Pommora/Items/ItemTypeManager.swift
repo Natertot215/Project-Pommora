@@ -706,6 +706,62 @@ extension ItemTypeManager {
         }
     }
 
+    // MARK: - Update paired relation (reverse/mirror side)
+
+    /// Updates ONLY the reverse (mirror) side of a paired relation; the home
+    /// side is edited separately via `renameProperty` / the icon transform. Reads
+    /// the current home name/icon (passed through unchanged) and routes both sides
+    /// through `DualRelationCoordinator.updatePairedRelation` (F3), then reloads
+    /// both Types into memory. Mirror of `addProperty`'s paired branch.
+    func updatePairedRelation(propertyID: String, newReverseName: String, newReverseIcon: String?, in typeID: String) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw ItemTypeManagerError.typeNotFound
+            }
+            guard let def = types[i].properties.first(where: { $0.id == propertyID }),
+                def.type == .relation, def.dualProperty != nil,
+                let scope = def.relationTarget
+            else {
+                throw ItemTypeManagerError.propertyNotFound
+            }
+            let sourceKind = DualRelationCoordinator.TypeKind.itemType(types[i])
+            let targetKind = try resolveDualTargetKind(for: scope)
+            try DualRelationCoordinator.updatePairedRelation(
+                sourcePropertyID: propertyID,
+                sourceKind: sourceKind,
+                targetKind: targetKind,
+                newHomeName: def.name,
+                newHomeIcon: def.icon,
+                newReverseName: newReverseName,
+                newReverseIcon: newReverseIcon,
+                nexus: nexus
+            )
+            // Reload both sides into memory (same-manager inline; cross-manager via the
+            // injected hook). No re-index: reverse name/icon are display-only + the
+            // index is regeneratable (relation VALUES key on ID).
+            let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[i].title)
+            if let reloaded = try? ItemType.load(from: meta) {
+                types[i] = reloaded
+                rebuildTypesByID()
+            }
+            let targetID = targetKind.typeID
+            if targetID != typeID {
+                if let j = types.firstIndex(where: { $0.id == targetID }) {
+                    let tMeta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[j].title)
+                    if let reloaded = try? ItemType.load(from: tMeta) {
+                        types[j] = reloaded
+                        rebuildTypesByID()
+                    }
+                } else {
+                    reloadTypeByID?(targetID)
+                }
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Rename property
 
     /// Renames a property by its stable ID. Schema-only write — member files keyed by

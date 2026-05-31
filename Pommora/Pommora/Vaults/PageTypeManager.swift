@@ -652,6 +652,62 @@ extension PageTypeManager {
         }
     }
 
+    // MARK: - Update paired relation (reverse/mirror side)
+
+    /// Updates ONLY the reverse (mirror) side of a paired relation; the home
+    /// side is edited separately via `renameProperty` / the icon transform. Reads
+    /// the current home name/icon (passed through unchanged) and routes both sides
+    /// through `DualRelationCoordinator.updatePairedRelation` (F3), then reloads
+    /// both Types into memory. Mirror of `addProperty`'s paired branch.
+    func updatePairedRelation(propertyID: String, newReverseName: String, newReverseIcon: String?, in typeID: String) async throws {
+        do {
+            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            guard let def = types[i].properties.first(where: { $0.id == propertyID }),
+                def.type == .relation, def.dualProperty != nil,
+                let scope = def.relationTarget
+            else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            let sourceKind = DualRelationCoordinator.TypeKind.pageType(types[i])
+            let targetKind = try resolveDualTargetKind(for: scope)
+            try DualRelationCoordinator.updatePairedRelation(
+                sourcePropertyID: propertyID,
+                sourceKind: sourceKind,
+                targetKind: targetKind,
+                newHomeName: def.name,
+                newHomeIcon: def.icon,
+                newReverseName: newReverseName,
+                newReverseIcon: newReverseIcon,
+                nexus: nexus
+            )
+            // Reload both sides into memory so live views reflect the atomic sidecar
+            // write. Same-manager target reloads inline; a cross-manager (ItemType)
+            // target routes through the injected hook. No re-index: the reverse
+            // name/icon are display-only and the index is regeneratable (relation
+            // VALUES key on ID), so the in-memory reload keeps every view correct.
+            let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+            if let reloaded = try? PageType.load(from: meta) {
+                types[i] = reloaded
+            }
+            let targetID = targetKind.typeID
+            if targetID != typeID {
+                if let j = types.firstIndex(where: { $0.id == targetID }) {
+                    let targetMeta = NexusPaths.vaultMetadataURL(forTitle: types[j].title, in: nexus)
+                    if let reloaded = try? PageType.load(from: targetMeta) {
+                        types[j] = reloaded
+                    }
+                } else {
+                    reloadTypeByID?(targetID)
+                }
+            }
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Rename property
 
     /// Renames a property by its stable ID. Schema-only write — member files keyed by
