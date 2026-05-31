@@ -38,6 +38,11 @@ final class AgendaTaskManager {
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     var indexUpdater: IndexUpdater?
 
+    /// Backing store for the lazily-constructed `schemaAdapter` (declared in the
+    /// schema-CRUD extension). Held here because stored properties can't live on
+    /// an extension. Not observed — purely an internal service bridge.
+    @ObservationIgnored fileprivate var _schemaAdapter: TaskSchemaAdapter?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -296,29 +301,7 @@ extension AgendaTaskManager {
     /// existing properties via `PropertyDefinitionValidator`. Schema-only write (member
     /// files are not touched — identity is stored by ID).
     func addProperty(_ definition: PropertyDefinition) async throws {
-        do {
-            var def = definition
-            if def.id.isEmpty {
-                def.id = ReservedPropertyID.mintUserPropertyID()
-            }
-
-            try PropertyDefinitionValidator.validate(
-                def, in: schema.properties, nexus: NexusContext.forTypeResolution(in: nexus))
-
-            var updated = schema
-            updated.properties.append(def)
-            updated.modifiedAt = Date()
-
-            let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
-            try AtomicJSON.write(updated, to: schemaURL)
-
-            if let updater = indexUpdater {
-                let position = updated.properties.count - 1
-                do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: position) } catch { self.pendingError = error }
-            }
-
-            schema = updated
-        } catch {
+        do { try SingletonSchemaService.addProperty(definition, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
         }
@@ -329,39 +312,7 @@ extension AgendaTaskManager {
     /// Renames a property by its stable ID. Schema-only write — member files keyed by
     /// name are not touched (rename-safe by design per the domain model).
     func renameProperty(id propertyID: String, to newName: String) async throws {
-        do {
-            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw AgendaTaskManagerError.propertyNotFound
-            }
-
-            var renamedDef = schema.properties[propIndex]
-            renamedDef.name = newName
-
-            // Build the schema with the renamed definition substituted in, so validation
-            // can check name-uniqueness against the rest of the schema (excluding itself).
-            var otherProps = schema.properties
-            otherProps.remove(at: propIndex)
-            // Validate name only — supply a fresh temp-unique ID so the duplicate-ID
-            // rule doesn't fire. We only care about the name-uniqueness check here.
-            var validationDef = renamedDef
-            validationDef.id = ReservedPropertyID.mintUserPropertyID()
-            try PropertyDefinitionValidator.validate(
-                validationDef, in: otherProps, nexus: NexusContext.forTypeResolution(in: nexus))
-
-            var updated = schema
-            updated.properties[propIndex] = renamedDef
-            updated.modifiedAt = Date()
-
-            let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
-            try AtomicJSON.write(updated, to: schemaURL)
-
-            if let updater = indexUpdater {
-                do { try updater.upsertPropertyDefinition(renamedDef, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: propIndex) } catch { self.pendingError = error }
-            }
-
-            schema = updated
-        } catch {
+        do { try SingletonSchemaService.renameProperty(id: propertyID, to: newName, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
         }
@@ -374,49 +325,7 @@ extension AgendaTaskManager {
     /// Atomically removes the schema entry and strips the corresponding key from
     /// every `.task.json` member file via `SchemaTransaction`.
     func deleteProperty(id propertyID: String) async throws {
-        do {
-            // Block deletion of built-in reserved properties.
-            // _status non-deletable per plan; _type non-deletable as core select.
-            let builtinIDs: Set<String> = ["_type", "_status"]
-            guard !builtinIDs.contains(propertyID) else {
-                throw AgendaTaskManagerError.cannotDeleteBuiltinProperty
-            }
-
-            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw AgendaTaskManagerError.propertyNotFound
-            }
-
-            var updated = schema
-            updated.properties.remove(at: propIndex)
-            updated.modifiedAt = Date()
-
-            let tx = SchemaTransaction()
-
-            // Stage updated schema sidecar.
-            let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
-            try tx.stage(updated, to: schemaURL)
-
-            // Stage member-file rewrites: strip the property key from every task file.
-            let dir = NexusPaths.tasksDir(in: nexus)
-            let taskFiles = try Filesystem.children(of: dir) { url in
-                url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
-            }
-            for taskURL in taskFiles {
-                var task = try AtomicJSON.decode(AgendaTask.self, from: taskURL)
-                guard task.properties[propertyID] != nil else { continue }
-                task.properties.removeValue(forKey: propertyID)
-                tx.stage(payload: try AtomicJSON.encode(task), to: taskURL)
-            }
-
-            try tx.commit()
-
-            if let updater = indexUpdater {
-                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-            }
-
-            schema = updated
-        } catch {
+        do { try SingletonSchemaService.deleteProperty(id: propertyID, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
         }
@@ -427,40 +336,7 @@ extension AgendaTaskManager {
     /// Moves a property to a new index within the schema's `properties` array.
     /// Schema-only write — member files are not touched.
     func reorderProperty(id propertyID: String, toIndex newIndex: Int) async throws {
-        do {
-            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw AgendaTaskManagerError.propertyNotFound
-            }
-
-            var props = schema.properties
-            let clampedIndex = min(max(newIndex, 0), props.count - 1)
-            guard clampedIndex != propIndex else { return }
-
-            guard clampedIndex >= 0 && clampedIndex < props.count else {
-                throw AgendaTaskManagerError.indexOutOfBounds
-            }
-
-            props.move(
-                fromOffsets: IndexSet(integer: propIndex),
-                toOffset: clampedIndex > propIndex ? clampedIndex + 1 : clampedIndex
-            )
-
-            var updated = schema
-            updated.properties = props
-            updated.modifiedAt = Date()
-
-            let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
-            try AtomicJSON.write(updated, to: schemaURL)
-
-            if let updater = indexUpdater {
-                for (pos, def) in updated.properties.enumerated() {
-                    do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: pos) } catch { self.pendingError = error }
-                }
-            }
-
-            schema = updated
-        } catch {
+        do { try SingletonSchemaService.reorderProperty(id: propertyID, toIndex: newIndex, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
         }
@@ -484,67 +360,113 @@ extension AgendaTaskManager {
         dropConflictingValues: Bool = false
     ) async throws {
         do {
-            guard let propIndex = schema.properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw AgendaTaskManagerError.propertyNotFound
-            }
-
-            let oldType = schema.properties[propIndex].type
-
-            if oldType == newType {
-                // Lossless: schema-only write to bump modifiedAt.
-                var updated = schema
-                updated.properties[propIndex].type = newType
-                updated.modifiedAt = Date()
-                let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
-                try AtomicJSON.write(updated, to: schemaURL)
-                if let updater = indexUpdater {
-                    let def = updated.properties[propIndex]
-                    do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: propIndex) } catch { self.pendingError = error }
-                }
-                schema = updated
-                return
-            }
-
-            // Lossy cross-type change.
-            guard dropConflictingValues else {
-                throw AgendaTaskManagerError.lossyChangeRequiresConfirmation
-            }
-
-            var updated = schema
-            updated.properties[propIndex].type = newType
-            updated.modifiedAt = Date()
-
-            let tx = SchemaTransaction()
-
-            // Stage updated schema sidecar.
-            let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
-            try tx.stage(updated, to: schemaURL)
-
-            // Stage member-file rewrites: strip the conflicting property value from
-            // every task file so no stale cross-type value lingers.
-            let dir = NexusPaths.tasksDir(in: nexus)
-            let taskFiles = try Filesystem.children(of: dir) { url in
-                url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
-            }
-            for taskURL in taskFiles {
-                var task = try AtomicJSON.decode(AgendaTask.self, from: taskURL)
-                guard task.properties[propertyID] != nil else { continue }
-                task.properties.removeValue(forKey: propertyID)
-                tx.stage(payload: try AtomicJSON.encode(task), to: taskURL)
-            }
-
-            try tx.commit()
-
-            if let updater = indexUpdater {
-                let def = updated.properties[propIndex]
-                do { try updater.upsertPropertyDefinition(def, owningTypeID: "agenda_tasks", owningTypeKind: "agenda_task_schema", position: propIndex) } catch { self.pendingError = error }
-            }
-
-            schema = updated
+            try SingletonSchemaService.changeType(
+                of: propertyID,
+                to: newType,
+                dropConflictingValues: dropConflictingValues,
+                on: schemaAdapter)
         } catch {
             self.pendingError = error
             throw error
         }
+    }
+}
+
+// MARK: - Singleton schema adapter
+
+extension AgendaTaskManager {
+
+    /// Once-constructed adapter that supplies the Task-side per-side bits to the
+    /// shared `SingletonSchemaService`. Constructed lazily so `self` is fully
+    /// initialized before the `unowned` back-reference is captured.
+    fileprivate var schemaAdapter: TaskSchemaAdapter {
+        if let existing = _schemaAdapter { return existing }
+        let adapter = TaskSchemaAdapter(self)
+        _schemaAdapter = adapter
+        return adapter
+    }
+
+    /// Bridges `AgendaTaskManager`'s in-memory `schema` + `_taskconfig.json`
+    /// sidecar to `SingletonSchemaService`. Reproduces the original five method
+    /// bodies' per-side behavior verbatim. `unowned` because the manager owns the
+    /// adapter for its full lifetime.
+    fileprivate final class TaskSchemaAdapter: SingletonSchemaAdapter {
+        unowned let m: AgendaTaskManager
+        /// Holds the schema staged by `stageSchema` so `commitStagedSchema`
+        /// assigns the byte-identical value (same `modifiedAt`) to `m.schema` —
+        /// matching the original's single `updated` computed once and reused.
+        private var stagedSchema: AgendaTaskSchema?
+
+        init(_ m: AgendaTaskManager) { self.m = m }
+
+        // MARK: Schema read
+
+        var schemaProperties: [PropertyDefinition] { m.schema.properties }
+
+        // MARK: Schema persist
+
+        func writeSchema(properties: [PropertyDefinition]) throws {
+            var updated = m.schema
+            updated.properties = properties
+            updated.modifiedAt = Date()
+            try AtomicJSON.write(updated, to: NexusPaths.taskSchemaURL(in: m.nexus))
+            m.schema = updated
+        }
+
+        func stageSchema(properties: [PropertyDefinition], into tx: SchemaTransaction) throws {
+            var updated = m.schema
+            updated.properties = properties
+            updated.modifiedAt = Date()
+            try tx.stage(updated, to: NexusPaths.taskSchemaURL(in: m.nexus))
+            stagedSchema = updated
+        }
+
+        func commitStagedSchema(properties: [PropertyDefinition]) {
+            guard let updated = stagedSchema else { return }
+            m.schema = updated
+            stagedSchema = nil
+        }
+
+        // MARK: Member files
+
+        func memberFiles() throws -> [URL] {
+            try Filesystem.children(of: NexusPaths.tasksDir(in: m.nexus)) { url in
+                url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
+            }
+        }
+
+        func stripMember(at url: URL, removing propertyID: String, into tx: SchemaTransaction) throws {
+            var task = try AtomicJSON.decode(AgendaTask.self, from: url)
+            guard task.properties[propertyID] != nil else { return }
+            task.properties.removeValue(forKey: propertyID)
+            tx.stage(payload: try AtomicJSON.encode(task), to: url)
+        }
+
+        // MARK: Guards / validation
+
+        func canDelete(propertyID: String) -> Bool {
+            !["_type", "_status"].contains(propertyID)
+        }
+
+        var validationContext: NexusContext { NexusContext.forTypeResolution(in: m.nexus) }
+
+        // MARK: Index
+
+        var indexOwningTypeID: String { "agenda_tasks" }
+        var indexOwningTypeKind: String { "agenda_task_schema" }
+        var indexUpdater: IndexUpdater? { m.indexUpdater }
+
+        // MARK: Errors
+
+        var errPropertyNotFound: any Error { AgendaTaskManagerError.propertyNotFound }
+        var errCannotDeleteBuiltin: any Error { AgendaTaskManagerError.cannotDeleteBuiltinProperty }
+        var errLossyChangeRequiresConfirmation: any Error {
+            AgendaTaskManagerError.lossyChangeRequiresConfirmation
+        }
+        var errIndexOutOfBounds: any Error { AgendaTaskManagerError.indexOutOfBounds }
+
+        // MARK: pendingError sink
+
+        func recordIndexError(_ error: any Error) { m.pendingError = error }
     }
 }
