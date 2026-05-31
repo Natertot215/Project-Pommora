@@ -20,10 +20,6 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderItemType
 final class ItemTypeManager {
     private(set) var types: [ItemType] = []
     private(set) var itemCollectionsByType: [String: [ItemCollection]] = [:]
-    /// Fast id-keyed lookup. Rebuilt alongside `types` so callers never need
-    /// to scan the array when they already hold an ItemType id (Items-side
-    /// queries do this often).
-    private(set) var typesByID: [String: ItemType] = [:]
     var pendingError: (any Error)?
 
     private let nexus: Nexus
@@ -49,15 +45,14 @@ final class ItemTypeManager {
         itemCollectionsByType[itemType.id] ?? []
     }
 
-    /// Reloads a single ItemType from disk into the in-memory `types` array (and
-    /// `typesByID`) by ID. Mirror of PageTypeManager.reloadTypeFromDisk — see that file
-    /// for the full rationale. No-op if the ID isn't one of this manager's types.
+    /// Reloads a single ItemType from disk into the in-memory `types` array by ID.
+    /// Mirror of PageTypeManager.reloadTypeFromDisk — see that file for the full
+    /// rationale. No-op if the ID isn't one of this manager's types.
     func reloadTypeFromDisk(id: String) {
         guard let i = types.firstIndex(where: { $0.id == id }) else { return }
         let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[i].title)
         if let reloaded = try? ItemType.load(from: meta) {
             types[i] = reloaded
-            rebuildTypesByID()
         }
     }
 
@@ -167,7 +162,6 @@ final class ItemTypeManager {
                 titleKeyPath: \ItemType.title
             )
             self.itemCollectionsByType = loadedCols
-            self.typesByID = Dictionary(uniqueKeysWithValues: self.types.map { ($0.id, $0) })
             self.pendingError = nil
 
             // Defensive index sync — mirrors PageTypeManager.loadAll's
@@ -187,7 +181,6 @@ final class ItemTypeManager {
         } catch {
             self.types = []
             self.itemCollectionsByType = [:]
-            self.typesByID = [:]
             self.pendingError = error
         }
     }
@@ -226,7 +219,6 @@ final class ItemTypeManager {
                 persistedOrder: readPersistedItemTypeOrder(),
                 titleKeyPath: \ItemType.title
             )
-            rebuildTypesByID()
             return itemType
         } catch {
             self.pendingError = error
@@ -256,8 +248,8 @@ final class ItemTypeManager {
                 try updated.save(to: newMeta)
             } catch let saveError {
                 // Roll back folder rename; do NOT touch itemCollectionsByType
-                // here — in-memory rebuild only runs on the save-success
-                // branch below.
+                // here — the in-memory itemCollectionsByType re-derivation only
+                // runs on the save-success branch below.
                 do {
                     try Filesystem.renameFolder(from: newFolder, to: oldFolder)
                     throw saveError
@@ -297,7 +289,6 @@ final class ItemTypeManager {
                     persistedOrder: readPersistedItemTypeOrder(),
                     titleKeyPath: \ItemType.title
                 )
-                rebuildTypesByID()
             }
         } catch {
             if !(error is RenameAtomicityError) {
@@ -321,7 +312,6 @@ final class ItemTypeManager {
             }
             if let i = types.firstIndex(where: { $0.id == itemType.id }) {
                 types[i] = updated
-                rebuildTypesByID()
             }
         } catch {
             self.pendingError = error
@@ -362,7 +352,6 @@ final class ItemTypeManager {
             }
             types.removeAll { $0.id == itemType.id }
             itemCollectionsByType.removeValue(forKey: itemType.id)
-            typesByID.removeValue(forKey: itemType.id)
         } catch {
             self.pendingError = error
             throw error
@@ -503,7 +492,6 @@ final class ItemTypeManager {
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != types else { return }
         types = arr
-        rebuildTypesByID()
         do {
             try OrderPersister.setItemTypeOrder(arr.map(\.id), in: nexus)
         } catch {
@@ -528,7 +516,6 @@ final class ItemTypeManager {
             // Keep the in-memory ItemType's collectionOrder in sync.
             if let i = types.firstIndex(where: { $0.id == itemType.id }) {
                 types[i].collectionOrder = arr.map(\.id)
-                rebuildTypesByID()
             }
         } catch {
             self.pendingError = error
@@ -536,10 +523,6 @@ final class ItemTypeManager {
     }
 
     // MARK: - Private helpers
-
-    private func rebuildTypesByID() {
-        typesByID = Dictionary(uniqueKeysWithValues: types.map { ($0.id, $0) })
-    }
 
     /// Reads the persisted Item Type sibling order from `.nexus/state.json`.
     /// Returns nil when there's no state file or no `item_type_order` recorded —
@@ -631,7 +614,6 @@ extension ItemTypeManager {
                 let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[i].title)
                 if let reloaded = try? ItemType.load(from: meta) {
                     types[i] = reloaded
-                    rebuildTypesByID()
                 }
                 // Reload the target so the reverse property appears immediately (not after
                 // restart). Same-manager (another ItemType) reloads inline; cross-manager
@@ -644,7 +626,6 @@ extension ItemTypeManager {
                             in: nexus.rootURL, typeFolderName: types[j].title)
                         if let reloaded = try? ItemType.load(from: tMeta) {
                             types[j] = reloaded
-                            rebuildTypesByID()
                         }
                     } else {
                         reloadTypeByID?(targetID)
@@ -683,7 +664,6 @@ extension ItemTypeManager {
             }
 
             types[i] = updated
-            rebuildTypesByID()
         } catch {
             self.pendingError = error
             throw error
@@ -762,7 +742,6 @@ extension ItemTypeManager {
             let meta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[i].title)
             if let reloaded = try? ItemType.load(from: meta) {
                 types[i] = reloaded
-                rebuildTypesByID()
             }
             let targetID = targetKind.typeID
             if targetID != typeID {
@@ -770,7 +749,6 @@ extension ItemTypeManager {
                     let tMeta = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: types[j].title)
                     if let reloaded = try? ItemType.load(from: tMeta) {
                         types[j] = reloaded
-                        rebuildTypesByID()
                     }
                 } else {
                     reloadTypeByID?(targetID)
@@ -826,7 +804,6 @@ extension ItemTypeManager {
             }
 
             types[typeIndex] = updated
-            rebuildTypesByID()
         } catch {
             self.pendingError = error
             throw error
@@ -864,7 +841,6 @@ extension ItemTypeManager {
                 )
                 try updated.save(to: meta)
                 types[i] = updated
-                typesByID[updated.id] = updated
                 return
             }
             for (typeID, cols) in itemCollectionsByType {
@@ -929,7 +905,6 @@ extension ItemTypeManager {
             }
 
             types[i] = updatedType
-            typesByID[typeID] = updatedType
         } catch {
             self.pendingError = error
             throw error
@@ -978,7 +953,6 @@ extension ItemTypeManager {
             }
 
             types[i] = updatedType
-            typesByID[typeID] = updatedType
         } catch {
             self.pendingError = error
             throw error
@@ -1023,7 +997,6 @@ extension ItemTypeManager {
                         in: nexus.rootURL, typeFolderName: types[typeIndex].title)
                     if let reloaded = try? ItemType.load(from: meta) {
                         types[typeIndex] = reloaded
-                        rebuildTypesByID()
                     }
                     // Reload the reverse type in-memory: same-manager (another ItemType) inline,
                     // cross-manager (PageType) via the injected router hook so it doesn't need a restart.
@@ -1032,7 +1005,6 @@ extension ItemTypeManager {
                             in: nexus.rootURL, typeFolderName: types[j].title)
                         if let reloaded = try? ItemType.load(from: tMeta) {
                             types[j] = reloaded
-                            rebuildTypesByID()
                         }
                     } else {
                         reloadTypeByID?(targetTypeID)
@@ -1081,7 +1053,6 @@ extension ItemTypeManager {
             }
 
             types[typeIndex] = updated
-            rebuildTypesByID()
         } catch {
             self.pendingError = error
             throw error
@@ -1131,7 +1102,6 @@ extension ItemTypeManager {
             }
 
             types[typeIndex] = updated
-            rebuildTypesByID()
         } catch {
             self.pendingError = error
             throw error
@@ -1183,7 +1153,6 @@ extension ItemTypeManager {
                     } catch { self.pendingError = error }
                 }
                 types[typeIndex] = updated
-                rebuildTypesByID()
                 return
             }
 
@@ -1228,7 +1197,6 @@ extension ItemTypeManager {
             }
 
             types[typeIndex] = updated
-            rebuildTypesByID()
         } catch {
             self.pendingError = error
             throw error
