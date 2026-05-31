@@ -246,6 +246,16 @@ struct MarkdownLists {
                     ? HeadingHelpers.checkboxExtraSpacing(font: baseFont, configuration: configuration.checkbox)
                     : 0
 
+                // Plain `-` bullet (not a task checkbox): widen the gap between
+                // the rendered `•` glyph and the text by `bulletTextGap`. Added
+                // to `headIndent` here (wrapped lines) and kerned onto the hidden
+                // `-` below (first line) so both stay aligned.
+                let markerStartsWithDash =
+                    markerRange.length > 0
+                    && nsText.substring(with: NSRange(location: markerRange.location, length: 1)) == "-"
+                let isPlainDashBullet = markerStartsWithDash && !hasCheckbox
+                let bulletTextGap: CGFloat = isPlainDashBullet ? configuration.lists.bulletTextGap : 0
+
                 ps.tabStops = []
                 ps.defaultTabInterval = indentPerLevel
                 // Default visual indent (one tab-stop from page margin) on top
@@ -254,7 +264,7 @@ struct MarkdownLists {
                 // provided automatically — without putting `\t` chars in the
                 // canonical source.
                 ps.firstLineHeadIndent = indentPerLevel + depthIndent
-                ps.headIndent = indentPerLevel + depthIndent + markerWidth + extraSpacing
+                ps.headIndent = indentPerLevel + depthIndent + markerWidth + extraSpacing + bulletTextGap
 
                 attributesList.append((match.range(at: 0), [.paragraphStyle: ps]))
 
@@ -290,12 +300,15 @@ struct MarkdownLists {
                         // Plain bullet line — hide the `-` so MarkdownTextLayoutFragment
                         // can overlay a `•` glyph. NOT collapsed (no font change), so
                         // the dash's natural width is preserved invisibly to keep the
-                        // gap between the bullet glyph and the content.
+                        // gap between the bullet glyph and the content. `bulletTextGap`
+                        // is kerned in after the dash to widen that gap (matched by the
+                        // same addition to `headIndent` above so wrapped lines align).
                         attributesList.append(
                             (
                                 NSRange(location: markerRange.location, length: 1),
                                 [
-                                    .foregroundColor: NSColor.clear
+                                    .foregroundColor: NSColor.clear,
+                                    .kern: bulletTextGap,
                                 ]
                             ))
                     }

@@ -470,7 +470,7 @@ Foldable headings fit neither §9.1 (dynamic-syntax caret-reveal) nor §9.10 (al
 
 ###### Why neither prior pattern fits
 
-- Dynamic-syntax (§9.1, HR) hides source markers on caret leave. Foldable headings NEVER hide the `##` markers — the heading text stays visible at all times. So caret-aware reveal is not the lever.
+- Dynamic-syntax (§9.1, HR) hides source markers on caret leave — and heading `#` markers DO use it (shrunk/hidden via `shrinkInactiveMarkers` when the caret leaves the line; the heading text itself always stays visible). But §9.1 reveals only *markers*; it has no notion of collapsing a heading's *content*. So caret-aware reveal is not the lever for folding.
 - Always-show overlay (§9.10, blockquote, bullet, task checkbox) draws stateless chrome that's always visible. The chevron is interactive + stateful — it appears only on hover (per the design decision) and its orientation reflects fold state. So permanently-visible chrome is also not the lever.
 
 ###### The five pieces

@@ -219,19 +219,25 @@ public struct ListStyle: Sendable {
     public var maximumNestingLevel: Int
     /// Extra line height added on top of the default to give list items room.
     public var extraLineHeight: CGFloat
+    /// Extra horizontal padding (in points) between a rendered bullet `•` glyph
+    /// and the item text, on top of the source marker's natural width. Applies
+    /// to plain `-` bullets only (ordered lists + task checkboxes unaffected).
+    public var bulletTextGap: CGFloat
 
     public init(
         helpersEnabled: Bool = true,
         autoClosePairsEnabled: Bool = true,
-        indentPerLevel: CGFloat = 27.5,
+        indentPerLevel: CGFloat = 24,
         maximumNestingLevel: Int = 3,
-        extraLineHeight: CGFloat = 2
+        extraLineHeight: CGFloat = 2,
+        bulletTextGap: CGFloat = 3
     ) {
         self.helpersEnabled = helpersEnabled
         self.autoClosePairsEnabled = autoClosePairsEnabled
         self.indentPerLevel = indentPerLevel
         self.maximumNestingLevel = maximumNestingLevel
         self.extraLineHeight = extraLineHeight
+        self.bulletTextGap = bulletTextGap
     }
 
     public static let `default` = ListStyle()
