@@ -32,9 +32,11 @@ Nathan's decisions: **#3** = the Edit Properties pane (treat as reproduce-then-f
 
 ### Progress + lessons (live)
 
-**Shipped green on `main` (commit):** Phase 0 — Kind column removed `bd42545`, Set breadcrumb removed `2a024ca`. Phase 1 — F1 collection icon setters `df43df1`, F2 Items reorder persistence + `setItemOrder(inType:)` `cd55084`, F3 `updatePairedRelation` `8222a2f`. Phase 4 (DRAG-WORK, **DONE**) — `DetailReorderPlanner` `f6985a9` + 4-view wiring `20674c7`. Plan docs `d43769f`/`fe9b80b`. Parallel-session UIX (RelationPicker/SelectionCheckmark, green-verified, per Nathan) `23ea94b`/`f8d649f`/`bc65d29`.
+**Shipped green on `main` (commit):** Phase 0 — Kind column removed `bd42545`, Set breadcrumb removed `2a024ca`. Phase 1 — F1 collection icon setters `df43df1`, F2 Items reorder persistence + `setItemOrder(inType:)` `cd55084`, F3 `updatePairedRelation` `8222a2f`. Phase 4 (DRAG-WORK, **DONE**) — `DetailReorderPlanner` `f6985a9` + 4-view wiring `20674c7`. **Phase 2 (DONE)** — Task 2 popover header icon/title editable for all four storage kinds `783fdb6`; Phase 2b sidebar **Edit Icon** for collections/sets + "Edit Title"/"Edit Icon" label standardization `f15af44`; Phase 2c detail-table **Edit Icon** for page/collection/set/item + new `updatePageIcon`/`updateItemIcon` setters (RED-first) `57a1cef`. Plan docs `d43769f`/`fe9b80b`. Parallel-session UIX (RelationPicker/SelectionCheckmark, green-verified, per Nathan) `23ea94b`/`f8d649f`/`bc65d29`.
 
-**Remaining:** Phase 2 (Task 2 popover-header editable + Task 5 detail-header editable), Phase 3 (relation create/edit unification — see the targetKind note in its Save bullet), Phase 5 (#3 spike).
+**Remaining:** Phase 3 (relation create/edit unification — see the targetKind note in its Save bullet), Phase 5 (#3 spike).
+
+**Phase 2 scope changes (Nathan, 2026-05-30):** Task 5 (detail-header *inline title* editing) DESCOPED — *"leave it; non-important, risks pollution/complexity. Move on."* The popover (Task 2) is the sufficient title+icon editing surface; the four detail-view headers stay display-only (live-entity render). In its place Nathan added two asks, **both shipped**: **2b** collection/set Edit Icon in the sidebar context menus (`SidebarSheet.IconTarget` + `IconPickerSheet` → F1 setters), and **2c** Edit Icon on every detail-table row (page/collection/set/item) via `IconTarget.page`/`.item` + the new `updatePageIcon`/`updateItemIcon` setters. Also standardized edit-affordance labels app-wide to "Edit Title"/"Edit Icon" — the rename *dialog* (its title + confirm button + message) keeps "Rename" (clearer there; no Edit Icon pairing).
 
 **Lessons (carry forward):**
 - **`Array.move(fromOffsets:toOffset:)` is a SwiftUI extension** — test files using it need `import SwiftUI` (not just Foundation/Testing). Bit the 4a RED step.
@@ -43,6 +45,9 @@ Nathan's decisions: **#3** = the Edit Properties pane (treat as reproduce-then-f
 - **F3 confirmed** the coordinator can't resolve a Type from an id → Phase 3 must resolve home+target TypeKinds and refresh both managers (in its Save bullet).
 - **pbxproj churn:** Xcode reorders the **GRDB** package entries on every build (extends quirk #6) — revert `Pommora/Pommora.xcodeproj/project.pbxproj` before each commit.
 - **Parallel session** actively iterates `RelationPicker`/`SelectionCheckmark` (relation *value* picker) — re-check the tree before Phase 3 (which edits `EditPropertyPane`, adjacent) for collisions; commit its green-verified UIX as separate labeled commits.
+- **Parallel session is also building a native IconPicker** (replacing third-party SymbolPicker via a `.iconPickerPopover` modifier + `Properties/IconPicker/` dir + `IconFavoritesTests`). It owns `StorageMenuRoot`'s picker swap + `OptionEditPopover` polish + those untracked files — leave them unstaged, never revert (quirk #10). Phase 2c's `IconTarget`/`IconPickerSheet`/setter work is **orthogonal** — `IconTarget` is *what* to edit, the picker is *how* — so no collision; they meet only at `IconPickerSheet`, which the parallel session left alone.
+- **Icon setters reuse tested save paths** (don't re-implement persistence): `updatePageIcon` wraps `updatePageFrontmatter` (atomic `.md` rewrite preserving body); `updateItemIcon` wraps `updateItem(_:in:type:)`/`(_:inTypeRoot:)`. Thin delegations — set the icon on a copy, route through the existing method.
+- **Label convention (locked):** edit affordances in menus/tooltips/popover = "Edit Title" / "Edit Icon"; the table-row rename **dialog** (title + confirm + message) stays "Rename" (standard, clearer, no icon pairing).
 
 ---
 
