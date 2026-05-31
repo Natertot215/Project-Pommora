@@ -82,7 +82,8 @@ struct PageCollectionRow: View {
                 Button("New Page") { createPage() }
                     .disabled(isCreatingPage)
                 Divider()
-                Button("Rename") { editingID = collection.id }
+                Button("Edit Title") { editingID = collection.id }
+                Button("Edit Icon") { presentedSheet = .editIcon(.pageCollection(collection)) }
                 Divider()
                 Button("Delete", role: .destructive) {
                     confirmingDelete = .deleteCollection(collection)

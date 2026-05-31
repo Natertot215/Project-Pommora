@@ -148,8 +148,8 @@ struct PageTypeRow: View {
                     showingVaultSettings = true
                 }
                 Divider()
-                Button("Rename") { editingID = pageType.id }
-                Button("Change Icon") { presentedSheet = .editIcon(.pageType(pageType)) }
+                Button("Edit Title") { editingID = pageType.id }
+                Button("Edit Icon") { presentedSheet = .editIcon(.pageType(pageType)) }
                 Divider()
                 Button("Delete", role: .destructive) {
                     let cols = pageTypeManager.pageCollections(in: pageType).count

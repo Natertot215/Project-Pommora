@@ -65,7 +65,8 @@ struct ItemCollectionRow: View {
                 Button("New Item") { createItem() }
                     .disabled(isCreatingItem)
                 Divider()
-                Button("Rename") { editingID = collection.id }
+                Button("Edit Title") { editingID = collection.id }
+                Button("Edit Icon") { presentedSheet = .editIcon(.itemCollection(collection)) }
                 Divider()
                 Button("Delete", role: .destructive) {
                     confirmingDelete = .deleteItemCollection(collection)

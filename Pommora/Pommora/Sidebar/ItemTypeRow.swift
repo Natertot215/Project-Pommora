@@ -130,8 +130,8 @@ struct ItemTypeRow: View {
                     showingTypeSettings = true
                 }
                 Divider()
-                Button("Rename") { editingID = itemType.id }
-                Button("Change Icon") { presentedSheet = .editIcon(.itemType(itemType)) }
+                Button("Edit Title") { editingID = itemType.id }
+                Button("Edit Icon") { presentedSheet = .editIcon(.itemType(itemType)) }
                 Divider()
                 Button("Delete", role: .destructive) {
                     let setCount = itemTypeManager.itemCollections(in: itemType).count

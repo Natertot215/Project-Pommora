@@ -265,7 +265,7 @@ struct PageCollectionDetailView: View {
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
         case .page, .item:
-            Button("Rename") { beginRename(row) }
+            Button("Edit Title") { beginRename(row) }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()
             }

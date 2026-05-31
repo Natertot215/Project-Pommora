@@ -438,7 +438,7 @@ private struct VaultSettingsPropertyRow: View {
             // Row menu
             if !isRenaming {
                 Menu {
-                    Button("Rename") { onStartRename() }
+                    Button("Edit Title") { onStartRename() }
                     Button("Move Up") { onMoveUp() }
                     Button("Move Down") { onMoveDown() }
                     Divider()

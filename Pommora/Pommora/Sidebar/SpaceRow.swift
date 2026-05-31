@@ -46,9 +46,9 @@ struct SpaceRow: View {
                     Button("New Space") { createSpace() }
                         .disabled(isCreatingSpace)
                     Divider()
-                    Button("Rename") { startRename() }
+                    Button("Edit Title") { startRename() }
                     Button("Change Color") { presentedSheet = .editColor(space) }
-                    Button("Change Icon") { presentedSheet = .editIcon(.space(space)) }
+                    Button("Edit Icon") { presentedSheet = .editIcon(.space(space)) }
                     Divider()
                     Button("Delete", role: .destructive) {
                         confirmingDelete = .deleteSpace(space)

@@ -268,7 +268,7 @@ struct ItemCollectionDetailView: View {
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
         case .item:
-            Button("Rename") { beginRename(row) }
+            Button("Edit Title") { beginRename(row) }
             Button(row.isPinned ? "Unpin Item" : "Pin Item") { row.togglePin() }
             Divider()
             Button("Delete", role: .destructive) {

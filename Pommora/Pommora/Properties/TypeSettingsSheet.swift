@@ -394,7 +394,7 @@ private struct TypeSettingsPropertyRow: View {
 
             if !isRenaming {
                 Menu {
-                    Button("Rename") { onStartRename() }
+                    Button("Edit Title") { onStartRename() }
                     Button("Move Up") { onMoveUp() }
                     Button("Move Down") { onMoveDown() }
                     Divider()

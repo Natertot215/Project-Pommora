@@ -5,7 +5,7 @@
 //  Reusable button-field used inside the Create sheets to pick an SF Symbol.
 //  Wraps SymbolPicker directly (not IconPickerSheet) because Create flows hold
 //  the picked symbol in local `@State` until Save — they have no manager to
-//  route through. IconPickerSheet still owns the "Change Icon" flow on
+//  route through. IconPickerSheet still owns the "Edit Icon" flow on
 //  existing rows, where the picked symbol must be persisted via the right
 //  manager.
 //

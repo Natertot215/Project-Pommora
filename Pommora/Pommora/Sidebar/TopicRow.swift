@@ -88,9 +88,9 @@ struct TopicRow: View {
                 Button("New \(projectLabel)") { createProject() }
                     .disabled(isCreatingProject)
                 Divider()
-                Button("Rename") { editingID = topic.id }
+                Button("Edit Title") { editingID = topic.id }
                 Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }
-                Button("Change Icon") { presentedSheet = .editIcon(.topic(topic)) }
+                Button("Edit Icon") { presentedSheet = .editIcon(.topic(topic)) }
                 Divider()
                 Button("Delete", role: .destructive) {
                     confirmingDelete = .deleteTopic(topic, projectCount: topicManager.projects(in: topic).count)

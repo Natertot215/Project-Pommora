@@ -44,7 +44,7 @@ struct PageRow: View {
                     accent: nil
                 )
                 .contextMenu {
-                    Button("Rename") { editingID = page.id }
+                    Button("Edit Title") { editingID = page.id }
                     Divider()
                     Button("Delete", role: .destructive) {
                         Task { await delete() }

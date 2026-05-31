@@ -197,7 +197,7 @@ struct EditPropertyPane: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Change icon")
+            .help("Edit Icon")
             .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
                 SymbolPicker(symbol: $relationDraft.icon)
                     .frame(width: 540, height: 460)
@@ -311,7 +311,7 @@ struct EditPropertyPane: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Change icon")
+            .help("Edit Icon")
             .disabled(ReservedPropertyID.isReserved(def.id))
             // Anchored popover replaces the third-party SymbolPicker's
             // default full-screen sheet. Frame sized to fit its grid +

@@ -89,7 +89,7 @@ struct StorageMenuRoot: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("Change icon")
+        .help("Edit Icon")
         // Constrained popover replaces SymbolPicker's default huge
         // sheet per Nathan's 2026-05-26 direction. Frame sized to fit
         // SymbolPicker's internal grid + section sidebar without
@@ -141,7 +141,7 @@ struct StorageMenuRoot: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Rename")
+            .help("Edit Title")
         }
     }
 

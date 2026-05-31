@@ -42,8 +42,8 @@ struct ProjectRow: View {
                     accent: nil
                 )
                 .contextMenu {
-                    Button("Rename") { editingID = project.id }
-                    Button("Change Icon") { presentedSheet = .editIcon(.project(project)) }
+                    Button("Edit Title") { editingID = project.id }
+                    Button("Edit Icon") { presentedSheet = .editIcon(.project(project)) }
                     Divider()
                     Button("Delete", role: .destructive) {
                         confirmingDelete = .deleteProject(project)

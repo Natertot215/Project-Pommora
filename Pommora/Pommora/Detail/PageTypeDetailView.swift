@@ -416,7 +416,7 @@ struct PageTypeDetailView: View {
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
         case .page, .item:
-            Button("Rename") { beginRename(row) }
+            Button("Edit Title") { beginRename(row) }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()
             }
@@ -428,7 +428,7 @@ struct PageTypeDetailView: View {
             // Mirrors ItemTypeDetailView's Set menu for cross-side parity.
             // No Pin: containers aren't pinnable from detail views today.
             Button("Open") { handleDoubleTap(row) }
-            Button("Rename") { beginRename(row) }
+            Button("Edit Title") { beginRename(row) }
             Divider()
             // Container delete is guarded — route through the confirmation
             // dialog (mirrors the sidebar). Page deletes stay direct.
