@@ -560,6 +560,25 @@ enum ItemTypeManagerError: Error, Equatable {
     case indexOutOfBounds
 }
 
+/// Human-readable text so these errors render as a friendly sentence instead of
+/// the raw bridged enum name ("Pommora.ItemTypeManagerError error N"). Wording
+/// is kept in lockstep with `PropertyEditorErrorMessage` (the popover banner) so
+/// the two surfaces speak the same language.
+extension ItemTypeManagerError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .typeNotFound:
+            return "The Type for this property was just removed."
+        case .propertyNotFound:
+            return "This property was just removed."
+        case .lossyChangeRequiresConfirmation:
+            return "Changing this type drops existing values — confirm first."
+        case .indexOutOfBounds:
+            return "Couldn't move the property to that position."
+        }
+    }
+}
+
 // MARK: - Schema CRUD methods
 
 extension ItemTypeManager {
@@ -723,7 +742,9 @@ extension ItemTypeManager {
     /// the current home name/icon (passed through unchanged) and routes both sides
     /// through `DualRelationCoordinator.updatePairedRelation` (F3), then reloads
     /// both Types into memory. Mirror of `addProperty`'s paired branch.
-    func updatePairedRelation(propertyID: String, newReverseName: String, newReverseIcon: String?, in typeID: String) async throws {
+    func updatePairedRelation(
+        propertyID: String, newReverseName: String, newReverseIcon: String?, in typeID: String
+    ) async throws {
         do {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
                 throw ItemTypeManagerError.typeNotFound
@@ -995,41 +1016,49 @@ extension ItemTypeManager {
             if prop.type == .relation, let dualConfig = prop.dualProperty,
                 let scope = prop.relationTarget
             {
-                let reverseKind = try resolveDualTargetKind(for: scope)
-                let ownerKind = DualRelationCoordinator.TypeKind.itemType(types[typeIndex])
-                let targetTypeID = reverseKind.typeID  // == dualConfig.syncedPropertyDefinedOnTypeID
-                try DualRelationCoordinator.deletePair(
-                    propertyID: propertyID,
-                    owner: ownerKind,
-                    reverse: reverseKind,
-                    nexus: nexus
-                )
-                // Reload the owning (source) type in-memory.
-                let meta = NexusPaths.itemTypeMetadataURL(
-                    in: nexus.rootURL, typeFolderName: types[typeIndex].title)
-                if let reloaded = try? ItemType.load(from: meta) {
-                    types[typeIndex] = reloaded
-                    rebuildTypesByID()
-                }
-                // Reload the reverse type in-memory: same-manager (another ItemType) inline,
-                // cross-manager (PageType) via the injected router hook so it doesn't need a restart.
-                if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
-                    let tMeta = NexusPaths.itemTypeMetadataURL(
-                        in: nexus.rootURL, typeFolderName: types[j].title)
-                    if let reloaded = try? ItemType.load(from: tMeta) {
-                        types[j] = reloaded
+                // Best-effort reverse cascade. A property delete must NEVER be blocked by an
+                // unresolvable reverse (legacy collection scope, or a drifted/missing target
+                // type id) — if resolution fails, skip the reverse cleanup and fall through to
+                // the owner-only removal below so the owner property can always be deleted.
+                if let reverseKind = try? resolveDualTargetKind(for: scope) {
+                    let ownerKind = DualRelationCoordinator.TypeKind.itemType(types[typeIndex])
+                    let targetTypeID = reverseKind.typeID  // == dualConfig.syncedPropertyDefinedOnTypeID
+                    try DualRelationCoordinator.deletePair(
+                        propertyID: propertyID,
+                        owner: ownerKind,
+                        reverse: reverseKind,
+                        nexus: nexus
+                    )
+                    // Reload the owning (source) type in-memory.
+                    let meta = NexusPaths.itemTypeMetadataURL(
+                        in: nexus.rootURL, typeFolderName: types[typeIndex].title)
+                    if let reloaded = try? ItemType.load(from: meta) {
+                        types[typeIndex] = reloaded
                         rebuildTypesByID()
                     }
-                } else {
-                    reloadTypeByID?(targetTypeID)
-                }
-                if let updater = indexUpdater {
-                    do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch {
-                        self.pendingError = error
+                    // Reload the reverse type in-memory: same-manager (another ItemType) inline,
+                    // cross-manager (PageType) via the injected router hook so it doesn't need a restart.
+                    if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
+                        let tMeta = NexusPaths.itemTypeMetadataURL(
+                            in: nexus.rootURL, typeFolderName: types[j].title)
+                        if let reloaded = try? ItemType.load(from: tMeta) {
+                            types[j] = reloaded
+                            rebuildTypesByID()
+                        }
+                    } else {
+                        reloadTypeByID?(targetTypeID)
                     }
+                    if let updater = indexUpdater {
+                        do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
+                        do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch {
+                            self.pendingError = error
+                        }
+                    }
+                    return
                 }
-                return
+                // Unresolvable reverse: best-effort clean the reverse index row, then fall
+                // through to the owner-only delete below.
+                try? indexUpdater?.deletePropertyDefinition(id: dualConfig.syncedPropertyID)
             }
 
             var updated = types[typeIndex]
