@@ -8,11 +8,14 @@ import SwiftUI
 /// hop; double-click + small popover is the canonical edit gesture.
 ///
 /// **Content:**
-///   - "Title…" TextField on the unified `.fieldBackground()`
-///     (commits on Enter + focus loss + dismiss-if-dirty)
+///   - "Title…" TextField on the unified `.fieldBackground()` — same metrics
+///     as the View Settings storage field (`.title3`, `.lg`/`.xs` padding) so
+///     the two read identically (commits on Enter + focus loss + dismiss-if-dirty)
 ///   - 5×2 color palette grid (commits immediately on swatch tap; tapping
 ///     the already-selected swatch toggles back to no-color)
-///   - "Delete" button (red, trash icon, removes the option)
+///   - a content-rail `Divider`, then a plain red "Delete" button matching the
+///     EditPropertyPane footer Delete (no icon — same size/padding as the
+///     main-window one), removing the option
 struct OptionEditPopover: View {
     /// Current label — the popover holds a local draft until commit.
     let label: String
@@ -50,6 +53,7 @@ struct OptionEditPopover: View {
         VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
             titleField
             colorGrid
+            Divider().frame(width: contentWidth)
             deleteButton
         }
         .padding(outerPadding)
@@ -66,8 +70,8 @@ struct OptionEditPopover: View {
         TextField("Title…", text: $draftLabel)
             .textFieldStyle(.plain)
             .font(.title3)
-            .padding(.horizontal, PUI.Spacing.xl)
-            .padding(.vertical, PUI.Spacing.md)
+            .padding(.horizontal, PUI.Spacing.lg)
+            .padding(.vertical, PUI.Spacing.xs)
             .frame(width: contentWidth, alignment: .leading)
             .fieldBackground()
             .focused($labelFocused)
@@ -121,23 +125,21 @@ struct OptionEditPopover: View {
         .accessibilityLabel(color.displayName)
     }
 
+    /// Plain red "Delete" — identical chrome to the EditPropertyPane footer
+    /// Delete (`PUI.Typography.row`, red, borderless, no icon). Left-aligned on
+    /// the shared content rail; the `Divider` above it (in `body`) mirrors the
+    /// pane's `PaneDivider` + footer separation.
     @ViewBuilder
     private var deleteButton: some View {
         Button(role: .destructive) {
             onDelete()
             dismiss()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "trash")
-                    .font(.system(size: 12, weight: .regular))
-                Text("Delete")
-                    .font(PUI.Typography.row)
-                Spacer()
-            }
-            .foregroundStyle(.red)
-            .frame(width: contentWidth, alignment: .leading)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
+            Text("Delete")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.red)
+                .frame(width: contentWidth, alignment: .leading)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

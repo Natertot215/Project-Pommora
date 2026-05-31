@@ -351,6 +351,7 @@ struct ContentView: View {
     @ViewBuilder
     private var detail: some View {
         if let spaceMgr = spaceManager,
+            let topicMgr = topicManager,
             let vaultMgr = vaultManager,
             let itemTypeMgr = itemTypeManager,
             let contentMgr = contentManager,
@@ -366,6 +367,7 @@ struct ContentView: View {
                 justCreatedID: $justCreatedID
             )
             .environment(spaceMgr)
+            .environment(topicMgr)  // required by IconPickerSheet presented from the detail-table Edit Icon (quirk #15)
             .environment(vaultMgr)
             .environment(itemTypeMgr)
             .environment(contentMgr)

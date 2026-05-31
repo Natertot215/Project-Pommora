@@ -1,5 +1,4 @@
 import SwiftUI
-import SymbolPicker
 
 /// Root menu rendered inside the View Settings popover for the four storage
 /// scopes (PageType / PageCollection / ItemType / ItemCollection).
@@ -90,14 +89,9 @@ struct StorageMenuRoot: View {
         }
         .buttonStyle(.plain)
         .help("Edit Icon")
-        // Constrained popover replaces SymbolPicker's default huge
-        // sheet per Nathan's 2026-05-26 direction. Frame sized to fit
-        // SymbolPicker's internal grid + section sidebar without
-        // horizontal/vertical clipping.
-        .popover(isPresented: $iconPickerOpen, arrowEdge: .bottom) {
-            SymbolPicker(symbol: iconBinding)
-                .frame(width: 540, height: 460)
-        }
+        // Pommora-native IconPicker (compact single-glass popover) — replaces
+        // the third-party SymbolPicker, which hardcoded a 540-wide macOS frame.
+        .iconPickerPopover(isPresented: $iconPickerOpen, symbol: iconBinding)
     }
 
     /// Tappable title for every storage scope — click to reveal an inline
@@ -146,7 +140,7 @@ struct StorageMenuRoot: View {
     }
 
     private var headerTitle: String {
-        switch scope {
+        switch liveScope {
         case .pageType(let t): return t.title
         case .pageCollection(let c): return c.title
         case .itemType(let t): return t.title
@@ -156,12 +150,35 @@ struct StorageMenuRoot: View {
     }
 
     private var headerIcon: String {
-        switch scope {
+        switch liveScope {
         case .pageType(let t): return t.icon ?? "folder"
         case .pageCollection(let c): return c.icon ?? "folder"
         case .itemType(let t): return t.icon ?? "tray"
         case .itemCollection(let c): return c.icon ?? "tray"
         default: return "slider.horizontal.3"
+        }
+    }
+
+    /// `scope` re-resolved against the live `@Observable` managers so the header
+    /// icon + title update the instant an edit commits. The captured `scope` is a
+    /// value snapshot — reading it never re-renders on a manager change; reading
+    /// the managers here registers the observation dependency (mirrors the detail
+    /// views' `livePageType` / `liveCollection`). Falls back to the snapshot when
+    /// the entity isn't resolvable (e.g. mid-delete).
+    private var liveScope: ViewSettingsScope {
+        switch scope {
+        case .pageType(let t):
+            return .pageType(pageTypeManager.types.first(where: { $0.id == t.id }) ?? t)
+        case .pageCollection(let c):
+            return .pageCollection(
+                pageTypeManager.pageCollectionsByType[c.typeID]?.first(where: { $0.id == c.id }) ?? c)
+        case .itemType(let t):
+            return .itemType(itemTypeManager.types.first(where: { $0.id == t.id }) ?? t)
+        case .itemCollection(let c):
+            return .itemCollection(
+                itemTypeManager.itemCollectionsByType[c.typeID]?.first(where: { $0.id == c.id }) ?? c)
+        default:
+            return scope
         }
     }
 
@@ -179,7 +196,7 @@ struct StorageMenuRoot: View {
     }
 
     private func commitIcon(_ newIcon: String?) async {
-        switch scope {
+        switch liveScope {
         case .pageType(let t):
             try? await pageTypeManager.updatePageTypeIcon(t, to: newIcon)
         case .pageCollection(let c):
@@ -197,7 +214,7 @@ struct StorageMenuRoot: View {
         let trimmed = renameDraft.trimmingCharacters(in: .whitespaces)
         defer { isRenaming = false }
         guard !trimmed.isEmpty, trimmed != headerTitle else { return }
-        switch scope {
+        switch liveScope {
         case .pageType(let t):
             try? await pageTypeManager.renamePageType(t, to: trimmed)
         case .pageCollection(let c):

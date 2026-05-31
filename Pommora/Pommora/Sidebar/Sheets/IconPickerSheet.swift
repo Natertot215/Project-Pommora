@@ -2,20 +2,16 @@
 //  IconPickerSheet.swift
 //  Pommora
 //
-//  Wraps xnth97/SymbolPicker behind Pommora's IconPickerSheet per the locked
-//  paradigm decision (.claude/Guidelines/Paradigm-Decisions.md #3). The wrapper
-//  isolates the third-party library so swapping is a single-file rewrite, and
-//  dispatches the chosen icon to the right manager via the SidebarSheet.IconTarget
-//  switch.
+//  Hosts Pommora's native `IconPicker` and dispatches the chosen icon to the
+//  right manager via the SidebarSheet.IconTarget switch. (Formerly wrapped the
+//  third-party xnth97/SymbolPicker — replaced 2026-05-30 by the in-house picker,
+//  which is compact + Liquid-Glass and exposes a nullable binding for clear.)
 //
-//  SymbolPicker (1.6.2) renders its own chrome — search field, x-close button,
-//  symbol grid, and on macOS a delete button when the binding is nullable and a
-//  symbol is currently selected. It auto-dismisses on symbol pick, delete, or
-//  close — so this wrapper does not provide Cancel/Save buttons of its own.
+//  `IconPicker` auto-dismisses on pick / Remove Icon, so this wrapper provides no
+//  Cancel/Save buttons of its own; the `.onChange` below persists the pick.
 //
 
 import SwiftUI
-import SymbolPicker
 
 struct IconPickerSheet: View {
     let target: SidebarSheet.IconTarget
@@ -33,7 +29,8 @@ struct IconPickerSheet: View {
     @State private var didInitialize = false
 
     var body: some View {
-        SymbolPicker(symbol: $icon)
+        IconPicker(symbol: $icon)
+            .presentationBackground(.clear)
             .onAppear {
                 guard !didInitialize else { return }
                 didInitialize = true

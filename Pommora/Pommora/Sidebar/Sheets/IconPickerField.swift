@@ -11,7 +11,6 @@
 //
 
 import SwiftUI
-import SymbolPicker
 
 /// A button that displays the currently-picked SF Symbol (or a placeholder)
 /// and opens the SymbolPicker as a nested sheet on tap.
@@ -44,8 +43,6 @@ struct IconPickerField: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $pickerOpen) {
-            SymbolPicker(symbol: $symbol)
-        }
+        .iconPickerPopover(isPresented: $pickerOpen, symbol: $symbol)
     }
 }
