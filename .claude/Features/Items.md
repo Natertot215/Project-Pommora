@@ -84,7 +84,7 @@ Items open in a popover-style floating surface anchored to the trigger (row clic
 **Pinned-property chips** above the title give always-on access to selected properties without opening the inspector. Two Item-specific rules: items in a Type root (no Collection) get no pinning controls (the pinned set persists per Item Collection), and stale pinned IDs referencing deleted schema properties are filtered on render. Persistence shape + pin/unpin mechanics are canonical in [[Properties]] § "Where Properties Live" + § "Item Inspector → Pinned Properties".
 
 - **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
-- **Icon** — optional SF Symbol; edited as a plain TextField in the placeholder (a `SymbolPicker`-backed picker swaps in with the redesign).
+- **Icon** — optional SF Symbol; edited as a plain TextField in the placeholder (the native `IconPicker` swaps in with the redesign).
 - **Properties** — typed inputs for each property in the parent Item Type's schema, via `PropertyEditorRow` dispatching to per-type controls (TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select).
 - **Description** — plain-text body field, **hard cap 250 characters**. This IS Items' body field (Items have no Markdown body).
 - **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target` `{ kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`, edited inline like any Relation property. Values render as the target's icon + title in plain styled colored text (the placeholder currently shows raw IDs).

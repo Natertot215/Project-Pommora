@@ -149,7 +149,7 @@ The schema-editor sheet opens from the **Page Type row right-click → "Vault Se
 
 | Section | Contents |
 |---|---|
-| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, relation target, dual reverse name, status groups, etc.). |
+| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, relation target, dual reverse name, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
 Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings**, which ships at v0.6.0 alongside saved views. A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.

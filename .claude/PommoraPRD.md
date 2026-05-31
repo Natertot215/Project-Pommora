@@ -335,7 +335,7 @@ WHERE start_at BETWEEN datetime('now') AND datetime('now', '+7 days');
 - **Property identity = ID, not name.** Every property in a Type's schema carries a stable ULID `id`; frontmatter / JSON `properties` block keys reference the property ID. `name` is a renameable display label — renames are schema-only (no member-file cascade).
 - **Cross-side relations supported.** Pages-side schemas can target Item Types / Item Collections, and vice versa. Cross-side *promotion* (transforming an Item INTO a Page) remains a post-v1 Prospect — different concept.
 - **File / Attachment** property type — files copy into `<nexus>/.nexus/attachments/<entity-id>/<original-filename>` on attach; property stores nexus-relative paths. Especially load-bearing for Items.
-- **Every property can carry an icon** (SF Symbol via `IconPickerField`).
+- **Every property can carry an icon** (SF Symbol via the native `IconPicker`).
 - **Relations are paired by default** — creating a Type-scoped or Collection-scoped Relation atomically creates the reverse on the target. Four container/sub-folder relation scopes: `page_type(id)`, `item_type(id)`, `page_collection(id)`, `item_collection(id)`. Context-tier-scoped relations (`context_tier(N)`) stay one-way (Contexts have no `properties[]` schema).
 - **Inline option creation forbidden.** Select/Multi-select/Status options come only from the schema editor (per-Type Settings → Edit Properties), reachable via right-click "Edit options…" or "Manage options…" link in every value picker.
 - **Move-strip rule (Notion-style):** moving a Page across Page Types or an Item across Item Types strips properties not in the destination schema (no quarantine; confirmation warning lists strips). Implemented v0.3.0 (pulled forward from v0.4.0).

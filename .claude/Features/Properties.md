@@ -438,7 +438,7 @@ The schema editor for a Vault / Type. Reached from the Type detail view toolbar 
 
 | Section | Contents |
 |---|---|
-| **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPickerField`). Per-type config (options, relation target, dual reverse name + icon, status groups, etc.). |
+| **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, relation target, dual reverse name + icon, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates (Page / Item templates pre-filling body + properties at creation). Reserved post-v1. |
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).

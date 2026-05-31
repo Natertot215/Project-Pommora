@@ -63,6 +63,6 @@ struct IconConfig: Codable {
 }
 ```
 
-Stored at `.nexus/icon-config.json` alongside `tier-config.json` / `saved-config.json` / `settings.json`. The `IconPickerField` surface (already used in per-Type Settings for per-property icons) supplies the editor UI. Post-v0.6.0, the IconConfig store may fold into `settings.json` since both carry per-Nexus UI customization — TBD when the surface ships.
+Stored at `.nexus/icon-config.json` alongside `tier-config.json` / `saved-config.json` / `settings.json`. The native `IconPicker` (already the per-property + per-entity icon chooser) supplies the editor UI. Post-v0.6.0, the IconConfig store may fold into `settings.json` since both carry per-Nexus UI customization — TBD when the surface ships.
 
 Until that ships, edits to defaults happen by editing this file + the corresponding `Image(systemName:)` site in code.

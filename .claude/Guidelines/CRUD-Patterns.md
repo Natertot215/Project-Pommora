@@ -234,35 +234,24 @@ EventKit (Agenda, Phase 6.5): separate sandbox entitlement (`com.apple.security.
 
 ---
 
-#### SF Symbol picker — `xnth97/SymbolPicker` SPM dep behind `IconPickerSheet` wrapper
+#### SF Symbol picker — Pommora-native `IconPicker`
 
-Paradigm decision 2026-05-16 (see `// Guidelines//Paradigm-Decisions.md`): use `xnth97/SymbolPicker` wrapped behind Pommora's own `IconPickerSheet`. Wrapping isolates call sites from the third-party API — swapping libraries is a single-file rewrite in the wrapper.
+Pommora's own `IconPicker` (`Properties/IconPicker/`) is the icon chooser everywhere — a compact (260×306) Liquid-Glass dropdown over the full SF Symbols catalog (`IconCatalog`, bundled as source) with search + Saved/favorites (`IconFavorites`, app-level UserDefaults). It replaced the `xnth97/SymbolPicker` SPM dep (2026-05-30, paradigm decision #3), which hardcoded a 540pt macOS frame and kept its catalog `internal` — neither resizable nor re-skinnable.
+
+**Present it via the one DRY modifier**, anchored to the icon button. `.presentationBackground(.clear)` (baked into the modifier) strips the system popover's own material so only the picker's own `chipDropdownPanel` glass shows — no double-glass:
 
 ```swift
-import SymbolPicker
-
-struct IconPickerSheet: View {
-    let target: SidebarSheet.IconTarget   // .space | .topic | .project | .pageType | .itemType
-    @Environment(\.dismiss) private var dismiss
-    @Environment(SpaceManager.self) private var spaceManager
-    @Environment(TopicManager.self) private var topicManager
-    @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
-
-    @State private var icon: String? = nil  // nullable so the picker shows its delete-icon button
-
-    var body: some View {
-        SymbolPicker(symbol: $icon)
-            .onAppear { /* initialize from currentIcon, guard one-shot */ }
-            .onChange(of: icon, initial: false) { _, newValue in
-                Task { await save(newIcon: newValue) }  // nil clears back to default
-            }
-    }
-    // currentIcon + save() switch on `target` to dispatch to the right manager method
+Button { iconPickerOpen = true } label: {
+    Image(systemName: icon).fieldBackground()
 }
+.iconPickerPopover(isPresented: $iconPickerOpen, symbol: iconBinding)
 ```
 
-SymbolPicker renders its own chrome (search field, x-close, symbol grid, and a delete button when the binding is nullable) and auto-dismisses on pick / delete / close — the wrapper adds no Cancel/Save of its own. Its only job: bind the picked symbol to the right manager's `updateIcon` via the `IconTarget` enum. Collections aren't icon-pickable, so `IconTarget` has no `.pageCollection` / `.itemCollection` case. SPM dep added at commit `22e3fc6`, resolver 1.6.2. No curated default list — the library's full search picker is the only icon-picker UI.
+`iconBinding` is a `Binding<String?>` whose setter commits the pick; nil clears it (the picker's "Remove Icon" row, shown only when an icon is set). The picker writes the binding and dismisses on pick.
+
+**Edit-Icon on existing rows** routes through `IconPickerSheet`, which hosts `IconPicker` and dispatches the chosen symbol to the right manager's `updateXIcon` via the `SidebarSheet.IconTarget` switch (`.space` | `.topic` | `.project` | `.pageType` | `.itemType` | `.pageCollection` | `.itemCollection` | `.page` | `.item`). **Its `@Environment` managers must be reachable wherever it's presented** — a `.sheet` inherits the host's environment, so every NavigationSplitView column that can present it must inject every manager it reads (quirk #15; a `TopicManager` missing from the detail-column chain crashed the detail-table Edit Icon).
+
+**Create flows** use `IconPickerField` — a button-field that holds the pick in local `@State` until Save, presenting `IconPicker` through the same `.iconPickerPopover`.
 
 ---
 
