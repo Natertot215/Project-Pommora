@@ -510,22 +510,11 @@ enum PageTypeManagerError: Error, Equatable {
 }
 
 /// Human-readable text so these errors render as a friendly sentence instead of
-/// the raw bridged enum name ("Pommora.PageTypeManagerError error N"). Wording
-/// is kept in lockstep with `PropertyEditorErrorMessage` (the popover banner) so
-/// the two surfaces speak the same language.
+/// the raw bridged enum name ("Pommora.PageTypeManagerError error N"). Delegates
+/// to `PropertyEditorErrorMessage` (the popover banner's mapper) so the two
+/// surfaces stay in lockstep from a single source of truth.
 extension PageTypeManagerError: LocalizedError {
-    var errorDescription: String? {
-        switch self {
-        case .typeNotFound:
-            return "The Vault for this property was just removed."
-        case .propertyNotFound:
-            return "This property was just removed."
-        case .lossyChangeRequiresConfirmation:
-            return "Changing this type drops existing values — confirm first."
-        case .indexOutOfBounds:
-            return "Couldn't move the property to that position."
-        }
-    }
+    var errorDescription: String? { PropertyEditorErrorMessage.string(for: self) }
 }
 
 // MARK: - Schema CRUD methods

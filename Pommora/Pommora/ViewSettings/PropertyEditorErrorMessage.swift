@@ -12,7 +12,7 @@ import Foundation
 /// render a totally empty string — but the goal is to map every error a
 /// PageType/ItemType manager actually throws so the fallback rarely fires.
 enum PropertyEditorErrorMessage {
-    static func string(for error: any Error) -> String {
+    nonisolated static func string(for error: any Error) -> String {
         if let v = error as? PropertyDefinitionValidator.ValidationError {
             return string(for: v)
         }
@@ -25,7 +25,7 @@ enum PropertyEditorErrorMessage {
         return error.localizedDescription
     }
 
-    private static func string(for error: PropertyDefinitionValidator.ValidationError) -> String {
+    nonisolated private static func string(for error: PropertyDefinitionValidator.ValidationError) -> String {
         switch error {
         case .emptyName:
             return "Property name can't be empty."
@@ -46,7 +46,7 @@ enum PropertyEditorErrorMessage {
         }
     }
 
-    private static func string(for error: PageTypeManagerError) -> String {
+    nonisolated private static func string(for error: PageTypeManagerError) -> String {
         switch error {
         case .typeNotFound:
             return "The Vault for this property was just removed."
@@ -59,7 +59,7 @@ enum PropertyEditorErrorMessage {
         }
     }
 
-    private static func string(for error: ItemTypeManagerError) -> String {
+    nonisolated private static func string(for error: ItemTypeManagerError) -> String {
         switch error {
         case .typeNotFound:
             return "The Type for this property was just removed."
