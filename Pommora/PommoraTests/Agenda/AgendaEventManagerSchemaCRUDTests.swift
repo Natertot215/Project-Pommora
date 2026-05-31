@@ -200,4 +200,99 @@ struct AgendaEventManagerSchemaCRUDTests {
             try await manager.deleteProperty(id: "_status")
         }
     }
+
+    // MARK: - Test 6: deleteProperty strips value from member event files (B2.0.2)
+
+    @Test("deleteProperty removes the property key from every .event.json member file")
+    func deleteUserPropertyStripsMemberValues() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = AgendaEventManager(nexus: nexus)
+        await manager.loadAll()
+
+        // Add a user property and capture its minted ID.
+        let def = PropertyDefinition(id: "", name: "Venue", type: .url)
+        try await manager.addProperty(def)
+        let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id
+
+        // Write a .event.json member file carrying a value for that property.
+        // This mirrors the exact directory + extension that deleteProperty's strip
+        // loop iterates: NexusPaths.eventsDir(in:) + suffix ".event.json".
+        let now = Date()
+        let event = AgendaEvent(
+            id: ULID.generate(),
+            title: "MemberEvent",
+            icon: nil,
+            description: "",
+            startAt: now,
+            endAt: now.addingTimeInterval(3600),
+            allDay: false,
+            location: nil,
+            recurrence: nil,
+            alarmOffsets: [],
+            alarmAbsolute: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now, modifiedAt: now,
+            properties: [storedPropID: .url(URL(string: "https://example.com")!), "type": .select("Event")]
+        )
+        let eventURL = NexusPaths.eventFileURL(forTitle: "MemberEvent", in: nexus)
+        try AtomicJSON.write(event, to: eventURL)
+
+        // Delete the property — schema strip + member-file strip should both fire.
+        try await manager.deleteProperty(id: storedPropID)
+
+        // (a) Schema no longer contains the property.
+        #expect(manager.schema.properties.first { $0.id == storedPropID } == nil)
+
+        // (b) Member file reloaded from disk no longer carries the property key.
+        let reloadedEvent = try AgendaEvent.load(from: eventURL)
+        #expect(reloadedEvent.properties[storedPropID] == nil)
+
+        // (c) No error surfaced on the manager.
+        #expect(manager.pendingError == nil)
+    }
+
+    // MARK: - Test 7: changeType lossy without confirmation throws (B2.0.3)
+
+    @Test("changeType lossy without dropConflictingValues throws lossyChangeRequiresConfirmation")
+    func changeTypeLossyWithoutConfirmThrows() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = AgendaEventManager(nexus: nexus)
+        await manager.loadAll()
+
+        // Add a number property and write a member file with a numeric value.
+        let prop = PropertyDefinition(id: "", name: "Score", type: .number)
+        try await manager.addProperty(prop)
+        let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id
+
+        let now = Date()
+        let event = AgendaEvent(
+            id: ULID.generate(),
+            title: "ScoredEvent",
+            icon: nil,
+            description: "",
+            startAt: now,
+            endAt: now.addingTimeInterval(3600),
+            allDay: false,
+            location: nil,
+            recurrence: nil,
+            alarmOffsets: [],
+            alarmAbsolute: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now, modifiedAt: now,
+            properties: [storedPropID: .number(7), "type": .select("Event")]
+        )
+        let eventURL = NexusPaths.eventFileURL(forTitle: "ScoredEvent", in: nexus)
+        try AtomicJSON.write(event, to: eventURL)
+
+        // number → checkbox is a lossy cross-type change; without confirmation it must throw.
+        await #expect(throws: AgendaEventManagerError.lossyChangeRequiresConfirmation) {
+            try await manager.changeType(of: storedPropID, to: .checkbox, dropConflictingValues: false)
+        }
+    }
 }

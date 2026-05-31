@@ -180,4 +180,103 @@ struct AgendaTaskManagerSchemaCRUDTests {
             try await manager.deleteProperty(id: "_status")
         }
     }
+
+    // MARK: - Test 6: deleteProperty strips value from member task files (B2.0.2)
+
+    @Test("deleteProperty removes the property key from every .task.json member file")
+    func deleteUserPropertyStripsMemberValues() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = AgendaTaskManager(nexus: nexus)
+        await manager.loadAll()
+
+        // Add a user property and capture its minted ID.
+        let def = PropertyDefinition(id: "", name: "Notes", type: .url)
+        try await manager.addProperty(def)
+        let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id
+
+        // Write a .task.json member file carrying a value for that property.
+        // This mirrors the exact directory + extension that deleteProperty's strip
+        // loop iterates: NexusPaths.tasksDir(in:) + suffix ".task.json".
+        let taskURL = NexusPaths.taskFileURL(forTitle: "MemberTask", in: nexus)
+        let now = Date()
+        let task = AgendaTask(
+            id: ULID.generate(),
+            title: "MemberTask",
+            icon: nil,
+            description: "",
+            dueAt: nil,
+            dueFloating: false,
+            dueAllDay: false,
+            startAt: nil,
+            completed: false,
+            completedAt: nil,
+            priority: 0,
+            recurrence: nil,
+            alarmOffsets: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now, modifiedAt: now,
+            properties: [storedPropID: .url(URL(string: "https://example.com")!), "type": .select("Task")]
+        )
+        try AtomicJSON.write(task, to: taskURL)
+
+        // Delete the property — schema strip + member-file strip should both fire.
+        try await manager.deleteProperty(id: storedPropID)
+
+        // (a) Schema no longer contains the property.
+        #expect(manager.schema.properties.first { $0.id == storedPropID } == nil)
+
+        // (b) Member file reloaded from disk no longer carries the property key.
+        let reloadedTask = try AgendaTask.load(from: taskURL)
+        #expect(reloadedTask.properties[storedPropID] == nil)
+
+        // (c) No error surfaced on the manager.
+        #expect(manager.pendingError == nil)
+    }
+
+    // MARK: - Test 7: changeType lossy without confirmation throws (B2.0.3)
+
+    @Test("changeType lossy without dropConflictingValues throws lossyChangeRequiresConfirmation")
+    func changeTypeLossyWithoutConfirmThrows() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = AgendaTaskManager(nexus: nexus)
+        await manager.loadAll()
+
+        // Add a number property and write a member file with a numeric value.
+        let prop = PropertyDefinition(id: "", name: "Score", type: .number)
+        try await manager.addProperty(prop)
+        let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id
+
+        let taskURL = NexusPaths.taskFileURL(forTitle: "ScoredTask", in: nexus)
+        let now = Date()
+        let task = AgendaTask(
+            id: ULID.generate(),
+            title: "ScoredTask",
+            icon: nil,
+            description: "",
+            dueAt: nil,
+            dueFloating: false,
+            dueAllDay: false,
+            startAt: nil,
+            completed: false,
+            completedAt: nil,
+            priority: 0,
+            recurrence: nil,
+            alarmOffsets: [],
+            calendarID: nil,
+            eventkitUUID: nil,
+            tier1: [], tier2: [], tier3: [],
+            createdAt: now, modifiedAt: now,
+            properties: [storedPropID: .number(7), "type": .select("Task")]
+        )
+        try AtomicJSON.write(task, to: taskURL)
+
+        // number → checkbox is a lossy cross-type change; without confirmation it must throw.
+        await #expect(throws: AgendaTaskManagerError.lossyChangeRequiresConfirmation) {
+            try await manager.changeType(of: storedPropID, to: .checkbox, dropConflictingValues: false)
+        }
+    }
 }
