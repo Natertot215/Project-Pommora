@@ -264,7 +264,21 @@ struct PageCollectionDetailView: View {
     @ViewBuilder
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
-        case .page, .item:
+        case .page(let meta):
+            Button("Edit Title") { beginRename(row) }
+            Button("Edit Icon") {
+                presentedSheet = .editIcon(.page(meta, vault: vault, collection: collection))
+            }
+            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
+                row.togglePin()
+            }
+            Divider()
+            Button("Delete", role: .destructive) {
+                Task { await delete(row) }
+            }
+        case .item:
+            // Items don't appear in PageCollectionDetailView (Task 5.5); keep the
+            // existing affordances without an Edit Icon for switch exhaustiveness.
             Button("Edit Title") { beginRename(row) }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()

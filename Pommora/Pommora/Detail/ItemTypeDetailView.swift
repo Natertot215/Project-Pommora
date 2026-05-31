@@ -390,16 +390,22 @@ struct ItemTypeDetailView: View {
     @ViewBuilder
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
-        case .item:
+        case .item(let item):
             Button("Edit Title") { beginRename(row) }
+            Button("Edit Icon") {
+                presentedSheet = .editIcon(.item(item, type: type, collection: nil))
+            }
             Button(row.isPinned ? "Unpin Item" : "Pin Item") { row.togglePin() }
             Divider()
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .itemCollection:
+        case .itemCollection(let set):
             Button("Open") { handleDoubleTap(row) }
             Button("Edit Title") { beginRename(row) }
+            Button("Edit Icon") {
+                presentedSheet = .editIcon(.itemCollection(set))
+            }
             Divider()
             // Container delete is guarded — route through the confirmation
             // dialog (mirrors the sidebar). Item deletes stay direct.

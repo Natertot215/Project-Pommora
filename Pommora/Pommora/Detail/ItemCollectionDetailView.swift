@@ -267,8 +267,16 @@ struct ItemCollectionDetailView: View {
     @ViewBuilder
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
-        case .item:
+        case .item(let item):
             Button("Edit Title") { beginRename(row) }
+            // Edit Icon needs the parent ItemType for container context; omit the
+            // button if the parent isn't resolvable (rare race with parallel disk
+            // mutations) rather than crash.
+            if let parent = itemTypeManager.parentItemType(for: collection) {
+                Button("Edit Icon") {
+                    presentedSheet = .editIcon(.item(item, type: parent, collection: collection))
+                }
+            }
             Button(row.isPinned ? "Unpin Item" : "Pin Item") { row.togglePin() }
             Divider()
             Button("Delete", role: .destructive) {

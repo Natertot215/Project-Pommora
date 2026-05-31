@@ -761,6 +761,18 @@ extension PageContentManager {
         }
     }
 
+    // MARK: - Update icon
+
+    /// Persists a new icon onto a Page's frontmatter — sets `icon` on a copy of
+    /// the current frontmatter and routes through `updatePageFrontmatter`, which
+    /// atomically rewrites the `.md` (preserving the body + bumping `modifiedAt`),
+    /// refreshes the in-memory cache, and re-indexes.
+    func updatePageIcon(_ page: PageMeta, to icon: String?, vault: PageType, collection: PageCollection?) async throws {
+        var fm = page.frontmatter
+        fm.icon = icon
+        try await updatePageFrontmatter(page, frontmatter: fm, vault: vault, collection: collection)
+    }
+
     // MARK: - Context-delete cascade (Phase 18b)
 
     /// Removes a deleted Context's ID from the `tier` array of every Page that

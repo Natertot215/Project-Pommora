@@ -415,7 +415,22 @@ struct PageTypeDetailView: View {
     @ViewBuilder
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
-        case .page, .item:
+        case .page(let meta):
+            Button("Edit Title") { beginRename(row) }
+            Button("Edit Icon") {
+                presentedSheet = .editIcon(.page(meta, vault: pageType, collection: nil))
+            }
+            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
+                row.togglePin()
+            }
+            Divider()
+            Button("Delete", role: .destructive) {
+                Task { await delete(row) }
+            }
+        case .item:
+            // Items never appear in PageTypeDetailView context, but the kind is
+            // part of the shared DetailRow enum — keep the existing affordances
+            // without an Edit Icon (no Item-container context on this view).
             Button("Edit Title") { beginRename(row) }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()
@@ -424,11 +439,14 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .collection:
+        case .collection(let coll):
             // Mirrors ItemTypeDetailView's Set menu for cross-side parity.
             // No Pin: containers aren't pinnable from detail views today.
             Button("Open") { handleDoubleTap(row) }
             Button("Edit Title") { beginRename(row) }
+            Button("Edit Icon") {
+                presentedSheet = .editIcon(.pageCollection(coll))
+            }
             Divider()
             // Container delete is guarded — route through the confirmation
             // dialog (mirrors the sidebar). Page deletes stay direct.

@@ -661,6 +661,22 @@ extension ItemContentManager {
         }
     }
 
+    // MARK: - Update icon
+
+    /// Persists a new icon onto an Item — sets `icon` on a copy and routes
+    /// through the existing `updateItem` save path (atomic write + `modifiedAt`
+    /// bump + index upsert + in-memory sync). Type-root vs in-collection picks
+    /// the matching overload.
+    func updateItemIcon(_ item: Item, to icon: String?, type itemType: ItemType, collection: ItemCollection?) async throws {
+        var updated = item
+        updated.icon = icon
+        if let collection {
+            try await updateItem(updated, in: collection, type: itemType)
+        } else {
+            try await updateItem(updated, inTypeRoot: itemType)
+        }
+    }
+
     // MARK: - Context-delete cascade (Phase 18b)
 
     /// Removes a deleted Context's ID from the `tier` array of every Item that
