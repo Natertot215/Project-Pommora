@@ -396,7 +396,13 @@ extension MarkdownStyler {
             {
                 continue
             }
-            if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) {
+            // Block-code guard only. `ctx.codeTokens` mixes fenced code blocks
+            // (`.codeBlock`) with inline spans (`.inlineCode`); intersecting an
+            // inline span must NOT suppress marker-hiding. Otherwise a heading
+            // (or other construct) whose line merely CONTAINS `` `code` `` keeps
+            // its `#` markers visible after the caret leaves the line.
+            let blockCodeTokens = ctx.codeTokens.filter { $0.kind == .codeBlock }
+            if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: blockCodeTokens) {
                 continue
             }
             let smallSize = ctx.configuration.markers.hiddenMarkerFontSize
