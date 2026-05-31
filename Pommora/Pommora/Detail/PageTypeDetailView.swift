@@ -185,10 +185,15 @@ struct PageTypeDetailView: View {
             ForEach(rows) { row in
                 if let kids = row.children, !kids.isEmpty {
                     DisclosureTableRow(row, isExpanded: expandedBinding(for: row.id)) {
-                        // Child rows aren't reorderable here (top-level only), so
-                        // they're not drag sources — avoids a lift-then-snap-back.
+                        // Child Pages are drag sources too: each Collection's children
+                        // get their own group-scoped drop zone so a Page reorders WITHIN
+                        // its Collection (the drop offset is relative to `kids`).
                         ForEach(kids) { kid in
                             TableRow(kid)
+                                .draggable(DetailRowDragPayload(rowID: kid.id))
+                        }
+                        .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
+                            handleChildDrop(parentRow: row, kids: kids, payloads: payloads, toOffset: offset)
                         }
                     }
                     .draggable(DetailRowDragPayload(rowID: row.id))
@@ -238,7 +243,9 @@ struct PageTypeDetailView: View {
     /// dispatches to the correct manager method based on kind.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else {
+            return
+        }
         switch plan.kind {
         case .page:
             contentManager.reorderPages(inVault: pageType, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
@@ -246,6 +253,22 @@ struct PageTypeDetailView: View {
             pageTypeManager.reorderPageCollections(in: pageType, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         default:
             break
+        }
+    }
+
+    /// Child (in-collection) drop handler. The inner ForEach's `offset` is relative
+    /// to THIS Collection's children — a homogeneous Page list — so the planner's
+    /// same-kind subset is the full `kids` list and the offset math is exact (same as
+    /// the Collection's own detail view). Persists via the existing per-collection reorder.
+    private func handleChildDrop(
+        parentRow: DetailRow, kids: [DetailRow], payloads: [DetailRowDragPayload], toOffset offset: Int
+    ) {
+        guard let payload = payloads.first else { return }
+        guard case .collection(let coll) = parentRow.kind else { return }
+        guard let plan = DetailReorderPlanner.plan(rows: kids, movingRowID: payload.rowID, dropOffset: offset)
+        else { return }
+        if plan.kind == .page {
+            contentManager.reorderPages(in: coll, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         }
     }
 

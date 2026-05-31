@@ -222,10 +222,15 @@ struct ItemTypeDetailView: View {
             ForEach(rows) { row in
                 if let kids = row.children, !kids.isEmpty {
                     DisclosureTableRow(row, isExpanded: expandedBinding(for: row.id)) {
-                        // Child rows aren't reorderable here (top-level only), so
-                        // they're not drag sources — avoids a lift-then-snap-back.
+                        // Child Items are drag sources too: each Set's children get
+                        // their own group-scoped drop zone so an Item reorders WITHIN
+                        // its Set (the drop offset is relative to `kids`).
                         ForEach(kids) { kid in
                             TableRow(kid)
+                                .draggable(DetailRowDragPayload(rowID: kid.id))
+                        }
+                        .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
+                            handleChildDrop(parentRow: row, kids: kids, payloads: payloads, toOffset: offset)
                         }
                     }
                     .draggable(DetailRowDragPayload(rowID: row.id))
@@ -272,7 +277,9 @@ struct ItemTypeDetailView: View {
     /// list) and dispatches to the correct manager method based on kind.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else {
+            return
+        }
         switch plan.kind {
         case .item:
             itemContentManager.reorderItems(inType: type, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
@@ -280,6 +287,22 @@ struct ItemTypeDetailView: View {
             itemTypeManager.reorderItemCollections(in: type, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         default:
             break
+        }
+    }
+
+    /// Child (in-set) drop handler. The inner ForEach's `offset` is relative to
+    /// THIS Set's children — a homogeneous Item list — so the planner's same-kind
+    /// subset is the full `kids` list and the offset math is exact (same as the
+    /// Set's own detail view). Persists via the existing per-set reorder.
+    private func handleChildDrop(
+        parentRow: DetailRow, kids: [DetailRow], payloads: [DetailRowDragPayload], toOffset offset: Int
+    ) {
+        guard let payload = payloads.first else { return }
+        guard case .itemCollection(let set) = parentRow.kind else { return }
+        guard let plan = DetailReorderPlanner.plan(rows: kids, movingRowID: payload.rowID, dropOffset: offset)
+        else { return }
+        if plan.kind == .item {
+            itemContentManager.reorderItems(in: set, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         }
     }
 

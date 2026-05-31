@@ -204,4 +204,89 @@ struct DetailReorderPlannerTests {
         let rows = [pageA]
         #expect(DetailReorderPlanner.plan(rows: rows, movingRowID: "ghost", dropOffset: 0) == nil)
     }
+
+    // MARK: - Case E: child (in-collection / in-set) reorder scopes to `kids`
+
+    /// Pins the EXACT call `PageTypeDetailView.handleChildDrop` makes: the inner
+    /// ForEach hands the planner the Collection's own children (`kids`) as `rows`,
+    /// so the offset math is group-relative — dragging the last Page to the front
+    /// yields fromOffsets {2} → toOffset 0, kind .page.
+    @Test func childPageReorderWithinCollectionScopesToKids() throws {
+        let pageA = pageRow(id: "p-a", title: "Page A")
+        let pageB = pageRow(id: "p-b", title: "Page B")
+        let pageC = pageRow(id: "p-c", title: "Page C")
+        let kids = [pageA, pageB, pageC]
+
+        let plan = try #require(
+            DetailReorderPlanner.plan(rows: kids, movingRowID: "p-c", dropOffset: 0),
+            "plan must be non-nil for a valid in-collection move"
+        )
+        #expect(plan.kind == .page)
+        #expect(plan.fromOffsets == IndexSet(integer: 2))
+        #expect(plan.toOffset == 0)
+    }
+
+    /// Item-side mirror: pins the call `ItemTypeDetailView.handleChildDrop` makes.
+    @Test func childItemReorderWithinSetScopesToKids() throws {
+        let itemA = itemRow(id: "i-a", title: "Item A")
+        let itemB = itemRow(id: "i-b", title: "Item B")
+        let itemC = itemRow(id: "i-c", title: "Item C")
+        let kids = [itemA, itemB, itemC]
+
+        let plan = try #require(
+            DetailReorderPlanner.plan(rows: kids, movingRowID: "i-c", dropOffset: 0),
+            "plan must be non-nil for a valid in-set move"
+        )
+        #expect(plan.kind == .item)
+        #expect(plan.fromOffsets == IndexSet(integer: 2))
+        #expect(plan.toOffset == 0)
+    }
+
+    /// Regression guard for the top-level drop after making children draggable:
+    /// dragging the COLLECTION parent must still plan as `.collection`, and
+    /// dragging a top-level Page must still plan as `.page` — never `.collection`.
+    /// (The collection row here carries children, exercising the disclosure shape.)
+    @Test func topLevelDragStillKindSafeWithChildrenPresent() throws {
+        let pageA = pageRow(id: "p-a", title: "Page A")
+        let pageB = pageRow(id: "p-b", title: "Page B")
+        let child1 = pageRow(id: "kid-1", title: "Kid 1")
+        let child2 = pageRow(id: "kid-2", title: "Kid 2")
+        let collX = collectionRow(id: "collection-X", title: "Coll X")
+            .withChildren([child1, child2])
+        let collY = collectionRow(id: "collection-Y", title: "Coll Y")
+        let rows = [pageA, pageB, collX, collY]
+
+        // Dragging the collection parent PAST its sibling → kind .collection. A real
+        // move needs two collections to reorder against; a lone collection moved to
+        // its own slot is a genuine no-op (planner returns nil by design).
+        let collPlan = try #require(
+            DetailReorderPlanner.plan(rows: rows, movingRowID: "collection-X", dropOffset: 4),
+            "dragging the collection parent must yield a plan"
+        )
+        #expect(collPlan.kind == .collection)
+
+        // Dragging a top-level Page → kind .page, never .collection.
+        let pagePlan = try #require(
+            DetailReorderPlanner.plan(rows: rows, movingRowID: "p-b", dropOffset: 0),
+            "dragging a top-level page must yield a plan"
+        )
+        #expect(pagePlan.kind == .page)
+    }
+}
+
+// MARK: - Test helper
+
+extension DetailRow {
+    /// Returns a copy of this row with `children` attached — lets the leaf
+    /// fixtures double as disclosure parents in regression tests.
+    fileprivate func withChildren(_ kids: [DetailRow]) -> DetailRow {
+        DetailRow(
+            id: id,
+            title: title,
+            kind: kind,
+            iconName: iconName,
+            modifiedAt: modifiedAt,
+            children: kids
+        )
+    }
 }
