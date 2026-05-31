@@ -118,6 +118,16 @@ final class PageTypeManager {
                         guard var collection = try? PageCollection.load(from: collMetaURL) else {
                             return nil
                         }
+                        // Heal a drifted `type_id`: the containing folder is authoritative,
+                        // so a collection inside this PageType's folder belongs to it. A vault
+                        // re-adoption can mint a new vault id while the collection keeps the
+                        // old one — leaving it pointed at a vanished Type (empty Edit
+                        // Properties pane). Re-point + re-save in place; idempotent, and
+                        // mirrors the missing-sidecar / empty-views heal-on-load above.
+                        if collection.typeID != pageType.id {
+                            collection.typeID = pageType.id
+                            try? collection.save(to: collMetaURL)
+                        }
                         // Default-view migration on the Collection. Each
                         // Collection is INDEPENDENT (locked decision) — its
                         // own default Table seeded with the parent's

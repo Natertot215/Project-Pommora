@@ -132,6 +132,16 @@ final class ItemTypeManager {
                         guard var collection = try? ItemCollection.load(from: collMetaURL) else {
                             return nil
                         }
+                        // Heal a drifted `type_id`: the containing folder is authoritative,
+                        // so a collection inside this ItemType's folder belongs to it. A type
+                        // re-adoption can mint a new type id while the collection keeps the
+                        // old one — leaving it pointed at a vanished Type (empty Edit
+                        // Properties pane). Re-point + re-save in place; idempotent, and
+                        // mirrors the missing-sidecar / empty-views heal-on-load above.
+                        if collection.typeID != itemType.id {
+                            collection.typeID = itemType.id
+                            try? collection.save(to: collMetaURL)
+                        }
                         // Default-view migration on the Collection. Each
                         // Collection is INDEPENDENT (locked decision) — its
                         // own default Table seeded with the parent ItemType's
