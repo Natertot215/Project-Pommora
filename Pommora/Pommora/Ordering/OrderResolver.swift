@@ -6,10 +6,10 @@ import Foundation
 /// Semantics (used uniformly across SpaceManager / TopicManager / PageTypeManager /
 /// ContentManager since v0.2.8.0):
 ///
-/// - **No persisted order** (nil): items are sorted by title via
-///   `localizedStandardCompare(.orderedAscending)`. This is the pre-v0.2.8
-///   behavior — the resolver is a drop-in replacement that produces an
-///   identical result for any nexus that has never been reordered.
+/// - **No persisted order** (nil or empty): items are sorted by ULID id ascending,
+///   which equals creation order oldest-first. ULIDs are lexicographically sortable
+///   by creation time (Crockford base32), so `$0.id < $1.id` is portable and
+///   requires no `createdAt` field.
 ///
 /// - **Persisted order present**: the resolver returns
 ///     `known` followed by `appended`
@@ -27,17 +27,20 @@ enum OrderResolver {
     static func resolve<T>(
         _ items: [T],
         persistedOrder: [String]?,
+        // titleKeyPath is retained for source-compatibility — callers still pass it;
+        // it is used only by the persisted-order appended-tail sort below.
+        // Removing it from the signature (and ~20 call sites) is deferred cleanup.
         titleKeyPath: KeyPath<T, String>
     ) -> [T] where T: Identifiable, T.ID == String {
+        guard let persistedOrder, !persistedOrder.isEmpty else {
+            // ULID ids are lexicographically sortable by creation time → oldest first.
+            return items.sorted { $0.id < $1.id }
+        }
+
         let alphabetic: (T, T) -> Bool = { lhs, rhs in
             lhs[keyPath: titleKeyPath]
                 .localizedStandardCompare(rhs[keyPath: titleKeyPath]) == .orderedAscending
         }
-
-        guard let persistedOrder, !persistedOrder.isEmpty else {
-            return items.sorted(by: alphabetic)
-        }
-
         let byID: [String: T] = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         let known: [T] = persistedOrder.compactMap { byID[$0] }
         let knownIDs: Set<String> = Set(known.map(\.id))

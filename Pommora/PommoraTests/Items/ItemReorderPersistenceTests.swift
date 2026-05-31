@@ -23,24 +23,31 @@ struct ItemReorderPersistenceTests {
         let itemA = try await manager.createItem(name: "Alpha", in: coll, type: itemType)
         let itemB = try await manager.createItem(name: "Beta", in: coll, type: itemType)
 
-        // Sanity: in-memory order is [Alpha, Beta] (creation order).
+        // Capture the pre-reorder state. Under the creation-order default, order
+        // is ULID-ascending; because two ULIDs generated in the same millisecond
+        // have a random component, the order between itemA and itemB is
+        // non-deterministic. Assert that both are present and derive the expected
+        // post-reorder order from the actual before-order rather than hard-coding it.
         let before = manager.items(in: coll)
-        #expect(before.map(\.id) == [itemA.id, itemB.id])
+        #expect(before.count == 2)
+        #expect(Set(before.map(\.id)) == Set([itemA.id, itemB.id]))
+        let firstID = before[0].id
+        let secondID = before[1].id
 
-        // Move last item (index 1 = Beta) to front (offset 0).
+        // Move last item (index 1) to front (offset 0).
         manager.reorderItems(in: coll, fromOffsets: IndexSet(integer: 1), toOffset: 0)
 
-        // In-memory reflects the move immediately.
+        // In-memory reflects the move immediately — second item is now first.
         let afterMemory = manager.items(in: coll)
-        #expect(afterMemory.map(\.id) == [itemB.id, itemA.id])
+        #expect(afterMemory.map(\.id) == [secondID, firstID])
 
         // Reload sidecar from disk — must reflect the persisted order.
         let sidecarURL = coll.folderURL
             .appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
         let reloaded = try ItemCollection.load(from: sidecarURL)
 
-        // RED: currently nil because the persister is not wired; expected [Beta.id, Alpha.id].
-        #expect(reloaded.itemOrder == [itemB.id, itemA.id])
+        // Persisted order must match the in-memory post-reorder state.
+        #expect(reloaded.itemOrder == [secondID, firstID])
     }
 
     // MARK: - Case 2: ItemType-root reorder persists to _itemtype.json
@@ -54,16 +61,23 @@ struct ItemReorderPersistenceTests {
         let itemA = try await manager.createItem(name: "Alpha", inTypeRoot: itemType)
         let itemB = try await manager.createItem(name: "Beta", inTypeRoot: itemType)
 
-        // Sanity: in-memory order is [Alpha, Beta] (creation order).
+        // Capture the pre-reorder state. Under the creation-order default, order
+        // is ULID-ascending; because two ULIDs generated in the same millisecond
+        // have a random component, the order between itemA and itemB is
+        // non-deterministic. Assert that both are present and derive the expected
+        // post-reorder order from the actual before-order rather than hard-coding it.
         let before = manager.items(in: itemType)
-        #expect(before.map(\.id) == [itemA.id, itemB.id])
+        #expect(before.count == 2)
+        #expect(Set(before.map(\.id)) == Set([itemA.id, itemB.id]))
+        let firstID = before[0].id
+        let secondID = before[1].id
 
-        // Move last item (index 1 = Beta) to front (offset 0).
+        // Move last item (index 1) to front (offset 0).
         manager.reorderItems(inType: itemType, fromOffsets: IndexSet(integer: 1), toOffset: 0)
 
-        // In-memory reflects the move immediately.
+        // In-memory reflects the move immediately — second item is now first.
         let afterMemory = manager.items(in: itemType)
-        #expect(afterMemory.map(\.id) == [itemB.id, itemA.id])
+        #expect(afterMemory.map(\.id) == [secondID, firstID])
 
         // Reload sidecar from disk — must reflect the persisted order.
         let sidecarURL = NexusPaths.itemTypeMetadataURL(
@@ -71,8 +85,8 @@ struct ItemReorderPersistenceTests {
         )
         let reloaded = try ItemType.load(from: sidecarURL)
 
-        // RED: currently nil because the persister is not wired; expected [Beta.id, Alpha.id].
-        #expect(reloaded.itemOrder == [itemB.id, itemA.id])
+        // Persisted order must match the in-memory post-reorder state.
+        #expect(reloaded.itemOrder == [secondID, firstID])
     }
 
     // MARK: - Setup (mirrored from ItemContentManagerTests)

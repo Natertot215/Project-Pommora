@@ -157,13 +157,21 @@ struct PageTypeManagerTests {
         try await manager.createPageCollection(name: "Alpha", inPageType: pageType)
         try await manager.createPageCollection(name: "Beta", inPageType: pageType)
 
-        let before = manager.pageCollections(in: pageType).map(\.title)
-        // move Beta (index 1) above Alpha (index 0)
+        // Capture whatever order the manager has settled on before the reorder.
+        // Under the creation-order default the order is ULID-ascending, which
+        // is non-deterministic when both ULIDs are generated within the same
+        // millisecond. We therefore assert the DELTA (a specific item moved to
+        // front) rather than hard-coding absolute positions.
+        let before = manager.pageCollections(in: pageType)
+        #expect(before.count == 2)
+        let movedTitle = before[1].title  // the item we are about to move to front
+
+        // Move index 1 to offset 0 (bring the second item to the front).
         manager.reorderPageCollections(in: pageType, fromOffsets: IndexSet(integer: 1), toOffset: 0)
         let after = manager.pageCollections(in: pageType).map(\.title)
 
-        #expect(before != after)
-        #expect(after.first == "Beta")
-        #expect(after.last == "Alpha")
+        #expect(after != before.map(\.title))
+        #expect(after.first == movedTitle)
+        #expect(after.last == before[0].title)
     }
 }

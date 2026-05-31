@@ -146,8 +146,11 @@ struct ItemContentManagerTests {
         defer { TempNexus.cleanup(nexus) }
 
         let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: itemType.title)
-        let idA = ULID.generate()
-        let idB = ULID.generate()
+        // Pin timestamps far apart so idA < idB is guaranteed (creation-order
+        // sort is ULID-ascending; two rapid ULID.generate() calls share the same
+        // millisecond timestamp and their random tails can collide in any order).
+        let idA = ULID.generate(at: Date(timeIntervalSince1970: 1_000_000))
+        let idB = ULID.generate(at: Date(timeIntervalSince1970: 2_000_000))
         try Item(
             id: idA, title: "Alpha", icon: nil, description: "",
             tier1: [], tier2: [], tier3: [],
@@ -164,7 +167,8 @@ struct ItemContentManagerTests {
         await manager.loadAll(for: itemType)
         let titles = manager.items(in: itemType).map(\.title)
         #expect(titles.count == 2)
-        #expect(titles == ["Alpha", "Beta"])  // sorted alphabetically
+        // idA < idB (older timestamp) → Alpha sorts first under creation-order default.
+        #expect(titles == ["Alpha", "Beta"])
     }
 
     @Test("loadAll for a type ignores ItemCollection sub-folder contents")
