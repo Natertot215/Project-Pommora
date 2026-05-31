@@ -160,7 +160,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                 .init(name: "New Item Sheet", detail: "Name + Icon form for creating Items. Routes to ItemContentManager.createItem(in:type:) or createItem(inTypeRoot:)."),
                 .init(name: "Vault Settings Sheet", detail: "Pages-side schema editor. Add/edit/delete properties on a PageType."),
                 .init(name: "Type Settings Sheet", detail: "Items-side schema editor. Add/edit/delete properties on an ItemType."),
-                .init(name: "Icon Picker Sheet", detail: "SymbolPicker-backed icon chooser for any entity that carries an SF Symbol."),
+                .init(name: "Icon Picker", detail: "Pommora-native compact Liquid-Glass SF Symbol chooser — full catalog, search, and Saved icons. Replaces the third-party SymbolPicker."),
                 .init(name: "Color Picker Sheet", detail: "SpaceColor chooser — Pommora's hand-picked Space accent palette."),
             ]
         case .pageEditor:

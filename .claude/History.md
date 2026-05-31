@@ -2,6 +2,16 @@
 
 Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
+#### Native IconPicker + OptionEditPopover restyle (2026-05-30)
+
+The third-party `xnth97/SymbolPicker` is replaced by Pommora's own **`IconPicker`** — a compact (260×306) Liquid-Glass dropdown over the **full SF Symbols 6 catalog** (`IconCatalog`, 6,195 names bundled as source), with search and **Saved/favorites** (`IconFavorites`, app-level UserDefaults; ordering/cap logic TDD'd). Forced by reading the library's source: it hardcodes a 540pt macOS frame and keeps its catalog `internal` — neither resizable nor re-skinnable. Hosted via one `.iconPickerPopover` modifier (`.presentationBackground(.clear)` so only the picker's own `chipDropdownPanel` glass shows — kills the old double-glass); adopted at every icon-edit entry (StorageMenuRoot header, EditPropertyPane ×4, IconPickerField, IconPickerSheet). `import SymbolPicker` is gone everywhere; the SPM dep is now unused (removable). Supersedes paradigm decision #3; resolves Fix Log #1 ("icon picker too large").
+
+- **Crash fix.** `IconPickerSheet` (presented from the detail-table Edit Icon) needs `TopicManager`, but `ContentView`'s detail env-chain lacked it while the sidebar chain had it → SIGTRAP on present (quirk #15). Added `.environment(topicMgr)` to the detail chain.
+- **Live-update fix.** `StorageMenuRoot` read the header icon/title from a captured `scope` snapshot, so an edit never re-rendered it. Added `liveScope` (re-resolves the Type/Collection from the `@Observable` managers — the detail views' `livePageType` / `liveCollection` pattern); header + commits read it.
+- **OptionEditPopover restyle.** The Select/Status option editor's textfield now matches the View Settings storage field (`.title3`, `lg` / `xs` padding); a content-rail `Divider` sits above a plain red "Delete" matching the EditPropertyPane footer.
+
+Full `PommoraTests` green (only the known `debounceCoalescesRapidEdits` flake).
+
 #### Make Relations Real — render half + index/picker hardening (2026-05-29)
 
 Follow-on to the Relations Redesign: the stored feature wasn't rendering/editing everywhere. Render half shipped + two infrastructure bugs fixed; the value picker + editors re-planned (`Planning/Make-Relations-Real-Plan.md`).

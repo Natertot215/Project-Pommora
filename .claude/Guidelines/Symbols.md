@@ -37,7 +37,7 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 
 - **Filled / outlined choice** follows Apple's HIG default for each symbol — outlined for nav, filled for status. Don't toggle unless there's a reason.
 - **User-overridable per entity** — Pages, Items, Page Types, Page Collections, Item Types, Item Collections, Spaces, Topics, Projects, Agenda Tasks, and Agenda Events all carry an optional `icon: String?` field on disk. The defaults above are fallbacks when the field is unset.
-- **Per-property icons** — every property in a Type's schema can carry an icon (`PropertyDefinition.icon: String?`); chosen via `IconPickerField` (wraps the `xnth97/SymbolPicker` SPM dep behind Pommora's own sheet).
+- **Per-property icons** — every property in a Type's schema can carry an icon (`PropertyDefinition.icon: String?`); chosen via Pommora's native **`IconPicker`** (compact Liquid-Glass picker over the full SF Symbols catalog, with search + Saved/favorites — replaced the `xnth97/SymbolPicker` SPM dep 2026-05-30).
 - **No raw `Image(systemName:)` literals scattered across views** for entity defaults — wrap through a single resolver so this table is the only place to change a default.
 
 ---
