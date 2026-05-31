@@ -66,7 +66,7 @@ final class ItemTypeManager {
     /// parent Type leaf visually selected while the user is drilled into
     /// one of its Sets (which never renders as a sidebar row itself).
     func parentItemType(for collection: ItemCollection) -> ItemType? {
-        typesByID[collection.typeID]
+        types.first { $0.id == collection.typeID }
     }
 
     // MARK: - Load

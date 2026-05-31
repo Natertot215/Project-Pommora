@@ -132,7 +132,7 @@ struct ItemTypeDetailView: View {
     /// after a reselect — the `type` param is a value snapshot that goes stale on
     /// schema mutation. Mirrors `PageTypeDetailView.livePageType`.
     private var liveType: ItemType {
-        itemTypeManager.typesByID[type.id] ?? type
+        itemTypeManager.types.first { $0.id == type.id } ?? type
     }
 
     private var userPropertyColumns: [PropertyDefinition] {

@@ -47,7 +47,6 @@ struct ItemTypeManagerTests {
         #expect(!FileManager.default.fileExists(atPath: wrapper.path))
         #expect(manager.types.count == 1)
         #expect(manager.types.first?.title == "Errands")
-        #expect(manager.typesByID[manager.types.first!.id]?.title == "Errands")
     }
 
     @Test("createItemCollection creates folder inside ItemType")
@@ -120,7 +119,7 @@ struct ItemTypeManagerTests {
         let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Errands")
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.types.isEmpty)
-        #expect(manager.typesByID[itemType.id] == nil)
+        #expect(manager.types.first { $0.id == itemType.id } == nil)
 
         // Folder now in .trash, preserving relative path under nexus root
         // (flatlayout: ItemType folder lives directly at the nexus root).
@@ -197,7 +196,7 @@ struct ItemTypeManagerTests {
 
         try await manager.updateItemTypeIcon(itemType, to: "cart.fill")
         #expect(manager.types.first?.icon == "cart.fill")
-        #expect(manager.typesByID[itemType.id]?.icon == "cart.fill")
+        #expect(manager.types.first { $0.id == itemType.id }?.icon == "cart.fill")
 
         // Reload from disk to confirm persistence
         let fresh = ItemTypeManager(nexus: nexus)
