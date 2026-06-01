@@ -18,11 +18,20 @@ struct PageRow: View {
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
 
+    /// The page's icon, falling back to the default page glyph. A custom icon
+    /// (set in the header or sidebar picker) overrides; empty/nil shows the
+    /// default. Re-reads `page.frontmatter.icon` so sidebar rows reflect icon
+    /// changes live once the manager cache refreshes.
+    private var rowSymbol: String {
+        let icon = page.frontmatter.icon
+        return (icon?.isEmpty == false) ? icon! : "doc.text"
+    }
+
     var body: some View {
         Group {
             if editingID == page.id {
                 RenameableRow(
-                    symbol: "doc.text",
+                    symbol: rowSymbol,
                     initialTitle: page.title,
                     draft: $draft,
                     renameFocused: $renameFocused,
@@ -38,7 +47,7 @@ struct PageRow: View {
             } else {
                 SelectableRow(
                     title: page.title,
-                    symbol: "doc.text",
+                    symbol: rowSymbol,
                     tag: SelectionTag.page(page.id),
                     selection: $selection,
                     accent: nil

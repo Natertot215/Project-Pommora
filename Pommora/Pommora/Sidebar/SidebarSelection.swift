@@ -15,6 +15,28 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case itemCollection(ItemCollection)
 }
 
+extension SidebarSelection {
+    /// The resolved entity's custom icon (SF Symbol name), or nil when unset or
+    /// empty. Lets render surfaces (e.g. NavDropdown rows) override their
+    /// per-kind default glyph with the entity's current icon — "default unless
+    /// the entity sets one."
+    var resolvedIcon: String? {
+        let raw: String?
+        switch self {
+        case .page(let p): raw = p.frontmatter.icon
+        case .pageType(let t): raw = t.icon
+        case .collection(let c): raw = c.icon
+        case .space(let s): raw = s.icon
+        case .topic(let t): raw = t.icon
+        case .project(let p): raw = p.icon
+        case .itemType(let t): raw = t.icon
+        case .itemCollection(let c): raw = c.icon
+        case .none, .savedKey: raw = nil
+        }
+        return (raw?.isEmpty == false) ? raw : nil
+    }
+}
+
 /// Bundle of live manager refs threaded into `SidebarSelection`'s ID-to-entity
 /// resolvers. Replaces the prior `AppGlobals` reads — eliminates the stale-
 /// snapshot path that broke sidebar selection on runtime-created entities

@@ -165,6 +165,7 @@ struct NavDropdownButton: View {
                 ForEach(pinnedSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
+                        lookup: lookup,
                         isPinned: true,
                         pinAction: {
                             AppGlobals.pinnedManager?.toggle(ref)
@@ -203,6 +204,7 @@ struct NavDropdownButton: View {
                 ForEach(recentsSnapshot, id: \.self) { ref in
                     EntityRow(
                         ref: ref,
+                        lookup: lookup,
                         isPinned: pinnedSnapshot.contains(ref),
                         pinAction: {
                             AppGlobals.pinnedManager?.toggle(ref)

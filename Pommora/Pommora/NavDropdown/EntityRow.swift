@@ -4,6 +4,9 @@ import SwiftUI
 @MainActor
 struct EntityRow: View {
     let ref: EntityStateRef
+    /// Used to resolve the entity's current custom icon by id; `EntityStateRef`
+    /// itself stores only kind/id/title (no icon), so the icon is resolved live.
+    let lookup: SidebarLookupBundle
     let isPinned: Bool
     let pinAction: () -> Void
     @State private var hovering = false
@@ -40,7 +43,17 @@ struct EntityRow: View {
         }
     }
 
+    /// The entity's custom icon if one is set, else the per-kind default glyph.
+    /// Resolved live (EntityStateRef stores no icon). Defaults stay outline
+    /// (non-`.fill`) variants so an unset entity never reads as a filled state.
     private var iconName: String {
+        if let custom = SidebarSelection(stateRef: ref, lookup: lookup)?.resolvedIcon {
+            return custom
+        }
+        return defaultIcon
+    }
+
+    private var defaultIcon: String {
         switch ref.typedKind {
         case .page: return "doc.text"
         case .vault: return "book"
