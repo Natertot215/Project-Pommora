@@ -30,6 +30,8 @@ struct PageEditorView: View {
     let collection: PageCollection?
 
     @Environment(PageContentManager.self) private var contentManager
+    /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
+    @Environment(SettingsManager.self) private var settingsManager
 
     /// In-flight title text. Synced with `viewModel.page.title` on every
     /// page-id change (the `.onChange(initial: true)` below) — but the host
@@ -67,6 +69,13 @@ struct PageEditorView: View {
     /// True for the first 3 s after expanding, then false — keeps the collapse
     /// chevron briefly visible on open before it goes hover-only.
     @State private var chevronForcedVisible = false
+
+    /// Cursor is over the title row — gates the hover-only "Add Icon" affordance
+    /// shown when the page has no icon yet.
+    @State private var hoveringTitleRow = false
+    /// Drives the shared icon-picker popover, anchored at whichever trigger is
+    /// visible (the inline icon when set, else the "Add Icon" affordance).
+    @State private var iconPickerOpen = false
 
     /// Top padding of the body editor's text container, sized to leave room
     /// for the title overlay + a 14pt equidistant gap below the divider.
@@ -224,25 +233,48 @@ struct PageEditorView: View {
             // ContentManager.renamePage. The 28pt bold matches macOS Notes'
             // large title line.
             VStack(spacing: 0) {
-                TextField("Untitled", text: $titleDraft)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 28, weight: .bold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 24)
-                    .padding(.bottom, 14)
-                    .focused($titleFocused)
-                    .onSubmit {
-                        // Drop SwiftUI focus FIRST so the title field
-                        // deselects (otherwise macOS NSTextField's default
-                        // Enter behavior is to select-all). Then move
-                        // AppKit firstResponder to the body editor. Rename
-                        // runs in parallel — doesn't need to block focus
-                        // shift.
-                        titleFocused = false
-                        focusBodyEditor()
-                        Task { await commitRename() }
+                // Title row. When the per-Nexus `showPageIcon` setting is on and
+                // the page has an icon, it renders inline to the LEFT of the
+                // title. When the setting is on but no icon is set, hovering the
+                // row reveals a faint "Add Icon" affordance on the RIGHT. In every
+                // other state nothing leads the title, so it stays flush-left with
+                // zero reserved indent.
+                HStack(alignment: .center, spacing: PUI.Spacing.sm) {
+                    if showInlinePageIcon, let icon = pageIcon {
+                        pageIconButton(icon)
                     }
+                    TextField("Untitled", text: $titleDraft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 28, weight: .bold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .focused($titleFocused)
+                        .onSubmit {
+                            // Drop SwiftUI focus FIRST so the title field
+                            // deselects (otherwise macOS NSTextField's default
+                            // Enter behavior is to select-all). Then move
+                            // AppKit firstResponder to the body editor. Rename
+                            // runs in parallel — doesn't need to block focus
+                            // shift.
+                            titleFocused = false
+                            focusBodyEditor()
+                            Task { await commitRename() }
+                        }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 14)
+                .overlay(alignment: .trailing) {
+                    if showAddIconAffordance {
+                        addIconAffordance
+                            .padding(.trailing, 24)
+                            .transition(.opacity)
+                    }
+                }
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        hoveringTitleRow = hovering
+                    }
+                }
 
                 Rectangle()
                     .fill(Color(NSColor.separatorColor))
@@ -334,6 +366,86 @@ struct PageEditorView: View {
             if let found = findFirstTextView(in: subview) { return found }
         }
         return nil
+    }
+
+    // MARK: - Page icon (header)
+
+    /// The page's icon, normalized to nil when absent or empty.
+    private var pageIcon: String? {
+        let icon = viewModel.page.frontmatter.icon
+        return (icon?.isEmpty == false) ? icon : nil
+    }
+
+    /// Inline icon shows only when the per-Nexus setting is on AND an icon is set.
+    private var showInlinePageIcon: Bool {
+        settingsManager.settings.showPageIcon && pageIcon != nil
+    }
+
+    /// The "Add Icon" affordance shows only when the setting is on, no icon is
+    /// set, and the cursor is over the title row.
+    private var showAddIconAffordance: Bool {
+        settingsManager.settings.showPageIcon && pageIcon == nil && hoveringTitleRow
+    }
+
+    /// Bridges the icon picker to the page's frontmatter: reads the current icon;
+    /// on pick/remove, persists via `commitIcon`.
+    private var pageIconBinding: Binding<String?> {
+        Binding(
+            get: { pageIcon },
+            set: { newIcon in Task { await commitIcon(newIcon) } }
+        )
+    }
+
+    @ViewBuilder
+    private func pageIconButton(_ symbol: String) -> some View {
+        Button { iconPickerOpen = true } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 26))
+                .foregroundStyle(.primary)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Change page icon")
+        .accessibilityLabel("Page icon")
+        .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
+    }
+
+    private var addIconAffordance: some View {
+        Button { iconPickerOpen = true } label: {
+            VStack(spacing: 2) {
+                Image(systemName: "plus.app")
+                    .font(.system(size: 18))
+                Text("Add Icon")
+                    .font(.caption)
+            }
+            .foregroundStyle(.tertiary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Add a page icon")
+        .accessibilityLabel("Add page icon")
+        .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
+    }
+
+    /// Persists a new (or removed) page icon, then refreshes the VM's PageMeta
+    /// from the manager cache. The refresh is essential: the editor re-serializes
+    /// `viewModel.page.frontmatter` verbatim on every body save, so without it the
+    /// next keystroke would write back the stale (icon-less) frontmatter and undo
+    /// the change.
+    private func commitIcon(_ newIcon: String?) async {
+        do {
+            try await contentManager.updatePageIcon(
+                viewModel.page, to: newIcon, vault: vault, collection: collection)
+            let updated: PageMeta?
+            if let collection {
+                updated = contentManager.pages(in: collection).first { $0.id == viewModel.page.id }
+            } else {
+                updated = contentManager.pages(in: vault).first { $0.id == viewModel.page.id }
+            }
+            if let updated { viewModel.page = updated }
+        } catch {
+            viewModel.pendingError = error
+        }
     }
 
     private func commitRename() async {
