@@ -27,6 +27,11 @@ final class PageTypeManager {
     /// are reloaded inline and never routed here. Nil until wired.
     var reloadTypeByID: (@MainActor (String) -> Void)?
 
+    /// Backing store for the lazily-constructed `schemaAdapter` (declared in the
+    /// per-type schema-adapter extension). Held here because stored properties can't
+    /// live on an extension. Not observed — purely an internal service bridge.
+    @ObservationIgnored fileprivate var _schemaAdapter: PageSchemaAdapter?
+
     init(nexus: Nexus) {
         self.nexus = nexus
     }
@@ -537,100 +542,7 @@ extension PageTypeManager {
     /// reverse property and writes its ID into `dualProperty.syncedPropertyID` after creation.
     /// Collection / context-tier targets reject dual pairing.
     func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
-        do {
-            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-
-            var def = definition
-            if def.id.isEmpty {
-                def.id = ReservedPropertyID.mintUserPropertyID()
-            }
-
-            // Paired relation: a non-nil `dualProperty` is the pairing signal;
-            // route through DualRelationCoordinator. The reverse name now flows
-            // via `def.reverseName` (the empty `syncedPropertyID` is filled with
-            // the minted reverse-property ID by the coordinator post-creation).
-            if def.type == .relation, def.dualProperty != nil {
-                guard let scope = def.relationTarget else {
-                    throw PageTypeManagerError.propertyNotFound
-                }
-                let sourceKind = DualRelationCoordinator.TypeKind.pageType(types[i])
-                // Resolve the target TypeKind from the authoritative `relationTarget`.
-                // Same-side PageType reads from in-memory `types`; cross-side ItemType
-                // and Agenda singletons load from disk (they live outside this manager).
-                let targetKind = try resolveDualTargetKind(for: scope)
-                // Reverse scope points back to source Type.
-                let targetScope = PropertyDefinition.RelationTarget.pageType(types[i].id)
-                // Reverse name: caller carries the reverse display name in `reverseName`
-                // at add-time; the coordinator later mints the reverse property's ID.
-                let reverseName = (def.reverseName?.isEmpty == false) ? def.reverseName! : def.name
-
-                let (srcID, _) = try DualRelationCoordinator.createPairedRelation(
-                    source: sourceKind,
-                    sourcePropertyName: def.name,
-                    sourceScope: scope,
-                    target: targetKind,
-                    targetPropertyName: reverseName,
-                    targetScope: targetScope,
-                    sourceIcon: def.icon,
-                    targetIcon: def.reverseIcon,
-                    nexus: nexus
-                )
-                // Reload source type from disk so in-memory reflects the coordinator's write.
-                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
-                if let reloaded = try? PageType.load(from: meta) {
-                    types[i] = reloaded
-                }
-                // Reload the target so the reverse property appears immediately (not after
-                // restart). Same-manager (another PageType) reloads inline; cross-manager
-                // (ItemType) routes through the injected hook so the OTHER manager refreshes.
-                // Agenda targets reject dual pairing and never reach here.
-                let targetID = targetKind.typeID
-                if targetID != typeID {
-                    if let j = types.firstIndex(where: { $0.id == targetID }) {
-                        let targetMeta = NexusPaths.vaultMetadataURL(forTitle: types[j].title, in: nexus)
-                        if let reloaded = try? PageType.load(from: targetMeta) {
-                            types[j] = reloaded
-                        }
-                    } else {
-                        reloadTypeByID?(targetID)
-                    }
-                }
-                if let updater = indexUpdater {
-                    if let addedDef = types[i].properties.first(where: { $0.id == srcID }) {
-                        let position = types[i].properties.count - 1
-                        do {
-                            try updater.upsertPropertyDefinition(
-                                addedDef, owningTypeID: typeID, owningTypeKind: "page_type",
-                                position: position
-                            )
-                        } catch { self.pendingError = error }
-                    }
-                }
-                return
-            }
-
-            try PropertyDefinitionValidator.validate(
-                def, in: types[i].properties, nexus: NexusContext.forTypeResolution(in: nexus))
-
-            var updated = types[i]
-            updated.properties.append(def)
-            updated.modifiedAt = Date()
-
-            let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
-            try updated.save(to: meta)
-
-            if let updater = indexUpdater {
-                let position = updated.properties.count - 1
-                do {
-                    try updater.upsertPropertyDefinition(
-                        def, owningTypeID: typeID, owningTypeKind: "page_type", position: position)
-                } catch { self.pendingError = error }
-            }
-
-            types[i] = updated
-        } catch {
+        do { try PerTypeSchemaService.addProperty(definition, in: typeID, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
         }
@@ -733,46 +645,8 @@ extension PageTypeManager {
     /// Renames a property by its stable ID. Schema-only write — member files keyed by
     /// `id` are not touched (rename-safe by design per the domain model).
     func renameProperty(id propertyID: String, in typeID: String, to newName: String) async throws {
-        do {
-            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw PageTypeManagerError.propertyNotFound
-            }
-
-            var renamedDef = types[typeIndex].properties[propIndex]
-            renamedDef.name = newName
-
-            // Build the schema with the renamed definition substituted in, so validation
-            // can check name-uniqueness against the rest of the schema (excluding itself).
-            var otherProps = types[typeIndex].properties
-            otherProps.remove(at: propIndex)
-            // Validate name only — borrow the validator but supply a def with a fresh
-            // temp-unique ID so the duplicate-ID rule doesn't fire. We only care about
-            // the name-uniqueness check here.
-            var validationDef = renamedDef
-            validationDef.id = ReservedPropertyID.mintUserPropertyID()
-            try PropertyDefinitionValidator.validate(
-                validationDef, in: otherProps, nexus: NexusContext.forTypeResolution(in: nexus))
-
-            var updated = types[typeIndex]
-            updated.properties[propIndex] = renamedDef
-            updated.modifiedAt = Date()
-
-            let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
-            try updated.save(to: meta)
-
-            if let updater = indexUpdater {
-                do {
-                    try updater.upsertPropertyDefinition(
-                        renamedDef, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex)
-                } catch { self.pendingError = error }
-            }
-
-            types[typeIndex] = updated
-        } catch {
+        do { try PerTypeSchemaService.renameProperty(id: propertyID, in: typeID, to: newName, on: schemaAdapter) } catch
+        {
             self.pendingError = error
             throw error
         }
@@ -947,99 +821,7 @@ extension PageTypeManager {
     }
 
     func deleteProperty(id propertyID: String, in typeID: String) async throws {
-        do {
-            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw PageTypeManagerError.propertyNotFound
-            }
-
-            let prop = types[typeIndex].properties[propIndex]
-
-            // Paired relation: route through DualRelationCoordinator (cascades both sides).
-            // The reverse Type may live in EITHER manager — resolve it cross-manager via the
-            // SAME resolver `addProperty` uses (`prop.relationTarget` is the scope pointing at
-            // the reverse Type). The earlier in-memory-only lookup orphaned the reverse whenever
-            // the partner was an ItemType (cross-manager); this path fixes that.
-            if prop.type == .relation, let dualConfig = prop.dualProperty,
-                let scope = prop.relationTarget
-            {
-                // Best-effort reverse cascade. A property delete must NEVER be blocked by an
-                // unresolvable reverse (legacy collection scope, or a drifted/missing target
-                // type id) — if resolution fails, skip the reverse cleanup and fall through to
-                // the owner-only removal below so the owner property can always be deleted.
-                if let reverseKind = try? resolveDualTargetKind(for: scope) {
-                    let ownerKind = DualRelationCoordinator.TypeKind.pageType(types[typeIndex])
-                    let targetTypeID = reverseKind.typeID  // == dualConfig.syncedPropertyDefinedOnTypeID
-                    try DualRelationCoordinator.deletePair(
-                        propertyID: propertyID,
-                        owner: ownerKind,
-                        reverse: reverseKind,
-                        nexus: nexus
-                    )
-                    // Reload the owning (source) type in-memory.
-                    let meta = NexusPaths.vaultMetadataURL(forTitle: types[typeIndex].title, in: nexus)
-                    if let reloaded = try? PageType.load(from: meta) {
-                        types[typeIndex] = reloaded
-                    }
-                    // Reload the reverse type in-memory: same-manager (another PageType) inline,
-                    // cross-manager (ItemType) via the injected router hook so it doesn't need a restart.
-                    if let j = types.firstIndex(where: { $0.id == targetTypeID }) {
-                        let tMeta = NexusPaths.vaultMetadataURL(forTitle: types[j].title, in: nexus)
-                        if let reloaded = try? PageType.load(from: tMeta) {
-                            types[j] = reloaded
-                        }
-                    } else {
-                        reloadTypeByID?(targetTypeID)
-                    }
-                    if let updater = indexUpdater {
-                        do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-                        do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch {
-                            self.pendingError = error
-                        }
-                    }
-                    return
-                }
-                // Unresolvable reverse: best-effort clean the reverse index row, then fall
-                // through to the owner-only delete below.
-                try? indexUpdater?.deletePropertyDefinition(id: dualConfig.syncedPropertyID)
-            }
-
-            var updated = types[typeIndex]
-            updated.properties.remove(at: propIndex)
-            updated.modifiedAt = Date()
-
-            let tx = SchemaTransaction()
-
-            // Stage updated schema sidecar.
-            let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
-            try tx.stage(updated, to: meta)
-
-            // Stage member-file rewrites: strip the property key from every Page's frontmatter.
-            let typeFolder = NexusPaths.vaultFolderURL(forTitle: updated.title, in: nexus)
-            let pageFiles = try Filesystem.descendantFiles(
-                of: typeFolder,
-                where: { url in
-                    url.pathExtension == "md"
-                })
-            MemberFileStrip.forEach(pageFiles) { pageURL in
-                var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageURL)
-                guard fm.properties[propertyID] != nil else { return }
-                fm.properties.removeValue(forKey: propertyID)
-                let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
-                tx.stage(payload: data, to: pageURL)
-            }
-
-            try tx.commit()
-
-            if let updater = indexUpdater {
-                do { try updater.deletePropertyDefinition(id: propertyID) } catch { self.pendingError = error }
-            }
-
-            types[typeIndex] = updated
-        } catch {
+        do { try PerTypeSchemaService.deleteProperty(id: propertyID, in: typeID, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
         }
@@ -1051,43 +833,7 @@ extension PageTypeManager {
     /// Schema-only write — member files are not touched.
     func reorderProperty(id propertyID: String, in typeID: String, toIndex newIndex: Int) async throws {
         do {
-            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw PageTypeManagerError.propertyNotFound
-            }
-
-            var props = types[typeIndex].properties
-            let clampedIndex = min(max(newIndex, 0), props.count - 1)
-            guard clampedIndex != propIndex else { return }
-
-            guard clampedIndex >= 0 && clampedIndex < props.count else {
-                throw PageTypeManagerError.indexOutOfBounds
-            }
-
-            props.move(
-                fromOffsets: IndexSet(integer: propIndex),
-                toOffset: clampedIndex > propIndex ? clampedIndex + 1 : clampedIndex)
-
-            var updated = types[typeIndex]
-            updated.properties = props
-            updated.modifiedAt = Date()
-
-            let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
-            try updated.save(to: meta)
-
-            if let updater = indexUpdater {
-                for (pos, def) in updated.properties.enumerated() {
-                    do {
-                        try updater.upsertPropertyDefinition(
-                            def, owningTypeID: typeID, owningTypeKind: "page_type", position: pos)
-                    } catch { self.pendingError = error }
-                }
-            }
-
-            types[typeIndex] = updated
+            try PerTypeSchemaService.reorderProperty(id: propertyID, in: typeID, toIndex: newIndex, on: schemaAdapter)
         } catch {
             self.pendingError = error
             throw error
@@ -1113,57 +859,140 @@ extension PageTypeManager {
         dropConflictingValues: Bool = false
     ) async throws {
         do {
-            guard let typeIndex = types.firstIndex(where: { $0.id == typeID }) else {
+            try PerTypeSchemaService.changeType(
+                of: propertyID,
+                in: typeID,
+                to: newType,
+                dropConflictingValues: dropConflictingValues,
+                on: schemaAdapter)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+}
+
+// MARK: - Per-type schema adapter
+
+extension PageTypeManager {
+
+    /// Once-constructed adapter that supplies the Page-side per-side bits to the
+    /// shared `PerTypeSchemaService`. Constructed lazily so `self` is fully
+    /// initialized before the `unowned` back-reference is captured.
+    fileprivate var schemaAdapter: PageSchemaAdapter {
+        if let existing = _schemaAdapter { return existing }
+        let adapter = PageSchemaAdapter(self)
+        _schemaAdapter = adapter
+        return adapter
+    }
+
+    /// Bridges `PageTypeManager`'s in-memory `types` + `_pagetype.json` sidecars to
+    /// `PerTypeSchemaService`. Reproduces the original five method bodies' per-side
+    /// Page behavior verbatim. `unowned` because the manager owns the adapter for its
+    /// full lifetime.
+    fileprivate final class PageSchemaAdapter: PerTypeSchemaAdapter {
+        unowned let m: PageTypeManager
+        /// Holds the type staged by `stageType` so `commitStagedType` assigns the
+        /// byte-identical value (same `modifiedAt`) to `m.types[i]` — matching the
+        /// original's single `updated` computed once and reused across the staged
+        /// sidecar and the post-commit in-memory assign.
+        private var stagedType: PageType?
+
+        init(_ m: PageTypeManager) { self.m = m }
+
+        // MARK: Type / schema read
+
+        func properties(forTypeID typeID: String) throws -> [PropertyDefinition] {
+            guard let pt = m.types.first(where: { $0.id == typeID }) else {
                 throw PageTypeManagerError.typeNotFound
             }
-            guard let propIndex = types[typeIndex].properties.firstIndex(where: { $0.id == propertyID })
-            else {
-                throw PageTypeManagerError.propertyNotFound
+            return pt.properties
+        }
+
+        // MARK: Schema persist
+
+        func commitType(properties: [PropertyDefinition], forTypeID typeID: String) throws {
+            guard let i = m.types.firstIndex(where: { $0.id == typeID }) else {
+                throw PageTypeManagerError.typeNotFound
             }
-
-            let oldType = types[typeIndex].properties[propIndex].type
-
-            if oldType == newType {
-                // Lossless: schema-only write to bump modifiedAt.
-                var updated = types[typeIndex]
-                updated.properties[propIndex].type = newType
-                updated.modifiedAt = Date()
-                let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
-                try updated.save(to: meta)
-                if let updater = indexUpdater {
-                    let def = updated.properties[propIndex]
-                    do {
-                        try updater.upsertPropertyDefinition(
-                            def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex)
-                    } catch { self.pendingError = error }
-                }
-                types[typeIndex] = updated
-                return
-            }
-
-            // Lossy cross-type change.
-            guard dropConflictingValues else {
-                throw PageTypeManagerError.lossyChangeRequiresConfirmation
-            }
-
-            var updated = types[typeIndex]
-            updated.properties[propIndex].type = newType
+            var updated = m.types[i]
+            updated.properties = properties
             updated.modifiedAt = Date()
+            try updated.save(to: NexusPaths.vaultMetadataURL(forTitle: updated.title, in: m.nexus))
+            m.types[i] = updated
+        }
 
-            let tx = SchemaTransaction()
+        func stageType(
+            properties: [PropertyDefinition], forTypeID typeID: String, into tx: SchemaTransaction
+        ) throws {
+            guard let i = m.types.firstIndex(where: { $0.id == typeID }) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            var updated = m.types[i]
+            updated.properties = properties
+            updated.modifiedAt = Date()
+            try tx.stage(updated, to: NexusPaths.vaultMetadataURL(forTitle: updated.title, in: m.nexus))
+            stagedType = updated
+        }
 
-            // Stage updated schema sidecar.
-            let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
-            try tx.stage(updated, to: meta)
+        func commitStagedType(properties: [PropertyDefinition], forTypeID typeID: String) {
+            guard let updated = stagedType,
+                let i = m.types.firstIndex(where: { $0.id == typeID })
+            else { return }
+            m.types[i] = updated
+            stagedType = nil
+        }
 
-            // Stage member-file rewrites: strip the conflicting property value from
-            // every Page's frontmatter so no stale cross-type value lingers.
-            let typeFolder = NexusPaths.vaultFolderURL(forTitle: updated.title, in: nexus)
-            let pageFiles = try Filesystem.descendantFiles(
-                of: typeFolder,
-                where: { url in
-                    url.pathExtension == "md"
-                })
+        // MARK: Paired-relation collaborators
+
+        func typeKind(forTypeID typeID: String) throws -> DualRelationCoordinator.TypeKind {
+            guard let pt = m.types.first(where: { $0.id == typeID }) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            return .pageType(pt)
+        }
+
+        func reverseRelationTarget(forTypeID typeID: String) -> PropertyDefinition.RelationTarget {
+            .pageType(typeID)
+        }
+
+        func resolveDualTargetKind(
+            for scope: PropertyDefinition.RelationTarget
+        ) throws -> DualRelationCoordinator.TypeKind {
+            try m.resolveDualTargetKind(for: scope)
+        }
+
+        func reloadType(byID typeID: String) {
+            // Same-side (a PageType this manager owns) reloads from disk inline;
+            // cross-manager targets route through the injected `reloadTypeByID?` hook.
+            if let i = m.types.firstIndex(where: { $0.id == typeID }) {
+                let meta = NexusPaths.vaultMetadataURL(forTitle: m.types[i].title, in: m.nexus)
+                if let reloaded = try? PageType.load(from: meta) {
+                    m.types[i] = reloaded
+                }
+            } else {
+                m.reloadTypeByID?(typeID)
+            }
+        }
+
+        var nexusForCoordinator: Nexus { m.nexus }
+
+        // MARK: Member files
+
+        func memberFiles(forTypeID typeID: String) throws -> [URL] {
+            guard let pt = m.types.first(where: { $0.id == typeID }) else {
+                throw PageTypeManagerError.typeNotFound
+            }
+            let typeFolder = NexusPaths.vaultFolderURL(forTitle: pt.title, in: m.nexus)
+            return try Filesystem.descendantFiles(of: typeFolder) { url in
+                url.pathExtension == "md"
+            }
+        }
+
+        func stripPropertyFromMembers(
+            _ propertyID: String, forTypeID typeID: String, into tx: SchemaTransaction
+        ) throws {
+            let pageFiles = try memberFiles(forTypeID: typeID)
             MemberFileStrip.forEach(pageFiles) { pageURL in
                 var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageURL)
                 guard fm.properties[propertyID] != nil else { return }
@@ -1171,21 +1000,28 @@ extension PageTypeManager {
                 let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
                 tx.stage(payload: data, to: pageURL)
             }
-
-            try tx.commit()
-
-            if let updater = indexUpdater {
-                let def = updated.properties[propIndex]
-                do {
-                    try updater.upsertPropertyDefinition(
-                        def, owningTypeID: typeID, owningTypeKind: "page_type", position: propIndex)
-                } catch { self.pendingError = error }
-            }
-
-            types[typeIndex] = updated
-        } catch {
-            self.pendingError = error
-            throw error
         }
+
+        // MARK: Index
+
+        var indexOwningTypeKind: String { "page_type" }
+        var indexUpdater: IndexUpdater? { m.indexUpdater }
+
+        // MARK: Validation
+
+        var validationContext: NexusContext { NexusContext.forTypeResolution(in: m.nexus) }
+
+        // MARK: Errors
+
+        var errTypeNotFound: any Error { PageTypeManagerError.typeNotFound }
+        var errPropertyNotFound: any Error { PageTypeManagerError.propertyNotFound }
+        var errLossyChangeRequiresConfirmation: any Error {
+            PageTypeManagerError.lossyChangeRequiresConfirmation
+        }
+        var errIndexOutOfBounds: any Error { PageTypeManagerError.indexOutOfBounds }
+
+        // MARK: pendingError sink
+
+        func recordIndexError(_ error: any Error) { m.pendingError = error }
     }
 }
