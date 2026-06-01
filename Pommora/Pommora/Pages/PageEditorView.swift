@@ -51,6 +51,15 @@ struct PageEditorView: View {
     /// divider at rest.
     @State private var scrollOffset: CGFloat = 0
 
+    /// Whether the bottom stats footer is expanded. Collapsed = a tiny
+    /// up-chevron overlay (reserves no space); expanded = the `PageStatsBar`
+    /// folds into the VStack so the editor yields its height.
+    @State private var statsExpanded = false
+    /// Latest computed document statistics, shown while the footer is open.
+    /// Set synchronously on open (instant counts) and refreshed debounced as
+    /// the body changes.
+    @State private var stats = PageTextStats.empty
+
     /// Top padding of the body editor's text container, sized to leave room
     /// for the title overlay + a 14pt equidistant gap below the divider.
     /// Natural title height: `padding(.top, 24)` + 28pt bold TextField line
@@ -87,7 +96,49 @@ struct PageEditorView: View {
             // FrontmatterInspector still surfaces page properties via the
             // pop-out inspector pane when explicitly opened.
             editorZStack
+                .overlay(alignment: .bottomTrailing) {
+                    if !statsExpanded {
+                        Button {
+                            // Compute synchronously so counts show instantly on
+                            // open; the debounced task below keeps them fresh.
+                            stats = PageTextStats(body: viewModel.body)
+                            withAnimation(.easeInOut(duration: 0.22)) { statsExpanded = true }
+                        } label: {
+                            Image(systemName: "chevron.compact.up")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .padding(.trailing, 8)  // matches PageStatsBar.padding(8) → x-aligns with counts
+                        .padding(.bottom, 4)
+                        .accessibilityLabel("Show statistics")
+                    }
+                }
+
+            if statsExpanded {
+                Divider()
+                PageStatsBar(
+                    isExpanded: $statsExpanded,
+                    breadcrumb: collection.map { "\(vault.title) / \($0.title)" } ?? vault.title,
+                    stats: stats
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        // Recompute debounced while the footer is open: any body keystroke (or
+        // the open itself) restarts this task, so the 250ms sleep coalesces
+        // rapid edits before the single re-parse.
+        .task(id: StatsRecomputeKey(expanded: statsExpanded, body: viewModel.body)) {
+            guard statsExpanded else { return }
+            try? await Task.sleep(for: .milliseconds(250))
+            if !Task.isCancelled { stats = PageTextStats(body: viewModel.body) }
+        }
+    }
+
+    /// Equatable key that restarts the debounced stats recompute when either the
+    /// footer's open-state or the body text changes.
+    private struct StatsRecomputeKey: Equatable {
+        let expanded: Bool
+        let body: String
     }
 
     private var editorZStack: some View {
