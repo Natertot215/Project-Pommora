@@ -11,43 +11,36 @@ struct PageStatsBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Text(breadcrumbAttributed)
-            Spacer(minLength: 12)
-            Text(countsAttributed)
+            // "Vault › Collection › Page", Finder-style.
+            Text(joined(breadcrumb, separator: " › "))
+            Spacer(minLength: PUI.Spacing.xl)
+            // "12 · 340 · 1,890".
+            Text(joined(countComponents, separator: " · "))
                 .help("Lines · Words · Characters")
         }
         .font(.subheadline)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, PUI.Spacing.xl)
+        .padding(.vertical, PUI.Spacing.sm)
         .frame(maxWidth: .infinity)
     }
 
-    /// "Vault › Collection › Page" — component names inherit the `.secondary`
-    /// tint; the `›` separators are a touch fainter (tertiary), Finder-style.
-    private var breadcrumbAttributed: AttributedString {
-        var separator = AttributedString(" › ")
-        separator.foregroundColor = Color(nsColor: .tertiaryLabelColor)
-
-        var result = AttributedString()
-        for (index, title) in breadcrumb.enumerated() {
-            if index > 0 { result.append(separator) }
-            result.append(AttributedString(title))
-        }
-        return result
+    private var countComponents: [String] {
+        [stats.lines, stats.words, stats.characters].map { $0.formatted() }
     }
 
-    /// "12 · 340 · 1,890" — numbers inherit the `.secondary` tint; the `·`
-    /// separators are a touch fainter (tertiary label).
-    private var countsAttributed: AttributedString {
-        var separator = AttributedString(" · ")
-        separator.foregroundColor = Color(nsColor: .tertiaryLabelColor)
+    /// Joins `parts` with a `separator` tinted a touch fainter than the parts:
+    /// the parts inherit the bar's `.secondary` tint, the separator renders in
+    /// tertiary label. Used for both the breadcrumb (`›`) and the counts (`·`).
+    private func joined(_ parts: [String], separator: String) -> AttributedString {
+        var sep = AttributedString(separator)
+        sep.foregroundColor = Color(nsColor: .tertiaryLabelColor)
 
-        var result = AttributedString(stats.lines.formatted())
-        result.append(separator)
-        result.append(AttributedString(stats.words.formatted()))
-        result.append(separator)
-        result.append(AttributedString(stats.characters.formatted()))
+        var result = AttributedString()
+        for (index, part) in parts.enumerated() {
+            if index > 0 { result.append(sep) }
+            result.append(AttributedString(part))
+        }
         return result
     }
 }

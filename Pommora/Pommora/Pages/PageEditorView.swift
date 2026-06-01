@@ -168,10 +168,10 @@ struct PageEditorView: View {
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: visible)
-        .padding(.trailing, 16)
+        .padding(.trailing, PUI.Spacing.xxl)
         // Snug above the bar when open; comfortably inset from the window edge
         // when collapsed.
-        .padding(.bottom, statsExpanded ? 4 : 12)
+        .padding(.bottom, statsExpanded ? PUI.Spacing.xs : PUI.Spacing.xl)
         .accessibilityLabel(statsExpanded ? "Hide statistics" : "Show statistics")
     }
 
