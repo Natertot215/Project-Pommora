@@ -39,7 +39,7 @@ If in doubt, surface it. Better to overconfirm than retrofit.
 
 #### Registry
 
-Numbered, chronological. Citations elsewhere ("paradigm decision #N") resolve here. Each entry is the decision plus a one-line rationale; full session context lives in `History.md`.
+Numbered, chronological. Citations elsewhere ("paradigm decision  # ") resolve here. Each entry is the decision plus a one-line rationale; full session context lives in `History.md`.
 
 1. **`PropertyValue.relation` encodes as an array of tagged objects `[{"$rel": "<ULID>"}]`** (always multi-value; a single link is a one-element array), not bare strings — relation edges stay legible to external agents and the graph indexer without consulting a Type's schema (constraint #3).
 2. **Collections persist a sidecar** (`_pagecollection.json` / `_itemcollection.json`, carrying id + parent-Type id + ordering) — the parent relation is explicit on-disk rather than inferred from folder nesting.
@@ -56,4 +56,4 @@ Numbered, chronological. Citations elsewhere ("paradigm decision #N") resolve he
 12. **Agenda Tasks and Events are valid relation targets** — relation properties (and paired reverse relations) may target the Agenda Tasks or Agenda Events collections, the same as Page Types and Item Types.
 
 
-> **Note on numbering.** This registry's cross-project entries run #1–#12. A few cross-references in other docs use *plan-local* numbering from their own source lists — notably `History.md`'s "locked decision #12" (the View-Settings plan's list, recorded in a Handoff), which is unrelated to registry #12. Resolve a plan-local citation against its source plan + `History.md`; resolve a bare "paradigm decision #N" against this registry. The registry is extended only when a genuinely cross-project paradigm decision is ratified.
+> **Note on numbering.** This registry's cross-project entries run #1–#12. A few cross-references in other docs use *plan-local* numbering from their own source lists — notably `History.md`'s "locked decision #12" (the View-Settings plan's list, recorded in a Handoff), which is unrelated to registry #12. Resolve a plan-local citation against its source plan + `History.md`; resolve a bare "paradigm decision #" against this registry. The registry is extended only when a genuinely cross-project paradigm decision is ratified.

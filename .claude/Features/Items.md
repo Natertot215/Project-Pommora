@@ -22,6 +22,8 @@ The Items-side container layer mirrors the Pages-side ([[PageTypes]]) shape.
 
 New-Item entry points scope to a Type ("New Bookmark"), not to a container. The Item Window shows properties inherited from the parent Item Type's schema; the Item itself only stores values.
 
+**Row ordering (interim).** Item Type / Item Collection detail tables are display-only for row order — they mirror the sidebar's file-level order (empty-state default = creation order via the ULID id; manual order persists in `item_order`). Type/Set-level drag-reorder, per-view `order`, group-by and sort are deferred to the saved-views system (v0.5.0–v0.6.0). Flat reorder inside an Item Collection's own detail view is unaffected. Mirror of the Pages-side note in [[PageTypes]]; record: `Planning/2026-05-31-vault-table-displayonly-interim.md`.
+
 ---
 
 #### On disk

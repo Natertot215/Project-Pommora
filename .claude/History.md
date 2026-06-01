@@ -2,6 +2,18 @@
 
 Changelog — what changed and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; the roadmap and phases live in `Framework.md`.
 
+#### Manager de-dup + vault-table display-only + creation-order default (2026-05-31)
+
+Three-stage consolidated refactor; per-commit green, full suite 1045.
+
+- **Vault-table display-only + creation-order** (`f4bd2ad`→`a8585fa`). Page/Item **Type** detail tables are display-only for row order — they mirror the sidebar's file-level order; vault-level structural reorder and per-view order/sort/group are deferred to the per-view system (v0.5.0–v0.6.0). Collection/Set tables keep flat reorder. Dead `SessionRowOrdering` + 2 obsolete vault-drag tests removed. Empty-state default order changed alphabetical → **creation order** (ULID-id ascending in `OrderResolver`), uniform across all containers, portable, no new field. Reason: SwiftUI `Table` can't combine collapsible grouping with reliable nested reorder. Full record: `Planning/2026-05-31-vault-table-displayonly-interim.md`.
+- **`ItemTypeManager.typesByID` removed** (`df977d1`→`2c89fea`). The Item-only by-id lookup dict + its 18 `rebuildTypesByID()` calls deleted; both readers (`parentItemType`, detail `liveType`) resolve by `types.first { … }` scan, matching `PageTypeManager`. The two type managers are now symmetric. Behavior-preserving (characterization-pinned).
+- **Property-mutation de-dup** (`07eba8b`→`7f21698`). The 5 duplicated schema-mutation methods (`addProperty`/`renameProperty`/`deleteProperty`/`reorderProperty`/`changeType`) across all four managers extracted into two shared `@MainActor` services — `SingletonSchemaService` (Agenda Task/Event) + `PerTypeSchemaService` (Page/Item) — driven by per-side adapters. ~510 lines removed from the managers; the copy-paste collapsed from 5×4 to 5×2. Zero behavior change: paired relations, transactional member-strip atomicity, `MemberFileStrip.forEach` resilience, the delete-tolerance fix (`95f662d`), and the per-manager concrete error enums all preserved. Closed 4 prior test gaps first (`reorderProperty` had zero coverage; Agenda delete-strip + lossy-`changeType`; index-through-manager).
+
+Deferred/flagged: `AgendaEventManagerError.cannotDeleteBuiltinProperty`'s doc says "events have no `_status`" yet the guard still blocks it (behavior preserved; decide separately). `ULID.generate()` lacks same-millisecond monotonicity, so creation-order is exact across milliseconds but stable-arbitrary within one (optional future: add the spec's monotonic increment). Optional future: unify the two schema cores into one adapter-driven service (two kept here to keep the Agenda extraction low-risk).
+
+---
+
 #### Native IconPicker + OptionEditPopover restyle (2026-05-30)
 
 The third-party `xnth97/SymbolPicker` is replaced by Pommora's own **`IconPicker`** — a compact (260×306) Liquid-Glass dropdown over the **full SF Symbols 6 catalog** (`IconCatalog`, 6,195 names bundled as source), with search and **Saved/favorites** (`IconFavorites`, app-level UserDefaults; ordering/cap logic TDD'd). Forced by reading the library's source: it hardcodes a 540pt macOS frame and keeps its catalog `internal` — neither resizable nor re-skinnable. Hosted via one `.iconPickerPopover` modifier (`.presentationBackground(.clear)` so only the picker's own `chipDropdownPanel` glass shows — kills the old double-glass); adopted at every icon-edit entry (StorageMenuRoot header, EditPropertyPane ×4, IconPickerField, IconPickerSheet). `import SymbolPicker` is gone everywhere; the SPM dep is now unused (removable). Supersedes paradigm decision #3; resolves Fix Log #1 ("icon picker too large").
@@ -210,7 +222,7 @@ Three shipped threads + a Properties scope brainstorm.
    - **Item Window** → property panel in popover's own inspector + pinned-property chips above title (saved at Item Collection level); ships with Item Window redesign
    - **Main window inspector** → Claude chat (CLI subprocess bridge; ships independently); properties NEVER live here
 
-5. **Six conceptual decisions locked** (added as decisions #21-#26 in spec):
+3. **Six conceptual decisions locked** (added as decisions #21 #26 in spec):
    - Lazy properties: "+ Add property" picker only lists EXISTING schema properties not yet populated on this entity. Brand-new schema entries go through Type Settings.
    - Per-Type property order: drag-reorder in any surface writes to the parent Type's per-kind sidecar declaration order (affects every entity of that Type). No per-entity override at v0.3.0.
    - Empty surface state: "No properties" message + "+ Add property" affordance. Surface stays visible.

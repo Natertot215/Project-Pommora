@@ -37,11 +37,22 @@ Working tree: a parallel session has uncommitted edits to `Guidelines/Paradigm-D
 - **Then live-smoke:** vault tables display-only + mirror the sidebar live; collection/set reorder still works.
 - **Deferred (v0.5.0–v0.6.0):** the full per-view system — per-view `order` on `SavedView`, group-by-collection-vs-property (mutually exclusive; property-group flattens collections), sort, multi-saved-view tabs, and the table-engine choice (flat-`Table` vs `visfitness` vs AppKit `NSOutlineView`). Design captured in the interim doc.
 
+#### ⚖️ Two-track sequencing — advice (2026-05-31, de-dup session)
+
+**✅ SHIPPED 2026-05-31 — A → B1 → B2 all landed green (full suite 1045); see `History.md`.** Both tracks executed: vault-table display-only + creation-order default; `ItemTypeManager` normalized (`typesByID` removed, managers symmetric); and the 4-manager property-mutation de-dup behind `PerTypeSchemaService` + `SingletonSchemaService` (+ a post-review cleanup making the Agenda member-strip resilient). The sequencing advice below is retained as the historical record.
+
+- **A · Vault-table display-only** (`Planning/2026-05-31-vault-table-displayonly-plan.md`) — ready (Tasks 1–4), small, removal-only; the established Next Session. Edits the **detail views** (PageType/ItemTypeDetailView drag) + `SessionRowOrdering` + reorder tests + docs. **Does NOT touch the type managers.**
+- **B · Manager property de-dup** (`Planning/Normalize-ItemType-Lookup-Plan.md` → `Manager-Property-Dedup-Plan.md`) — planned + adversarially verified; **awaiting Nathan's go**. Internal/behavior-preserving. Edits the **type managers** (5 property methods; Normalize also strips `typesByID` + ~18 `rebuildTypesByID()` calls) + one line of `ItemTypeDetailView` (`liveType`).
+- **Why A first:** ready, lower-risk, removal-only; leaves the managers untouched so B runs on a clean base.
+- **Cross-dependency is mild** — the only shared file is `ItemTypeDetailView.swift`: A edits the rows/drag region (~222–307), B (Normalize) edits `liveType` (~134) — non-overlapping. **Cornerstone: whoever runs second re-derives line numbers by grep before editing** (each plan now carries a Coordination note). Within B, Normalize precedes Dedup and shifts the managers' method lines.
+- **This session (de-dup track):** graphify map → structural review → quantified the 4-manager property-mutation duplication (~590–845 lines) → wrote + adversarially verified both B plans → refreshed the `Nexus//Pommora` doc mirror (real copies; symlink drift deferred).
+
 #### Pending Focuses
 
 - **Execute the interim plan (above).**
 - **Live smoke from the prior session (still pending — Nathan):** relaunch to trigger the `#3` `type_id` reconcile (`fa3e827`; heals the 11 drifted collections → II. Commands etc. show Systems' properties); edit a relation's Mirror name/icon and confirm it lands on the target Type (`966208e`); confirm Edit Icon from popover / sidebar / detail-table.
 - **`History.md` log pending:** the Storage-Editing pass + this session's per-view decision should get a brief `History.md` entry once the parallel session's uncommitted `History.md` edits are committed (couldn't add cleanly now — quirk #10).
+- **`Nexus//Pommora` mirror — symlink drift (deferred, Nathan's call):** doc-mirror symlinks keep materializing into stale real files (`/doc-mirror --audit` → 31 SHADOW), likely the automated "vault backup" git commits. Now on **real-copy refresh** (re-run the doc copy after edits). Proper fix later: adjust the vault-backup automation to preserve symlinks then re-link, or automate the real-copy refresh.
 - Test nexus: `~/Test`; real nexus: `~/The Nexus`.
 
 #### Fix Log
