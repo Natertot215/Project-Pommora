@@ -239,7 +239,9 @@ struct PageEditorView: View {
                 // row reveals a faint "Add Icon" affordance on the RIGHT. In every
                 // other state nothing leads the title, so it stays flush-left with
                 // zero reserved indent.
-                HStack(alignment: .center, spacing: PUI.Spacing.sm) {
+                // `.firstTextBaseline` sits the inline icon on the title's text
+                // baseline (centered alignment floated it slightly high).
+                HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.sm) {
                     if showInlinePageIcon, let icon = pageIcon {
                         pageIconButton(icon)
                     }
