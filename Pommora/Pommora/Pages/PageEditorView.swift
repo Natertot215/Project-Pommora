@@ -163,20 +163,24 @@ struct PageEditorView: View {
             Image(systemName: statsExpanded ? "chevron.compact.down" : "chevron.compact.up")
                 .font(.title2)
                 .foregroundStyle(.secondary)
-                .frame(width: 48, height: 28)  // comfortable, always-present hover/hit zone
-                .contentShape(Rectangle())
                 .opacity(visible ? 1 : 0)
+                .frame(width: 48, height: 28)
+                .contentShape(Rectangle())
+                // Pointer + hover + hit all share this one region (centered on
+                // the glyph), so the clickable cursor matches the reveal area in
+                // BOTH the up (collapsed) and down (expanded) states. Applying
+                // .pointerStyle / .onHover after the outer padding put the
+                // pointer on a smaller, offset region — the cause of the cursor
+                // activating below the glyph and not at all when expanded.
+                .pointerStyle(.link)
+                .onHover { hoveringChevron = $0 }
         }
         .buttonStyle(.plain)
-        // Pointer cursor over the chevron — overrides the editor's I-beam so it
-        // reads as clickable.
-        .pointerStyle(.link)
         .animation(.easeInOut(duration: 0.2), value: visible)
         .padding(.trailing, 16)
         // Snug above the bar when open; comfortably inset from the window edge
         // when collapsed.
         .padding(.bottom, statsExpanded ? 4 : 12)
-        .onHover { hoveringChevron = $0 }
         .accessibilityLabel(statsExpanded ? "Hide statistics" : "Show statistics")
     }
 
