@@ -20,9 +20,8 @@ enum PageCollectionValidator {
             throw ValidationError.invalidTitleCharacters
         }
 
-        let conflict = existingInType.contains { c in
-            c.id != excluding?.id && c.title.lowercased() == trimmed.lowercased()
-        }
-        if conflict { throw ValidationError.duplicateTitle }
+        try NameCollisionValidator.validate(
+            desiredTitle: trimmed, siblings: existingInType, excludingID: excluding?.id,
+            else: ValidationError.duplicateTitle)
     }
 }

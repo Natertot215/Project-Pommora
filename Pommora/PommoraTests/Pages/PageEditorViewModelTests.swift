@@ -16,14 +16,38 @@ struct PageEditorViewModelTests {
         vm.body = "B"
         vm.body = "C"
 
-        // Debounce is 300ms; wait long enough for the scheduled task to fire.
-        // Generous margin (800ms) so the assertion stays reliable when the full
-        // suite runs all test bundles in parallel and the host is CPU-saturated —
-        // a 500ms window can slip past the 300ms timer under load and flake.
-        try await Task.sleep(for: .milliseconds(800))
+        // Event-based wait, NOT a fixed wall-clock sleep: a fixed sleep slips past
+        // the 300ms debounce under full-suite parallel CPU load and flakes. Poll
+        // until the debounced save actually fires (>=1), with a generous ceiling
+        // so a saturated host just polls longer rather than failing early.
+        try await pollUntil(timeout: .seconds(5), interval: .milliseconds(25)) {
+            saver.saved.count >= 1
+        }
+
+        // Settle past one more debounce window to prove the 3 edits COALESCED into
+        // exactly one save (not three) — if a stray timer were still pending it'd
+        // land inside this window and bump the count.
+        try await Task.sleep(for: PageEditorViewModel.debounce * 2)
 
         #expect(saver.saved.count == 1)
         #expect(saver.saved.first?.body == "C")
+    }
+
+    /// Polls `condition` every `interval` until it returns true or `timeout`
+    /// elapses; throws if the timeout is hit. Lets a debounced-save assertion
+    /// wait on the *event* (the save landing) instead of a fixed wall-clock
+    /// duration that flakes under parallel-suite CPU load.
+    private func pollUntil(
+        timeout: Duration,
+        interval: Duration,
+        _ condition: @MainActor () -> Bool
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition() { return }
+            try await Task.sleep(for: interval)
+        }
+        throw PollTimeout.exceeded
     }
 
     @Test("flushNow cancels pending debounce and saves immediately")
@@ -121,4 +145,10 @@ private final class StubPageSaver: PageSaver {
 
 private enum StubSaveError: Error {
     case simulated
+}
+
+/// Thrown by `pollUntil` when the polled condition never becomes true within the
+/// timeout — surfaces as a test failure with a clear cause instead of a silent hang.
+private enum PollTimeout: Error {
+    case exceeded
 }

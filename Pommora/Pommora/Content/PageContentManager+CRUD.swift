@@ -29,21 +29,20 @@ extension PageContentManager {
         among siblings: [PageMeta],
         excluding: PageMeta? = nil
     ) throws {
-        do {
-            try NameCollisionValidator.validate(
-                desiredTitle: desiredTitle, siblings: siblings, excludingID: excluding?.id
-            )
-        } catch is NameCollisionError {
-            throw PageCRUDError.duplicateTitle  // preserve a Page-side contract
-        }
+        try NameCollisionValidator.validate(
+            desiredTitle: desiredTitle, siblings: siblings, excludingID: excluding?.id,
+            else: PageCRUDError.duplicateTitle  // preserve a Page-side contract
+        )
     }
 
     /// Defense-in-depth for the create write path: a freshly-created Page mints
     /// a new id, so any file already at its target URL is owned by a *different*
     /// entity. Refuse the write rather than clobber it — even if a caller ever
     /// skipped `enforceTitleUniqueness` (e.g. a stale in-memory sibling list).
+    /// Delegates to the shared `Filesystem.guardNoFile` (Pages / Items / Agenda
+    /// share one shape) but keeps the Page-side `duplicateTitle` wording.
     fileprivate func guardNoOverwrite(at url: URL) throws {
-        if Filesystem.fileExists(at: url) { throw PageCRUDError.duplicateTitle }
+        try Filesystem.guardNoFile(at: url, else: PageCRUDError.duplicateTitle)
     }
 
     // MARK: - Page CRUD (PageCollection-scoped)
@@ -374,6 +373,13 @@ extension PageContentManager {
         do {
             let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: destination.folderURL)
 
+            // Refuse to clobber a different same-title Page already in the
+            // destination. `SchemaTransaction.commit` backs the target up then
+            // deletes the backup on success — so without this guard a move would
+            // silently destroy the other Page's body (no renameFile here to catch
+            // it, unlike rename/moveProject). Page-side `duplicateTitle` wording.
+            try guardNoOverwrite(at: destURL)
+
             // Load source body so we can rewrite at the new location.
             let pageFile = try PageFile.load(from: page.url)
 
@@ -463,6 +469,12 @@ extension PageContentManager {
             // 4. Compute destination URL.
             let destFolder = toCollection?.folderURL ?? folderURL(for: destination)
             let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: destFolder)
+
+            // 4a. Refuse to clobber a different same-title Page already in the
+            //     destination Type/Collection (same data-loss vector as the
+            //     between-Collections move — SchemaTransaction would back up + drop
+            //     the existing file). Page-side `duplicateTitle` wording.
+            try guardNoOverwrite(at: destURL)
 
             // 5. Stage the rewritten page at destination.
             let tx = SchemaTransaction()

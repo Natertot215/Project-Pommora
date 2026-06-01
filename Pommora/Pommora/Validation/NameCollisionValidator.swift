@@ -1,15 +1,31 @@
 import Foundation
 
-/// Anything that occupies a filename slot inside a container (Item, PageMeta).
-/// Both expose `id` (rename-safe identity) + `title` (the filename stem).
-/// Conformance is free — both types already carry these fields.
+/// Anything that occupies a filename slot inside a container (operational
+/// entities — Item, PageMeta, AgendaTask, AgendaEvent — and the organizational
+/// entities + containers — Space, Topic, PageType, ItemType, PageCollection,
+/// ItemCollection). All expose `id` (rename-safe identity) + `title` (the
+/// filename / folder stem). Conformance is free — every type already carries
+/// these fields, so the same-title collision rule lives in one place for all.
 protocol NameCollisionCandidate {
     var id: String { get }
     var title: String { get }
 }
 
+// Operational entities (file-backed: `.md` / `.json` / `.task.json` / `.event.json`).
 extension Item: NameCollisionCandidate {}
 extension PageMeta: NameCollisionCandidate {}
+extension AgendaTask: NameCollisionCandidate {}
+extension AgendaEvent: NameCollisionCandidate {}
+
+// Organizational entities + containers (folder-backed; sibling-uniqueness is the
+// same case-insensitive/trimmed rule). `Project` deliberately does NOT conform —
+// its collision check adds a parent-scope dimension this validator doesn't model.
+extension Space: NameCollisionCandidate {}
+extension Topic: NameCollisionCandidate {}
+extension PageType: NameCollisionCandidate {}
+extension ItemType: NameCollisionCandidate {}
+extension PageCollection: NameCollisionCandidate {}
+extension ItemCollection: NameCollisionCandidate {}
 
 /// One source of truth for the same-container name-collision rule shared by
 /// Pages and Items.
@@ -51,6 +67,25 @@ enum NameCollisionValidator {
                 && sibling.title.trimmingCharacters(in: .whitespaces).lowercased() == needle
         }
         if conflict { throw NameCollisionError.duplicateTitle }
+    }
+
+    /// Side-specific overload: runs the same collision detection but rethrows the
+    /// caller's own `error` on collision instead of `NameCollisionError`. Hoists
+    /// the `do { try validate(...) } catch is NameCollisionError { throw <side>.duplicateTitle }`
+    /// remap that previously lived (identically) in every side's manager into a
+    /// one-liner: each side passes its own `duplicateTitle` case so its public
+    /// error contract + toast wording stay intact (DRY hard rule).
+    static func validate<C: NameCollisionCandidate>(
+        desiredTitle: String,
+        siblings: [C],
+        excludingID: String? = nil,
+        else error: @autoclosure () -> any Error
+    ) throws {
+        do {
+            try validate(desiredTitle: desiredTitle, siblings: siblings, excludingID: excludingID)
+        } catch is NameCollisionError {
+            throw error()
+        }
     }
 }
 

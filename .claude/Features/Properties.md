@@ -138,7 +138,7 @@ Every entity (Page, Item, Agenda Task, Agenda Event, Context) carries two indepe
 - **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. Used by every cross-reference (wikilinks, relation values, tier1/2/3 links, the SQLite index).
 - **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else.
 
-Duplicate titles allowed within the same container — two Pages named "Meeting Notes" in the same Page Type / Page Collection is fine because their IDs are distinct. Filesystem may auto-append a `(2)` suffix to a colliding filename, but the displayed title stays the user-typed value.
+Title collisions within the same container are rejected (identity is the ULID; the title is the filename slot, unique per folder) — canonical rule → [[Domain-Model]] § "Entity identity vs title".
 
 Wikilinks resolve by ID. Disk format: `[[Title|01HXYZ...]]` — title is the rendered label, ULID after the pipe is the unambiguous reference. Renames update the displayed label at render time; the stored reference never changes. Untargeted `[[Title]]` (typed or pasted from another tool) resolves by current basename match; the editor underlines ambiguous matches.
 

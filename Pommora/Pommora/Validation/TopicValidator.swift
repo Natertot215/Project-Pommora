@@ -23,10 +23,9 @@ enum TopicValidator {
             throw ValidationError.invalidTitleCharacters
         }
 
-        let conflict = existing.contains { topic in
-            topic.id != excluding?.id && topic.title.lowercased() == trimmed.lowercased()
-        }
-        if conflict { throw ValidationError.duplicateTitle }
+        try NameCollisionValidator.validate(
+            desiredTitle: trimmed, siblings: existing, excludingID: excluding?.id,
+            else: ValidationError.duplicateTitle)
 
         for parentID in parents {
             if context.lookupSpace(parentID) == nil {

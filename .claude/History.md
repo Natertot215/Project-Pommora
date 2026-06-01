@@ -2,6 +2,12 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### Title-collision data-loss fix + NexusEnvironment injection + cleanup (2026-06-01)
+
+- **Title-collision data-loss fix (all file-backed entities).** A same-title create / rename / cross-container move silently overwrote a sibling's file (e.g. a Page's `.md` body) — `filename = title` + an overwriting atomic write. Now **rejected** uniformly: one shared `NameCollisionValidator` (case-insensitive; same-id rename exempt) covers Pages, Items, and Agenda Tasks/Events on create + rename; the cross-container move paths (Page/Item between-Collection + across-Type, which commit via `SchemaTransaction`) and `Filesystem.renameFile` got no-overwrite guards (`Filesystem.guardNoFile`); the six container validators (Spaces / Topics, Page+Item Types & Collections) delegate to the same validator. Self-recasing one's own title (`notes`→`Notes`) is allowed — the rename guard compares on-disk file identity, not the case-folded name. Policy: **reject**, not auto-suffix → registry #13; supersedes the prior "duplicates allowed" doc claim. Independent duplicate titles remain a Prospect (needs a title field).
+- **`NexusEnvironment` injection container.** `ContentView`'s ~16 hand-wired manager optionals + two scattered `.environment(...)` chains collapsed into one container owning every manager + a single `.injectNexusEnvironment(_:)` modifier — removes the missing-inject `EXC_BREAKPOINT` footgun (quirk #15); behavior-identical to the former `constructManagers`. Not `@Observable` (held in `@State`, read whole; members are `let`).
+- **Cleanup:** `debounceCoalescesRapidEdits` made deterministic (event-poll + settle, reads the VM's real debounce interval) — the wall-clock flake is gone. Shared `Filesystem.guardNoFile` + a `NameCollisionValidator(…else:)` overload collapse the per-side collision wiring; `AppGlobals.publish(...)` collapses the 9-slot publish block.
+
 #### Manager de-dup + vault-table display-only + creation-order default (2026-05-31, v0.3.4)
 
 Three-stage consolidated refactor; per-commit green, full suite 1045.

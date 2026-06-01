@@ -47,7 +47,11 @@ final class PageEditorViewModel {
 
     private let saver: any PageSaver
     private var saveTask: Task<Void, Never>?
-    private static let debounce: Duration = .milliseconds(300)
+    /// Debounce window between a body edit and the disk write. Rapid edits within
+    /// this window coalesce into one save. Internal (not `private`) so tests can
+    /// derive their poll/settle timing from the real value instead of hardcoding
+    /// it — see `PageEditorViewModelTests.debounceCoalescesRapidEdits`.
+    static let debounce: Duration = .milliseconds(300)
 
     init(page: PageMeta, body: String, saver: any PageSaver) {
         self.page = page

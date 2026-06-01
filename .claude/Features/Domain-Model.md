@@ -120,7 +120,7 @@ Every entity carries two independent identifiers:
 - **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (wikilinks, relation values, tier links, the SQLite index).
 - **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else. Cross-references are NOT rewritten on rename — they're ID-keyed and resolve to the current title at render time.
 
-**Duplicate titles allowed within the same container** — two Pages named "Meeting Notes" in the same Page Type / Page Collection is fine because their IDs are distinct. Filesystem may auto-disambiguate (append `(2)` etc.) but the displayed title stays the user-typed value. The prior strict-reject duplicate-title validator behavior is dropped.
+**Duplicate titles are rejected within the same container** — creating, renaming, or moving any entity (Page, Item, Agenda Task/Event, or a Context/container) to a title a sibling already holds (case-insensitive) is refused, not auto-renamed. Identity is the ULID, not the title; the rejection guards only the on-disk filename slot, since `filename = title` and a folder can't hold two files with the same name. The same title in *different* containers is fine, and recasing an entity's own title is allowed. (Truly independent duplicate titles would need a separate title field — see [[Prospects]].)
 
 Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks".
 

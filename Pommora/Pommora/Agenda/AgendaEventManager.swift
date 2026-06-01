@@ -17,17 +17,26 @@ final class AgendaEventManager {
     /// AgendaEventManager-specific errors that need to surface to UI.
     /// Named `AgendaEventError` (not `Error`) to avoid shadowing Swift's `Error`
     /// protocol in the rest of the class body.
-    enum AgendaEventError: LocalizedError {
+    enum AgendaEventError: LocalizedError, Equatable {
         /// Thrown by `updateEvent` when the caller's `event.title` differs from
         /// the on-record title. Title changes must go through `renameEvent`
         /// first so the file is moved before the metadata write.
         case titleChangeRequiresRename
+        /// Thrown by `createEvent` / `renameEvent` when a *different* Event in the
+        /// Events singleton already holds the desired title (case-insensitive).
+        /// Two same-titled Events resolve to the same `.event.json` path, so the
+        /// second write would silently clobber the first — reject instead
+        /// (locked: no auto-rename, no overwrite). Mirrors `PageCRUDError` /
+        /// `ItemCRUDError.duplicateTitle`.
+        case duplicateTitle
 
         var errorDescription: String? {
             switch self {
             case .titleChangeRequiresRename:
                 return
                     "An agenda event's title can only be changed via renameEvent; updateEvent refuses to do both at once."
+            case .duplicateTitle:
+                return "An Event with that name already exists."
             }
         }
     }
@@ -45,6 +54,22 @@ final class AgendaEventManager {
 
     init(nexus: Nexus) {
         self.nexus = nexus
+    }
+
+    // MARK: - Title uniqueness (same-singleton collision)
+    //
+    // `AgendaEventValidator` owns title shape + start/end consistency, but it
+    // can't see sibling Events. The same-container collision rule — which
+    // prevents a create/rename from silently overwriting another Event's
+    // `.event.json` — lives here, delegated to the shared
+    // `NameCollisionValidator` so Pages, Items, and Agenda enforce one identical
+    // rule. "Same container" = the Events singleton (a flat folder), so the
+    // sibling list is the whole `events` array.
+    private func enforceTitleUniqueness(_ desiredTitle: String, excluding: AgendaEvent? = nil) throws {
+        try NameCollisionValidator.validate(
+            desiredTitle: desiredTitle, siblings: events, excludingID: excluding?.id,
+            else: AgendaEventError.duplicateTitle  // preserve the Event-side contract
+        )
     }
 
     func loadAll() async {
@@ -97,9 +122,11 @@ final class AgendaEventManager {
                 properties: event.properties,
                 schema: schema
             )
+            try enforceTitleUniqueness(event.title)
             let dir = NexusPaths.eventsDir(in: nexus)
             try NexusPaths.ensureDirectoryExists(dir)
             let url = NexusPaths.eventFileURL(forTitle: event.title, in: nexus)
+            try Filesystem.guardNoFile(at: url, else: AgendaEventError.duplicateTitle)
             try event.save(to: url)
 
             if let updater = indexUpdater {
@@ -161,6 +188,7 @@ final class AgendaEventManager {
                 properties: event.properties,
                 schema: schema
             )
+            try enforceTitleUniqueness(newTitle, excluding: event)
 
             let oldURL = NexusPaths.eventFileURL(forTitle: event.title, in: nexus)
             let newURL = NexusPaths.eventFileURL(forTitle: newTitle, in: nexus)

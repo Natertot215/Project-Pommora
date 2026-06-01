@@ -20,9 +20,8 @@ enum SpaceValidator {
             throw ValidationError.invalidTitleCharacters
         }
 
-        let conflict = existing.contains { space in
-            space.id != excluding?.id && space.title.lowercased() == trimmed.lowercased()
-        }
-        if conflict { throw ValidationError.duplicateTitle }
+        try NameCollisionValidator.validate(
+            desiredTitle: trimmed, siblings: existing, excludingID: excluding?.id,
+            else: ValidationError.duplicateTitle)
     }
 }

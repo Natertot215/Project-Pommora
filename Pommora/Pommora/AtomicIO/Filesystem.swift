@@ -64,17 +64,53 @@ enum Filesystem {
         return exists && !isDir.boolValue
     }
 
+    /// Throws `error` when a file already exists at `url`. The one shared shape
+    /// of the per-side "don't clobber a different entity's file on create" guard
+    /// (Page / Item / Agenda all route through this). Each side passes its own
+    /// `duplicateTitle` error so its toast wording is preserved (DRY hard rule).
+    /// Create-only: a freshly-minted entity owns a new id, so ANY file already at
+    /// the target path belongs to a different entity — no canonical-identity
+    /// escape hatch is needed here (that lives in `renameFile`, where a self-recase
+    /// is legitimate).
+    static func guardNoFile(at url: URL, else error: @autoclosure () -> any Error) throws {
+        if fileExists(at: url) { throw error() }
+    }
+
     /// Renames/moves a file. Refuses to overwrite a *different* existing file at
     /// `newURL` (defense-in-depth against the duplicate-title overwrite data
-    /// loss — see `NameCollisionValidator`). A same-path move (`oldURL` resolves
-    /// to `newURL`) is a no-op and allowed, so renaming an entity to its own
-    /// current title never errors.
+    /// loss — see `NameCollisionValidator`). A move whose destination resolves to
+    /// the SAME underlying file as the source is allowed through, so renaming an
+    /// entity to its own current title — including a case-only recase on a
+    /// case-insensitive volume (APFS), e.g. `notes` → `Notes` — never errors:
+    /// `moveItem` recases in place. We only throw when `newURL` names a
+    /// *genuinely different* file.
     static func renameFile(from oldURL: URL, to newURL: URL) throws {
         if oldURL.standardizedFileURL == newURL.standardizedFileURL { return }
-        if fileExists(at: newURL) {
+        if fileExists(at: newURL), !isSameUnderlyingFile(oldURL, newURL) {
             throw FilesystemError.destinationExists(destination: newURL)
         }
         try FileManager.default.moveItem(at: oldURL, to: newURL)
+    }
+
+    /// True when both URLs resolve to the SAME underlying file. On a
+    /// case-insensitive volume `notes` and `Notes` are one file; their
+    /// `standardizedFileURL` strings differ (no case fold) but their filesystem
+    /// identity is identical — this is the self-recase case `renameFile` must
+    /// allow. Compares the volume-scoped `fileResourceIdentifierKey` (the
+    /// authoritative same-file token); falls back to comparing resolved canonical
+    /// (symlink-flattened, case-normalized) paths when the key is unavailable.
+    private static func isSameUnderlyingFile(_ a: URL, _ b: URL) -> Bool {
+        if let idA = (try? a.resourceValues(forKeys: [.fileResourceIdentifierKey]))?
+            .fileResourceIdentifier,
+            let idB = (try? b.resourceValues(forKeys: [.fileResourceIdentifierKey]))?
+                .fileResourceIdentifier
+        {
+            return idA.isEqual(idB)
+        }
+        // Fallback: resolveSymlinksInPath canonicalizes (and case-normalizes on a
+        // case-insensitive volume) so a self-recase compares equal here too.
+        return a.resolvingSymlinksInPath().standardizedFileURL.path
+            == b.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     // MARK: - Two-step folder+metadata atomicity

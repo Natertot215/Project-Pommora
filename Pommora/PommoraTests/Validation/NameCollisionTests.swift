@@ -137,6 +137,86 @@ struct NameCollisionTests {
         #expect(manager.pages(in: coll).count == 1)
     }
 
+    @Test("renamePage case-only recase (notes → Notes) succeeds + recases file + body intact")
+    func pageRenameCaseOnlyRecaseSucceeds() async throws {
+        // FIX 1 regression: on a case-insensitive volume (APFS) a self-recase
+        // resolves `fileExists(at:)` to the SAME underlying file; renameFile must
+        // recase in place via moveItem, NOT throw destinationExists.
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "notes", in: coll, vault: vault)
+        let page = manager.pages(in: coll).first { $0.title == "notes" }!
+        try await manager.updatePage(page, body: "PRECIOUS BODY", in: coll, vault: vault)
+
+        // Recase: lowercase → titlecase. Same entity, different-case title.
+        try await manager.renamePage(page, to: "Notes", in: coll, vault: vault)
+
+        // File is recased on disk (the stored filename now reads "Notes.md") and
+        // the body survived the in-place move.
+        let recasedURL = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
+        #expect(FileManager.default.fileExists(atPath: recasedURL.path))
+        let onDiskName = try storedFilename(in: coll.folderURL, matching: "notes.md")
+        #expect(onDiskName == "Notes.md")
+        #expect(try PageFile.load(from: recasedURL).body == "PRECIOUS BODY")
+        #expect(manager.pages(in: coll).count == 1)
+        #expect(manager.pages(in: coll).first?.title == "Notes")
+    }
+
+    @Test("renamePage onto a DIFFERENT sibling whose title differs only in case still throws")
+    func pageRenameOntoCaseVariantSiblingRejected() async throws {
+        // Companion to FIX 1: a recase of one's OWN file is allowed, but renaming
+        // onto a *different* sibling that happens to differ only in case is still
+        // a collision and must throw (no clobber).
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Ideas", in: coll, vault: vault)
+        let notes = manager.pages(in: coll).first { $0.title == "Notes" }!
+        let ideas = manager.pages(in: coll).first { $0.title == "Ideas" }!
+        try await manager.updatePage(notes, body: "NOTES BODY", in: coll, vault: vault)
+        try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, vault: vault)
+
+        // Rename "Ideas" → "notes" (case-variant of the OTHER page) must throw.
+        await #expect(throws: PageCRUDError.duplicateTitle) {
+            try await manager.renamePage(ideas, to: "notes", in: coll, vault: vault)
+        }
+
+        // Both originals intact.
+        let notesURL = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
+        let ideasURL = NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL)
+        #expect(try PageFile.load(from: notesURL).body == "NOTES BODY")
+        #expect(try PageFile.load(from: ideasURL).body == "IDEAS BODY")
+        #expect(manager.pages(in: coll).count == 2)
+    }
+
+    @Test("renameItem case-only recase (notes → Notes) succeeds + recases file")
+    func itemRenameCaseOnlyRecaseSucceeds() async throws {
+        // FIX 1 regression on the Item side — same self-recase path through
+        // Filesystem.renameFile.
+        let (nexus, itemType, coll, manager) = try await setupItemCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        let original = try await manager.createItem(name: "notes", in: coll, type: itemType)
+        var withDesc = original
+        withDesc.description = "PRECIOUS"
+        try await manager.updateItem(withDesc, in: coll, type: itemType)
+        let item = manager.items(in: coll).first { $0.title == "notes" }!
+
+        try await manager.renameItem(item, to: "Notes", in: coll, type: itemType)
+
+        let recasedURL = NexusPaths.itemFileURL(forTitle: "Notes", in: coll.folderURL)
+        #expect(FileManager.default.fileExists(atPath: recasedURL.path))
+        let onDiskName = try storedFilename(in: coll.folderURL, matching: "notes.json")
+        #expect(onDiskName == "Notes.json")
+        let reloaded = try Item.load(from: recasedURL)
+        #expect(reloaded.description == "PRECIOUS")
+        #expect(reloaded.id == original.id)
+        #expect(manager.items(in: coll).count == 1)
+        #expect(manager.items(in: coll).first?.title == "Notes")
+    }
+
     // MARK: - Items: parity via the same shared validator
 
     @Test("createItem duplicate title in same ItemCollection throws + original survives")
@@ -248,6 +328,18 @@ struct NameCollisionTests {
     }
 
     // MARK: - Setup helpers
+
+    /// Returns the *case-exact* filename actually stored in `folder` whose name
+    /// case-insensitively matches `candidate`. `FileManager.fileExists` +
+    /// URL.path are case-folding on APFS, so they can't tell `notes.md` from
+    /// `Notes.md`; `contentsOfDirectory` returns the real on-disk case. Used to
+    /// prove a recase physically renamed the file rather than no-op'ing.
+    private func storedFilename(in folder: URL, matching candidate: String) throws -> String? {
+        let entries = try FileManager.default.contentsOfDirectory(
+            atPath: folder.path
+        )
+        return entries.first { $0.caseInsensitiveCompare(candidate) == .orderedSame }
+    }
 
     private func pageTypeFolder(_ nexus: Nexus, _ vault: PageType) -> URL {
         NexusPaths.pageTypeFolderURL(in: nexus.rootURL, typeFolderName: vault.title)

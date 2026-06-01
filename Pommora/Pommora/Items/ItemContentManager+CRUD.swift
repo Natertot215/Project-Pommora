@@ -35,21 +35,20 @@ extension ItemContentManager {
         guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
             throw ItemCRUDError.invalidTitleCharacters
         }
-        do {
-            try NameCollisionValidator.validate(
-                desiredTitle: trimmed, siblings: siblings, excludingID: excluding?.id
-            )
-        } catch is NameCollisionError {
-            throw ItemCRUDError.duplicateTitle  // preserve the Item-side contract
-        }
+        try NameCollisionValidator.validate(
+            desiredTitle: trimmed, siblings: siblings, excludingID: excluding?.id,
+            else: ItemCRUDError.duplicateTitle  // preserve the Item-side contract
+        )
     }
 
     /// Defense-in-depth for the create write path: a freshly-created Item mints
     /// a new id, so any file already at its target URL is owned by a *different*
     /// entity. Refuse the write rather than clobber it — even if a caller ever
     /// skipped `enforceTitleUniqueness` (e.g. a stale in-memory sibling list).
+    /// Delegates to the shared `Filesystem.guardNoFile` (Pages / Items / Agenda
+    /// share one shape) but keeps the Item-side `duplicateTitle` wording.
     fileprivate func guardNoOverwrite(at url: URL) throws {
-        if Filesystem.fileExists(at: url) { throw ItemCRUDError.duplicateTitle }
+        try Filesystem.guardNoFile(at: url, else: ItemCRUDError.duplicateTitle)
     }
 
     // MARK: - Item CRUD (ItemCollection-scoped)
@@ -339,6 +338,11 @@ extension ItemContentManager {
             let srcURL = NexusPaths.itemFileURL(forTitle: item.title, in: source.folderURL)
             let destURL = NexusPaths.itemFileURL(forTitle: item.title, in: destination.folderURL)
 
+            // Refuse to clobber a different same-title Item already in the
+            // destination. `SchemaTransaction.commit` would back up + drop the
+            // existing file (no renameFile here to catch it). Item-side wording.
+            try guardNoOverwrite(at: destURL)
+
             let tx = SchemaTransaction()
             try tx.stage(item, to: destURL)
             try tx.commit()
@@ -419,6 +423,11 @@ extension ItemContentManager {
                 destFolder = folderURL(for: destination)
             }
             let destURL = NexusPaths.itemFileURL(forTitle: item.title, in: destFolder)
+
+            // 3a. Refuse to clobber a different same-title Item already in the
+            //     destination Type/Collection (same data-loss vector as the
+            //     between-Collections move). Item-side `duplicateTitle` wording.
+            try guardNoOverwrite(at: destURL)
 
             // 4. Stage the rewritten item at destination.
             let tx = SchemaTransaction()

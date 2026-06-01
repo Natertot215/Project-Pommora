@@ -278,6 +278,53 @@ struct MovePageTests {
         #expect(loadedBack.frontmatter.properties["prop_x1"] == .select("active"))
     }
 
+    // MARK: - H.1.5: Move onto a same-title sibling is rejected (no clobber)
+
+    /// Moving a Page into a Collection that already holds a same-title Page must
+    /// throw `duplicateTitle` and leave the destination Page's body intact — the
+    /// move path stages via `SchemaTransaction` (which would back up + drop the
+    /// existing file), so a pre-check is the only thing standing between the user
+    /// and silent data loss.
+    @Test func moveBetweenCollectionsOntoSameTitleRejectedNoClobber() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let vault = try makePageType(nexus: nexus, title: "Tasks", properties: [])
+        let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vault)
+        let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vault)
+
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+
+        // Same title "Notes" in BOTH collections, distinct ids + bodies.
+        let srcID = ULID.generate()
+        let dstID = ULID.generate()
+        let srcFM = PageFrontmatter(
+            id: srcID, icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
+        let dstFM = PageFrontmatter(
+            id: dstID, icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
+        let srcURL = NexusPaths.pageFileURL(forTitle: "Notes", in: collA.folderURL)
+        let dstURL = NexusPaths.pageFileURL(forTitle: "Notes", in: collB.folderURL)
+        try PageFile(frontmatter: srcFM, body: "SOURCE BODY", title: "Notes").save(to: srcURL)
+        try PageFile(frontmatter: dstFM, body: "DEST BODY", title: "Notes").save(to: dstURL)
+
+        let srcPage = PageMeta(id: srcID, title: "Notes", url: srcURL, frontmatter: srcFM)
+        manager.pagesByCollection[collA.id] = [srcPage]
+        manager.pagesByCollection[collB.id] = [
+            PageMeta(id: dstID, title: "Notes", url: dstURL, frontmatter: dstFM)
+        ]
+
+        await #expect(throws: PageCRUDError.duplicateTitle) {
+            try await manager.movePageBetweenCollections(srcPage, from: collA, to: collB, in: vault)
+        }
+
+        // Neither file was clobbered: both bodies + both files survive.
+        #expect(try PageFile.load(from: srcURL).body == "SOURCE BODY")
+        #expect(try PageFile.load(from: dstURL).body == "DEST BODY")
+        #expect(try PageFile.load(from: dstURL).frontmatter.id == dstID)
+        #expect(manager.pagesByCollection[collA.id]?.count == 1)
+        #expect(manager.pagesByCollection[collB.id]?.count == 1)
+    }
+
     // MARK: - Private setup helpers
 
     @discardableResult

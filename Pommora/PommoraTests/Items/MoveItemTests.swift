@@ -236,6 +236,52 @@ struct MoveItemTests {
         #expect(loadedBack.properties["prop_x1"] == .select("active"))
     }
 
+    // MARK: - H.2.5: Move onto a same-title sibling is rejected (no clobber)
+
+    /// Item-side parity with `moveBetweenCollectionsOntoSameTitleRejectedNoClobber`:
+    /// moving an Item into a Collection that already holds a same-title Item must
+    /// throw `duplicateTitle` and leave the destination Item intact.
+    @Test func moveBetweenCollectionsOntoSameTitleRejectedNoClobber() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let itemType = try makeItemType(nexus: nexus, title: "Tasks", properties: [])
+        let collA = try makeItemCollection(nexus: nexus, title: "CollA", in: itemType)
+        let collB = try makeItemCollection(nexus: nexus, title: "CollB", in: itemType)
+
+        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+
+        // Same title "Notes" in BOTH collections, distinct ids + descriptions.
+        let srcID = ULID.generate()
+        let dstID = ULID.generate()
+        let srcItem = Item(
+            id: srcID, title: "Notes", icon: nil, description: "SOURCE",
+            tier1: [], tier2: [], tier3: [], properties: [:],
+            createdAt: Date(), modifiedAt: Date())
+        let dstItem = Item(
+            id: dstID, title: "Notes", icon: nil, description: "DEST",
+            tier1: [], tier2: [], tier3: [], properties: [:],
+            createdAt: Date(), modifiedAt: Date())
+        let srcURL = NexusPaths.itemFileURL(forTitle: "Notes", in: collA.folderURL)
+        let dstURL = NexusPaths.itemFileURL(forTitle: "Notes", in: collB.folderURL)
+        try srcItem.save(to: srcURL)
+        try dstItem.save(to: dstURL)
+
+        manager.itemsByCollection[collA.id] = [srcItem]
+        manager.itemsByCollection[collB.id] = [dstItem]
+
+        await #expect(throws: ItemCRUDError.duplicateTitle) {
+            try await manager.moveItemBetweenCollections(srcItem, from: collA, to: collB, in: itemType)
+        }
+
+        // Neither file was clobbered.
+        #expect(try Item.load(from: srcURL).description == "SOURCE")
+        #expect(try Item.load(from: dstURL).description == "DEST")
+        #expect(try Item.load(from: dstURL).id == dstID)
+        #expect(manager.itemsByCollection[collA.id]?.count == 1)
+        #expect(manager.itemsByCollection[collB.id]?.count == 1)
+    }
+
     // MARK: - Private setup helpers
 
     @discardableResult

@@ -17,17 +17,26 @@ final class AgendaTaskManager {
     /// AgendaTaskManager-specific errors that need to surface to UI.
     /// Named `AgendaTaskError` (not `Error`) to avoid shadowing Swift's `Error`
     /// protocol in the rest of the class body.
-    enum AgendaTaskError: LocalizedError {
+    enum AgendaTaskError: LocalizedError, Equatable {
         /// Thrown by `updateTask` when the caller's `task.title` differs from
         /// the on-record title. Title changes must go through `renameTask`
         /// first so the file is moved before the metadata write.
         case titleChangeRequiresRename
+        /// Thrown by `createTask` / `renameTask` when a *different* Task in the
+        /// Tasks singleton already holds the desired title (case-insensitive).
+        /// Two same-titled Tasks resolve to the same `.task.json` path, so the
+        /// second write would silently clobber the first — reject instead
+        /// (locked: no auto-rename, no overwrite). Mirrors `PageCRUDError` /
+        /// `ItemCRUDError.duplicateTitle`.
+        case duplicateTitle
 
         var errorDescription: String? {
             switch self {
             case .titleChangeRequiresRename:
                 return
                     "An agenda task's title can only be changed via renameTask; updateTask refuses to do both at once."
+            case .duplicateTitle:
+                return "A Task with that name already exists."
             }
         }
     }
@@ -45,6 +54,21 @@ final class AgendaTaskManager {
 
     init(nexus: Nexus) {
         self.nexus = nexus
+    }
+
+    // MARK: - Title uniqueness (same-singleton collision)
+    //
+    // `AgendaTaskValidator` owns title shape + time-field consistency, but it
+    // can't see sibling Tasks. The same-container collision rule — which prevents
+    // a create/rename from silently overwriting another Task's `.task.json` —
+    // lives here, delegated to the shared `NameCollisionValidator` so Pages,
+    // Items, and Agenda enforce one identical rule. "Same container" = the Tasks
+    // singleton (a flat folder), so the sibling list is the whole `tasks` array.
+    private func enforceTitleUniqueness(_ desiredTitle: String, excluding: AgendaTask? = nil) throws {
+        try NameCollisionValidator.validate(
+            desiredTitle: desiredTitle, siblings: tasks, excludingID: excluding?.id,
+            else: AgendaTaskError.duplicateTitle  // preserve the Task-side contract
+        )
     }
 
     func loadAll() async {
@@ -97,9 +121,11 @@ final class AgendaTaskManager {
                 properties: task.properties,
                 schema: schema
             )
+            try enforceTitleUniqueness(task.title)
             let dir = NexusPaths.tasksDir(in: nexus)
             try NexusPaths.ensureDirectoryExists(dir)
             let url = NexusPaths.taskFileURL(forTitle: task.title, in: nexus)
+            try Filesystem.guardNoFile(at: url, else: AgendaTaskError.duplicateTitle)
             try task.save(to: url)
             if let updater = indexUpdater {
                 do { try updater.upsertAgendaTask(task) } catch { self.pendingError = error }
@@ -157,6 +183,7 @@ final class AgendaTaskManager {
                 properties: task.properties,
                 schema: schema
             )
+            try enforceTitleUniqueness(newTitle, excluding: task)
 
             let oldURL = NexusPaths.taskFileURL(forTitle: task.title, in: nexus)
             let newURL = NexusPaths.taskFileURL(forTitle: newTitle, in: nexus)
