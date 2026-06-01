@@ -33,6 +33,11 @@ struct ViewSettingsButton: View {
     let pageTypeManager: PageTypeManager
     let itemTypeManager: ItemTypeManager
     let tierConfigManager: TierConfigManager
+    /// Threaded in pre-emptively: the `.page` scope's settings pane (not built
+    /// yet — currently renders empty) will read this to edit a page's icon /
+    /// title. Injected onto the popover env now so that future pane needs no
+    /// plumbing change when it lands.
+    let pageContentManager: PageContentManager
 
     @State private var isPresented: Bool = false
 
@@ -51,6 +56,7 @@ struct ViewSettingsButton: View {
                 .environment(pageTypeManager)
                 .environment(itemTypeManager)
                 .environment(tierConfigManager)
+                .environment(pageContentManager)
         }
     }
 }

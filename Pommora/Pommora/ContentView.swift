@@ -112,6 +112,7 @@ struct ContentView: View {
         if let vaultMgr = vaultManager,
             let itemTypeMgr = itemTypeManager,
             let tierConfigMgr = tierConfigManager,
+            let contentMgr = contentManager,
             recentsManager != nil, pinnedManager != nil
         {
             let lookup = SidebarLookupBundle(
@@ -126,7 +127,8 @@ struct ContentView: View {
                     scope: currentViewSettingsScope,
                     pageTypeManager: vaultMgr,
                     itemTypeManager: itemTypeMgr,
-                    tierConfigManager: tierConfigMgr
+                    tierConfigManager: tierConfigMgr,
+                    pageContentManager: contentMgr
                 )
                 NavDropdownButton(asSegment: true, lookup: lookup) { sel in
                     sidebarSelection = sel
