@@ -111,7 +111,7 @@ Item Types don't display tagging (operational, not categorical). Clicking an Ite
 
 ##### Vaults (Pages-side; default label)
 
-Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages use the `doc.text` icon; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
+Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages show their frontmatter `icon` if set, else the `doc.text` default; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
 
 Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page opens it in the main detail pane via the TextKit-2 editor (shipped v0.2.7.0).
 
