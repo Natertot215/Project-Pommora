@@ -168,6 +168,9 @@ struct PageEditorView: View {
                 .opacity(visible ? 1 : 0)
         }
         .buttonStyle(.plain)
+        // Pointer cursor over the chevron — overrides the editor's I-beam so it
+        // reads as clickable.
+        .pointerStyle(.link)
         .animation(.easeInOut(duration: 0.2), value: visible)
         .padding(.trailing, 16)
         // Snug above the bar when open; comfortably inset from the window edge
