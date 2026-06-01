@@ -28,6 +28,8 @@ struct PageEditorView: View {
     let vault: PageType
     /// nil = vault-root Page (no Collection parent)
     let collection: PageCollection?
+    /// Navigate the sidebar selection (breadcrumb crumb clicks route here).
+    let onNavigate: (SidebarSelection) -> Void
 
     @Environment(PageContentManager.self) private var contentManager
 
@@ -87,11 +89,13 @@ struct PageEditorView: View {
     init(
         viewModel: PageEditorViewModel,
         vault: PageType,
-        collection: PageCollection?
+        collection: PageCollection?,
+        onNavigate: @escaping (SidebarSelection) -> Void = { _ in }
     ) {
         self.viewModel = viewModel
         self.vault = vault
         self.collection = collection
+        self.onNavigate = onNavigate
         self._titleDraft = State(initialValue: viewModel.page.title)
     }
 
@@ -109,10 +113,11 @@ struct PageEditorView: View {
             if statsExpanded {
                 Divider()
                 PageStatsBar(
-                    breadcrumb: [vault.title, collection?.title, viewModel.page.title]
-                        .compactMap { $0 }
-                        .joined(separator: " / "),
-                    stats: stats
+                    vault: vault,
+                    collection: collection,
+                    page: viewModel.page,
+                    stats: stats,
+                    onNavigate: onNavigate
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }

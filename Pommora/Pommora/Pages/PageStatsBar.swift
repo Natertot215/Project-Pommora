@@ -1,29 +1,50 @@
 import SwiftUI
 
-/// The expanded Page stats row: `Vault / Collection` on the left, `Lines ·
-/// Words · Characters` on the right. Display-only — the toggle chevron lives
-/// as an editor overlay in `PageEditorView` (outside this bar) so the bar's
-/// height stays minimal. The host owns visibility + `stats`.
+/// The expanded Page stats row: a Finder-style breadcrumb (`Vault > Collection
+/// > Page`, clickable to navigate) on the left, `Lines · Words · Characters` on
+/// the right. The toggle chevron lives as an editor overlay in `PageEditorView`
+/// (outside this bar) so the bar's height stays minimal.
 struct PageStatsBar: View {
-    let breadcrumb: String
+    let vault: PageType
+    let collection: PageCollection?
+    let page: PageMeta
     let stats: PageTextStats
+    let onNavigate: (SidebarSelection) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
-            Text(breadcrumb)
+            PathBreadcrumb(crumbs: entries.map(\.crumb)) { index in
+                onNavigate(entries[index].navigation)
+            }
+            .fixedSize()
+
             Spacer(minLength: 12)
+
             Text(countsAttributed)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .help("Lines · Words · Characters")
         }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
     }
 
-    /// "12 · 340 · 1,890" — numbers inherit the bar's `.secondary` tint; the
-    /// `·` separators are a touch fainter (tertiary label).
+    /// Breadcrumb crumbs paired with where each navigates: Vault > [Collection]
+    /// > Page. The Page crumb navigates to itself (effectively a no-op).
+    private var entries: [(crumb: PathBreadcrumb.Crumb, navigation: SidebarSelection)] {
+        var result: [(PathBreadcrumb.Crumb, SidebarSelection)] = [
+            (PathBreadcrumb.Crumb(title: vault.title), .pageType(vault))
+        ]
+        if let collection {
+            result.append((PathBreadcrumb.Crumb(title: collection.title), .collection(collection)))
+        }
+        result.append((PathBreadcrumb.Crumb(title: page.title), .page(page)))
+        return result
+    }
+
+    /// "12 · 340 · 1,890" — numbers inherit the `.secondary` tint; the `·`
+    /// separators are a touch fainter (tertiary label).
     private var countsAttributed: AttributedString {
         var separator = AttributedString(" · ")
         separator.foregroundColor = Color(nsColor: .tertiaryLabelColor)
