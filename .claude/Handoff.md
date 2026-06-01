@@ -33,7 +33,7 @@ Working tree: a parallel session has uncommitted edits to `Guidelines/Paradigm-D
 
 #### Next Session
 
-- **Execute `Planning/2026-05-31-vault-table-displayonly-plan.md`** — Tasks 1–4: make `PageTypeDetailView` + `ItemTypeDetailView` display-only (remove their drag); delete dead `SessionRowOrdering` (+ tests) + retire 2 vault `DetailReorderPlannerTests`; document the decision in `Paradigm-Decisions.md` + `PageTypes.md`. Per-green commits, background builder. **Task 5 (default order → file/creation, not alphabetical) is gated on Nathan confirming "file order" = creation order.**
+- **✅ Vault-table display-only + creation-order default — SHIPPED v0.3.4** (plan executed + removed; ship record in `History.md`). `PageTypeDetailView` + `ItemTypeDetailView` are display-only; dead `SessionRowOrdering` + 2 vault tests removed; default empty-state order = creation order (ULID id ascending — Nathan confirmed "file order" = creation order).
 - **Then live-smoke:** vault tables display-only + mirror the sidebar live; collection/set reorder still works.
 - **Deferred (v0.5.0–v0.6.0):** the full per-view system — per-view `order` on `SavedView`, group-by-collection-vs-property (mutually exclusive; property-group flattens collections), sort, multi-saved-view tabs, and the table-engine choice (flat-`Table` vs `visfitness` vs AppKit `NSOutlineView`). Design captured in the interim doc.
 
@@ -75,8 +75,7 @@ Spec: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix L
 
 #### Document pointers
 
-- **Active plan → `Planning/2026-05-31-vault-table-displayonly-plan.md`** (interim, ready to run); decision/deferral record → `Planning/2026-05-31-vault-table-displayonly-interim.md`.
-- Other active plans → `Planning/Make-Relations-Real-Plan.md` · `Manager-Property-Dedup-Plan.md` · `Normalize-ItemType-Lookup-Plan.md` (+ the parallel session's `Relations-Redesign-Plan.md`). *(`Storage-Editing-Reorder-Fix-Plan.md` removed — complete + superseded.)*
+- **Planning →** only `Planning/2026-05-31-vault-table-displayonly-interim.md` remains — the per-view-ordering deferral/decision record (display-only interim; the full per-view system is deferred to v0.5.0–v0.6.0). All other plans executed + removed at v0.3.4 (ship log in `History.md`).
 - Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
 - Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md`
 - CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
