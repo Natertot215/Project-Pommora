@@ -109,7 +109,9 @@ struct PageEditorView: View {
             if statsExpanded {
                 Divider()
                 PageStatsBar(
-                    breadcrumb: collection.map { "\(vault.title) / \($0.title)" } ?? vault.title,
+                    breadcrumb: [vault.title, collection?.title, viewModel.page.title]
+                        .compactMap { $0 }
+                        .joined(separator: " / "),
                     stats: stats
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -159,9 +161,9 @@ struct PageEditorView: View {
             withAnimation(.easeInOut(duration: 0.22)) { statsExpanded.toggle() }
         } label: {
             Image(systemName: statsExpanded ? "chevron.compact.down" : "chevron.compact.up")
-                .font(.title3)
+                .font(.title2)
                 .foregroundStyle(.secondary)
-                .frame(width: 44, height: 26)  // comfortable, always-present hover/hit zone
+                .frame(width: 48, height: 28)  // comfortable, always-present hover/hit zone
                 .contentShape(Rectangle())
                 .opacity(visible ? 1 : 0)
         }
