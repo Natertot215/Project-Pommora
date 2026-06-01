@@ -1,6 +1,6 @@
 ### Quick Capture
 
-> A lightweight surface for adding **Items, Agenda Tasks, and Agenda Events** to the nexus from outside the main window — a menu-bar pane on the Mac, optionally fed by a browser/web-clip route. This is a concept + architecture doc, not a wiring plan. Roadmap slot lives in `Framework.md` (lands after the Item Window + property-panel work); Pages are deliberately out of scope (below).
+> A lightweight surface for adding **Items, Agenda Tasks, and Agenda Events** to the nexus from outside the main window — a menu-bar pane on the Mac, optionally fed by a browser/web-clip route. This is a concept + architecture doc, not a wiring plan. Roadmap slot lives in `Framework.md` (lands after the Item Window + property-panel work); Pages are deliberately out of scope (below). Brainstormed as a quick idea on 5-31 in the post-compact 0.3.4 session.
 
 #### What it is
 
@@ -30,6 +30,8 @@ This keeps the "files are canonical, one process owns the index" model intact an
 3. **Save.** The entity lands in the nexus immediately.
 
 **Pinned-properties-first display.** A Type can carry many properties; showing all of them would bury the fast-capture intent. Quick Capture shows the **pinned properties first** (per the Collection's `pinned_properties`), with a small `…` affordance beneath the list to **"show all"** — revealing the full schema only on demand. This is the same pinning the Item Window uses; Quick Capture being its second consumer is a strong reason to get pinning right during the Item Window work.
+
+Title + Icon and description field would be displayed before an Item, Task, or Event designation is given since those are universial across those three anyway; the specific location + properties would be displayed as fill-ins once a selection is made. We could also omit Events + Tasks for an even cleaner UIX flow, with capture as items-only. -- Comment via Nathan himself.
 
 #### Web capture (browser / share sheet)
 
