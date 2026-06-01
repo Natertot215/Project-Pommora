@@ -31,36 +31,15 @@ struct ContentView: View {
     /// inside the detail sub-view.
     @State private var inspectorPresented = false
 
-    // Task 64: full 8-manager environment. TopicManager + PageContentManager receive
-    // real contextProvider closures with live cross-manager lookups (replacing
-    // Task 48's NexusContext.empty placeholder).
-    //
-    // ParadigmV2 (Task 5.5): ContentManager split into PageContentManager (Pages)
-    // and ItemContentManager (Items). ItemTypeManager wires in Phase 6.
-    @State private var spaceManager: SpaceManager?
-    @State private var topicManager: TopicManager?
-    @State private var vaultManager: PageTypeManager?
-    @State private var itemTypeManager: ItemTypeManager?
-    @State private var contentManager: PageContentManager?
-    @State private var itemContentManager: ItemContentManager?
-    @State private var agendaTaskManager: AgendaTaskManager?
-    @State private var agendaEventManager: AgendaEventManager?
-    @State private var homepageManager: HomepageManager?
-    @State private var tierConfigManager: TierConfigManager?
-    @State private var savedConfigManager: SavedConfigManager?
-    @State private var recentsManager: RecentsManager?
-    @State private var pinnedManager: PinnedManager?
-    @State private var mainWindowRouter: MainWindowRouter?
-    @State private var settingsManager: SettingsManager?
-
-    /// Shared relation/tier display resolver (icon + title from the index).
-    /// Built per-Nexus in `constructManagers` (mirrors the other managers) so
-    /// its cache is fresh per Nexus; its index closure captures `nexusManager`
-    /// and reads `.currentIndex` lazily, so it tracks index swaps within a
-    /// Nexus. Injected at the root environment chain AND the `.detail` chain
-    /// (quirk #16) so detail views can read it via `@Environment` without a
-    /// SIGTRAP once Task 3 wires consumers.
-    @State private var relationResolver: RelationDisplayResolver?
+    /// Single owner + injector for every per-Nexus manager/resolver. Replaces
+    /// the former ~16 individual `@State …Manager?` optionals + their scattered
+    /// `.environment(...)` injects. Reconstructed whenever `currentNexus`
+    /// changes (see `.onChange` → `rebuildEnvironment`); nil while no Nexus is
+    /// open. Every manager is reached via `nexusEnvironment?.someManager`, and
+    /// every descendant's `@Environment(X.self)` is satisfied in ONE place by
+    /// `.injectNexusEnvironment(env)` (eliminates the forgotten-inject SIGTRAP,
+    /// quirk #15). See `NexusEnvironment.swift`.
+    @State private var nexusEnvironment: NexusEnvironment?
 
     /// Maps a `SidebarSelection` to a `ViewSettingsScope`. Static + pure so the
     /// scope-mapping logic is unit-testable without bootstrapping a full
@@ -109,18 +88,17 @@ struct ContentView: View {
     /// closure. Renders nothing until the managers it needs are non-nil.
     @ViewBuilder
     private var primaryActionCapsule: some View {
-        if let vaultMgr = vaultManager,
-            let itemTypeMgr = itemTypeManager,
-            let tierConfigMgr = tierConfigManager,
-            let contentMgr = contentManager,
-            recentsManager != nil, pinnedManager != nil
-        {
+        if let env = nexusEnvironment {
+            let vaultMgr = env.vaultManager
+            let itemTypeMgr = env.itemTypeManager
+            let tierConfigMgr = env.tierConfigManager
+            let contentMgr = env.contentManager
             let lookup = SidebarLookupBundle(
-                content: contentManager,
+                content: contentMgr,
                 pageType: vaultMgr,
                 itemType: itemTypeMgr,
-                space: spaceManager,
-                topic: topicManager
+                space: env.spaceManager,
+                topic: env.topicManager
             )
             HStack(spacing: 0) {
                 ViewSettingsButton(
@@ -191,14 +169,14 @@ struct ContentView: View {
                 .toolbar {
                     // Back/Forward navigation arrows in the leading toolbar area.
                     ToolbarItemGroup(placement: .navigation) {
-                        if recentsManager != nil, let vaultMgr = vaultManager, let itemTypeMgr = itemTypeManager {
+                        if let env = nexusEnvironment {
                             BackForwardButtons(
                                 lookup: SidebarLookupBundle(
-                                    content: contentManager,
-                                    pageType: vaultMgr,
-                                    itemType: itemTypeMgr,
-                                    space: spaceManager,
-                                    topic: topicManager
+                                    content: env.contentManager,
+                                    pageType: env.vaultManager,
+                                    itemType: env.itemTypeManager,
+                                    space: env.spaceManager,
+                                    topic: env.topicManager
                                 ))
                         }
                     }
@@ -237,18 +215,14 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
-        .environment(recentsManager)
-        .environment(pinnedManager)
-        .environment(mainWindowRouter)
-        .environment(relationResolver)
         .task {
             await nexusManager.loadOnLaunch()
         }
         .onChange(of: nexusManager.currentNexus, initial: true) { _, nexus in
-            constructManagers(for: nexus)
+            rebuildEnvironment(for: nexus)
         }
-        .onChange(of: mainWindowRouter?.bringToFrontTick) { _, _ in
-            guard let router = mainWindowRouter, let sel = router.pendingSelection else { return }
+        .onChange(of: nexusEnvironment?.mainWindowRouter.bringToFrontTick) { _, _ in
+            guard let router = nexusEnvironment?.mainWindowRouter, let sel = router.pendingSelection else { return }
             // Suppress double-recording in the sidebar-selection observer
             // while the programmatic selection mutation propagates.
             AppGlobals.recentsManager?.isNavigatingHistory = true
@@ -271,34 +245,13 @@ struct ContentView: View {
 
     @ViewBuilder
     private var sidebar: some View {
-        if let spaceMgr = spaceManager,
-            let topicMgr = topicManager,
-            let vaultMgr = vaultManager,
-            let itemTypeMgr = itemTypeManager,
-            let contentMgr = contentManager,
-            let itemContentMgr = itemContentManager,
-            let savedMgr = savedConfigManager,
-            let settingsMgr = settingsManager,
-            let agendaTaskMgr = agendaTaskManager,
-            let agendaEventMgr = agendaEventManager,
-            let tierConfigMgr = tierConfigManager
-        {
+        if let env = nexusEnvironment {
             SidebarView(
                 selection: $sidebarSelection,
                 editingID: $editingID,
                 justCreatedID: $justCreatedID
             )
-            .environment(spaceMgr)
-            .environment(topicMgr)
-            .environment(vaultMgr)
-            .environment(itemTypeMgr)
-            .environment(contentMgr)
-            .environment(itemContentMgr)
-            .environment(savedMgr)
-            .environment(settingsMgr)
-            .environment(agendaTaskMgr)
-            .environment(agendaEventMgr)
-            .environment(tierConfigMgr)
+            .injectNexusEnvironment(env)
             .overlay(alignment: .bottom) {
                 if nexusManager.isIndexing {
                     IndexingHUD()
@@ -325,26 +278,22 @@ struct ContentView: View {
         // Non-Page selections fall through to an empty view (inspector pane
         // stays in the scene tree to avoid layout jumps when toggling).
         if case .page(let p) = sidebarSelection,
-            let spaceMgr = spaceManager,
-            let vaultMgr = vaultManager,
-            let contentMgr = contentManager,
-            let relationRes = relationResolver,
-            let resolved = contentMgr.resolveParent(for: p, pageTypeManager: vaultMgr)
+            let env = nexusEnvironment,
+            let resolved = env.contentManager.resolveParent(for: p, pageTypeManager: env.vaultManager)
         {
             FrontmatterInspector(
                 page: p,
                 vault: resolved.vault,
                 index: nexusManager.currentIndex,
-                relationDisplay: relationRes,
+                relationDisplay: env.relationResolver,
                 onSave: { updated in
                     Task {
-                        try? await contentMgr.updatePageFrontmatter(
+                        try? await env.contentManager.updatePageFrontmatter(
                             p, frontmatter: updated, vault: resolved.vault, collection: resolved.collection)
                     }
                 }
             )
-            .environment(spaceMgr)
-            .environment(vaultMgr)
+            .injectNexusEnvironment(env)
         } else {
             Color.clear
         }
@@ -352,31 +301,14 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detail: some View {
-        if let spaceMgr = spaceManager,
-            let topicMgr = topicManager,
-            let vaultMgr = vaultManager,
-            let itemTypeMgr = itemTypeManager,
-            let contentMgr = contentManager,
-            let itemContentMgr = itemContentManager,
-            let settingsMgr = settingsManager,
-            let tierConfigMgr = tierConfigManager,
-            let relationRes = relationResolver
-        {
+        if let env = nexusEnvironment {
             SidebarDetailView(
                 selection: $sidebarSelection,
                 presentedSheet: $presentedSheet,
                 editingID: $editingID,
                 justCreatedID: $justCreatedID
             )
-            .environment(spaceMgr)
-            .environment(topicMgr)  // required by IconPickerSheet presented from the detail-table Edit Icon (quirk #15)
-            .environment(vaultMgr)
-            .environment(itemTypeMgr)
-            .environment(contentMgr)
-            .environment(itemContentMgr)
-            .environment(settingsMgr)
-            .environment(tierConfigMgr)
-            .environment(relationRes)
+            .injectNexusEnvironment(env)
         } else {
             Color.clear
         }
@@ -386,9 +318,9 @@ struct ContentView: View {
     /// SwiftUI `Color` mapped from the stored `SettingsAccentColor` enum, or
     /// the system accent (`.accentColor`) when no override is set or the
     /// manager hasn't loaded yet. Wired here (not in PommoraApp) because
-    /// SettingsManager is per-Nexus and constructed inside `constructManagers`.
+    /// SettingsManager is per-Nexus and constructed inside `NexusEnvironment`.
     private var currentAccent: Color {
-        guard let manager = settingsManager,
+        guard let manager = nexusEnvironment?.settingsManager,
             let color = manager.settings.accentColor
         else {
             return .accentColor
@@ -405,185 +337,17 @@ struct ContentView: View {
         }
     }
 
-    /// Build NexusContext provider closures for TopicManager and ContentManager validators.
-    ///
-    /// **Important — this snapshot-closure pattern is one-shot.** The returned NexusContext
-    /// captures manager arrays at construction time. Suitable for synchronous validator
-    /// runs invoked from within `@MainActor` contexts. **Do NOT store the returned
-    /// NexusContext or reuse it from a long-lived background closure** (e.g. a future
-    /// FSEventStream watcher or SQLite indexer) — by the time such a closure fires, the
-    /// captured snapshots are stale. Always rebuild the context inline at the call site,
-    /// on the @MainActor.
-    private func constructManagers(for nexus: Nexus?) {
+    /// (Re)build the per-Nexus manager container when `currentNexus` changes.
+    /// nil clears the environment (no Nexus open); a value constructs a fresh
+    /// `NexusEnvironment`, which performs all manager construction, cross-manager
+    /// wiring, AppGlobals publish, and the parallel initial-load `Task` in its
+    /// initializer (formerly `constructManagers`). See `NexusEnvironment.swift`.
+    private func rebuildEnvironment(for nexus: Nexus?) {
         guard let nexus else {
-            spaceManager = nil
-            topicManager = nil
-            vaultManager = nil
-            itemTypeManager = nil
-            contentManager = nil
-            itemContentManager = nil
-            agendaTaskManager = nil
-            agendaEventManager = nil
-            homepageManager = nil
-            tierConfigManager = nil
-            savedConfigManager = nil
-            settingsManager = nil
-            relationResolver = nil
+            nexusEnvironment = nil
             return
         }
-
-        let spaceMgr = SpaceManager(nexus: nexus)
-        let vaultMgr = PageTypeManager(nexus: nexus)
-        let itemTypeMgr = ItemTypeManager(nexus: nexus)
-
-        // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
-        // The outer closure runs on MainActor (per TopicManager's signature) and
-        // reads live state from the peer managers, then bakes value-type snapshots
-        // into the @Sendable NexusContext lookup closures — this is what allows
-        // capturing through Swift 6 strict concurrency: managers themselves are
-        // @MainActor-isolated and non-Sendable, but `[Space]` / `[Vault]` are.
-        let topicMgr = TopicManager(nexus: nexus) { [spaceMgr, vaultMgr] in
-            let spaces = spaceMgr.spaces
-            let types = vaultMgr.types
-            return NexusContext(
-                lookupSpace: { id in spaces.first { $0.id == id } },
-                lookupTopic: { _ in nil },
-                lookupProject: { _ in nil },
-                lookupVault: { id in types.first { $0.id == id } }
-            )
-        }
-
-        // PageContentManager needs Space + Topic + Project + Page Type for tier validation.
-        // Same snapshot pattern as TopicManager: outer closure reads live state on
-        // MainActor; inner @Sendable closures use value-type snapshots.
-        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
-            let spaces = spaceMgr.spaces
-            let types = vaultMgr.types
-            let topics = topicMgr.topics
-            let projectsByParent = topicMgr.projectsByParent
-            return NexusContext(
-                lookupSpace: { id in spaces.first { $0.id == id } },
-                lookupTopic: { id in topics.first { $0.id == id } },
-                lookupProject: { id in
-                    for arr in projectsByParent.values {
-                        if let p = arr.first(where: { $0.id == id }) { return p }
-                    }
-                    return nil
-                },
-                lookupVault: { id in types.first { $0.id == id } }
-            )
-        }
-
-        // ItemContentManager mirrors PageContentManager's NexusContext snapshot
-        // pattern. Item Type Manager wires in Phase 6 — until then ItemContentManager
-        // exists but has no on-disk data to load (`<nexus>/Items/` is materialized
-        // by NexusAdopter in Phase 6).
-        let itemContentMgr: ItemContentManager = ItemContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
-            let spaces = spaceMgr.spaces
-            let types = vaultMgr.types
-            let topics = topicMgr.topics
-            let projectsByParent = topicMgr.projectsByParent
-            return NexusContext(
-                lookupSpace: { id in spaces.first { $0.id == id } },
-                lookupTopic: { id in topics.first { $0.id == id } },
-                lookupProject: { id in
-                    for arr in projectsByParent.values {
-                        if let p = arr.first(where: { $0.id == id }) { return p }
-                    }
-                    return nil
-                },
-                lookupVault: { id in types.first { $0.id == id } }
-            )
-        }
-
-        let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
-        let agendaEventMgr = AgendaEventManager(nexus: nexus)
-        let homepageMgr = HomepageManager(nexus: nexus)
-        let tierMgr = TierConfigManager(nexus: nexus)
-        let savedMgr = SavedConfigManager(nexus: nexus)
-        let recentsMgr = RecentsManager(nexus: nexus)
-        let pinnedMgr = PinnedManager(nexus: nexus)
-        let settingsMgr = SettingsManager(nexus: nexus)
-        let router = MainWindowRouter()
-
-        // Shared relation/tier display resolver. Captures `nexusManager` (the
-        // stable @Observable instance) and reads `.currentIndex` lazily so it
-        // tracks index swaps within this Nexus.
-        let relationRes = RelationDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
-
-        // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
-        // (Space + Topic added so Contexts sync to the `contexts` index table).
-        // IndexUpdater is Sendable — a single value can be shared across all of them.
-        // If currentIndex is nil (degraded mode), updater stays nil and every
-        // manager's `if let updater = indexUpdater` guard skips index writes.
-        let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
-        spaceMgr.indexUpdater = updater
-        topicMgr.indexUpdater = updater
-        vaultMgr.indexUpdater = updater
-        itemTypeMgr.indexUpdater = updater
-        contentMgr.indexUpdater = updater
-        itemContentMgr.indexUpdater = updater
-        agendaTaskMgr.indexUpdater = updater
-        agendaEventMgr.indexUpdater = updater
-
-        // Cross-manager paired-relation refresh hook (snapshot-closure pattern, quirk #5).
-        // When a paired relation is created/deleted, the CROSS-side reverse Type lives in the
-        // OTHER manager and otherwise wouldn't refresh in-memory until restart. Each manager
-        // calls this with the cross-side target ID; we route to both — `reloadTypeFromDisk`
-        // is a no-op for an ID the manager doesn't own, so calling both is safe and DRY.
-        let reloadTypeAcrossManagers: @MainActor (String) -> Void = { [vaultMgr, itemTypeMgr] id in
-            vaultMgr.reloadTypeFromDisk(id: id)
-            itemTypeMgr.reloadTypeFromDisk(id: id)
-        }
-        vaultMgr.reloadTypeByID = reloadTypeAcrossManagers
-        itemTypeMgr.reloadTypeByID = reloadTypeAcrossManagers
-
-        self.spaceManager = spaceMgr
-        self.topicManager = topicMgr
-        self.vaultManager = vaultMgr
-        self.itemTypeManager = itemTypeMgr
-        self.contentManager = contentMgr
-        self.itemContentManager = itemContentMgr
-        self.agendaTaskManager = agendaTaskMgr
-        self.agendaEventManager = agendaEventMgr
-        self.homepageManager = homepageMgr
-        self.tierConfigManager = tierMgr
-        self.savedConfigManager = savedMgr
-        self.recentsManager = recentsMgr
-        self.pinnedManager = pinnedMgr
-        self.settingsManager = settingsMgr
-        self.mainWindowRouter = router
-        self.relationResolver = relationRes
-
-        // Publish manager refs so standalone WindowGroup scenes can reach
-        // them without restructuring the ContentView dependency graph.
-        AppGlobals.contentManager = contentMgr
-        AppGlobals.itemContentManager = itemContentMgr
-        AppGlobals.pageTypeManager = vaultMgr
-        AppGlobals.itemTypeManager = itemTypeMgr
-        AppGlobals.spaceManager = spaceMgr
-        AppGlobals.topicManager = topicMgr
-        AppGlobals.recentsManager = recentsMgr
-        AppGlobals.pinnedManager = pinnedMgr
-        AppGlobals.mainWindowRouter = router
-
-        // Initial load — fire all in parallel.
-        // PageContentManager + ItemContentManager load per-collection lazily on
-        // detail-view appear.
-        Task {
-            async let _ = spaceMgr.loadAll()
-            async let _ = topicMgr.loadAll()
-            async let _ = vaultMgr.loadAll()
-            async let _ = itemTypeMgr.loadAll()
-            async let _ = agendaTaskMgr.loadAll()
-            async let _ = agendaEventMgr.loadAll()
-            async let _ = homepageMgr.load()
-            async let _ = tierMgr.load()
-            async let _ = savedMgr.load()
-            async let _ = settingsMgr.loadOrSeed()
-            await recentsMgr.load()
-            await pinnedMgr.load()
-        }
+        nexusEnvironment = NexusEnvironment(nexus: nexus, nexusManager: nexusManager)
     }
 }
 

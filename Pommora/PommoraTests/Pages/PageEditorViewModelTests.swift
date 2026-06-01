@@ -17,7 +17,10 @@ struct PageEditorViewModelTests {
         vm.body = "C"
 
         // Debounce is 300ms; wait long enough for the scheduled task to fire.
-        try await Task.sleep(for: .milliseconds(500))
+        // Generous margin (800ms) so the assertion stays reliable when the full
+        // suite runs all test bundles in parallel and the host is CPU-saturated —
+        // a 500ms window can slip past the 300ms timer under load and flake.
+        try await Task.sleep(for: .milliseconds(800))
 
         #expect(saver.saved.count == 1)
         #expect(saver.saved.first?.body == "C")

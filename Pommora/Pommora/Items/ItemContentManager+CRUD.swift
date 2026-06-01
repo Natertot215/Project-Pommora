@@ -21,8 +21,10 @@ extension ItemContentManager {
 
     // MARK: - Title uniqueness (transitional)
     //
-    // Used until Phase 6 wires a proper ItemValidator-vs-ItemType. Matches the
-    // case-insensitive uniqueness rule that ItemValidator enforces today.
+    // Used until Phase 6 wires a proper ItemValidator-vs-ItemType. The
+    // same-container collision rule is delegated to the shared
+    // `NameCollisionValidator` (one source of truth, Pages + Items identical);
+    // the empty / invalid-character checks stay here as Item-side concerns.
     fileprivate func enforceTitleUniqueness(
         _ trimmed: String,
         among siblings: [Item],
@@ -33,10 +35,21 @@ extension ItemContentManager {
         guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
             throw ItemCRUDError.invalidTitleCharacters
         }
-        let conflict = siblings.contains { i in
-            i.id != excluding?.id && i.title.lowercased() == trimmed.lowercased()
+        do {
+            try NameCollisionValidator.validate(
+                desiredTitle: trimmed, siblings: siblings, excludingID: excluding?.id
+            )
+        } catch is NameCollisionError {
+            throw ItemCRUDError.duplicateTitle  // preserve the Item-side contract
         }
-        if conflict { throw ItemCRUDError.duplicateTitle }
+    }
+
+    /// Defense-in-depth for the create write path: a freshly-created Item mints
+    /// a new id, so any file already at its target URL is owned by a *different*
+    /// entity. Refuse the write rather than clobber it — even if a caller ever
+    /// skipped `enforceTitleUniqueness` (e.g. a stale in-memory sibling list).
+    fileprivate func guardNoOverwrite(at url: URL) throws {
+        if Filesystem.fileExists(at: url) { throw ItemCRUDError.duplicateTitle }
     }
 
     // MARK: - Item CRUD (ItemCollection-scoped)
@@ -56,6 +69,7 @@ extension ItemContentManager {
                 createdAt: now, modifiedAt: now
             )
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
+            try guardNoOverwrite(at: url)
             try item.save(to: url)
 
             if let updater = indexUpdater {
@@ -193,6 +207,7 @@ extension ItemContentManager {
                 createdAt: now, modifiedAt: now
             )
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: folderURL(for: itemType))
+            try guardNoOverwrite(at: url)
             try item.save(to: url)
 
             if let updater = indexUpdater {

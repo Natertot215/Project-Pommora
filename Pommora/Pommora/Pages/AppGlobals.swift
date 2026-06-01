@@ -29,6 +29,32 @@ enum AppGlobals {
     static var pinnedManager: PinnedManager?
     static var mainWindowRouter: MainWindowRouter?
 
+    /// Publishes every cross-scene manager ref in one call. Single source for the
+    /// slot list so `NexusEnvironment.init` doesn't hand-assign each one (DRY);
+    /// adding/removing a published manager touches only this signature + body.
+    /// Called once per Nexus from `NexusEnvironment.init`.
+    static func publish(
+        contentManager: PageContentManager,
+        itemContentManager: ItemContentManager,
+        pageTypeManager: PageTypeManager,
+        itemTypeManager: ItemTypeManager,
+        spaceManager: SpaceManager,
+        topicManager: TopicManager,
+        recentsManager: RecentsManager,
+        pinnedManager: PinnedManager,
+        mainWindowRouter: MainWindowRouter
+    ) {
+        self.contentManager = contentManager
+        self.itemContentManager = itemContentManager
+        self.pageTypeManager = pageTypeManager
+        self.itemTypeManager = itemTypeManager
+        self.spaceManager = spaceManager
+        self.topicManager = topicManager
+        self.recentsManager = recentsManager
+        self.pinnedManager = pinnedManager
+        self.mainWindowRouter = mainWindowRouter
+    }
+
     // MARK: - Item Window bridge
 
     /// Registered by `SidebarDetailView` on appear. Calling this closure

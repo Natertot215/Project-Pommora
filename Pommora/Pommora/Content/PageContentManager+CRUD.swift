@@ -16,6 +16,36 @@ import Foundation
 ///   surfaces a `RenameAtomicityError`.
 extension PageContentManager {
 
+    // MARK: - Title uniqueness (same-container collision)
+    //
+    // `PageValidator.validate` owns title shape (empty / invalid chars) + tier
+    // + schema checks, but it can't see sibling Pages (it's a pure function with
+    // no container view). The same-container collision rule — which prevents a
+    // create/rename from silently overwriting another Page's `.md` body — lives
+    // here, delegated to the shared `NameCollisionValidator` so Pages + Items
+    // enforce one identical rule. Mirrors `ItemContentManager.enforceTitleUniqueness`.
+    fileprivate func enforceTitleUniqueness(
+        _ desiredTitle: String,
+        among siblings: [PageMeta],
+        excluding: PageMeta? = nil
+    ) throws {
+        do {
+            try NameCollisionValidator.validate(
+                desiredTitle: desiredTitle, siblings: siblings, excludingID: excluding?.id
+            )
+        } catch is NameCollisionError {
+            throw PageCRUDError.duplicateTitle  // preserve a Page-side contract
+        }
+    }
+
+    /// Defense-in-depth for the create write path: a freshly-created Page mints
+    /// a new id, so any file already at its target URL is owned by a *different*
+    /// entity. Refuse the write rather than clobber it — even if a caller ever
+    /// skipped `enforceTitleUniqueness` (e.g. a stale in-memory sibling list).
+    fileprivate func guardNoOverwrite(at url: URL) throws {
+        if Filesystem.fileExists(at: url) { throw PageCRUDError.duplicateTitle }
+    }
+
     // MARK: - Page CRUD (PageCollection-scoped)
 
     @discardableResult
@@ -32,6 +62,7 @@ extension PageContentManager {
                 vault: vault,
                 context: contextProvider()
             )
+            try enforceTitleUniqueness(name, among: existing)
 
             let now = Date()
             let frontmatter = PageFrontmatter(
@@ -42,6 +73,7 @@ extension PageContentManager {
             )
             let page = PageFile(frontmatter: frontmatter, body: "", title: name)
             let url = NexusPaths.pageFileURL(forTitle: name, in: collection.folderURL)
+            try guardNoOverwrite(at: url)
             try page.save(to: url)
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
@@ -77,6 +109,7 @@ extension PageContentManager {
                 vault: vault,
                 context: contextProvider()
             )
+            try enforceTitleUniqueness(newName, among: existing, excluding: page)
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: collection.folderURL)
             // No metadata save here — rename is single-step atomic via
@@ -187,6 +220,7 @@ extension PageContentManager {
                 vault: vault,
                 context: contextProvider()
             )
+            try enforceTitleUniqueness(name, among: existing)
 
             let now = Date()
             let frontmatter = PageFrontmatter(
@@ -197,6 +231,7 @@ extension PageContentManager {
             )
             let page = PageFile(frontmatter: frontmatter, body: "", title: name)
             let url = NexusPaths.pageFileURL(forTitle: name, in: folderURL(for: vault))
+            try guardNoOverwrite(at: url)
             try page.save(to: url)
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
@@ -232,6 +267,7 @@ extension PageContentManager {
                 vault: vault,
                 context: contextProvider()
             )
+            try enforceTitleUniqueness(newName, among: existing, excluding: page)
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: folderURL(for: vault))
             // No metadata save here — single-step atomic via FileManager.moveItem.
@@ -900,6 +936,22 @@ extension PageContentManager {
                 arr[i] = updated
                 pagesByTypeRoot[container.typeID] = arr
             }
+        }
+    }
+}
+
+/// Errors surfaced by `PageContentManager` create/rename when a same-container
+/// name collision would silently overwrite another Page's `.md` body. Mirrors
+/// `ItemCRUDError.duplicateTitle` so Pages + Items reject collisions identically
+/// (locked decision — no auto-rename, no overwrite). Title shape (empty /
+/// invalid characters) is owned by `PageValidator`; this covers the sibling
+/// collision only.
+enum PageCRUDError: Error, LocalizedError, Equatable {
+    case duplicateTitle
+
+    var errorDescription: String? {
+        switch self {
+        case .duplicateTitle: return "A Page with that name already exists."
         }
     }
 }

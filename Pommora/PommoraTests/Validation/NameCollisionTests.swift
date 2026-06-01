@@ -1,0 +1,325 @@
+import Foundation
+import Testing
+
+@testable import Pommora
+
+/// Regression coverage for the same-container name-collision data-loss bug:
+/// creating or renaming a Page/Item to a title a sibling already holds in the
+/// SAME container would silently overwrite the other file's body. Locked
+/// behavior: REJECT (no auto-rename, no overwrite). Pages + Items must behave
+/// identically via the shared `NameCollisionValidator`.
+///
+/// Filename = struct name (`NameCollisionTests`) so `-only-testing` actually
+/// runs these (branch quirks #1 / #17).
+@MainActor
+@Suite("NameCollisionTests")
+struct NameCollisionTests {
+
+    // MARK: - Pages: collision REJECTED + sibling body PRESERVED
+
+    @Test("createPage duplicate title in same Page Type (type-root) throws + original body survives")
+    func pageCreateDuplicateInTypeRootPreservesBody() async throws {
+        let (nexus, vault, manager) = try await setupPageTypeRoot()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Original page + a real body written to disk.
+        try await manager.createPage(name: "Notes", inVaultRoot: vault)
+        let url = NexusPaths.pageFileURL(forTitle: "Notes", in: pageTypeFolder(nexus, vault))
+        let original = manager.pages(in: vault).first { $0.title == "Notes" }!
+        try await manager.updatePage(original, body: "PRECIOUS BODY", inVaultRoot: vault)
+
+        // Colliding create must throw.
+        await #expect(throws: PageCRUDError.duplicateTitle) {
+            _ = try await manager.createPage(name: "Notes", inVaultRoot: vault)
+        }
+
+        // Original file's body must be intact (NOT clobbered) + still one page.
+        let reloaded = try PageFile.load(from: url)
+        #expect(reloaded.body == "PRECIOUS BODY")
+        #expect(reloaded.frontmatter.id == original.id)
+        #expect(manager.pages(in: vault).count == 1)
+    }
+
+    @Test("createPage duplicate title in same Page Collection throws + original body survives")
+    func pageCreateDuplicateInCollectionPreservesBody() async throws {
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
+        let original = manager.pages(in: coll).first!
+        try await manager.updatePage(original, body: "PRECIOUS BODY", in: coll, vault: vault)
+
+        await #expect(throws: PageCRUDError.duplicateTitle) {
+            _ = try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        }
+
+        let reloaded = try PageFile.load(from: url)
+        #expect(reloaded.body == "PRECIOUS BODY")
+        #expect(reloaded.frontmatter.id == original.id)
+        #expect(manager.pages(in: coll).count == 1)
+    }
+
+    @Test("renamePage onto an existing sibling's title throws + both files intact")
+    func pageRenameOntoSiblingRejected() async throws {
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Ideas", in: coll, vault: vault)
+        let notes = manager.pages(in: coll).first { $0.title == "Notes" }!
+        let ideas = manager.pages(in: coll).first { $0.title == "Ideas" }!
+        try await manager.updatePage(notes, body: "NOTES BODY", in: coll, vault: vault)
+        try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, vault: vault)
+
+        // Rename "Ideas" → "Notes" (collides with the other page) must throw.
+        await #expect(throws: PageCRUDError.duplicateTitle) {
+            try await manager.renamePage(ideas, to: "Notes", in: coll, vault: vault)
+        }
+
+        // Both files survive with their original bodies + titles.
+        let notesURL = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
+        let ideasURL = NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL)
+        #expect(FileManager.default.fileExists(atPath: notesURL.path))
+        #expect(FileManager.default.fileExists(atPath: ideasURL.path))
+        #expect(try PageFile.load(from: notesURL).body == "NOTES BODY")
+        #expect(try PageFile.load(from: ideasURL).body == "IDEAS BODY")
+        #expect(manager.pages(in: coll).count == 2)
+    }
+
+    @Test("createPage collision is case-insensitive (Notes vs notes)")
+    func pageCreateCaseInsensitiveRejected() async throws {
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        await #expect(throws: PageCRUDError.duplicateTitle) {
+            _ = try await manager.createPage(name: "notes", in: coll, vault: vault)
+        }
+        #expect(manager.pages(in: coll).count == 1)
+    }
+
+    @Test("same Page title in DIFFERENT containers is allowed")
+    func pageSameTitleDifferentContainersAllowed() async throws {
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        // One in the collection, one in the type-root — different containers.
+        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", inVaultRoot: vault)
+
+        #expect(manager.pages(in: coll).count == 1)
+        #expect(manager.pages(in: vault).count == 1)
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: pageTypeFolder(nexus, vault)).path
+            ))
+    }
+
+    @Test("renamePage to its OWN current title does not throw")
+    func pageRenameToOwnTitleAllowed() async throws {
+        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        let page = manager.pages(in: coll).first!
+        try await manager.updatePage(page, body: "BODY", in: coll, vault: vault)
+
+        // Renaming to the same title is a no-op rename — must NOT false-positive.
+        try await manager.renamePage(page, to: "Notes", in: coll, vault: vault)
+
+        let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(try PageFile.load(from: url).body == "BODY")
+        #expect(manager.pages(in: coll).count == 1)
+    }
+
+    // MARK: - Items: parity via the same shared validator
+
+    @Test("createItem duplicate title in same ItemCollection throws + original survives")
+    func itemCreateDuplicateInCollectionRejected() async throws {
+        let (nexus, itemType, coll, manager) = try await setupItemCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        let original = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
+        var withDesc = original
+        withDesc.description = "PRECIOUS"
+        try await manager.updateItem(withDesc, in: coll, type: itemType)
+
+        await #expect(throws: ItemCRUDError.duplicateTitle) {
+            _ = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
+        }
+
+        let url = NexusPaths.itemFileURL(forTitle: "Buy milk", in: coll.folderURL)
+        let reloaded = try Item.load(from: url)
+        #expect(reloaded.description == "PRECIOUS")
+        #expect(reloaded.id == original.id)
+        #expect(manager.items(in: coll).count == 1)
+    }
+
+    @Test("renameItem onto an existing sibling's title throws + both files intact")
+    func itemRenameOntoSiblingRejected() async throws {
+        let (nexus, itemType, coll, manager) = try await setupItemCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        _ = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
+        _ = try await manager.createItem(name: "Buy bread", in: coll, type: itemType)
+        let bread = manager.items(in: coll).first { $0.title == "Buy bread" }!
+
+        await #expect(throws: ItemCRUDError.duplicateTitle) {
+            try await manager.renameItem(bread, to: "Buy milk", in: coll, type: itemType)
+        }
+
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.itemFileURL(forTitle: "Buy milk", in: coll.folderURL).path))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.itemFileURL(forTitle: "Buy bread", in: coll.folderURL).path))
+        #expect(manager.items(in: coll).count == 2)
+    }
+
+    @Test("createItem collision is case-insensitive (Notes vs NOTES)")
+    func itemCreateCaseInsensitiveRejected() async throws {
+        let (nexus, itemType, manager) = try await setupItemTypeRoot()
+        defer { TempNexus.cleanup(nexus) }
+
+        _ = try await manager.createItem(name: "Notes", inTypeRoot: itemType)
+        await #expect(throws: ItemCRUDError.duplicateTitle) {
+            _ = try await manager.createItem(name: "NOTES", inTypeRoot: itemType)
+        }
+        #expect(manager.items(in: itemType).count == 1)
+    }
+
+    @Test("same Item title in DIFFERENT containers is allowed")
+    func itemSameTitleDifferentContainersAllowed() async throws {
+        let (nexus, itemType, coll, manager) = try await setupItemCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        _ = try await manager.createItem(name: "Notes", in: coll, type: itemType)
+        _ = try await manager.createItem(name: "Notes", inTypeRoot: itemType)
+
+        #expect(manager.items(in: coll).count == 1)
+        #expect(manager.items(in: itemType).count == 1)
+    }
+
+    @Test("renameItem to its OWN current title does not throw")
+    func itemRenameToOwnTitleAllowed() async throws {
+        let (nexus, itemType, coll, manager) = try await setupItemCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        _ = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
+        let item = manager.items(in: coll).first!
+        try await manager.renameItem(item, to: "Buy milk", in: coll, type: itemType)
+
+        #expect(
+            FileManager.default.fileExists(
+                atPath: NexusPaths.itemFileURL(forTitle: "Buy milk", in: coll.folderURL).path))
+        #expect(manager.items(in: coll).count == 1)
+    }
+
+    // MARK: - Shared validator: direct unit coverage
+
+    @Test("NameCollisionValidator: trimmed + case-insensitive collision detection")
+    func validatorDetectsCollision() throws {
+        let siblings = [
+            PageMeta(
+                id: "A", title: "Notes",
+                url: URL(fileURLWithPath: "/Notes.md"), frontmatter: Self.fm("A"))
+        ]
+        // Different id, same title (case + whitespace folded) → collision.
+        #expect(throws: NameCollisionError.duplicateTitle) {
+            try NameCollisionValidator.validate(
+                desiredTitle: "  notes  ", siblings: siblings, excludingID: "B")
+        }
+        // Same id (self) → no collision (rename-to-own-title is fine).
+        #expect(throws: Never.self) {
+            try NameCollisionValidator.validate(
+                desiredTitle: "Notes", siblings: siblings, excludingID: "A")
+        }
+        // Distinct title → no collision.
+        #expect(throws: Never.self) {
+            try NameCollisionValidator.validate(
+                desiredTitle: "Ideas", siblings: siblings, excludingID: nil)
+        }
+    }
+
+    // MARK: - Setup helpers
+
+    private func pageTypeFolder(_ nexus: Nexus, _ vault: PageType) -> URL {
+        NexusPaths.pageTypeFolderURL(in: nexus.rootURL, typeFolderName: vault.title)
+    }
+
+    private static func fm(_ id: String) -> PageFrontmatter {
+        PageFrontmatter(
+            id: id, icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
+    }
+
+    private func setupPageCollection() async throws
+        -> (Nexus, PageType, PageCollection, PageContentManager)
+    {
+        let nexus = try TempNexus.make()
+        let vault = PageType(
+            id: ULID.generate(), title: "V", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
+        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+
+        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
+        let coll = PageCollection(
+            id: ULID.generate(), typeID: vault.id, title: "C", folderURL: collFolder,
+            modifiedAt: Date())
+
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        return (nexus, vault, coll, manager)
+    }
+
+    private func setupPageTypeRoot() async throws -> (Nexus, PageType, PageContentManager) {
+        let nexus = try TempNexus.make()
+        let vault = PageType(
+            id: ULID.generate(), title: "V", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
+        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        return (nexus, vault, manager)
+    }
+
+    private func setupItemCollection() async throws
+        -> (Nexus, ItemType, ItemCollection, ItemContentManager)
+    {
+        let nexus = try TempNexus.make()
+        let itemType = ItemType(
+            id: ULID.generate(), title: "T", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
+        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
+        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
+
+        let collFolder = NexusPaths.itemCollectionFolderURL(
+            in: nexus.rootURL, typeFolderName: "T", collectionFolderName: "C")
+        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
+        let coll = ItemCollection(
+            id: ULID.generate(), typeID: itemType.id, title: "C", folderURL: collFolder,
+            modifiedAt: Date())
+
+        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        return (nexus, itemType, coll, manager)
+    }
+
+    private func setupItemTypeRoot() async throws -> (Nexus, ItemType, ItemContentManager) {
+        let nexus = try TempNexus.make()
+        let itemType = ItemType(
+            id: ULID.generate(), title: "T", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
+        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
+        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
+
+        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        return (nexus, itemType, manager)
+    }
+}

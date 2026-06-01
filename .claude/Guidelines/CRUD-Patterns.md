@@ -201,9 +201,9 @@ enum SpaceValidator {
 Tier-parent validation needs cross-entity lookup (Project's parent Topic ID must resolve). **Locked Swift 6 pattern:** managers take a `contextProvider: @MainActor @escaping () -> NexusContext` closure at init returning a fresh snapshot per call. NexusContext's inner closures are `@Sendable` (cross into off-actor validators); capture `Sendable` value-type arrays into local lets at the outer `@MainActor` scope:
 
 ```swift
-@MainActor
-final class ContentView {
-    private func constructManagers(for nexus: Nexus) {
+@MainActor @Observable
+final class NexusEnvironment {            // owns + constructs every per-Nexus manager; injected once via .injectNexusEnvironment(_:)
+    init(nexus: Nexus, nexusManager: NexusManager) {
         let spaceMgr = SpaceManager(nexus: nexus)
         let topicMgr = TopicManager(nexus: nexus) { @MainActor in
             // Snapshot live state into Sendable locals; inner closures capture the snapshot

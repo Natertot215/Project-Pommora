@@ -1,0 +1,254 @@
+//
+//  NexusEnvironment.swift
+//  Pommora
+//
+//  Single-source owner + injector for every per-Nexus manager/resolver.
+//
+//  Before this type, `ContentView` hand-wired ~16 `@State private var …Manager?`
+//  optionals, unwrapped them in nested `if let` pyramids, and injected each one
+//  individually via `.environment(...)` in two parallel chains (detail +
+//  inspector + sidebar). SwiftUI's `_TaskValueModifier` resolves
+//  `@Environment(X.self)` when computing a view's `.task`; if any detail view
+//  declared an env that wasn't injected, the app SIGTRAP'd on first selection
+//  (active-branch quirk #15) — and adding a manager meant editing two scattered
+//  places, with a forgotten inject = crash.
+//
+//  Now: this object constructs and OWNS every manager (the exact wiring that
+//  lived in `ContentView.constructManagers`), and the
+//  `.injectNexusEnvironment(_:)` modifier applies the FULL `.environment(...)`
+//  chain in ONE place. Adding a manager later = one stored property here + one
+//  line in the modifier — co-located and compiler-checked, never a scattered
+//  inject that crashes if forgotten.
+//
+
+import SwiftUI
+
+/// Owns + wires every per-Nexus manager and the shared relation resolver for
+/// the lifetime of one open Nexus. Reconstructed whenever `NexusManager`'s
+/// `currentNexus` changes (see `ContentView`).
+///
+/// All construction + cross-manager wiring (the snapshot-closure validator
+/// pattern, IndexUpdater fan-out, cross-side reload hook, AppGlobals publish,
+/// and the parallel initial-load `Task`) is performed in `init` and is
+/// behavior-identical to the former `ContentView.constructManagers`.
+///
+/// Deliberately NOT `@Observable`: this container is held in a `@State` and only
+/// ever read as a whole optional (rebuilt when `NexusManager.currentNexus`
+/// changes). Every stored property is a `let`, so the container's own identity
+/// never changes after construction; the one reactive surface in here
+/// (`mainWindowRouter.bringToFrontTick`) is observed through `MainWindowRouter`'s
+/// OWN `@Observable`, never through this container — so per-member observation
+/// would be dead weight.
+@MainActor
+final class NexusEnvironment {
+    let spaceManager: SpaceManager
+    let topicManager: TopicManager
+    let vaultManager: PageTypeManager
+    let itemTypeManager: ItemTypeManager
+    let contentManager: PageContentManager
+    let itemContentManager: ItemContentManager
+    let agendaTaskManager: AgendaTaskManager
+    let agendaEventManager: AgendaEventManager
+    let homepageManager: HomepageManager
+    let tierConfigManager: TierConfigManager
+    let savedConfigManager: SavedConfigManager
+    let recentsManager: RecentsManager
+    let pinnedManager: PinnedManager
+    let mainWindowRouter: MainWindowRouter
+    let settingsManager: SettingsManager
+
+    /// Shared relation/tier display resolver (icon + title from the index).
+    /// Its index closure captures `nexusManager` and reads `.currentIndex`
+    /// lazily, so it tracks index swaps within this Nexus.
+    let relationResolver: RelationDisplayResolver
+
+    /// Constructs and wires every manager (see the class doc above). The NexusContext
+    /// snapshot closures built inline below are **one-shot**: they capture manager arrays
+    /// at construction time, so never reuse one from a long-lived background closure
+    /// (e.g. a future FSEventStream watcher or SQLite indexer) — rebuild it inline on the
+    /// `@MainActor` at the call site.
+    init(nexus: Nexus, nexusManager: NexusManager) {
+        let spaceMgr = SpaceManager(nexus: nexus)
+        let vaultMgr = PageTypeManager(nexus: nexus)
+        let itemTypeMgr = ItemTypeManager(nexus: nexus)
+
+        // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
+        // The outer closure runs on MainActor (per TopicManager's signature) and
+        // reads live state from the peer managers, then bakes value-type snapshots
+        // into the @Sendable NexusContext lookup closures — this is what allows
+        // capturing through Swift 6 strict concurrency: managers themselves are
+        // @MainActor-isolated and non-Sendable, but `[Space]` / `[Vault]` are.
+        let topicMgr = TopicManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+            let spaces = spaceMgr.spaces
+            let types = vaultMgr.types
+            return NexusContext(
+                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupTopic: { _ in nil },
+                lookupProject: { _ in nil },
+                lookupVault: { id in types.first { $0.id == id } }
+            )
+        }
+
+        // PageContentManager needs Space + Topic + Project + Page Type for tier validation.
+        // Same snapshot pattern as TopicManager: outer closure reads live state on
+        // MainActor; inner @Sendable closures use value-type snapshots.
+        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+            let spaces = spaceMgr.spaces
+            let types = vaultMgr.types
+            let topics = topicMgr.topics
+            let projectsByParent = topicMgr.projectsByParent
+            return NexusContext(
+                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupTopic: { id in topics.first { $0.id == id } },
+                lookupProject: { id in
+                    for arr in projectsByParent.values {
+                        if let p = arr.first(where: { $0.id == id }) { return p }
+                    }
+                    return nil
+                },
+                lookupVault: { id in types.first { $0.id == id } }
+            )
+        }
+
+        // ItemContentManager mirrors PageContentManager's NexusContext snapshot
+        // pattern. Item Type Manager wires in Phase 6 — until then ItemContentManager
+        // exists but has no on-disk data to load (`<nexus>/Items/` is materialized
+        // by NexusAdopter in Phase 6).
+        let itemContentMgr: ItemContentManager = ItemContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+            let spaces = spaceMgr.spaces
+            let types = vaultMgr.types
+            let topics = topicMgr.topics
+            let projectsByParent = topicMgr.projectsByParent
+            return NexusContext(
+                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupTopic: { id in topics.first { $0.id == id } },
+                lookupProject: { id in
+                    for arr in projectsByParent.values {
+                        if let p = arr.first(where: { $0.id == id }) { return p }
+                    }
+                    return nil
+                },
+                lookupVault: { id in types.first { $0.id == id } }
+            )
+        }
+
+        let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
+        let agendaEventMgr = AgendaEventManager(nexus: nexus)
+        let homepageMgr = HomepageManager(nexus: nexus)
+        let tierMgr = TierConfigManager(nexus: nexus)
+        let savedMgr = SavedConfigManager(nexus: nexus)
+        let recentsMgr = RecentsManager(nexus: nexus)
+        let pinnedMgr = PinnedManager(nexus: nexus)
+        let settingsMgr = SettingsManager(nexus: nexus)
+        let router = MainWindowRouter()
+
+        // Shared relation/tier display resolver. Captures `nexusManager` (the
+        // stable @Observable instance) and reads `.currentIndex` lazily so it
+        // tracks index swaps within this Nexus.
+        let relationRes = RelationDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
+
+        // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
+        // (Space + Topic added so Contexts sync to the `contexts` index table).
+        // IndexUpdater is Sendable — a single value can be shared across all of them.
+        // If currentIndex is nil (degraded mode), updater stays nil and every
+        // manager's `if let updater = indexUpdater` guard skips index writes.
+        let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
+        spaceMgr.indexUpdater = updater
+        topicMgr.indexUpdater = updater
+        vaultMgr.indexUpdater = updater
+        itemTypeMgr.indexUpdater = updater
+        contentMgr.indexUpdater = updater
+        itemContentMgr.indexUpdater = updater
+        agendaTaskMgr.indexUpdater = updater
+        agendaEventMgr.indexUpdater = updater
+
+        // Cross-manager paired-relation refresh hook (snapshot-closure pattern, quirk #5).
+        // When a paired relation is created/deleted, the CROSS-side reverse Type lives in the
+        // OTHER manager and otherwise wouldn't refresh in-memory until restart. Each manager
+        // calls this with the cross-side target ID; we route to both — `reloadTypeFromDisk`
+        // is a no-op for an ID the manager doesn't own, so calling both is safe and DRY.
+        let reloadTypeAcrossManagers: @MainActor (String) -> Void = { [vaultMgr, itemTypeMgr] id in
+            vaultMgr.reloadTypeFromDisk(id: id)
+            itemTypeMgr.reloadTypeFromDisk(id: id)
+        }
+        vaultMgr.reloadTypeByID = reloadTypeAcrossManagers
+        itemTypeMgr.reloadTypeByID = reloadTypeAcrossManagers
+
+        self.spaceManager = spaceMgr
+        self.topicManager = topicMgr
+        self.vaultManager = vaultMgr
+        self.itemTypeManager = itemTypeMgr
+        self.contentManager = contentMgr
+        self.itemContentManager = itemContentMgr
+        self.agendaTaskManager = agendaTaskMgr
+        self.agendaEventManager = agendaEventMgr
+        self.homepageManager = homepageMgr
+        self.tierConfigManager = tierMgr
+        self.savedConfigManager = savedMgr
+        self.recentsManager = recentsMgr
+        self.pinnedManager = pinnedMgr
+        self.settingsManager = settingsMgr
+        self.mainWindowRouter = router
+        self.relationResolver = relationRes
+
+        // Publish manager refs so standalone WindowGroup scenes can reach
+        // them without restructuring the ContentView dependency graph.
+        AppGlobals.publish(
+            contentManager: contentMgr,
+            itemContentManager: itemContentMgr,
+            pageTypeManager: vaultMgr,
+            itemTypeManager: itemTypeMgr,
+            spaceManager: spaceMgr,
+            topicManager: topicMgr,
+            recentsManager: recentsMgr,
+            pinnedManager: pinnedMgr,
+            mainWindowRouter: router)
+
+        // Initial load — fire all in parallel.
+        // PageContentManager + ItemContentManager load per-collection lazily on
+        // detail-view appear.
+        Task {
+            async let _ = spaceMgr.loadAll()
+            async let _ = topicMgr.loadAll()
+            async let _ = vaultMgr.loadAll()
+            async let _ = itemTypeMgr.loadAll()
+            async let _ = agendaTaskMgr.loadAll()
+            async let _ = agendaEventMgr.loadAll()
+            async let _ = homepageMgr.load()
+            async let _ = tierMgr.load()
+            async let _ = savedMgr.load()
+            async let _ = settingsMgr.loadOrSeed()
+            await recentsMgr.load()
+            await pinnedMgr.load()
+        }
+    }
+}
+
+extension View {
+    /// Injects every manager owned by `env` into the environment in ONE place.
+    ///
+    /// This is the single source of manager injection. Every `@Environment(X.self)`
+    /// declared on any descendant (sidebar, detail, inspector) is satisfied here,
+    /// so a missing inject can no longer SIGTRAP a `.task`-bearing view on first
+    /// selection (quirk #15). Adding a manager = add a stored property to
+    /// `NexusEnvironment` + one `.environment(...)` line below.
+    func injectNexusEnvironment(_ env: NexusEnvironment) -> some View {
+        self
+            .environment(env.spaceManager)
+            .environment(env.topicManager)
+            .environment(env.vaultManager)
+            .environment(env.itemTypeManager)
+            .environment(env.contentManager)
+            .environment(env.itemContentManager)
+            .environment(env.agendaTaskManager)
+            .environment(env.agendaEventManager)
+            .environment(env.homepageManager)
+            .environment(env.tierConfigManager)
+            .environment(env.savedConfigManager)
+            .environment(env.recentsManager)
+            .environment(env.pinnedManager)
+            .environment(env.mainWindowRouter)
+            .environment(env.settingsManager)
+            .environment(env.relationResolver)
+    }
+}

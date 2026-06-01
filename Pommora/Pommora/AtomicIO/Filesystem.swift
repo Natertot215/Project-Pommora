@@ -5,11 +5,19 @@ enum FilesystemError: LocalizedError {
     /// Raised by `moveToTrash` when the source URL doesn't sit under the
     /// nexus root — we refuse to relocate paths outside the user's nexus.
     case sourceNotInNexus(source: URL, nexus: URL)
+    /// Raised by `renameFile` when the destination already exists and is a
+    /// *different* file from the source. Defense-in-depth against silent
+    /// data loss: a rename that would clobber a sibling's file is refused at
+    /// the primitive even if a caller skipped name-collision validation. A
+    /// same-path rename (source == destination) is allowed through as a no-op.
+    case destinationExists(destination: URL)
 
     var errorDescription: String? {
         switch self {
         case .sourceNotInNexus(let source, let nexus):
             return "Cannot move to trash: \(source.path) is not inside nexus root \(nexus.path)."
+        case .destinationExists(let destination):
+            return "An entry named \"\(destination.lastPathComponent)\" already exists here."
         }
     }
 }
@@ -56,7 +64,16 @@ enum Filesystem {
         return exists && !isDir.boolValue
     }
 
+    /// Renames/moves a file. Refuses to overwrite a *different* existing file at
+    /// `newURL` (defense-in-depth against the duplicate-title overwrite data
+    /// loss — see `NameCollisionValidator`). A same-path move (`oldURL` resolves
+    /// to `newURL`) is a no-op and allowed, so renaming an entity to its own
+    /// current title never errors.
     static func renameFile(from oldURL: URL, to newURL: URL) throws {
+        if oldURL.standardizedFileURL == newURL.standardizedFileURL { return }
+        if fileExists(at: newURL) {
+            throw FilesystemError.destinationExists(destination: newURL)
+        }
         try FileManager.default.moveItem(at: oldURL, to: newURL)
     }
 
