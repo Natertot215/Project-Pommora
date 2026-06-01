@@ -12,6 +12,8 @@
 
 `main` green at `b765c2e` (v0.3.4 shipped + tagged + pushed last session). This session was **documentation-only** — Framework realigned to shipped reality + Nathan's own roadmap, History trimmed ~70%, and version contradictions fixed across 14 docs. **All 16 `.claude` edits are uncommitted in the working tree.** A parallel session committed concurrently (`showPageIcon` toggle `b765c2e`, dead-checkbox-scaffolding cleanup `198df75`); `Pommora/Pommora.xcodeproj/project.pbxproj` + untracked `graphify-out/` are theirs/incidental — left untouched (quirk #10).
 
+**Page-header icons shipped (parallel code session, `main` advanced past `b765c2e`).** Per-Nexus `showPageIcon` toggle (default OFF, ON in The Nexus); inline header icon left of the title (baseline-aligned) + hover `plus.app` "Add Icon" affordance; icon propagated to the sidebar row + NavDropdown (custom overrides the per-kind outline default); page-level View Settings popover pre-wired with `PageContentManager` (the pane itself is still empty); no focus-steal to sidebar search on icon edit. Also fixed: empty `-[]` checkbox now continues as a checkbox on Enter, pinned by a new `MarkdownEngine` test target.
+
 #### Session Summary
 
 Opened post-compact with v0.3.4 already shipped, pushed, and the PreCompact(manual) doc-mirror hook live. Three doc passes, all uncommitted:
@@ -47,6 +49,7 @@ Left off: working tree dirty with the 16 doc edits, awaiting a docs-only commit.
 5. **Relation-add dead-end in legacy sheets** — "Relation" in the Vault/Type Settings sheets silently cancels; hide it or route to the View Settings editor.
 6. **Settings popout sizing** — should size to content dynamically (Nathan likes the min height).
 7. **`AgendaEventManagerError._status` doc-vs-guard mismatch** — the error's doc says events have no `_status`, yet the delete guard still blocks it. Behavior preserved through the de-dup; decide separately.
+8. Make it so that pressing backspace on a checkbox or listed-item on pages auto-deletes all the syntax so you dont have to delete both the render and the syntax. Also make bullets render label+secondary rather than primary. Also checkbox formatting no longer propegates to Obsidian? + titlebar Icon shows on obsidian as title-level too. 
 
 #### Maintained via `/handoff`
 

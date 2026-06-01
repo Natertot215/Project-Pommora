@@ -57,6 +57,8 @@ The editor's **WYSIWYG prose** experience — what the user sees and types — i
 
 The `.md` file format is the architectural firewall — Pages on disk are identical under any future editor swap. Frontmatter never reaches the editor canvas; the property surface is separate from the page body (see § "Properties surface" below).
 
+**Page icon (header).** When the per-Nexus `showPageIcon` setting is on (default OFF), a Page's `icon` renders inline beside the title — with a hover "Add Icon" affordance when unset — and a custom icon also shows in the sidebar row and NavDropdown (overriding the per-kind default). Full behavior → [[PageEditor]].
+
 ---
 
 #### Properties surface

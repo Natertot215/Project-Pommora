@@ -91,7 +91,7 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 [icon] [title — truncates with ellipsis] [type chip]
 ```
 
-- **Icon** — by `ref.typedKind` (`EntityRow.iconName`): Page = `doc.text`, Vault = `book`, Type (Item Type) = `tray.full`, Collection (Page Collection) = `tray.2`, Set (Item Collection) = `folder`, Space = `rectangle.3.group`, Topic / Project = `folder`, Item = `tray`, Agenda = `calendar`, unknown kind = `questionmark.circle`
+- **Icon** (`EntityRow.iconName`) — the entity's own custom `icon` if set (resolved live via `SidebarSelection(stateRef:lookup:).resolvedIcon`, since `EntityStateRef` stores no icon), else the per-kind default (`EntityRow.defaultIcon`): Page = `doc.text`, Vault = `book`, Type (Item Type) = `tray.full`, Collection (Page Collection) = `tray.2`, Set (Item Collection) = `folder`, Space = `rectangle.3.group`, Topic / Project = `folder`, Item = `tray`, Agenda = `calendar`, unknown kind = `questionmark.circle`. Defaults are outline (non-`.fill`) so an unset entity never reads as a filled state.
 - **Title** — `Text(ref.title).lineLimit(1).truncationMode(.tail)`
 - **Type chip** — full-word, `.font(.caption)`, `.foregroundStyle(.secondary)`, trailing
 
@@ -263,7 +263,7 @@ PageTypeDetailView resolves a row's parent via a `parent(for: DetailRow) -> Page
 - **`PinnedManager`** (`Pommora/Pommora/NavDropdown/PinnedManager.swift`) — `@MainActor @Observable`. Holds `entries`. Provides `contains(_:)`, `toggle(_:)`, `move(fromOffsets:toOffset:)`, `load()`, `save()`.
 - **`MainWindowRouter`** (`Pommora/Pommora/NavDropdown/MainWindowRouter.swift`) — `@MainActor @Observable` bridge for back/forward. `Intent` enum (`.directNavigation` / `.stepHistory`). `requestOpen(to:)` / `requestStep(to:)`. Dropdown bypasses (direct closure from ContentView); only BackForwardButtons + ContentView's `onChange(of: bringToFrontTick)` use it.
 - **`SidebarSelection.init?(stateRef:lookup:)`** (`Pommora/Pommora/Sidebar/SidebarSelection.swift`) — bridges `EntityStateRef` → `SidebarSelection`, resolving each kind against a `SidebarLookupBundle` of live managers. Returns nil for non-main-pane kinds (`.item`, `.agenda`, `.none`) and deleted entities.
-- **`EntityRow`** (`Pommora/Pommora/NavDropdown/EntityRow.swift`) — single row view in both lists. Takes `ref: EntityStateRef`, `isPinned: Bool`, `pinAction: () -> Void`. Renders icon + title + chip + hover-tint background + `.contextMenu` with "Pin {chip}" / "Unpin {chip}".
+- **`EntityRow`** (`Pommora/Pommora/NavDropdown/EntityRow.swift`) — single row view in both lists. Takes `ref: EntityStateRef`, `lookup: SidebarLookupBundle` (resolves the entity's live custom icon), `isPinned: Bool`, `pinAction: () -> Void`. Renders icon + title + chip + hover-tint background + `.contextMenu` with "Pin {chip}" / "Unpin {chip}".
 - **`NavDropdownButton`** (`Pommora/Pommora/NavDropdown/NavDropdownButton.swift`) — toolbar trigger + popover panel. Takes `asSegment: Bool` (default `false`) and `onOpen: (SidebarSelection) -> Void`. Owns snapshot state.
 - **`BackForwardButtons`** (`Pommora/Pommora/NavDropdown/BackForwardButtons.swift`) — `‹ ›` toolbar pair. Reads `AppGlobals.recentsManager` directly. Wires `⌘[` / `⌘]`.
 
