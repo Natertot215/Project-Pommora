@@ -34,7 +34,11 @@ struct PageTextStats: Equatable {
 
         // Rendered prose for word / character counts.
         let prose = MarkdownPlainText.extract(from: body)
-        characters = prose.count
+        // Count strictly-visible characters: exclude the structural `\n`s the
+        // extractor inserts between blocks — they're separators, not characters
+        // a reader sees. (Word counting below still runs over the separated
+        // prose so words don't fuse across block boundaries.)
+        characters = prose.filter { !$0.isNewline }.count
 
         var wordCount = 0
         prose.enumerateSubstrings(in: prose.startIndex..., options: .byWords) { _, _, _, _ in

@@ -45,12 +45,13 @@ struct PageTextStatsTests {
     @Test func countsFromBody() {
         // "# Heading\n\nOne two three.\n"
         //   raw lines (trailing newline stripped): "# Heading" | "" | "One two three." → 3
-        //   prose: "Heading\nOne two three." → 4 words, 22 characters
+        //   prose: "Heading\nOne two three." → 4 words; characters exclude the
+        //   structural block-separator newline → "HeadingOne two three." = 21
         let body = "# Heading\n\nOne two three.\n"
         let s = PageTextStats(body: body)
         #expect(s.lines == 3)
         #expect(s.words == 4)
-        #expect(s.characters == 22)
+        #expect(s.characters == 21)
     }
 
     @Test func emptyBodyIsZero() {
