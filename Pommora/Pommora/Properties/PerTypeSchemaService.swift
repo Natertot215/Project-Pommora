@@ -58,7 +58,7 @@ protocol PerTypeSchemaAdapter: AnyObject {
     /// Assign the in-memory `types[i]` to the value previously staged via
     /// `stageType` once `tx.commit()` has succeeded. Carries the same
     /// `properties` + bumped `modifiedAt` as the staged sidecar.
-    func commitStagedType(properties: [PropertyDefinition], forTypeID typeID: String)
+    func commitStagedType(forTypeID typeID: String)
 
     // MARK: Paired-relation collaborators
 
@@ -384,7 +384,7 @@ enum PerTypeSchemaService {
             }
         }
 
-        adapter.commitStagedType(properties: properties, forTypeID: typeID)
+        adapter.commitStagedType(forTypeID: typeID)
     }
 
     // MARK: - Reorder property
@@ -406,10 +406,6 @@ enum PerTypeSchemaService {
         var props = typeProperties
         let clampedIndex = min(max(newIndex, 0), props.count - 1)
         guard clampedIndex != propIndex else { return }
-
-        guard clampedIndex >= 0 && clampedIndex < props.count else {
-            throw adapter.errIndexOutOfBounds
-        }
 
         props.move(
             fromOffsets: IndexSet(integer: propIndex),
@@ -505,6 +501,6 @@ enum PerTypeSchemaService {
             } catch { adapter.recordIndexError(error) }
         }
 
-        adapter.commitStagedType(properties: properties, forTypeID: typeID)
+        adapter.commitStagedType(forTypeID: typeID)
     }
 }

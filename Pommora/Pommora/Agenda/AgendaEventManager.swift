@@ -425,7 +425,7 @@ extension AgendaEventManager {
             stagedSchema = updated
         }
 
-        func commitStagedSchema(properties: [PropertyDefinition]) {
+        func commitStagedSchema() {
             guard let updated = stagedSchema else { return }
             m.schema = updated
             stagedSchema = nil
@@ -433,17 +433,16 @@ extension AgendaEventManager {
 
         // MARK: Member files
 
-        func memberFiles() throws -> [URL] {
-            try Filesystem.children(of: NexusPaths.eventsDir(in: m.nexus)) { url in
+        func stripPropertyFromMembers(_ propertyID: String, into tx: SchemaTransaction) throws {
+            let eventFiles = try Filesystem.children(of: NexusPaths.eventsDir(in: m.nexus)) { url in
                 url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
             }
-        }
-
-        func stripMember(at url: URL, removing propertyID: String, into tx: SchemaTransaction) throws {
-            var event = try AtomicJSON.decode(AgendaEvent.self, from: url)
-            guard event.properties[propertyID] != nil else { return }
-            event.properties.removeValue(forKey: propertyID)
-            tx.stage(payload: try AtomicJSON.encode(event), to: url)
+            MemberFileStrip.forEach(eventFiles) { url in
+                var event = try AtomicJSON.decode(AgendaEvent.self, from: url)
+                guard event.properties[propertyID] != nil else { return }
+                event.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(event), to: url)
+            }
         }
 
         // MARK: Guards / validation

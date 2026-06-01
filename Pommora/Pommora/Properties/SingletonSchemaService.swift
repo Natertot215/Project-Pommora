@@ -41,17 +41,16 @@ protocol SingletonSchemaAdapter: AnyObject {
     /// Assign the in-memory `schema` to the value previously staged via
     /// `stageSchema` once `tx.commit()` has succeeded. Carries the same
     /// `properties` + bumped `modifiedAt` as the staged sidecar.
-    func commitStagedSchema(properties: [PropertyDefinition])
+    func commitStagedSchema()
 
     // MARK: Member files
 
-    /// All member files (`.task.json` / `.event.json`) in the singleton folder.
-    func memberFiles() throws -> [URL]
-
-    /// Decode the member file at `url`, remove `propertyID` from its `properties`
-    /// dictionary, and (only if the value was present) stage the re-encoded
-    /// member back to `url` in `tx`. A no-op when the member lacks the property.
-    func stripMember(at url: URL, removing propertyID: String, into tx: SchemaTransaction) throws
+    /// Strip `propertyID` from every member file (`.task.json` / `.event.json`) in
+    /// the singleton folder, staging the rewrites into `tx`. The load / strip /
+    /// re-encode lives inside this method, wrapped in `MemberFileStrip.forEach` so
+    /// an unreadable member never aborts the mutation (singletons have one schema,
+    /// so no `typeID` is needed).
+    func stripPropertyFromMembers(_ propertyID: String, into tx: SchemaTransaction) throws
 
     // MARK: Guards / validation
 
@@ -207,10 +206,7 @@ enum SingletonSchemaService {
         try adapter.stageSchema(properties: properties, into: tx)
 
         // Stage member-file rewrites: strip the property key from every member file.
-        let memberFiles = try adapter.memberFiles()
-        for memberURL in memberFiles {
-            try adapter.stripMember(at: memberURL, removing: propertyID, into: tx)
-        }
+        try adapter.stripPropertyFromMembers(propertyID, into: tx)
 
         try tx.commit()
 
@@ -218,7 +214,7 @@ enum SingletonSchemaService {
             do { try updater.deletePropertyDefinition(id: propertyID) } catch { adapter.recordIndexError(error) }
         }
 
-        adapter.commitStagedSchema(properties: properties)
+        adapter.commitStagedSchema()
     }
 
     // MARK: - Reorder property
@@ -239,10 +235,6 @@ enum SingletonSchemaService {
         var props = adapter.schemaProperties
         let clampedIndex = min(max(newIndex, 0), props.count - 1)
         guard clampedIndex != propIndex else { return }
-
-        guard clampedIndex >= 0 && clampedIndex < props.count else {
-            throw adapter.errIndexOutOfBounds
-        }
 
         props.move(
             fromOffsets: IndexSet(integer: propIndex),
@@ -322,10 +314,7 @@ enum SingletonSchemaService {
 
         // Stage member-file rewrites: strip the conflicting property value from
         // every member file so no stale cross-type value lingers.
-        let memberFiles = try adapter.memberFiles()
-        for memberURL in memberFiles {
-            try adapter.stripMember(at: memberURL, removing: propertyID, into: tx)
-        }
+        try adapter.stripPropertyFromMembers(propertyID, into: tx)
 
         try tx.commit()
 
@@ -340,6 +329,6 @@ enum SingletonSchemaService {
             } catch { adapter.recordIndexError(error) }
         }
 
-        adapter.commitStagedSchema(properties: properties)
+        adapter.commitStagedSchema()
     }
 }

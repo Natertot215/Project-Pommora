@@ -951,7 +951,7 @@ extension ItemTypeManager {
             stagedType = updated
         }
 
-        func commitStagedType(properties: [PropertyDefinition], forTypeID typeID: String) {
+        func commitStagedType(forTypeID typeID: String) {
             guard let updated = stagedType,
                 let i = m.types.firstIndex(where: { $0.id == typeID })
             else { return }

@@ -421,7 +421,7 @@ extension AgendaTaskManager {
             stagedSchema = updated
         }
 
-        func commitStagedSchema(properties: [PropertyDefinition]) {
+        func commitStagedSchema() {
             guard let updated = stagedSchema else { return }
             m.schema = updated
             stagedSchema = nil
@@ -429,17 +429,16 @@ extension AgendaTaskManager {
 
         // MARK: Member files
 
-        func memberFiles() throws -> [URL] {
-            try Filesystem.children(of: NexusPaths.tasksDir(in: m.nexus)) { url in
+        func stripPropertyFromMembers(_ propertyID: String, into tx: SchemaTransaction) throws {
+            let taskFiles = try Filesystem.children(of: NexusPaths.tasksDir(in: m.nexus)) { url in
                 url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
             }
-        }
-
-        func stripMember(at url: URL, removing propertyID: String, into tx: SchemaTransaction) throws {
-            var task = try AtomicJSON.decode(AgendaTask.self, from: url)
-            guard task.properties[propertyID] != nil else { return }
-            task.properties.removeValue(forKey: propertyID)
-            tx.stage(payload: try AtomicJSON.encode(task), to: url)
+            MemberFileStrip.forEach(taskFiles) { url in
+                var task = try AtomicJSON.decode(AgendaTask.self, from: url)
+                guard task.properties[propertyID] != nil else { return }
+                task.properties.removeValue(forKey: propertyID)
+                tx.stage(payload: try AtomicJSON.encode(task), to: url)
+            }
         }
 
         // MARK: Guards / validation
