@@ -22,13 +22,18 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
     var defaultsVersion: Int
     var accentColor: SettingsAccentColor?
     var labels: SettingsLabels
+    /// Per-Nexus toggle: show a page's icon (and the "Add icon" affordance) in
+    /// the page header beside the title. Default OFF — opt-in per Nexus. Wired
+    /// here ahead of the v0.6.0 Settings editor so the future toggle row binds
+    /// to an existing field rather than triggering a migration.
+    var showPageIcon: Bool
     var modifiedAt: Date
 
     // MARK: - Versioning constants
 
     /// The defaults version shipped with the current build.  Increment this
     /// whenever a default value changes and add a migration step in `migrate(_:)`.
-    static let currentDefaultsVersion: Int = 2
+    static let currentDefaultsVersion: Int = 3
 
     // MARK: - Codable
 
@@ -37,6 +42,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         case defaultsVersion = "defaults_version"
         case accentColor = "accent_color"
         case labels
+        case showPageIcon = "show_page_icon"
         case modifiedAt = "modified_at"
     }
 
@@ -45,12 +51,14 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         defaultsVersion: Int = Self.currentDefaultsVersion,
         accentColor: SettingsAccentColor? = nil,
         labels: SettingsLabels,
+        showPageIcon: Bool = false,
         modifiedAt: Date
     ) {
         self.version = version
         self.defaultsVersion = defaultsVersion
         self.accentColor = accentColor
         self.labels = labels
+        self.showPageIcon = showPageIcon
         self.modifiedAt = modifiedAt
     }
 
@@ -61,6 +69,9 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         defaultsVersion = (try? c.decode(Int.self, forKey: .defaultsVersion)) ?? 0
         accentColor = try c.decodeIfPresent(SettingsAccentColor.self, forKey: .accentColor)
         labels = try c.decode(SettingsLabels.self, forKey: .labels)
+        // Old files lack "show_page_icon" → default OFF (matches the new default,
+        // so migration has nothing to rewrite — see migrate(_:) v2→v3).
+        showPageIcon = (try? c.decode(Bool.self, forKey: .showPageIcon)) ?? false
         modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
     }
 
@@ -72,6 +83,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
             defaultsVersion: currentDefaultsVersion,
             accentColor: nil,  // nil = system default
             labels: SettingsLabels.defaults(),
+            showPageIcon: false,  // opt-in per Nexus
             modifiedAt: Date()
         )
     }
@@ -114,6 +126,14 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
                 s.labels.sidebarSections.items = "Items"
             }
             s.defaultsVersion = 2
+        }
+
+        if s.defaultsVersion < 3 {
+            // v2→v3: added `showPageIcon` (page-header icon toggle). Brand-new
+            // field — absent in older files, decoded as `false`, which already
+            // equals the new default, so there's nothing to rewrite. Just
+            // record the version.
+            s.defaultsVersion = 3
         }
 
         // Clamp to current in case intermediate versions were skipped.

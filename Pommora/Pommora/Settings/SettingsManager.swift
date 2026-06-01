@@ -56,6 +56,13 @@ final class SettingsManager {
         await persist(s)
     }
 
+    func updateShowPageIcon(_ on: Bool) async {
+        var s = settings
+        s.showPageIcon = on
+        s.modifiedAt = Date()
+        await persist(s)
+    }
+
     func updateLabel<T>(_ keyPath: WritableKeyPath<SettingsLabels, T>, to newValue: T) async {
         var s = settings
         s.labels[keyPath: keyPath] = newValue
