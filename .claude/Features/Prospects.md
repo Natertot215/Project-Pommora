@@ -93,7 +93,7 @@ Shape borrows from Things 3, NotePlan, Drafts: tiny floating window, defaults to
 #### Relations Redesign — post-v1 deferrals
 **Description:** Items deferred from the v1 Relations Redesign (executed + landed by v0.3.4; ship record in `History.md`). Near-term follow-ups (relation chip visual, hierarchical value pickers) are tracked in `Handoff.md` as next-session work, not here. Genuinely post-v1:
 
-- **`LinkedFromDropdown` real surface** (future Context-views plan). A bare stub exists at `Pommora/Pommora/Detail/LinkedFromDropdown.swift`. The real surface is a dropdown listing every operational entity whose `tier1/2/3` points at the Context, powered by `IndexQuery.incomingRelations(targetID:)` (shipped); aggregate-view header uses the TierConfig default label. Supporting bits: `EntityStateRef.iconName` (SettingsManager-resolved icons), `EntityKind.displayLabel` (SettingsManager labels), an `EntityStateRef → SidebarSelection` resolver for navigation, and a `ContextDetailPlaceholder` footer slot (or per-Context-branch inline) to host it.
 - **Tier property icon overrides** at the nexus-default level (IconConfig effort). `BuiltInRelationProperties` falls back sidecar-override → hardcoded SF Symbol today; when IconConfig ships, the chain extends to sidecar override → IconConfig default → hardcoded fallback.
-- **Relation sort / filter beyond alphabetical.** v1 sorts relation columns alphabetically on resolved title; a later pass may add relation-specific filter operators (`linked to`, `not linked to`, etc.).
+
+(Two former entries here — `LinkedFromDropdown` real surface and relation sort/filter — are now committed roadmap work, promoted to `Framework.md` (v0.7.0 Context-views and v0.6.0 per-view sort/group respectively), not post-v1 prospects.)
 
