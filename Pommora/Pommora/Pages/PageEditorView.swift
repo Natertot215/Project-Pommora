@@ -380,10 +380,7 @@ struct PageEditorView: View {
     // MARK: - Page icon (header)
 
     /// The page's icon, normalized to nil when absent or empty.
-    private var pageIcon: String? {
-        let icon = viewModel.page.frontmatter.icon
-        return (icon?.isEmpty == false) ? icon : nil
-    }
+    private var pageIcon: String? { viewModel.page.frontmatter.icon.nonEmpty }
 
     /// Inline icon shows only when the per-Nexus setting is on AND an icon is set.
     private var showInlinePageIcon: Bool {
@@ -440,6 +437,18 @@ struct PageEditorView: View {
         .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
     }
 
+    /// The current PageMeta freshly resolved from the manager cache by id — the
+    /// collection-vs-vault-root branch in one place. Used after a manager
+    /// mutation (icon edit / rename) to refresh `viewModel.page` so the next
+    /// body save re-serializes current frontmatter, not a stale copy.
+    private func currentPageMetaFromCache() -> PageMeta? {
+        if let collection {
+            return contentManager.pages(in: collection).first { $0.id == viewModel.page.id }
+        } else {
+            return contentManager.pages(in: vault).first { $0.id == viewModel.page.id }
+        }
+    }
+
     /// Persists a new (or removed) page icon, then refreshes the VM's PageMeta
     /// from the manager cache. The refresh is essential: the editor re-serializes
     /// `viewModel.page.frontmatter` verbatim on every body save, so without it the
@@ -449,13 +458,7 @@ struct PageEditorView: View {
         do {
             try await contentManager.updatePageIcon(
                 viewModel.page, to: newIcon, vault: vault, collection: collection)
-            let updated: PageMeta?
-            if let collection {
-                updated = contentManager.pages(in: collection).first { $0.id == viewModel.page.id }
-            } else {
-                updated = contentManager.pages(in: vault).first { $0.id == viewModel.page.id }
-            }
-            if let updated { viewModel.page = updated }
+            if let updated = currentPageMetaFromCache() { viewModel.page = updated }
         } catch {
             viewModel.pendingError = error
         }
@@ -483,17 +486,7 @@ struct PageEditorView: View {
                 )
             }
             // Pick up the freshly-renamed PageMeta from the manager cache.
-            let updated: PageMeta?
-            if let collection {
-                updated = contentManager.pages(in: collection).first {
-                    $0.id == viewModel.page.id
-                }
-            } else {
-                updated = contentManager.pages(in: vault).first {
-                    $0.id == viewModel.page.id
-                }
-            }
-            if let updated {
+            if let updated = currentPageMetaFromCache() {
                 viewModel.page = updated
                 titleDraft = updated.title
             }

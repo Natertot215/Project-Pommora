@@ -23,8 +23,7 @@ struct PageRow: View {
     /// default. Re-reads `page.frontmatter.icon` so sidebar rows reflect icon
     /// changes live once the manager cache refreshes.
     private var rowSymbol: String {
-        let icon = page.frontmatter.icon
-        return (icon?.isEmpty == false) ? icon! : "doc.text"
+        page.frontmatter.icon.nonEmpty ?? "doc.text"
     }
 
     var body: some View {

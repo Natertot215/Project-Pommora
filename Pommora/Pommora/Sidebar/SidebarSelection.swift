@@ -33,7 +33,7 @@ extension SidebarSelection {
         case .itemCollection(let c): raw = c.icon
         case .none, .savedKey: raw = nil
         }
-        return (raw?.isEmpty == false) ? raw : nil
+        return raw.nonEmpty
     }
 }
 
