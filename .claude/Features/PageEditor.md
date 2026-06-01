@@ -89,6 +89,8 @@ What the editor renders and supports today.
 
 **System integration** (free via NSTextView): Writing Tools (15.1+), Look Up, Translate, spell/grammar/autocorrect with per-token suppression for code/LaTeX, IME, dynamic light/dark colors, drag-to-select. Find-in-document highlighting bus is present; the Pommora-side find palette is deferred.
 
+**Stats footer:** a hover-revealed chevron at the editor's bottom-right toggles a thin bottom bar — `Vault › Collection › Page` breadcrumb (Finder-style `›` separators) on the left, `Lines · Words · Characters` on the right. Lines count raw source lines; words + characters count *rendered prose* (Markdown syntax stripped via the engine's `MarkdownPlainText` walker; characters exclude structural block-separator newlines). Counts compute only while open, debounced. Open/closed state persists globally via `@AppStorage` (not per-Page). The chevron is `chevron.compact.up`/`down`, shown for 3 s on open then hover-only. Clickable breadcrumb navigation was tried and dropped (it routed into detail surfaces where the editor isn't wired).
+
 ---
 
 #### Tables — to be implemented
