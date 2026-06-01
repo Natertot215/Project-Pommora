@@ -303,6 +303,13 @@ struct PageEditorView: View {
             // .id() doesn't trigger a full rebuild), resync the draft title.
             titleDraft = viewModel.page.title
         }
+        .onChange(of: iconPickerOpen) { _, isOpen in
+            // When the icon picker popover closes, reclaim first responder for
+            // the body editor. Otherwise AppKit's popover-dismiss first-
+            // responder fallback lands on the sidebar NSSearchField, which
+            // reads as the sidebar search "auto-focusing" after an icon edit.
+            if !isOpen { focusBodyEditor() }
+        }
         .alert(
             "Save failed",
             isPresented: Binding(
