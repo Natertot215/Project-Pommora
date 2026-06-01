@@ -35,7 +35,8 @@ extension NativeTextView {
 
         let nsText = storage.string as NSString
         let checkboxText = nsText.substring(with: effectiveRange)
-        guard checkboxText.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil else { return nil }
+        guard checkboxText.range(of: MarkdownDetection.checkboxBracketPattern, options: .regularExpression) != nil
+        else { return nil }
 
         let replacement = isChecked ? "[ ]" : "[x]"
         if shouldChangeText(in: effectiveRange, replacementString: replacement) {
