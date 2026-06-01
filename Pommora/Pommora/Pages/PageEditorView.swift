@@ -51,14 +51,21 @@ struct PageEditorView: View {
     /// divider at rest.
     @State private var scrollOffset: CGFloat = 0
 
-    /// Whether the bottom stats footer is expanded. Collapsed = a tiny
-    /// up-chevron overlay (reserves no space); expanded = the `PageStatsBar`
-    /// folds into the VStack so the editor yields its height.
+    /// Whether the bottom stats footer is expanded. The toggle chevron is an
+    /// editor overlay (outside `PageStatsBar`) in both states, so the bar holds
+    /// only the counts row and stays minimal-height.
     @State private var statsExpanded = false
     /// Latest computed document statistics, shown while the footer is open.
     /// Set synchronously on open (instant counts) and refreshed debounced as
     /// the body changes.
     @State private var stats = PageTextStats.empty
+    /// Cursor is over the chevron's hover zone — drives chevron visibility in
+    /// both collapsed and expanded states (the chevron is hover-gated like the
+    /// heading-fold chevron).
+    @State private var hoveringChevron = false
+    /// True for the first 3 s after expanding, then false — keeps the collapse
+    /// chevron briefly visible on open before it goes hover-only.
+    @State private var chevronForcedVisible = false
 
     /// Top padding of the body editor's text container, sized to leave room
     /// for the title overlay + a 14pt equidistant gap below the divider.
@@ -96,29 +103,11 @@ struct PageEditorView: View {
             // FrontmatterInspector still surfaces page properties via the
             // pop-out inspector pane when explicitly opened.
             editorZStack
-                .overlay(alignment: .bottomTrailing) {
-                    if !statsExpanded {
-                        Button {
-                            // Compute synchronously so counts show instantly on
-                            // open; the debounced task below keeps them fresh.
-                            stats = PageTextStats(body: viewModel.body)
-                            withAnimation(.easeInOut(duration: 0.22)) { statsExpanded = true }
-                        } label: {
-                            Image(systemName: "chevron.compact.up")
-                                .imageScale(.large)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .padding(.trailing, 12)  // matches PageStatsBar horizontal inset → x-aligns with counts
-                        .padding(.bottom, 8)
-                        .accessibilityLabel("Show statistics")
-                    }
-                }
+                .overlay(alignment: .bottomTrailing) { statsChevron }
 
             if statsExpanded {
                 Divider()
                 PageStatsBar(
-                    isExpanded: $statsExpanded,
                     breadcrumb: collection.map { "\(vault.title) / \($0.title)" } ?? vault.title,
                     stats: stats
                 )
@@ -133,6 +122,13 @@ struct PageEditorView: View {
             try? await Task.sleep(for: .milliseconds(250))
             if !Task.isCancelled { stats = PageTextStats(body: viewModel.body) }
         }
+        // On open, force the chevron visible for 3s, then let it go hover-only.
+        .task(id: statsExpanded) {
+            guard statsExpanded else { chevronForcedVisible = false; return }
+            chevronForcedVisible = true
+            try? await Task.sleep(for: .seconds(3))
+            if !Task.isCancelled { chevronForcedVisible = false }
+        }
     }
 
     /// Equatable key that restarts the debounced stats recompute when either the
@@ -140,6 +136,35 @@ struct PageEditorView: View {
     private struct StatsRecomputeKey: Equatable {
         let expanded: Bool
         let body: String
+    }
+
+    /// Toggle chevron — an editor overlay (outside `PageStatsBar`) so it floats
+    /// over the editor's bottom-right corner in both states without adding to
+    /// the bar's height. Hover-gated: the (always-present, transparent) hit
+    /// zone reveals the glyph on hover; on open it's briefly forced visible.
+    private var statsChevron: some View {
+        let visible = hoveringChevron || chevronForcedVisible
+        return Button {
+            if !statsExpanded {
+                // Compute synchronously so counts show instantly on open; the
+                // debounced task keeps them fresh thereafter.
+                stats = PageTextStats(body: viewModel.body)
+            }
+            withAnimation(.easeInOut(duration: 0.22)) { statsExpanded.toggle() }
+        } label: {
+            Image(systemName: statsExpanded ? "chevron.compact.down" : "chevron.compact.up")
+                .imageScale(.large)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 22)  // comfortable, always-present hover/hit zone
+                .contentShape(Rectangle())
+                .opacity(visible ? 1 : 0)
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.2), value: visible)
+        .padding(.trailing, 16)
+        .padding(.bottom, 12)
+        .onHover { hoveringChevron = $0 }
+        .accessibilityLabel(statsExpanded ? "Hide statistics" : "Show statistics")
     }
 
     private var editorZStack: some View {

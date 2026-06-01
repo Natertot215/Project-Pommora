@@ -1,58 +1,25 @@
 import SwiftUI
 
-/// Bottom stats bar for the Page editor.
-///
-/// Collapsed state (a tiny up-chevron) is rendered by the host as a
-/// `.bottomTrailing` overlay so it reserves no layout space. This view is the
-/// *expanded* bar: `Vault / Collection` on the left, `Lines · Words ·
-/// Characters` on the right, with a down-chevron above the counts that is
-/// shown for 3s after opening, then goes hover-only (mirrors the heading-fold
-/// chevron's hover-reveal). The host owns `isExpanded` + `stats`.
+/// The expanded Page stats row: `Vault / Collection` on the left, `Lines ·
+/// Words · Characters` on the right. Display-only — the toggle chevron lives
+/// as an editor overlay in `PageEditorView` (outside this bar) so the bar's
+/// height stays minimal. The host owns visibility + `stats`.
 struct PageStatsBar: View {
-    @Binding var isExpanded: Bool
     let breadcrumb: String
     let stats: PageTextStats
 
-    /// True for the first 3 s after opening, then false — after which the
-    /// down-chevron is gated on `hovering`. Reset each time the bar appears.
-    @State private var collapseAffordanceForced = false
-    @State private var hovering = false
-
-    private var showCollapseChevron: Bool { collapseAffordanceForced || hovering }
-
     var body: some View {
-        VStack(alignment: .trailing, spacing: 3) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.22)) { isExpanded = false }
-            } label: {
-                Image(systemName: "chevron.compact.down")
-                    .imageScale(.large)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .opacity(showCollapseChevron ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: showCollapseChevron)
-            .accessibilityLabel("Hide statistics")
-
-            HStack(spacing: 0) {
-                Text(breadcrumb)
-                Spacer(minLength: 12)
-                Text(countsAttributed)
-                    .help("Lines · Words · Characters")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        HStack(spacing: 0) {
+            Text(breadcrumb)
+            Spacer(minLength: 12)
+            Text(countsAttributed)
+                .help("Lines · Words · Characters")
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .onHover { hovering = $0 }
-        .task {
-            collapseAffordanceForced = true
-            try? await Task.sleep(for: .seconds(3))
-            if !Task.isCancelled { collapseAffordanceForced = false }
-        }
     }
 
     /// "12 · 340 · 1,890" — numbers inherit the bar's `.secondary` tint; the
