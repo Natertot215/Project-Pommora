@@ -166,21 +166,7 @@ struct PageEditorView: View {
                 .opacity(visible ? 1 : 0)
                 .frame(width: 48, height: 28)
                 .contentShape(Rectangle())
-                // Pointing-hand cursor over the glyph. `.pointerStyle` can't win
-                // here — the editor's NativeTextView re-sets the I-beam on every
-                // mouseMoved. So we (a) set the hand on every move via
-                // onContinuousHover and (b) flip `hoveringChevron`, which feeds
-                // `suppressBodyCursorManagement` into the editor so it stops
-                // stomping the cursor while we're over the chevron.
-                .onContinuousHover { phase in
-                    switch phase {
-                    case .active:
-                        if !hoveringChevron { hoveringChevron = true }
-                        NSCursor.pointingHand.set()
-                    case .ended:
-                        hoveringChevron = false
-                    }
-                }
+                .onHover { hoveringChevron = $0 }
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: visible)
@@ -225,10 +211,7 @@ struct PageEditorView: View {
                     if abs(scrollOffset - newOffset) > 0.5 {
                         scrollOffset = newOffset
                     }
-                },
-                // While hovering the stats chevron, tell the editor to stop
-                // re-asserting its I-beam so the chevron's pointing-hand sticks.
-                suppressBodyCursorManagement: hoveringChevron
+                }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 

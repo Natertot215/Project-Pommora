@@ -48,11 +48,6 @@ final class NativeTextView: NSTextView {
     // MARK: Drag-select state
     var dragStartMouseScreenLoc: NSPoint?
 
-    /// When true, `mouseMoved` skips its per-move cursor reset so an app-level
-    /// overlay can own the cursor (e.g. a floating button showing a pointing
-    /// hand). Set by `NativeTextViewWrapper.suppressBodyCursorManagement`.
-    var suppressBodyCursorManagement = false
-
     // MARK: Heading-fold hover state
     /// Tracking area that fires `mouseMoved` events whenever the cursor moves
     /// over the visible text area. Owned by `NativeTextView+HeadingFoldHover`
