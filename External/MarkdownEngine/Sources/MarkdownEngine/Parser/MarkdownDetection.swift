@@ -41,18 +41,6 @@ public struct FoldedHeading: Equatable, Sendable {
 
 public enum MarkdownDetection {
 
-    // MARK: - Shared syntax patterns
-
-    /// Regex sub-pattern matching a task-list checkbox's brackets: `[ ]`, `[x]`,
-    /// `[X]`, or the empty Pommora shorthand `[]` — the `?` makes the inner char
-    /// optional. Single source of truth so the three places that care about a
-    /// checkbox agree on what one is: the styler (renders the box), the list
-    /// continuation Enter handler (`hasCheckbox`), and the click-to-toggle
-    /// hit-test. These drifted before — the styler accepted `[]` but the other
-    /// two required a non-empty inner char — leaving freshly typed `-[]` boxes
-    /// rendered yet neither continuable on Enter nor clickable to toggle.
-    static let checkboxBracketPattern = #"\[[ xX]?\]"#
-
     // MARK: - Thematic Break (HR) detection
 
     /// Three-stage detection for whether a single-paragraph string is a

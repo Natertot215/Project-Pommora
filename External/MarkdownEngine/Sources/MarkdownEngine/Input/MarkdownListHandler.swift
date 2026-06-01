@@ -179,9 +179,7 @@ struct MarkdownLists {
             }
             contentStartOffset = match.range.location + match.range.length
             let markerOuter = (fullLine as NSString).substring(with: match.range(at: 1))
-            hasCheckbox =
-                markerOuter.range(
-                    of: MarkdownDetection.checkboxBracketPattern, options: .regularExpression) != nil
+            hasCheckbox = markerOuter.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil
             let contentLength = max(0, fullLineUTF16 - contentStartOffset)
             let contentPart =
                 (fullLine as NSString)
