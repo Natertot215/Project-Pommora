@@ -381,10 +381,14 @@ struct PageEditorView: View {
         settingsManager.settings.showPageIcon && pageIcon != nil
     }
 
-    /// The "Add Icon" affordance shows only when the setting is on, no icon is
-    /// set, and the cursor is over the title row.
+    /// The "Add Icon" affordance shows when the setting is on, no icon is set,
+    /// and either the cursor is over the title row OR its picker is open.
+    /// The `|| iconPickerOpen` clause is load-bearing: without it, moving the
+    /// cursor off the title row into the popover flips hover off, unmounts the
+    /// button, and the popover (anchored to it) closes mid-interaction.
     private var showAddIconAffordance: Bool {
-        settingsManager.settings.showPageIcon && pageIcon == nil && hoveringTitleRow
+        settingsManager.settings.showPageIcon && pageIcon == nil
+            && (hoveringTitleRow || iconPickerOpen)
     }
 
     /// Bridges the icon picker to the page's frontmatter: reads the current icon;
