@@ -28,7 +28,14 @@ private struct PlainTextWalker: MarkupWalker {
 
     mutating func visitText(_ text: Markdown.Text) { self.text += text.string }
     mutating func visitInlineCode(_ inlineCode: InlineCode) { self.text += inlineCode.code }
-    mutating func visitCodeBlock(_ codeBlock: CodeBlock) { self.text += codeBlock.code }
+    mutating func visitCodeBlock(_ codeBlock: CodeBlock) {
+        // CodeBlock is a leaf BlockMarkup with an explicit override, so it skips
+        // the block-separator `\n` that `defaultVisit` appends. Add it (unless
+        // `code` already ends in one) so a fenced block's last word doesn't fuse
+        // with the following paragraph's first word during word counting.
+        self.text += codeBlock.code
+        if !self.text.hasSuffix("\n") { self.text += "\n" }
+    }
     mutating func visitSoftBreak(_ softBreak: SoftBreak) { self.text += " " }
     mutating func visitLineBreak(_ lineBreak: LineBreak) { self.text += " " }
 

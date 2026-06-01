@@ -25,6 +25,21 @@ struct PageTextStatsTests {
         #expect(!plain.contains("http://x"))  // link URL dropped, label kept
     }
 
+    @Test func codeBlockDoesNotFuseAdjacentWords() {
+        // The word after a fenced code block must not fuse with the block's
+        // last word during counting (regression: visitCodeBlock skipped the
+        // block separator).
+        let md = "alpha\n\n```\ncode\n```\n\nbravo\n"
+        let plain = MarkdownPlainText.extract(from: md)
+        #expect(!plain.contains("codebravo"))
+
+        var words = 0
+        plain.enumerateSubstrings(in: plain.startIndex..., options: .byWords) { _, _, _, _ in
+            words += 1
+        }
+        #expect(words == 3)  // alpha, code, bravo
+    }
+
     // MARK: - PageTextStats
 
     @Test func countsFromBody() {
