@@ -33,10 +33,14 @@ extension MarkdownStyler {
         "\\[[^\\]\\r\\n]+\\]\\(\\)",
     ].map { try! NSRegularExpression(pattern: $0) }
     static let taskListRegex: NSRegularExpression = try! NSRegularExpression(
-        // `([ \t]*)` (zero-or-more) on the spacer group AND optional inner-bracket
-        // content `[ xX]?` let the Pommora `-[]` / `-[x]` shorthand match
-        // alongside the GFM `- [ ]` / `- [x]` form.
-        pattern: #"^([ \t]*)([-*+•]|\d+\.)([ \t]*)(\[[ xX]?\])(?=[ \t])"#,
+        // `([ \t]*)` (zero-or-more) on the spacer group lets the no-space
+        // `-[x]` / `-[ ]` shorthand render alongside GFM `- [x]` / `- [ ]`.
+        // The bracket requires a non-empty inner char (`[ ]` / `[x]` / `[X]`):
+        // the EMPTY `[]` is intentionally NOT a checkbox — it's the transient
+        // shorthand that canonicalizes to GFM on the next space (see
+        // MarkdownLists' shorthand→GFM transform), so it shows as literal text
+        // until then.
+        pattern: #"^([ \t]*)([-*+•]|\d+\.)([ \t]*)(\[[ xX]\])(?=[ \t])"#,
         options: [.anchorsMatchLines]
     )
 }

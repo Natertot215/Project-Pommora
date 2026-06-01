@@ -47,6 +47,13 @@ struct MarkdownLists {
     /// no content yet. Used by `detectListContext` to trigger Case 1: Enter
     /// on a bare marker completes the marker + opens a new list item below.
     static let bareMarkerRegex = try! NSRegularExpression(pattern: #"^\s*([-*+]|\d+\.)\s*$"#)
+    /// Matches a line that is ONLY a Pommora checkbox shorthand marker with no
+    /// space between the bullet and the bracket — `-[]`, `-[ ]`, `-[x]`, `-[X]`
+    /// (caret implied at line end). Group 1 = leading whitespace, group 2 =
+    /// bullet char, group 3 = inner char (empty / space / x / X). Drives the
+    /// space-triggered GFM canonicalization in `handleInsertion`.
+    static let shorthandCheckboxRegex = try! NSRegularExpression(
+        pattern: #"^([ \t]*)([-*+])\[([ xX]?)\]$"#)
 
     static func indentLevel(from leadingWhitespace: String) -> Int {
         let tabCount = leadingWhitespace.filter { $0 == "\t" }.count
@@ -179,12 +186,12 @@ struct MarkdownLists {
             }
             contentStartOffset = match.range.location + match.range.length
             let markerOuter = (fullLine as NSString).substring(with: match.range(at: 1))
-            // `[ xX]?` — the OPTIONAL inner char is load-bearing: it lets the
-            // empty Pommora shorthand `-[]` (which the styler renders as an
-            // unchecked box) count as a checkbox, so Enter continues it as a
-            // checkbox rather than a plain `- ` bullet. Do NOT drop the `?` —
-            // removing it regresses empty-box continuation (see history).
-            hasCheckbox = markerOuter.range(of: #"\[[ xX]?\]"#, options: .regularExpression) != nil
+            // Require a non-empty inner char (`[ ]` / `[x]` / `[X]`). The empty
+            // `[]` is NOT a checkbox: the shorthand canonicalizes to GFM `- [ ]`
+            // on the space that starts the content (see handleInsertion's
+            // shorthand→GFM transform), so a bare `-[]` is a transient,
+            // non-checkbox marker and continues as a plain bullet on Enter.
+            hasCheckbox = markerOuter.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil
             let contentLength = max(0, fullLineUTF16 - contentStartOffset)
             let contentPart =
                 (fullLine as NSString)
@@ -488,6 +495,39 @@ struct MarkdownLists {
         // inside fenced/inline code, or inside an open `[[...]]` wikilink
         // target where ` - ` may appear in a filename.
         if replacementString == " " && affectedCharRange.length == 0 && !isInCodeBlock {
+            // Checkbox shorthand → GFM canonicalization. When the caret sits
+            // right after a bare `-[]` / `-[ ]` / `-[x]` marker (no space
+            // between the bullet and the bracket) and the user types the space
+            // that starts the content, rewrite the marker to portable GFM
+            // (`- [ ] ` / `- [x] `) and consume the typed space. Keeps the fast
+            // shorthand input but writes Obsidian-renderable source, matching
+            // Enter-continuation's output. The caret lands AFTER the trailing
+            // space so typing flows straight into the content — the space feels
+            // like it simply "expanded" the marker.
+            if listsEnabled {
+                let nsText = textView.string as NSString
+                let caret = affectedCharRange.location
+                let lineStart = nsText.lineRange(for: NSRange(location: caret, length: 0)).location
+                let upToCaret = nsText.substring(
+                    with: NSRange(location: lineStart, length: caret - lineStart))
+                let scanRange = NSRange(location: 0, length: (upToCaret as NSString).length)
+                if let m = shorthandCheckboxRegex.firstMatch(in: upToCaret, range: scanRange) {
+                    let up = upToCaret as NSString
+                    let ws = up.substring(with: m.range(at: 1))
+                    let marker = up.substring(with: m.range(at: 2))
+                    let inner = up.substring(with: m.range(at: 3))
+                    let box = inner.lowercased() == "x" ? "x" : " "
+                    let gfm = "\(ws)\(marker) [\(box)] "
+                    MarkdownLists.performEdit(
+                        textView,
+                        replace: NSRange(location: lineStart, length: caret - lineStart),
+                        with: gfm)
+                    textView.setSelectedRange(
+                        NSRange(location: lineStart + (gfm as NSString).length, length: 0))
+                    return false
+                }
+            }
+
             let insertionLocation = affectedCharRange.location
             if insertionLocation >= 2 {
                 let nsText = textView.string as NSString

@@ -35,11 +35,10 @@ extension NativeTextView {
 
         let nsText = storage.string as NSString
         let checkboxText = nsText.substring(with: effectiveRange)
-        // `[ xX]?` (optional inner char) so a freshly created, never-toggled
-        // empty box `[]` — which the styler already renders as a checkbox — is
-        // clickable. Without the `?` an empty box couldn't be checked until it
-        // was retyped.
-        guard checkboxText.range(of: #"\[[ xX]?\]"#, options: .regularExpression) != nil else { return nil }
+        // Require a non-empty inner char (`[ ]` / `[x]` / `[X]`). The empty `[]`
+        // is not a checkbox (the styler doesn't tag it), so it never reaches
+        // here — the guard stays in sync with the styler / hasCheckbox.
+        guard checkboxText.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil else { return nil }
 
         let replacement = isChecked ? "[ ]" : "[x]"
         if shouldChangeText(in: effectiveRange, replacementString: replacement) {
