@@ -105,11 +105,12 @@ struct PageEditorView: View {
                             withAnimation(.easeInOut(duration: 0.22)) { statsExpanded = true }
                         } label: {
                             Image(systemName: "chevron.compact.up")
+                                .imageScale(.large)
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
-                        .padding(.trailing, 8)  // matches PageStatsBar.padding(8) → x-aligns with counts
-                        .padding(.bottom, 4)
+                        .padding(.trailing, 12)  // matches PageStatsBar horizontal inset → x-aligns with counts
+                        .padding(.bottom, 8)
                         .accessibilityLabel("Show statistics")
                     }
                 }

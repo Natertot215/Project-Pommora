@@ -21,11 +21,12 @@ struct PageStatsBar: View {
     private var showCollapseChevron: Bool { collapseAffordanceForced || hovering }
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .trailing, spacing: 3) {
             Button {
                 withAnimation(.easeInOut(duration: 0.22)) { isExpanded = false }
             } label: {
                 Image(systemName: "chevron.compact.down")
+                    .imageScale(.large)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -39,10 +40,11 @@ struct PageStatsBar: View {
                 Text(countsAttributed)
                     .help("Lines · Words · Characters")
             }
-            .font(PUI.Typography.caption)
+            .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .padding(8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
