@@ -51,10 +51,11 @@ struct PageEditorView: View {
     /// divider at rest.
     @State private var scrollOffset: CGFloat = 0
 
-    /// Whether the bottom stats footer is expanded. The toggle chevron is an
-    /// editor overlay (outside `PageStatsBar`) in both states, so the bar holds
-    /// only the counts row and stays minimal-height.
-    @State private var statsExpanded = false
+    /// Whether the bottom stats footer is expanded. A global app preference
+    /// (UserDefaults via `@AppStorage`), so on/off persists across every Page
+    /// and across launches — not per-document. The toggle chevron is an editor
+    /// overlay (outside `PageStatsBar`), so the bar holds only the counts row.
+    @AppStorage("pageStatsFooterExpanded") private var statsExpanded = false
     /// Latest computed document statistics, shown while the footer is open.
     /// Set synchronously on open (instant counts) and refreshed debounced as
     /// the body changes.
@@ -129,6 +130,11 @@ struct PageEditorView: View {
             try? await Task.sleep(for: .seconds(3))
             if !Task.isCancelled { chevronForcedVisible = false }
         }
+        // Page opened with the footer already on (persisted preference): compute
+        // counts immediately so the bar doesn't flash empty before the debounce.
+        .onAppear {
+            if statsExpanded { stats = PageTextStats(body: viewModel.body) }
+        }
     }
 
     /// Equatable key that restarts the debounced stats recompute when either the
@@ -153,16 +159,18 @@ struct PageEditorView: View {
             withAnimation(.easeInOut(duration: 0.22)) { statsExpanded.toggle() }
         } label: {
             Image(systemName: statsExpanded ? "chevron.compact.down" : "chevron.compact.up")
-                .imageScale(.large)
+                .font(.title3)
                 .foregroundStyle(.secondary)
-                .frame(width: 44, height: 22)  // comfortable, always-present hover/hit zone
+                .frame(width: 44, height: 26)  // comfortable, always-present hover/hit zone
                 .contentShape(Rectangle())
                 .opacity(visible ? 1 : 0)
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: visible)
         .padding(.trailing, 16)
-        .padding(.bottom, 12)
+        // Snug above the bar when open; comfortably inset from the window edge
+        // when collapsed.
+        .padding(.bottom, statsExpanded ? 4 : 12)
         .onHover { hoveringChevron = $0 }
         .accessibilityLabel(statsExpanded ? "Hide statistics" : "Show statistics")
     }

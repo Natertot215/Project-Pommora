@@ -15,7 +15,7 @@ struct PageStatsBar: View {
             Text(countsAttributed)
                 .help("Lines · Words · Characters")
         }
-        .font(.caption)
+        .font(.footnote)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
