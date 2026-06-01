@@ -82,6 +82,12 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
     /// participating in the AppKit scroll view itself.
     public var onScrollOffsetChange: ((CGFloat) -> Void)?
 
+    /// When true, the text view stops re-asserting its I-beam cursor on every
+    /// `mouseMoved` — letting an app-level overlay (e.g. a floating button) keep
+    /// a pointing-hand cursor it set. Without this, the body's per-move cursor
+    /// management stomps any cursor a SwiftUI overlay applies on top.
+    public var suppressBodyCursorManagement: Bool = false
+
     public init(
         text: Binding<String>,
         isWikiLinkActive: Binding<Bool> = .constant(false),
@@ -97,7 +103,8 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         onCaretRectChange: ((CGRect) -> Void)? = nil,
         onInlineSelectionChange: ((InlineSelectionState?) -> Void)? = nil,
         onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)? = nil,
-        onScrollOffsetChange: ((CGFloat) -> Void)? = nil
+        onScrollOffsetChange: ((CGFloat) -> Void)? = nil,
+        suppressBodyCursorManagement: Bool = false
     ) {
         self._text = text
         self._isWikiLinkActive = isWikiLinkActive
@@ -114,6 +121,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         self.onInlineSelectionChange = onInlineSelectionChange
         self.onCodeBlockSelectionChange = onCodeBlockSelectionChange
         self.onScrollOffsetChange = onScrollOffsetChange
+        self.suppressBodyCursorManagement = suppressBodyCursorManagement
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -274,6 +282,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
 
         if let bottomTextView = nsView.documentView as? NativeTextView {
             bottomTextView.onPasteImage = onPasteImage
+            bottomTextView.suppressBodyCursorManagement = suppressBodyCursorManagement
         }
         if nsView.hasVerticalScroller != configuration.scrollers.hasVerticalScroller {
             nsView.hasVerticalScroller = configuration.scrollers.hasVerticalScroller

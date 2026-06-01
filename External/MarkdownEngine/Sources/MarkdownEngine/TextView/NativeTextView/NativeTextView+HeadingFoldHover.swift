@@ -46,6 +46,9 @@ extension NativeTextView {
         super.mouseMoved(with: event)
         let viewPoint = convert(event.locationInWindow, from: nil)
         updateHeadingFoldHover(at: viewPoint)
+        // Skip the per-move I-beam reset when an app overlay owns the cursor
+        // (e.g. the stats-footer chevron showing a pointing hand).
+        guard !suppressBodyCursorManagement else { return }
         updateHeadingChevronCursor(at: viewPoint)
     }
 
