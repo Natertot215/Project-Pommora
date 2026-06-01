@@ -15,8 +15,6 @@ import SwiftUI
 /// close() of the outgoing VM.
 struct PageEditorHost: View {
     let page: PageMeta
-    /// Navigate the sidebar selection — forwarded to the editor's breadcrumb.
-    var onNavigate: (SidebarSelection) -> Void = { _ in }
 
     @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -29,10 +27,7 @@ struct PageEditorHost: View {
     var body: some View {
         Group {
             if let vm = viewModel, let vault = resolvedVault {
-                PageEditorView(
-                    viewModel: vm, vault: vault, collection: resolvedCollection,
-                    onNavigate: onNavigate
-                )
+                PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection)
                     // Force a full teardown + rebuild of PageEditorView when
                     // the loaded Page changes — guarantees @State (titleDraft)
                     // resets cleanly per-page and that the body editor

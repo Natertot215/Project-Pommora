@@ -100,7 +100,7 @@ struct SidebarDetailView: View {
                 }
 
             case .page(let p):
-                PageEditorHost(page: p, onNavigate: { selection = $0 })
+                PageEditorHost(page: p)
 
             case .itemType(let t):
                 ItemTypeDetailView(
