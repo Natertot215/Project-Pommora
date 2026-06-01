@@ -315,6 +315,8 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **What to do instead:** when adding a new detection site for an existing construct, audit ALL existing regex patterns describing it and update them in lockstep — same marker class, same optional-bracket spec. If a pattern is referenced by 3+ sites, consider hoisting it to a `static let` shared constant.
 
+**Deliberate divergence (post-canonicalization, 2026-06-01):** the empty `[]` is now intentionally treated differently across two *classes* of pattern, and that split must be preserved: **list-detection** patterns (`listRegex`, `bulletListPattern`) keep the optional inner char `\[[ xX]?\]` so a bare `-[]` still reads as a list *line* (indents, continues, gets a leading marker); **checkbox patterns** (`taskListRegex`, `hasCheckbox`, click-toggle) require a non-empty `\[[ xX]\]` so empty `[]` is NOT drawn/continued/toggled as a checkbox (it's a transient marker that canonicalizes on the content-space, §9.8). The lockstep rule still holds *within* each class — don't re-add `?` to the checkbox class.
+
 ---
 
 #### 7. Engine-specific quirks
@@ -430,11 +432,14 @@ Three candidate strategies have been sketched (A / B / C / hybrid) and remain op
 
 Source `- item` renders as `• item`; `*`, `+`, legacy `•` render literally (locked: only `-` substitutes). Implementation: always-show overlay in `MarkdownTextLayoutFragment.drawDashBulletGlyph` (no caret-aware reveal — sidesteps the Session 13 failure mode entirely; L14). Pixel-aligned via `window?.backingScaleFactor`. Bullet sized at `baseFont.pointSize * 1.5`. Source on disk stays `-` for portability.
 
-##### 9.8 Pommora `-[]` task shorthand accepted alongside GFM (2026-05-21)
+##### 9.8 Checkbox shorthand canonicalizes to GFM on input (2026-05-21; revised 2026-06-01)
 
-> "Lets change the syntax for task list to this -[] / rather than - [ ]."
+> "Lets change the syntax for task list to this -[] / rather than - [ ]." (2026-05-21)
+> "I want -[] to auto-transform … removing -[] being displayed as a checkbox altogether … just typing -[] plus space auto-transforms into proper syntax." (2026-06-01)
 
-Pommora accepts `-[]` / `-[x]` as task-list syntax in addition to GFM's `- [ ]` / `- [x]`. The shorthand is **NOT portable** — Obsidian, iA Writer, GitHub, pandoc render `-[]` as literal text, not a checkbox. Nathan explicitly accepted the tradeoff for typing fluidity. The styler/renderer detection regex must accept both forms (`[-*+•](?:[ \t]*\[[ xX]?\])?` — zero-or-more whitespace before brackets, optional bracket content). See L13.
+The `-[]` / `-[ ]` / `-[x]` shorthand is an **input convenience, not an on-disk format**. Typing it then the space that starts the content **canonicalizes the line to portable GFM** (`- [ ] ` / `- [x] `), caret landing after the trailing space — so Pommora-created checkboxes render in BOTH Pommora and Obsidian/iA/GitHub/pandoc. This **reverses the original "NOT portable, accepted tradeoff" stance** (2026-05-21): portability won. Implementation: `MarkdownLists.handleInsertion` space branch + `shorthandCheckboxRegex`; same GFM output as Enter-continuation.
+
+The **empty `[]` is NOT a checkbox** anywhere it's rendered/continued/toggled (`taskListRegex`, `hasCheckbox`, click-toggle all require a non-empty inner char `[ xX]`): a bare `-[]` is a transient marker shown as literal text until the space canonicalizes it. `[ ]` / `[x]` (inner char) still render immediately, and still canonicalize their no-space-after-bullet form on the content-space. See L13 (the list-detection regexes still match `-[]` as a *line*, so it indents/continues — only checkbox-rendering excludes empty `[]`).
 
 ##### 9.9 Bracket-skip Enter intercept (v0.2.7.4 — 2026-05-21)
 

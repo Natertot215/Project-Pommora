@@ -33,7 +33,7 @@ Pages support everything in standard Markdown — paragraphs, headings (H1–H6;
 
 **Headings are foldable** by default; fold state persists per-Page in frontmatter as `folded_headings: [...]` (ordinal-disambiguated keys; orphan entries reconciled on save). The Markdown body itself stays untouched. Implementation + visual spec → [[PageEditor]]; architecture rationale → `// Guidelines//Markdown.md` §9.11.
 
-**Task lists** accept GFM (`- [ ]` / `- [x]`) and Pommora's `-[]` / `-[x]` shorthand. Render + click-to-toggle spec → [[PageEditor]].
+**Task lists** are GFM (`- [ ]` / `- [x]`) on disk. Pommora's `-[]` / `-[x]` shorthand is an input convenience that **canonicalizes to GFM on the space that starts the content** — so checkboxes stay portable (render in Obsidian/GitHub/pandoc too). Render + canonicalization + click-to-toggle spec → [[PageEditor]].
 
 **Blockquote, horizontal rule, code-block** rendering is in [[PageEditor]]. The on-disk form is standard CommonMark in every case (the `>` marker hides in-editor but stays on disk; HR is `---` on its own line; Pommora rejects the Setext H2 interpretation — `---` is always HR).
 
