@@ -76,10 +76,8 @@ Slotted v0.4.0 (Symbols + Settings + Trash + Wikilinks batch).
 #### Board view: drag-to-rewrite-frontmatter
 **Description:** Planned post-v1.0 feature. Board view (kanban) ships in v0.7.0 as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Slot for v1.x or v2.0 once foundations stabilize.
 
-#### Quick-capture (Cmd+Shift+N / menu-bar)
-**Description:** Global Cmd+Shift+N or menu-bar popover creating Items / Pages / Agenda Tasks / Agenda Events from anywhere in the OS. Right-click is canonical contextual creation; quick-capture is the discoverable global counterpart, absorbs most CRUD entry traffic. Slotted v0.6.0.
-
-Shape borrows from Things 3, NotePlan, Drafts: tiny floating window, defaults to a user-configured "inbox" Page Type (or Item Type, per kind), optional Tier1/2/3 + Type override fields. Enter submits; Esc dismisses.
+#### Quick-capture (menu-bar / web clipper)
+**Description:** Now committed roadmap, not a post-v1 prospect — full concept + architecture in [[QuickCapture]] (roadmap slot → `Framework.md` v0.6.0). A menu-bar capture pane (and an optional browser / Share-sheet web-clip route) adds Items / Agenda Tasks / Agenda Events directly to the nexus as another in-process entry point; Pages deferred. Kept here only as a redirect.
 
 #### Hover-icon "+" affordance on sidebar section headings
 **Description:** Visible counterpart to the right-click creation menu — section headings (Spaces / Topics / Items / Pages) get a hover-revealed "+" icon at the trailing edge (same pattern as the disclosure chevron). Click triggers the section's default new sheet. **Explicitly skipped in v0.2** in favor of right-click-only; if sidebar discoverability becomes a friction point pre-quick-capture, this is the open slot. After quick-capture ships, this likely stays deferred indefinitely — quick-capture is the primary discoverable path.

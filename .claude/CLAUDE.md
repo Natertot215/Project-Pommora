@@ -80,6 +80,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
   - `PageEditor.md` — editor implementation spec: library (swift-markdown + vendored swift-markdown-engine), shipped v0.2.7.0 features, v0.2.7.x deferred patches, save pipeline, hot-swap surface
   - `Items.md` — Item Types + Item Collections + Items (`.json` row entries); Item Window UI; tier1/2/3
   - `Properties.md` — property type catalog (per-Type via per-kind sidecar — `_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json`; shared across Pages, Items, Agenda Tasks, Agenda Events)
+  - `QuickCapture.md` — menu-bar + web-clip capture surface (Items / Tasks / Events); concept + architecture (single-owner nexus access, pinned-properties-first); roadmap → Framework v0.6.0
   - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Pinned + Recents); shipped v0.2.7.1 — supersedes the earlier tab-strip navigation model
   - `Sidebar.md` — five-section sidebar (Pinned / Spaces / Topics / Items / Pages — no Agenda section); selection language, indentation mechanisms
   - `Architecture.md` — what survives a stack rebuild (conceptual portability)
