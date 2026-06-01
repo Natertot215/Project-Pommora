@@ -146,7 +146,7 @@ Relations are stored by ID (rename-safe); body wikilinks reference by name and r
 
 #### Sidebar shape
 
-Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — v0.3.0 storage / v0.6.0 editing UI):
+Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — v0.3.0 storage / v0.4.0 editing UI):
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Spaces** — flat rows for tier-1 Contexts

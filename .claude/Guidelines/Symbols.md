@@ -12,7 +12,6 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 |---|---|
 | Pages | `doc.text` |
 | Page Collections (UI label "Collection") | `folder` |
-| Page Types (UI label "Vault") | `book` (or per-Type override at `_pagetype.json.icon`) |
 | Item Types (UI label "Type") | `tray.full` (or per-Type override at `_itemtype.json.icon`) |
 | Item Collections (UI label "Set") | `square.stack.3d.up` (or per-Collection override) |
 | Items | `tray` (or per-item override) |
@@ -28,7 +27,6 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 | Inspector toggle (toolbar) | `sidebar.trailing` |
 | Sidebar toggle (toolbar) | *(system-provided by `NavigationSplitView`)* |
 | Back / forward arrows (toolbar) | `chevron.left` / `chevron.right` |
-| Page Type Settings / Item Type Settings | `gearshape` |
 | App-wide Settings scene (Cmd+,) | `gearshape` |
 
 ---
@@ -63,6 +61,6 @@ struct IconConfig: Codable {
 }
 ```
 
-Stored at `.nexus/icon-config.json` alongside `tier-config.json` / `saved-config.json` / `settings.json`. The native `IconPicker` (already the per-property + per-entity icon chooser) supplies the editor UI. Post-v0.6.0, the IconConfig store may fold into `settings.json` since both carry per-Nexus UI customization — TBD when the surface ships.
+Stored at `.nexus/icon-config.json` alongside `tier-config.json` / `saved-config.json` / `settings.json`. The native `IconPicker` (already the per-property + per-entity icon chooser) supplies the editor UI. Post-v0.4.0, the IconConfig store may fold into `settings.json` since both carry per-Nexus UI customization — TBD when the surface ships.
 
 Until that ships, edits to defaults happen by editing this file + the corresponding `Image(systemName:)` site in code.

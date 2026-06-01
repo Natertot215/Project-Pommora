@@ -106,7 +106,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
   "schema_version": 2,
   "default_sort": { "property_id": "_modified_at", "direction": "descending" },
   "views": [
-    /* per-view saved configurations (table / board / list / cards / gallery) — ships v0.6.0 */
+    /* per-view saved configurations (table / board / list / cards / gallery) — ships v0.7.0 */
   ],
   "collection_order": [],
   "page_order": [],
@@ -152,7 +152,7 @@ The schema-editor sheet opens from the **Page Type row right-click → "Vault Se
 | **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, relation target, dual reverse name, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
-Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings**, which ships at v0.6.0 alongside saved views. A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.
+Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings**, which ships at v0.7.0 alongside saved views. A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.
 
 ##### Properties section detail
 
@@ -164,7 +164,7 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### Settings JSON shape
 
-Page Type Settings reads/writes the `properties` and `default_sort` fields of `_pagetype.json` (full shape above). Saved views (with their own filter / group_by / layout / property_visibility) live in `views[]`, populated at v0.6.0 when the saved-views system ships.
+Page Type Settings reads/writes the `properties` and `default_sort` fields of `_pagetype.json` (full shape above). Saved views (with their own filter / group_by / layout / property_visibility) live in `views[]`, populated at v0.7.0 when the saved-views system ships.
 
 ---
 
@@ -235,7 +235,7 @@ Table views carry **pre-configured tier columns** — rendered left-to-right as 
 
 Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json`). Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
 
-**Row ordering (interim).** Page Type / Page Collection detail tables are display-only for row order — they mirror the sidebar's file-level order (empty-state default = creation order via the ULID id; manual order persists in `page_order` / `collection_order`). Vault/type-level drag-reorder, per-view `order`, group-by and sort are deferred to the saved-views system (v0.6.0). Flat reorder inside a Page Collection's own detail view is unaffected. Record: `Planning/2026-05-31-vault-table-displayonly-interim.md`.
+**Row ordering (interim).** Page Type / Page Collection detail tables are display-only for row order — they mirror the sidebar's file-level order (empty-state default = creation order via the ULID id; manual order persists in `page_order` / `collection_order`). Vault/type-level drag-reorder, per-view `order`, group-by and sort are deferred to the saved-views system (v0.7.0). Flat reorder inside a Page Collection's own detail view is unaffected. Record: `Planning/2026-05-31-vault-table-displayonly-interim.md`.
 
 ---
 

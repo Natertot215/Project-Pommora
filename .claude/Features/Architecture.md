@@ -125,7 +125,7 @@ Every file write goes through one of three atomic-write helpers:
 
 ---
 
-#### File-watcher contract (deferred — `Framework.md` v0.3.3)
+#### File-watcher contract (deferred — `Framework.md` v0.4.0)
 
 External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. Planned shape:
 

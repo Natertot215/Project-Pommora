@@ -173,7 +173,7 @@ Calendar-anchored items split into two distinct entities:
 
 Schemas live in per-side per-kind sidecars: the Tasks singleton's `_taskconfig.json` (AgendaTask schema) and the Events singleton's `_eventconfig.json` (AgendaEvent schema). Sidecar-driven discovery — first root folder found carrying each sidecar wins; if no folder carries the sidecar on a brand-new nexus, managers eagerly seed `Tasks/` + `Events/` at the root on launch. Swift type names are `AgendaTask` and `AgendaEvent` (prefixed to avoid `_Concurrency.Task` and `Event` stdlib collisions; the "no `Pommora.X` qualification" rule rejects `Pommora.Task`). UI labels remain "Task" / "Event" (renameable via Settings).
 
-EventKit requires `com.apple.security.personal-information.calendars` entitlement + `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` keys + modern `requestFullAccessTo*` APIs (separate permissions per kind). EventKit sync opt-in via Settings (data layer ships v0.3.0; sync ships v0.6.0). Agenda has NO dedicated sidebar section — surfaces via the Calendar pin entry. Full detail → `// Features//Agenda.md`.
+EventKit requires `com.apple.security.personal-information.calendars` entitlement + `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` keys + modern `requestFullAccessTo*` APIs (separate permissions per kind). EventKit sync opt-in via Settings (data layer ships v0.3.0; sync ships v0.5.0). Agenda has NO dedicated sidebar section — surfaces via the Calendar pin entry. Full detail → `// Features//Agenda.md`.
 
 ##### Homepage
 
@@ -382,7 +382,7 @@ Items, Agenda Tasks, and Agenda Events do NOT appear in the sidebar — they liv
 
 Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes drag-resizable from v0.0; widths persist across launches. Default window 1200×800; minimum 960×560.
 
-**Main-window inspector hosts the Claude chat** (frontend to Nathan's local CLI, not an API integration; subprocess bridge) — ships in a v0.3.x patch when designed. **Properties do NOT live in the main-window inspector.** They live in three different surfaces depending on context (full spec at [[Properties]] § "Where Properties Live"):
+**Main-window inspector hosts the Claude chat** (frontend to Nathan's local CLI, not an API integration; subprocess bridge) — ships at v0.6.0 (LLM Interface). **Properties do NOT live in the main-window inspector.** They live in three different surfaces depending on context (full spec at [[Properties]] § "Where Properties Live"):
 
 | Surface | Property home |
 |---|---|
@@ -412,7 +412,7 @@ After the user picks a nexus location, Pommora opens with empty sidebars plus a 
 
 ##### Design System
 
-SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into v0.6.0 Settings scaffold). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`.
+SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into v0.4.0 Settings UI). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`.
 
 ##### File Renames and Wikilink Resolution
 
@@ -446,9 +446,9 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - **Page Types + Page Collections + Pages** (Pages side) and **Item Types + Item Collections + Items** (Items side) — symmetric container layers. Each Type carries its per-kind sidecar (`_pagetype.json` / `_itemtype.json`); Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` / `_itemcollection.json` carries id + type_id + ordering only). UI labels: Pages get "Vault" + "Collection"; Items get "Type" + "Set" (renameable via Settings).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
 - **Items** — `.json`. Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; `id`, `icon`, `description` (250-char), `tier1/2/3`, timestamps. Properties keyed by property ID. Open in Item Window popover, not a tab.
-- **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
+- **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.5.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
-- **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.6.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.
+- **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.4.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.
 - Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 11 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + Templates placeholder). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
 - Wikilinks (styled colored inline text).
 - Automatic file rename with cross-nexus wikilink rewrite.
@@ -456,6 +456,6 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - Global search (SQLite FTS5 over Page bodies + frontmatter).
 - Five-section sidebar (Pinned / Spaces / Topics / Items / Pages), user-reorderable, default-collapsed. Agenda surfaces via Pinned → Calendar.
 - **Inline editing of embedded views** — every embed in a composed-blocks surface is a live editable view of its source.
-- One initial design scheme + in-app accent color + font size customization (folded into v0.6.0 Settings UI on top of the v0.3.0 Settings scaffold); SwiftUI native handles everything else.
+- One initial design scheme + in-app accent color + font size customization (folded into v0.4.0 Settings UI on top of the v0.3.0 Settings scaffold); SwiftUI native handles everything else.
 
 **Out (post-v1):** additional view types, block features, sync, mobile, plugins, ad-hoc properties, multi-Collection pages, independent UI titles, in-line view embeds in Pages, chip wikilinks, Item ↔ Page cross-side promotion, board view drag-to-rewrite-frontmatter, per-Item-Type templates, full Settings editing UI, etc. — see `// Features//Prospects.md`. Items move from Prospects into `Framework.md` when committed.

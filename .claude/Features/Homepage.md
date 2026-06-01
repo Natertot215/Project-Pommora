@@ -41,7 +41,7 @@ The block catalog (shared with Contexts; `ContextBlock` is an empty placeholder 
   - `embedded-context-view` — auto-collected linked content from a Context
   - `linked-pages` — entities linked to a specified Context, resolved via `IndexQuery.incomingRelations(targetID:)`
   - `link-list` — manually curated links
-  - `mini-calendar` — small Agenda view (ships v0.8.0)
+  - `mini-calendar` — small Agenda view (ships v0.7.0)
 
 Every widget is a **live, fully-editable view of its source**, never a read-only snapshot; edits flow to source files via atomic write (inline-editing principle → [[Domain-Model]]).
 

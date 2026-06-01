@@ -7,7 +7,7 @@ The operational layer's calendar-anchored side. Splits into two distinct entity 
 
 Both share the property catalog used elsewhere (Number / Select / Status / Relation / etc.) and both carry `tier1` / `tier2` / `tier3` Context relations.
 
-The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate `EKEntityType` buckets, separate access APIs, separate apps — Calendar.app vs Reminders.app), so the disk layout uses two sibling singleton folders at the nexus root rather than an `Agenda/` wrapper. EventKit sync (v0.6.0) maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
+The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate `EKEntityType` buckets, separate access APIs, separate apps — Calendar.app vs Reminders.app), so the disk layout uses two sibling singleton folders at the nexus root rather than an `Agenda/` wrapper. EventKit sync (v0.5.0) maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
 
 In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
@@ -63,9 +63,9 @@ The EventKit-shaped fields live at the root of each `.task.json` / `.event.json`
 
 ---
 
-#### EventKit sync (v0.6.0)
+#### EventKit sync (v0.5.0)
 
-EventKit sync is opt-in (Settings → Agenda), not enabled by default; the on-disk fields exist day one so opt-in is purely additive. The design below is the sync contract — the integration itself lands at v0.6.0.
+EventKit sync is opt-in (Settings → Agenda), not enabled by default; the on-disk fields exist day one so opt-in is purely additive. The design below is the sync contract — the integration itself lands at v0.5.0.
 
 Each side maps to one EventKit entity, discriminated by file extension (no data-driven inference).
 
@@ -94,7 +94,7 @@ External `EKEventStore` changes are observed via async sequences over the `.EKEv
 
 #### Sidebar treatment
 
-**Agenda has no sidebar section.** Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar. The Calendar row opens `CalendarDetailView` — currently a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content ship v0.6.0. Right-click the Calendar pin → "New Task" / "New Event" stubs an entity (`createTask` / `createEvent`). Also reachable from a Context's composed-blocks surface (embedded linked-agenda view; v0.6.0+) or directly in Finder.
+**Agenda has no sidebar section.** Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar. The Calendar row opens `CalendarDetailView` — currently a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content ship v0.5.0. Right-click the Calendar pin → "New Task" / "New Event" stubs an entity (`createTask` / `createEvent`). Also reachable from a Context's composed-blocks surface (embedded linked-agenda view; v0.7.0+) or directly in Finder.
 
 ---
 

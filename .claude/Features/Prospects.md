@@ -53,19 +53,19 @@ The `template_config` field is reserved in v0.3.0 so the on-disk shape is forwar
 #### Full Settings UI
 **Description:** The Settings scaffold ships at v0.3.0 with storage + label wiring only — `.nexus/settings.json` persists the user-overridable UI labels and accent color, and `SettingsManager` threads those labels into the sidebar, sheets, and detail panes. There is no editing UI in v0.3.0; defaults are baked in and overrides must be edited by hand in the JSON file.
 
-The full Settings UI ships v0.6.0 and brings:
+The full Settings UI ships v0.4.0 and brings:
 
 - **Accent color picker** — replace the JSON-edited hex value with a swatch grid + custom color well, plus live preview across selection chrome and link styling.
 - **Label rename forms** — text inputs for every renameable label (Pages section heading, Items section heading, "Vault" / "Collection" / "Type" / "Set" defaults, "Task" / "Event" defaults, tier labels). Per-Nexus scope.
 - **Tier-config consolidation** — the existing `.nexus/tier-config.json` (Space / Topic / Project label customization) folds into the same Settings surface so all label customization lives in one place.
 
-Slotted v0.6.0 alongside the quick-capture / design-system customization batch.
+Slotted v0.4.0 (Symbols + Settings + Trash + Wikilinks batch).
 
 #### Sidebar Collection-kind indicator toggle
 **Description:** A setting that adds a small per-row icon distinguishing Page Collections from Item Collections in the sidebar. The default v1 sidebar already separates the two via the Pages / Items section split + the "Vault" / "Collection" vs "Type" / "Set" UI labels; this is a power-user detail for users who want an extra glance-level signal at the row level.
 
 #### Custom color picker for Select / Multi-select properties
-**Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work in v0.6.0.
+**Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work in v0.4.0.
 
 #### Pulldown "show empty schema entries" toggle
 **Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (Page Preview, Item Window) are eager in v1 (already show every schema property). A per-Type setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Page Types where the user wants to fill in many properties per Page without opening the picker. Post-v1.
@@ -74,7 +74,7 @@ Slotted v0.6.0 alongside the quick-capture / design-system customization batch.
 **Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).
 
 #### Board view: drag-to-rewrite-frontmatter
-**Description:** Planned post-v1.0 feature. Board view (kanban) ships in v0.5.0 as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Slot for v1.x or v2.0 once foundations stabilize.
+**Description:** Planned post-v1.0 feature. Board view (kanban) ships in v0.7.0 as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Slot for v1.x or v2.0 once foundations stabilize.
 
 #### Quick-capture (Cmd+Shift+N / menu-bar)
 **Description:** Global Cmd+Shift+N or menu-bar popover creating Items / Pages / Agenda Tasks / Agenda Events from anywhere in the OS. Right-click is canonical contextual creation; quick-capture is the discoverable global counterpart, absorbs most CRUD entry traffic. Slotted v0.6.0.
@@ -95,5 +95,5 @@ Shape borrows from Things 3, NotePlan, Drafts: tiny floating window, defaults to
 
 - **Tier property icon overrides** at the nexus-default level (IconConfig effort). `BuiltInRelationProperties` falls back sidecar-override → hardcoded SF Symbol today; when IconConfig ships, the chain extends to sidecar override → IconConfig default → hardcoded fallback.
 
-(Two former entries here — `LinkedFromDropdown` real surface and relation sort/filter — are now committed roadmap work, promoted to `Framework.md` (v0.7.0 Context-views and v0.6.0 per-view sort/group respectively), not post-v1 prospects.)
+(Two former entries here — `LinkedFromDropdown` real surface and relation sort/filter — are now committed roadmap work, promoted to `Framework.md` (both at v0.7.0 — Context-views surface + per-view sort/group), not post-v1 prospects.)
 

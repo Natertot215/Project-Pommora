@@ -111,7 +111,7 @@ On double-click, `handleOpen(ref)` dispatches by `ref.typedKind`:
 
 - **`.page` / `.vault` / `.space` / `.topic` / `.project` / `.collection` / `.itemType` / `.set`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:lookup:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
 - **`.item`** — calls `openItemWindow(ref)`, currently a **no-op stub** (TODO Phase 6: walk `ItemTypeManager` + `ItemContentManager` to find the Item, then `AppGlobals.presentItemAction?(item)`). Back/Forward already routes Items through `presentItemAction`; the dropdown row does not yet.
-- **`.agenda` / `.none`** — no-op. Agenda surfaces ship v0.6.0.
+- **`.agenda` / `.none`** — no-op. Agenda surfaces ship v0.5.0.
 
 ##### Routing architecture
 
@@ -172,7 +172,7 @@ A real **PreviewWindow primitive** is the future home for "open in preview"; whe
 | Topic | "Topic" | main-frame land | ✓ |
 | Project | "Project" | main-frame land | ✓ |
 | Item | "Item" | `ItemWindow.onAppear` | ✗ — dropdown open stubbed (Phase 6) |
-| Agenda | **"Task"** | (TBD at v0.6.0) | ✗ — v0.6.0+ |
+| Agenda | **"Task"** | (TBD at v0.5.0) | ✗ — v0.5.0+ |
 | Homepage | — | excluded | never |
 
 "Task" is a chip-label override for Agenda items (underlying files stay `.task.json` / `.event.json`; only the chip reads "Task").

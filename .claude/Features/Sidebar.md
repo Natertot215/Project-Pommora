@@ -86,7 +86,7 @@ Stored in `.nexus/saved-config.json`:
 Each item's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
 
 - `homepage` opens the Homepage singleton (see [[Homepage]])
-- `calendar` opens `CalendarDetailView` — Tasks list above, Events list below (see [[Agenda]]). Right-click the pin entry → "New Task" / "New Event" for quick capture. EventKit-mirrored entries appear once sync opt-in ships at v0.6.0.
+- `calendar` opens `CalendarDetailView` — Tasks list above, Events list below (see [[Agenda]]). Right-click the pin entry → "New Task" / "New Event" for quick capture. EventKit-mirrored entries appear once sync opt-in ships at v0.5.0.
 - `recents` shows the NavDropdown's Recents store as a full-frame view; ships at v0.6.0 per [[NavDropdown]]
 
 **User-pinning of arbitrary entities is post-v1** — section gets its "Saved" heading + "+" affordance then; the three defaults become movable / removable.

@@ -6,68 +6,47 @@
 >
 > *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess. You open the file and LOOK AT THE CODE before you assert anything.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it. We caught this AGAIN today — the plan you wrote carried stale line numbers from an old plan, and the audit caught them before they cost us a session. That audit-before-implement step is non-negotiable."*
 >
-> Held the line again this session: **the prior handoff's two "specced fixes" were BOTH wrong on mechanism** — reading the code caught it before implementing. Bug A's planner was innocent (real cause: SwiftUI `Table` can't nest-reorder under a disclosure); Bug B's `:944` guard *cannot fire* on the paired path (real cause: `resolveDualTargetKind`'s legacy-collection arm). The whole vault-reorder redesign was then built on **verified scaffolding** (`SavedView`/`views[]` already exist), not assumptions. **Next session: read the code (and the data) before you plan around it — even your own prior handoff is a hypothesis.**
+> Held the line again this session: a background audit agent — handed the *correct* version mapping — still rubber-stamped stale `v0.6.0` lines as "clean." Re-reading every reference by hand found ~35 contradictions it missed. **The cornerstone now generalizes past grep to subagents: treat any search surface's "clean" verdict as an unverified hypothesis until you've read the lines yourself.**
 
 #### Current state (2026-05-31)
 
-`main` green. **Bug B (delete cross-vault paired relation) — FIXED + shipped `95f662d`** (tolerant reverse-resolution + `LocalizedError` friendly text; RED→GREEN proven, `RelationDeleteToleranceTests`). **Bug A (in-vault nested page drag) — shipped `fee6804`, then Nathan's live smoke proved it broken** → root-caused to a SwiftUI `Table` limit → **superseded by a design decision** (below). A code-simplification + review pass on the Bug B code is in flight.
-
-**DECISION — per-view ordering (interim + deferral):** vault/type detail tables become **display-only for ordering** (they mirror the sidebar's file-level order live); **collection/set tables keep their reorder** (flat, reliable, non-structural); the full Notion-style per-view system (per-view `order`, group-by, sort, the reorder engine) is **deferred** to the view work (v0.5.0–v0.6.0). Rationale + scope: `Planning/2026-05-31-vault-table-displayonly-interim.md`. Ready-to-run plan: `Planning/2026-05-31-vault-table-displayonly-plan.md` (Tasks 1–4 ready; Task 5 gated on Nathan).
-
-Working tree: a parallel session has uncommitted edits to `Guidelines/Paradigm-Decisions.md` / `History.md` / `Relations-Redesign-Plan.md` — left untouched (quirk #10).
+`main` green at `b765c2e` (v0.3.4 shipped + tagged + pushed last session). This session was **documentation-only** — Framework realigned to shipped reality + Nathan's own roadmap, History trimmed ~70%, and version contradictions fixed across 14 docs. **All 16 `.claude` edits are uncommitted in the working tree.** A parallel session committed concurrently (`showPageIcon` toggle `b765c2e`, dead-checkbox-scaffolding cleanup `198df75`); `Pommora/Pommora.xcodeproj/project.pbxproj` + untracked `graphify-out/` are theirs/incidental — left untouched (quirk #10).
 
 #### Session Summary
 
-- **Diagnosed + corrected** the prior handoff's two bugs by reading the actual code/data (both prior mechanisms were wrong).
-- **Bug B shipped `95f662d`** — `deleteProperty` now tolerates an unresolvable/legacy reverse target (owner-side delete always succeeds; best-effort reverse-index cleanup); both manager error enums conform to `LocalizedError` so manager errors never surface as raw `Pommora.X error N`. RED→GREEN verified.
-- **Bug A v1 shipped `fee6804`** (nested child-drag) → live smoke showed mis-target / no-op. Root cause: SwiftUI `Table` supports **grouping (`DisclosureTableRow`) XOR reliable reorder (flat `.dropDestination`)**, never both.
-- **Brainstormed the view system** → found it ~70% scaffolded (`SavedView` + `views[]` + `updateView` + default-view migration already exist; only a per-view `order` field + a reorder engine are missing). Converged with Nathan on the **display-only-vault interim + deferral**; wrote the decision doc + implementation plan.
-- **Researched reorder libraries** (globulus = bleeds when nested; `visfitness/reorderable` = `DragGesture`-isolated, nests cleanly, macOS 15+, MIT).
+Opened post-compact with v0.3.4 already shipped, pushed, and the PreCompact(manual) doc-mirror hook live. Three doc passes, all uncommitted:
+
+- **Framework rework.** Nathan: "rework the Framework document to actually be up-to-date and reflect the work that's actually landed with each commit." The Shipped list had frozen at v0.3.0. Reconstructed the real ledger from git tags + History + the release commit: v0.3.1 (Properties end-to-end), v0.3.2 (View Settings editor rebuild + Folders-reverted, tagged), **v0.3.3 skipped**, v0.3.4 (relations made real + IconPicker + de-dup + display-only + Pages footer, tagged). The `MARKETING_VERSION` field had lagged at `0.2.6` the whole time — tags + History are the real version ledger, not pbxproj.
+- **Roadmap realign to Nathan's own doc.** Nathan: "id say whats on my Pommora tasks is actually the working idea since that['s] the doc I maintain myself." Read `Nexus//Pommora//Pommora Tasks.md`; it's coarser + later than Framework. Realigned the upcoming buckets to it — v0.4.0 (Symbols + Settings + Trash + Wikilinks), v0.5.0 (EventKit + Agenda + Calendar), v0.6.0 (Quick Capture + LLM + search), v0.7.0 (the whole view system + Contexts/Homepage editor) — folding Framework-only items into their nearest bucket per his choice. This corrected an earlier wrong guess (wikilinks is v0.4.0, not "next").
+- **History trim + cross-doc contradiction fix.** Nathan: "trim the history, especially for locked decisions or architecture prone to go stale or already have." Cut History 646 → ~190 lines (enumerated decision-blocks → `Paradigm-Decisions.md`, SHA/file dumps + editor internals → `PageEditor.md`, superseded brainstorms collapsed). Then swept the rest of the docs: a background Explore agent found only 3 issues and under-reported badly, so a manual pass fixed ~35 version contradictions across 10 files (Settings → v0.4.0, EventKit → v0.5.0, views/saved-views/sort-filter-group → v0.7.0, killed `v0.8.0` + `v0.3.1.x` sub-versions). A final grep confirmed every surviving forward-version reference is intentional.
+
+Left off: working tree dirty with the 16 doc edits, awaiting a docs-only commit. Nothing code-side changed by this session.
 
 #### Lessons Learned
 
-- **Even your own prior handoff is a hypothesis (cornerstone / quirk #18).** Both specced fixes named the wrong mechanism; reading the code corrected them before any implementation.
-- **SwiftUI `Table` = grouping XOR reliable reorder.** `DisclosureTableRow` (the only grouping primitive) is exactly where reorder breaks; the reliable flat `.dropDestination` needs flat rows (Table has no section headers). Hence vault-level structural nested reorder is deferred; collection-level (flat) reorder is reliable + kept.
-- **Verify scaffolding before designing.** The per-view system was already mostly built — Nathan's "this was discussed before" was right; mining code/docs reframed a "big design" into a narrow gap (add a per-view `order` + an engine).
-- **Reorder engine for later (Nathan's note — carry forward):** `visfitness/reorderable` (vendor it, MIT; `DragGesture`-isolated so nested instances don't bleed; macOS 15+) is the candidate for the future per-view reorder — and is **equally useful for the other unpolished reorder spots**: property reordering in Settings (see Prospects "Property-order drag", `Features/Prospects.md`) and any list where reorder exists but is rough. Make it the go-to when we polish reordering broadly.
+- **Search surfaces under-report doc staleness — subagents included, not just grep.** The Explore audit agent had the correct old→new version mapping and still marked files "clean" while listing their stale assignments as correct. Spotting a contradiction needs the new roadmap and the doc's claim held in tension, not a string match. Re-verify "clean" verdicts yourself. **→ candidate CLAUDE.md quirk**
+- **`MARKETING_VERSION` is not the version ledger.** It sat at `0.2.6` from v0.3.0 through the v0.3.2 tag, jumping to `0.3.4` only at release. Git tags + `History.md` ship records are authoritative; the pbxproj field lags.
+- **Nathan maintains roadmap intent in `Nexus//Pommora//Pommora Tasks.md`.** It's the canonical priority/sequencing source — coarser and later than Framework. When the two disagree, Framework's version buckets follow the Tasks doc.
 
 #### Next Session
 
-- **✅ Vault-table display-only + creation-order default — SHIPPED v0.3.4** (plan executed + removed; ship record in `History.md`). `PageTypeDetailView` + `ItemTypeDetailView` are display-only; dead `SessionRowOrdering` + 2 vault tests removed; default empty-state order = creation order (ULID id ascending — Nathan confirmed "file order" = creation order).
-- **Then live-smoke:** vault tables display-only + mirror the sidebar live; collection/set reorder still works.
-- **Deferred (v0.5.0–v0.6.0):** the full per-view system — per-view `order` on `SavedView`, group-by-collection-vs-property (mutually exclusive; property-group flattens collections), sort, multi-saved-view tabs, and the table-engine choice (flat-`Table` vs `visfitness` vs AppKit `NSOutlineView`). Design captured in the interim doc.
-
-#### ⚖️ Two-track sequencing — advice (2026-05-31, de-dup session)
-
-**✅ SHIPPED 2026-05-31 — A → B1 → B2 all landed green (full suite 1045); see `History.md`.** Both tracks executed: vault-table display-only + creation-order default; `ItemTypeManager` normalized (`typesByID` removed, managers symmetric); and the 4-manager property-mutation de-dup behind `PerTypeSchemaService` + `SingletonSchemaService` (+ a post-review cleanup making the Agenda member-strip resilient). The sequencing advice below is retained as the historical record.
-
-- **A · Vault-table display-only** (`Planning/2026-05-31-vault-table-displayonly-plan.md`) — ready (Tasks 1–4), small, removal-only; the established Next Session. Edits the **detail views** (PageType/ItemTypeDetailView drag) + `SessionRowOrdering` + reorder tests + docs. **Does NOT touch the type managers.**
-- **B · Manager property de-dup** (`Planning/Normalize-ItemType-Lookup-Plan.md` → `Manager-Property-Dedup-Plan.md`) — planned + adversarially verified; **awaiting Nathan's go**. Internal/behavior-preserving. Edits the **type managers** (5 property methods; Normalize also strips `typesByID` + ~18 `rebuildTypesByID()` calls) + one line of `ItemTypeDetailView` (`liveType`).
-- **Why A first:** ready, lower-risk, removal-only; leaves the managers untouched so B runs on a clean base.
-- **Cross-dependency is mild** — the only shared file is `ItemTypeDetailView.swift`: A edits the rows/drag region (~222–307), B (Normalize) edits `liveType` (~134) — non-overlapping. **Cornerstone: whoever runs second re-derives line numbers by grep before editing** (each plan now carries a Coordination note). Within B, Normalize precedes Dedup and shifts the managers' method lines.
-- **This session (de-dup track):** graphify map → structural review → quantified the 4-manager property-mutation duplication (~590–845 lines) → wrote + adversarially verified both B plans → refreshed the `Nexus//Pommora` doc mirror (real copies; symlink drift deferred).
+1. **Commit the documentation pass** as one docs-only commit — Framework realign + History trim + the 14-file cross-doc version fixes (16 `.claude` files). Leave `Pommora.xcodeproj/project.pbxproj` (parallel/GRDB churn) and untracked `graphify-out/` out of the commit.
+2. **Kick off v0.4.0** per the realigned roadmap — Standardized Symbols / Settings Panel / Archive-Trash / Wikilinks + the file-watcher + FTS5 infra. Pick the lead item and scope a plan; `showPageIcon` (just shipped) is a toe into the Symbols/Settings surface.
 
 #### Pending Focuses
 
-- **Execute the interim plan (above).**
-- **Live smoke from the prior session (still pending — Nathan):** relaunch to trigger the `#3` `type_id` reconcile (`fa3e827`; heals the 11 drifted collections → II. Commands etc. show Systems' properties); edit a relation's Mirror name/icon and confirm it lands on the target Type (`966208e`); confirm Edit Icon from popover / sidebar / detail-table.
-- **`History.md` log pending:** the Storage-Editing pass + this session's per-view decision should get a brief `History.md` entry once the parallel session's uncommitted `History.md` edits are committed (couldn't add cleanly now — quirk #10).
-- **`Nexus//Pommora` mirror — symlink drift (deferred, Nathan's call):** doc-mirror symlinks keep materializing into stale real files (`/doc-mirror --audit` → 31 SHADOW), likely the automated "vault backup" git commits. Now on **real-copy refresh** (re-run the doc copy after edits). Proper fix later: adjust the vault-backup automation to preserve symlinks then re-link, or automate the real-copy refresh.
-- Test nexus: `~/Test`; real nexus: `~/The Nexus`.
+- **[carried from 05-31]** Live smoke (Nathan's manual): vault/type tables display-only + mirror the sidebar; collection/set reorder still works; relation `type_id` reconcile (`fa3e827`) heals drifted collections; relation Mirror name/icon propagation lands on the target Type (`966208e`); Edit Icon from popover / sidebar / detail-table.
+- **[carried from 05-31]** `graphify-out/` untracked artifact at repo root — delete or `.gitignore` (Nathan's call).
 
 #### Fix Log
 
-- ✅ **Bug B — delete cross-vault paired relation** — FIXED `95f662d`.
-- ↪️ **Bug A — in-vault nested page reorder** — superseded: vault tables go display-only (interim plan); reliable nested reorder is part of the deferred per-view system.
-
-Acknowledged, not-yet-fixed (several subsumed by the deferred per-view/view system):
-
-1. **Column reorder broken** — drag-reordering table *columns* (distinct from rows); folds into the view-system work.
+1. **Column reorder broken** — drag-reordering table *columns* (distinct from rows); folds into the v0.7.0 view-system work.
 2. **"Modified" not hideable** in the visibility settings.
 3. **Inline-edit lag** — property value inline edit has a noticeable update buffer.
-4. **Column layout not persisted** across sessions (+ property columns don't show their icons); folds into the view-system work.
+4. **Column layout not persisted** across sessions (+ property columns don't show their icons); folds into the v0.7.0 view-system work.
 5. **Relation-add dead-end in legacy sheets** — "Relation" in the Vault/Type Settings sheets silently cancels; hide it or route to the View Settings editor.
 6. **Settings popout sizing** — should size to content dynamically (Nathan likes the min height).
+7. **`AgendaEventManagerError._status` doc-vs-guard mismatch** — the error's doc says events have no `_status`, yet the delete guard still blocks it. Behavior preserved through the de-dup; decide separately.
 
 #### Maintained via `/handoff`
 
@@ -75,8 +54,8 @@ Spec: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix L
 
 #### Document pointers
 
-- **Planning →** only `Planning/2026-05-31-vault-table-displayonly-interim.md` remains — the per-view-ordering deferral/decision record (display-only interim; the full per-view system is deferred to v0.5.0–v0.6.0). All other plans executed + removed at v0.3.4 (ship log in `History.md`).
-- Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
+- **Planning →** only `Planning/2026-05-31-vault-table-displayonly-interim.md` remains — the per-view-ordering deferral record (display-only interim; the full per-view system is deferred to v0.7.0). All other plans executed + removed at v0.3.4 (ship log in `History.md`).
+- Roadmap → `Framework.md` (now realigned to `Nexus//Pommora//Pommora Tasks.md`) · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
 - Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md`
 - CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
 - Branch quirks + hard rules → `CLAUDE.md`

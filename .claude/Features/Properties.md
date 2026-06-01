@@ -123,7 +123,7 @@ Schema sidecar shape:
 }
 ```
 
-Cross-property references in the schema use IDs: `dual_property.synced_property_id`, `default_sort.property_id`, `views[i].group_by.property_id` (v0.6.0), `views[i].filter[i].property_id` (v0.6.0).
+Cross-property references in the schema use IDs: `dual_property.synced_property_id`, `default_sort.property_id`, `views[i].group_by.property_id` (v0.7.0), `views[i].filter[i].property_id` (v0.7.0).
 
 **Reserved property IDs.** Built-in property IDs use a fixed prefix scheme so the schema editor can block collisions and external agents can identify them at a glance: `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`, `_wikilinks`. The schema editor blocks user-defined properties from using these IDs.
 
@@ -164,7 +164,7 @@ A workflow property with three EventKit-aligned structural groups, each containi
 
 ##### The 3 fixed groups (EventKit-aligned)
 
-| Group ID | Default label | Default color | EventKit meaning (v0.6.0 sync) |
+| Group ID | Default label | Default color | EventKit meaning (v0.5.0 sync) |
 |---|---|---|---|
 | `upcoming` | "Upcoming" | gray | `EKReminder.isCompleted = false`; for Events, user-set "not yet attended" |
 | `in_progress` | "In Progress" | blue | Reminders actively due; for Events, user-set "currently attending" |
@@ -189,7 +189,7 @@ Done           → [{ value: "done",         label: "Done",         color: "gree
 - **Rename a group label** — schema-only write.
 - **Add an option** to a group — schema-only write.
 - **Rename an option's label** — schema-only write (option `value` immutable).
-- **Move an option between groups** — schema-only file write but data-semantic (rewrites the option's `group_id`; affects sort, display color, EventKit mapping at v0.6.0, Group By at v0.6.0). Triggers a confirmation dialog listing affected entities.
+- **Move an option between groups** — schema-only file write but data-semantic (rewrites the option's `group_id`; affects sort, display color, EventKit mapping at v0.5.0, Group By at v0.7.0). Triggers a confirmation dialog listing affected entities.
 - **Delete an option** — voids referencing values (`.null`). Multi-select strips only the deleted value from each entity's array. Confirmation dialog lists affected count.
 - **Add / remove a group** — not supported.
 
@@ -201,8 +201,8 @@ Group position first (`upcoming < in_progress < done` ascending), then option or
 
 | Schema | Status built-in? | Notes |
 |---|---|---|
-| **AgendaTask** (`_taskconfig.json`) | **Yes** — required, non-deletable. | Default seed includes the 3 groups with one starter option each. EventKit sync (v0.6.0) maps the 3 groups to `EKReminder.isCompleted`: `upcoming` / `in_progress` → `false`; `done` → `true`. |
-| **AgendaEvent** (`_eventconfig.json`) | **Yes** — required, non-deletable. | Same 3 EventKit-aligned groups as AgendaTask. User-set (decoupled from `start_at` / `end_at` date math — the user marks status to track their own engagement with the event). EventKit mapping for events ships at v0.6.0. |
+| **AgendaTask** (`_taskconfig.json`) | **Yes** — required, non-deletable. | Default seed includes the 3 groups with one starter option each. EventKit sync (v0.5.0) maps the 3 groups to `EKReminder.isCompleted`: `upcoming` / `in_progress` → `false`; `done` → `true`. |
+| **AgendaEvent** (`_eventconfig.json`) | **Yes** — required, non-deletable. | Same 3 EventKit-aligned groups as AgendaTask. User-set (decoupled from `start_at` / `end_at` date math — the user marks status to track their own engagement with the event). EventKit mapping for events ships at v0.5.0. |
 | **Page Types and Item Types** | **No.** | Not auto-seeded. Users add manually via Vault / Type Settings. When added, the same 3-group structure applies. |
 
 Reserved property ID `_status` on both AgendaTask and AgendaEvent schemas. Users cannot delete it via the schema editor.
@@ -401,7 +401,7 @@ Items, Agenda Tasks, and Agenda Events also carry one built-in field that isn't 
 
 ##### `modified_at` trigger semantics
 
-Updates on any content or frontmatter edit — body, property value, title rename, icon, tier1/2/3. View-only actions never update. External edits update file mtime but do NOT update frontmatter `modified_at` until the file watcher closes the gap (v0.3.3).
+Updates on any content or frontmatter edit — body, property value, title rename, icon, tier1/2/3. View-only actions never update. External edits update file mtime but do NOT update frontmatter `modified_at` until the file watcher closes the gap (v0.4.0).
 
 ---
 
@@ -451,10 +451,10 @@ Per-view configuration via the consolidated `slider.horizontal.3` toolbar button
 |---|---|---|
 | **Edit Properties** | Schema CRUD pane (Notion-format: icon+title row + Type + Options with chevron-push to per-option EditOptionPane + Duplicate/Delete footer). Per-type config: Select/Multi-Select drag-only options; Status `.box`/`.select`/`.chip` display variant + 3 group sections; Date 6-format Display as picker; File/URL no per-type config (rename-only). Shared with VaultSettingsSheet + TypeSettingsSheet via extracted `Pommora/Properties/Editor/` module. | v0.3.1 |
 | **Property Visibility** | Per-view; show/hide columns + drag-reorder. Click-to-toggle with strikethrough on hidden. `_modified_at` always visible. | v0.3.1 |
-| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active at v0.3.1; others muted until v0.5.0). | v0.3.1 (muted) |
-| **Sort** | Per-view; single criterion at v0.3.1.2; multi-criterion when saved views land (v0.6.0). Option ordering itself is drag-only at the property level (not view-level Sort) per Edit Property pane. | v0.3.1.2 |
-| **Filter** | Per-view; minimum viable operators (equals / not-equals / contains / empty / not-empty); AND-grouped at v0.3.1.x; OR-mode at v0.6.0. | v0.3.1.3 |
-| **Group By** | Per-view; single property. May defer to v0.6.0 with Board view. | v0.3.1.4 (optional) |
+| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active since v0.3.1; the other renderers ship with the view system at v0.7.0). | v0.3.1 (Table); v0.7.0 (others) |
+| **Sort** | Per-view; multi-criterion, lands with saved views. Option ordering itself is drag-only at the property level (not view-level Sort) per Edit Property pane. | v0.7.0 |
+| **Filter** | Per-view; operators equals / not-equals / contains / empty / not-empty; AND- and OR-grouped, wired to `IndexQuery`. | v0.7.0 |
+| **Group By** | Per-view; single property; pairs with Board view. | v0.7.0 |
 
 **Schema fields beyond the catalog basics** (on `PropertyDefinition` unless noted):
 
@@ -481,7 +481,7 @@ A per-Type default sort lives on the Type sidecar (`default_sort: { property_id,
 
 Multiple saved views per Vault / Type, Notion-database-views model. Each view carries its own View Settings (Sort / Group By / Filter / Layout / Property Visibility) and a path to the schema settings (Vault / Type Settings is accessible from any view).
 
-View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container assumed at v0.3.1.x (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title ships at v0.6.0. (The non-Table renderer types themselves — Board / List / Cards / Gallery — ship at v0.5.0.)
+View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container today (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title, and the non-Table renderer types (Board / List / Cards / Gallery), all ship together at v0.7.0.
 
 ##### 4. Item Inspector → Pinned Properties
 
@@ -518,15 +518,15 @@ Sort-by-property in the detail-pane Table view. Click a column header to sort; c
 
 ##### Per-Type default sort
 
-Persists in the Type's per-kind sidecar as a top-level `default_sort: { property_id: "prop_...", direction: "ascending" | "descending" }`. Full per-view sort with saved-view configs lives in Vault / Type View Settings (v0.6.0).
+Persists in the Type's per-kind sidecar as a top-level `default_sort: { property_id: "prop_...", direction: "ascending" | "descending" }`. Full per-view sort with saved-view configs lives in Vault / Type View Settings (v0.7.0).
 
 ##### Hidden-property-used-for-sort-or-group-by = auto-show
 
-If a hidden property is selected as the sort criterion or as the Group By criterion (v0.6.0), it auto-unhides. Sort / group-by precedence beats visibility.
+If a hidden property is selected as the sort criterion or as the Group By criterion (v0.7.0), it auto-unhides. Sort / group-by precedence beats visibility.
 
 ---
 
-#### Group By compatibility (v0.6.0)
+#### Group By compatibility (v0.7.0)
 
 Only property types that hold one value per entity support Group By:
 
@@ -549,7 +549,7 @@ Only property types that hold one value per entity support Group By:
 
 Three orderings, three layers:
 
-- **Column order in a Table or List view** is view-level. Drag column headers to rearrange; stored in the view's spec inside the per-kind sidecar (v0.6.0 with saved views). Visual only — no schema effect.
+- **Column order in a Table or List view** is view-level. Drag column headers to rearrange; stored in the view's spec inside the per-kind sidecar (v0.7.0 with saved views). Visual only — no schema effect.
 - **Property declaration order in the per-kind sidecar** is schema-level — the order properties appear in the property panel. Drag-to-reorder writes to the sidecar.
 - **Option order inside a Select / Multi-select** is schema-level — drives sort. Drag-to-reorder in the option editor.
 

@@ -22,7 +22,7 @@ Apple's macOS HIG for native cohesion. Toolkit is **SwiftUI primary + AppKit whe
 - **Window chrome** — macOS unified title bar, OS traffic-light buttons.
 
 A small set of brand values (code colors, callout border, blockquote accent bar) expresses Pommora's character within that aesthetic.
-Dark mode first; no in-app light/dark toggle in v0.x. Accent color + font size customization folds into the v0.6.0 Settings scaffold.
+Dark mode first; no in-app light/dark toggle in v0.x. Accent color + font size customization folds into the v0.4.0 Settings scaffold.
 
 ---
 
