@@ -38,6 +38,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Markdown", package: "swift-markdown")
             ]
-        )
+        ),
+        .testTarget(name: "MarkdownEngineTests", dependencies: ["MarkdownEngine"])
     ]
 )

@@ -179,7 +179,12 @@ struct MarkdownLists {
             }
             contentStartOffset = match.range.location + match.range.length
             let markerOuter = (fullLine as NSString).substring(with: match.range(at: 1))
-            hasCheckbox = markerOuter.range(of: #"\[[ xX]\]"#, options: .regularExpression) != nil
+            // `[ xX]?` — the OPTIONAL inner char is load-bearing: it lets the
+            // empty Pommora shorthand `-[]` (which the styler renders as an
+            // unchecked box) count as a checkbox, so Enter continues it as a
+            // checkbox rather than a plain `- ` bullet. Do NOT drop the `?` —
+            // removing it regresses empty-box continuation (see history).
+            hasCheckbox = markerOuter.range(of: #"\[[ xX]?\]"#, options: .regularExpression) != nil
             let contentLength = max(0, fullLineUTF16 - contentStartOffset)
             let contentPart =
                 (fullLine as NSString)
