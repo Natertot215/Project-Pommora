@@ -117,6 +117,14 @@ struct MarkdownLists {
             .trimmingCharacters(in: .newlines)
             .replacingOccurrences(of: #"^\s+"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"^•"#, with: "-", options: .regularExpression)
+            // Pommora task shorthand has NO space between the marker and the
+            // bracket (`-[x]`, `1.[ ]`) because auto-pair is suppressed after
+            // `-`. CommonMark needs that space to form a list, so the AST would
+            // otherwise see a plain paragraph and reject the line. Insert the
+            // space for parsing only (the real offsets/checkbox flag come from
+            // `listMatch` on the untouched `fullLine`).
+            .replacingOccurrences(
+                of: #"^([-*+]|\d+\.)\["#, with: "$1 [", options: .regularExpression)
         let document = Markdown.Document(parsing: trimmedLine)
         let isAstList = document.children.contains {
             $0 is Markdown.UnorderedList || $0 is Markdown.OrderedList
