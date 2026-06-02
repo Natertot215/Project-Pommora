@@ -2,6 +2,18 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### Items are Markdown — Shape A (2026-06-02)
+
+Items converted from whole-`.json` to plain `.md` (YAML frontmatter + body) over a 19-commit run, sharing Pages' `AtomicYAMLMarkdown` pipeline. **Shape A:** the capped description IS the markdown body — single source of truth, no frontmatter-description field, no mirror. Items stay a distinct *form* of one entity-type, not a separate codec.
+
+- **One pipeline, kind authority by folder.** A reserved, UI-hidden, **non-authoritative** `Class` frontmatter stamp (`item`|`page`) marks the form; the parent Type folder's sidecar (`_itemtype.json` / `_pagetype.json`) is the kind authority. Stamp-vs-folder disagreement, or a homeless file, routes to a hidden `.unsorted` inbox (future-UI-surfaced; resolution out of it is deferred).
+- **Foreign frontmatter preserved by value** on EVERY Item AND Page write path — a reversal of the deleted Session-Context cull. Yams round-trips by value (reflows flow→block style, drops comments/anchors; content safe, exact styling not).
+- **Mandatory auto-run launch migration** normalizes legacy `.json` Items → `.md` (idempotent, resumable, reports-not-throws) — not a declinable consent-gate. The transitional dual-format read/write code retired once no `.json` Items remain.
+- **Agenda stays JSON** (`.task.json` / `.event.json`); sidecars stay JSON; Projects / Spaces / Settings stay JSON. Only Item *content* files became `.md`.
+- Description char cap = **1000 markdown-source chars** (provisional — "for now"; was 250), validated on save by `ItemValidator` (its first production callers), not silently clamped. SQLite `items.description` is now a projection of the body (DDL unchanged).
+
+Registry decision #14 in `Paradigm-Decisions.md`. Full spec in `Features/Items.md` + `Features/Architecture.md`.
+
 #### Title-collision data-loss fix + NexusEnvironment injection + cleanup (2026-06-01)
 
 - **Title-collision data-loss fix (all file-backed entities).** A same-title create / rename / cross-container move silently overwrote a sibling's file (e.g. a Page's `.md` body) — `filename = title` + an overwriting atomic write. Now **rejected** uniformly: one shared `NameCollisionValidator` (case-insensitive; same-id rename exempt) covers Pages, Items, and Agenda Tasks/Events on create + rename; the cross-container move paths (Page/Item between-Collection + across-Type, which commit via `SchemaTransaction`) and `Filesystem.renameFile` got no-overwrite guards (`Filesystem.guardNoFile`); the six container validators (Spaces / Topics, Page+Item Types & Collections) delegate to the same validator. Self-recasing one's own title (`notes`→`Notes`) is allowed — the rename guard compares on-disk file identity, not the case-folded name. Policy: **reject**, not auto-suffix → registry #13; supersedes the prior "duplicates allowed" doc claim. Independent duplicate titles remain a Prospect (needs a title field).
