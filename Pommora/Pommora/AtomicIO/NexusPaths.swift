@@ -197,6 +197,21 @@ enum NexusPaths {
         nexus.rootURL.appendingPathComponent(".trash", isDirectory: true)
     }
 
+    // MARK: - Unsorted inbox (hidden relocation target)
+
+    /// Per-nexus unsorted inbox at `<nexus-root>/.unsorted/`. Dot-prefixed so it
+    /// stays hidden in Finder AND is auto-excluded from `Filesystem.descendantFiles`
+    /// (which skips any folder whose name begins with `.`). Files land here when a
+    /// launch stamp pass finds a file whose `Class` disagrees with its folder kind,
+    /// or that has no Type-folder context up the chain. Relocation in is handled by
+    /// `Filesystem.moveToUnsorted`; resolution back out is a future UI surface.
+    ///
+    /// URL-typed (not `Nexus`-typed) to match `Filesystem.moveToUnsorted`'s
+    /// `nexusRoot: URL` signature.
+    static func unsortedDir(in nexus: URL) -> URL {
+        nexus.appendingPathComponent(".unsorted", isDirectory: true)
+    }
+
     // MARK: - Contexts file paths
 
     static func spaceFileURL(forTitle title: String, in nexus: Nexus) -> URL {

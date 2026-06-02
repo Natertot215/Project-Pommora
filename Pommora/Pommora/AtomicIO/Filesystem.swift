@@ -2,8 +2,9 @@ import Foundation
 
 /// Errors thrown by `Filesystem` primitives.
 enum FilesystemError: LocalizedError {
-    /// Raised by `moveToTrash` when the source URL doesn't sit under the
-    /// nexus root — we refuse to relocate paths outside the user's nexus.
+    /// Raised by the relocation core (`moveToTrash` / `moveToUnsorted`) when the
+    /// source URL doesn't sit under the nexus root — we refuse to relocate paths
+    /// outside the user's nexus.
     case sourceNotInNexus(source: URL, nexus: URL)
     /// Raised by `renameFile` when the destination already exists and is a
     /// *different* file from the source. Defense-in-depth against silent
@@ -15,7 +16,7 @@ enum FilesystemError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .sourceNotInNexus(let source, let nexus):
-            return "Cannot move to trash: \(source.path) is not inside nexus root \(nexus.path)."
+            return "Cannot relocate: \(source.path) is not inside nexus root \(nexus.path)."
         case .destinationExists(let destination):
             return "An entry named \"\(destination.lastPathComponent)\" already exists here."
         }
@@ -146,7 +147,43 @@ enum Filesystem {
         try AtomicJSON.write(metadata, to: metadataURL)
     }
 
-    // MARK: - Trash (recoverable deletes)
+    // MARK: - Relocation (trash + unsorted inbox)
+
+    /// Shared core behind `moveToTrash` and `moveToUnsorted`: moves `source`
+    /// into `destDir`, preserving its relative path under `nexusRoot`. Refuses
+    /// to relocate a source outside the nexus (out-of-nexus guard), standardizes
+    /// the source URL, recreates intermediate directories under `destDir`, and
+    /// de-collides via `suffixedWithTimestamp` when an entry already occupies the
+    /// proposed destination.
+    ///
+    /// Returns the URL the item was moved to.
+    private static func relocate(_ source: URL, into destDir: URL, nexusRoot: URL) throws -> URL {
+        let standardizedSource = source.standardizedFileURL
+
+        // Compute the relative path under nexus root (preserves the user's folder
+        // structure inside `destDir`). The guard rejects out-of-nexus sources.
+        guard
+            let relativePath = standardizedSource.path.removingPrefix(
+                nexusRoot.standardizedFileURL.path + "/"
+            )
+        else {
+            throw FilesystemError.sourceNotInNexus(source: source, nexus: nexusRoot)
+        }
+        let proposedDest = destDir.appendingPathComponent(relativePath)
+
+        // Ensure parent directories exist under the destination root.
+        let proposedParent = proposedDest.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: proposedParent, withIntermediateDirectories: true)
+
+        // Collision resolution via timestamp suffix.
+        let finalDest =
+            FileManager.default.fileExists(atPath: proposedDest.path)
+            ? suffixedWithTimestamp(proposedDest)
+            : proposedDest
+
+        try FileManager.default.moveItem(at: standardizedSource, to: finalDest)
+        return finalDest
+    }
 
     /// Move a file or folder to the nexus's `.trash//` directory, preserving
     /// its relative path under the nexus root. If a previously-deleted entry
@@ -157,26 +194,25 @@ enum Filesystem {
     /// "Recover deleted" UI).
     @discardableResult
     static func moveToTrash(_ source: URL, in nexus: Nexus) throws -> URL {
-        let trashRoot = NexusPaths.trashDir(in: nexus)
+        try relocate(source, into: NexusPaths.trashDir(in: nexus), nexusRoot: nexus.rootURL)
+    }
 
-        // Compute the relative path under nexus root (preserves user's folder structure inside .trash).
-        guard let relativePath = source.path.removingPrefix(nexus.rootURL.path + "/") else {
-            throw FilesystemError.sourceNotInNexus(source: source, nexus: nexus.rootURL)
-        }
-        let proposedDest = trashRoot.appendingPathComponent(relativePath)
-
-        // Ensure parent directories exist in .trash
-        let proposedParent = proposedDest.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: proposedParent, withIntermediateDirectories: true)
-
-        // Collision resolution via timestamp suffix
-        let finalDest =
-            FileManager.default.fileExists(atPath: proposedDest.path)
-            ? suffixedWithTimestamp(proposedDest)
-            : proposedDest
-
-        try FileManager.default.moveItem(at: source, to: finalDest)
-        return finalDest
+    /// Move a file or folder into the nexus's hidden `.unsorted//` inbox,
+    /// preserving its relative path under the nexus root. Collisions are
+    /// de-collided via timestamp suffix, identical to `moveToTrash`.
+    ///
+    /// Triggered by the launch stamp pass when a file's `Class` stamp disagrees
+    /// with its folder kind, or when no Type-folder context exists up the chain.
+    /// Resolution back out of `.unsorted` is a future UI surface.
+    ///
+    /// URL-typed `nexusRoot` (rather than a `Nexus`) so adoption/launch code can
+    /// call it with a bare root URL. Throws `FilesystemError.sourceNotInNexus`
+    /// when `source` sits outside `nexusRoot`.
+    ///
+    /// Returns the URL the item was moved to.
+    @discardableResult
+    static func moveToUnsorted(_ source: URL, nexusRoot: URL) throws -> URL {
+        try relocate(source, into: NexusPaths.unsortedDir(in: nexusRoot), nexusRoot: nexusRoot)
     }
 
     /// Inserts a `.YYYYMMDD-HHMMSS-XXXX` stamp before the file extension (or at
@@ -294,8 +330,9 @@ enum Filesystem {
 
 extension String {
     /// Returns the receiver with `prefix` stripped from the front, or `nil`
-    /// when `prefix` is not actually a prefix. Used by `Filesystem.moveToTrash`
-    /// to derive a path's component relative to the nexus root.
+    /// when `prefix` is not actually a prefix. Used by `Filesystem.relocate`
+    /// (the `moveToTrash` / `moveToUnsorted` core) to derive a path's component
+    /// relative to the nexus root.
     fileprivate func removingPrefix(_ prefix: String) -> String? {
         hasPrefix(prefix) ? String(dropFirst(prefix.count)) : nil
     }
