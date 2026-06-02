@@ -1,126 +1,95 @@
-## MarkdownPM — The Pommora Markdown Service (Plan)
+## MarkdownPM — Implementation Plan (v2)
 
-> **STATUS (2026-06-02): provisional scaffolding — superseded by the locked rulings in `2026-06-02-MarkdownPM-Decisions.md`.** Scope changes since this draft: **Items EXCLUDED (Pages-only)**; **wikilinks are a SEPARATE post-rebuild session** (this rebuild preserves the groundwork/seam only); the **#9 fix folds into the parse-consolidation** (no standalone phase); **tight divergence-ledger testing** (every edge-case / lost function / behavior change flagged + scoped). The finalized plan will be rewritten from the locked decisions + a design doc, then iterated v1→vN.
+> **For agentic workers:** execute via `superpowers:subagent-driven-development` — fresh subagent per task, two-stage review, green commit per phase. Re-assess between green commits (hard rule #13).
+>
+> **STATUS: v2 — folds in round-1 convergence (11 must-fixes) + the adopt-and-improve research (construct-by-construct parser scope, DRY map, keep-verbatim) + Obsidian-compat + Nathan's rulings. Pending round-2 of the verification loop.** Decisions: `2026-06-02-MarkdownPM-Decisions.md`.
 
-> **For agentic workers:** execute via `superpowers:subagent-driven-development` — fresh subagent per task, two-stage review, green commit per phase. Steps use `- [ ]`. Re-assess this plan between green commits (hard rule #13): only landed phases are facts; later-phase detail is provisional until the phase before it ships.
+**The spine (mental model):** take the vendored engine **apart**, understand every piece, **reassemble it cleaner, simpler, better** as the Pommora-owned package `MarkdownPM`. Not reinvented (we keep what swift-markdown + the engine genuinely give us), not preserved-as-is (donor code isn't sacred). The tight test net is what makes "cleaner" *safe* rather than risky. **Pages only.**
 
-**Goal:** Absorb the vendored `External/MarkdownEngine` into a Pommora-owned service, **`MarkdownPM`** — consolidate the dual parser + styler onto one cached Apple-AST spine in Pommora's own format, transplant the battle-tested TextKit 2 foundations verbatim, add per-kind (Item vs Page) rendering profiles, fix the #9 per-caret glitch, and dissolve the external-engine dependency. **Net total simplification** — fewer parses, one styler, one owned module.
-
-**Architecture:** A single cached `Document` parse per text-change feeds *every* consumer (styler, fold walk, renderer detection, caret-context). One AST-driven `PommoraMarkdownStyler` replaces the dual primary-regex + supplemental-AST stylers. The TextKit 2 body (NSTextView subclass, coordinator, renderer, input handlers, ~18 OS-bug workarounds) is **transplanted verbatim** into `MarkdownPM` — not re-derived. A `MarkdownProfile` (Item vs Page) parameterizes the styler so the two entity kinds render differently over one core. The dormant services seam (`WikiLinkResolver` etc.) becomes the live wikilink adapter.
-
-**Tech stack:** TextKit 2 / AppKit, Apple `swift-markdown` (**kept** — the parse foundation), Swift 6 strict concurrency + ExistentialAny, Swift Testing.
+**Goal:** Fold `External/MarkdownEngine` into `MarkdownPM`; collapse the dual parse+style passes into one cached Apple-AST-backed parse with one owned styler; route the 3 inline constructs Apple does cleanly to its AST; keep the regex layer for everything Apple can't; transplant + *improve* the TextKit 2 body; fix the #9 caret stutter as a side-effect of the parse collapse.
 
 ---
 
-### Scope decisions — locked + flagged for review
+### Parser scope — the construct-by-construct verdict (the locked (a)/(b) answer)
 
-These are the interpretation calls behind the plan. **Flagged ones want a yes/no on review; locked ones follow the blueprint evidence.**
+The AST **locates**; our owned styler still decides caret-aware hide/reveal (styling is ours, D-styling-ownership).
 
-- 🚩 **"Remove the dependency" = dissolve the vendored `MarkdownEngine` package, NOT drop Apple's `swift-markdown`.** `MarkdownPM` keeps `swift-markdown` (the official GFM parser) as its parse foundation — it's the one dependency worth having, and the whole consolidation *rebuilds onto* it. Writing our own GFM parser is explicitly out of scope (reckless, no payoff). *If you meant drop swift-markdown too, stop me — that's a far larger, riskier plan.*
-- 🚩 **`MarkdownPM` stays a local SwiftPM package** (renamed/re-homed from `External/MarkdownEngine`), not folded into the app target. Keeps the clean module boundary, isolated tests, and editor-swappability portability — just Pommora-owned and renamed. *Alt: fold into the app target if you'd rather have no package at all.*
-- 🔒 **The body is transplanted verbatim** (the ~18 spec-irreproducible OS-bug workarounds are kept, not rewritten) — "keeping the parts that actually work." The rebuild/consolidation happens in the **brain** (parser + styler). Re-deriving the body = +15-25 sessions with no test net and no payoff to the goals.
-- 🔒 **Per-kind profiles live in the styler** (`MarkdownProfile.item` / `.page`), the seam that lets Items (inline-only, capped description) and Pages (full document) diverge over one core.
-- 🔒 **Locked paradigm #7 is preserved** (TextKit 2 + Apple swift-markdown + an owned engine) — `MarkdownPM` is a rename + consolidation of the "vendored engine" leg, not a revision. Record the rename in `History.md`; no new paradigm-confirmation needed.
+- **→ Apple AST (delete/replace our locating):** **Emphasis** (delete `MarkdownTokenizer+Emphasis.swift`, 173 lines), **inline code** (Apple's range includes the backticks by design), **links** (take `.destination`).
+- **Split — Headings:** fold path keeps using Apple (`Heading.level` + range, already correct); **marker-reveal/sizing stays regex** (Apple exposes no `#` delimiter sub-ranges).
+- **Stay regex (Apple absent or wrong):** wikilinks `[[..]]` + embeds `![[..]]` (no cmark node), the `$…$` math/currency heuristic, bullets/list/empty-`[]` checkbox, the Setext-suppression standalone-parse trick.
+
+### The four buckets
+
+**Adopt-Apple:** emphasis · inline-code · links · heading fold path *(only)*.
+**Simplify-ours (DRY, behavior unchanged):** the 11 `isInside*` overloads → one generic `isInside(range:tokens:)` core + wrappers (caret-edge logic in one place; preserve the D25 carve-outs); the ~11 scattered `activeTokenIndices.contains` reads → one accessor + a `markerAttributes(active:)` factory; the two duplicated per-paragraph apply-loops → one `apply(_:to:scopedTo:)`; the duplicated `systemRed@0.85` code color → one `MarkdownPMTheme.codeText` slot (default reproduces it exactly).
+**Keep-behavior-improve-code:** the dual-styler merge (staged, D26 — the highest-risk step); the heading marker-reveal path; HR/ThematicBreak detection (route both call sites through the shared predicate); blockquote + table AST walks (replace magic byte-codes with named checks; flag continuous-bar layout for manual verify); all input handlers (thread the single cached parse so none re-tokenizes; preserve every order-dependency).
+**Keep-verbatim (Apple can't help / runtime-only / locked):** the math heuristic; the Setext trick; the 9 input transforms (D5); the runtime-only body workarounds (see list) — **manual visual verification mandatory** for each.
 
 ---
 
 ### Phases
 
-Six phases, each an independent green commit. **Phase 1 ships the #9 fix on its own** (decoupled from the rebuild). Phases 1–3 are detailed; 4–6 are scoped and will be elaborated when reached.
+#### Phase 1 — Re-home as `MarkdownPM` *(1-2 sessions)*
+- [ ] Rename package/module `External/MarkdownEngine` → `MarkdownPM` (keep relaxed Swift-5.9 settings — the package wall is the isolation seam, D10). Rename public front door `NativeTextViewWrapper` → `MarkdownPMEditor`, `MarkdownEditorConfiguration` → `MarkdownPMConfiguration` (brand the public surface + new brain types only; verbatim body internals keep their names).
+- [ ] Update the 3 app import sites + the pbxproj `XCLocalSwiftPackageReference`.
+- [ ] **Doc reconciliation (must-fix F3/F10):** rewrite `NOTICE.md`'s planned-migration rows to MarkdownPM names + inside-package placement; correct "6 extensions" → **4** (`+TextStyling/+Links/+Latex/+Images`; code + checkbox styling live *inside* `MarkdownStyler.swift`); drop the `SourceRangeToNSRange` entry (reuse the existing `SourceRangeConverter`); update `Paradigm-Decisions.md` #7 from "vendored swift-markdown-engine" → MarkdownPM-owned. Fix the `Markdown.md` path (Guidelines, not Features) in CLAUDE.md's Document Map.
+- [ ] Green: `refactor(markdownpm): re-home vendored engine as the MarkdownPM package`
 
-#### Phase 1 — Fix #9: single cached parse spine *(1–2 sessions; ships alone)*
+#### Phase 2 — Characterization net + divergence ledger *(2-3 sessions; gate for all brain work)*
+Tests live in **MarkdownPM's own test target** (wired into the test command — Q6), with public-surface/on-disk-round-trip tests in the app target. JSON-snapshot suites survive the refactor.
+- [ ] Corpus (must include the **adversarial + byte-changing** cases, not just happy paths): emphasis **rule-of-3 multiples** (`**foo*bar**baz*`, `*foo**bar*baz**`), **cross-line** (`*foo\nbar*`), **punctuation-flanking**, intra-word `a*b*c`; inline-code multi-backtick + space-trim; links incl. (decision: inline-only) reference/shortcut/autolink **flagged**; headings `#`/bare-`#`/`### Foo ###` on **both** detector paths; **empty `[]` vs `- [ ]` vs `-[x]`**; the 9 transforms incl. `--`→`—`, ` - `→`–`, arrows, bracket-skip; smart-quotes (byte-changing); wikilinks (plain/path-qualified-inbound/`.md`-suffixed/multibyte); `$5` vs `$x+y$`; **multibyte/emoji lines** (pins the UTF-8/UTF-16 offset behavior); HR/Setext; CRLF; legacy `•`.
+- [ ] Suites: A tokenizer output · B styled-attribute ranges at varied caret positions · C `foldableHeadings` NSRange pairs · D wikilink storage↔display round-trip **+ the D1 guard test** (inject a resolver returning an id, type `[[Title]]`, save → assert on-disk stays plain `[[Title]]`; assert no ULID-shaped token inside `[[…]]`; allow a visible `^anchor`) · E input transforms. Pull `EnterContinuationTests` into the run.
+- [ ] **Divergence ledger** started: every intentional behavior change (Apple-emphasis edge cases, inline-code multi-backtick/space-trim, links) logged for sign-off. Nothing silent.
+- [ ] Green: `test(markdownpm): characterization net + divergence ledger + D1 on-disk guard`
 
-The glitch is a per-tick **double/triple parse**: the regex tokenizer is cached, but the supplemental Apple-AST styler (`AppleASTSupplementalStyler.swift:30`, via `TextStylingService.swift:88` + `Restyling.swift:71`) and the heading-fold walk (`HeadingFolding.swift:160`, via `Restyling.swift:142`) each re-parse the whole document, uncached.
+#### Phase 3 — Single cached parse spine (the #9 fix emerges) *(2-3 sessions)*
+- [ ] **Extend the EXISTING `ParsedDocument` struct** (`NativeTextViewCoordinator.swift:143`) — add the Apple `Document`, parsed once inside the existing `parsedDocument(for:)` cache. (Do NOT introduce a new type — F9.)
+- [ ] Thread the cached `Document` into `AppleASTSupplementalStyler.styleAttributes` (drop its internal `Document(parsing:)`) and into `syncHeadingFolding` (drop its parse). The **always-on supplemental AST parse is the primary culprit** (F8: it's a *double* parse on unfolded pages, triple only with folds).
+- [ ] **Scope the deletion of slow detection overloads precisely (F2):** delete only the re-parsing `isInsideCodeBlock/isInsideLatex/isInsideInlineLatex(…in:String)` overloads; **DO NOT delete `isInsideWikilink`** (it's a line-scoped depth counter, no token equivalent, required by the en-dash transform). Rewire the 4 live callers (SpellingPolicy, Services, ListHandler ×2) to the cached token query.
+- [ ] Leave the per-fragment renderer parse (`MarkdownTextLayoutFragment.swift:453`) **out** of the document cache (intentional, §6.7).
+- [ ] Measure with Instruments before/after in **both** fold and no-fold states (no false §6.4 citation; the on-topic guidance is §6.7/§6.9/§6.12/§7.4). Snapshots must not move. Green: `perf(markdownpm): single cached parse spine (collapses redundant parses; resolves caret stutter)`
 
-- [ ] **Measure first** (Markdown.md §6.4): Instruments trace arrow-keying a long page; confirm `Document(parsing:)` dominates. (Use `swiftui-expert-skill` trace tooling.)
-- [ ] Extend the existing `cachedParsedText`/`cachedParsedDocument` cache (`Restyling.swift:146-191`) to hold one cached Apple `Document` keyed by text identity.
-- [ ] Add an `AppleASTSupplementalStyler.styleAttributes` overload taking the precomputed `Document` + `scopedRanges`; thread the shared AST into `syncHeadingFolding` instead of its own `Document(parsing:)`.
-- [ ] Delete the slow `MarkdownDetection.isInside…(…in: String)` re-parse overloads (`Detection.swift:329,394,411`) for cached-token overloads.
-- [ ] Re-trace to confirm one parse per tick; verify jitter gone. **Stop if 2–3 scoped attempts don't land — revert and reconsider that function's design** (don't pile hotfix on hotfix).
-- [ ] Green commit: `perf(editor): collapse per-tick triple-parse onto one cached AST (fixes #9 caret stutter)`
+#### Phase 4 — Inline locating on the AST *(3-4 sessions)*
+- [ ] Move emphasis/inline-code/links locating to the Apple AST. **Emphasis marker-reconstruction is its own tested sub-task:** derive the 2 hide-ranges by delimiter-width subtraction (1/2/3) from the whole-construct range; assert derived ranges match the old parser on the corpus. Emphasis tokens (`.italic/.bold/.boldItalic`) are **relocated** into the AST walk (formerly `+Emphasis.swift:138`), not dropped.
+- [ ] **Gate: delete `MarkdownTokenizer+Emphasis.swift` only after the adversarial corpus is green** (Q2). Links: inline-style only (decision); take `.destination`. Keep `MarkdownToken.swift` + `MarkdownPlainText.swift` verbatim (`[MarkdownToken]` is package-*internal*, frozen by tests, not a public promise).
+- [ ] Headings: keep the regex marker path; reconcile-or-freeze the two heading detectors (decision: **freeze + pin** the `^#{1,6}([ \t]|$)` vs `^\s*(#{1,6}) +` divergence with a corpus test). Bullets/list/checkbox detection **stays regex** (Apple gets empty-`[]` wrong — F6). Math heuristic reproduced verbatim + pinned (D11).
+- [ ] Green: `refactor(markdownpm): inline locating (emphasis/code/links) on Apple AST; emphasis parser deleted behind corpus`
 
-#### Phase 2 — Characterization test net *(2–3 sessions; prerequisite for all rebuild work)*
+#### Phase 5 — One owned styler + `MarkdownPMTheme` *(4-6 sessions; staged, D26)*
+- [ ] Collapse `primaryStyledRanges + supplementalRanges` (`TextStylingService.swift:94`) into one owned `MarkdownPMStyler` that walks the cached AST once. **Stage it:** safe non-caret constructs first (headings/emphasis/links/code/strikethrough/table); caret-aware ones last; the styler keeps emitting **nothing** for service-owned constructs (HR; blockquote always-shows) — the locked sole-writer rule (don't re-break duplicate-HR).
+- [ ] `MarkdownPMTheme` = **rename + merge + re-home** of the existing `MarkdownEditorTheme` (colors) + `MarkdownEditorConfiguration`'s value structs (sizes/spacing), into one file with the 17 grouped sub-structs as MARK sections (Q5 — one file). Keep heading multipliers `[2.0,1.5,1.17,1.0,0.83,0.67]` byte-for-byte (D18). Dark-mode-adaptive system colors (D16). Breadcrumb comments to any computed geometry left in draw code (D17). Keep a clean Item-profile *seam* but build **Pages-only**.
+- [ ] Centralize caret-awareness into one decision function (the 2 carve-outs preserved — D25).
+- [ ] Snapshots + per-overlay pixel/screenshot diff hold. Green per stage.
 
-The engine has ~12 tests vs 11.2k LOC, and they live in `External/MarkdownEngine/Tests` (NOT run by the app's `xcodebuild test`). Build the safety net in the **`PommoraTests` app target** as JSON-snapshot suites over a fixture corpus, so they survive the internal refactor.
-
-- [ ] Corpus covering every construct: headings (incl. duplicate-text `[N]` ordinals), `*`/`**`/`***`, intra-word `a*b*c`, adjacent `***a** b*`, links, wikilinks (id-bearing/id-less/nested/adjacent/multibyte), image-embeds, inline+block code, inline+block LaTeX (incl. currency `$5` vs math), task checkboxes (incl. empty `[]`, `-[x]`), blockquote multi-paragraph, strikethrough, table, HR, CRLF, legacy `•` bullets.
-- [ ] Suite A — `MarkdownTokenizer.parseTokens` output (kind + range + contentRange + markerRanges). Locks the type-API 11 consumers depend on.
-- [ ] Suite B — merged styled-attribute ranges (styler + supplemental), at **varied caret positions** (caret-in-token vs out — the #9 reveal surface).
-- [ ] Suite C — `MarkdownDetection.foldableHeadings` returning the actual `NSRange` pairs (not just keys).
-- [ ] Suite D — `WikiLinkService` storage↔display round-trip byte-stability (the rename-safety contract; zero tests today).
-- [ ] Suite E — `MarkdownListHandler.handleInsertion` input transforms (Enter/space/dash/bracket-skip/arrows/em-dash). Pull `EnterContinuationTests` into the app target.
-- [ ] Smoke test: unit-test host bootstraps (XCTest guard, quirk #16) + build green.
-- [ ] Green commit: `test(markdownpm): characterization harness over parser/styler/wikilink/list-input`
-
-#### Phase 3 — Re-home as `MarkdownPM` + hoist utils + activate the wikilink seam *(1–2 sessions)*
-
-This is where the dependency dissolves and the Pommora identity is established.
-
-- [ ] Rename the local package `External/MarkdownEngine` → `MarkdownPM` (package + module name); update the 3 app import sites (`Pages/PageEditorView.swift`, `PageEditorViewModel.swift`, `PageTextStats.swift`) and the pbxproj `XCLocalSwiftPackageReference`. (Confirm package-form vs in-app per the flagged decision before this step.)
-- [ ] Hoist `LineOffsetIndex` + `SourceRangeConverter` out of `AppleASTSupplementalStyler.swift` into `Util/` (breaks the Parser→Styling dependency; needed by the rebuilt single-spine parser).
-- [ ] Implement `PommoraWikiLinkResolver` against the dormant `WikiLinkResolver` protocol; wire via `configuration.services`, replacing `NoOpWikiLinkResolver` (per `Features/Wiki-Link.md`). Tests stay green.
-- [ ] Green commit: `refactor(markdownpm): re-home engine as MarkdownPM; hoist source-range utils; wire live wikilink resolver`
-
-#### Phase 4 — Reimplement parser internals on the shared AST *(3–4 sessions)*
-
-- [ ] Rewrite `MarkdownTokenizer` + `MarkdownDetection` internals to read from the shared Apple AST + a regex scan for the two Obsidian-only constructs (wikilink `[[..]]`, image-embed `![[..]]`), emitting **byte-identical `[MarkdownToken]`**.
-- [ ] Delete `MarkdownTokenizer+Emphasis.swift` (emphasis comes off the AST). Keep `MarkdownToken.swift` + `MarkdownPlainText.swift` verbatim (`MarkdownToken` raw keys `"NodeLinkID"`/`"TaskCheckbox"` must stay exact).
-- [ ] Gate every change on the Phase-2 snapshots — they must not move. Pay special attention to the untested `isInlineMathContent` heuristic (`Tokenizer.swift:210-240`) and emphasis flanking/rule-of-3.
-- [ ] Green commit: `refactor(markdownpm): reimplement tokenizer/detection internals on shared Apple AST (token-API unchanged)`
-
-#### Phase 5 — One AST-driven `PommoraMarkdownStyler` + per-kind profiles *(4–6 sessions)*
-
-- [ ] Replace `MarkdownStyler` + its 6 extensions + `AppleASTSupplementalStyler` with a single `PommoraMarkdownStyler` walking the shared AST for all constructs, overlaying the two Obsidian regex constructs.
-- [ ] Centralize caret-awareness into one decision function (replaces the ~9 scattered `activeTokenIndices.contains` checks); honor `scopedRanges` at compute time uniformly (generalize `Links.swift:23`).
-- [ ] **Introduce `MarkdownProfile` (`.item` / `.page`)** as a styler parameter: `.page` = full document; `.item` = inline-only, capped, no block constructs (the per-kind divergence goal). Thread the profile from the call site (Page editor = `.page`; future Item rich-description = `.item`).
-- [ ] Preserve the load-bearing dispatch order (shrink-inactive-markers last; code overlays after headings), the negative-kern image-collapse helper, the softened-red code color, the marker-collapse-keeps-valid-GFM rule.
-- [ ] Snapshots + per-overlay pixel/screenshot diff must hold.
-- [ ] Green commit: `refactor(markdownpm): single AST-driven PommoraMarkdownStyler + per-kind profiles`
-
-#### Phase 6 — Tidy the body orchestration (no re-derivation) *(2–3 sessions)*
-
-- [ ] Unify the duplicated paragraph-candidate builder (`TextDelegate.swift:76-148` vs `202-231`); migrate `HRVisibility` color-tolerance code-block check to the AST check; kill the 60Hz chevron storage-edit pressure; hoist the renderer's per-fragment detection (`MarkdownTextLayoutFragment.swift:74,154,453`) onto the shared cached token query.
-- [ ] **Transplant ALL workaround files verbatim** (see Preserve-Verbatim). Re-verify caret/Writing-Tools/overscroll workarounds against the current OS.
-- [ ] Green commit: `refactor(markdownpm): unify restyle scoping + hoist renderer detection onto cached tokens`
+#### Phase 6 — Body orchestration tidy + verbatim transplant *(2-3 sessions)*
+- [ ] DRY the duplicated paragraph-candidate builder; route HR detection through the shared predicate; hoist the renderer's per-fragment detection onto the cached tokens; thread the cached parse through input handlers.
+- [ ] **Transplant the runtime-only body workarounds verbatim; manual-verify each** (see list). Verify every one of Nathan's deliberate additions is intact.
+- [ ] Green: `refactor(markdownpm): unify orchestration; verbatim body transplant verified`
 
 ---
 
-### Preserve verbatim — the body workarounds (do NOT re-derive)
+### Keep-verbatim + manual-verify (runtime-only — no unit test catches these)
 
-These are spec-irreproducible, near-untested OS-bug fixes. Transplant as-is; touching them re-incurs the original debugging with no test to catch a regression. (File:line are pre-rename `MarkdownEngine` paths.)
+Transplant unchanged; **manual visual verification mandatory**; only safe touch = extract shared subview lookups (D24-moderate). Note: **FB-radar numbers live in these file headers, not `NOTICE.md`.**
 
-- `NativeTextView+CaretWorkarounds.swift` — FB22524198 / FB15131180 caret Y-snap + height via KVO on the private `NSTextInsertionIndicator`.
-- `NativeTextViewCoordinator+HeadingFolding.swift` — fold elision via `shouldEnumerate` element-omission (substitution route *crashed*); the AppKit-force-lays-out-caret fix; the `invalidateFoldLayout` 4-step cascade incl. the side-effecting `textLayoutFragment(for:)`; `nudgeHeading` redraw (both `setNeedsDisplay` and `invalidateRenderingAttributes` FAIL in TextKit 2).
-- `NativeTextViewCoordinator+Services.swift` — macOS-15 Writing Tools Cmd+Z recovery + child-window 20×-poll fix.
-- `NativeTextViewWrapper.swift` — viewport-width-only `frameDidChange` guard (kills 149pt height oscillation); `foldedHeadings` as plain stored property + fresh-binding callback (a `@Binding` on a class goes stale).
-- `MarkdownTextLayoutFragment.swift` — the HARD prohibition on custom paragraph-level `NSAttributedString.Key`s (reopens the duplicate-HR bug); `@unchecked Sendable` + `MainActor.assumeIsolated`; FB15131180 `extraLineFragmentAttributes` private-selector workaround; per-overlay pixel-snap (`round` for glyphs, `floor`/`ceil` for fills — not interchangeable).
-- `NativeTextView+FrameAndOverscroll.swift` / `+DragSelectBoost` / `+ClickRemap` / `ClampedScrollView.swift` — dual TextKit-2 height measurement, mouseDown click-priority chain, live-resize scroll save/restore.
-- `MarkdownListHandler.swift` — the order-dependent `handleInsertion` intercept chain (em-dash above the fast-path filter; Shift+Enter via `NSApp.currentEvent.modifierFlags`; task-marker hide leaves `[ ]` at body font; legacy `•` back-compat).
-- `MarkdownDetection.swift` — ordinal `[N]` heading-key disambiguation + CRLF-safe key (keys persist in `folded_headings:` frontmatter — changing the format breaks saved fold state).
-
----
+- **FB22524198** trailing-newline caret Y-snap (`NativeTextView+CaretWorkarounds.swift:68-106`) — KVO-correct loop + re-entrancy guard.
+- **FB15131180** extra-line-fragment metrics pin (`MarkdownTextLayoutFragment.swift:717,1185`) — still-open OS bug (worse in macOS 15); the `@objc(extraLineFragmentAttributes)` private-selector bridge + the `nonisolated`/`MainActor.assumeIsolated` contract.
+- **Writing-Tools mid-session Cmd+Z recovery** (`+Services.swift:281-397`) — the 0.1pt-marker-font contamination detail ties to marker-hide; a bad rebuild could silently corrupt body text.
+- **149pt height-oscillation guard** (`NativeTextViewWrapper.swift:219`) — self-feedback loop; the `abs>1` epsilon + re-entrancy flag.
+- **`shouldEnumerateTextElement` fold elision** (`+HeadingFolding.swift:475`) — correct Apple API use; the sibling `textParagraphWith` SIGTRAPs, keep the nil-return + comment.
+- **`.pommoraThematicBreak` tombstone** (`MarkdownTextLayoutFragment.swift:21`) — keep it (removing it loses the duplicate-HR regression signal).
 
 ### Public contract — must not break
+3 app import sites. `MarkdownPMEditor` `NSViewRepresentable` — the init has **15 params** (7 used + 8 dormant, F7); keep the wikilink/inline seams (`isWikiLinkActive`, `pendingInlineReplacement`, `onInlineSelectionChange`, `onPasteImage`), shed only genuinely speculative ones (`onCaretRectChange`/`onCodeBlockSelectionChange`). `MarkdownPMConfiguration` with `.default` + mutable `textInsets`; **`TextInsets` stays a public struct** with `init(horizontal:vertical:)` (F11). `MarkdownDetection.reconcileFoldedHeadings`, `MarkdownPlainText.extract`. Attribute keys `"NodeLinkID"`/`"TaskCheckbox"` exact.
 
-App coupling is loose (3 import sites, 5 named symbols). The rebuild MUST preserve:
+### Wikilink groundwork (preserve only — separate post-rebuild session)
+Keep plain `[[Title]]` on disk; **resolve by ID, not location** (no Obsidian-style path-qualification — Nathan's ruling); the `WikiLinkService` transform is **LIVE** on every load/restyle/save (F4 — only the `WikiLinkResolver` *conformance* is dormant; do not "simplify away" the live adapter). Parser must **accept** inbound path-qualified / relative / `.md`-suffixed forms on read. The D1 guard test (Phase 2) enforces no-id-on-disk. Build nothing beyond the seam.
 
-- `NativeTextViewWrapper` as an `NSViewRepresentable` with the 7-param init the app uses: `init(text:foldedHeadings:configuration:fontName:fontSize:documentId:onScrollOffsetChange:)`. (The other 7 init params are app-unused and may be shed.) Behavior: storage-form `[[Name|<id>]]` text with display-form maintained internally; `documentId` change resets undo + per-doc state; `configuration.textInsets.vertical` reserves the title-overlay zone; `onScrollOffsetChange` normalized to 0 at rest.
-- `MarkdownEditorConfiguration` with `.default` + a mutable `textInsets` (the only field the app sets, `PageEditorView.swift:351-355`).
-- `MarkdownDetection.reconcileFoldedHeadings(_:in:) -> Set<String>` and `MarkdownPlainText.extract(from:) -> String` (used by `PageTextStats.swift:36`).
-- Fold keys = exact heading source lines with `[N]` ordinal suffix; canonical store = `page.frontmatter.foldedHeadings`.
+### Risks (carry into every phase)
+- **Emphasis deletion** unsafe without the adversarial corpus gate (Q2). **Styler merge** (D26) is the single highest-risk step — stage it, keep the sole-writer rule. **Body-workaround restructure** is the most dangerous DRY temptation — runtime-only, manual-verify mandatory. **Empty-`[]` split** (finalized 2026-06-01) — hoist shared constants, never merge the two regex classes. **Math thresholds** (120/40/6) — freeze by tests before any tidy. **Input-cascade coupling traps** — `-` in the fast-path exclusion (kills `<-`), `isInsideWikilink` in the en-dash branch (corrupts filenames), em-dash order (re-breaks `---`). **No safety net until Phase 2** — Phase 1 is pure rename (safe); Phase 3 touches behavior (the deleted overloads gate dash/checkbox transforms), so Phase 2 must land before Phase 3's behavior changes. **Parallel-branch merge (D12)** — decide order up front.
 
----
+### Decisions locked on recommendations (veto any)
+Q3 locate-only + Apple auto-rewrite off · Q4 measure-then-decide · Q5 one styling file · Q6 deep tests in package target · Links inline-style only · Heading-detector freeze+pin · UTF-8/UTF-16 fix deferred to the D23 swift-markdown bump (pin current behavior with a multibyte corpus now).
 
-### Risks & non-goals
-
-- **Highest risk (Phases 4–5):** the untested `isInlineMathContent` currency-vs-math heuristic and the CommonMark emphasis parser — if the Phase-2 corpus misses an edge case, styling diverges silently. **Harness quality IS the safety.**
-- **Scope-creep guard:** do NOT "while we're in here" rewrite the body workarounds. That's the rejected full-rebuild (+15-25 sessions, regression risk, no payoff).
-- **Non-goals:** writing a custom GFM parser (keep swift-markdown); a SwiftUI-native body (revisit only if a future feature demands it); backlinks/graph UI (separate roadmap).
-
----
-
-### Open questions for Nathan (the 🚩 above)
-
-1. Confirm: **keep Apple `swift-markdown`** (dissolve only the `MarkdownEngine` *package*), not write our own parser? (Strongly recommended.)
-2. Confirm: `MarkdownPM` stays a **local SwiftPM package**, vs folded into the app target?
-3. Confirm the name **`MarkdownPM`** for the module (assuming "Pommora Markdown"). Public type prefix → `PommoraMarkdownStyler` etc., or a different convention?
+### Non-goals
+Custom GFM parser · SwiftUI-native body · Item profile / `@`-tagging · the wikilink feature (resolver/index/nav) · swift-markdown bump · reference/shortcut/autolink support · brand color palette · true tables.
