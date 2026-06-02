@@ -12,8 +12,9 @@
 //                                                (or _itemcollection.json)
 //
 //  Shape classifier (per locked decision #7):
-//    1. Fresh             — no recognized sidecar; content-sniff (.md → Pages,
-//                           user .json → Items, none → defaults to Pages).
+//    1. Fresh             — no recognized sidecar; content-sniff always picks
+//                           Pages (Item Types require an `_itemtype.json`
+//                           sidecar, caught by the already-flat path above).
 //    2. Legacy v0.2       — folder carries `_vault.json` at root (pre-ParadigmV2
 //                           PageType sidecar). Sub-folders may carry
 //                           `_collection.json`. Renamed in place to per-kind
@@ -58,7 +59,8 @@ enum AdoptedSidecarKind: Sendable, Equatable {
 }
 
 /// A folder that has no recognized sidecar — adoption will write a fresh
-/// per-kind sidecar in place. Content-sniff picks Pages vs Items.
+/// per-kind sidecar in place. Sidecar-less folders always adopt as Page Types
+/// (Item Types require a hand-added `_itemtype.json` sidecar).
 struct PlannedFreshSidecar: Equatable, Sendable, Identifiable {
     var folderURL: URL
     var kind: AdoptedSidecarKind
@@ -417,8 +419,10 @@ enum NexusAdopter {
             return
         }
 
-        // Shape #1 — fresh. No recognized sidecar; content-sniff to pick
-        // Pages vs Items vs default-Pages. The four-shape rule absorbs every
+        // Shape #1 — fresh. No recognized sidecar; content-sniff classifies
+        // as a Page Type (sidecar-less folders are always Pages-side; Item
+        // Types require a hand-added `_itemtype.json` sidecar, caught by the
+        // recognized-sidecar paths above). The four-shape rule absorbs every
         // non-dotfile non-underscore top-level folder into one of the four
         // planning lists — `skipped` exists for completeness but isn't
         // populated under the current rules. Reserved for future shape rules.
@@ -525,8 +529,16 @@ enum NexusAdopter {
         return found
     }
 
-    /// Content-sniff for a fresh folder. Recursive `.md` vs user `.json` count.
-    /// Defaults to Pages-side when both signals are zero.
+    /// Content-sniff for a sidecar-less fresh folder — always Pages-side.
+    ///
+    /// Since Items became `.md` (Items-as-Markdown), a `.md` folder is
+    /// ambiguous: it could hold Pages OR Items, and content-sniffing reads
+    /// file extensions, not frontmatter — so it can no longer infer
+    /// Item-Type-ness. Item-Type identity now comes ONLY from the
+    /// `_itemtype.json` sidecar, checked upstream (callers early-return when a
+    /// recognized sidecar exists). A sidecar-less folder therefore always
+    /// adopts as a Page Type; the `.markdownChildren` vs
+    /// `.emptyFolderDefaultsToPages` signal only records why.
     private static func contentSniff(
         _ folder: URL
     )
@@ -536,24 +548,14 @@ enum NexusAdopter {
             ((try? Filesystem.descendantFiles(of: folder) { url in
                 url.pathExtension == "md"
             }) ?? []).isEmpty == false
-        let hasUserJSON =
-            ((try? Filesystem.descendantFiles(of: folder) { url in
-                url.pathExtension == "json"
-                    && !url.lastPathComponent.hasPrefix("_")
-            }) ?? []).isEmpty == false
 
-        if hasMarkdown {
-            return (.pageType, .markdownChildren)
-        } else if hasUserJSON {
-            return (.itemType, .jsonChildren)
-        } else {
-            return (.pageType, .emptyFolderDefaultsToPages)
-        }
+        return hasMarkdown
+            ? (.pageType, .markdownChildren)
+            : (.pageType, .emptyFolderDefaultsToPages)
     }
 
     private enum ContentDetection: Sendable, Equatable {
         case markdownChildren
-        case jsonChildren
         case emptyFolderDefaultsToPages
     }
 
@@ -648,9 +650,10 @@ enum NexusAdopter {
     /// `adoptionExcludedSubFolderNames` set (`node_modules`, `.trash`).
     ///
     /// **Depth-aware kind selection:**
-    /// - Depth 0 unknown → content-sniff via `contentSniff` → `_pagetype.json`
-    ///   (md descendants) or `_itemtype.json` (json descendants); empty
-    ///   defaults to PageType.
+    /// - Depth 0 unknown → content-sniff via `contentSniff` → always
+    ///   `_pagetype.json` (sidecar-less folders adopt as Page Types; Item
+    ///   Types require a hand-added `_itemtype.json` sidecar, recognized
+    ///   upstream before `contentSniff` runs).
     /// - Depth 1, parent has `_pagetype.json` → write `_pagecollection.json`.
     /// - Depth 1, parent has `_itemtype.json` → write `_itemcollection.json`.
     /// - No deeper tier — Types + Collections are the only auto-tagged kinds.
@@ -683,7 +686,7 @@ enum NexusAdopter {
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
         let sniff = contentSniff(folder)
-        let kind = sniff.kind  // .pageType or .itemType
+        let kind = sniff.kind  // always .pageType (sidecar-less → Page Type)
         do {
             try writeAutoTagTypeSidecar(at: folder, kind: kind, title: title, now: now)
         } catch {

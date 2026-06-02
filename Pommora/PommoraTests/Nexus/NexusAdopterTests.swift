@@ -52,8 +52,14 @@ struct NexusAdopterTests {
         #expect(plan.freshSidecars.first?.kind == .pageType)
     }
 
-    @Test("scan classifies folder with user .json content as fresh-ItemType")
-    func scanJSONContentSignalsItemType() throws {
+    @Test("scan classifies sidecar-less folder with user .json content as fresh-PageType")
+    func scanJSONContentClassifiesAsPageType() throws {
+        // Items-as-Markdown change: content-sniffing reads file extensions,
+        // not frontmatter, so a `.json`/`.md` folder is ambiguous. A
+        // sidecar-less folder — even one holding user `.json` files — now
+        // adopts as a Page Type. Item-Type identity comes ONLY from a
+        // hand-added `_itemtype.json` sidecar (caught upstream, never reaches
+        // contentSniff). Pre-Task-4 this asserted `.itemType`.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Errands", isDirectory: true)
@@ -65,7 +71,7 @@ struct NexusAdopterTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .itemType)
+        #expect(plan.freshSidecars.first?.kind == .pageType)
     }
 
     // MARK: - scan: fresh folders don't trigger adoption preview
@@ -653,7 +659,13 @@ struct NexusAdopterTests {
     @Test("user-named Items/ folder without legacy child sidecars is not unwrapped")
     func userNamedItemsFolderIsNotUnwrapped() throws {
         // A user folder named "Items" with regular .json content (no legacy
-        // child sidecars) must fall through to fresh ItemType classification.
+        // child sidecars) must NOT be unwrapped — the wrapper-unwrap decision
+        // is gated solely on `folderHasWrapperShapedChildren` (presence of a
+        // legacy `_schema.json` / `_vault.json` / `_collection.json` in a child
+        // folder), which is absent here. The folder falls through to fresh
+        // classification. Items-as-Markdown change: a sidecar-less folder now
+        // adopts as a Page Type (the unwrap decision never consulted `.kind`).
+        // Pre-Task-4 this asserted `.itemType`.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let items = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
@@ -668,7 +680,7 @@ struct NexusAdopterTests {
         #expect(plan.unwrapSteps.isEmpty, "user Items/ must not be unwrapped")
         let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Items" }
         #expect(fresh != nil)
-        #expect(fresh?.kind == .itemType)
+        #expect(fresh?.kind == .pageType)
     }
 
     @Test("user-named Agenda/ folder without legacy child sidecars is not unwrapped")
@@ -771,7 +783,8 @@ struct NexusAdopterTests {
         #expect(FileManager.default.fileExists(atPath: movedVault.path))
 
         // Pages/ is NOT deleted — RandomEssay.md kept it non-empty.
-        #expect(FileManager.default.fileExists(atPath: wrapper.path),
+        #expect(
+            FileManager.default.fileExists(atPath: wrapper.path),
             "Pages/ stays on disk because RandomEssay.md prevents empty-wrapper deletion")
         #expect(FileManager.default.fileExists(atPath: wrapper.appendingPathComponent("RandomEssay.md").path))
     }
