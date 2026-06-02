@@ -81,9 +81,9 @@ struct MoveItemTests {
             id: itemID, title: "Doc", icon: nil, description: "",
             tier1: [], tier2: [], tier3: [],
             properties: [
-                "prop_001": .select("high"),   // P1 — shared: KEEP
-                "prop_002": .status("done"),   // P2 — TypeA only: STRIP
-                "prop_003": .date(Date()),     // P3 — TypeA only: STRIP
+                "prop_001": .select("high"),  // P1 — shared: KEEP
+                "prop_002": .status("done"),  // P2 — TypeA only: STRIP
+                "prop_003": .date(Date()),  // P3 — TypeA only: STRIP
             ],
             createdAt: Date(), modifiedAt: Date()
         )
@@ -326,6 +326,82 @@ struct MoveItemTests {
         #expect(after.contains("plugin_color"))
         let loaded = try Item.load(from: dstURL)
         #expect(loaded.description == "the carried body")
+    }
+
+    // MARK: - Cross-Type move carries the `Class: item` stamp (Task 7)
+
+    /// A cross-Type Item→Item move must re-stamp `Class: item` on the destination
+    /// `.md` (kind never flips on a move — only the deferred `.unsorted` resolution
+    /// changes kind), strip the Type-scoped schema property that the destination
+    /// Type does not share, and carry any foreign frontmatter key through.
+    ///
+    /// `Class` rides the modeled frontmatter (a root key, not inside `properties`),
+    /// so the schema strip (which only mutates `properties`) leaves it untouched and
+    /// `ItemFrontmatter.encode` re-emits it through the preserving codec. This test
+    /// would go red if a future change re-stamped kind on a move, dropped the
+    /// unconditional `Class` encode, or folded the strip into the root keys.
+    @Test func moveAcrossTypesCarriesClassStampStripsSchemaKeepsForeign() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // TypeA owns "Priority" (prop_a, schema-scoped → STRIP on move to TypeB).
+        // TypeB shares no property names with TypeA.
+        let propA = PropertyDefinition(id: "prop_a", name: "Priority", type: .select)
+        let typeA = try makeItemType(nexus: nexus, title: "TypeA", properties: [propA])
+        let typeB = try makeItemType(nexus: nexus, title: "TypeB", properties: [])
+
+        // Hand-author a `.md` Item with `Class: item`, the TypeA schema property,
+        // AND a foreign (non-Pommora) frontmatter key.
+        let itemID = ULID.generate()
+        let srcFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "TypeA")
+        let srcURL = NexusPaths.itemFileURL(forTitle: "Doc", in: srcFolder)
+        let raw = """
+            ---
+            id: \(itemID)
+            Class: item
+            plugin_color: "#abcdef"
+            tier1: []
+            tier2: []
+            tier3: []
+            properties:
+              prop_a: high
+            ---
+
+            the carried body
+            """
+        try raw.data(using: .utf8)!.write(to: srcURL, options: [.atomic])
+
+        let item = try Item.load(from: srcURL)
+        #expect(item.properties["prop_a"] == .select("high"))
+
+        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        manager.itemsByTypeRoot[typeA.id] = [item]
+        manager.itemsByTypeRoot[typeB.id] = []
+
+        try await manager.moveItemAcrossTypes(
+            item,
+            from: typeA, fromCollection: nil,
+            to: typeB, toCollection: nil
+        )
+
+        let dstFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "TypeB")
+        let dstURL = NexusPaths.itemFileURL(forTitle: "Doc", in: dstFolder)
+        #expect(FileManager.default.fileExists(atPath: dstURL.path))
+
+        // `Item.load` always re-derives kind as `.item`, so assert the ON-DISK
+        // stamp directly by decoding the destination frontmatter.
+        let (destFM, _): (ItemFrontmatter, String) =
+            try AtomicYAMLMarkdown.load(ItemFrontmatter.self, from: dstURL)
+        #expect(destFM.kind == .item)
+
+        // Schema property dropped, foreign key preserved.
+        #expect(destFM.properties["prop_a"] == nil)
+        let after = try String(contentsOf: dstURL, encoding: .utf8)
+        // The decoder above defaults a MISSING `Class` to `.item`, so it can't
+        // catch a physically-dropped stamp. Assert the raw on-disk text directly.
+        #expect(after.contains("Class: item"))
+        #expect(after.contains("plugin_color"))
+        #expect(try Item.load(from: dstURL).description == "the carried body")
     }
 
     // MARK: - Private setup helpers

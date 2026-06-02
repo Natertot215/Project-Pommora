@@ -100,9 +100,9 @@ struct MovePageTests {
             id: pageID, icon: nil,
             tier1: [], tier2: [], tier3: [],
             properties: [
-                "prop_001": .select("high"),    // P1 — shared: KEEP
-                "prop_002": .status("done"),    // P2 — TypeA only: STRIP
-                "prop_003": .date(Date()),      // P3 — TypeA only: STRIP
+                "prop_001": .select("high"),  // P1 — shared: KEEP
+                "prop_002": .status("done"),  // P2 — TypeA only: STRIP
+                "prop_003": .date(Date()),  // P3 — TypeA only: STRIP
             ],
             createdAt: Date()
         )
@@ -323,6 +323,83 @@ struct MovePageTests {
         #expect(try PageFile.load(from: dstURL).frontmatter.id == dstID)
         #expect(manager.pagesByCollection[collA.id]?.count == 1)
         #expect(manager.pagesByCollection[collB.id]?.count == 1)
+    }
+
+    // MARK: - Cross-Type move carries the `Class: page` stamp (Task 7)
+
+    /// Symmetric to the Item-side cross-Type stamp test: a Page→Page move across
+    /// Page Types must re-stamp `Class: page` on the destination `.md` (kind never
+    /// flips on a move), strip the Type-scoped schema property the destination Type
+    /// does not share, and carry any foreign frontmatter key through.
+    ///
+    /// `Class` is a modeled root key (not inside `properties`), so the schema strip
+    /// leaves it untouched and `PageFrontmatter.encode` re-emits it through the
+    /// preserving codec. Goes red if a future change re-stamped kind on a move or
+    /// dropped the unconditional `Class` encode.
+    @Test func moveAcrossTypesCarriesClassStampStripsSchemaKeepsForeign() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // TypeA owns "Priority" (prop_a, schema-scoped → STRIP on move to TypeB).
+        let propA = PropertyDefinition(id: "prop_a", name: "Priority", type: .select)
+        let typeA = try makePageType(nexus: nexus, title: "TypeA", properties: [propA])
+        let typeB = try makePageType(nexus: nexus, title: "TypeB", properties: [])
+
+        // Hand-author a `.md` Page with `Class: page`, the TypeA schema property,
+        // AND a foreign (non-Pommora) frontmatter key.
+        let pageID = ULID.generate()
+        let srcURL = NexusPaths.pageFileURL(
+            forTitle: "Doc",
+            in: NexusPaths.vaultFolderURL(forTitle: "TypeA", in: nexus)
+        )
+        let raw = """
+            ---
+            id: \(pageID)
+            Class: page
+            plugin_color: "#abcdef"
+            tier1: []
+            tier2: []
+            tier3: []
+            properties:
+              prop_a: high
+            created_at: 2026-01-01T00:00:00Z
+            ---
+
+            the carried body
+            """
+        try raw.data(using: .utf8)!.write(to: srcURL, options: [.atomic])
+
+        let loadedSrc = try PageFile.load(from: srcURL)
+        #expect(loadedSrc.frontmatter.properties["prop_a"] == .select("high"))
+
+        let page = PageMeta(id: pageID, title: "Doc", url: srcURL, frontmatter: loadedSrc.frontmatter)
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        manager.pagesByTypeRoot[typeA.id] = [page]
+        manager.pagesByTypeRoot[typeB.id] = []
+
+        try await manager.movePageAcrossTypes(
+            page,
+            from: typeA, fromCollection: nil,
+            to: typeB, toCollection: nil
+        )
+
+        let dstURL = NexusPaths.pageFileURL(
+            forTitle: "Doc",
+            in: NexusPaths.vaultFolderURL(forTitle: "TypeB", in: nexus)
+        )
+        #expect(FileManager.default.fileExists(atPath: dstURL.path))
+
+        let loadedDst = try PageFile.load(from: dstURL)
+        // `Class: page` survives (kind does not flip on a move).
+        #expect(loadedDst.frontmatter.kind == .page)
+        // Schema property dropped, foreign key + body preserved.
+        #expect(loadedDst.frontmatter.properties["prop_a"] == nil)
+        #expect(loadedDst.body == "the carried body")
+        let after = try String(contentsOf: dstURL, encoding: .utf8)
+        // The decoder above defaults a MISSING `Class` to `.page`, so it can't
+        // catch a physically-dropped stamp. Assert the raw on-disk text directly.
+        #expect(after.contains("Class: page"))
+        #expect(after.contains("plugin_color"))
     }
 
     // MARK: - Private setup helpers
