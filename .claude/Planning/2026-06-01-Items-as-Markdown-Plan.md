@@ -188,7 +188,16 @@ No Item↔Page move (post-v1). Item→Item strips Type-scoped schema props (corr
 
 **Scale:** 2 user Items (empty) + ~73 `.md` Pages — skip `Pommora/`; `.unsorted` auto-skips. Build for 40+. Because reads/writes are already transition-safe (Task 3b), this is normalization, not a hard gate. **Safety:** per item, stage new `.md` + old `.json`→`.trash` in ONE `SchemaTransaction`; idempotence on FILE TRANSITION; same-volume rename (or copy-fsync-delete); report failures (don't throw).
 
-- [ ] Steps: format-agnostic enumerator + site ② conversion → scan/Plan → apply per-item isolation → interrupt-resume regression → consent-gated preview → commit.
+**Transitional `.json` code introduced by Task 3 — RETIRE here once no `.json` Items remain (re-grep each; lines drifted post-Task-3 `6cae814`):**
+- `Item.load` / `Item.save` legacy `.json` branches (the `AtomicJSON` read + `.json`-in-place write) → drop.
+- `Item.dedupedPreferringMarkdown` (`Content/Item.swift`) + the 3 dual READ enumerators (`ItemContentManager` ×2, `IndexBuilder`) + the `locateItemFile` fallback: collapse `(.md || .json)` → `.md`-only.
+- `existingItemURL(forTitle:in:)` (`ItemContentManager+CRUD.swift`): drop the legacy `.json` fallback.
+- clobber-site ② (`PropertyIDMigration`, now ~`:496`) + its `enumerateItemMembers` `.json` filter → format-agnostic / `.md`.
+- `NexusAdopter` content-sniff `.json`-item signal (~`:541`) → drop (coordinate with Task 4, which already makes a `.md` folder Item-Type-capable via sidecar). KEEP the file-date timestamp backfill (correct for adopted files — not transitional).
+
+**Transition gap to CLOSE (Task 3 deliberate):** the 4 `.md`-only strip/back-ref-clear stagers (PageContentManager + ItemContentManager back-ref clears; ItemTypeManager + DualRelationCoordinator strips) SKIP a legacy `.json` Item that still holds a stripped property or a paired-relation back-ref during the transition window. Migrating every `.json`→`.md` removes the skip; FOLLOW migration with a reverse-ref reconcile / index rebuild so any ref drift accrued mid-window heals. *(Filter-count reconciliation from Task 3 review: the plan's "5 write filters" = 4 `.md`-only strippers + the dual `locateItemFile`.)*
+
+- [ ] Steps: format-agnostic enumerator + site ② conversion → scan/Plan → apply per-item isolation → **retire the Task-3 transitional `.json` code (above)** → reverse-ref reconcile / index rebuild → interrupt-resume regression → consent-gated preview → commit.
 
 ---
 
