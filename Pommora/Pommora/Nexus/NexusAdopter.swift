@@ -238,10 +238,15 @@ struct AdoptionApplyResult: Equatable, Sendable {
     var failedCount: Int { failedFolders.count }
 }
 
-/// Folder names always excluded from sub-folder scans (build cruft).
+/// Folder names always excluded from sub-folder scans (build cruft + embedded
+/// repos). `Pommora` is the vendored app source / embedded repo, `worktrees`
+/// holds git worktrees — neither is user content; both must never be walked,
+/// tagged, or `Class`-stamped.
 private let adoptionExcludedSubFolderNames: Set<String> = [
     "node_modules",
     ".trash",
+    "Pommora",
+    "worktrees",
 ]
 
 /// macOS system-noise files that don't count toward a folder's emptiness for
@@ -673,6 +678,161 @@ enum NexusAdopter {
             // and depth-2 work (even if we wrote the sidecar just now, we
             // still want to seed Collections + Folders inside).
             walkDepth1(folder, now: now)
+            // LAST per-folder step. By now this folder's type sidecar exists
+            // (written above or pre-existing), so `recognizedSidecarsAt` sees a
+            // settled single-kind set when the stamp pass reads it. Task 8's
+            // `cleanupLegacyOrphans(...)` is designed to slot in HERE — between
+            // `walkDepth1` and the stamp pass — so the stamp pass reads a
+            // de-orphaned, single-kind folder. Keep the stamp pass last.
+            stampClassPass(in: folder, nexusRoot: nexusRoot)
+        }
+    }
+
+    // MARK: autoTag — launch `Class`-stamp pass (Landmine 2)
+
+    /// Self-heals the non-authoritative `Class` frontmatter stamp on every
+    /// content file inside a Type folder so the on-disk stamp matches the
+    /// folder's authoritative kind (its `_itemtype.json` / `_pagetype.json`
+    /// sidecar). Runs once per top-level folder at the END of that folder's
+    /// auto-tag iteration — AFTER the sidecar writes (and, once Task 8 lands,
+    /// after legacy-orphan cleanup), so `recognizedSidecarsAt` reads a settled
+    /// single-kind set.
+    ///
+    /// **Folder kind** = `recognizedSidecarsAt(folder).first`, mapped to a
+    /// `KindStamp`: `.pageType → .page`, `.itemType → .item`. Folders whose
+    /// authoritative sidecar is neither (Collections, Agenda configs, or no
+    /// sidecar at all — e.g. a Metrics folder that has an `_itemtype.json` but
+    /// no `.md` content) contribute no stamp work via this guard or via having
+    /// no content files.
+    ///
+    /// **Per content file** (`.md`, non-hidden — `descendantFiles` already
+    /// skips dot/underscore-prefixed folders, `node_modules`, and `.unsorted`):
+    /// - `Class` absent → `setStampKey` (value-preserving single key).
+    /// - `Class` present and == folder kind → leave untouched (idempotence).
+    /// - `Class` present and != folder kind → `moveToUnsorted` (disagreement;
+    ///   the file is homeless in this folder).
+    /// - non-mapping frontmatter root → `setStampKey` throws
+    ///   `nonMappingFrontmatter`, caught → `moveToUnsorted` (abnormal file,
+    ///   never clobbered).
+    ///
+    /// One write/move max per file. Idempotent — a second launch re-reads
+    /// stamped files, finds agreement, and makes no further change.
+    /// **Silent** — failures logged to stderr (DEBUG) and never abort.
+    private static func stampClassPass(in folder: URL, nexusRoot: URL) {
+        // Folder kind from the authoritative sidecar. Only Page/Item Types
+        // carry stampable content; everything else is a no-op.
+        guard let firstKind = recognizedSidecarsAt(folder).first else { return }
+        let folderStamp: KindStamp
+        switch firstKind {
+        case .pageType: folderStamp = .page
+        case .itemType: folderStamp = .item
+        case .pageCollection, .itemCollection, .taskConfig, .eventConfig:
+            return
+        }
+
+        let contentFiles =
+            (try? Filesystem.descendantFiles(of: folder) { $0.pathExtension == "md" }) ?? []
+        for file in contentFiles {
+            stampOneFile(file, folderStamp: folderStamp, nexusRoot: nexusRoot)
+        }
+    }
+
+    /// Applies the per-file decision table to a single content file. One write
+    /// or one move at most; idempotent on agreement.
+    private static func stampOneFile(
+        _ file: URL, folderStamp: KindStamp, nexusRoot: URL
+    ) {
+        switch readClassStamp(at: file) {
+        case .none:
+            // `Class` absent → stamp the folder's kind, value-preserving.
+            do {
+                try AtomicYAMLMarkdown.setStampKey(at: file, value: folderStamp.rawValue)
+            } catch AtomicYAMLMarkdownError.nonMappingFrontmatter {
+                // Frontmatter root is a bare sequence/scalar — never clobber it.
+                relocateToUnsorted(file, nexusRoot: nexusRoot)
+            } catch {
+                #if DEBUG
+                FileHandle.standardError.write(
+                    Data(
+                        "stampClassPass setStampKey failed at \(file.path): \(error)\n".utf8
+                    ))
+                #endif
+            }
+        case .some(let present):
+            if present.matches(folderStamp) {
+                // Agrees — leave it. No write (idempotence).
+                return
+            }
+            // Disagrees (or an unrecognized non-empty value) — homeless here.
+            relocateToUnsorted(file, nexusRoot: nexusRoot)
+        }
+    }
+
+    /// Reads a file's existing `Class` frontmatter value leniently — delegates
+    /// the YAML read/split/compose to `AtomicYAMLMarkdown.frontmatterScalar` and
+    /// classifies the returned scalar, mirroring how `setStampKey` resolves the
+    /// mapping. Returns:
+    /// - `nil` when there is no frontmatter, the frontmatter isn't a mapping, or
+    ///   the mapping carries no `Class` key (the "absent → stamp" path). A
+    ///   `Class:` key whose value is null (`Class:` / `Class: ~`) reads back as a
+    ///   `nil` scalar, so it too takes the absent path and the file is stamped
+    ///   with the folder kind — distinct from `.unrecognized`, a present-but-
+    ///   foreign value (including an empty string `Class: ""`) that routes the
+    ///   file to `.unsorted`;
+    /// - `.page` / `.item` when `Class` holds that recognized value;
+    /// - `.unrecognized` when `Class` is present but holds a non-empty foreign
+    ///   value — a disagreement that routes the file to `.unsorted`, never
+    ///   silently re-stamped.
+    ///
+    /// No typed decode — foreign files need not satisfy `PageFrontmatter` /
+    /// `ItemFrontmatter`.
+    private static func readClassStamp(at file: URL) -> StampReadResult? {
+        guard let value = try? AtomicYAMLMarkdown.frontmatterScalar(at: file, forKey: "Class")
+        else {
+            return nil
+        }
+        if let stamp = KindStamp(rawValue: value) {
+            switch stamp {
+            case .page: return .page
+            case .item: return .item
+            }
+        }
+        // A present-but-unrecognized Class value is a disagreement, not absence.
+        return .unrecognized
+    }
+
+    /// Lenient `Class`-read outcome. Conforms to a `KindStamp`-pattern match via
+    /// the two recognized cases; `.unrecognized` represents a present-but-foreign
+    /// value that should route to `.unsorted` (never silently re-stamped).
+    private enum StampReadResult: Equatable {
+        case page
+        case item
+        case unrecognized
+
+        /// True when this read value agrees with `folderStamp`. `.unrecognized`
+        /// never agrees (routes the file to `.unsorted`).
+        func matches(_ folderStamp: KindStamp) -> Bool {
+            switch (self, folderStamp) {
+            case (.page, .page), (.item, .item): return true
+            case (.page, _), (.item, _), (.unrecognized, _): return false
+            }
+        }
+    }
+
+    /// Defensive `moveToUnsorted` wrapper. The source is always in-nexus here
+    /// (it came from `descendantFiles(of:)` rooted at a folder under
+    /// `nexusRoot`), so `sourceNotInNexus` shouldn't fire — but wrap it in its
+    /// own `do/catch` so a relocation failure never aborts the launch pass.
+    private static func relocateToUnsorted(_ file: URL, nexusRoot: URL) {
+        do {
+            try Filesystem.moveToUnsorted(file, nexusRoot: nexusRoot)
+        } catch {
+            #if DEBUG
+            FileHandle.standardError.write(
+                Data(
+                    "stampClassPass moveToUnsorted failed at \(file.path): \(error)\n".utf8
+                ))
+            #endif
         }
     }
 
@@ -691,9 +851,10 @@ enum NexusAdopter {
             try writeAutoTagTypeSidecar(at: folder, kind: kind, title: title, now: now)
         } catch {
             #if DEBUG
-            FileHandle.standardError.write(Data(
-                "autoTag depth-0 write failed at \(folder.path): \(error)\n".utf8
-            ))
+            FileHandle.standardError.write(
+                Data(
+                    "autoTag depth-0 write failed at \(folder.path): \(error)\n".utf8
+                ))
             #endif
         }
     }
@@ -720,7 +881,8 @@ enum NexusAdopter {
         let existing = recognizedSidecarsAt(folder)
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
-        let kind: AdoptedSidecarKind = parent.kind == .pageType
+        let kind: AdoptedSidecarKind =
+            parent.kind == .pageType
             ? .pageCollection : .itemCollection
         do {
             try writeAutoTagCollectionSidecar(
@@ -729,9 +891,10 @@ enum NexusAdopter {
             )
         } catch {
             #if DEBUG
-            FileHandle.standardError.write(Data(
-                "autoTag depth-1 write failed at \(folder.path): \(error)\n".utf8
-            ))
+            FileHandle.standardError.write(
+                Data(
+                    "autoTag depth-1 write failed at \(folder.path): \(error)\n".utf8
+                ))
             #endif
         }
     }
@@ -752,7 +915,7 @@ enum NexusAdopter {
             NexusPaths.pageTypeSidecarFilename, isDirectory: false
         )
         if Filesystem.fileExists(at: ptURL),
-           let pt = try? PageType.load(from: ptURL)
+            let pt = try? PageType.load(from: ptURL)
         {
             return AutoTagTypeParent(id: pt.id, kind: .pageType)
         }
@@ -760,7 +923,7 @@ enum NexusAdopter {
             NexusPaths.itemTypeSidecarFilename, isDirectory: false
         )
         if Filesystem.fileExists(at: itURL),
-           let it = try? ItemType.load(from: itURL)
+            let it = try? ItemType.load(from: itURL)
         {
             return AutoTagTypeParent(id: it.id, kind: .itemType)
         }
@@ -1019,15 +1182,19 @@ enum NexusAdopter {
     ///    both is a Type, not a Collection, because Collections must live
     ///    inside a Type).
     private static func cleanupLegacyOrphans(in folder: URL, fm: FileManager) {
-        cleanupOrphansAt(folder, fm: fm, legacyNames: [
-            legacyVaultSidecarFilename, paradigmV2UnifiedSidecarFilename,
-        ])
+        cleanupOrphansAt(
+            folder, fm: fm,
+            legacyNames: [
+                legacyVaultSidecarFilename, paradigmV2UnifiedSidecarFilename,
+            ])
         // One-level-deep cleanup (Collections inside this Type)
         let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
         for sub in subFolders where !isHiddenOrExcludedSub(sub) {
-            cleanupOrphansAt(sub, fm: fm, legacyNames: [
-                legacyCollectionSidecarFilename, paradigmV2UnifiedSidecarFilename,
-            ])
+            cleanupOrphansAt(
+                sub, fm: fm,
+                legacyNames: [
+                    legacyCollectionSidecarFilename, paradigmV2UnifiedSidecarFilename,
+                ])
         }
     }
 
@@ -1089,9 +1256,9 @@ enum NexusAdopter {
     private static func folderHasWrapperShapedChildren(_ folder: URL) -> Bool {
         let children = (try? Filesystem.childFolders(of: folder)) ?? []
         let legacySidecarCandidates = [
-            paradigmV2UnifiedSidecarFilename,   // "_schema.json"
-            legacyVaultSidecarFilename,          // "_vault.json"
-            legacyCollectionSidecarFilename,     // "_collection.json"
+            paradigmV2UnifiedSidecarFilename,  // "_schema.json"
+            legacyVaultSidecarFilename,  // "_vault.json"
+            legacyCollectionSidecarFilename,  // "_collection.json"
         ]
         for child in children where !isHiddenOrExcludedSub(child) {
             for filename in legacySidecarCandidates {

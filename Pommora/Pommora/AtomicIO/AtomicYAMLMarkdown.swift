@@ -67,6 +67,39 @@ enum AtomicYAMLMarkdown {
         return try envelope(fmText, body)
     }
 
+    // MARK: - Shared frontmatter read
+
+    /// Reads a file, splits its YAML-frontmatter envelope, and composes the
+    /// frontmatter into a raw Yams `Node` — the single source for the
+    /// "read → split → compose" chain that `setStampKey`, `mergedData`, and the
+    /// adopter's `Class`-stamp read all share.
+    ///
+    /// - The read + envelope split propagate errors via `throws` (a malformed
+    ///   envelope surfaces as `LoadError.malformedEnvelope`); callers that prefer
+    ///   to treat any read/split failure as "no frontmatter" wrap the call in `try?`.
+    /// - The compose step is lenient (`try?`): frontmatter that is empty,
+    ///   whitespace-only, or otherwise yields no single YAML root returns
+    ///   `node: nil`, as does frontmatter that Yams fails to parse. Callers branch on
+    ///   the returned `node` (`.mapping` / `.none` / null-scalar / other) so the
+    ///   empty-vs-non-mapping distinction stays available where it matters
+    ///   (notably `setStampKey`'s create-fresh vs. refuse-to-clobber decision).
+    static func composedFrontmatter(at url: URL) throws -> (node: Yams.Node?, body: String) {
+        let (fm, body) = try split(try String(contentsOf: url, encoding: .utf8))
+        return (try? Yams.compose(yaml: fm), body)
+    }
+
+    /// Reads a single top-level scalar value out of a file's frontmatter mapping,
+    /// returning `nil` when the file has no frontmatter, the frontmatter root is
+    /// not a key/value mapping, or the mapping carries no such key. Built on
+    /// `composedFrontmatter` so external callers (e.g. the adopter's `Class`
+    /// read) never have to import Yams or name a `Node`.
+    static func frontmatterScalar(at url: URL, forKey key: String) throws -> String? {
+        guard case .mapping(let map)? = try composedFrontmatter(at: url).node else {
+            return nil
+        }
+        return map[Yams.Node(key)]?.string
+    }
+
     // MARK: - Preserving overloads (foreign-key retaining, order-stable)
 
     /// Order-preserving, clear-aware `write`. Re-serializes the typed frontmatter
@@ -112,9 +145,8 @@ enum AtomicYAMLMarkdown {
         frontmatter: T, body: String, preservingFrom existing: URL?, modeledKeys: Set<String>
     ) throws -> Data {
         let typedYAML = try YAMLEncoder().encode(frontmatter)
-        guard let existing, let raw = try? String(contentsOf: existing, encoding: .utf8),
-            let (fm, _) = try? split(raw), !fm.isEmpty,
-            case .mapping(let existingMap)? = try? Yams.compose(yaml: fm),
+        guard let existing,
+            case .mapping(let existingMap)? = try? composedFrontmatter(at: existing).node,
             case .mapping(let typedMap)? = try? Yams.compose(yaml: typedYAML)
         else { return try envelope(typedYAML, body) }
 
@@ -141,14 +173,13 @@ enum AtomicYAMLMarkdown {
     /// injected). Idempotent — re-running produces identical output. The literal
     /// `"Class"` key is independent of any typed `kind` property.
     static func setStampKey(at url: URL, value: String) throws {
-        let (fm, body) = try split(try String(contentsOf: url, encoding: .utf8))
+        let (composed, body) = try composedFrontmatter(at: url)
         // Resolve the mapping to stamp onto:
         //   • empty / null / unparseable frontmatter → fresh mapping (create path,
         //     matches the frontmatter-less behavior of just adding `Class:`),
         //   • frontmatter that parses to a mapping → use it,
         //   • NON-EMPTY frontmatter that parses to a non-mapping (sequence / scalar)
         //     → throw and write nothing, so we never clobber existing content.
-        let composed = try? Yams.compose(yaml: fm)
         var map: Yams.Node.Mapping
         switch composed {
         case .mapping(let m):
