@@ -27,6 +27,7 @@ An **execution** session — the prior session was planning. It started with the
 - **Wiring previously-dead code surfaces its latent bugs.** Going live with `ItemValidator` exposed a `validateType` gap (valid `.status`/`.file` values rejected); the auto-run migration exposed the consent-gate placement. Audit dead code's internals before you make it live.
 - **Doc-generation agents can INVENT behavior.** The Task 11 pass wrote a "cross-kind Item↔Page move re-stamps Class" rule that doesn't exist. → verify docs against the CODE, and read PROSE for meaning, not just grep for stale tokens.
 - **A guard that can't fail is worse than none.** The launch-join integration assertion was a tautology (fresh index rebuilt off `needsRebuild` regardless of the flag); confirm a test would actually FAIL if the fix regressed.
+- **"Fixed before" ≠ "this exact thing is fixed."** A stray-sidecar report fused two *opposite* adoption mechanisms — the auto-tagger (by design, *adds* a `_pagecollection.json` to any untagged Vault sub-folder) and the Task-8 self-heal (`fe93f57`, only *removes* a duplicate/dual sidecar). A sole sidecar on a doc-mirror folder is the tagger's intended output and outside the self-heal's remit, so `fe93f57` was never going to "prevent" it. Separate the mechanism that *creates* a state from the one that *cleans* it before claiming one fixes the other.
 
 #### Next Session
 
@@ -35,7 +36,6 @@ An **execution** session — the prior session was planning. It started with the
 
 #### Pending Focuses
 
-- **[carried 06-01]** Nathan's one-time **live deletion of the 12 stray `_pagecollection.json` sidecars** in The Nexus — the Task-8 code fix prevents recurrence; the existing strays are his manual cleanup.
 - **[new] Two launch-path perf optimizations** the simplify pass flagged but I did NOT apply (risk > marginal small-nexus gain): collapse `autoTagMissingSidecars`'s redundant per-folder walks (two `childFolders` + two `descendantFiles` subtree traversals) into one of each; and a steady-state short-circuit so a fully-migrated nexus doesn't triple-walk Type folders across PropertyIDMigration + autoTag-sweep + ItemFormatMigration every launch. Revisit if launch latency matters at scale. (Also noted-not-applied DRY niceties: `Item.stableHash` vs `PageFile.shortHash` one shared hash; a single module-level `isItemFile` predicate for the ~11 inline copies.)
 - **[gated]** The **"retire legacy-Item-JSON migration machinery"** cleanup (captured in `Prospects.md`) — fires once every nexus has run the `.json`→`.md` migration (no `.json` Items remain): drop `ItemFormatMigration`, `Item.decodeLegacyJSON`, the legacy `Item` `CodingKeys`, and `PropertyIDMigration`'s dual member enumerator.
 - **[carried]** v0.4.0 kickoff (Symbols / Settings / Trash / Wikilinks + file-watcher + FTS5; a parallel session was on Wikilinks).
