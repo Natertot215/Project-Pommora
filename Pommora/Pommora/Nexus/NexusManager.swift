@@ -348,7 +348,32 @@ final class NexusManager {
             // from the function top; the existing `defer` clears it.
             applyMigrationSurfacingFailures(migrationPlan)
         }
-        // else: nothing to adopt + nothing to migrate — return (handled by defer).
+        // else: nothing to adopt + nothing to migrate — fall through to the
+        // format migration below (handled by defer on return).
+
+        // Item `.json` → `.md` format migration. Runs HEADLESSLY after the
+        // property-ID pass (so any newly-written `.md` already carries ID-keyed
+        // properties): it converts recoverable copies (old `.json` → `.trash/`),
+        // never a lossy hard delete, so no consent gate is warranted. Idempotent
+        // + interrupt-safe; a fully-migrated Nexus is a no-op. Same XCTest-guard
+        // coverage as the property-ID migration (this whole path is downstream
+        // of `loadOnLaunch`'s guard).
+        applyFormatMigrationSurfacingFailures(at: url)
+    }
+
+    /// Applies the Item `.json` → `.md` format migration and surfaces any
+    /// per-item failures via `pendingError`. Mirrors
+    /// `applyMigrationSurfacingFailures` so both headless migrations report
+    /// failures the same way.
+    private func applyFormatMigrationSurfacingFailures(at url: URL) {
+        let report = ItemFormatMigration.runIfNeeded(at: url)
+        guard !report.failedItems.isEmpty else { return }
+        let preview = report.failedItems.prefix(3)
+            .map { "\($0.itemURL.lastPathComponent): \($0.message)" }
+            .joined(separator: "; ")
+        pendingError = .initFailed(
+            "Item format migration completed with \(report.failedItems.count) failures (\(preview))."
+        )
     }
 
     /// Applies a property-ID migration plan and surfaces any per-Type failures

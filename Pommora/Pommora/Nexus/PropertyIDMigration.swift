@@ -122,7 +122,7 @@ enum PropertyIDMigration {
         /// Key = tier (1/2/3), value = number of relation properties dropped.
         var contextTierDropCountsByTier: [Int: Int] {
             var counts: [Int: Int] = [:]
-            for case let .contextTierDropped(_, tier, _) in allEvents {
+            for case .contextTierDropped(_, let tier, _) in allEvents {
                 counts[tier, default: 0] += 1
             }
             return counts
@@ -493,10 +493,20 @@ enum PropertyIDMigration {
         var memberCount = 0
         for itemURL in enumerateItemMembers(in: migration.typeFolderURL) {
             do {
-                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                // Format-agnostic read: `.md` Items decode via the frontmatter
+                // envelope, legacy `.json` Items via AtomicJSON — `Item.load`
+                // dispatches on extension, so a `.md` member never hits a
+                // JSON-on-markdown `dataCorrupted` error here.
+                var item = try Item.load(from: itemURL)
                 if rekey(properties: &item.properties, with: migration.nameToID) {
                     item.modifiedAt = Date()
-                    try txn.stage(item, to: itemURL)
+                    // Re-stage in the member's OWN format so we never write a
+                    // JSON blob into a `.md` file (or vice versa). A `.json`
+                    // member re-encodes as `.json`; a `.md` member re-encodes
+                    // through the preserving envelope so foreign frontmatter +
+                    // body survive. ItemFormatMigration retires the `.json` arm.
+                    let payload = try encodedItemMemberPayload(item, at: itemURL)
+                    txn.stage(payload: payload, to: itemURL)
                     memberCount += 1
                 }
             } catch {
@@ -518,6 +528,21 @@ enum PropertyIDMigration {
                     typeFolderURL: migration.typeFolderURL,
                     message: "commit failed: \(error)"))
         }
+    }
+
+    /// Encodes a rewritten Item member in the on-disk format of its existing
+    /// file. A `.json` member round-trips through `AtomicJSON` (its native
+    /// shape); a `.md` member round-trips through the preserving YAML-envelope
+    /// codec (`preservingFrom: url`), so any foreign frontmatter key + the
+    /// Markdown body survive the property rekey. Single source for the
+    /// per-format re-stage in `applyItemType`.
+    private static func encodedItemMemberPayload(_ item: Item, at url: URL) throws -> Data {
+        if url.pathExtension == "md" {
+            return try AtomicYAMLMarkdown.encode(
+                frontmatter: item.frontmatter, body: item.description,
+                preservingFrom: url, modeledKeys: ItemFrontmatter.modeledKeys)
+        }
+        return try AtomicJSON.encode(item)
     }
 
     // MARK: - Shared helpers
@@ -603,16 +628,23 @@ enum PropertyIDMigration {
     }
 
     private static func enumeratePageMembers(in typeFolder: URL) -> [URL] {
-        enumerateMembers(in: typeFolder, withExtension: "md")
+        enumerateMembers(in: typeFolder, withExtensions: ["md"])
     }
 
+    /// Item members are format-agnostic: `.md` (canonical) + legacy `.json`,
+    /// excluding per-kind sidecars (`_…`). The rekey pass reads each via
+    /// `Item.load` and re-stages in its own format. `.md` support is required so
+    /// a partially-migrated Type (some Items already `.md`) doesn't error when
+    /// PropertyIDMigration re-runs over it (clobber-② fix).
     private static func enumerateItemMembers(in typeFolder: URL) -> [URL] {
-        enumerateMembers(in: typeFolder, withExtension: "json").filter {
+        enumerateMembers(in: typeFolder, withExtensions: ["json", "md"]).filter {
             !$0.lastPathComponent.hasPrefix("_")
         }
     }
 
-    private static func enumerateMembers(in folder: URL, withExtension ext: String) -> [URL] {
+    private static func enumerateMembers(
+        in folder: URL, withExtensions exts: Set<String>
+    ) -> [URL] {
         guard
             let enumerator = FileManager.default.enumerator(
                 at: folder,
@@ -621,7 +653,7 @@ enum PropertyIDMigration {
         else { return [] }
         var results: [URL] = []
         for case let url as URL in enumerator {
-            if url.pathExtension == ext {
+            if exts.contains(url.pathExtension) {
                 results.append(url)
             }
         }
