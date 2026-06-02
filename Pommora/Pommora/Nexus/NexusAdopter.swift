@@ -678,12 +678,21 @@ enum NexusAdopter {
             // and depth-2 work (even if we wrote the sidecar just now, we
             // still want to seed Collections + Folders inside).
             walkDepth1(folder, now: now)
+            // Self-heal co-located legacy/orphan sidecars BEFORE the stamp pass.
+            // A depth-0 stray (e.g. an inert `_pagecollection.json` co-located
+            // with this folder's `_itemtype.json`, from an old wrapper unwrap)
+            // is non-authoritative — `cleanupOrphansAt` keeps the Type sidecar
+            // (`recognizedSidecarsAt.first`) and deletes the rest. IndexBuilder
+            // only reads `_pagecollection.json` at depth 1, so a depth-0 stray
+            // is inert; legitimate depth-1 collection sidecars are the sole
+            // recognized sidecar in their own folder and are spared. Running
+            // this here leaves a de-orphaned, single-kind folder for the stamp
+            // pass to read.
+            cleanupLegacyOrphans(in: folder, fm: FileManager.default)
             // LAST per-folder step. By now this folder's type sidecar exists
-            // (written above or pre-existing), so `recognizedSidecarsAt` sees a
-            // settled single-kind set when the stamp pass reads it. Task 8's
-            // `cleanupLegacyOrphans(...)` is designed to slot in HERE — between
-            // `walkDepth1` and the stamp pass — so the stamp pass reads a
-            // de-orphaned, single-kind folder. Keep the stamp pass last.
+            // (written above or pre-existing) and any orphan sidecar is gone, so
+            // `recognizedSidecarsAt` sees a settled single-kind set when the
+            // stamp pass reads it. Keep the stamp pass last.
             stampClassPass(in: folder, nexusRoot: nexusRoot)
         }
     }
@@ -694,9 +703,8 @@ enum NexusAdopter {
     /// content file inside a Type folder so the on-disk stamp matches the
     /// folder's authoritative kind (its `_itemtype.json` / `_pagetype.json`
     /// sidecar). Runs once per top-level folder at the END of that folder's
-    /// auto-tag iteration — AFTER the sidecar writes (and, once Task 8 lands,
-    /// after legacy-orphan cleanup), so `recognizedSidecarsAt` reads a settled
-    /// single-kind set.
+    /// auto-tag iteration — AFTER the sidecar writes and after legacy-orphan
+    /// cleanup, so `recognizedSidecarsAt` reads a settled single-kind set.
     ///
     /// **Folder kind** = `recognizedSidecarsAt(folder).first`, mapped to a
     /// `KindStamp`: `.pageType → .page`, `.itemType → .item`. Folders whose
