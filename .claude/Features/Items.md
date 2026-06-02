@@ -93,7 +93,7 @@ Items open in a popover-style floating surface anchored to the trigger (row clic
 - **Title** — the filename, editable in place (rename retitles the underlying `.md` file).
 - **Icon** — optional SF Symbol; edited as a plain TextField in the placeholder (the native `IconPicker` swaps in with the redesign).
 - **Properties** — typed inputs for each property in the parent Item Type's schema, via `PropertyEditorRow` dispatching to per-type controls (TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select).
-- **Description** — the Markdown-source body field, **hard cap 1000 source characters** (provisional). This IS Items' body (Shape A — single source of truth, no separate frontmatter description). Validated on save, not silently clamped. Item-specific Markdown-formatting restrictions are deferred to the Item Window redesign.
+- **Description** — the Markdown-source body field (the Shape-A contract above): capped at **1000 source characters** (provisional), validated on save and rejected over-cap — never silently clamped. Item-specific Markdown-formatting restrictions are deferred to the Item Window redesign.
 - **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target` `{ kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`, edited inline like any Relation property. Values render as the target's icon + title in plain styled colored text (the placeholder currently shows raw IDs).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 

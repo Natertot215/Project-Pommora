@@ -185,7 +185,7 @@ Singleton composed-blocks dashboard at `.nexus/homepage.json`. No `id`/`tier`/`p
 
 ##### SQLite Schema
 
-Twelve data tables plus an internal `meta` table, rebuilt from files on launch or demand. The index stores titles, properties, links, and relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
+Eleven data tables plus an internal `meta` table, rebuilt from files on launch or demand. The index stores titles, properties, links, and relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
 
 ```sql
 -- Page Type index (one row per <nexus>/<Title>/_pagetype.json at the root)

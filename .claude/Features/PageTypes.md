@@ -249,7 +249,7 @@ Pages carry `tier1` / `tier2` / `tier3` multi-relations to Contexts. Queryable b
 
 Moving a Page to another Page Type strips properties not in the destination schema (Notion-style, no quarantine). Confirmation warning lists what's stripped. Within the same Page Type (between Collections), no strip — shared schema.
 
-A **cross-kind** move (a `.md` Item into a Page Type, or vice versa) additionally re-stamps the `Class` frontmatter value **exactly once** to match the destination folder's sidecar kind — the parent sidecar is the kind authority, so the stamp follows the folder. Same-kind moves leave `Class` untouched.
+A same-kind cross-Type move (Page → Page across Page Types, Item → Item across Item Types) strips Type-scoped schema properties absent from the destination and leaves the `Class` frontmatter stamp **untouched** — kind doesn't change, so the stamp doesn't either. A cross-kind move (Item ↔ Page) does **not** exist in v1; it's a post-v1 Prospect (cross-side promotion — see [[Properties]] and [[Prospects]]).
 
 ---
 

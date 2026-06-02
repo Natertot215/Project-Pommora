@@ -430,7 +430,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 1. Every property value's shape matches its schema entry's type (looked up by property ID).
 2. Relation `$rel` ULIDs must resolve to a live entity (warned, not enforced — broken-link semantics).
 3. Select / Multi-select / Status values must reference live option `value`s (cleaned up on schema mutation).
-4. Item `description` (the `.md` body) is at most **1000 markdown-source characters** (raw `.count`; markup counts). Validated on save by `ItemValidator` and rejected over-cap — never silently clamped. Cap is provisional (was 250). Agenda `description` carries the same cap on its JSON field.
+4. Item `description` (the `.md` body) is at most **1000 markdown-source characters** (raw `.count`; markup counts). Validated on save by `ItemValidator` and rejected over-cap — never silently clamped. The Agenda `description` is a plain-text JSON field with **no length validation** — no Agenda validator enforces a cap (the 1000-char limit is Items-only).
 
 ---
 
