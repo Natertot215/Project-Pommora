@@ -11,6 +11,12 @@ import Foundation
 /// writes the now-present field through.
 struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var id: String
+    /// Reserved, UI-hidden on-disk stamp (frontmatter key `Class`) marking this
+    /// file as the Page form of the entity. Every typed Page save emits it
+    /// unconditionally; decode is lenient (missing OR unknown value → `.page`).
+    /// Non-authoritative — the folder sidecar is the authority and the launch
+    /// stamp pass self-heals a drifted value.
+    var kind: KindStamp
     var icon: String?
     var tier1: [String]
     var tier2: [String]
@@ -31,6 +37,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, icon, tier1, tier2, tier3, properties
+        case kind = "Class"
         case createdAt = "created_at"
         case modifiedAt = "modified_at"
         case foldedHeadings = "folded_headings"
@@ -49,9 +56,11 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         properties: [String: PropertyValue],
         createdAt: Date,
         modifiedAt: Date? = nil,
-        foldedHeadings: [String]? = nil
+        foldedHeadings: [String]? = nil,
+        kind: KindStamp = .page
     ) {
         self.id = id
+        self.kind = kind
         self.icon = icon
         self.tier1 = tier1
         self.tier2 = tier2
@@ -68,6 +77,15 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         // becoming "". Pages without an id were a 2026-05-15 transitional state
         // that's now an error.
         self.id = try c.decode(String.self, forKey: .id)
+        // Lenient: decode the raw `Class` string and map, defaulting on missing
+        // OR unknown value. A naive `decodeIfPresent(KindStamp.self)` would THROW
+        // on a foreign `Class: widget` and brick the Page load — this swallows
+        // only the unknown-enum-case, not other decode failures.
+        if let rawKind = try c.decodeIfPresent(String.self, forKey: .kind) {
+            self.kind = KindStamp(rawValue: rawKind) ?? .page
+        } else {
+            self.kind = .page
+        }
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.tier1 = try c.decodeIfPresent([String].self, forKey: .tier1) ?? []
         self.tier2 = try c.decodeIfPresent([String].self, forKey: .tier2) ?? []
@@ -81,6 +99,8 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
+        // Unconditional — every typed Page save stamps `Class: page`.
+        try c.encode(kind, forKey: .kind)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(tier1, forKey: .tier1)
         try c.encode(tier2, forKey: .tier2)

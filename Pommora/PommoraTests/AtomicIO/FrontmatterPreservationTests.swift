@@ -293,12 +293,18 @@ struct FrontmatterPreservationTests {
         #expect(map[Node("icon")]?.string == "bolt.fill")
         // Foreign key still present.
         #expect(map[Node("tags")] != nil)
-        // Order unchanged — `icon` stays in its original position; no reordering.
+        // Order unchanged — the original keys keep their positions as a stable
+        // prefix; the modeled `Class` stamp (emitted by every typed Page save since
+        // Task 2) is appended after them and is the ONLY addition. The substitution
+        // of `icon` must not reorder the pre-existing keys.
         let keysAfter = orderedKeys(map)
         #expect(
-            keysAfter == keysBefore,
-            "key order drifted on a substitution: \(keysBefore) vs \(keysAfter)")
-        // Explicitly: `icon` still precedes `tags`, both still precede nothing new.
+            Array(keysAfter.prefix(keysBefore.count)) == keysBefore,
+            "original key order drifted on a substitution: \(keysBefore) vs \(keysAfter)")
+        #expect(
+            Set(keysAfter).subtracting(keysBefore) == Set(["Class"]),
+            "expected the only added key to be the Class stamp: \(keysAfter)")
+        // Explicitly: `icon` still precedes `tags`.
         #expect(keysAfter.firstIndex(of: "icon")! < keysAfter.firstIndex(of: "tags")!)
     }
 
