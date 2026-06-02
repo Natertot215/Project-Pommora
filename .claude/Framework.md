@@ -9,7 +9,7 @@ A Markdown-canonical, SQLite-indexed personal management platform combining Obsi
 - **Organization layer — Contexts** (Spaces / Topics / Projects, 3 tiers) — composed-blocks surfaces
 - **Operational layer:**
   - **Pages side** — Page Types → Page Collections → Pages (`.md`). UI labels default to "Vault" + "Collection"
-  - **Items side** — Item Types → Item Collections → Items (`.json`). UI labels default to "Type" + "Set"
+  - **Items side** — Item Types → Item Collections → Items (`.md`). UI labels default to "Type" + "Set"
   - **Agenda** — Agenda Tasks (`.task.json`, EKReminder-aligned) + Agenda Events (`.event.json`, EKEvent-aligned)
 - **Singleton — Homepage** (`.nexus/homepage.json`)
 - **Settings scaffold** (`.nexus/settings.json`) — per-Nexus user-overridable UI labels + accent color
@@ -81,6 +81,9 @@ Tagged 2026-05-31; the big consolidation release (**v0.3.3 was skipped** — the
 #### Upcoming versions (roadmap)
 
 > **Version buckets + priority follow Nathan's own [[Pommora Tasks]] doc** (the working intent ledger); Framework keeps the implementation detail under each. Items Framework tracks that the Tasks doc doesn't name are *folded into their nearest bucket* and marked **(infra)** / **(folded)**. The Sort / Filter / Group panes muted in v0.3.1 + multi-saved-view tabs land with the view system at **v0.7.0**.
+
+##### v0.3.x — Items as Markdown (serialization unification) (near-term, timing TBD)
+The accidental Items-vs-Pages serialization fork collapses: Items become plain `.md` (YAML frontmatter + capped Markdown body) on the same `AtomicYAMLMarkdown` pipeline Pages use — the capped description *is* the body (Shape A, one source of truth). Folder sidecar is the kind authority; a non-authoritative `Class` frontmatter stamp marks the form and self-heals (disagreement / homeless file → hidden `.unsorted` inbox). Foreign frontmatter is preserved by value on every Item AND Page write path. A mandatory one-shot launch migration normalizes legacy `.json` Items → `.md`. **This is where save-time `ItemValidator` validation is introduced for the first time** (the "Phase-6 rider" — body-length cap at 1000 source chars, provisional, validated not clamped, across all 6 Item CRUD entry points). Agenda stays JSON (`.task.json` / `.event.json`); sidecars / Projects / Spaces / Settings stay JSON — only Item *content* files changed. Plan → `Planning/2026-06-01-Items-as-Markdown-Plan.md`.
 
 ##### v0.3.x — Item Window redesign + PreviewWindow primitive (near-term, timing TBD)
 Polish on the already-shipped Item Window: reshape it around the Property Panel + inspector toggle + pinned chips per Nathan's WIP sketch. Eventually a `WindowGroup(for: ItemRef.self)` standalone window once the cross-feature PreviewWindow primitive ships. AgendaTask + AgendaEvent reuse the same UX pattern. (Per-Page Property Pulldown + Property Panel Figma polish is the parallel fast-follow on the Pages surface.)

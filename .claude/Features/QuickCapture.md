@@ -19,7 +19,7 @@ This keeps the "files are canonical, one process owns the index" model intact an
 
 #### Why the data layer already supports it
 
-- **Create is file-canonical.** Creating an Item / Task / Event writes its `.json` file atomically; the SQLite index upsert is best-effort and non-fatal — so capture can always succeed at the file level even if the index lags. (→ [[Architecture]].)
+- **Create is file-canonical.** Creating an Item writes its `.md` file (YAML frontmatter + capped body); a Task / Event writes its `.task.json` / `.event.json`. Either way the write is atomic and the SQLite index upsert is best-effort and non-fatal — so capture can always succeed at the file level even if the index lags. (→ [[Architecture]].)
 - **The property-assignment UI is host-agnostic.** The property panel and per-property editors take a schema + value bindings, not the manager graph — so the same editing surface renders in a compact capture pane. (→ [[Properties]].)
 - **Pinned properties already exist.** `pinned_properties` (on the Item Collection) drives the Item Window's pinned chips today. Quick Capture reuses that exact mechanism (next section) — it is the feature's second consumer, not a new concept.
 

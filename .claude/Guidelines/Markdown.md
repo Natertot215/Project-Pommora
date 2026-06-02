@@ -65,7 +65,7 @@ The single most-violated principle in past sessions. Internalize this before wri
 - **Display ≠ source.** The same source can render differently in Pommora (card chrome, hidden markers, grid overlays, syntax highlighting) without changing what's on disk. This is the whole point of the dynamic-syntax pattern.
 - **Mutations to source are user-initiated.** Pommora does NOT auto-mutate source on its own. The only Pommora-initiated source mutations happen at moments of explicit user intent: an input-handler reaction to a keystroke (e.g. Enter inserting a new list item) or an edit-commit (e.g. the popover editor's Done button). Background "tidying" of source is forbidden.
 - **Frontmatter holds Pommora-side display state** when needed. A future drag-resize-columns feature stores widths in frontmatter, not in source. Render layer reads frontmatter and applies overrides. Source stays portable across tools.
-- **Files canonical (≠ everything is Markdown).** Pages are `.md`. Items are `.json`. Vaults / Collections / Contexts / Homepage all have their own structured files. The principle applies to all of them: the file is the spec; the render is flexible.
+- **Files canonical (≠ everything is Markdown).** Pages are `.md`; Items are also `.md` (frontmatter + capped body) sharing Pages' `AtomicYAMLMarkdown` codec — kind authority is the parent Type folder's sidecar, not the extension. Agenda (`.task.json` / `.event.json`), sidecars, Contexts / Collections / Homepage stay structured JSON. The principle applies to all of them: the file is the spec; the render is flexible.
 
 ##### 2.2 What this rules out
 

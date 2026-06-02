@@ -102,33 +102,31 @@ enum AtomicJSON {
 
 ---
 
-#### YAML frontmatter — use Yams
+#### YAML frontmatter + body — `AtomicYAMLMarkdown` (preserving merge-on-write)
 
-Yams (`github.com/jpsim/Yams`, MIT) — Page frontmatter parsing. No first-party Apple solution; `apple/swift-markdown` handles body but not frontmatter.
+Yams (`github.com/jpsim/Yams`, MIT) backs the shared `AtomicYAMLMarkdown` codec — the single read/write path for BOTH Pages AND Items (`.md` frontmatter + body). No first-party Apple solution; `apple/swift-markdown` handles body but not frontmatter.
+
+**Writes preserve foreign frontmatter by value — never cull.** A typed encode only emits the keys in `CodingKeys`; serializing that alone drops any plugin/foreign key an external tool wrote onto the file. So every full-frontmatter write merges the typed struct's keys back over the existing on-disk frontmatter rather than replacing it:
 
 ```swift
 import Yams
 
-struct PageFile {
-    var frontmatter: PageFrontmatter
-    var body: String
-
-    static func load(from url: URL) throws -> PageFile {
-        let raw = try String(contentsOf: url, encoding: .utf8)
-        let (fm, body) = try splitFrontmatter(raw)
-        let frontmatter = try YAMLDecoder().decode(PageFrontmatter.self, from: fm)
-        return PageFile(frontmatter: frontmatter, body: body)
-    }
-
-    func save(to url: URL) throws {
-        let fm = try YAMLEncoder().encode(frontmatter)
-        let raw = "---\n\(fm)---\n\n\(body)"
-        try raw.write(to: url, atomically: true, encoding: .utf8)
-    }
-}
+// AtomicYAMLMarkdown.write(_:body:to:preservingFrom:modeledKeys:)
+// 1. Encode the typed frontmatter (modeled keys only).
+// 2. Read the existing file at `preservingFrom`; for each on-disk key:
+//      modeled → substitute the typed value (or drop if the typed value cleared it);
+//      foreign → pass through unchanged.
+// 3. Append typed-only keys not already present; envelope with `---` fences + body.
 ```
 
-SPM: `https://github.com/jpsim/Yams.git`, `from: "5.1.0"`. Add at Phase 0 so Phase 6 (Page CRUD) doesn't block on dependency management.
+- `modeledKeys = Set(CodingKeys.allCases.map(\.rawValue))` (`CaseIterable`) — the set the merge treats as Pommora-owned; everything else rides along.
+- `preservingFrom:` is the URL the entity was read from (a rename renames old→new first, then saves to the new URL, so preservation reads the post-rename file).
+- Yams round-trips by value — a foreign file's flow→block style reflows and comments/anchors drop on first re-serialization. Content is safe; exact styling is not.
+- For a single reserved key (the non-authoritative `Class` kind stamp), `AtomicYAMLMarkdown.setStampKey` does a YAML-level single-key set — compose mapping → set only that node → serialize — instead of a typed save (a typed save would synthesize an id + inject modeled keys onto a foreign file).
+
+This applies on every Page AND Item write path — both share the one codec. Agenda (`.task.json` / `.event.json`) and sidecars stay JSON via `AtomicJSON`.
+
+SPM: `https://github.com/jpsim/Yams.git` (pinned 5.4.0).
 
 ---
 

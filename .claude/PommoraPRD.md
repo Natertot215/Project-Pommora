@@ -6,7 +6,7 @@
 
 #### Vision
 
-Personal management platform combining Obsidian's customization + local-first ethos with Notion's database and view capabilities. Pages are Markdown files inside **Page Types** (folder-based database entities holding property schemas + saved views); Items are JSON row records inside **Item Types** (parallel container layer for the Items side); **Page Collections** and **Item Collections** are organizational sub-folders sharing each Type's schema; **Contexts** (Spaces / Topics / Projects — 3-tier) are composed-blocks dashboard surfaces. UI label divergence: Pages-side UI defaults to "Vault" + "Collection"; Items-side UI defaults to "Type" + "Set" (each side has one signature word + one shared word). A simpler Notion that's also a more capable Obsidian — without the trade-offs that push users to bounce between the two.
+Personal management platform combining Obsidian's customization + local-first ethos with Notion's database and view capabilities. Pages are Markdown files inside **Page Types** (folder-based database entities holding property schemas + saved views); Items are Markdown files inside **Item Types** (parallel container layer for the Items side — frontmatter + a capped body description, sharing Pages' Markdown pipeline); **Page Collections** and **Item Collections** are organizational sub-folders sharing each Type's schema; **Contexts** (Spaces / Topics / Projects — 3-tier) are composed-blocks dashboard surfaces. UI label divergence: Pages-side UI defaults to "Vault" + "Collection"; Items-side UI defaults to "Type" + "Set" (each side has one signature word + one shared word). A simpler Notion that's also a more capable Obsidian — without the trade-offs that push users to bounce between the two.
 
 #### Why
 
@@ -31,7 +31,7 @@ Two layers, PARA-aligned:
 - **Organization — Contexts** (3 tiers): Spaces (tier 1, broad life domains) / Topics (tier 2, subject areas) / **Projects** (tier 3). All composed-blocks surfaces under `.nexus/spaces/` and `.nexus/topics/`. Per-tier labels user-configurable per-Nexus.
 - **Operational — Items + Pages + Agenda:**
   - **Pages side:** **Page Type** (root folder + `_pagetype.json`) contains **Page Collections** (sub-folders + `_pagecollection.json` carrying id + type_id + ordering) which contain **Pages** (`.md`). UI labels default to "Vault" + "Collection".
-  - **Items side:** **Item Type** (root folder + `_itemtype.json`) contains **Item Collections** (sub-folders + `_itemcollection.json`) which contain **Items** (`.json`). UI labels default to "Type" + "Set".
+  - **Items side:** **Item Type** (root folder + `_itemtype.json`) contains **Item Collections** (sub-folders + `_itemcollection.json`) which contain **Items** (`.md` — YAML frontmatter + a capped body description; sidecars stay JSON). UI labels default to "Type" + "Set".
   - **Agenda:** split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective singleton folders at the nexus root — the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton (sidecar-driven discovery; folder name renameable via Finder). EventKit integration via separate access permissions per kind.
 - **No wrapper folders.** All operational containers — Page Types, Item Types, Tasks singleton, Events singleton — live directly at the nexus root. Sidecar filename alone classifies each folder.
 - **Singleton — Homepage** (`.nexus/homepage.json`) — composed-blocks dashboard, one per Nexus.
@@ -92,15 +92,15 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
     Tech-stack-tradeoffs.md                 ← Page
 
   Bookmarks//                               ← Item Type (folder + _itemtype.json; UI label "Type")
-    _itemtype.json
+    _itemtype.json                          ← sidecar stays JSON
     Tech//                                  ← Item Collection (sub-folder + _itemcollection.json; UI label "Set")
       _itemcollection.json                  ← per-Collection metadata (id + type_id + item_order)
-      Swift-evolution.json                  ← Item
-    Hacker-News.json                        ← Item directly in Item Type (no Collection)
+      Swift-evolution.md                    ← Item (.md — frontmatter + capped body description)
+    Hacker-News.md                          ← Item directly in Item Type (no Collection)
 
   Books//                                   ← Item Type
     _itemtype.json
-    Atomic-Habits.json
+    Atomic-Habits.md
 
   Tasks//                                   ← AgendaTask singleton (folder carrying _taskconfig.json)
     _taskconfig.json                        ← AgendaTask schema (EKReminder-aligned)
@@ -234,13 +234,13 @@ CREATE TABLE pages (
   modified_at TEXT NOT NULL
 );
 
--- Item index (rebuilt from .json files inside any Item Type folder)
+-- Item index (rebuilt from .md files inside any Item Type folder)
 CREATE TABLE items (
   id TEXT PRIMARY KEY,
   item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
   item_collection_id TEXT REFERENCES item_collections(id) ON DELETE SET NULL, -- nullable
   title TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',                                       -- 250-char cap
+  description TEXT NOT NULL DEFAULT '',                                       -- PROJECTION of the .md body (1000 source-char cap, provisional)
   properties TEXT NOT NULL DEFAULT '{}',                                     -- JSON
   modified_at TEXT NOT NULL
 );
@@ -329,7 +329,7 @@ WHERE start_at BETWEEN datetime('now') AND datetime('now', '+7 days');
 
 ##### Property Model
 
-- **Values** in Page YAML frontmatter (`.md`), Item `properties` (`.json`), AgendaTask `properties` (`.task.json`), or AgendaEvent `properties` (`.event.json`). **Schemas** live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`). Collection-local overrides remain a post-v1 Prospect — Page Collections + Item Collections inherit their parent Type's schema in v0.3.0.
+- **Values** in Page YAML frontmatter (`.md`), Item YAML frontmatter (`.md`), AgendaTask `properties` (`.task.json`), or AgendaEvent `properties` (`.event.json`). **Schemas** live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`). Collection-local overrides remain a post-v1 Prospect — Page Collections + Item Collections inherit their parent Type's schema in v0.3.0.
 - **Scoped per Type**, created via per-Type Settings sheet (Page Type Settings sheet on Pages side; Item Type Settings sheet on Items side — Notion-style). Members must conform; ad-hoc page-local properties out of v1 (Prospect).
 - **V1 catalog (11 types):** Number, Checkbox, Date, Date & Time, Select, Multi-select, Status, URL, Relation, Last Edited Time (auto), File / Attachment. No free-form text — filename = title; "text-shaped" values use Select/Multi-select with creatable options. **Status** has 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done) with user-editable options; group labels renamable, 3 structural slots fixed for EventKit compatibility. Status is built-in required on both AgendaTask AND AgendaEvent schemas; NOT auto-seeded on Page Types or Item Types.
 - **Property identity = ID, not name.** Every property in a Type's schema carries a stable ULID `id`; frontmatter / JSON `properties` block keys reference the property ID. `name` is a renameable display label — renames are schema-only (no member-file cascade).
@@ -404,7 +404,7 @@ Shipped at v0.2.7.1. Full spec → `// Features//NavDropdown.md`.
 
 ##### Item Window
 
-Items open in a popover-style floating surface (Calendar-app event-detail pattern) anchored to click location — not in tabs, not in the inspector. Holds title (editable filename) + icon + parent Item Type's schema property editors + 250-char description + tier1/2/3 relations + read-only meta footer (`id`/`created_at`/`modified_at`). Save commits via `ItemContentManager.updateItem`. Full spec + v0.3.1 modal-window redesign → `// Features//Items.md`.
+Items open in a popover-style floating surface (Calendar-app event-detail pattern) anchored to click location — not in tabs, not in the inspector. Holds title (editable filename) + icon + parent Item Type's schema property editors + the body description (1000 source-char cap, provisional) + tier1/2/3 relations + read-only meta footer (`id`/`created_at`/`modified_at`). Save commits via `ItemContentManager.updateItem`. Full spec + v0.3.1 modal-window redesign → `// Features//Items.md`.
 
 ##### First-Launch Experience
 
@@ -445,7 +445,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `linked_relations` as typed multi-valued property.
 - **Page Types + Page Collections + Pages** (Pages side) and **Item Types + Item Collections + Items** (Items side) — symmetric container layers. Each Type carries its per-kind sidecar (`_pagetype.json` / `_itemtype.json`); Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` / `_itemcollection.json` carries id + type_id + ordering only). UI labels: Pages get "Vault" + "Collection"; Items get "Type" + "Set" (renameable via Settings).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
-- **Items** — `.json`. Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; `id`, `icon`, `description` (250-char), `tier1/2/3`, timestamps. Properties keyed by property ID. Open in Item Window popover, not a tab.
+- **Items** — `.md` (YAML frontmatter + body). Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; frontmatter carries `id`, `icon`, `tier1/2/3`, timestamps, properties (keyed by property ID), and a reserved UI-hidden non-authoritative `Class` stamp (`item` | `page`) — the parent Type folder's sidecar is the kind authority. The capped description IS the Markdown body (1000 source-char cap, provisional; single source of truth, no frontmatter description field). Shares Pages' `AtomicYAMLMarkdown` pipeline. Open in Item Window popover, not a tab.
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.5.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
 - **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.4.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.

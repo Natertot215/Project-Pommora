@@ -1,6 +1,8 @@
 ### Items
 
-An Item is a **row-shaped record** stored as a `.json` file: properties + relations + a 250-char plain-text description, opened in an **Item Window** (popover, Calendar-event-detail pattern). Items carry typed relations to any other entity by ID — see [[Properties]] § "Relation target".
+An Item is a **row-shaped record** stored as a plain `.md` file (YAML frontmatter + body): properties + relations + a capped Markdown-source description that IS the body, opened in an **Item Window** (popover, Calendar-event-detail pattern). Items carry typed relations to any other entity by ID — see [[Properties]] § "Relation target".
+
+Items share Pages' one `AtomicYAMLMarkdown` pipeline (one codec for both forms). A reserved, UI-hidden, **non-authoritative** `Class` frontmatter stamp (`item` | `page`) marks the form; the parent Type folder's sidecar (`_itemtype.json` / `_pagetype.json`) is the **kind authority**. A stamp/folder disagreement, or a homeless file, routes to a hidden `.unsorted` inbox (future-UI-surfaced). Items are a distinct *form* of one entity-type, not a separate file format.
 
 Items live inside an **Item Type** — the schema-bearing container parallel to a [[PageTypes|Page Type]] on the Pages side. **Item Collections** are organizational sub-folders inside an Item Type, parallel to Page Collections on the Pages side.
 
@@ -28,30 +30,33 @@ New-Item entry points scope to a Type ("New Bookmark"), not to a container. The 
 
 #### On disk
 
-**One `.json` file per Item.** Filename = title. Lives directly in an Item Type folder, or in an Item Collection sub-folder. No aggregate file.
+**One `.md` file per Item.** Filename = title. Lives directly in an Item Type folder, or in an Item Collection sub-folder. No aggregate file. (Sidecars stay JSON — `_itemtype.json` / `_itemcollection.json` are the container metadata, not Item content.)
 
 ```
 <nexus-root>/
   Bookmarks/                    ← Item Type (root folder; identified by sidecar)
-    _itemtype.json              ← shared schema sidecar
+    _itemtype.json              ← shared schema sidecar (JSON)
     Tech/                       ← Item Collection (UI label: "Set")
-      _itemcollection.json      ← per-Collection metadata
-      Swift-evolution.json      ← Item
-    Hacker-News.json            ← Item directly in Item Type root
+      _itemcollection.json      ← per-Collection metadata (JSON)
+      Swift-evolution.md        ← Item
+    Hacker-News.md              ← Item directly in Item Type root
 ```
 
 Item Types sit at the nexus root as siblings of Page Types and the Agenda singletons — no `Items/` wrapper. Renaming in the UI renames the file; inbound relations stay intact (by `id`, not name).
 
-Each Item file holds:
+Each Item file holds frontmatter (YAML) plus a body:
 
 - `id` — ULID, stable across renames
-- `description` — plain text, **hard cap 250 chars**. This IS Items' body field (Items have no Markdown body — that's what Pages are for).
 - `icon` — optional, same catalog as Pages
 - `properties` — values conforming to the parent Item Type's schema; relation values are tagged arrays (`[{"$rel": "<ULID>"}]`)
-- `tier1` / `tier2` / `tier3` — per-tier Context relations, stored at the JSON root as bare ID arrays (`[<ULID>, ...]`). Independent per tier.
+- `tier1` / `tier2` / `tier3` — per-tier Context relations, stored at the frontmatter root as bare ID arrays (`[<ULID>, ...]`). Independent per tier.
 - `created_at` / `modified_at` — ISO-8601 timestamps
+- `Class` — the reserved, UI-hidden, non-authoritative kind stamp (`item`); the folder sidecar is the authority.
+- **Body** — the Markdown-source description. This IS Items' description field (Shape A): the body is the single source of truth, with **no frontmatter `description` key and no mirror**. Capped at **1000 Markdown-source chars** (provisional — "for now"; raw `.count` of the draft, markup counted). Validated on save (`ItemValidator`), never silently clamped.
 
-No `name` field — filename IS the name.
+**Foreign frontmatter is preserved by value** on every Item write path — any key Pommora doesn't model is carried through untouched in value (Yams reflows flow→block style and drops comments/anchors; content is safe, exact styling is not). A foreign `.md` carrying its own frontmatter `description:` key keeps it as a preserved foreign key, coexisting harmlessly with the body.
+
+No `name` field — filename IS the name. No `title` field — filename IS the title.
 
 ---
 
@@ -85,14 +90,14 @@ Items open in a popover-style floating surface anchored to the trigger (row clic
 
 **Pinned-property chips** above the title give always-on access to selected properties without opening the inspector. Two Item-specific rules: items in a Type root (no Collection) get no pinning controls (the pinned set persists per Item Collection), and stale pinned IDs referencing deleted schema properties are filtered on render. Persistence shape + pin/unpin mechanics are canonical in [[Properties]] § "Where Properties Live" + § "Item Inspector → Pinned Properties".
 
-- **Title** — the filename, editable in place (rename retitles the underlying `.json` file).
+- **Title** — the filename, editable in place (rename retitles the underlying `.md` file).
 - **Icon** — optional SF Symbol; edited as a plain TextField in the placeholder (the native `IconPicker` swaps in with the redesign).
 - **Properties** — typed inputs for each property in the parent Item Type's schema, via `PropertyEditorRow` dispatching to per-type controls (TextField for number/url, Toggle for checkbox, DatePicker for date/datetime, Picker for select, `MultiSelectChips` for multi-select).
-- **Description** — plain-text body field, **hard cap 250 characters**. This IS Items' body field (Items have no Markdown body).
+- **Description** — the Markdown-source body field, **hard cap 1000 source characters** (provisional). This IS Items' body (Shape A — single source of truth, no separate frontmatter description). Validated on save, not silently clamped. Item-specific Markdown-formatting restrictions are deferred to the Item Window redesign.
 - **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target` `{ kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`, edited inline like any Relation property. Values render as the target's icon + title in plain styled colored text (the placeholder currently shows raw IDs).
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
-Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem`. No body, no blocks, no `@Columns` — if the entry needs a body, it should be a Page.
+Dismissed by clicking Done, pressing Esc, or closing the window. Save commits via `ItemContentManager.updateItem`. The body is the capped description only — no blocks, no `@Columns`; if the entry needs full prose, it should be a Page.
 
 ---
 
@@ -120,4 +125,4 @@ The `_itemtype.json` sidecar carries a `template_config` field (always `null` to
 
 #### Why Items exist as a separate paradigm from Pages
 
-Notion conflates "row in a database" with "page with a body". Pommora keeps them separate: **Items are pure rows** (properties + 250-char description, no Markdown body); **Pages are prose-bearing** (Markdown body + frontmatter). Each side carries its own schema mechanics via parallel containers (Item Type + Item Collection vs Page Type + Page Collection), keeping `.json` Items small, agent-legible, and cleanly mappable to cloud sync, and letting quick-capture scope to a Type ("New Bookmark") rather than a container.
+Notion conflates "row in a database" with "page with a body". Pommora keeps them separate: **Items are row-shaped** (properties + a capped 1000-source-char description that is the whole body); **Pages are prose-bearing** (an unbounded Markdown body + frontmatter). Both are `.md` on one `AtomicYAMLMarkdown` pipeline, distinguished as *forms* (folder-sidecar kind authority + the non-authoritative `Class` stamp) rather than by file format. Each side carries its own schema mechanics via parallel containers (Item Type + Item Collection vs Page Type + Page Collection), keeping Items small, agent-legible, and cleanly mappable to cloud sync, and letting quick-capture scope to a Type ("New Bookmark") rather than a container.

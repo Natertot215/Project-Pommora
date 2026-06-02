@@ -11,7 +11,7 @@ This document is the source of truth for **what** Properties are and **how they 
 A **property** is a typed field defined on a Type's schema and populated on individual entities of that Type. Properties live on:
 
 - **Pages** (`.md` files) — frontmatter
-- **Items** (`.json` files) — `properties` JSON object
+- **Items** (`.md` files) — frontmatter (`properties` mapping)
 - **Agenda Tasks** (`.task.json` files) — `properties` JSON object
 - **Agenda Events** (`.event.json` files) — `properties` JSON object
 
@@ -85,7 +85,7 @@ Properties follow an ID-truth model. Every property in a Type's schema carries t
 On-disk shape:
 
 ```yaml
-# Page frontmatter — property values keyed by property ID
+# Page / Item frontmatter — property values keyed by property ID
 id: 01HPAGE...
 created_at: 2026-05-24T...
 modified_at: 2026-05-24T...
@@ -98,10 +98,12 @@ prop_01HSEL...: "in_review"                # display name: "Stage" (Select stays
 prop_01HREL...: [{ $rel: 01HTARGET... }]   # display name: "Project" (Relation — always an array)
 ```
 
+Pages and Items share one frontmatter shape — both are `.md` with a `properties` mapping. Agenda Tasks / Events keep a `properties` JSON object:
+
 ```json
-// Item / Agenda JSON — properties block keyed by property ID
+// Agenda JSON — properties block keyed by property ID (Tasks / Events stay JSON)
 {
-  "id": "01HITEM...",
+  "id": "01HTASK...",
   "properties": {
     "prop_01HXY...": { "$status": "active" },
     "prop_01HAB...": ["research", "frontend"],
@@ -382,11 +384,13 @@ Cross-side promotion (Item → Page, Page → Item) is NOT supported in v1 — p
 
 The "what would be stripped" computation compares the source's property-ID set against the destination Type's property-ID set. Same-name properties with different IDs (semantically different properties that happen to share a display name) are stripped — correct behavior under ID-truth (the user is moving between unrelated property definitions).
 
+**Move-strip is schema-scoped; foreign-key preservation is everything else.** The strip only voids Pommora's own *schema properties* the destination doesn't define. Non-schema frontmatter keys — plugin/foreign keys an external tool wrote onto the `.md` file — are preserved by value on every Page AND Item write path, including a cross-Type move (they ride along via the source URL). The two mechanisms are orthogonal: the schema layer governs what Pommora-owned properties survive a move; foreign-key preservation guarantees Pommora never culls a key it doesn't model. (Yams round-trips by value — flow→block reflow + comment drop on a foreign file's first re-serialization; content is safe, exact styling/comments are not.)
+
 ---
 
 #### Auto-managed properties
 
-On every Page (frontmatter), Item (JSON), Agenda Task (JSON), and Agenda Event (JSON), not user-creatable:
+On every Page (frontmatter), Item (frontmatter), Agenda Task (JSON), and Agenda Event (JSON), not user-creatable:
 
 - `id` — ULID assigned at creation, never changes (stored at frontmatter root, not under `properties`)
 - `created_at`, `modified_at` — ISO-8601 timestamps maintained by Pommora (frontmatter root)
@@ -395,9 +399,10 @@ Title is NOT a property surface entry. The filename plays the title role — edi
 
 Auto-managed properties sit at the bottom of every property surface, in a separate section divided by a horizontal divider. The bottom section holds `id` and `created_at` (read-only, collapsed by default). `modified_at` is exposed alongside user-defined properties at the top of the surface as Last Edited Time for sortability — same value, two surfacings.
 
-Items, Agenda Tasks, and Agenda Events also carry one built-in field that isn't a property:
+Items, Agenda Tasks, and Agenda Events also carry a built-in `description` — but **its storage differs by entity** (the description asymmetry):
 
-- `description` — plain-text body field, hard cap 250 characters. This IS Items' body field (Items don't have Markdown bodies — description fills that role at a deliberately short size; fits in the Item Window without scrolling). Same field on AgendaTask + AgendaEvent. Not Markdown — Pages exist for Markdown.
+- **Items** — `description` IS the `.md` body. Single source of truth: no frontmatter `description` field, no mirror. Hard cap **1000 markdown-source characters** (provisional — was 250). Capped short so the Item Window stays scroll-free; markdown is honored (Items share Pages' `AtomicYAMLMarkdown` codec) — the cap, not the format, distinguishes an Item from a Page.
+- **Agenda Tasks / Events** — `description` is a plain-text JSON field (Agenda stays JSON), same role. Not markdown.
 
 ##### `modified_at` trigger semantics
 
@@ -425,6 +430,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 1. Every property value's shape matches its schema entry's type (looked up by property ID).
 2. Relation `$rel` ULIDs must resolve to a live entity (warned, not enforced — broken-link semantics).
 3. Select / Multi-select / Status values must reference live option `value`s (cleaned up on schema mutation).
+4. Item `description` (the `.md` body) is at most **1000 markdown-source characters** (raw `.count`; markup counts). Validated on save by `ItemValidator` and rejected over-cap — never silently clamped. Cap is provisional (was 250). Agenda `description` carries the same cap on its JSON field.
 
 ---
 

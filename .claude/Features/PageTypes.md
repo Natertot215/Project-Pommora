@@ -249,6 +249,8 @@ Pages carry `tier1` / `tier2` / `tier3` multi-relations to Contexts. Queryable b
 
 Moving a Page to another Page Type strips properties not in the destination schema (Notion-style, no quarantine). Confirmation warning lists what's stripped. Within the same Page Type (between Collections), no strip — shared schema.
 
+A **cross-kind** move (a `.md` Item into a Page Type, or vice versa) additionally re-stamps the `Class` frontmatter value **exactly once** to match the destination folder's sidecar kind — the parent sidecar is the kind authority, so the stamp follows the folder. Same-kind moves leave `Class` untouched.
+
 ---
 
 #### Validation
@@ -268,7 +270,7 @@ Opening any folder as a Nexus — including pre-existing user folders that have 
 
 Shape detection per root folder:
 
-- **Fresh** — no recognized sidecar. Content-sniff (recursive `.md` vs `.json` count): `.md` dominant → Page Type candidate; `.json` dominant → Item Type candidate; empty → default Page Type.
+- **Fresh** — no recognized sidecar. Content-sniff defaults to a Page Type candidate (both Pages and Items are now `.md`, so the extension no longer separates the two sides; fresh `.md`-bearing or empty folders adopt as Page Types). A fresh folder of legacy `.json` Items is recognized by the launch migration, not the content-sniff.
 - **Legacy Vault sidecar** — folder carries the `_vault` filename; renamed in place to `_pagetype.json`. Any sub-folder carrying a `_collection` sidecar is renamed to `_pagecollection.json`.
 - **Legacy wrapper layout** — folder is one of the legacy wrappers (`Pages` / `Items` / `Agenda` at root, each containing children with a unified `_schema` sidecar). The adopter unwraps each child up to the nexus root and renames the legacy unified sidecar to the appropriate per-kind name based on parent + depth — Page Type children become `_pagetype.json`, their nested Collections become `_pagecollection.json`, the Items wrapper's children become `_itemtype.json` / `_itemcollection.json`, the Agenda wrapper's `Tasks` child becomes the Tasks singleton with `_taskconfig.json`, and the Agenda wrapper's `Events` child becomes the Events singleton with `_eventconfig.json`.
 - **Already flat (target)** — folder carries one of the six per-kind sidecars at the right depth. No-op (with a cleanup pass to delete any co-located legacy orphan sidecars).

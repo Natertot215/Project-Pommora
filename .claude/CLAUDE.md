@@ -6,7 +6,7 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 
 - **Organization layer — Contexts** (3 tiers): Spaces (1) / Topics (2) / **Projects** (3). All three are composed-blocks surfaces. Per-tier labels user-configurable per Nexus.
 - **Operational layer — Items + Pages + Agenda**:
-  - **Items** — `.json` files inside Item Types; Item Collections organize within. Items-side UI labels: **"Type"** + **"Set"**.
+  - **Items** — `.md` files (YAML frontmatter + a capped body description) inside Item Types; share Pages' `AtomicYAMLMarkdown` pipeline; Item Collections organize within. Items-side UI labels: **"Type"** + **"Set"**.
   - **Pages** — `.md` files inside Page Types; Page Collections organize within. Pages-side UI labels: **"Vault"** + **"Collection"**.
   - **Agenda** — split into Agenda Tasks (`.task.json`, EKReminder-shaped) and Agenda Events (`.event.json`, EKEvent-shaped). Data layer ships v0.3.0; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
@@ -40,7 +40,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
 - **Three load-bearing constraints:** (1) **conceptual portability of functionalities** — file formats, schemas, design values, UX patterns survive a stack rebuild; (2) **cross-nexus queryability + cloud sync compatibility** — the on-disk model maps cleanly to a cloud DB so sync arrives as additive translation; (3) **persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. Full detail → `// Features//Architecture.md`.
 
 
-- **Files are canonical (≠ everything is Markdown).** Pages = `.md`, Items = `.json` — inside their Type folder (sidecar `_pagetype.json` / `_itemtype.json`), optionally within a Collection sub-folder; Agenda = `.task.json` / `.event.json`; Projects = `.project.json`; Settings = `.nexus/settings.json`. Operational containers live at the nexus root (no wrapper folders); SQLite is a regeneratable index — no user data trapped in it. Full on-disk spec → `PommoraPRD.md` + `// Features//Architecture.md`.
+- **Files are canonical (≠ everything is Markdown).** Pages = `.md`, Items = `.md` (frontmatter + body; the capped description IS the body) — kind authority is the parent Type folder's sidecar, not the extension; Agenda = `.task.json` / `.event.json`; sidecars (`_pagetype.json` / `_itemtype.json`) / Projects (`.project.json`) / Spaces / Settings (`.nexus/settings.json`) stay JSON. Each content file carries a non-authoritative `Class` stamp (`item` | `page`); foreign frontmatter is preserved by value on every write. Operational containers live at the nexus root (no wrapper folders); SQLite is a regeneratable index — no user data trapped in it. Full on-disk spec → `PommoraPRD.md` + `// Features//Architecture.md`.
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 
@@ -82,7 +82,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
   - `Homepage.md` — singleton composed-blocks dashboard
   - `Pages.md` — on-disk shape, Markdown features + two rendering directives, opening behavior, wikilinks, tier1/2/3
   - `PageEditor.md` — editor implementation spec: library (swift-markdown + vendored swift-markdown-engine), shipped v0.2.7.0 features, v0.2.7.x deferred patches, save pipeline, hot-swap surface
-  - `Items.md` — Item Types + Item Collections + Items (`.json` row entries); Item Window UI; tier1/2/3
+  - `Items.md` — Item Types + Item Collections + Items (`.md` records; capped-body description); Item Window UI; tier1/2/3
   - `Properties.md` — property type catalog (per-Type via per-kind sidecar — `_pagetype.json` / `_itemtype.json` / `_taskconfig.json` / `_eventconfig.json`; shared across Pages, Items, Agenda Tasks, Agenda Events)
   - `QuickCapture.md` — menu-bar + web-clip capture surface (Items / Tasks / Events); concept + architecture (single-owner nexus access, pinned-properties-first); roadmap → Framework v0.6.0
   - `NavDropdown.md` — Liquid Glass dropdown navigation surface (Pinned + Recents); shipped v0.2.7.1 — supersedes the earlier tab-strip navigation model

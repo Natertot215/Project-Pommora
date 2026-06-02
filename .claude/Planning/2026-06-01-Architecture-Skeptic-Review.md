@@ -40,7 +40,7 @@ The data model is *already a graph* (ID-keyed relations, one `relations` table).
 
 1. Fix the title-collision data-loss bug — **DONE** (extended to all entities + moves; see Status).
 2. Hoist the env-injection container — **DONE** (`NexusEnvironment`).
-3. **Unify Items+Pages** (highest ROI; the middle path first).
+3. **Unify Items+Pages** (highest ROI; the middle path first). — **SUPERSEDED 2026-06-02 by the Items-as-Markdown serialization unification** (`Planning/2026-06-01-Items-as-Markdown-Plan.md`): the middle path is the chosen route — Items become plain `.md` on Pages' one `AtomicYAMLMarkdown` pipeline (capped body = description, Shape A), collapsing the two serializations while Items / Pages stay distinct *forms* of one entity. Item↔Page promotion is now a cheap retype + container move (see [[Prospects]]). The full single-`Record` collapse + the "Vault/Set" vocabulary drop are NOT taken; they remain open.
 4. Stop editor polishing; redirect to thin areas (Agenda/Settings/QuickCapture) + the graph.
 5. Decide cloud-sync as **DB-canonical** now (don't lock "files are the write path").
 

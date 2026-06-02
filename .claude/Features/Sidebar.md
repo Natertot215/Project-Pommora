@@ -54,13 +54,13 @@ No always-visible "+ New" buttons — creation is **right-click first**, complem
 
 ##### Section grouping (sidecar-driven)
 
-There are no wrapper folders on disk (see [[Architecture]]); the sidebar groups each root folder by its **per-kind sidecar filename**:
+There are no wrapper folders on disk (see [[Architecture]]); the sidebar groups each root folder by its **per-kind sidecar filename** (the sidecars stay JSON):
 
 - `_pagetype.json` → **Vaults** section
 - `_itemtype.json` → **Items** section
 - `_taskconfig.json` / `_eventconfig.json` (Tasks / Events singletons) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry
 
-The section headings are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar trigger the adopter on next launch — but only when there's something to migrate; fresh non-Pommora folders stay invisible to discovery.
+The sidecar is the **kind authority** — it, not the content-file extension, decides the section. This matters now that both Pages and Items are `.md`: a Finder-built `.md` folder *without* a sidecar can't be told apart by extension, so it adopts as a Page Type by default; hand-building an Items folder requires dropping in `_itemtype.json`. The section headings are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar trigger the adopter on next launch — but only when there's something to migrate; fresh non-Pommora folders stay invisible to discovery.
 
 ---
 

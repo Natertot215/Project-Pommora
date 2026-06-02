@@ -10,7 +10,7 @@ PRD carries the high-altitude storage model + SQLite DDL; this doc covers the **
 
 These principles hold the data layer together. Every architectural choice below traces back to one of them.
 
-1. **Files are canonical.** Pages = `.md`, Items = `.json`, Spaces = `.space.json`, Topics = folder + `_topic.json`, Projects = `.project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
+1. **Files are canonical (≠ everything is Markdown).** Pages = `.md`, **Items = `.md`** (YAML frontmatter + body; the capped description IS the body — Shape A, single source of truth), Spaces = `.space.json`, Topics = folder + `_topic.json`, Projects = `.project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Only Item *content* files became Markdown — Agenda, sidecars, Contexts, Homepage, and Settings stay JSON. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
 
 2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) can read Pommora's entire structured graph — Pages, Items, schemas, relations, properties — directly from files without tool-call round-trips. This is the differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Any choice that trades file-canonical legibility for app-internal convenience violates this principle.
 
@@ -30,11 +30,11 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
     Final-Project.md                    ← Page directly in Page Type
 
   Bookmarks/                            ← Item Type
-    _itemtype.json
+    _itemtype.json                      ← sidecar stays JSON (kind authority)
     Tech/                               ← Item Collection ("Set")
       _itemcollection.json
-      Swift-evolution.json              ← Item
-    Hacker-News.json                    ← Item directly in Item Type
+      Swift-evolution.md                ← Item (frontmatter + capped body)
+    Hacker-News.md                      ← Item directly in Item Type
 
   Tasks/                                ← AgendaTask singleton (folder + _taskconfig.json)
     _taskconfig.json
@@ -80,7 +80,7 @@ Per-entity managers own the in-memory cache for their kind. They load files at a
 | `PageTypeManager` | In-memory list of Page Types + their Collections | `_pagetype.json` + `_pagecollection.json` files at nexus root |
 | `ItemTypeManager` | In-memory list of Item Types + their Item Collections | `_itemtype.json` + `_itemcollection.json` files at nexus root |
 | `PageContentManager` | Per-Page bodies + frontmatter | `.md` files inside Page Types |
-| `ItemContentManager` | Per-Item JSON content | `.json` files inside Item Types |
+| `ItemContentManager` | Per-Item bodies (capped description) + frontmatter | `.md` files inside Item Types |
 | `AgendaTaskManager` | Tasks + schema | `.task.json` files + `_taskconfig.json` |
 | `AgendaEventManager` | Events + schema | `.event.json` files + `_eventconfig.json` |
 | `SpaceManager` / `TopicManager` | Contexts (tier-1 / tier-2 + tier-3) | `.space.json` / `_topic.json` / `.project.json` under `.nexus/` |
@@ -115,13 +115,13 @@ The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a mo
 
 Every file write goes through one of three atomic-write helpers:
 
-- **`AtomicYAMLMarkdown.write(frontmatter:body:to:)`** — Pages. Composes `---\n<yaml>\n---\n\n<body>` then writes via temp-file + rename.
-- **`AtomicJSON.write(value, to:)`** — Items, sidecars, Agenda Tasks / Events, Contexts, Settings, Homepage. Encodes via `JSONEncoder` then writes via temp-file + rename.
+- **`AtomicYAMLMarkdown.write(frontmatter:body:to:)`** — **Pages AND Items** (one shared codec). Composes `---\n<yaml>\n---\n\n<body>` then writes via temp-file + rename. The preserving overload (`write(...preservingFrom:modeledKeys:)`) re-reads the file it's overwriting and merges by value: it re-serializes only the type's own *modeled* keys and **preserves every foreign frontmatter key by value** (plugin / Obsidian / external keys are never culled). Yams round-trips by value — flow style reflows to block style and comments/anchors are dropped — but no key/value is lost. Each frontmatter declares `static modeledKeys` so the merge knows which keys it owns; everything else passes through.
+- **`AtomicJSON.write(value, to:)`** — sidecars, Agenda Tasks / Events, Contexts, Settings, Homepage. (No longer Items — only Item *content* moved to Markdown.) Encodes via `JSONEncoder` then writes via temp-file + rename.
 - **`SchemaTransaction`** — multi-file commits for schema operations that must succeed-or-fail as a unit (e.g. paired-relation create touches two sidecars; move-strip touches the moved entity + paired-relation reverse refs across multiple types). Composes a transaction shape (`writes: [FileWrite]` + `schemaWrites: [SchemaWrite]`), validates, then applies temp-files + rename in dependency order with rollback on failure.
 
 **Why temp-file + rename, not in-place write.** POSIX rename is atomic on the same filesystem. A crash mid-write leaves either the old file (rename never happened) or the new file (rename completed) — never a half-written file. macOS / APFS preserves this guarantee.
 
-**The save pipeline shape** (Pages, as the most complex example): keystroke → `viewModel.body didSet` → `scheduleSave()` 300ms debounce → `PageContentManager.updatePage` → `AtomicYAMLMarkdown.write` (temp-file + rename) → `IndexUpdater.updatePage`. Flush triggers on context loss (page-switch, window-close, app resignActive / willTerminate, `⌘S`). The editor binds ONLY to `body` — frontmatter is held as a typed struct and re-serialized on save; the user can't destroy frontmatter via the editor. Item save pipeline mirrors this via `ItemContentManager.updateItem` + `AtomicJSON.write`. Full editor-side detail → `// Features//PageEditor.md` § "Save pipeline".
+**The save pipeline shape** (Pages, as the most complex example): keystroke → `viewModel.body didSet` → `scheduleSave()` 300ms debounce → `PageContentManager.updatePage` → `AtomicYAMLMarkdown.write` (temp-file + rename) → `IndexUpdater.updatePage`. Flush triggers on context loss (page-switch, window-close, app resignActive / willTerminate, `⌘S`). The editor binds ONLY to `body` — frontmatter is held as a typed struct and re-serialized on save; the user can't destroy frontmatter via the editor. Item save pipeline mirrors this via `ItemContentManager.updateItem` + the same `AtomicYAMLMarkdown.write` (preserving overload) — the Item's capped description is its body, structured fields are its frontmatter, and foreign keys ride through untouched. Full editor-side detail → `// Features//PageEditor.md` § "Save pipeline".
 
 ---
 
@@ -139,7 +139,9 @@ The atomic-write discipline + IndexUpdater shape already support this — the wa
 
 #### Adoption — opening any folder as a Nexus
 
-`NexusAdopter` classifies each root folder independently when a folder is first opened as a Nexus — fresh (content-sniff `.md` vs `.json`), legacy Vault sidecar (rename to `_pagetype.json`), legacy wrapper layout (unwrap + rename), or already flat (no-op). Idempotent; per-folder atomicity (no two-phase transaction across folders); safe to re-run on partial state. Hidden folders (leading `.` or `_`) skipped. Preview-before-commit via `AdoptionPreviewView` shows per-Type counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageTypes.md` § "Adopting existing folders" + `// Features//Items.md` § (parallel rule on the Items side).
+`NexusAdopter` classifies each root folder independently when a folder is first opened as a Nexus — fresh (content-sniff finds Markdown → defaults to a Page Type), legacy Vault sidecar (rename to `_pagetype.json`), legacy wrapper layout (unwrap + rename), or already flat (no-op). Idempotent; per-folder atomicity (no two-phase transaction across folders); safe to re-run on partial state. Hidden folders (leading `.` or `_`) skipped. Preview-before-commit via `AdoptionPreviewView` shows per-Type counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageTypes.md` § "Adopting existing folders" + `// Features//Items.md` § (parallel rule on the Items side).
+
+**Kind authority = the folder sidecar, not the extension.** Now that both Pages and Items are `.md`, the file extension no longer discriminates form — the parent Type folder's sidecar (`_itemtype.json` / `_pagetype.json`) is authoritative. Each content file also carries a reserved, UI-hidden, **non-authoritative** `Class` frontmatter stamp (`item` | `page`) recording its form; on a clean nexus it agrees with the folder. A stamp/folder disagreement — or a homeless file with no Type-folder context up the chain — routes the file to a hidden `.unsorted` inbox (sibling of `.trash`; future-UI-surfaced) rather than being silently re-stamped. A content-sniff'd `.md` folder *without* a sidecar adopts as a Page Type; hand-adding Items to a Finder-built folder requires writing the `_itemtype.json` sidecar.
 
 ---
 
@@ -150,6 +152,8 @@ Pommora carries two migration mechanisms:
 **1. Index-side schema version** — covered above (`PommoraIndex.currentSchemaVersion` is 3; a mismatch deletes + rebuilds, no per-user migration).
 
 **2. File-side schema version + property migration.** Each Pommora-written Type sidecar carries a `schema_version` (Page/Item Types at 2; legacy decode with no version reads as 0). `PropertyIDMigration` runs on every Nexus open: it mints stable ULID `id`s for name-keyed properties, normalizes relation shapes (array-wrapped values, the `relation_target` key, Collection targets rewritten to their parent Type), and rewrites entity files to reference properties by ID. Two-phase (scan / apply), idempotent. Lossless normalization applies silently; the one lossy change — dropping a relation property that targets a context tier — surfaces in the preview sheet behind an explicit acknowledgment.
+
+**3. Item `.json`→`.md` format migration.** `ItemFormatMigration` normalizes legacy whole-`.json` Items into the `.md` form (frontmatter + body). It **auto-runs once at launch** (mandatory one-time normalization, mirroring `PropertyIDMigration`'s invocation) — **not a declinable consent-gate**, because the transitional dual-format read/write code is retired once no `.json` Items remain, so a declined migration would hide the un-normalized Items. Per Item it stages the new `.md` plus the old `.json` → `.trash` in one `SchemaTransaction`; idempotent on the file transition and resumable after an interrupt (re-running only touches Items still in `.json`); failures are reported, not thrown. Subject to the XCTest launch-modal guard (CLAUDE.md quirk #16).
 
 **Settings auto-migration.** `Settings.defaultsVersion: Int` + `Settings.migrate(_:)` step-function scaffold. `SettingsManager.loadOrSeed` calls `migrate` after decode + re-persists only when changed (mtime stays stable on no-op launches). Bump the constant + add a migration step when defaults change.
 
@@ -168,8 +172,9 @@ File-canonicality's payoffs (external-editor compatibility, agent legibility, cl
 
 No enforced layer separation. Patterns that keep the data layer tractable:
 
-- **Frontmatter + per-Type schemas live in JSON sidecars** (canonical), not code.
-- **Item entries are individual `.json` files**, not SQLite-only — agents read them directly.
+- **Per-Type schemas live in JSON sidecars** (canonical), not code; Page and Item frontmatter lives inline in each `.md` file.
+- **Item entries are individual `.md` files** (frontmatter + capped body), not SQLite-only — agents read them directly, same as Pages.
+- **Foreign frontmatter is preserved by value** on every Page AND Item write path — an external tool's frontmatter keys survive Pommora's saves. The owning type's `modeledKeys` are the only keys it rewrites; the rest pass through. (Comments/anchors are not byte-preserved across the Yams round-trip, but no key/value is dropped.)
 - **View specs are data** (filter / sort / group / shown-properties on each storage container's `views[]`).
 - **File renames + wikilink resolution as algorithm.** Wikilinks resolve by ID at render time; renames are pure filesystem renames; no body-scan rewrite needed.
 - **Agent-legibility check per decision** — would an external file-only agent still see this? If no, revisit.

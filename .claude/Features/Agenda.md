@@ -100,7 +100,7 @@ External `EKEventStore` changes are observed via async sequences over the `.EKEv
 
 #### UI: Item Window for AgendaTask + AgendaEvent
 
-Tasks and Events open in the same Item Window popover used for [[Items]] — title + properties + 250-char description, not a full-frame surface. (Not yet wired; rows in the placeholder Calendar list aren't yet clickable.) Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
+Tasks and Events open in the same Item Window popover used for [[Items]] — title + properties + 1000-char description, not a full-frame surface. (Agenda's description stays a JSON field on `.task.json` / `.event.json`; only Item *content* files became `.md` with the body as description.) (Not yet wired; rows in the placeholder Calendar list aren't yet clickable.) Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
 
 ---
 

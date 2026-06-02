@@ -57,7 +57,7 @@ Detail → `Contexts.md`.
 |---|---|---|---|
 | **Item Type** | Schema-bearing container for Items | `<nexus>/<Title>/_itemtype.json` | "Type" |
 | **Item Collection** | Organizational sub-folder inside an Item Type | `<nexus>/<Type>/<Title>/_itemcollection.json` | **"Set"** |
-| **Item** | Row-shaped JSON record with properties + 250-char description | `<nexus>/<Type>/<Collection>/Item.json` | "Item" |
+| **Item** | Property-bearing `.md` record; body is a capped description (≤1000 source chars, provisional) | `<nexus>/<Type>/<Collection>/Item.md` | "Item" |
 
 #### Operational layer — Agenda
 
@@ -83,7 +83,7 @@ Pommora's domain model has three layers of naming that intentionally diverge:
 | **Docs prose** | "Type" + "Collection" as generic terms; "Page Type" / "Item Type" / etc. when side-specific |
 | **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (v0.3.0). |
 
-The on-disk JSON shape is identical across sides (every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json` — and the file inside follows the same schema-carrier shape). Sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON. Only the UI label and the Swift type differ across sides.
+The on-disk JSON shape is identical across sides (every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json` — and the file inside follows the same schema-carrier shape). Sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON. Only the UI label and the Swift type differ across sides. Because Pages and Items are now both `.md`, the extension no longer distinguishes them — the **parent folder's sidecar is the kind authority** (a `.md` under `_itemtype.json` is an Item; under `_pagetype.json` a Page). A reserved, UI-hidden, non-authoritative `Class` frontmatter stamp (`item` | `page`) records the form; a stamp/folder disagreement or a homeless file routes to a hidden `.unsorted` inbox.
 
 Detail → `PageTypes.md` + `Pages.md` + `Items.md` + `Agenda.md`.
 
@@ -132,7 +132,7 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 |---|---|---|
 | Page → Page (wikilink) | `[[Page Name\|01HXYZ...]]` in body (title for display, ULID for resolution) | Inline reference |
 | Page → Context (tier N) | `tierN: [<id>, ...]` in frontmatter | Categorical assignment |
-| Item → Context (tier N) | `tierN: [<id>, ...]` in `.json` | Categorical assignment |
+| Item → Context (tier N) | `tierN: [<id>, ...]` in `.md` frontmatter | Categorical assignment |
 | Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
 | Agenda Event → Context (tier N) | `tierN: [<id>, ...]` in `.event.json` | Categorical assignment |
 | Context → Context | `parents` (file-structural) + `linked_relations` (property) | Hierarchy + cross-cutting relations |

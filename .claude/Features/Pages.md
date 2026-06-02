@@ -1,8 +1,8 @@
 ### Pages
 
-A Page is one Markdown file inside a [[PageTypes|Page Type]]. Pages are the only Markdown-file entity in Pommora and the only entity that holds prose content. A Page **belongs to one Page Type** (the Type whose folder it physically lives in). Pages conform to their Page Type's property schema.
+A Page is one Markdown file inside a [[PageTypes|Page Type]]. Pages are the only entity that holds free prose content — Items are also `.md` (sharing the same `AtomicYAMLMarkdown` codec), but an Item's body is a short capped description, not a prose document. A Page **belongs to one Page Type** (the Type whose folder it physically lives in). Pages conform to their Page Type's property schema.
 
-The parallel Items-side entity is the Item — a row-shaped JSON record without body. See [[Items]] for details.
+The parallel Items-side entity is the Item — a property-bearing `.md` record whose body is a short capped description (it shares Pages' `AtomicYAMLMarkdown` codec; the body is the description, not free prose). See [[Items]] for details.
 
 ---
 
