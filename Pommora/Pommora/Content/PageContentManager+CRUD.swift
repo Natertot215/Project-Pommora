@@ -387,7 +387,9 @@ extension PageContentManager {
             let tx = SchemaTransaction()
             let payload = try AtomicYAMLMarkdown.encode(
                 frontmatter: pageFile.frontmatter,
-                body: pageFile.body
+                body: pageFile.body,
+                preservingFrom: page.url,
+                modeledKeys: PageFrontmatter.modeledKeys
             )
             tx.stage(payload: payload, to: destURL)
             try tx.commit()
@@ -480,7 +482,9 @@ extension PageContentManager {
             let tx = SchemaTransaction()
             let pagePayload = try AtomicYAMLMarkdown.encode(
                 frontmatter: updatedFrontmatter,
-                body: pageFile.body
+                body: pageFile.body,
+                preservingFrom: page.url,
+                modeledKeys: PageFrontmatter.modeledKeys
             )
             tx.stage(payload: pagePayload, to: destURL)
 
@@ -628,7 +632,9 @@ extension PageContentManager {
                         else { continue }
                         let cleared = removeID(sourcePageID, from: val)
                         fm.properties[reversePropertyID] = cleared
-                        let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
+                        let data = try AtomicYAMLMarkdown.encode(
+                            frontmatter: fm, body: body,
+                            preservingFrom: mdURL, modeledKeys: PageFrontmatter.modeledKeys)
                         tx.stage(payload: data, to: mdURL)
                     }
                     return

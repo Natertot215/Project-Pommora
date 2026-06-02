@@ -564,7 +564,9 @@ extension ItemContentManager {
                               let val = fm.properties[reversePropertyID]
                         else { continue }
                         fm.properties[reversePropertyID] = removeID(sourceEntityID, from: val)
-                        let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
+                        let data = try AtomicYAMLMarkdown.encode(
+                            frontmatter: fm, body: body,
+                            preservingFrom: mdURL, modeledKeys: PageFrontmatter.modeledKeys)
                         tx.stage(payload: data, to: mdURL)
                     }
                     return

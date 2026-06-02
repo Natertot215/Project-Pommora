@@ -997,7 +997,9 @@ extension PageTypeManager {
                 var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageURL)
                 guard fm.properties[propertyID] != nil else { return }
                 fm.properties.removeValue(forKey: propertyID)
-                let data = try AtomicYAMLMarkdown.encode(frontmatter: fm, body: body)
+                let data = try AtomicYAMLMarkdown.encode(
+                    frontmatter: fm, body: body,
+                    preservingFrom: pageURL, modeledKeys: PageFrontmatter.modeledKeys)
                 tx.stage(payload: data, to: pageURL)
             }
         }

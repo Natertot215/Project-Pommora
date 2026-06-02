@@ -29,12 +29,19 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     /// `.claude/Guidelines/Markdown.md` §9.x for the rationale.
     var foldedHeadings: [String]?
 
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case id, icon, tier1, tier2, tier3, properties
         case createdAt = "created_at"
         case modifiedAt = "modified_at"
         case foldedHeadings = "folded_headings"
     }
+
+    /// The set of top-level frontmatter keys this type owns (the on-disk `rawValue`
+    /// of every `CodingKey`). Passed to `AtomicYAMLMarkdown`'s preserving codec so
+    /// foreign (plugin / non-modeled) frontmatter survives a save while modeled
+    /// keys are substituted or cleared. Derived from `CodingKeys.allCases` so it
+    /// can never drift from the actual model.
+    static let modeledKeys = Set(CodingKeys.allCases.map(\.rawValue))
 
     init(
         id: String, icon: String?,

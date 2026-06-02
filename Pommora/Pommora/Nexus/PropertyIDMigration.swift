@@ -460,7 +460,8 @@ enum PropertyIDMigration {
                 if rekey(properties: &pageFile.frontmatter.properties, with: migration.nameToID) {
                     pageFile.frontmatter.modifiedAt = Date()
                     let payload = try AtomicYAMLMarkdown.encode(
-                        frontmatter: pageFile.frontmatter, body: pageFile.body)
+                        frontmatter: pageFile.frontmatter, body: pageFile.body,
+                        preservingFrom: pageURL, modeledKeys: PageFrontmatter.modeledKeys)
                     txn.stage(payload: payload, to: pageURL)
                     memberCount += 1
                 }

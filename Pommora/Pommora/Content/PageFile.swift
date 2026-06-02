@@ -26,7 +26,13 @@ struct PageFile: Equatable, Sendable {
     }
 
     func save(to url: URL) throws {
-        try AtomicYAMLMarkdown.write(frontmatter: frontmatter, body: body, to: url)
+        // Preserving write: merge over the file already at `url` so foreign
+        // (plugin) frontmatter survives and key order stays stable. A brand-new
+        // Page (no file at `url` yet) falls back to a plain envelope — identical
+        // bytes to a fresh write.
+        try AtomicYAMLMarkdown.write(
+            frontmatter: frontmatter, body: body, to: url,
+            preservingFrom: url, modeledKeys: PageFrontmatter.modeledKeys)
     }
 
     /// Tolerant counterpart to `load(from:)` used by the folder-adoption flow.
