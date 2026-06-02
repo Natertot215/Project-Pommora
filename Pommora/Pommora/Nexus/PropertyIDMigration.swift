@@ -215,7 +215,7 @@ enum PropertyIDMigration {
         // their parent Type.
         let parentMap = buildCollectionParentMap(at: nexusRoot)
 
-        for folder in enumerateRootTypeFolders(at: nexusRoot) {
+        for folder in Filesystem.rootTypeFolders(at: nexusRoot) {
             let pageSidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             let itemSidecar = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
@@ -397,7 +397,7 @@ enum PropertyIDMigration {
         var map = CollectionParentMap.empty
         let fm = FileManager.default
 
-        for typeFolder in enumerateRootTypeFolders(at: nexusRoot) {
+        for typeFolder in Filesystem.rootTypeFolders(at: nexusRoot) {
             let pageSidecar = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             let itemSidecar = typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
@@ -620,25 +620,6 @@ enum PropertyIDMigration {
             properties = newDict
         }
         return changed
-    }
-
-    /// Top-level scan of the nexus root for adoption-eligible folders (skips
-    /// `.`-prefixed + `_`-prefixed siblings — matches NexusAdopter's
-    /// exclusion rule).
-    private static func enumerateRootTypeFolders(at nexusRoot: URL) -> [URL] {
-        guard
-            let entries = try? FileManager.default.contentsOfDirectory(
-                at: nexusRoot,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: [.skipsHiddenFiles])
-        else { return [] }
-        return entries.filter { url in
-            let name = url.lastPathComponent
-            if name.hasPrefix(".") || name.hasPrefix("_") { return false }
-            var isDir: ObjCBool = false
-            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-                && isDir.boolValue
-        }
     }
 
     private static func enumeratePageMembers(in typeFolder: URL) -> [URL] {

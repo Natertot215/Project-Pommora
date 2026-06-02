@@ -426,11 +426,11 @@ struct ItemWindow: View {
             in: itemContentManager.nexus.rootURL, typeFolderName: original.title
         )
         let itemURL = NexusPaths.itemFileURL(forTitle: item.title, in: folder)
-        // Fall back to the lenient loader (matching the bulk read surface): an
-        // id-less adopted `.md` Item throws strict `Item.load` but `loadLenient`
-        // synthesizes an id and surfaces it — without the fallback the reload
-        // silently no-ops and the drifted draft persists.
-        guard let reloadedItem = (try? Item.load(from: itemURL)) ?? (try? Item.loadLenient(from: itemURL))
+        // Lenient loader (matching the bulk read surface): it's a strict superset
+        // of `Item.load` — for an id-less adopted `.md` Item where strict `load`
+        // would throw, `loadLenient` synthesizes an id and surfaces it. Without it
+        // the reload silently no-ops and the drifted draft persists.
+        guard let reloadedItem = try? Item.loadLenient(from: itemURL)
         else { return }
         draftTitle = reloadedItem.title
         draftIcon = reloadedItem.icon ?? ""

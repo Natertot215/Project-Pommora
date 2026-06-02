@@ -125,12 +125,12 @@ enum ItemFormatMigration {
         var conversions: [ItemConversion] = []
         var itemTypesScanned = 0
 
-        for folder in enumerateRootTypeFolders(at: nexusRoot) {
+        for folder in Filesystem.rootTypeFolders(at: nexusRoot) {
             let itemSidecar = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
             guard FileManager.default.fileExists(atPath: itemSidecar.path) else { continue }
             itemTypesScanned += 1
 
-            for jsonURL in enumerateJSONItemMembers(in: folder) {
+            for jsonURL in jsonItemMembers(in: folder) {
                 let title = jsonURL.deletingPathExtension().lastPathComponent
                 let markdownURL = NexusPaths.itemFileURL(
                     forTitle: title, in: jsonURL.deletingLastPathComponent())
@@ -270,44 +270,18 @@ enum ItemFormatMigration {
         }
     }
 
-    // MARK: - Enumeration (mirrors PropertyIDMigration)
-
-    /// Top-level scan of the nexus root for adoption-eligible folders (skips
-    /// `.`-prefixed + `_`-prefixed siblings — matches PropertyIDMigration +
-    /// NexusAdopter's exclusion rule).
-    private static func enumerateRootTypeFolders(at nexusRoot: URL) -> [URL] {
-        guard
-            let entries = try? FileManager.default.contentsOfDirectory(
-                at: nexusRoot,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: [.skipsHiddenFiles])
-        else { return [] }
-        return entries.filter { url in
-            let name = url.lastPathComponent
-            if name.hasPrefix(".") || name.hasPrefix("_") { return false }
-            var isDir: ObjCBool = false
-            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-                && isDir.boolValue
-        }
-    }
+    // MARK: - Enumeration
 
     /// Every `.json` Item member under an Item Type folder (recursing into
-    /// Collection sub-folders). Excludes per-kind sidecars (`_…`) — same
-    /// predicate as PropertyIDMigration's item enumerator. The `.skipsHiddenFiles`
-    /// option keeps the walk out of `.trash` / `.unsorted` / other dot-folders.
-    private static func enumerateJSONItemMembers(in typeFolder: URL) -> [URL] {
-        guard
-            let enumerator = FileManager.default.enumerator(
-                at: typeFolder,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles, .skipsPackageDescendants])
-        else { return [] }
-        var results: [URL] = []
-        for case let url as URL in enumerator {
-            if url.pathExtension == "json", !url.lastPathComponent.hasPrefix("_") {
-                results.append(url)
-            }
-        }
-        return results
+    /// Collection sub-folders). Excludes per-kind sidecars (`_…`). Reuses
+    /// `Filesystem.descendantFiles` — the same walk the canonical Item read path
+    /// uses — so the migration converts exactly the `.json` files the reader
+    /// would surface. `descendantFiles` skips `.`/`_`-prefixed folders and hidden
+    /// files (keeping the walk out of `.trash` / `.unsorted`); legitimate Item
+    /// members never live inside those.
+    private static func jsonItemMembers(in typeFolder: URL) -> [URL] {
+        (try? Filesystem.descendantFiles(of: typeFolder) {
+            $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_")
+        }) ?? []
     }
 }

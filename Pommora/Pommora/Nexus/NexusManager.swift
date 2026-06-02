@@ -181,32 +181,13 @@ final class NexusManager {
             pendingError = .appSupportFailed(error.localizedDescription)
         }
 
-        // Always offer adoption — re-opening a Nexus that pre-dates this
-        // feature is the primary use case (existing Nexuses don't have
-        // `_schema.json` sidecars yet, and may carry legacy `_vault.json` /
-        // `_collection.json` files that the adopter migrates). The scan is
-        // idempotent: if every top-level folder is already adopted, the
-        // sheet doesn't appear. Consent-gated work only — the format migration
-        // below is intentionally NOT inside this call (decision #8).
-        await runAdoptionIfNeeded(at: url)
-
-        // F.1.j — silent three-level auto-tag pass. Runs unconditionally
-        // after legacy adoption (whether the preview sheet was shown or
-        // not, whether the user confirmed or declined). Writes missing
-        // per-kind sidecars so Finder-built structure is first-class on
-        // the next IndexBuilder walk. Idempotent + silent. Returns whether it
-        // relocated any file to `.unsorted` (stray-json / Class-disagreement) —
-        // a relocation needs a same-launch rebuild to drop the stale id row.
-        let relocated = NexusAdopter.autoTagMissingSidecars(at: url)
-
-        // Item `.json` → `.md` format migration. UNCONDITIONAL (decision #8) +
-        // AFTER autoTag, so a stray `.json` already swept to `.unsorted` isn't
-        // re-handled. Forces a same-launch rebuild when it converted / cleaned /
-        // relocated anything.
-        let migratedItems = runFormatMigration(at: url)
+        // Adoption + auto-tag + format-migration launch sequence (see
+        // `runLaunchMigrations`). Returns whether a same-launch index rebuild is
+        // forced.
+        let forceRebuild = await runLaunchMigrations(at: url)
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus, forceRebuild: migratedItems || relocated)
+        await openIndex(for: nexus, forceRebuild: forceRebuild)
         currentNexus = nexus
     }
 
@@ -253,27 +234,11 @@ final class NexusManager {
             }
         }
 
-        // Always offer adoption — covers both first-time init AND re-opens
-        // of Nexuses that pre-date this feature. The scan is idempotent;
-        // fully-adopted Nexuses produce an empty plan and skip the sheet.
-        // Consent-gated work only — the format migration below is intentionally
-        // NOT inside this call (decision #8).
-        await runAdoptionIfNeeded(at: url)
-
-        // F.1.j — silent three-level auto-tag pass. Runs unconditionally
-        // after legacy adoption (whether the preview sheet was shown or
-        // not, whether the user confirmed or declined). Writes missing
-        // per-kind sidecars so Finder-built structure is first-class on
-        // the next IndexBuilder walk. Idempotent + silent. Returns whether it
-        // relocated any file to `.unsorted` (stray-json / Class-disagreement) —
-        // a relocation needs a same-launch rebuild to drop the stale id row.
-        let relocated = NexusAdopter.autoTagMissingSidecars(at: url)
-
-        // Item `.json` → `.md` format migration. UNCONDITIONAL (decision #8) +
-        // AFTER autoTag, so a stray `.json` already swept to `.unsorted` isn't
-        // re-handled. Forces a same-launch rebuild when it converted / cleaned /
-        // relocated anything.
-        let migratedItems = runFormatMigration(at: url)
+        // Adoption + auto-tag + format-migration launch sequence (see
+        // `runLaunchMigrations`). Runs BEFORE the bookmark/access setup below,
+        // preserving the established ordering. Returns whether a same-launch
+        // index rebuild is forced.
+        let forceRebuild = await runLaunchMigrations(at: url)
 
         replaceAccessingURL(with: url)
         guard NexusBookmark.startAccessing(url) else {
@@ -298,8 +263,36 @@ final class NexusManager {
         }
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus, forceRebuild: migratedItems || relocated)
+        await openIndex(for: nexus, forceRebuild: forceRebuild)
         currentNexus = nexus
+    }
+
+    /// Shared launch sequence run by both `openExisting` and `openPicked` before
+    /// opening the index: legacy adoption (consent-gated), then the silent
+    /// auto-tag pass, then the unconditional Item `.json` → `.md` format
+    /// migration. The two later passes run AFTER `runAdoptionIfNeeded` (decision
+    /// #8 — the format migration is NOT behind the consent gate) and BEFORE
+    /// `openIndex`.
+    ///
+    /// - `runAdoptionIfNeeded` — re-opening a pre-feature Nexus is the primary
+    ///   case (no `_schema.json` sidecars yet; may carry legacy `_vault.json` /
+    ///   `_collection.json`). Idempotent: a fully-adopted Nexus produces an empty
+    ///   plan and skips the sheet.
+    /// - `autoTagMissingSidecars` (F.1.j) — silent three-level pass, runs whether
+    ///   the preview was shown / confirmed / declined; writes missing per-kind
+    ///   sidecars so Finder-built structure is first-class. Returns whether it
+    ///   relocated any file to `.unsorted` (stray-json / Class-disagreement).
+    /// - `runFormatMigration` — UNCONDITIONAL (decision #8), AFTER autoTag so a
+    ///   stray `.json` already swept to `.unsorted` isn't re-handled.
+    ///
+    /// **Returns** whether a same-launch index rebuild is forced — a relocation
+    /// OR a conversion/cleanup leaves a stale id-keyed row that must reconcile
+    /// this launch, not next. The caller ORs this into `openIndex(forceRebuild:)`.
+    private func runLaunchMigrations(at url: URL) async -> Bool {
+        await runAdoptionIfNeeded(at: url)
+        let relocated = NexusAdopter.autoTagMissingSidecars(at: url)
+        let migratedItems = runFormatMigration(at: url)
+        return migratedItems || relocated
     }
 
     /// Scans the freshly-initialized Nexus root for adoptable folders. If

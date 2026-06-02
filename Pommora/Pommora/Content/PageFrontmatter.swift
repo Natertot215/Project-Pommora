@@ -77,15 +77,9 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         // becoming "". Pages without an id were a 2026-05-15 transitional state
         // that's now an error.
         self.id = try c.decode(String.self, forKey: .id)
-        // Lenient: decode the raw `Class` string and map, defaulting on missing
-        // OR unknown value. A naive `decodeIfPresent(KindStamp.self)` would THROW
-        // on a foreign `Class: widget` and brick the Page load — this swallows
-        // only the unknown-enum-case, not other decode failures.
-        if let rawKind = try c.decodeIfPresent(String.self, forKey: .kind) {
-            self.kind = KindStamp(rawValue: rawKind) ?? .page
-        } else {
-            self.kind = .page
-        }
+        // Lenient `Class` decode (defaults to `.page` on missing/unknown) — see
+        // `KeyedDecodingContainer.decodeKind`.
+        self.kind = try c.decodeKind(forKey: .kind, default: .page)
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.tier1 = try c.decodeIfPresent([String].self, forKey: .tier1) ?? []
         self.tier2 = try c.decodeIfPresent([String].self, forKey: .tier2) ?? []
@@ -117,29 +111,6 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-extension PageFrontmatter {
-    /// Canonical READ for any relation-typed property, including the three built-in
-    /// tier properties whose values live at the frontmatter root.
-    func relationIDs(forPropertyID id: String) -> [String] {
-        switch id {
-        case ReservedPropertyID.tier1: return tier1
-        case ReservedPropertyID.tier2: return tier2
-        case ReservedPropertyID.tier3: return tier3
-        default:
-            if case .relation(let ids)? = properties[id] { return ids }
-            return []
-        }
-    }
-
-    /// Canonical WRITE. Tier IDs route to the root field; user relations route to
-    /// `properties`. An empty user-relation value OMITS the key (no empty array on
-    /// disk) so the schema-blind decoder never sees an ambiguous `[]`.
-    mutating func setRelationIDs(_ ids: [String], forPropertyID id: String) {
-        switch id {
-        case ReservedPropertyID.tier1: tier1 = ids
-        case ReservedPropertyID.tier2: tier2 = ids
-        case ReservedPropertyID.tier3: tier3 = ids
-        default: properties[id] = ids.isEmpty ? nil : .relation(ids)
-        }
-    }
-}
+/// Relation read/write routing (tiers at root, user relations in `properties`)
+/// comes from the shared `TierRelationCarrying` default implementations.
+extension PageFrontmatter: TierRelationCarrying {}

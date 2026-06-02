@@ -432,10 +432,9 @@ enum NexusAdopter {
         // planning lists — `skipped` exists for completeness but isn't
         // populated under the current rules. Reserved for future shape rules.
         _ = skipped
-        let detected = contentSniff(folder)
         freshSidecars.append(
             PlannedFreshSidecar(
-                folderURL: folder, kind: detected.kind, title: name
+                folderURL: folder, kind: contentSniff(folder), title: name
             )
         )
     }
@@ -534,34 +533,17 @@ enum NexusAdopter {
         return found
     }
 
-    /// Content-sniff for a sidecar-less fresh folder — always Pages-side.
+    /// The adopted kind for a sidecar-less fresh folder — always `.pageType`.
     ///
     /// Since Items became `.md` (Items-as-Markdown), a `.md` folder is
-    /// ambiguous: it could hold Pages OR Items, and content-sniffing reads
-    /// file extensions, not frontmatter — so it can no longer infer
+    /// ambiguous: it could hold Pages OR Items, and content can only be sniffed
+    /// by file extension, not frontmatter — so it can no longer infer
     /// Item-Type-ness. Item-Type identity now comes ONLY from the
     /// `_itemtype.json` sidecar, checked upstream (callers early-return when a
-    /// recognized sidecar exists). A sidecar-less folder therefore always
-    /// adopts as a Page Type; the `.markdownChildren` vs
-    /// `.emptyFolderDefaultsToPages` signal only records why.
-    private static func contentSniff(
-        _ folder: URL
-    )
-        -> (kind: AdoptedSidecarKind, detection: ContentDetection)
-    {
-        let hasMarkdown =
-            ((try? Filesystem.descendantFiles(of: folder) { url in
-                url.pathExtension == "md"
-            }) ?? []).isEmpty == false
-
-        return hasMarkdown
-            ? (.pageType, .markdownChildren)
-            : (.pageType, .emptyFolderDefaultsToPages)
-    }
-
-    private enum ContentDetection: Sendable, Equatable {
-        case markdownChildren
-        case emptyFolderDefaultsToPages
+    /// recognized sidecar exists). A sidecar-less folder therefore always adopts
+    /// as a Page Type — no content walk needed.
+    private static func contentSniff(_ folder: URL) -> AdoptedSidecarKind {
+        .pageType
     }
 
     // MARK: - apply
@@ -834,18 +816,32 @@ enum NexusAdopter {
         return didRelocate
     }
 
-    /// Applies the per-file decision table to a single content file. One write
-    /// or one move at most; idempotent on agreement. Returns whether the file
-    /// was relocated to `.unsorted`.
+    /// Applies the per-file decision table to a single content file. Reads +
+    /// composes the frontmatter ONCE and feeds the same composed state into both
+    /// the `Class` classification and the absent-path stamp write (no second
+    /// read). One write or one move at most; idempotent on agreement. Returns
+    /// whether the file was relocated to `.unsorted`.
     @discardableResult
     private static func stampOneFile(
         _ file: URL, folderStamp: KindStamp, nexusRoot: URL
     ) -> Bool {
-        switch readClassStamp(at: file) {
+        // A read/split failure (e.g. malformed envelope) classifies as absent and
+        // falls into the absent path, where the no-token `setStampKey` re-reads
+        // and surfaces the same error — caught + logged below (no write, no
+        // relocate), matching the prior `try?`-swallow behavior.
+        let composed = try? AtomicYAMLMarkdown.readComposedFrontmatter(at: file)
+
+        switch classifyStamp(composed) {
         case .none:
-            // `Class` absent → stamp the folder's kind, value-preserving.
+            // `Class` absent → stamp the folder's kind, value-preserving. Pass the
+            // already-composed token when we have one so the file isn't re-read.
             do {
-                try AtomicYAMLMarkdown.setStampKey(at: file, value: folderStamp.rawValue)
+                if let composed {
+                    try AtomicYAMLMarkdown.setStampKey(
+                        at: file, value: folderStamp.rawValue, composed: composed)
+                } else {
+                    try AtomicYAMLMarkdown.setStampKey(at: file, value: folderStamp.rawValue)
+                }
             } catch AtomicYAMLMarkdownError.nonMappingFrontmatter {
                 // Frontmatter root is a bare sequence/scalar — never clobber it.
                 return relocateToUnsorted(file, nexusRoot: nexusRoot)
@@ -858,20 +854,22 @@ enum NexusAdopter {
                 #endif
             }
             return false
-        case .some(let present):
-            if present.matches(folderStamp) {
+        case .recognized(let present):
+            if present == folderStamp {
                 // Agrees — leave it. No write (idempotence).
                 return false
             }
-            // Disagrees (or an unrecognized non-empty value) — homeless here.
+            // Recognized but different kind — homeless here.
+            return relocateToUnsorted(file, nexusRoot: nexusRoot)
+        case .unrecognized:
+            // Present-but-foreign value — a disagreement; route to `.unsorted`.
             return relocateToUnsorted(file, nexusRoot: nexusRoot)
         }
     }
 
-    /// Reads a file's existing `Class` frontmatter value leniently — delegates
-    /// the YAML read/split/compose to `AtomicYAMLMarkdown.frontmatterScalar` and
-    /// classifies the returned scalar, mirroring how `setStampKey` resolves the
-    /// mapping. Returns:
+    /// Classifies the `Class` frontmatter value from an already-composed
+    /// frontmatter token, mirroring how `setStampKey` resolves the mapping.
+    /// Returns:
     /// - `nil` when there is no frontmatter, the frontmatter isn't a mapping, or
     ///   the mapping carries no `Class` key (the "absent → stamp" path). A
     ///   `Class:` key whose value is null (`Class:` / `Class: ~`) reads back as a
@@ -879,44 +877,36 @@ enum NexusAdopter {
     ///   with the folder kind — distinct from `.unrecognized`, a present-but-
     ///   foreign value (including an empty string `Class: ""`) that routes the
     ///   file to `.unsorted`;
-    /// - `.page` / `.item` when `Class` holds that recognized value;
+    /// - `.recognized(.page/.item)` when `Class` holds that recognized value;
     /// - `.unrecognized` when `Class` is present but holds a non-empty foreign
     ///   value — a disagreement that routes the file to `.unsorted`, never
     ///   silently re-stamped.
     ///
+    /// A `nil` token (the read/split failed) classifies as `.none` (absent),
+    /// matching the prior `try?`-swallow on the read.
+    ///
     /// No typed decode — foreign files need not satisfy `PageFrontmatter` /
     /// `ItemFrontmatter`.
-    private static func readClassStamp(at file: URL) -> StampReadResult? {
-        guard let value = try? AtomicYAMLMarkdown.frontmatterScalar(at: file, forKey: "Class")
+    private static func classifyStamp(
+        _ composed: AtomicYAMLMarkdown.ComposedFrontmatter?
+    ) -> ClassStampRead? {
+        guard let composed,
+            let value = AtomicYAMLMarkdown.frontmatterScalar(in: composed, forKey: "Class")
         else {
             return nil
         }
-        if let stamp = KindStamp(rawValue: value) {
-            switch stamp {
-            case .page: return .page
-            case .item: return .item
-            }
-        }
+        if let stamp = KindStamp(rawValue: value) { return .recognized(stamp) }
         // A present-but-unrecognized Class value is a disagreement, not absence.
         return .unrecognized
     }
 
-    /// Lenient `Class`-read outcome. Conforms to a `KindStamp`-pattern match via
-    /// the two recognized cases; `.unrecognized` represents a present-but-foreign
-    /// value that should route to `.unsorted` (never silently re-stamped).
-    private enum StampReadResult: Equatable {
-        case page
-        case item
+    /// Lenient `Class`-read outcome for a present stamp (the read returns nil when
+    /// `Class` is absent). `.recognized` carries the parsed `KindStamp`;
+    /// `.unrecognized` represents a present-but-foreign value that should route to
+    /// `.unsorted` (never silently re-stamped).
+    private enum ClassStampRead: Equatable {
+        case recognized(KindStamp)
         case unrecognized
-
-        /// True when this read value agrees with `folderStamp`. `.unrecognized`
-        /// never agrees (routes the file to `.unsorted`).
-        func matches(_ folderStamp: KindStamp) -> Bool {
-            switch (self, folderStamp) {
-            case (.page, .page), (.item, .item): return true
-            case (.page, _), (.item, _), (.unrecognized, _): return false
-            }
-        }
     }
 
     /// Defensive `moveToUnsorted` wrapper. The source is always in-nexus here
@@ -949,8 +939,7 @@ enum NexusAdopter {
         let existing = recognizedSidecarsAt(folder)
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
-        let sniff = contentSniff(folder)
-        let kind = sniff.kind  // always .pageType (sidecar-less → Page Type)
+        let kind = contentSniff(folder)  // always .pageType (sidecar-less → Page Type)
         do {
             try writeAutoTagTypeSidecar(at: folder, kind: kind, title: title, now: now)
         } catch {

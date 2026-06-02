@@ -272,6 +272,27 @@ enum Filesystem {
         }
     }
 
+    /// Top-level scan of the nexus root for adoption-eligible Type folders:
+    /// immediate child directories, skipping `.`-prefixed + `_`-prefixed
+    /// siblings. Matches `NexusAdopter`'s exclusion rule and is the single
+    /// source for the launch-time migrations (`PropertyIDMigration` +
+    /// `ItemFormatMigration`). Returns `[]` when the root can't be read.
+    static func rootTypeFolders(at nexusRoot: URL) -> [URL] {
+        guard
+            let entries = try? FileManager.default.contentsOfDirectory(
+                at: nexusRoot,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles])
+        else { return [] }
+        return entries.filter { url in
+            let name = url.lastPathComponent
+            if name.hasPrefix(".") || name.hasPrefix("_") { return false }
+            var isDir: ObjCBool = false
+            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                && isDir.boolValue
+        }
+    }
+
     /// Recursively enumerates files under `folderURL`, descending into every
     /// non-excluded sub-folder. Excludes:
     /// - any URL in `excludedFolderURLs` (entire subtree is skipped)
