@@ -6,7 +6,8 @@ Plans are named `YYYY-MM-DD-<slug>.md`. They scope a single feature or refactor 
 
 #### Active
 
-- `2026-06-01-Architecture-Skeptic-Review.md` — adversarial review of the storage/architecture model; recommendation #3 superseded by the Items-as-Markdown decision.
+- `2026-06-02-MarkdownPM-Service.md` — fold the vendored `MarkdownEngine` into a Pommora-owned `MarkdownPM` Swift package: consolidate the dual parser/styler onto one cached Apple-AST spine with strict DRY, transplant the TextKit 2 body verbatim, **Pages-scoped** (Items excluded; wikilinks = separate post-rebuild session). Provisional scaffolding pending the finalized plan.
+- `2026-06-02-MarkdownPM-Decisions.md` — the 26-decision surface for the MarkdownPM rebuild + Nathan's locked rulings (2026-06-02).
 - `2026-05-31-vault-table-displayonly-interim.md` — interim spec for display-only Type detail tables + creation-order default (shipped v0.3.4).
 
 #### Superseded
