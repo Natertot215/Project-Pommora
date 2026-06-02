@@ -4,9 +4,9 @@
 
 > ⚡ **CORNERSTONE — must remain; carry into every session, emphasized for the next (Nathan's voice).**
 >
-> *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess. You open the file and LOOK AT THE CODE before you assert anything.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it."*
+> *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess, you LOOK, you ASK. You open the file and LOOK AT THE CODE before you assert anything, You ASK ME when unsure.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it." ASK ME when you're unsure! Don't make assumptions when asking directly will give concrete directive; honesty is key, confidence must be earned through evidence.*
 >
-> Validated hard this session (Items-as-Markdown planning): **four adversarial review rounds** drove the findings down a staircase — *sites → mechanism → composition → exhaustive completeness* — and the final **grep-mandated** pass proved by `grep` two missed call-sites (`Item.load` at `+CRUD:734`, `AtomicYAMLMarkdown.encode` at `+CRUD:567`) that reasoning AND the knowledge graph had both declared "exhaustive." **The cornerstone extends: a plan's "all N sites" is a hypothesis until a grep returns exactly N. Prove completeness by grep, not by confidence.**
+> Validated hard this session (Items-as-Markdown planning): **four adversarial review rounds** drove the findings down a staircase — *sites → mechanism → composition → exhaustive completeness* — and the final **grep-mandated** pass proved by `grep` two missed call-sites (`Item.load` at `+CRUD:734`, `AtomicYAMLMarkdown.encode` at `+CRUD:567`) that reasoning AND the knowledge graph had both declared "exhaustive." **The cornerstone extends: a plan's "all N sites" is a hypothesis until a grep returns exactly N. Prove completeness through evidence, not by confidence.**
 
 #### Session Summary
 
@@ -48,7 +48,7 @@ A design + planning session — **no code shipped**; the deliverable is a finali
 6. **Settings popout sizing** — should size to content dynamically (Nathan likes the min height).
 7. **`AgendaEventManagerError._status` doc-vs-guard mismatch** — the error's doc says events have no `_status`, yet the delete guard still blocks it; decide separately.
 8. **Backspace on a checkbox / list item** should auto-delete the syntax (not just the render); also render bullets as label + secondary rather than primary.
-9. **CLAUDE.md quirk #11 claims an in-repo CI lint step that doesn't exist** — no `.github/workflows`, no CI script invoking `swift format`; only the `.swift-format` config. Correct the quirk or confirm CI scope.
+9. Pages re-parse and adjustment per-caret is signifigancly glitchy; must fix asap.
 
 #### Maintained via `/handoff`
 

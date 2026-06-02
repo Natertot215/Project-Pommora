@@ -14,7 +14,9 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 
 **Code layer is symmetric** (PageType / PageCollection / ItemType / ItemCollection — same shape, different content). **UI vocabulary diverges per side** — Pages get the distinctive "Vault" + generic "Collection"; Items get the generic "Type" + distinctive "Set". Each side has one signature word and one shared word. All UI labels renameable via Settings.
 
-Items open in a popover-style **Item Window** (title + properties + 250-char description, not a full-frame surface); Pages open in the main detail pane. (Standalone-window previews are queued behind the cross-feature PreviewWindow primitive; not yet wired.) Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source.
+#### Stack
+
+Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as a contingency path — playbook + topic files at `// ReactInfo//`.
 
 #### HARD RULES
 
@@ -26,31 +28,29 @@ Items open in a popover-style **Item Window** (title + properties + 250-char des
 
 - **DRY — one source of truth.** When the same logic, mapping, or rendering would live in two or more places, hoist it into a single function or type and reuse it; never copy-paste behavior across call sites.
 
+- **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
+
 - **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md` / `Guidelines/Paradigm-Decisions.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. Never accumulate per-session work logs.
 
  - **Re-assess the plan between green commits.**  After each task ships green, read the active plan against what just landed. If the task surfaced wrong assumptions, missing prerequisites, scope drift, or shortened/expanded downstream tasks, rewrite the affected later tasks before dispatching the next one. The plan is the controller's live working theory of the work, not a fixed script — only green commits are facts. Pairs with #4 — #4 keeps the build green between tasks; #13 keeps the plan accurate between tasks.
 
-#### Stack
-
-Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored `swift-markdown-engine` & small Pommora-side customizations** (shipped v0.2.7.0; full spec → `// Features//PageEditor.md`). React+Electron is preserved as a contingency path — playbook + topic files at `// ReactInfo//`.
 
 #### Core Principles
 
 - **Three load-bearing constraints:** (1) **conceptual portability of functionalities** — file formats, schemas, design values, UX patterns survive a stack rebuild; (2) **cross-nexus queryability + cloud sync compatibility** — the on-disk model maps cleanly to a cloud DB so sync arrives as additive translation; (3) **persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. Full detail → `// Features//Architecture.md`.
 
-- **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
 - **Files are canonical (≠ everything is Markdown).** Pages = `.md`, Items = `.json` — inside their Type folder (sidecar `_pagetype.json` / `_itemtype.json`), optionally within a Collection sub-folder; Agenda = `.task.json` / `.event.json`; Projects = `.project.json`; Settings = `.nexus/settings.json`. Operational containers live at the nexus root (no wrapper folders); SQLite is a regeneratable index — no user data trapped in it. Full on-disk spec → `PommoraPRD.md` + `// Features//Architecture.md`.
 
 - **Filename = title** everywhere. No `title` field; no `name` field on Items. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 
-- **Pages are Markdown, Contexts are blocks.** Pages are Markdown documents (one continuous Markdown stream) with two Pommora-specific rendering directives — `@Columns` (multi-column rendering of a section) and `:::callout` (outlined-box callout, distinct from blockquotes).
+- **Pages are Markdown, Contexts are blocks.** Pages are Markdown documents with some Pommora-specific rendering directives; Contexts are live, fully-editable block-like pages of views and queries— never a read-only snapshot. 
+
+- Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source.
 
 - **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips.
 
 - **Relations stored by ID, displayed by icon + title.** Relation properties are always multi-value — frontmatter holds an array of the targets' IDs (rename-safe; `[{"$rel": "<ULID>"}]`); each value renders as the target's current icon + title in styled colored text (the single `RelationChip` primitive — a dedicated chip visual is a future design). Tiers are relations: `tier1` / `tier2` / `tier3` on Items / Pages / Agenda are pre-configured relation properties (merged via `BuiltInRelationProperties`), stored at frontmatter root, edited inline like any relation.
-
-- **Inline editing principle.** Every embedded view in a composed-blocks surface (Context, Homepage) is a live, fully-editable view of its source — never a read-only snapshot. Full inline editing of a referenced Page's body (Notion synced blocks) is post-v1.
 
 - **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for the module name (`Pommora` Swift module), app branding, and documentation. NOT allowed in:
   - On-disk JSON field names (no `pommora_*` keys)
@@ -62,6 +62,10 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + vendored 
  Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView / TextKit 2 for the Page editor, NSSplitView for splitter polish). 
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
+
+- Items open in a popover-style **Item Window** (title + properties + description, not a full-frame surface); Pages open in the main detail pane. (Standalone-window previews are queued behind the cross-feature PreviewWindow primitive; not yet wired.) 
+
+- Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source.
 
 #### Document Map
 
@@ -110,7 +114,7 @@ Read `Handoff.md` first at session start.
 8. **Section structure in SidebarView is load-bearing.** Changes to `Section(isExpanded:) { } header: { SectionHeader(...) }` patterns or to the `SectionHeader`/`SelectableRow`/`SelectionChrome` shape risk regressing a launch crash (the in-content `.background` workaround tried during the polish series broke `OutlineListCoordinator.recursivelyDiffRows`). Verify via `xcodebuild test` (tests must actually bootstrap, not just compile). ALSO: don't mix flat-leaf and disclosure-style rows inside the same outer `Section` — `OutlineListCoordinator.recursivelyDiffRows` can crash on the asymmetry. Item Types + Sets MUST mirror Vaults + Page Collections uniformly (both disclosure parents with leaf children).
 9. **Sidebar selection chrome lives at row file level via `.listRowBackground(SelectionChrome(...))`**, not in-content `.background`. Locked spec at `// Features//Sidebar.md` "Selection language" + paradigm decision #6. Row files derive `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. SelectableRow itself is pure content — no chrome.
 10. **Parallel-session caveat** — Nathan may have a separate session running small UI tweaks. Pommora/* working tree is NOT guaranteed clean between subagent dispatches. Never revert unattributed working-tree changes; surface in report rather than bundling or discarding.
-11. **`swift format` is invoked as a subcommand** (`swift format format --in-place ...`, `swift format lint --strict --recursive ...`) via Xcode 26's bundled toolchain. The direct `swift-format` binary is NOT on `$PATH` on this machine. CI uses the same subcommand form. Locked at v0.2.4 (`.swift-format` config + CI lint step).
+11. **`swift format` is invoked as a subcommand** (`swift format format --in-place ...`, `swift format lint --strict --recursive ...`) via Xcode 26's bundled toolchain. The direct `swift-format` binary is NOT on `$PATH` on this machine.
 12. **GRDB `String` overload pollution in @ViewBuilder closures** — `SQLSpecificExpressible` conformance on String causes overload ambiguity for `==` and `contains` inside SwiftUI views. Workaround: isolate per-row rendering into private struct sub-views with plain value types; use `first(where:)` not `contains(_:)`. Pattern established in `RelationPicker.swift`.
 13. **Use `Agent run_in_background: true` for builder-subagent verification** — Nathan does not want xcodebuild grabbing window focus. Always builder via background Agent with `-only-testing:PommoraTests` to skip UI tests.
 14. **`loadAll` must sync in-memory parents to the SQLite index.** Established 2026-05-25 in `88c9367`. PageTypeManager.loadAll + ItemTypeManager.loadAll defensively upsert types + collections after disk load (INSERT OR REPLACE makes it idempotent; `try?` swallows failures since the index is regeneratable). The architecture's prior contract — "DB stays in sync via incremental CRUD upserts after IndexBuilder runs once" — breaks for entities arriving outside CRUD (adoption / external Finder folders / post-adoption state). Without this sync, any page/item CRUD into a non-CRUD-created vault triggers SQLite error 19 (FK constraint failed) toast. Regression-tested in `LoadAllIndexSyncTests.swift`.
