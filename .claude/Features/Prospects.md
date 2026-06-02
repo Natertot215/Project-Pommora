@@ -95,3 +95,12 @@ Slotted v0.4.0 (Symbols + Settings + Trash + Wikilinks batch).
 
 (Two former entries here — `LinkedFromDropdown` real surface and relation sort/filter — are now committed roadmap work, promoted to `Framework.md` (both at v0.7.0 — Context-views surface + per-view sort/group), not post-v1 prospects.)
 
+#### Retire legacy-Item-JSON migration machinery
+**Description:** The Items-as-Markdown migration made Items `.md`-only at runtime, but a small amount of legacy `.json`-reading machinery is intentionally retained solely to power the one-time launch migration (`ItemFormatMigration`) that converts any legacy `.json` Item to `.md`. Once every nexus has run that migration — no `.json` Items remain on disk anywhere — this machinery is dead weight and should be removed:
+
+- `ItemFormatMigration` (the one-shot `.json` → `.md` launch migration) + its `NexusManager` auto-run hook + the `openIndex(forceRebuild:)` plumbing that exists to surface freshly-migrated Items same-launch.
+- `Item.decodeLegacyJSON` (the sole sanctioned legacy `.json` Item decode) + the legacy `Item` `Codable` / `CodingKeys` `.json` shape that only `decodeLegacyJSON` and `PropertyIDMigration`'s legacy-encode still need.
+- `PropertyIDMigration`'s dual-member machinery (`enumerateItemMembers` widened to `.json` + `.md`, `decodeItemMember`, the `.json` arm of `encodedItemMemberPayload`) — collapses to `.md`-only once no `.json` Item members exist.
+
+**Trigger:** confidence that all nexuses are migrated (no `.json` Items remain on disk anywhere).
+
