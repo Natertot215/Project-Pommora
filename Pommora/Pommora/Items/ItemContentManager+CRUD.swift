@@ -5,11 +5,14 @@ import Foundation
 /// for legibility, mirroring `PageContentManager+CRUD.swift`.
 ///
 /// **ParadigmV2 (Task 5.5 — stub-and-progressively-replace):**
-/// - Property validation against the Item Type's schema lands in Phase 6
-///   once `ItemValidator` is rewired off `PageType`. Until then, CRUD uses an
-///   inline title-uniqueness check matching `PageContentManager`'s shape.
+/// - Save-time schema validation via `ItemValidator.validate` is wired into
+///   all six CRUD entry points; it sources the property schema from
+///   `itemType.properties` and validates tier values + the body cap.
+/// - The inline `enforceTitleUniqueness` check coexists with it: titles are
+///   validated for same-container collisions while `ItemValidator` covers
+///   schema / tier / body-cap. Matches `PageContentManager`'s shape.
 /// - Item-Type-root paths assume the `<nexus>/Items/<TypeFolder>/` wrapper
-///   exists; NexusAdopter materializes the wrapper in Phase 6.
+///   exists; NexusAdopter materializes the wrapper.
 ///
 /// Every CRUD method:
 /// - Wraps its body in `do { … } catch { self.pendingError = error; throw error }`
@@ -19,12 +22,13 @@ import Foundation
 ///   surfaces a `RenameAtomicityError`.
 extension ItemContentManager {
 
-    // MARK: - Title uniqueness (transitional)
+    // MARK: - Title uniqueness
     //
-    // Used until Phase 6 wires a proper ItemValidator-vs-ItemType. The
-    // same-container collision rule is delegated to the shared
-    // `NameCollisionValidator` (one source of truth, Pages + Items identical);
-    // the empty / invalid-character checks stay here as Item-side concerns.
+    // The dedicated same-container title-collision check; runs alongside
+    // `ItemValidator` (which covers schema / tier / body-cap). The collision
+    // rule is delegated to the shared `NameCollisionValidator` (one source of
+    // truth, Pages + Items identical); the empty / invalid-character checks
+    // stay here as Item-side concerns.
     fileprivate func enforceTitleUniqueness(
         _ trimmed: String,
         among siblings: [Item],
@@ -38,6 +42,24 @@ extension ItemContentManager {
         try NameCollisionValidator.validate(
             desiredTitle: trimmed, siblings: siblings, excludingID: excluding?.id,
             else: ItemCRUDError.duplicateTitle  // preserve the Item-side contract
+        )
+    }
+
+    // MARK: - Save-time schema validation (Phase 6)
+    //
+    // Single call shape for `ItemValidator.validate` across all six CRUD entry
+    // points (one source of truth). Sources the property schema from the Item
+    // Type and the live tier-lookup context from `contextProvider()`. The
+    // `description` is the Item's body (Shape A) — capped at
+    // `ItemValidator.maxDescriptionLength` source characters.
+    fileprivate func validate(_ item: Item, type itemType: ItemType) throws {
+        try ItemValidator.validate(
+            title: item.title,
+            tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
+            description: item.description,
+            properties: item.properties,
+            itemType: itemType,
+            context: contextProvider()
         )
     }
 
@@ -87,6 +109,7 @@ extension ItemContentManager {
                 properties: [:],
                 createdAt: now, modifiedAt: now
             )
+            try validate(item, type: itemType)
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
             try guardNoOverwrite(at: url)
             try item.save(to: url)
@@ -103,7 +126,6 @@ extension ItemContentManager {
                 titleKeyPath: \Item.title
             )
             itemsByCollection[collection.id] = arr
-            _ = itemType  // schema validation arrives Phase 6
             return item
         } catch {
             self.pendingError = error
@@ -128,6 +150,7 @@ extension ItemContentManager {
             var updated = item
             updated.title = trimmed
             updated.modifiedAt = Date()
+            try validate(updated, type: itemType)
             try Filesystem.renameFile(from: oldURL, to: newURL)
             do {
                 try updated.save(to: newURL)
@@ -156,7 +179,6 @@ extension ItemContentManager {
                 )
             }
             itemsByCollection[collection.id] = arr
-            _ = itemType  // schema validation arrives Phase 6
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -173,6 +195,7 @@ extension ItemContentManager {
 
             var updated = item
             updated.modifiedAt = Date()
+            try validate(updated, type: itemType)
             // Write to the real on-disk file (legacy `.json` updated in place, else
             // canonical `.md`) — never orphan a new `.md` beside an un-migrated `.json`.
             let url = existingItemURL(forTitle: trimmed, in: collection.folderURL)
@@ -187,7 +210,6 @@ extension ItemContentManager {
                 arr[i] = updated
             }
             itemsByCollection[collection.id] = arr
-            _ = itemType  // schema validation arrives Phase 6
         } catch {
             self.pendingError = error
             throw error
@@ -232,6 +254,7 @@ extension ItemContentManager {
                 properties: [:],
                 createdAt: now, modifiedAt: now
             )
+            try validate(item, type: itemType)
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: folderURL(for: itemType))
             try guardNoOverwrite(at: url)
             try item.save(to: url)
@@ -270,6 +293,7 @@ extension ItemContentManager {
             var updated = item
             updated.title = trimmed
             updated.modifiedAt = Date()
+            try validate(updated, type: itemType)
             try Filesystem.renameFile(from: oldURL, to: newURL)
             do {
                 try updated.save(to: newURL)
@@ -314,6 +338,7 @@ extension ItemContentManager {
 
             var updated = item
             updated.modifiedAt = Date()
+            try validate(updated, type: itemType)
             // Write to the real on-disk file (legacy `.json` in place, else `.md`).
             let url = existingItemURL(forTitle: trimmed, in: folderURL(for: itemType))
             try updated.save(to: url)
@@ -879,9 +904,10 @@ extension ItemContentManager {
     }
 }
 
-/// Errors surfaced by `ItemContentManager` CRUD methods during the
-/// Task 5.5 transitional window. Phase 6 replaces these with the
-/// upgraded `ItemValidator` typed on `ItemType`.
+/// Errors surfaced by `ItemContentManager` CRUD methods for CRUD / IO
+/// failures (e.g. not-found, overwrite, empty / duplicate title). Separate
+/// concern from `ItemValidator` (schema / tier / body-cap); the two coexist —
+/// `ItemValidator` did not replace these errors.
 enum ItemCRUDError: Error, LocalizedError, Equatable {
     case emptyTitle
     case invalidTitleCharacters

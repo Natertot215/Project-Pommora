@@ -214,10 +214,10 @@ struct ItemWindow: View {
             HStack {
                 Text("Description").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(draftDescription.count) / 1000")
+                Text("\(draftDescription.count) / \(ItemValidator.maxDescriptionLength)")
                     .font(.caption)
                     .foregroundStyle(
-                        draftDescription.count > 1000
+                        draftDescription.count > ItemValidator.maxDescriptionLength
                             ? AnyShapeStyle(Color.red) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
             }
             TextEditor(text: $draftDescription)
@@ -456,30 +456,42 @@ struct ItemWindow: View {
         }
 
         let collections = itemTypeManager.itemCollections(in: original)
-        if let parentCollection = collections.first(where: { collection in
-            itemContentManager.items(in: collection).contains { $0.id == item.id }
-        }) {
-            do {
+        do {
+            if let parentCollection = collections.first(where: { collection in
+                itemContentManager.items(in: collection).contains { $0.id == item.id }
+            }) {
                 try await itemContentManager.updateItem(updated, in: parentCollection, type: original)
-                dismiss()
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        } else {
-            do {
+            } else {
                 try await itemContentManager.updateItem(updated, inTypeRoot: original)
-                dismiss()
-            } catch {
-                errorMessage = error.localizedDescription
             }
+            dismiss()
+        } catch {
+            errorMessage = surface(error)
         }
     }
 
-    private func friendly(_ error: ItemValidator.ValidationError) -> String {
+    /// Maps a save-path throw to a user-facing message, covering BOTH error
+    /// domains the Item CRUD path can raise: `ItemValidator.ValidationError`
+    /// (save-time schema/tier/description validation, surfaced via `friendly`)
+    /// and `ItemCRUDError` / any other `LocalizedError` (title collisions,
+    /// rename atomicity, IO) via its `localizedDescription`.
+    private func surface(_ error: any Error) -> String {
+        if let validation = error as? ItemValidator.ValidationError {
+            return Self.friendly(validation)
+        }
+        return error.localizedDescription
+    }
+
+    /// User-facing message for each `ItemValidator.ValidationError` case. Static
+    /// + internal so the save path AND the test suite reach the real mapping
+    /// (no re-implementation). Exhaustive switch — no `default`, so a new
+    /// `ValidationError` case fails to compile until it's mapped here.
+    static func friendly(_ error: ItemValidator.ValidationError) -> String {
         switch error {
         case .emptyTitle: return "Title can't be empty."
         case .invalidTitleCharacters: return "Title can't contain / \\ :"
-        case .descriptionTooLong: return "Description over 1000 characters."
+        case .descriptionTooLong:
+            return "Description over \(ItemValidator.maxDescriptionLength) source/markdown characters."
         case .tierMismatch: return "Internal: tier reference invalid."
         case .unknownProperty(let id): return "Unknown property '\(id)' for this Item Type."
         case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
