@@ -10,7 +10,7 @@
 
 #### Session Summary
 
-> **Resume prompt (next session):** *"Two fix passes were in flight when we stopped — a `simplify` DRY pass (9 code cleanups incl. a `TierRelationCarrying` protocol) and a doc-fix pass (the `PageTypes` cross-kind error + `Items.md` hard-cap wording + others), both UNCOMMITTED in the working tree. Full-suite-verify the code edits (must stay 1153/1153 — they're behavior-preserving), commit code + docs, then close out: archive the shipped plan to `Planning/Superseded/`. Then push when I say."*
+> **Resume prompt (next session):** *"The Items-as-Markdown run is fully landed — both post-ship fix passes are committed and verified green: the doc re-verification pass (`8294cce`) and the `simplify` DRY pass (`6eb5b6a`, full suite 1153/1153, behavior-preserving incl. the `TierRelationCarrying` protocol). The shipped plan is archived to `Planning/Superseded/`. Nothing is in flight. Next: push `main` when I say, optionally re-mirror the `.claude` docs to The Nexus, then kick off v0.4.0 (Symbols / Settings / Trash / Wikilinks + file-watcher + FTS5)."*
 
 An **execution** session — the prior session was planning. It started with the finalized v5 `Items-as-Markdown-Plan.md` + a kickoff prompt to begin execution via `superpowers:subagent-driven-development`.
 
@@ -18,7 +18,7 @@ An **execution** session — the prior session was planning. It started with the
 - **A multi-agent cross-cutting final review** found 8 distinct findings; the headline must-fix was the **decline-skips-migration seam** (Task 10a placed the migration after the consent gate — fine WITH the dual-format net; Task 10b removing the net made it a hard gate, so a declined preview would hide legacy Items). All 8 fixed in **`4ce2836`** (Task 10c) — migration hoisted to run unconditionally on both launch entry points, twin-detection id-compares before trashing, `.unsorted` relocation feeds `forceRebuild`, stray-`.json` swept to `.unsorted`, rename validation scoped to title-only, reload uses `loadLenient` — plus the first integration test of the launch/decline path. Re-review: **ship-ready**.
 - **Task 11 docs** reconciled across 18 docs + **registry #14 registered** (Nathan-confirmed; History logged first) + `Planning/README.md` created (`efdf0c1`, `2c09659`). Committed Nathan's parallel-session `CLAUDE.md`/`Handoff.md` edits at his direction (`f1f22b3`).
 - **Nathan's voice / load-bearing inputs:** *"All agents MUST use opus"*; *"lets work with an 1000char cap for now"* (→ provisional cap, the reason he edited CLAUDE.md); *"give that to a subagent; don't bloat your context window with that"* (→ delegate file edits); *"don't defer anything that can be fixed now"*; *"docs should check for prose; not just grep."* He also strengthened the cornerstone himself (LOOK + ASK; earned-through-evidence).
-- **Where it left off:** clean HEAD `2c09659`. Working tree **dirty** with two uncommitted, not-yet-verified fix passes: the `simplify` code cleanups (`Filesystem`, `ItemFrontmatter`, `KindStamp`, `PageFrontmatter`, `ItemWindow`, `ItemFormatMigration`, `PropertyIDMigration`) and the doc-fix (`Architecture`, `Items`, `PageTypes`, `Properties`, `Prospects`, `PommoraPRD`). Immediate next action: full-suite-verify the code edits, then commit code + docs. (Unattributed `project.pbxproj` + untracked `Wiki-Link.md` / `graphify-out/` left untouched all run per quirk #10.)
+- **Where it left off:** HEAD `6eb5b6a`, tree clean of tracked changes. Both post-ship fix passes landed green: the doc re-verification (`8294cce`) and the `simplify` DRY pass (`6eb5b6a` — full suite **1153/1153**, behavior-preserving; the new `TierRelationCarrying` protocol verified across all five entities). The shipped plan is archived to `Planning/Superseded/` and its pointers reconciled across README / Framework / the seed review. Remaining: push `main` on Nathan's word + optional Nexus re-mirror, then v0.4.0. (Untracked `Wiki-Link.md` / `graphify-out/` left untouched all run per quirk #10.)
 
 #### Lessons Learned
 
@@ -30,9 +30,8 @@ An **execution** session — the prior session was planning. It started with the
 
 #### Next Session
 
-1. **Land the two in-flight fix passes.** Full-suite-verify the `simplify` code edits — must stay **1153/1153**, behavior-preserving (highest-risk: the `TierRelationCarrying` protocol across `Item`/`ItemFrontmatter`/`PageFrontmatter`/`AgendaTask`/`AgendaEvent`). If green, commit the code simplifications + commit the doc-fix; if red, triage the specific regression. First commit: `refactor(items): DRY/simplify cleanups (simplify pass)`.
-2. **Close out the run.** Archive the shipped plan `Planning/2026-06-01-Items-as-Markdown-Plan.md` → `Planning/Superseded/`, move its `Planning/README.md` entry Active→Superseded, fix any doc-map pointer that referenced its old path. Then **push to `main` when Nathan asks**; optionally re-run the docs mirror to The Nexus (the `.claude` docs changed substantially).
-3. **v0.4.0 roadmap** (when the above lands) — Symbols / Settings / Trash / Wikilinks + file-watcher + FTS5.
+1. **Push `main` when Nathan asks**, and optionally re-run the `.claude` docs mirror to The Nexus — the docs changed substantially this session (Framework, Handoff, README, the Items-as-Markdown doc set, registry #14). The Items-as-Markdown run is fully shipped + verified (HEAD `6eb5b6a`, 1153/1153) and the plan is archived to `Planning/Superseded/`; nothing is in flight.
+2. **v0.4.0 roadmap** — Symbols / Settings / Trash / Wikilinks + file-watcher + FTS5. (A parallel session was on Wikilinks — see the untouched `Planning/Pommora-Wikilink.md`.)
 
 #### Pending Focuses
 
@@ -60,7 +59,7 @@ Spec: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix L
 
 #### Document pointers
 
-- **Planning →** `Planning/2026-06-01-Items-as-Markdown-Plan.md` (the v5 plan — SHIPPED this session; to be archived to `Planning/Superseded/`) · `Planning/2026-06-01-Architecture-Skeptic-Review.md` (the seed review; rec #3 superseded) · `Planning/2026-05-31-vault-table-displayonly-interim.md`. Note: `Planning/Pommora-Wikilink.md` + `Features/Wiki-Link.md` are a parallel session's wikilink work — left untouched (quirk #10).
+- **Planning →** `Planning/Superseded/2026-06-01-Items-as-Markdown-Plan.md` (the v5 plan — SHIPPED + archived 2026-06-02) · `Planning/2026-06-01-Architecture-Skeptic-Review.md` (the seed review; rec #3 superseded) · `Planning/2026-05-31-vault-table-displayonly-interim.md`. Note: `Planning/Pommora-Wikilink.md` + `Features/Wiki-Link.md` are a parallel session's wikilink work — left untouched (quirk #10).
 - Roadmap → `Framework.md` · decisions + ship log → `History.md` (Items-as-Markdown logged 2026-06-02) · PRD → `PommoraPRD.md`
 - Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md` · CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md` (**#14 Items-are-Markdown registered**)
 - Branch quirks + hard rules → `CLAUDE.md`
