@@ -644,10 +644,10 @@ enum NexusAdopter {
     // MARK: - autoTagMissingSidecars (silent two-tier auto-tag)
 
     /// Silent two-level walk that writes missing per-kind sidecars so
-    /// Finder-built structure is first-class on the next launch. Runs
-    /// unconditionally from `NexusManager.runAdoptionIfNeeded` after the
-    /// legacy adoption `apply(_:)` pass — auto-tag runs whether legacy
-    /// adoption shows the preview or not.
+    /// Finder-built structure is first-class on the next launch. The launch
+    /// caller runs it UNCONDITIONALLY after `runAdoptionIfNeeded` (whether the
+    /// adoption preview was shown / confirmed / declined) and BEFORE the Item
+    /// format migration.
     ///
     /// **Idempotent + silent.** No prompts, no UI; failures logged to stderr
     /// and never abort. Skips dotfile-prefixed (`.nexus/`, `.obsidian/`,
@@ -668,11 +668,28 @@ enum NexusAdopter {
     /// root without a dotfile/underscore prefix is now presumed Pommora-tagged
     /// on first launch and silently classified. This is the cost of "build
     /// via Finder" — the user has chosen this Nexus as a Pommora root.
-    static func autoTagMissingSidecars(at nexusRoot: URL) {
+    ///
+    /// **Returns** whether this pass relocated ANY file to `.unsorted` (a
+    /// `Class`-disagreement, an abnormal-frontmatter file, or a stray Item-shaped
+    /// `.json` in a non-Item-Type folder). The launch caller ORs this into
+    /// `openIndex(forceRebuild:)`: a relocation moves a file by id, so a steady-
+    /// state launch (where the format migration is a no-op) would otherwise leave
+    /// a stale id-keyed index row → a phantom RelationChip + a brokenLinks miss
+    /// until the next launch's rebuild.
+    @discardableResult
+    static func autoTagMissingSidecars(at nexusRoot: URL) -> Bool {
         let now = Date()
+        var didRelocate = false
         // Depth 0: Nexus root children
         let topLevel = (try? Filesystem.childFolders(of: nexusRoot)) ?? []
         for folder in topLevel where !shouldSkipForAutoTag(folder) {
+            // Sweep stray Item-shaped `.json` content files out of a folder that
+            // is NOT a recognized Item Type BEFORE depth-0 tagging stamps it as a
+            // Page Type. Otherwise the stray would be orphaned: the stamp pass
+            // walks `.md` only, so a `.json` left in a Page-Type folder is never
+            // converted, indexed, or relocated. Route it to `.unsorted` instead.
+            didRelocate = sweepStrayJSONItems(in: folder, nexusRoot: nexusRoot) || didRelocate
+
             tagDepth0IfMissing(folder, now: now)
             // After depth-0 tagging, descend into this folder for depth-1
             // and depth-2 work (even if we wrote the sidecar just now, we
@@ -693,8 +710,71 @@ enum NexusAdopter {
             // (written above or pre-existing) and any orphan sidecar is gone, so
             // `recognizedSidecarsAt` sees a settled single-kind set when the
             // stamp pass reads it. Keep the stamp pass last.
-            stampClassPass(in: folder, nexusRoot: nexusRoot)
+            didRelocate = stampClassPass(in: folder, nexusRoot: nexusRoot) || didRelocate
         }
+        return didRelocate
+    }
+
+    // MARK: autoTag — stray Item-`.json` sweep (SHOULD-FIX 4)
+
+    /// Routes a loose, Item-shaped `.json` content file sitting in a folder that
+    /// is NOT a recognized Item Type (no `_itemtype.json`) to `.unsorted` — so a
+    /// Finder-built folder of `.json` Items isn't silently force-tagged as a Page
+    /// Type and orphaned (the stamp pass walks `.md` only). Conservative scope:
+    ///
+    /// - **Skipped folders:** any folder that already carries an `_itemtype.json`
+    ///   (a real Item Type — the format migration owns its `.json` members).
+    /// - **Skipped files:** sidecars (`_…`), and the multi-component-extension
+    ///   `.json` content files that belong to Agenda / Contexts
+    ///   (`*.task.json`, `*.event.json`, `*.project.json`, `*.space.json`,
+    ///   `_topic.json` — the last is already `_`-prefixed). Only a single-`.json`
+    ///   content file is a candidate.
+    /// - **Item-shape probe:** a candidate is relocated only when it decodes via
+    ///   the migration-only legacy-`.json` decoder (a real `id` + timestamps + the
+    ///   modeled shape). A foreign / non-Item `.json` stays put.
+    ///
+    /// Walks the whole subtree of a non-Item-Type top-level folder (`.unsorted` /
+    /// `.`/`_`-prefixed folders are already skipped by `descendantFiles`), so a
+    /// stray nested in a collection-like sub-folder is caught too. Item Types
+    /// carry their `.json` members through the format migration, not here. Returns
+    /// whether anything was relocated.
+    private static func sweepStrayJSONItems(in folder: URL, nexusRoot: URL) -> Bool {
+        // A folder with an `_itemtype.json` is a real Item Type — its `.json`
+        // members are the format migration's job, never relocated here.
+        let itemSidecar = folder.appendingPathComponent(
+            NexusPaths.itemTypeSidecarFilename, isDirectory: false)
+        guard !Filesystem.fileExists(at: itemSidecar) else { return false }
+
+        let candidates =
+            (try? Filesystem.descendantFiles(of: folder) { isStrayItemJSONCandidate($0) }) ?? []
+        var didRelocate = false
+        for file in candidates where (try? Item.decodeLegacyJSON(from: file)) != nil {
+            relocateToUnsorted(file, nexusRoot: nexusRoot)
+            didRelocate = true
+        }
+        return didRelocate
+    }
+
+    /// True for a single-`.json` content file that is neither a sidecar nor an
+    /// Agenda / Context entity (which use multi-component `.json` extensions).
+    /// `descendantFiles` already skips `_`/`.`-prefixed FOLDERS; this rejects the
+    /// `_`-prefixed sidecar FILES + the reserved double extensions, plus any
+    /// `.json` whose immediate folder is itself a nested Item Type (carries
+    /// `_itemtype.json` — its `.json` members belong to a Type, not a stray).
+    private static func isStrayItemJSONCandidate(_ url: URL) -> Bool {
+        guard url.pathExtension == "json" else { return false }
+        let name = url.lastPathComponent
+        if name.hasPrefix("_") || name.hasPrefix(".") { return false }
+        // Reject `*.task.json` / `*.event.json` / `*.project.json` /
+        // `*.space.json` — Agenda + Context entities, never Items.
+        let reservedDoubleExtensions = ["task", "event", "project", "space"]
+        let secondExtension = url.deletingPathExtension().pathExtension
+        if reservedDoubleExtensions.contains(secondExtension) { return false }
+        // A nested Item-Type sidecar in the file's own folder means these `.json`
+        // are intended Type members (not a stray) — leave them to their Type.
+        let nestedItemSidecar = url.deletingLastPathComponent()
+            .appendingPathComponent(NexusPaths.itemTypeSidecarFilename, isDirectory: false)
+        return !Filesystem.fileExists(at: nestedItemSidecar)
     }
 
     // MARK: autoTag — launch `Class`-stamp pass (Landmine 2)
@@ -726,30 +806,41 @@ enum NexusAdopter {
     /// One write/move max per file. Idempotent — a second launch re-reads
     /// stamped files, finds agreement, and makes no further change.
     /// **Silent** — failures logged to stderr (DEBUG) and never abort.
-    private static func stampClassPass(in folder: URL, nexusRoot: URL) {
+    ///
+    /// Returns whether ANY file was relocated to `.unsorted` (so the launch
+    /// caller can force a same-launch index rebuild — a relocated file's stale
+    /// id-keyed row must reconcile away this launch, not next).
+    @discardableResult
+    private static func stampClassPass(in folder: URL, nexusRoot: URL) -> Bool {
         // Folder kind from the authoritative sidecar. Only Page/Item Types
         // carry stampable content; everything else is a no-op.
-        guard let firstKind = recognizedSidecarsAt(folder).first else { return }
+        guard let firstKind = recognizedSidecarsAt(folder).first else { return false }
         let folderStamp: KindStamp
         switch firstKind {
         case .pageType: folderStamp = .page
         case .itemType: folderStamp = .item
         case .pageCollection, .itemCollection, .taskConfig, .eventConfig:
-            return
+            return false
         }
 
         let contentFiles =
             (try? Filesystem.descendantFiles(of: folder) { $0.pathExtension == "md" }) ?? []
+        var didRelocate = false
         for file in contentFiles {
-            stampOneFile(file, folderStamp: folderStamp, nexusRoot: nexusRoot)
+            didRelocate =
+                stampOneFile(file, folderStamp: folderStamp, nexusRoot: nexusRoot)
+                || didRelocate
         }
+        return didRelocate
     }
 
     /// Applies the per-file decision table to a single content file. One write
-    /// or one move at most; idempotent on agreement.
+    /// or one move at most; idempotent on agreement. Returns whether the file
+    /// was relocated to `.unsorted`.
+    @discardableResult
     private static func stampOneFile(
         _ file: URL, folderStamp: KindStamp, nexusRoot: URL
-    ) {
+    ) -> Bool {
         switch readClassStamp(at: file) {
         case .none:
             // `Class` absent → stamp the folder's kind, value-preserving.
@@ -757,7 +848,7 @@ enum NexusAdopter {
                 try AtomicYAMLMarkdown.setStampKey(at: file, value: folderStamp.rawValue)
             } catch AtomicYAMLMarkdownError.nonMappingFrontmatter {
                 // Frontmatter root is a bare sequence/scalar — never clobber it.
-                relocateToUnsorted(file, nexusRoot: nexusRoot)
+                return relocateToUnsorted(file, nexusRoot: nexusRoot)
             } catch {
                 #if DEBUG
                 FileHandle.standardError.write(
@@ -766,13 +857,14 @@ enum NexusAdopter {
                     ))
                 #endif
             }
+            return false
         case .some(let present):
             if present.matches(folderStamp) {
                 // Agrees — leave it. No write (idempotence).
-                return
+                return false
             }
             // Disagrees (or an unrecognized non-empty value) — homeless here.
-            relocateToUnsorted(file, nexusRoot: nexusRoot)
+            return relocateToUnsorted(file, nexusRoot: nexusRoot)
         }
     }
 
@@ -831,9 +923,12 @@ enum NexusAdopter {
     /// (it came from `descendantFiles(of:)` rooted at a folder under
     /// `nexusRoot`), so `sourceNotInNexus` shouldn't fire — but wrap it in its
     /// own `do/catch` so a relocation failure never aborts the launch pass.
-    private static func relocateToUnsorted(_ file: URL, nexusRoot: URL) {
+    /// Returns `true` only when the file was actually relocated.
+    @discardableResult
+    private static func relocateToUnsorted(_ file: URL, nexusRoot: URL) -> Bool {
         do {
             try Filesystem.moveToUnsorted(file, nexusRoot: nexusRoot)
+            return true
         } catch {
             #if DEBUG
             FileHandle.standardError.write(
@@ -841,6 +936,7 @@ enum NexusAdopter {
                     "stampClassPass moveToUnsorted failed at \(file.path): \(error)\n".utf8
                 ))
             #endif
+            return false
         }
     }
 

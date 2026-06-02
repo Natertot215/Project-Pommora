@@ -186,19 +186,27 @@ final class NexusManager {
         // `_schema.json` sidecars yet, and may carry legacy `_vault.json` /
         // `_collection.json` files that the adopter migrates). The scan is
         // idempotent: if every top-level folder is already adopted, the
-        // sheet doesn't appear. Returns whether the Item format migration
-        // converted anything — forces a same-launch index rebuild if so.
-        let migratedItems = await runAdoptionIfNeeded(at: url)
+        // sheet doesn't appear. Consent-gated work only — the format migration
+        // below is intentionally NOT inside this call (decision #8).
+        await runAdoptionIfNeeded(at: url)
 
         // F.1.j — silent three-level auto-tag pass. Runs unconditionally
         // after legacy adoption (whether the preview sheet was shown or
         // not, whether the user confirmed or declined). Writes missing
         // per-kind sidecars so Finder-built structure is first-class on
-        // the next IndexBuilder walk. Idempotent + silent.
-        NexusAdopter.autoTagMissingSidecars(at: url)
+        // the next IndexBuilder walk. Idempotent + silent. Returns whether it
+        // relocated any file to `.unsorted` (stray-json / Class-disagreement) —
+        // a relocation needs a same-launch rebuild to drop the stale id row.
+        let relocated = NexusAdopter.autoTagMissingSidecars(at: url)
+
+        // Item `.json` → `.md` format migration. UNCONDITIONAL (decision #8) +
+        // AFTER autoTag, so a stray `.json` already swept to `.unsorted` isn't
+        // re-handled. Forces a same-launch rebuild when it converted / cleaned /
+        // relocated anything.
+        let migratedItems = runFormatMigration(at: url)
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus, forceRebuild: migratedItems)
+        await openIndex(for: nexus, forceRebuild: migratedItems || relocated)
         currentNexus = nexus
     }
 
@@ -248,16 +256,24 @@ final class NexusManager {
         // Always offer adoption — covers both first-time init AND re-opens
         // of Nexuses that pre-date this feature. The scan is idempotent;
         // fully-adopted Nexuses produce an empty plan and skip the sheet.
-        // Returns whether the Item format migration converted anything —
-        // forces a same-launch index rebuild if so.
-        let migratedItems = await runAdoptionIfNeeded(at: url)
+        // Consent-gated work only — the format migration below is intentionally
+        // NOT inside this call (decision #8).
+        await runAdoptionIfNeeded(at: url)
 
         // F.1.j — silent three-level auto-tag pass. Runs unconditionally
         // after legacy adoption (whether the preview sheet was shown or
         // not, whether the user confirmed or declined). Writes missing
         // per-kind sidecars so Finder-built structure is first-class on
-        // the next IndexBuilder walk. Idempotent + silent.
-        NexusAdopter.autoTagMissingSidecars(at: url)
+        // the next IndexBuilder walk. Idempotent + silent. Returns whether it
+        // relocated any file to `.unsorted` (stray-json / Class-disagreement) —
+        // a relocation needs a same-launch rebuild to drop the stale id row.
+        let relocated = NexusAdopter.autoTagMissingSidecars(at: url)
+
+        // Item `.json` → `.md` format migration. UNCONDITIONAL (decision #8) +
+        // AFTER autoTag, so a stray `.json` already swept to `.unsorted` isn't
+        // re-handled. Forces a same-launch rebuild when it converted / cleaned /
+        // relocated anything.
+        let migratedItems = runFormatMigration(at: url)
 
         replaceAccessingURL(with: url)
         guard NexusBookmark.startAccessing(url) else {
@@ -282,7 +298,7 @@ final class NexusManager {
         }
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus, forceRebuild: migratedItems)
+        await openIndex(for: nexus, forceRebuild: migratedItems || relocated)
         currentNexus = nexus
     }
 
@@ -292,14 +308,18 @@ final class NexusManager {
     /// scan finds nothing, the function silently returns — the Nexus is
     /// already initialized; the sidebar will just be empty.
     ///
-    /// Returns `true` when the Item `.json` → `.md` format migration converted or
-    /// cleaned up anything, so the caller can FORCE an index rebuild: the index
-    /// reads `.md`-only now, so freshly-converted `.md` Items that were never
-    /// indexed (e.g. a `.json` Item dropped in via Finder after the last rebuild)
-    /// would otherwise be missing until the next launch's rebuild. Forcing the
-    /// rebuild here keeps them visible on the SAME launch.
-    @discardableResult
-    private func runAdoptionIfNeeded(at url: URL) async -> Bool {
+    /// **Consent-gated work only.** Legacy folder adoption + the lossy property-
+    /// ID migration sit behind the preview's confirm/decline. The Item `.json` →
+    /// `.md` format migration is NOT gated here — it is a load-bearing, lossless
+    /// (recoverable-to-`.trash`) normalization that the caller runs
+    /// UNCONDITIONALLY after this returns (see `runFormatMigration`). Gating it
+    /// would let a decline of an UNRELATED Page-side preview leave legacy `.json`
+    /// Items unconverted + unindexed + invisible for the session — locked
+    /// decision #8.
+    ///
+    /// Internal so the launch-path integration test can drive the consent gate
+    /// (confirm + decline) directly.
+    func runAdoptionIfNeeded(at url: URL) async {
         isIndexing = true
         defer { isIndexing = false }
 
@@ -308,7 +328,7 @@ final class NexusManager {
             plan = try NexusAdopter.scan(nexusRoot: url)
         } catch {
             pendingError = .enumerationFailed(error.localizedDescription)
-            return false
+            return
         }
 
         // v0.3.0 Phase C.5: scan property-ID migration alongside adoption so
@@ -331,7 +351,7 @@ final class NexusManager {
             // sidecars.
             isIndexing = false
             let confirmed = await presentAdoptionPreview(plan, migrationPlan: migrationPlan)
-            guard confirmed else { return false }
+            guard confirmed else { return }
 
             isIndexing = true
             // Adoption apply: best-effort + idempotent (decision #11) — never
@@ -359,29 +379,29 @@ final class NexusManager {
             // from the function top; the existing `defer` clears it.
             applyMigrationSurfacingFailures(migrationPlan)
         }
-        // else: nothing to adopt + nothing to migrate — fall through to the
-        // format migration below (handled by defer on return).
-
-        // Item `.json` → `.md` format migration. Runs HEADLESSLY after the
-        // property-ID pass (so any newly-written `.md` already carries ID-keyed
-        // properties): it converts recoverable copies (old `.json` → `.trash/`),
-        // never a lossy hard delete, so no consent gate is warranted. Idempotent
-        // + interrupt-safe; a fully-migrated Nexus is a no-op. Same XCTest-guard
-        // coverage as the property-ID migration (this whole path is downstream
-        // of `loadOnLaunch`'s guard). The returned flag forces a same-launch index
-        // rebuild when anything converted (see this method's doc).
-        return applyFormatMigrationSurfacingFailures(at: url)
+        // else: nothing to adopt + nothing to migrate. The Item format migration
+        // is NOT run here — the caller runs it UNCONDITIONALLY after this returns
+        // (regardless of confirm/decline), then after `autoTagMissingSidecars`.
     }
 
     /// Applies the Item `.json` → `.md` format migration and surfaces any
     /// per-item failures via `pendingError`. Mirrors
     /// `applyMigrationSurfacingFailures` so both headless migrations report
     /// failures the same way. Returns whether the migration did any work
-    /// (converted or cleaned up) — the caller forces an index rebuild when so,
-    /// because the index is `.md`-only and a freshly-converted Item that was never
-    /// indexed would otherwise stay invisible until the next launch.
+    /// (converted / cleaned-up / collision-relocated) — the caller ORs it into
+    /// `openIndex(forceRebuild:)`, because the index is `.md`-only and a
+    /// freshly-converted (or relocated) Item would otherwise stay un-reconciled
+    /// in the index until the next launch.
+    ///
+    /// **Runs UNCONDITIONALLY** (locked decision #8): the migration is load-
+    /// bearing now that Item reads are `.md`-only — a declined adoption preview
+    /// must NOT skip it, or legacy `.json` Items stay unconverted + invisible.
+    /// Headless + idempotent + interrupt-safe; a fully-migrated Nexus is a no-op.
+    /// Same XCTest-guard coverage as the property-ID migration (the whole launch
+    /// path is downstream of `loadOnLaunch`'s guard). Internal so the launch-path
+    /// integration test can drive it directly.
     @discardableResult
-    private func applyFormatMigrationSurfacingFailures(at url: URL) -> Bool {
+    func runFormatMigration(at url: URL) -> Bool {
         let report = ItemFormatMigration.runIfNeeded(at: url)
         if !report.failedItems.isEmpty {
             let preview = report.failedItems.prefix(3)

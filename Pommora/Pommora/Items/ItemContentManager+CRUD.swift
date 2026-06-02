@@ -126,7 +126,12 @@ extension ItemContentManager {
             var updated = item
             updated.title = trimmed
             updated.modifiedAt = Date()
-            try validate(updated, type: itemType)
+            // TITLE-only validation (via `enforceTitleUniqueness` above): a rename
+            // changes only the filename, so it must NOT re-run the whole-item
+            // `validate` (body-cap / schema / tier). A drifted Item carried verbatim
+            // by migration / `loadLenient` (>1000-char body, out-of-schema property)
+            // would otherwise throw on data the rename never touched. create/update
+            // keep whole-item validation — they set the data.
             try Filesystem.renameFile(from: oldURL, to: newURL)
             do {
                 try updated.save(to: newURL)
@@ -263,7 +268,9 @@ extension ItemContentManager {
             var updated = item
             updated.title = trimmed
             updated.modifiedAt = Date()
-            try validate(updated, type: itemType)
+            // TITLE-only validation (see the in-collection `renameItem`): a rename
+            // changes only the filename, so it must NOT re-run whole-item `validate`
+            // on pre-existing drift it didn't introduce.
             try Filesystem.renameFile(from: oldURL, to: newURL)
             do {
                 try updated.save(to: newURL)

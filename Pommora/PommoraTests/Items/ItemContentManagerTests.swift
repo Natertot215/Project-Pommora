@@ -75,6 +75,38 @@ struct ItemContentManagerTests {
         #expect(manager.items(in: coll).first?.title == "Buy bread")
     }
 
+    @Test("renameItem succeeds on a drifted Item (>1000-char body) — title-only validation")
+    func renameDriftedItemSucceeds() async throws {
+        let (nexus, itemType, coll, manager) = try await setupCollection()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Create a normal Item, then simulate migration / loadLenient surfacing a
+        // legacy Item whose body exceeds the 1000-char cap (preserved verbatim).
+        let created = try await manager.createItem(name: "Recipe", in: coll, type: itemType)
+        let drifted = Item(
+            id: created.id, title: "Recipe", icon: created.icon,
+            description: String(repeating: "x", count: ItemValidator.maxDescriptionLength + 500),
+            tier1: [], tier2: [], tier3: [], properties: [:],
+            createdAt: created.createdAt, modifiedAt: created.modifiedAt)
+        // Persist the drift to disk so the rename's preserving write round-trips it.
+        let oldURL = NexusPaths.itemFileURL(forTitle: "Recipe", in: coll.folderURL)
+        try drifted.save(to: oldURL)
+
+        // A pure TITLE rename must NOT throw on the untouched over-cap body —
+        // whole-item validation (which would throw .descriptionTooLong) is scoped
+        // out of rename. Before SHOULD-FIX 5 this threw.
+        try await manager.renameItem(drifted, to: "Recipe (renamed)", in: coll, type: itemType)
+
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.itemFileURL(forTitle: "Recipe", in: coll.folderURL).path))
+        let newURL = NexusPaths.itemFileURL(forTitle: "Recipe (renamed)", in: coll.folderURL)
+        #expect(FileManager.default.fileExists(atPath: newURL.path))
+        // The over-cap body survived the rename verbatim (never truncated / rejected).
+        let reloaded = try Item.load(from: newURL)
+        #expect(reloaded.description.count == ItemValidator.maxDescriptionLength + 500)
+    }
+
     @Test("deleteItem removes file (in ItemCollection)")
     func deleteItem() async throws {
         let (nexus, itemType, coll, manager) = try await setupCollection()

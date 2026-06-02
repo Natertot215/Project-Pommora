@@ -206,6 +206,64 @@ struct ClassStampPassTests {
         #expect(try classValue(at: relocated) == "page")
     }
 
+    // MARK: - 3b. Stray Item-shaped .json in a non-Item-Type folder → .unsorted
+
+    /// A Finder-built folder holds an Item-shaped `.json` but NO `_itemtype.json`
+    /// sidecar. Without the sweep, depth-0 tagging force-classifies the folder as a
+    /// Page Type and the stamp pass (walks `.md` only) leaves the `.json` orphaned —
+    /// never converted, indexed, or relocated. The sweep routes it to `.unsorted`
+    /// (tracked + recoverable) BEFORE the folder is page-tagged.
+    @Test("a stray Item-shaped .json in a sidecar-less folder is routed to .unsorted")
+    func strayItemJSONRoutedToUnsorted() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // No `_itemtype.json` — a sidecar-less Finder folder.
+        let folder = nexus.rootURL.appendingPathComponent("Inbox", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+
+        // A real Item-shaped `.json` (id + timestamps — the legacy decode shape).
+        let strayJSON = folder.appendingPathComponent("Stray.json")
+        try FixtureFiles.writeJSON(
+            #"{"id":"01HSTRAYITEM","description":"a loose item","tier1":[],"tier2":[],"tier3":[],"properties":{},"created_at":"2026-05-01T00:00:00Z","modified_at":"2026-05-01T00:00:00Z"}"#,
+            to: strayJSON
+        )
+
+        let didRelocate = NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+        #expect(didRelocate)
+
+        // The stray `.json` is gone from its source path...
+        #expect(!exists(strayJSON))
+        // ...and recoverable in `.unsorted`, relative path preserved.
+        let relocated = nexus.rootURL
+            .appendingPathComponent(".unsorted", isDirectory: true)
+            .appendingPathComponent("Inbox", isDirectory: true)
+            .appendingPathComponent("Stray.json")
+        #expect(exists(relocated))
+    }
+
+    /// The sweep is conservative: a NON-Item `.json` (no `id` / wrong shape) in a
+    /// sidecar-less folder is left in place — only Item-shaped content moves.
+    @Test("a non-Item .json in a sidecar-less folder is left untouched")
+    func nonItemJSONLeftInPlace() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let folder = nexus.rootURL.appendingPathComponent("Config", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let configJSON = folder.appendingPathComponent("settings.json")
+        try FixtureFiles.writeJSON(#"{"theme":"dark","zoom":2}"#, to: configJSON)
+
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+
+        // Not Item-shaped → not swept; still at its source path.
+        #expect(exists(configJSON))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: nexus.rootURL.appendingPathComponent(".unsorted").path
+            ))
+    }
+
     // MARK: - 4. Metrics case — Type sidecar but no .md → no-op
 
     @Test("a Type folder with no .md files is a no-op (Metrics case)")

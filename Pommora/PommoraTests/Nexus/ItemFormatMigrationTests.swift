@@ -103,6 +103,15 @@ import Testing
         return out
     }
 
+    /// Everything sitting under the nexus `.unsorted/` inbox.
+    private static func unsortedContents(in nexusRoot: URL) -> [URL] {
+        let unsorted = nexusRoot.appendingPathComponent(".unsorted", isDirectory: true)
+        let e = FileManager.default.enumerator(at: unsorted, includingPropertiesForKeys: nil)
+        var out: [URL] = []
+        while let url = e?.nextObject() as? URL { out.append(url) }
+        return out
+    }
+
     // MARK: - Core conversion
 
     @Test func convertsJSONItemToMarkdownTwinAndTrashesJSON() throws {
@@ -269,6 +278,51 @@ import Testing
         // cleaned up (trashed).
         #expect(try Data(contentsOf: alreadyMD) == alreadyBytesBefore)
         #expect(!Filesystem.fileExists(at: leftoverJSON))
+    }
+
+    // MARK: - Twin-collision: foreign same-titled `.md` (DIFFERENT id)
+
+    /// A FOREIGN `.md` (different id) sits at the `.json`'s twin path. The `.json`
+    /// is a real, un-migrated Item — NOT a leftover. Trashing it (the old id-blind
+    /// path) would silently lose it, and the foreign `.md` would become the sole
+    /// read. Instead: leave the foreign `.md` untouched + route the loser `.json`
+    /// to `.unsorted` (tracked + recoverable). Distinct from `resumesPartialRun…`
+    /// which shares the SAME id (genuine leftover → trash).
+    @Test func foreignSameTitledMarkdownRoutesJSONToUnsortedNotTrash() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let folder = try Self.makeItemType(in: nexus, title: "Recipes")
+
+        // A foreign `.md` owns the "Recipe" title with a DIFFERENT id than the
+        // real legacy `.json` Item sharing that title.
+        let foreignMD = try Self.writeMarkdownItem(
+            title: "Recipe", in: folder, id: "01HFOREIGN",
+            description: "a foreign markdown body that must NOT be overwritten")
+        let foreignBytesBefore = try Data(contentsOf: foreignMD)
+
+        let realJSON = try Self.writeJSONItem(
+            title: "Recipe", in: folder, id: "01HREALJSON",
+            description: "the real legacy json body that must survive")
+
+        let report = ItemFormatMigration.runIfNeeded(at: nexus)
+        #expect(report.failedItems.isEmpty)
+        // No conversion (twin path occupied) + no leftover cleanup (ids differ);
+        // exactly one collision relocation.
+        #expect(report.itemsConverted == 0)
+        #expect(report.leftoversCleaned == 0)
+        #expect(report.collisionsRelocated == 1)
+        #expect(report.didAnyWork)
+
+        // The foreign `.md` is byte-untouched (never converted-over).
+        #expect(try Data(contentsOf: foreignMD) == foreignBytesBefore)
+
+        // The real `.json` is GONE from its source path — but NOT trashed:
+        // it's recoverable in `.unsorted`, not hard-lost.
+        #expect(!Filesystem.fileExists(at: realJSON))
+        #expect(Self.trashContents(in: nexus).filter { $0.pathExtension == "json" }.isEmpty)
+        let unsortedJSON = Self.unsortedContents(in: nexus).filter { $0.pathExtension == "json" }
+        #expect(unsortedJSON.count == 1)
     }
 
     // MARK: - Failure isolation

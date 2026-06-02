@@ -2,8 +2,9 @@ import Foundation
 
 /// One-shot migration that converts every legacy `.json` Item file in a Nexus
 /// to the canonical `.md` (YAML-frontmatter + Markdown body) format. Auto-runs
-/// once at launch via the same hook as `PropertyIDMigration`
-/// (`NexusManager.runAdoptionIfNeeded`, behind the XCTest guard).
+/// UNCONDITIONALLY once at launch via `NexusManager.runFormatMigration` (after
+/// `runAdoptionIfNeeded` + `autoTagMissingSidecars`, downstream of the XCTest
+/// guard) — NOT gated by the adoption preview's confirm/decline (decision #8).
 ///
 /// Modeled directly on `PropertyIDMigration`:
 ///   - `scan(at:) -> Plan` — pure: walks the nexus, finds `.json` Item files
@@ -18,10 +19,17 @@ import Foundation
 ///     used by the launch hook + tests.
 ///
 /// **Per-item action (`.json` → `.md`):**
-/// 1. If a `.md` twin (same title in the same folder) already exists, the
-///    `.json` is treated as a leftover from a partial/interrupted run — its
-///    content already lives in the `.md`, so the `.json` is trashed without a
-///    rewrite (cleanup), never double-written.
+/// 1. If a `.md` file at the twin path (same title, same folder) already
+///    exists, it is lenient-decoded and its id compared to the `.json`'s id.
+///    - **id MATCH** → the `.md` is a genuine already-migrated twin (a leftover
+///      from a partial/interrupted run): the `.json`'s content already lives in
+///      the `.md`, so the `.json` is trashed without a rewrite (cleanup), never
+///      double-written.
+///    - **id MISMATCH** (a *foreign* same-titled `.md` sits beside a real legacy
+///      `.json`) → the `.json` is NOT a leftover; trashing it would silently
+///      drop a real Item. Route the un-migrated `.json` to the hidden
+///      `.unsorted` inbox (tracked + recoverable) rather than convert-over the
+///      foreign `.md` or hard-lose the `.json`.
 /// 2. Otherwise `Item.decodeLegacyJSON(from: jsonURL)` decodes the legacy Item
 ///    and `AtomicYAMLMarkdown.encode(frontmatter:body:)` builds a `.md`
 ///    payload from the modeled fields + body. Legacy `.json` Items are
@@ -39,15 +47,16 @@ import Foundation
 ///
 /// **Interrupt-safe.** The only window where state is inconsistent is between
 /// the `.md` commit and the `.json` trash. A crash there leaves a `.md` + its
-/// orphan `.json` side by side. The Nexus reads from the `.md` (the only Item
-/// read path); the orphan `.json` is invisible to reads, and the next migration
-/// run sees the `.md` twin already present and trashes the leftover `.json` as
-/// cleanup.
+/// orphan `.json` side by side, sharing an id. The Nexus reads from the `.md`
+/// (the only Item read path); the orphan `.json` is invisible to reads, and the
+/// next migration run sees a SAME-ID `.md` at the twin path and trashes the
+/// leftover `.json` as cleanup. A foreign same-titled `.md` (DIFFERENT id) is
+/// never mistaken for this leftover — the loser `.json` routes to `.unsorted`.
 ///
 /// **`.md`-only read path.** Since the dual-format Item code was retired, the
-/// legacy `.json` shape is read ONLY here, through `Item.decodeLegacyJSON` —
-/// the general `Item.load` / `loadLenient` / the read enumerators are all
-/// `.md`-only. This migration runs at launch BEFORE the index is populated, so
+/// legacy `.json` shape is read ONLY here, through `Item.decodeLegacyJSON` (and
+/// the twin-collision id probe) — the general `Item.load` / `loadLenient` / the
+/// read enumerators are all `.md`-only. This migration runs at launch BEFORE the index is populated, so
 /// converted `.md` Items are indexed on the same launch (see
 /// `NexusManager.openIndex(for:forceRebuild:)`).
 enum ItemFormatMigration {
@@ -60,9 +69,6 @@ enum ItemFormatMigration {
         var jsonURL: URL
         /// The canonical `.md` twin URL (same title, same folder).
         var markdownURL: URL
-        /// `true` when a `.md` twin already exists — the `.json` is a leftover
-        /// from a partial run and is trashed (cleanup) rather than re-converted.
-        var markdownTwinAlreadyExists: Bool
     }
 
     struct Plan: Sendable, Equatable {
@@ -87,16 +93,23 @@ enum ItemFormatMigration {
         var itemTypesScanned: Int
         /// `.json` files that were read + written out as a fresh `.md` twin.
         var itemsConverted: Int
-        /// Leftover `.json` files (a `.md` twin already present) trashed as
-        /// cleanup of a partial run.
+        /// Leftover `.json` files (a same-id `.md` twin already present) trashed
+        /// as cleanup of a partial run.
         var leftoversCleaned: Int
+        /// Un-migrated `.json` files routed to `.unsorted` because a *foreign*
+        /// same-titled `.md` (different id) blocked the twin path — converting
+        /// over it or trashing the `.json` would silently lose a real Item.
+        var collisionsRelocated: Int
         var failedItems: [FailedItem]
 
-        var didAnyWork: Bool { itemsConverted > 0 || leftoversCleaned > 0 }
+        var didAnyWork: Bool {
+            itemsConverted > 0 || leftoversCleaned > 0 || collisionsRelocated > 0
+        }
         var noOp: Bool { !didAnyWork && failedItems.isEmpty }
 
         static let empty = Report(
-            itemTypesScanned: 0, itemsConverted: 0, leftoversCleaned: 0, failedItems: [])
+            itemTypesScanned: 0, itemsConverted: 0, leftoversCleaned: 0,
+            collisionsRelocated: 0, failedItems: [])
     }
 
     struct FailedItem: Sendable, Equatable {
@@ -121,12 +134,8 @@ enum ItemFormatMigration {
                 let title = jsonURL.deletingPathExtension().lastPathComponent
                 let markdownURL = NexusPaths.itemFileURL(
                     forTitle: title, in: jsonURL.deletingLastPathComponent())
-                let twinExists = Filesystem.fileExists(at: markdownURL)
                 conversions.append(
-                    ItemConversion(
-                        jsonURL: jsonURL,
-                        markdownURL: markdownURL,
-                        markdownTwinAlreadyExists: twinExists))
+                    ItemConversion(jsonURL: jsonURL, markdownURL: markdownURL))
             }
         }
 
@@ -162,12 +171,13 @@ enum ItemFormatMigration {
     private static func applyConversion(
         _ conversion: ItemConversion, nexus: Nexus, into report: inout Report
     ) {
-        // Re-check the `.md` twin at apply time: scan may have run earlier and a
+        // Re-check the twin path at apply time: scan may have run earlier and a
         // concurrent run / earlier conversion in this batch could have created
-        // it. A present twin means the `.json` is a leftover → trash it
-        // (cleanup), never re-convert / double-write.
+        // it. A file at the twin path is NOT automatically a leftover — it could
+        // be a foreign same-titled `.md` owned by a different Item. Compare ids
+        // before deciding (an id-blind trash would silently drop a real `.json`).
         if Filesystem.fileExists(at: conversion.markdownURL) {
-            trashLeftover(conversion.jsonURL, nexus: nexus, into: &report)
+            resolveTwinCollision(conversion, nexus: nexus, into: &report)
             return
         }
 
@@ -206,6 +216,29 @@ enum ItemFormatMigration {
         report.itemsConverted += 1
     }
 
+    /// A file occupies the `.json`'s twin path. Decide between two outcomes by
+    /// comparing ids (NOT by mere path existence):
+    ///   • id MATCH → genuine already-migrated twin → trash the `.json` (cleanup).
+    ///   • id MISMATCH (or the existing `.md` is undecodable / id-less) → a
+    ///     foreign file holds the path; the `.json` is still un-migrated. Trashing
+    ///     it would lose a real Item, so route it to `.unsorted` (tracked +
+    ///     recoverable) instead.
+    private static func resolveTwinCollision(
+        _ conversion: ItemConversion, nexus: Nexus, into report: inout Report
+    ) {
+        // Both ids come from the same decode surfaces the read path uses:
+        // `loadLenient` for the `.md` twin (tolerant; synthesizes an id only for
+        // a truly id-less file), `decodeLegacyJSON` for the `.json`.
+        let twinID = (try? Item.loadLenient(from: conversion.markdownURL))?.id
+        let jsonID = (try? Item.decodeLegacyJSON(from: conversion.jsonURL))?.id
+
+        if let twinID, let jsonID, twinID == jsonID {
+            trashLeftover(conversion.jsonURL, nexus: nexus, into: &report)
+        } else {
+            relocateCollision(conversion.jsonURL, nexus: nexus, into: &report)
+        }
+    }
+
     private static func trashLeftover(
         _ jsonURL: URL, nexus: Nexus, into report: inout Report
     ) {
@@ -217,6 +250,23 @@ enum ItemFormatMigration {
                 FailedItem(
                     itemURL: jsonURL,
                     message: "leftover json trash failed: \(error)"))
+        }
+    }
+
+    /// Routes an un-migrated `.json` whose twin path is occupied by a foreign
+    /// (different-id) `.md` to the hidden `.unsorted` inbox — tracked, recoverable,
+    /// and never converted-over the foreign file.
+    private static func relocateCollision(
+        _ jsonURL: URL, nexus: Nexus, into report: inout Report
+    ) {
+        do {
+            try Filesystem.moveToUnsorted(jsonURL, nexusRoot: nexus.rootURL)
+            report.collisionsRelocated += 1
+        } catch {
+            report.failedItems.append(
+                FailedItem(
+                    itemURL: jsonURL,
+                    message: "twin-collision json relocate to .unsorted failed: \(error)"))
         }
     }
 
