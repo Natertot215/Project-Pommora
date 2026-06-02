@@ -10,7 +10,7 @@ enum ItemValidator {
         case propertyTypeMismatch(id: String)
     }
 
-    static let maxDescriptionLength = 250
+    static let maxDescriptionLength = 1000
 
     static func validate(
         title: String,

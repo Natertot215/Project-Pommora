@@ -214,10 +214,10 @@ struct ItemWindow: View {
             HStack {
                 Text("Description").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(draftDescription.count) / 250")
+                Text("\(draftDescription.count) / 1000")
                     .font(.caption)
                     .foregroundStyle(
-                        draftDescription.count > 250
+                        draftDescription.count > 1000
                             ? AnyShapeStyle(Color.red) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
             }
             TextEditor(text: $draftDescription)
@@ -479,7 +479,7 @@ struct ItemWindow: View {
         switch error {
         case .emptyTitle: return "Title can't be empty."
         case .invalidTitleCharacters: return "Title can't contain / \\ :"
-        case .descriptionTooLong: return "Description over 250 characters."
+        case .descriptionTooLong: return "Description over 1000 characters."
         case .tierMismatch: return "Internal: tier reference invalid."
         case .unknownProperty(let id): return "Unknown property '\(id)' for this Item Type."
         case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
