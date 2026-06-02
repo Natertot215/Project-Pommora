@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderItems
 
-/// Manages Items (`.md`; legacy `.json` during the transition) inside an Item
+/// Manages Items (`.md`) inside an Item
 /// Type. The spec allows Items to live
 /// either directly in an Item Type's root folder or inside an ItemCollection
 /// sub-folder — both are first-class. ItemCollection-scoped state and
@@ -72,20 +72,18 @@ final class ItemContentManager {
 
     // MARK: - Load (ItemCollection-scoped)
 
-    /// Loads every Item (`.md`, plus legacy `.json` during the transition) inside
+    /// Loads every Item (`.md`) inside
     /// `collection.folderURL`, descending recursively through sub-folders.
     /// Sub-folders deeper than the locked 2-level Type/ItemCollection model aren't
     /// themselves ItemCollections — their files roll up into this ItemCollection
     /// (Obsidian-parity for adopted folder structures).
     func loadAll(for collection: ItemCollection) async {
         do {
-            // Dual-format during the `.json` → `.md` transition so legacy `.json`
-            // Items stay visible alongside new `.md` ones.
             let itemFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
                 Self.isItemFile(url)
             }
             let items = OrderResolver.resolve(
-                Item.dedupedPreferringMarkdown(
+                Item.dedupedByID(
                     itemFiles, make: { try? Item.loadLenient(from: $0) }, key: \.id),
                 persistedOrder: collection.itemOrder,
                 titleKeyPath: \Item.title
@@ -101,7 +99,7 @@ final class ItemContentManager {
 
     // MARK: - Load (Item-Type-root)
 
-    /// Scans the Item Type root for Items (`.md`, plus legacy `.json`), recursing
+    /// Scans the Item Type root for Items (`.md`), recursing
     /// into every sub-folder EXCEPT those that are themselves ItemCollections —
     /// those roll up under `loadAll(for: collection)` instead.
     func loadAll(for itemType: ItemType) async {
@@ -123,7 +121,7 @@ final class ItemContentManager {
                 Self.isItemFile(url)
             }
             let items = OrderResolver.resolve(
-                Item.dedupedPreferringMarkdown(
+                Item.dedupedByID(
                     itemFiles, make: { try? Item.loadLenient(from: $0) }, key: \.id),
                 persistedOrder: itemType.itemOrder,
                 titleKeyPath: \Item.title
@@ -178,12 +176,11 @@ final class ItemContentManager {
         }
     }
 
-    // MARK: - Transition-period load helpers (`.json` → `.md`)
+    // MARK: - Load helpers
 
-    /// True for a loadable Item file: `.md` (canonical) or legacy `.json`, and not
-    /// a sidecar (`_…`). Single predicate so both `loadAll` paths agree.
+    /// True for a loadable Item file: a `.md` that isn't a sidecar (`_…`).
+    /// Single predicate so both `loadAll` paths agree.
     private static func isItemFile(_ url: URL) -> Bool {
-        (url.pathExtension == "md" || url.pathExtension == "json")
-            && !url.lastPathComponent.hasPrefix("_")
+        url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
     }
 }

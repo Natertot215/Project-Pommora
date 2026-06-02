@@ -237,10 +237,11 @@ import Testing
         let stageID = it.properties.first!.id
         #expect(stageID.hasPrefix("prop_"))
 
-        // The Item is still a `.json` file (② is NOT converted until Task 10) and
-        // its body survives the rekey.
+        // The Item is still a `.json` file (PropertyIDMigration rekeys in place;
+        // ItemFormatMigration converts it) and its body survives the rekey. Read
+        // via the migration-only decoder — the general `Item.load` is `.md`-only.
         #expect(FileManager.default.fileExists(atPath: itemURL.path))
-        let item = try Item.load(from: itemURL)
+        let item = try Item.decodeLegacyJSON(from: itemURL)
         #expect(item.properties[stageID] == .select("triaged"))
         #expect(item.properties["Stage"] == nil)
         #expect(item.description == "legacy item body")

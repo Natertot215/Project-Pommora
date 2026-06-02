@@ -3,10 +3,10 @@ import Testing
 
 @testable import Pommora
 
-/// Item file I/O after the `.json` → `.md` conversion (Shape A). Covers the
-/// `.md` round-trip (body == description, `Class: item`), the `ItemFrontmatter`
-/// serialization shape, foreign-key preservation, and the legacy `.json`
-/// transition load path.
+/// Item file I/O — Items are `.md`-only (Shape A). Covers the `.md` round-trip
+/// (body == description, `Class: item`), the `ItemFrontmatter` serialization
+/// shape, foreign-key preservation, and the migration-only legacy `.json`
+/// decode (`decodeLegacyJSON`, used solely by `ItemFormatMigration`).
 @Suite("ItemFile")
 struct ItemFileTests {
 
@@ -150,10 +150,10 @@ struct ItemFileTests {
         #expect(body == "edited body")
     }
 
-    // MARK: - Legacy .json transition load
+    // MARK: - Migration-only legacy .json decode
 
-    @Test("a legacy .json Item loads via the AtomicJSON path")
-    func legacyJSONLoads() throws {
+    @Test("a legacy .json Item decodes via decodeLegacyJSON (migration-only path)")
+    func legacyJSONDecodes() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let url = nexus.rootURL.appendingPathComponent("Legacy.json")
@@ -169,42 +169,34 @@ struct ItemFileTests {
         )
         try AtomicJSON.write(original, to: url)
 
-        let loaded = try Item.load(from: url)
+        // The migration-only decoder reads it; title derives from the filename.
+        let loaded = try Item.decodeLegacyJSON(from: url)
         #expect(loaded.id == "01HLEGACY")
         #expect(loaded.title == "Legacy")  // filename stem
         #expect(loaded.description == "legacy description")
         #expect(loaded.tier1 == ["01HSPACE"])
         #expect(loaded.properties.count == 1)
-
-        // loadLenient on a `.json` falls back to the strict decode.
-        let lenient = try Item.loadLenient(from: url)
-        #expect(lenient.id == "01HLEGACY")
-        #expect(lenient.description == "legacy description")
     }
 
-    @Test("Item.save to a legacy .json URL writes JSON in place (no envelope)")
-    func saveToJSONStaysJSON() throws {
+    @Test("the general .md read path does NOT decode a legacy .json Item")
+    func generalLoadRejectsJSON() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("StillJSON.json")
+        let url = nexus.rootURL.appendingPathComponent("Legacy.json")
 
         let original = Item(
-            id: "01H", title: "StillJSON", icon: nil, description: "body",
+            id: "01HLEGACY", title: "Legacy", icon: nil, description: "x",
             tier1: [], tier2: [], tier3: [], properties: [:],
             createdAt: Date(), modifiedAt: Date()
         )
         try AtomicJSON.write(original, to: url)
 
-        var item = try Item.load(from: url)
-        item.description = "edited"
-        try item.save(to: url)
-
-        let raw = try String(contentsOf: url, encoding: .utf8)
-        // JSON, not a YAML envelope.
-        #expect(!raw.hasPrefix("---"))
-        #expect(raw.contains("\"description\""))
-        let reloaded = try Item.load(from: url)
-        #expect(reloaded.description == "edited")
+        // `Item.load` is `.md`-only: a JSON payload cannot decode through the
+        // YAML-frontmatter envelope, so the general read path throws rather than
+        // silently surfacing a `.json` Item.
+        #expect(throws: (any Error).self) {
+            _ = try Item.load(from: url)
+        }
     }
 
     // MARK: - Timestamp backfill

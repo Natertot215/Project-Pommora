@@ -73,26 +73,6 @@ extension ItemContentManager {
         try Filesystem.guardNoFile(at: url, else: ItemCRUDError.duplicateTitle)
     }
 
-    /// Resolves the ACTUAL on-disk file for an Item of `title` in `folder` during
-    /// the `.json` → `.md` transition. Returns the `.md` file if it exists, else
-    /// the legacy `.json` twin if it exists, else the (non-existent) `.md` URL —
-    /// the canonical path a fresh write would use. Update / delete / rename route
-    /// through this so they operate on the real file: they never write a new `.md`
-    /// beside an un-deleted `.json`, trash a nonexistent `.md`, or rename a
-    /// nonexistent `.md`. Task 10 retires the `.json` branch.
-    ///
-    /// Assumes id-unique-per-title within `folder`: a `.md`+`.json` pair sharing a
-    /// title but holding *different* ids would always resolve to the `.md`, hiding
-    /// the `.json`. Internal CRUD guards (title-uniqueness + no-overwrite) prevent
-    /// this arising; only external Finder manipulation could.
-    fileprivate func existingItemURL(forTitle title: String, in folder: URL) -> URL {
-        let mdURL = NexusPaths.itemFileURL(forTitle: title, in: folder)
-        if Filesystem.fileExists(at: mdURL) { return mdURL }
-        let jsonURL = folder.appendingPathComponent("\(title).json", isDirectory: false)
-        if Filesystem.fileExists(at: jsonURL) { return jsonURL }
-        return mdURL
-    }
-
     // MARK: - Item CRUD (ItemCollection-scoped)
 
     @discardableResult
@@ -141,12 +121,8 @@ extension ItemContentManager {
             let existing = itemsByCollection[collection.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing, excluding: item)
 
-            // Resolve the real on-disk file (legacy `.json` or `.md`) and keep its
-            // extension across the rename — a not-yet-migrated `.json` Item renames
-            // `.json` → `.json` and saves back as `.json`. Migration is Task 10.
-            let oldURL = existingItemURL(forTitle: item.title, in: collection.folderURL)
+            let oldURL = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
             let newURL = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
-                .deletingPathExtension().appendingPathExtension(oldURL.pathExtension)
             var updated = item
             updated.title = trimmed
             updated.modifiedAt = Date()
@@ -196,9 +172,7 @@ extension ItemContentManager {
             var updated = item
             updated.modifiedAt = Date()
             try validate(updated, type: itemType)
-            // Write to the real on-disk file (legacy `.json` updated in place, else
-            // canonical `.md`) — never orphan a new `.md` beside an un-migrated `.json`.
-            let url = existingItemURL(forTitle: trimmed, in: collection.folderURL)
+            let url = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
             try updated.save(to: url)
 
             if let updater = indexUpdater {
@@ -218,8 +192,7 @@ extension ItemContentManager {
 
     func deleteItem(_ item: Item, in collection: ItemCollection) async throws {
         do {
-            // Trash the real on-disk file (legacy `.json` or canonical `.md`).
-            let url = existingItemURL(forTitle: item.title, in: collection.folderURL)
+            let url = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
             try Filesystem.moveToTrash(url, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deleteItem(id: item.id) } catch { self.pendingError = error }
@@ -285,11 +258,8 @@ extension ItemContentManager {
             try enforceTitleUniqueness(trimmed, among: existing, excluding: item)
 
             let folder = folderURL(for: itemType)
-            // Resolve the real on-disk file and keep its extension across the
-            // rename (`.json` → `.json` for un-migrated Items; Task 10 migrates).
-            let oldURL = existingItemURL(forTitle: item.title, in: folder)
+            let oldURL = NexusPaths.itemFileURL(forTitle: item.title, in: folder)
             let newURL = NexusPaths.itemFileURL(forTitle: trimmed, in: folder)
-                .deletingPathExtension().appendingPathExtension(oldURL.pathExtension)
             var updated = item
             updated.title = trimmed
             updated.modifiedAt = Date()
@@ -339,8 +309,7 @@ extension ItemContentManager {
             var updated = item
             updated.modifiedAt = Date()
             try validate(updated, type: itemType)
-            // Write to the real on-disk file (legacy `.json` in place, else `.md`).
-            let url = existingItemURL(forTitle: trimmed, in: folderURL(for: itemType))
+            let url = NexusPaths.itemFileURL(forTitle: trimmed, in: folderURL(for: itemType))
             try updated.save(to: url)
 
             if let updater = indexUpdater {
@@ -360,8 +329,7 @@ extension ItemContentManager {
 
     func deleteItem(_ item: Item, inTypeRoot itemType: ItemType) async throws {
         do {
-            // Trash the real on-disk file (legacy `.json` or canonical `.md`).
-            let url = existingItemURL(forTitle: item.title, in: folderURL(for: itemType))
+            let url = NexusPaths.itemFileURL(forTitle: item.title, in: folderURL(for: itemType))
             try Filesystem.moveToTrash(url, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deleteItem(id: item.id) } catch { self.pendingError = error }
@@ -392,9 +360,7 @@ extension ItemContentManager {
         in itemType: ItemType
     ) async throws {
         do {
-            // Source = the real on-disk file (legacy `.json` or `.md`); destination
-            // is always written as canonical `.md`.
-            let srcURL = existingItemURL(forTitle: item.title, in: source.folderURL)
+            let srcURL = NexusPaths.itemFileURL(forTitle: item.title, in: source.folderURL)
             let destURL = NexusPaths.itemFileURL(forTitle: item.title, in: destination.folderURL)
 
             // Refuse to clobber a different same-title Item already in the
@@ -480,9 +446,9 @@ extension ItemContentManager {
             }
             updatedItem.modifiedAt = Date()
 
-            // 3. Compute destination URL (always canonical `.md`) and resolve the
-            //    real source file (legacy `.json` or `.md`) up front so the move can
-            //    preserve foreign frontmatter from it (deleted only AFTER commit).
+            // 3. Compute destination + source `.md` URLs up front so the move can
+            //    preserve foreign frontmatter from the source (deleted only AFTER
+            //    commit).
             let destFolder: URL
             if let dstColl = toCollection {
                 destFolder = dstColl.folderURL
@@ -497,7 +463,7 @@ extension ItemContentManager {
             } else {
                 srcFolder = folderURL(for: source)
             }
-            let srcURL = existingItemURL(forTitle: item.title, in: srcFolder)
+            let srcURL = NexusPaths.itemFileURL(forTitle: item.title, in: srcFolder)
 
             // 3a. Refuse to clobber a different same-title Item already in the
             //     destination Type/Collection (same data-loss vector as the
@@ -595,8 +561,8 @@ extension ItemContentManager {
     }
 
     /// Stages back-ref clears on files owned by the Type identified by `onTypeID`.
-    /// Walks `.md` (PageType) or `.json` (ItemType) files and removes `sourceEntityID`
-    /// from the `reversePropertyID` value on matching entities.
+    /// Walks the Type's `.md` member files (Pages or Items) and removes
+    /// `sourceEntityID` from the `reversePropertyID` value on matching entities.
     private static func stageBackRefClear(
         sourceEntityID: String,
         reversePropertyID: String,
@@ -693,8 +659,7 @@ extension ItemContentManager {
     /// from disk (since Item carries an in-memory snapshot but value writes
     /// originate from contexts that may not have the fresh disk state),
     /// mutates `properties[propertyID]`, updates modifiedAt, writes back
-    /// via `Item.save` — format-aware: a preserving `.md` envelope write, or a
-    /// legacy `.json` write in place for an un-migrated Item — then refreshes
+    /// via `Item.save` (a preserving `.md` envelope write), then refreshes
     /// the in-memory cache + SQLite index.
     ///
     /// Mirror of PageContentManager.updatePageProperty (Task 13). Same
@@ -711,9 +676,8 @@ extension ItemContentManager {
         collection: ItemCollection?
     ) async throws {
         do {
-            // Resolve the real on-disk file (legacy `.json` or canonical `.md`).
             let folder = collection?.folderURL ?? folderURL(for: itemType)
-            let url = existingItemURL(forTitle: item.title, in: folder)
+            let url = NexusPaths.itemFileURL(forTitle: item.title, in: folder)
 
             var updated = try Item.load(from: url)
             updated.title = item.title  // filename derives title (not persisted on Item)
@@ -726,8 +690,7 @@ extension ItemContentManager {
             }
             updated.modifiedAt = Date()
 
-            // Format-aware preserving write (`.md` envelope, or `.json` in place
-            // for an un-migrated Item).
+            // Preserving `.md` envelope write.
             try updated.save(to: url)
 
             if let collection {
@@ -839,11 +802,10 @@ extension ItemContentManager {
         }
     }
 
-    /// Locates an Item's file (`.md`, or legacy `.json` during the transition)
-    /// from its index container. The folder is built from the container titles;
-    /// the file is found by walking that folder and matching `id` — nesting-proof
-    /// for Type-root Items that physically live in a deeper non-Collection
-    /// sub-folder (whose files roll up to the Type root with
+    /// Locates an Item's `.md` file from its index container. The folder is built
+    /// from the container titles; the file is found by walking that folder and
+    /// matching `id` — nesting-proof for Type-root Items that physically live in a
+    /// deeper non-Collection sub-folder (whose files roll up to the Type root with
     /// `item_collection_id == nil`).
     private func locateItemFile(id: String, container: EntityContainer) -> URL? {
         let folder: URL
@@ -858,9 +820,8 @@ extension ItemContentManager {
                 in: nexus.rootURL, typeFolderName: container.typeTitle
             )
         }
-        // Fast path: the canonical title-derived file (resolves `.md`, else a
-        // legacy `.json` twin).
-        let candidate = existingItemURL(forTitle: container.entityTitle, in: folder)
+        // Fast path: the canonical title-derived `.md` file.
+        let candidate = NexusPaths.itemFileURL(forTitle: container.entityTitle, in: folder)
         if Filesystem.fileExists(at: candidate),
            let loaded = try? Item.load(from: candidate),
            loaded.id == id
@@ -868,11 +829,9 @@ extension ItemContentManager {
             return candidate
         }
         // Fall back to a descendant walk matching by id (handles nested Type-root
-        // Items + any title/filename divergence). Dual-format during the
-        // transition so an un-migrated `.json` Item is still located.
+        // Items + any title/filename divergence).
         let matches = (try? Filesystem.descendantFiles(of: folder) { url in
-            (url.pathExtension == "md" || url.pathExtension == "json")
-                && !url.lastPathComponent.hasPrefix("_")
+            url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
         }) ?? []
         for url in matches {
             if let loaded = try? Item.load(from: url), loaded.id == id {

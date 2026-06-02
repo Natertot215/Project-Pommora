@@ -10,10 +10,10 @@ import Foundation
 ///     that have not yet been converted, returns counts for preview /
 ///     reporting. **No disk writes.**
 ///   - `apply(_:) -> Report` — executes the Plan: per-`.json` Item, reads it via
-///     the format-agnostic `Item.load`, re-encodes the modeled fields + body
-///     into a `.md` twin, then relocates the old `.json` to the nexus `.trash/`
-///     (recoverable, never a hard delete). Per-item failures are isolated in
-///     `report.failedItems`; the rest of the batch continues.
+///     the migration-only `Item.decodeLegacyJSON`, re-encodes the modeled fields
+///     + body into a `.md` twin, then relocates the old `.json` to the nexus
+///     `.trash/` (recoverable, never a hard delete). Per-item failures are
+///     isolated in `report.failedItems`; the rest of the batch continues.
 ///   - `runIfNeeded(at:) -> Report` — `apply(scan(at:))`, the single-call entry
 ///     used by the launch hook + tests.
 ///
@@ -22,8 +22,8 @@ import Foundation
 ///    `.json` is treated as a leftover from a partial/interrupted run — its
 ///    content already lives in the `.md`, so the `.json` is trashed without a
 ///    rewrite (cleanup), never double-written.
-/// 2. Otherwise `Item.load(from: jsonURL)` decodes the Item (its `.json`
-///    branch) and `AtomicYAMLMarkdown.encode(frontmatter:body:)` builds a `.md`
+/// 2. Otherwise `Item.decodeLegacyJSON(from: jsonURL)` decodes the legacy Item
+///    and `AtomicYAMLMarkdown.encode(frontmatter:body:)` builds a `.md`
 ///    payload from the modeled fields + body. Legacy `.json` Items are
 ///    fixed-shape typed records — they hold no foreign frontmatter to preserve,
 ///    so conversion is a clean re-encode of the modeled fields into the `.md`
@@ -39,14 +39,17 @@ import Foundation
 ///
 /// **Interrupt-safe.** The only window where state is inconsistent is between
 /// the `.md` commit and the `.json` trash. A crash there leaves a `.md` + its
-/// orphan `.json` side by side; the dual-format read path
-/// (`Item.dedupedPreferringMarkdown`) prefers the `.md`, so the Nexus reads
-/// correctly meanwhile, and the next run trashes the orphan `.json`.
+/// orphan `.json` side by side. The Nexus reads from the `.md` (the only Item
+/// read path); the orphan `.json` is invisible to reads, and the next migration
+/// run sees the `.md` twin already present and trashes the leftover `.json` as
+/// cleanup.
 ///
-/// **KEEP-window note:** this migration RELIES on the transitional dual-format
-/// read/write code (`Item.load`'s `.json` branch, the dual READ enumerators,
-/// `dedupedPreferringMarkdown`) being present as its safety net. Retiring that
-/// code is a separate task.
+/// **`.md`-only read path.** Since the dual-format Item code was retired, the
+/// legacy `.json` shape is read ONLY here, through `Item.decodeLegacyJSON` —
+/// the general `Item.load` / `loadLenient` / the read enumerators are all
+/// `.md`-only. This migration runs at launch BEFORE the index is populated, so
+/// converted `.md` Items are indexed on the same launch (see
+/// `NexusManager.openIndex(for:forceRebuild:)`).
 enum ItemFormatMigration {
 
     // MARK: - Plan
@@ -168,13 +171,13 @@ enum ItemFormatMigration {
             return
         }
 
-        // Fresh conversion: read via the format-agnostic loader (uses the
-        // `.json` branch), re-encode the modeled fields + body into the `.md`
-        // envelope, stage + commit, then relocate the `.json` to trash. A legacy
-        // `.json` Item is a fixed-shape typed record — it carries no foreign
-        // frontmatter to preserve, so a plain (non-preserving) encode is correct.
+        // Fresh conversion: read via the migration-only legacy `.json` decoder,
+        // re-encode the modeled fields + body into the `.md` envelope, stage +
+        // commit, then relocate the `.json` to trash. A legacy `.json` Item is a
+        // fixed-shape typed record — it carries no foreign frontmatter to
+        // preserve, so a plain (non-preserving) encode is correct.
         do {
-            let item = try Item.load(from: conversion.jsonURL)
+            let item = try Item.decodeLegacyJSON(from: conversion.jsonURL)
             let payload = try AtomicYAMLMarkdown.encode(
                 frontmatter: item.frontmatter, body: item.description)
 

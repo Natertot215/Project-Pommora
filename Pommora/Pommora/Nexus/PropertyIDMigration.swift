@@ -494,10 +494,11 @@ enum PropertyIDMigration {
         for itemURL in enumerateItemMembers(in: migration.typeFolderURL) {
             do {
                 // Format-agnostic read: `.md` Items decode via the frontmatter
-                // envelope, legacy `.json` Items via AtomicJSON — `Item.load`
-                // dispatches on extension, so a `.md` member never hits a
-                // JSON-on-markdown `dataCorrupted` error here.
-                var item = try Item.load(from: itemURL)
+                // envelope, legacy `.json` Items via the migration-only decoder.
+                // PropertyIDMigration precedes ItemFormatMigration in the launch
+                // sequence, so `.json` members can still exist here and must be
+                // re-keyed in place; ItemFormatMigration then converts them.
+                var item = try decodeItemMember(at: itemURL)
                 if rekey(properties: &item.properties, with: migration.nameToID) {
                     item.modifiedAt = Date()
                     // Re-stage in the member's OWN format so we never write a
@@ -528,6 +529,19 @@ enum PropertyIDMigration {
                     typeFolderURL: migration.typeFolderURL,
                     message: "commit failed: \(error)"))
         }
+    }
+
+    /// Reads an Item member in the on-disk format of its file. A `.md` member
+    /// decodes through the canonical `Item.load`; a legacy `.json` member decodes
+    /// through the migration-only `Item.decodeLegacyJSON`. Symmetric with
+    /// `encodedItemMemberPayload`. Required because the general `Item.load` is
+    /// `.md`-only and PropertyIDMigration can still encounter `.json` members
+    /// (it precedes ItemFormatMigration in the launch sequence).
+    private static func decodeItemMember(at url: URL) throws -> Item {
+        if url.pathExtension == "md" {
+            return try Item.load(from: url)
+        }
+        return try Item.decodeLegacyJSON(from: url)
     }
 
     /// Encodes a rewritten Item member in the on-disk format of its existing

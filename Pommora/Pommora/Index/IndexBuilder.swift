@@ -302,16 +302,14 @@ final class IndexBuilder {
         itemTypeID: String,
         collectionID: String?
     ) -> [ItemSnapshot] {
-        // Dual-format during the `.json` → `.md` transition: legacy `.json` Items
-        // stay indexed (no de-index / blackout) alongside new `.md` ones.
+        // Items are `.md`-only (legacy `.json` is converted at launch by
+        // ItemFormatMigration before any index population).
         let urls =
             (try? Filesystem.children(of: folderURL) { url in
-                (url.pathExtension == "md" || url.pathExtension == "json")
-                    && !url.lastPathComponent.hasPrefix("_")
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }) ?? []
-        // De-dup by id preferring the `.md` twin so a partially-migrated folder
-        // (both `.md` and `.json` for one id) yields a single index row.
-        return Item.dedupedPreferringMarkdown(
+        // De-dup by id so an external-Finder duplicate-id pair yields one row.
+        return Item.dedupedByID(
             urls,
             make: { url -> ItemSnapshot? in
                 // Tolerant read so a partial / adopted `.md` Item is still indexed.

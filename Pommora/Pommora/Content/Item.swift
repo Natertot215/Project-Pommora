@@ -1,10 +1,11 @@
 import Foundation
 import Yams
 
-/// Item — a `.md` file inside an Item Type / Set folder (legacy `.json` items
-/// still load during the transition). The Markdown body is the Item's
-/// `description`; frontmatter carries id / icon / tier1-3 / properties. Carries
-/// tier1/2/3 multi-relations to Contexts.
+/// Item — a `.md` file inside an Item Type / Set folder. The Markdown body is
+/// the Item's `description`; frontmatter carries id / icon / tier1-3 /
+/// properties. Carries tier1/2/3 multi-relations to Contexts. (Legacy `.json`
+/// Items are converted to `.md` at launch by `ItemFormatMigration`; only that
+/// migration reads the legacy `.json` shape — see `decodeLegacyJSON`.)
 struct Item: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String
     var title: String  // derived from filename on load
@@ -125,30 +126,40 @@ extension Item {
         return String(hash, radix: 16)
     }
 
-    /// Format-agnostic strict load. `.md` files decode through the
-    /// `ItemFrontmatter` envelope (body → `description`); legacy `.json` files
-    /// stay on the original `AtomicJSON` path unchanged. Both coexist during the
-    /// transition window (until Task 10 migrates remaining `.json` Items).
+    /// Strict load of a canonical `.md` Item — decodes through the
+    /// `ItemFrontmatter` envelope (body → `description`). Items are `.md`-only;
+    /// the legacy `.json` shape is read ONLY by the launch migrations (via
+    /// `decodeLegacyJSON`), never through this general read path.
     static func load(from url: URL) throws -> Item {
-        if url.pathExtension == "md" {
-            let (fm, body): (ItemFrontmatter, String) =
-                try AtomicYAMLMarkdown.load(ItemFrontmatter.self, from: url)
-            return Item(frontmatter: fm, body: body, url: url)
-        }
+        let (fm, body): (ItemFrontmatter, String) =
+            try AtomicYAMLMarkdown.load(ItemFrontmatter.self, from: url)
+        return Item(frontmatter: fm, body: body, url: url)
+    }
+
+    /// Migration-only legacy `.json` decode. Reads a pre-conversion `.json` Item
+    /// (the original fixed-shape typed record) so `ItemFormatMigration` can
+    /// convert it to `.md`, and so `PropertyIDMigration` can re-key any `.json`
+    /// member that still exists when it runs (it precedes the format migration in
+    /// the launch sequence). The title is derived from the filename. NOT a general
+    /// read path — the general `load` / `loadLenient` are `.md`-only.
+    ///
+    /// INVARIANT: this is the SOLE sanctioned legacy-JSON decode call site below
+    /// (migration-scoped, callers above). Grepping for the canonical Item JSON
+    /// decode must return exactly 1 hit — this single legitimate legacy-`.json`
+    /// migration read, NOT a general-path regression (general paths are `.md`-only).
+    static func decodeLegacyJSON(from url: URL) throws -> Item {
+        // Routes through the canonical ISO-8601 JSON helper (DRY — one source of
+        // JSON decode config); only the title-from-filename step is migration-local.
         var i = try AtomicJSON.decode(Item.self, from: url)
         i.title = url.deletingPathExtension().lastPathComponent
         return i
     }
 
-    /// Tolerant load. For `.md`, decodes a partial frontmatter shape (every field
-    /// optional, missing/legacy fields default to empty) and backfills missing
-    /// timestamps from file attributes; for `.json`, falls back to the strict
-    /// `AtomicJSON` decode (the legacy JSON shape is already fully specified).
-    /// Does NOT write back — the on-disk file stays byte-identical.
+    /// Tolerant load of a canonical `.md` Item — decodes a partial frontmatter
+    /// shape (every field optional, missing/legacy fields default to empty) and
+    /// backfills missing timestamps from file attributes. Does NOT write back —
+    /// the on-disk file stays byte-identical. `.md`-only.
     static func loadLenient(from url: URL) throws -> Item {
-        guard url.pathExtension == "md" else {
-            return try load(from: url)
-        }
         let raw = try String(contentsOf: url, encoding: .utf8)
         let (fmText, body) = (try? AtomicYAMLMarkdown.split(raw)) ?? ("", raw)
 
@@ -161,9 +172,10 @@ extension Item {
                 ?? LenientItemFrontmatter()
         }
 
-        // An id-less `.md` Item is an adoption-era edge (full adoption is Task 10);
-        // synthesize a stable per-path id so it at least loads. Deterministic
-        // (process-seed-independent) FNV-1a over the standardized path.
+        // An id-less `.md` Item is an adoption edge (a Finder-authored file with
+        // no Pommora frontmatter); synthesize a stable per-path id so it at least
+        // loads. Deterministic (process-seed-independent) FNV-1a over the
+        // standardized path.
         let synthesizedID = "adopted-item-" + Item.stableHash(url.standardizedFileURL.path)
         let fm = ItemFrontmatter(
             id: shape.id ?? synthesizedID,
@@ -178,57 +190,36 @@ extension Item {
         return Item(frontmatter: fm, body: body, url: url)
     }
 
-    /// Format-aware write.
-    ///
-    /// - `.md` (the canonical format for all new Items): preserving write —
-    ///   re-reads the file already at `url` (if present) so foreign / plugin
-    ///   frontmatter survives and key order stays stable; a brand new Item (no
-    ///   file at `url` yet) falls back to a plain envelope — identical bytes to a
-    ///   fresh write. `renameItem` renames oldURL → newURL THEN saves to newURL,
-    ///   so `preservingFrom: url` reads the post-rename file.
-    /// - legacy `.json` (transition only): writes back through the original
-    ///   `AtomicJSON` path so a not-yet-migrated `.json` Item is updated in place
-    ///   in its native format — no orphan `.md` twin, no envelope written into a
-    ///   `.json` file. Task 10 migrates these to `.md`.
+    /// Preserving `.md` write (the only Item format). Re-reads the file already
+    /// at `url` (if present) so foreign / plugin frontmatter survives and key
+    /// order stays stable; a brand new Item (no file at `url` yet) falls back to a
+    /// plain envelope — identical bytes to a fresh write. `renameItem` renames
+    /// oldURL → newURL THEN saves to newURL, so `preservingFrom: url` reads the
+    /// post-rename file.
     func save(to url: URL) throws {
-        if url.pathExtension == "json" {
-            try AtomicJSON.write(self, to: url)
-            return
-        }
         try AtomicYAMLMarkdown.write(
             frontmatter: frontmatter, body: description, to: url,
             preservingFrom: url, modeledKeys: ItemFrontmatter.modeledKeys)
     }
 
-    /// De-dups Item file URLs by a key, preferring the `.md`-sourced value when a
-    /// `.md` and a legacy `.json` twin share a key (e.g. a partially-migrated
-    /// nexus). The `.md` value wins regardless of enumeration order; values are
-    /// returned in stable first-seen order, and a `nil` from `make` (unreadable /
-    /// undecodable file) is skipped. Transitional: the `.json` arm retires with
-    /// Task 10. Shared by `ItemContentManager.loadAll` (→ `[Item]`) and
+    /// De-dups Item file URLs by a key, keeping the first-seen value per key in
+    /// stable order; a `nil` from `make` (unreadable / undecodable file) is
+    /// skipped. Items are `.md`-only, so this only collapses the (external-Finder)
+    /// edge of two `.md` files sharing an id. Shared by
+    /// `ItemContentManager.loadAll` (→ `[Item]`) and
     /// `IndexBuilder.collectItemsInFolder` (→ `[ItemSnapshot]`).
-    static func dedupedPreferringMarkdown<T>(
+    static func dedupedByID<T>(
         _ urls: [URL],
         make: (URL) -> T?,
         key: (T) -> String
     ) -> [T] {
         var byKey: [String: T] = [:]
-        var isMarkdown: [String: Bool] = [:]
         var order: [String] = []
         for url in urls {
             guard let value = make(url) else { continue }
             let k = key(value)
-            let md = url.pathExtension == "md"
-            if let existingIsMD = isMarkdown[k] {
-                // Already have a twin — replace only if the new one is `.md` and
-                // the held one isn't. Otherwise keep the first/`.md` winner.
-                if md && !existingIsMD {
-                    byKey[k] = value
-                    isMarkdown[k] = true
-                }
-            } else {
+            if byKey[k] == nil {
                 byKey[k] = value
-                isMarkdown[k] = md
                 order.append(k)
             }
         }

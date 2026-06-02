@@ -355,11 +355,12 @@ import Testing
         #expect(mdItem.properties["Stage"] == nil)
 
         // `.json` member: still `.json` (NOT converted by PropertyIDMigration —
-        // that is ItemFormatMigration's job), property rekeyed by ID.
+        // that is ItemFormatMigration's job), property rekeyed by ID. Read via the
+        // migration-only decoder (the general `Item.load` is `.md`-only now).
         #expect(Filesystem.fileExists(at: jsonURL))
         let jsonRaw = try String(contentsOf: jsonURL, encoding: .utf8)
         #expect(jsonRaw.hasPrefix("{"))  // re-staged as JSON, not an envelope.
-        let jsonItem = try Item.load(from: jsonURL)
+        let jsonItem = try Item.decodeLegacyJSON(from: jsonURL)
         #expect(jsonItem.description == "json member body")
         #expect(jsonItem.properties[stageID] == .select("json-val"))
         #expect(jsonItem.properties["Stage"] == nil)

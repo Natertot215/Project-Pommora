@@ -186,8 +186,9 @@ final class NexusManager {
         // `_schema.json` sidecars yet, and may carry legacy `_vault.json` /
         // `_collection.json` files that the adopter migrates). The scan is
         // idempotent: if every top-level folder is already adopted, the
-        // sheet doesn't appear.
-        await runAdoptionIfNeeded(at: url)
+        // sheet doesn't appear. Returns whether the Item format migration
+        // converted anything — forces a same-launch index rebuild if so.
+        let migratedItems = await runAdoptionIfNeeded(at: url)
 
         // F.1.j — silent three-level auto-tag pass. Runs unconditionally
         // after legacy adoption (whether the preview sheet was shown or
@@ -197,7 +198,7 @@ final class NexusManager {
         NexusAdopter.autoTagMissingSidecars(at: url)
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus)
+        await openIndex(for: nexus, forceRebuild: migratedItems)
         currentNexus = nexus
     }
 
@@ -247,7 +248,9 @@ final class NexusManager {
         // Always offer adoption — covers both first-time init AND re-opens
         // of Nexuses that pre-date this feature. The scan is idempotent;
         // fully-adopted Nexuses produce an empty plan and skip the sheet.
-        await runAdoptionIfNeeded(at: url)
+        // Returns whether the Item format migration converted anything —
+        // forces a same-launch index rebuild if so.
+        let migratedItems = await runAdoptionIfNeeded(at: url)
 
         // F.1.j — silent three-level auto-tag pass. Runs unconditionally
         // after legacy adoption (whether the preview sheet was shown or
@@ -279,7 +282,7 @@ final class NexusManager {
         }
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus)
+        await openIndex(for: nexus, forceRebuild: migratedItems)
         currentNexus = nexus
     }
 
@@ -288,7 +291,15 @@ final class NexusManager {
     /// `pendingAdoption` and awaits the user's Adopt / Skip decision. If the
     /// scan finds nothing, the function silently returns — the Nexus is
     /// already initialized; the sidebar will just be empty.
-    private func runAdoptionIfNeeded(at url: URL) async {
+    ///
+    /// Returns `true` when the Item `.json` → `.md` format migration converted or
+    /// cleaned up anything, so the caller can FORCE an index rebuild: the index
+    /// reads `.md`-only now, so freshly-converted `.md` Items that were never
+    /// indexed (e.g. a `.json` Item dropped in via Finder after the last rebuild)
+    /// would otherwise be missing until the next launch's rebuild. Forcing the
+    /// rebuild here keeps them visible on the SAME launch.
+    @discardableResult
+    private func runAdoptionIfNeeded(at url: URL) async -> Bool {
         isIndexing = true
         defer { isIndexing = false }
 
@@ -297,7 +308,7 @@ final class NexusManager {
             plan = try NexusAdopter.scan(nexusRoot: url)
         } catch {
             pendingError = .enumerationFailed(error.localizedDescription)
-            return
+            return false
         }
 
         // v0.3.0 Phase C.5: scan property-ID migration alongside adoption so
@@ -320,7 +331,7 @@ final class NexusManager {
             // sidecars.
             isIndexing = false
             let confirmed = await presentAdoptionPreview(plan, migrationPlan: migrationPlan)
-            guard confirmed else { return }
+            guard confirmed else { return false }
 
             isIndexing = true
             // Adoption apply: best-effort + idempotent (decision #11) — never
@@ -357,23 +368,30 @@ final class NexusManager {
         // never a lossy hard delete, so no consent gate is warranted. Idempotent
         // + interrupt-safe; a fully-migrated Nexus is a no-op. Same XCTest-guard
         // coverage as the property-ID migration (this whole path is downstream
-        // of `loadOnLaunch`'s guard).
-        applyFormatMigrationSurfacingFailures(at: url)
+        // of `loadOnLaunch`'s guard). The returned flag forces a same-launch index
+        // rebuild when anything converted (see this method's doc).
+        return applyFormatMigrationSurfacingFailures(at: url)
     }
 
     /// Applies the Item `.json` → `.md` format migration and surfaces any
     /// per-item failures via `pendingError`. Mirrors
     /// `applyMigrationSurfacingFailures` so both headless migrations report
-    /// failures the same way.
-    private func applyFormatMigrationSurfacingFailures(at url: URL) {
+    /// failures the same way. Returns whether the migration did any work
+    /// (converted or cleaned up) — the caller forces an index rebuild when so,
+    /// because the index is `.md`-only and a freshly-converted Item that was never
+    /// indexed would otherwise stay invisible until the next launch.
+    @discardableResult
+    private func applyFormatMigrationSurfacingFailures(at url: URL) -> Bool {
         let report = ItemFormatMigration.runIfNeeded(at: url)
-        guard !report.failedItems.isEmpty else { return }
-        let preview = report.failedItems.prefix(3)
-            .map { "\($0.itemURL.lastPathComponent): \($0.message)" }
-            .joined(separator: "; ")
-        pendingError = .initFailed(
-            "Item format migration completed with \(report.failedItems.count) failures (\(preview))."
-        )
+        if !report.failedItems.isEmpty {
+            let preview = report.failedItems.prefix(3)
+                .map { "\($0.itemURL.lastPathComponent): \($0.message)" }
+                .joined(separator: "; ")
+            pendingError = .initFailed(
+                "Item format migration completed with \(report.failedItems.count) failures (\(preview))."
+            )
+        }
+        return report.didAnyWork
     }
 
     /// Applies a property-ID migration plan and surfaces any per-Type failures
@@ -424,11 +442,19 @@ final class NexusManager {
     /// via `IndexBuilder`. On any failure the index is left nil and a
     /// `.initFailed` error is surfaced — the nexus remains usable without it
     /// (degraded mode). Internal so tests can call directly.
-    func openIndex(for nexus: Nexus) async {
+    ///
+    /// `forceRebuild` repopulates even when the on-disk schema version is current
+    /// (`needsRebuild == false`). The launch sequence sets it when the Item
+    /// `.json` → `.md` format migration converted anything: the index is
+    /// `.md`-only, so a freshly-converted Item that was never indexed must be
+    /// (re)populated on the SAME launch, not deferred to the next one. A full
+    /// repopulate is idempotent (INSERT OR REPLACE keyed by id) and the index
+    /// holds no user data.
+    func openIndex(for nexus: Nexus, forceRebuild: Bool = false) async {
         do {
             let (idx, needsRebuild) = try PommoraIndex.open(at: nexus.rootURL)
             self.currentIndex = idx
-            if needsRebuild {
+            if needsRebuild || forceRebuild {
                 isIndexing = true
                 defer { isIndexing = false }
                 try await IndexBuilder.populate(index: idx, from: nexus)
