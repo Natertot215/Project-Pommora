@@ -6,41 +6,41 @@
 >
 > *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess. You open the file and LOOK AT THE CODE before you assert anything.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it."*
 >
-> Reinforced again this session, two ways: (1) a grep-only doc audit reported "clean," but Nathan flagged *"prose may describe without exact words"* — reading the prose confirmed it (and found `PageEditor.md` already aligned to the new behavior). (2) A data-loss fix scoped to the two *reported* entities (Pages/Items) was caught by code-review as **incomplete** — Agenda Tasks/Events and the cross-container move paths shared the same `filename = title` substrate and were still vulnerable. **The cornerstone extends: a fix verified for the reported case is only a hypothesis about the whole bug class until you've enumerated every entity/path sharing the mechanism.**
+> Validated hard this session (Items-as-Markdown planning): **four adversarial review rounds** drove the findings down a staircase — *sites → mechanism → composition → exhaustive completeness* — and the final **grep-mandated** pass proved by `grep` two missed call-sites (`Item.load` at `+CRUD:734`, `AtomicYAMLMarkdown.encode` at `+CRUD:567`) that reasoning AND the knowledge graph had both declared "exhaustive." **The cornerstone extends: a plan's "all N sites" is a hypothesis until a grep returns exactly N. Prove completeness by grep, not by confidence.**
 
 #### Session Summary
 
-Opened on a graphify request and ended deep in a data-loss hardening + refactor pass — none of it committed yet. Inherited state: `main` carrying the parallel session's page-header-icon + checkbox-canonicalization work (`607ebed`…`0b59e71`), plus the prior session's still-uncommitted `.claude` doc pass.
+A design + planning session — **no code shipped**; the deliverable is a finalized, 4-round-verified implementation plan. Branched off the architecture-skeptic review's "Items+Pages are one thing" thread.
 
-- **Graph + skeptic review.** Built a knowledge graph over Pommora + MarkdownEngine + `.claude` (graphify), then ran a four-agent skeptical architecture review. Findings live in `Planning/2026-06-01-Architecture-Skeptic-Review.md` — headline: Pommora "builds two of things that are one thing" (the Items/Pages fork ≈ 7,700 LOC of near-duplication; "files are canonical" is half load-bearing identity / half expensive assumption — the SQLite mirror + ~27% of the test budget exist to prop it up; the editor is the right native bet but over-polished). Nathan chose to act on the two concrete bugs first.
-- **Two fixes Nathan green-lit** (*"1,2 are things I DON'T understand, so I'm going to trust you"*). **(1) Title-collision data-loss bug** — a same-name create/rename silently overwrote a sibling's file (`filename = title` + an overwriting atomic write). Nathan probed *"if UID is already its own mechanism, why can't we allow duplicate titles?"* — answered (the title does double duty as the on-disk filename, and the OS forbids two same-named files in a folder), and he chose **reject** for now (true independent titles = a future title-field Prospect). **(2) `NexusEnvironment`** — collapsed `ContentView`'s ~16 hand-wired manager injects into one container + a single `.injectNexusEnvironment(_:)` modifier, killing the missing-inject `EXC_BREAKPOINT` crash class (quirk #15).
-- **Code-review (3 graphify-equipped agents) caught the fix as incomplete.** Agenda Tasks/Events were still clobberable; a **case-recase regression** the fix itself introduced (a no-overwrite guard blocking `notes`→`Notes` on case-insensitive APFS); and a **move-via-`SchemaTransaction` clobber vector**. Nathan: *"Don't leave anything deferred."* So coverage was extended to **all file-backed entities on create / rename / move**, the recase guard rewritten to compare inode identity, the 6 container validators de-duped onto the shared `NameCollisionValidator`, the dead `@Observable` dropped, `AppGlobals.publish` collapsed, and the `debounceCoalescesRapidEdits` flake fixed deterministically.
-- **Docs + housekeeping.** Synced Domain-Model / Pages / Properties / CRUD-Patterns / CLAUDE quirks #15+#5 / Paradigm-Decisions (#13) / History to the reject behavior. Moved the `graphify` skill Studio→global (now invocable as `/graphify`). Removed the stale `graphify-out/`.
-
-Left off: **everything uncommitted in `main`'s working tree, verified green — 1073 tests, 0 failures, the debounce flake fixed and stable across two full runs.** ~20 Swift files + 7 `.claude` docs changed; two new test files (`NameCollisionTests`, `AgendaNameCollisionTests`). Safety-net git worktrees under `.claude/worktrees/` hold the *original* two-fix commits (stale, pre-extension). Immediate next action: decide the commit (branch-first), then clean up those worktrees.
+- **Locked the Items-as-Markdown paradigm** (Nathan-driven, fully stress-tested). Items convert from whole-`.json` to **plain `.md`** (YAML frontmatter + body), sharing Pages' `AtomicYAMLMarkdown` pipeline. **Shape A**: the rich, **250-source-char-capped** description IS the markdown body (single source of truth; no frontmatter-description, no mirror). Items stay a distinct *form* of one entity-type, distinguished by a **reserved, UI-hidden, non-authoritative `Class` frontmatter stamp** (`item`|`page`) whose **authority is the parent Type folder's sidecar**; a stamp/folder disagreement (or a homeless file) routes to a **hidden `.unsorted` inbox** (future-UI-surfaced). **Foreign frontmatter is preserved by value — never culled — on every Item AND Page write path.** **Agenda stays JSON.** `filename = title` preserved (never `.item.md`). Markdown-formatting restrictions (no wikilinks/images/tables; @-chip) deferred to the Item Window redesign.
+- **Wrote + finalized the implementation plan** → `Planning/2026-06-01-Items-as-Markdown-Plan.md` (**v5**). 11 tasks (Phase-1 serialization core → Phase-2 `ItemValidator` Phase-6 rider → Phase-3 gated migration → the substantial 28-doc pass), each a green commit, sequential, docs the one concurrent track. Survived 4 adversarial review rounds (multi-agent workflows + graphify-out + my own passes); every "all N sites" list is now **grep-exhaustive** (7 `Item.load` reads, 7 `AtomicYAMLMarkdown.encode` Page sites, 8 clobber sites).
+- **Side-investigations folded in:** traced the 12 stray `_pagecollection.json` sidecars in The Nexus to a 2026-05-28 wrapper-unwrap artifact (inert; fix = Task 8, have the every-launch `autoTagMissingSidecars` call `cleanupLegacyOrphans`). A doc-impact analysis (28 `.claude` docs → 3 substantial rewrites + ~14 targeted + ~10 verify-clean) grounds Task 11.
+- **On-disk changes this session:** only the plan doc. The interim `Planning/2026-06-01-Items-as-Markdown-Session-Context.md` was created then **deleted by Nathan** (it carried the now-reversed "don't preserve foreign keys" decision). Registry **#14** (Items-as-Markdown) is **drafted in the plan but NOT yet written** — it awaits paradigm-confirmation (protocol step 4). `graphify-out/` is being regenerated by a parallel session.
 
 #### Lessons Learned
 
-- **A bug rooted in a shared substrate lives in every entity that shares it.** The silent-overwrite bug was "fixed" for Pages/Items, but Agenda Tasks/Events + the move paths shared `filename = title` + overwriting writes and stayed vulnerable — code-review caught all three. Enumerate the whole class, not the reported case. **→ candidate CLAUDE.md quirk**
-- **No-overwrite guards on a case-insensitive volume must compare file identity, not name presence.** `fileExists(newURL)` returns true for a self-recase (`notes`→`Notes`) and wrongly blocks it; compare `fileResourceIdentifierKey` (inode) instead. **→ candidate CLAUDE.md quirk**
-- **Wall-clock test timing is a load-sensitive flake.** `debounceCoalescesRapidEdits` slipped under full-suite parallelism even at 800ms; the fix is poll-for-event + read the VM's real interval, never sleep-and-guess.
-- **Search "clean" under-reports — for prose too.** A token search misses behavior described in different words; reading the prose is the only audit that counts (extends the cornerstone).
-- **`/code-review` earned its keep:** three real gaps the implementation missed. Treat "fix done + tests pass" as a hypothesis until an adversarial pass enumerates the blast radius.
+- **Prove exhaustiveness by grep, not reasoning or the graph.** The grep mandate (round 4) caught two missed call-sites that three prior reasoning/graph passes had certified complete. → reinforced in the cornerstone.
+- **Iterative adversarial review converges predictably:** sites → mechanism → composition → completeness. Stop when a round finds only finer *instances*, not new *classes*.
+- **A lenient loader is useless unwired** — verify the read *call-sites*, not the loader's existence (`Item.loadLenient` was created but 7 read sites still used strict `Item.load`).
+- **"Minimal-insert" was a fiction for foreign files** — a typed save synthesizes+persists an `adopted-<hash>` id and injects ~7 keys; the stamp must be a YAML-level single-key set. Verify the *write path*, not just the field.
+- **A format flip's blackout/orphan risk lives in write/delete/rename, not just reads** — format-agnostic reads alone leave `updateItem`/`deleteItem`/`renameItem` computing nonexistent `.md` paths.
 
 #### Next Session
 
-1. **Commit the working tree** (branch-first off `main`) — the title-collision data-loss fix (all entities + moves) + `NexusEnvironment` + the synced docs + the scrutiny-review doc. Verified green (1073/0). Then remove the stale `.claude/worktrees/` safety-net worktrees + their branches.
-2. **Pick the lead architecture thread** from `Planning/2026-06-01-Architecture-Skeptic-Review.md` — **Items+Pages unification** (the middle path: unify the type system, keep both serializations) is the highest-ROI candidate — or proceed with the v0.4.0 roadmap (Symbols / Settings / Trash / Wikilinks; note a parallel session is already on Wikilinks).
+1. **BEGIN EXECUTION of the Items-as-Markdown plan** via `superpowers:subagent-driven-development` (sequential Task 1→10, docs Task 11 concurrent). Use the execution-kickoff prompt (recorded in the 06-01 chat summary / below). QA discipline is mandatory: per-task plan-impact report + re-assess between green commits (hard rule #13) + **prove-by-grep** + an adversarial check on each green commit.
+2. **Gate before docs registry:** get Nathan's paradigm-confirmation for registry **#14** (protocol step 4) before writing it. **Nathan handles** the one-time live deletion of the 12 stray `_pagecollection.json` sidecars (the code fix prevents recurrence).
+3. Alternatively defer execution and proceed with the v0.4.0 roadmap — but the plan is ready when he is.
 
 #### Pending Focuses
 
-- **[carried from 05-31]** Live smoke (Nathan's manual): vault/type tables display-only + mirror sidebar; collection/set reorder; relation `type_id` reconcile heals drifted collections; relation Mirror name/icon propagation; Edit Icon from popover / sidebar / detail-table.
-- **[carried from 05-31]** Commit the prior **doc pass** (Framework realign + History trim + cross-doc version fixes) — still uncommitted, now bundled into this session's larger uncommitted tree; fold into the Next Session #1 commit.
-- **[carried from 06-01]** **v0.4.0 kickoff** (unshipped — this session pivoted to graphify + the data-loss/refactor work). Symbols / Settings / Trash / Wikilinks + file-watcher + FTS5.
+- **[ready] Items-as-Markdown execution** — finalized plan at `Planning/2026-06-01-Items-as-Markdown-Plan.md` (v5), awaiting the go.
+- **[carried] v0.4.0 kickoff** (unshipped — Symbols / Settings / Trash / Wikilinks + file-watcher + FTS5; a parallel session is on Wikilinks).
+- **[carried] Commit the prior doc pass** (Framework realign + History trim + cross-doc version fixes) if still uncommitted.
+- **[carried 05-31] Live smoke** (Nathan's manual): vault/type tables display-only + mirror sidebar; collection/set reorder; relation `type_id` reconcile; relation Mirror name/icon propagation; Edit Icon from popover/sidebar/detail-table.
 
 #### Fix Log
 
-1. **Column reorder broken** — drag-reordering table *columns* (distinct from rows); folds into the v0.7.0 view-system work.
+1. **Column reorder broken** — drag-reordering table *columns* (distinct from rows); folds into v0.7.0 view-system work.
 2. **"Modified" not hideable** in the visibility settings.
 3. **Inline-edit lag** — property value inline edit has a noticeable update buffer.
 4. **Column layout not persisted** across sessions (+ property columns don't show their icons); folds into v0.7.0.
@@ -48,7 +48,7 @@ Left off: **everything uncommitted in `main`'s working tree, verified green — 
 6. **Settings popout sizing** — should size to content dynamically (Nathan likes the min height).
 7. **`AgendaEventManagerError._status` doc-vs-guard mismatch** — the error's doc says events have no `_status`, yet the delete guard still blocks it; decide separately.
 8. **Backspace on a checkbox / list item** should auto-delete the syntax (not just the render); also render bullets as label + secondary rather than primary.
-9. **CLAUDE.md quirk #11 claims an in-repo CI lint step that doesn't exist** — no `.github/workflows`, no CI script invoking `swift format`; only the `.swift-format` config. Either CI was removed or it's Xcode-Cloud-only (unconfirmable from the repo). Consequence: nothing auto-catches lint — 44 pre-existing violations in `ItemContentManager+CRUD.swift` went uncaught. Correct the quirk or confirm CI scope.
+9. **CLAUDE.md quirk #11 claims an in-repo CI lint step that doesn't exist** — no `.github/workflows`, no CI script invoking `swift format`; only the `.swift-format` config. Correct the quirk or confirm CI scope.
 
 #### Maintained via `/handoff`
 
@@ -56,9 +56,8 @@ Spec: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix L
 
 #### Document pointers
 
-- **Planning →** `Planning/2026-06-01-Architecture-Skeptic-Review.md` (this session's review — seeds the Items/Pages-unification + DB-canonical threads) · `Planning/2026-05-31-vault-table-displayonly-interim.md` (per-view-ordering deferral). Note: `Planning/Pommora-Wikilink.md` + `Features/Wiki-Link.md` are a parallel session's wikilink work (untracked) — left untouched (quirk #10).
-- Roadmap → `Framework.md` (realigned to `Nexus//Pommora//Pommora Tasks.md`) · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
-- Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md`
-- CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md`
+- **Planning →** `Planning/2026-06-01-Items-as-Markdown-Plan.md` (the finalized v5 execution plan — THIS session) · `Planning/2026-06-01-Architecture-Skeptic-Review.md` (the seed review; rec #3 superseded by the serialization unification) · `Planning/2026-05-31-vault-table-displayonly-interim.md`. Note: `Planning/Pommora-Wikilink.md` + `Features/Wiki-Link.md` are a parallel session's wikilink work — left untouched (quirk #10).
+- Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
+- Properties spec → `Features/Properties.md` · per-entity specs → `Features/*.md` · CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md` (registry #14 pending confirmation)
 - Branch quirks + hard rules → `CLAUDE.md`
 - Figma (property editor) → `https://www.figma.com/design/V3wKMilXkoceCL1Q2J9kf4/Pommora-Swift?node-id=474-9432`
