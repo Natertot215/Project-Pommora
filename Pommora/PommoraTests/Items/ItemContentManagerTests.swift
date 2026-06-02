@@ -12,7 +12,7 @@ struct ItemContentManagerTests {
 
     // MARK: - ItemCollection-scoped
 
-    @Test("createItem writes .json inside ItemCollection")
+    @Test("createItem writes .md inside ItemCollection")
     func createItem() async throws {
         let (nexus, itemType, coll, manager) = try await setupCollection()
         defer { TempNexus.cleanup(nexus) }
@@ -90,11 +90,11 @@ struct ItemContentManagerTests {
         // File now in .trash, preserving relative path under nexus root
         // (flatlayout: Item file lives at <nexus>/<Type>/<Collection>/).
         let trashFile = NexusPaths.trashDir(in: nexus)
-            .appendingPathComponent("T/C/Buy milk.json")
+            .appendingPathComponent("T/C/Buy milk.md")
         #expect(FileManager.default.fileExists(atPath: trashFile.path))
     }
 
-    @Test("loadAll discovers existing .json in an ItemCollection")
+    @Test("loadAll discovers existing .md in an ItemCollection")
     func loadExisting() async throws {
         let (nexus, _, coll, manager) = try await setupCollection()
         defer { TempNexus.cleanup(nexus) }
@@ -140,7 +140,7 @@ struct ItemContentManagerTests {
         #expect(manager.items(in: itemType).isEmpty)
     }
 
-    @Test("loadAll for a type with .json files at root populates itemsByTypeRoot")
+    @Test("loadAll for a type with .md files at root populates itemsByTypeRoot")
     func loadAllForTypeWithItems() async throws {
         let (nexus, itemType, manager) = try await setupTypeRoot()
         defer { TempNexus.cleanup(nexus) }
@@ -221,7 +221,7 @@ struct ItemContentManagerTests {
         #expect(collItems.first?.title == "InnerItem")
     }
 
-    @Test("createItem in type root writes .json + updates items(in: itemType)")
+    @Test("createItem in type root writes .md + updates items(in: itemType)")
     func createItemInTypeRoot() async throws {
         let (nexus, itemType, manager) = try await setupTypeRoot()
         defer { TempNexus.cleanup(nexus) }

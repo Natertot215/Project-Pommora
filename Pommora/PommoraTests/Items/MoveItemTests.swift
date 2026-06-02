@@ -282,6 +282,52 @@ struct MoveItemTests {
         #expect(manager.itemsByCollection[collB.id]?.count == 1)
     }
 
+    // MARK: - Foreign-key preservation across a move
+
+    /// A foreign (non-Pommora) frontmatter key on the source `.md` Item must
+    /// survive the move to the destination (preserving encode reads `srcURL`).
+    @Test func moveBetweenCollectionsPreservesForeignFrontmatterKey() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let itemType = try makeItemType(nexus: nexus, title: "Tasks", properties: [])
+        let collA = try makeItemCollection(nexus: nexus, title: "CollA", in: itemType)
+        let collB = try makeItemCollection(nexus: nexus, title: "CollB", in: itemType)
+
+        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+
+        // Hand-author a valid `.md` envelope with a foreign key + a body.
+        let itemID = ULID.generate()
+        let srcURL = NexusPaths.itemFileURL(forTitle: "Carry", in: collA.folderURL)
+        let raw = """
+            ---
+            id: \(itemID)
+            Class: item
+            plugin_color: "#abcdef"
+            tier1: []
+            tier2: []
+            tier3: []
+            properties: {}
+            ---
+
+            the carried body
+            """
+        try raw.data(using: .utf8)!.write(to: srcURL, options: [.atomic])
+
+        let item = try Item.load(from: srcURL)
+        manager.itemsByCollection[collA.id] = [item]
+        manager.itemsByCollection[collB.id] = []
+
+        try await manager.moveItemBetweenCollections(item, from: collA, to: collB, in: itemType)
+
+        let dstURL = NexusPaths.itemFileURL(forTitle: "Carry", in: collB.folderURL)
+        #expect(FileManager.default.fileExists(atPath: dstURL.path))
+        let after = try String(contentsOf: dstURL, encoding: .utf8)
+        #expect(after.contains("plugin_color"))
+        let loaded = try Item.load(from: dstURL)
+        #expect(loaded.description == "the carried body")
+    }
+
     // MARK: - Private setup helpers
 
     @discardableResult

@@ -86,11 +86,12 @@ import Testing
     private static func writeLegacyItem(
         at url: URL,
         id: String,
-        properties: [String: PropertyValue]
+        properties: [String: PropertyValue],
+        description: String = ""
     ) throws {
         let now = Date()
         let item = Item(
-            id: id, title: "", icon: nil, description: "",
+            id: id, title: "", icon: nil, description: description,
             tier1: [], tier2: [], tier3: [],
             properties: properties,
             createdAt: now, modifiedAt: now
@@ -218,23 +219,31 @@ import Testing
         let folder = try Self.makeLegacyItemType(
             in: nexus, title: "Bookmarks", properties: [("Stage", .select)])
         let itemURL = folder.appendingPathComponent("Swift-evolution.json")
+        // Non-empty description: the still-JSON ② migration path must rekey
+        // properties WITHOUT dropping the body (reports-not-throws + body intact).
         try Self.writeLegacyItem(
-            at: itemURL, id: "01HITEM1", properties: ["Stage": .select("triaged")])
+            at: itemURL, id: "01HITEM1", properties: ["Stage": .select("triaged")],
+            description: "legacy item body")
 
         let report = PropertyIDMigration.runIfNeeded(at: nexus)
         #expect(report.itemTypesScanned == 1)
         #expect(report.typesMigrated == 1)
         #expect(report.propertiesMinted == 1)
         #expect(report.memberFilesRewritten == 1)
+        #expect(report.failedTypes.isEmpty)
 
         let it = try ItemType.load(from: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
         #expect(it.schemaVersion == 2)
         let stageID = it.properties.first!.id
         #expect(stageID.hasPrefix("prop_"))
 
+        // The Item is still a `.json` file (② is NOT converted until Task 10) and
+        // its body survives the rekey.
+        #expect(FileManager.default.fileExists(atPath: itemURL.path))
         let item = try Item.load(from: itemURL)
         #expect(item.properties[stageID] == .select("triaged"))
         #expect(item.properties["Stage"] == nil)
+        #expect(item.description == "legacy item body")
     }
 
     @Test func ignoresSidecarFilesWhenEnumeratingItems() throws {

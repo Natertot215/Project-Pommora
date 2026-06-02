@@ -61,9 +61,10 @@ struct ItemTypeManagerSchemaCRUDTests {
         try await manager.addProperty(prop, to: itemType.id)
         let storedPropID = manager.types.first { $0.id == itemType.id }!.properties[0].id
 
-        // Write a fake Item .json file into the ItemType folder referencing the property.
+        // Write a real `.md` Item file (via Item.save → AtomicYAMLMarkdown) into
+        // the ItemType folder referencing the property.
         let itemTypeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Tasks")
-        let itemFile = itemTypeFolder.appendingPathComponent("Item1.json")
+        let itemFile = NexusPaths.itemFileURL(forTitle: "Item1", in: itemTypeFolder)
         let now = Date()
         let item = Item(
             id: ULID.generate(),
@@ -77,7 +78,7 @@ struct ItemTypeManagerSchemaCRUDTests {
             createdAt: now,
             modifiedAt: now
         )
-        try AtomicJSON.write(item, to: itemFile)
+        try item.save(to: itemFile)
 
         // Capture file data before rename.
         let dataBefore = try Data(contentsOf: itemFile)
@@ -138,15 +139,18 @@ struct ItemTypeManagerSchemaCRUDTests {
         try await manager.addProperty(prop, to: itemType.id)
         let storedPropID = manager.types.first { $0.id == itemType.id }!.properties[0].id
 
-        // Write a fake Item .json file with a numeric value for the property.
+        // Write a real `.md` Item file with a numeric value for the property.
         let itemTypeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Tracker")
-        let itemFile = itemTypeFolder.appendingPathComponent("Entry1.json")
+        let itemFile = NexusPaths.itemFileURL(forTitle: "Entry1", in: itemTypeFolder)
         let now = Date()
         let item = Item(
             id: ULID.generate(),
             title: "Entry1",
             icon: nil,
-            description: "",
+            // Non-empty body — the clobber-site rewrite (stripPropertyFromMembers,
+            // now `.md` + preserving encode) must drop the property WITHOUT
+            // dropping the Markdown body.
+            description: "This is the long-form body of the item.\n\nSecond paragraph.",
             tier1: [],
             tier2: [],
             tier3: [],
@@ -154,7 +158,7 @@ struct ItemTypeManagerSchemaCRUDTests {
             createdAt: now,
             modifiedAt: now
         )
-        try AtomicJSON.write(item, to: itemFile)
+        try item.save(to: itemFile)
 
         // Change number → checkbox, with value drop.
         try await manager.changeType(
@@ -165,9 +169,10 @@ struct ItemTypeManagerSchemaCRUDTests {
         let updatedType = manager.types.first { $0.id == itemType.id }!
         #expect(updatedType.properties[0].type == .checkbox)
 
-        // Member file: property key must be GONE.
+        // Member file: property key must be GONE, but the body survives intact.
         let reloadedItem = try Item.load(from: itemFile)
         #expect(reloadedItem.properties[storedPropID] == nil)
+        #expect(reloadedItem.description == "This is the long-form body of the item.\n\nSecond paragraph.")
     }
 
     // MARK: - Test 5: changeType lossy without confirmation throws

@@ -208,8 +208,8 @@ struct NameCollisionTests {
 
         let recasedURL = NexusPaths.itemFileURL(forTitle: "Notes", in: coll.folderURL)
         #expect(FileManager.default.fileExists(atPath: recasedURL.path))
-        let onDiskName = try storedFilename(in: coll.folderURL, matching: "notes.json")
-        #expect(onDiskName == "Notes.json")
+        let onDiskName = try storedFilename(in: coll.folderURL, matching: "notes.md")
+        #expect(onDiskName == "Notes.md")
         let reloaded = try Item.load(from: recasedURL)
         #expect(reloaded.description == "PRECIOUS")
         #expect(reloaded.id == original.id)

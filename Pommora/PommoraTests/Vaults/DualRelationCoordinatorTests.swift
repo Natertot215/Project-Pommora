@@ -237,7 +237,7 @@ struct DualRelationCoordinatorTests {
         try AtomicYAMLMarkdown.write(frontmatter: pageFM, body: "body\n", to: pageFile)
 
         let itemFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Tasks")
-        let itemFile = itemFolder.appendingPathComponent("task-01.json")
+        let itemFile = itemFolder.appendingPathComponent("task-01.md")
         let now = Date()
         let item = Item(
             id: "task-01", title: "task-01", icon: nil, description: "",
@@ -245,7 +245,7 @@ struct DualRelationCoordinatorTests {
             properties: [targetID: .relation(["proj-01"])],
             createdAt: now, modifiedAt: now
         )
-        try AtomicJSON.write(item, to: itemFile)
+        try item.save(to: itemFile)
 
         // Reload updated types (they now have the paired properties).
         let updatedProject = try Self.reloadPageType("Projects", nexus: nexus)
@@ -269,7 +269,7 @@ struct DualRelationCoordinatorTests {
         let (reloadedPageFM, _) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: pageFile)
         #expect(reloadedPageFM.properties[sourceID] == nil)
 
-        let reloadedItem = try AtomicJSON.decode(Item.self, from: itemFile)
+        let reloadedItem = try Item.load(from: itemFile)
         #expect(reloadedItem.properties[targetID] == nil)
     }
 

@@ -313,8 +313,9 @@ struct DualRelationCoordinator: Sendable {
     // MARK: - Private: member-file value strip
 
     /// Stages value-strip rewrites for every member file owned by `kind` that carries
-    /// the given `propertyID`. Handles PageType (`.md`), ItemType (`.json`), and
-    /// Agenda singletons (`.task.json` / `.event.json`) separately.
+    /// the given `propertyID`. Handles PageType (`.md`), ItemType (`.md`; legacy
+    /// `.json` Items are migrated by Task 10), and Agenda singletons
+    /// (`.task.json` / `.event.json`) separately.
     private static func stageValueStrip(
         propertyID: String,
         from kind: TypeKind,
@@ -344,13 +345,16 @@ struct DualRelationCoordinator: Sendable {
             )
             let itemFiles = try Filesystem.descendantFiles(
                 of: typeFolder,
-                where: { $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_") }
+                where: { $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_") }
             )
             MemberFileStrip.forEach(itemFiles) { itemURL in
-                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                var item = try Item.load(from: itemURL)
                 guard item.properties[propertyID] != nil else { return }
                 item.properties.removeValue(forKey: propertyID)
-                tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
+                let data = try AtomicYAMLMarkdown.encode(
+                    frontmatter: item.frontmatter, body: item.description,
+                    preservingFrom: itemURL, modeledKeys: ItemFrontmatter.modeledKeys)
+                tx.stage(payload: data, to: itemURL)
             }
 
         case .agendaTasks:

@@ -316,7 +316,7 @@ enum NexusPaths {
     }
 
     static func itemFileURL(forTitle title: String, in collectionFolder: URL) -> URL {
-        collectionFolder.appendingPathComponent("\(title).json", isDirectory: false)
+        collectionFolder.appendingPathComponent("\(title).md", isDirectory: false)
     }
 
     // MARK: - ItemType / ItemCollection paths (flatlayout)

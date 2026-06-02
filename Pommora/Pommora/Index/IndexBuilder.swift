@@ -302,26 +302,36 @@ final class IndexBuilder {
         itemTypeID: String,
         collectionID: String?
     ) -> [ItemSnapshot] {
+        // Dual-format during the `.json` → `.md` transition: legacy `.json` Items
+        // stay indexed (no de-index / blackout) alongside new `.md` ones.
         let urls =
             (try? Filesystem.children(of: folderURL) { url in
-                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                (url.pathExtension == "md" || url.pathExtension == "json")
+                    && !url.lastPathComponent.hasPrefix("_")
             }) ?? []
-        return urls.compactMap { url -> ItemSnapshot? in
-            guard let item = try? Item.load(from: url) else { return nil }
-            return ItemSnapshot(
-                id: item.id,
-                title: item.title,
-                icon: item.icon,
-                description: item.description,
-                properties: item.properties,
-                modifiedAt: item.modifiedAt,
-                itemTypeID: itemTypeID,
-                collectionID: collectionID,
-                tier1: item.tier1,
-                tier2: item.tier2,
-                tier3: item.tier3
-            )
-        }
+        // De-dup by id preferring the `.md` twin so a partially-migrated folder
+        // (both `.md` and `.json` for one id) yields a single index row.
+        return Item.dedupedPreferringMarkdown(
+            urls,
+            make: { url -> ItemSnapshot? in
+                // Tolerant read so a partial / adopted `.md` Item is still indexed.
+                guard let item = try? Item.loadLenient(from: url) else { return nil }
+                return ItemSnapshot(
+                    id: item.id,
+                    title: item.title,
+                    icon: item.icon,
+                    description: item.description,
+                    properties: item.properties,
+                    modifiedAt: item.modifiedAt,
+                    itemTypeID: itemTypeID,
+                    collectionID: collectionID,
+                    tier1: item.tier1,
+                    tier2: item.tier2,
+                    tier3: item.tier3
+                )
+            },
+            key: \.id
+        )
     }
 
     private static func collectTasks(from nexus: Nexus) -> [AgendaTaskSnapshot] {

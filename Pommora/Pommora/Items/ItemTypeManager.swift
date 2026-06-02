@@ -1002,7 +1002,7 @@ extension ItemTypeManager {
             }
             let typeFolder = NexusPaths.itemTypeFolderURL(in: m.nexus.rootURL, typeFolderName: it.title)
             return try Filesystem.descendantFiles(of: typeFolder) { url in
-                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
         }
 
@@ -1011,10 +1011,13 @@ extension ItemTypeManager {
         ) throws {
             let itemFiles = try memberFiles(forTypeID: typeID)
             MemberFileStrip.forEach(itemFiles) { itemURL in
-                var item = try AtomicJSON.decode(Item.self, from: itemURL)
+                var item = try Item.load(from: itemURL)
                 guard item.properties[propertyID] != nil else { return }
                 item.properties.removeValue(forKey: propertyID)
-                tx.stage(payload: try AtomicJSON.encode(item), to: itemURL)
+                let data = try AtomicYAMLMarkdown.encode(
+                    frontmatter: item.frontmatter, body: item.description,
+                    preservingFrom: itemURL, modeledKeys: ItemFrontmatter.modeledKeys)
+                tx.stage(payload: data, to: itemURL)
             }
         }
 

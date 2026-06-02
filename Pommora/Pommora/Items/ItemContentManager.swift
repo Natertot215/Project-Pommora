@@ -2,7 +2,8 @@ import Foundation
 import Observation
 import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderItems
 
-/// Manages Items (`.json`) inside an Item Type. The spec allows Items to live
+/// Manages Items (`.md`; legacy `.json` during the transition) inside an Item
+/// Type. The spec allows Items to live
 /// either directly in an Item Type's root folder or inside an ItemCollection
 /// sub-folder — both are first-class. ItemCollection-scoped state and
 /// type-root-scoped state are kept in parallel dictionaries to avoid
@@ -71,19 +72,21 @@ final class ItemContentManager {
 
     // MARK: - Load (ItemCollection-scoped)
 
-    /// Loads every `.json` Item inside `collection.folderURL`, descending
-    /// recursively through sub-folders. Sub-folders deeper than the locked
-    /// 2-level Type/ItemCollection model aren't themselves ItemCollections —
-    /// their files roll up into this ItemCollection (Obsidian-parity for
-    /// adopted folder structures).
+    /// Loads every Item (`.md`, plus legacy `.json` during the transition) inside
+    /// `collection.folderURL`, descending recursively through sub-folders.
+    /// Sub-folders deeper than the locked 2-level Type/ItemCollection model aren't
+    /// themselves ItemCollections — their files roll up into this ItemCollection
+    /// (Obsidian-parity for adopted folder structures).
     func loadAll(for collection: ItemCollection) async {
         do {
+            // Dual-format during the `.json` → `.md` transition so legacy `.json`
+            // Items stay visible alongside new `.md` ones.
             let itemFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
-                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                Self.isItemFile(url)
             }
-            let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
             let items = OrderResolver.resolve(
-                unsortedItems,
+                Item.dedupedPreferringMarkdown(
+                    itemFiles, make: { try? Item.loadLenient(from: $0) }, key: \.id),
                 persistedOrder: collection.itemOrder,
                 titleKeyPath: \Item.title
             )
@@ -98,9 +101,9 @@ final class ItemContentManager {
 
     // MARK: - Load (Item-Type-root)
 
-    /// Scans the Item Type root for `.json` Items, recursing into every
-    /// sub-folder EXCEPT those that are themselves ItemCollections — those
-    /// roll up under `loadAll(for: collection)` instead.
+    /// Scans the Item Type root for Items (`.md`, plus legacy `.json`), recursing
+    /// into every sub-folder EXCEPT those that are themselves ItemCollections —
+    /// those roll up under `loadAll(for: collection)` instead.
     func loadAll(for itemType: ItemType) async {
         let folder = folderURL(for: itemType)
         // Discover ItemCollection sub-folders by sidecar presence so we
@@ -117,11 +120,11 @@ final class ItemContentManager {
                 of: folder,
                 excluding: excludedCollectionFolders
             ) { url in
-                url.pathExtension == "json" && !url.lastPathComponent.hasPrefix("_")
+                Self.isItemFile(url)
             }
-            let unsortedItems: [Item] = itemFiles.compactMap { try? Item.load(from: $0) }
             let items = OrderResolver.resolve(
-                unsortedItems,
+                Item.dedupedPreferringMarkdown(
+                    itemFiles, make: { try? Item.loadLenient(from: $0) }, key: \.id),
                 persistedOrder: itemType.itemOrder,
                 titleKeyPath: \Item.title
             )
@@ -173,5 +176,14 @@ final class ItemContentManager {
         } catch {
             self.pendingError = error
         }
+    }
+
+    // MARK: - Transition-period load helpers (`.json` → `.md`)
+
+    /// True for a loadable Item file: `.md` (canonical) or legacy `.json`, and not
+    /// a sidecar (`_…`). Single predicate so both `loadAll` paths agree.
+    private static func isItemFile(_ url: URL) -> Bool {
+        (url.pathExtension == "md" || url.pathExtension == "json")
+            && !url.lastPathComponent.hasPrefix("_")
     }
 }

@@ -145,7 +145,7 @@ struct RelationCommitRoutingTests {
             collection: nil
         )
 
-        let reloaded = try AtomicJSON.decode(Item.self, from: url)
+        let reloaded = try Item.load(from: url)
         #expect(reloaded.tier1 == ["01TARGET"])
         #expect(reloaded.properties[ReservedPropertyID.tier1] == nil)
     }
@@ -171,7 +171,7 @@ struct RelationCommitRoutingTests {
             collection: nil
         )
 
-        let reloaded = try AtomicJSON.decode(Item.self, from: url)
+        let reloaded = try Item.load(from: url)
         #expect(reloaded.relationIDs(forPropertyID: propID) == ["01TARGET"])
         #expect(reloaded.properties[propID] == .relation(["01TARGET"]))
         #expect(reloaded.tier1 == [])
@@ -210,7 +210,7 @@ struct RelationCommitRoutingTests {
             newValue: .relation([]), type: type, collection: nil
         )
 
-        let reloaded = try AtomicJSON.decode(Item.self, from: url)
+        let reloaded = try Item.load(from: url)
         #expect(reloaded.tier1 == [])
         #expect(reloaded.properties[ReservedPropertyID.tier1] == nil)
         #expect(reloaded.properties[propID] == nil)

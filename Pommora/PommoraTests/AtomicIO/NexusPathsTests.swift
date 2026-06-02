@@ -318,7 +318,7 @@ struct NexusPathsTests {
         let page = NexusPaths.pageFileURL(forTitle: "Notes", in: collection)
         #expect(page.lastPathComponent == "Notes.md")
         let item = NexusPaths.itemFileURL(forTitle: "Buy groceries", in: collection)
-        #expect(item.lastPathComponent == "Buy groceries.json")
+        #expect(item.lastPathComponent == "Buy groceries.md")
     }
 
     @Test("taskFileURL nests inside the Tasks singleton with .task.json extension")

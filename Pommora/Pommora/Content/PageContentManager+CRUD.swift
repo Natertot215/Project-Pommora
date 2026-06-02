@@ -647,22 +647,25 @@ extension PageContentManager {
                 if let it = try? AtomicJSON.decode(ItemType.self, from: itSidecar),
                     it.id == onTypeID
                 {
-                    // Found the target ItemType folder — walk .json item files.
-                    let jsonFiles =
+                    // Found the target ItemType folder — walk .md item files.
+                    let itemFiles =
                         (try? Filesystem.descendantFiles(
                             of: dir,
                             where: {
-                                $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix("_")
+                                $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_")
                             }
                         )) ?? []
-                    for jsonURL in jsonFiles {
-                        var item = try AtomicJSON.decode(Item.self, from: jsonURL)
+                    for itemURL in itemFiles {
+                        var item = try Item.load(from: itemURL)
                         guard targetSet.contains(item.id),
                             let val = item.properties[reversePropertyID]
                         else { continue }
                         let cleared = removeID(sourcePageID, from: val)
                         item.properties[reversePropertyID] = cleared
-                        tx.stage(payload: try AtomicJSON.encode(item), to: jsonURL)
+                        let data = try AtomicYAMLMarkdown.encode(
+                            frontmatter: item.frontmatter, body: item.description,
+                            preservingFrom: itemURL, modeledKeys: ItemFrontmatter.modeledKeys)
+                        tx.stage(payload: data, to: itemURL)
                     }
                     return
                 }
