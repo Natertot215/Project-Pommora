@@ -32,7 +32,7 @@
 
 **Modify**
 - `AtomicIO/AtomicYAMLMarkdown.swift` — preserving `write` + preserving `encode` overload + shared envelope helper + YAML-level `setStampKey(at:value:)` (Tasks 1, 5).
-- `Content/Item.swift` / `Content/PageFrontmatter.swift` — add `var kind: KindStamp` (`case kind="Class"`) + `static modeledKeys` (Task 2). `ItemFrontmatter` **drops `description` from CodingKeys** (it's the body now; Item.swift:18 currently has it). On-disk `createdAt`/`modifiedAt` optional; **both `Item.load` AND `Item.loadLenient` backfill missing timestamps from file creation/modification dates** (NOT default-to-1970); composite `Item` keeps them non-optional (Task 3a).
+- `Content/PageFrontmatter.swift` — `static modeledKeys` (Task 1, DONE) + `var kind: KindStamp` (`case kind="Class"`, default `.page`) (Task 2). `Content/Item.swift` → split into `ItemFrontmatter` (Task 3a), which is BORN with `var kind` (default `.item`) + its own `static modeledKeys` — NOT added to the current `Item` struct in Tasks 1/2. `ItemFrontmatter` **drops `description` from CodingKeys** (it's the body now; Item.swift:18 currently has it). On-disk `createdAt`/`modifiedAt` optional; **both `Item.load` AND `Item.loadLenient` backfill missing timestamps from file creation/modification dates** (NOT default-to-1970); composite `Item` keeps them non-optional (Task 3a).
 - `Content/PageFile.swift` — `PageFile.save` → preserving write; extract shared `relativePath`/`shortHash` (Tasks 1, 3b).
 - **Page foreign-key preservation (Task 1) — `PageFile.save` + ALL 8 full-`PageFrontmatter` encode/stage paths** (`grep 'AtomicYAMLMarkdown.encode('` = 7): `PageContentManager+CRUD.swift:388,:481,:631`; `PropertyIDMigration.swift:462`; `DualRelationCoordinator.swift:335`; `PageTypeManager.swift:1000`; **`ItemContentManager+CRUD.swift:567` (Page branch of stageBackRefClear — was missed)**. Move/in-place sites use `preservingFrom: <the URL they read from>`.
 - `Content/Item.swift` read + write/delete/rename wiring (Task 3b): the 7 `Item.load` sites → lenient/dual; the 3 READ enumerators (`ItemContentManager.swift:82,:120`; `IndexBuilder.swift:307`) become `(ext=="md" || ext=="json")` dual-dispatch; write/delete/rename resolve the actual on-disk extension (see Task 3b).
@@ -92,13 +92,13 @@ Switch `PageFile.save` + ALL 8 Page paths onto the preserving variants (`preserv
 
 ---
 
-### Task 2: `KindStamp` + the `Class` Codable property
+### Task 2: `KindStamp` + the `Class` Codable property (PageFrontmatter; Item side rides Task 3a)
 
-**Files:** Create `Content/KindStamp.swift`; modify both frontmatters; Test `KindStampTests`.
+**Files:** Create `Content/KindStamp.swift`; modify `PageFrontmatter` only; Test `KindStampTests`.
 
-`enum KindStamp: String, Codable, Sendable, Equatable { case item, page }`. On BOTH frontmatters: `var kind` (default `.item`/`.page`), `case kind = "Class"` in `CodingKeys` (`CaseIterable`), `encode` + `decodeIfPresent ?? default`.
+`enum KindStamp: String, Codable, Sendable, Equatable { case item, page }`. On `PageFrontmatter`: `var kind` (default `.page`), `case kind = "Class"` in `CodingKeys` (already `CaseIterable` per Task 1), `encode` **unconditional** (every typed Page save stamps `Class: page`) + `decodeIfPresent ?? .page`. Because `Class` joins `CodingKeys`, `PageFrontmatter.modeledKeys` now includes it — the stamp is a Pommora-owned *modeled* key, not foreign (so the preserving merge substitutes it, never treats it as a foreign pass-through). **Item-side `kind` is NOT added here** — `ItemFrontmatter` is born in Task 3a carrying `kind=.item`; adding it to the soon-to-be-split `Item` struct now would be double-work (Studio iteration rule). *(Re-assessment after Task 1: was "both frontmatters"; narrowed to PageFrontmatter to avoid churning `Item` twice.)*
 
-- [ ] Steps: failing test (only item/page; typed save emits `Class:`; decode w/o `Class` defaults) → implement → green → commit `feat(model): Class kind-stamp Codable property on both frontmatters`.
+- [ ] Steps: failing test (only item/page; typed Page save emits `Class: page`; decode w/o `Class` defaults to `.page`) → implement → update any existing Page test asserting an EXACT frontmatter key-set (now includes `Class`) → green → commit `feat(model): Class kind-stamp Codable property on PageFrontmatter`.
 
 ---
 
@@ -130,7 +130,7 @@ Collapse to `return hasMarkdown ? (.pageType,.markdownChildren) : (.pageType,.em
 
 **Files:** `Nexus/NexusAdopter.swift`; `adoptionExcludedSubFolderNames:240`. Test `ClassStampPassTests`.
 
-Walk folders whose kind = `recognizedSidecarsAt(...).first` (Notes/Ideas/**Metrics** carry `_itemtype.json` + stray `_pagecollection.json`; first-wins → `.itemType`; Metrics has no `.md` = no-op). Per content file: `Class` absent → `setStampKey` (value-preserving single key); agrees → leave; disagrees → `moveToUnsorted` (Task 6). One write/file. **Runs at END of each top-level folder iteration — AFTER Task 8's `cleanupLegacyOrphans` + sidecar writes** (so `recognizedSidecarsAt` sees a clean single-kind set). No internal XCTest guard (upstream at `loadOnLaunch:80`; the two callers `openExisting:197`/`openPicked:257` are private, reachable only via the guarded launch or the modal picker — confirm no test calls them directly). Add `Pommora`, `worktrees` to `adoptionExcludedSubFolderNames:240`; `.unsorted` is dot-prefix-skipped. **~65 foreign Pages get a one-time value-preserving reflow on first launch.**
+Walk folders whose kind = `recognizedSidecarsAt(...).first` (Notes/Ideas/**Metrics** carry `_itemtype.json` + stray `_pagecollection.json`; first-wins → `.itemType`; Metrics has no `.md` = no-op). Per content file: `Class` absent → `setStampKey` (value-preserving single key); agrees → leave; disagrees → `moveToUnsorted` (Task 6). **`setStampKey` now THROWS `AtomicYAMLMarkdownError.nonMappingFrontmatter`** (Task 1 review-driven guard) when a foreign file's frontmatter root isn't a key/value mapping — catch it and `moveToUnsorted` (a non-mapping-root file is homeless/abnormal; never clobber it). One write/file. **Runs at END of each top-level folder iteration — AFTER Task 8's `cleanupLegacyOrphans` + sidecar writes** (so `recognizedSidecarsAt` sees a clean single-kind set). No internal XCTest guard (upstream at `loadOnLaunch:80`; the two callers `openExisting:197`/`openPicked:257` are private, reachable only via the guarded launch or the modal picker — confirm no test calls them directly). Add `Pommora`, `worktrees` to `adoptionExcludedSubFolderNames:240`; `.unsorted` is dot-prefix-skipped. **~65 foreign Pages get a one-time value-preserving reflow on first launch.**
 
 - [ ] Steps: tests (stampless→`Class: item` + foreign keys intact + no id injected; **run-2 == run-1**; `Class: page` in item folder → `.unsorted`; Metrics no-op; `Pommora/` skipped; flow-style foreign Page → value-preserved) → implement → green → commit `feat(adoption): per-file Class stamp pass (value-preserving single-key insert)`.
 
@@ -211,6 +211,7 @@ No Item↔Page move (post-v1). Item→Item strips Type-scoped schema props (corr
 - **NexusAdopter (Tasks 4/5/8 share the file, distinct functions):** within each top-level folder iteration → tag sidecar → `cleanupLegacyOrphans` (Task 8) → stamp pass (Task 5).
 - **No blackout / no orphan / no double:** Task 3b's dual reads keep `.json` Items visible+indexed; write/delete/rename resolve the real on-disk extension; loadAll de-dups by id preferring `.md`. Task 10 normalizes when run.
 - **Atomic commit:** Task 3 only. Tests by **struct** name (quirks #1/#17); non-zero counts; background builder (quirk #13). Revert incidental SPM/pbxproj reorders (quirk #6). Never revert unattributed changes (quirk #10).
+- **Cited line numbers are PRE-Task-1 and now drift.** Task 1 (commit `5f2ca3a`) shifted lines in `AtomicYAMLMarkdown.swift`, `PageFrontmatter.swift`, `PageFile.swift`, `PageContentManager+CRUD.swift`, `PropertyIDMigration.swift`, `DualRelationCoordinator.swift`, `PageTypeManager.swift`, `ItemContentManager+CRUD.swift`. Every later implementer RE-GREPS each site fresh and trusts the grep, never the cited `:line` (counts still hold; positions don't).
 
 ## Execution model
 
