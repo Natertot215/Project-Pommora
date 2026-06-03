@@ -1,6 +1,6 @@
-### swift-markdown-engine — vendored
+### MarkdownPM — Pommora-owned (originally vendored from swift-markdown-engine)
 
-Pommora vendors a subset of [`nodes-app/swift-markdown-engine`](https://github.com/nodes-app/swift-markdown-engine) at `External/MarkdownEngine/`. The upstream is licensed Apache 2.0 (see `LICENSE`). The engine is consumed as source files (not a Swift Package) so Pommora can replace the regex parser + styler with Apple-AST-backed implementations.
+MarkdownPM is a Pommora-owned, local Swift Package at `External/MarkdownPM/`, maintained in-tree. It was originally vendored from a subset of [`nodes-app/swift-markdown-engine`](https://github.com/nodes-app/swift-markdown-engine) (upstream licensed Apache 2.0, see `LICENSE`, retained for attribution), so Pommora can replace the regex parser + styler with Apple-AST-backed implementations.
 
 #### Upstream commit
 
@@ -14,7 +14,7 @@ Pommora vendors a subset of [`nodes-app/swift-markdown-engine`](https://github.c
 |---|---|---|---|
 | 2 (vendor) | DROP | `MarkdownEngine.docc/` | Upstream DocC catalog — Pommora doesn't ship engine docs externally |
 | 3 (parser surgery) | DELETE | `Parser/MarkdownTokenizer+Emphasis.swift` | Apple swift-markdown's AST handles `***bold italic***` natively |
-| 3 (styler swap) | DELETE | `Styling/MarkdownStyler.swift` + 6 extensions (`+TextStyling`, `+Links`, `+Code`, `+Latex`, `+Images`, `+TaskCheckboxes`) | Pommora-side `PommoraMarkdownStyler` replaces; only 2 call sites |
+| 3 (styler swap) | DELETE | `Styling/MarkdownStyler.swift` (which hosts the inline `+Code` + `+TaskCheckboxes` extension blocks) + its 4 sibling `MarkdownStyler+*.swift` files (`+TextStyling`, `+Links`, `+Latex`, `+Images`) | Pommora-side `PommoraMarkdownStyler` replaces; only 2 call sites |
 | 3 (parser surgery) | REIMPLEMENT INTERNALS | `Parser/MarkdownTokenizer.swift` | Type-API preserved (11 non-styling files depend on it); body walks Apple `Document(parsing:)` AST and emits `[MarkdownToken]` shims + supplemental wikilink/image-embed regex scan |
 | 3 (parser surgery) | REIMPLEMENT INTERNALS | `Parser/MarkdownDetection.swift` | Type-API preserved; body queries the new Apple-AST-backed `[MarkdownToken]` array |
 | 3 (styler swap) | MODIFY CALL SITES | `Styling/TextStylingService.swift` + `TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift` | Call `PommoraMarkdownStyler.styleAttributes(...)` instead of the deleted `MarkdownStyler.styleAttributes(...)` |
@@ -42,4 +42,4 @@ Pommora vendors a subset of [`nodes-app/swift-markdown-engine`](https://github.c
 | v0.2.7.7 (dash auto-format) | EXTEND | `Parser/MarkdownDetection.swift` | Adds `isInsideWikilink(location:in:)` — line-scoped `[[` / `]]` depth counter returning `true` when `location` falls inside an open wikilink target on the same line. Used by the en-dash auto-format branch to skip substitution inside wikilink filenames (where literal ` - ` may be a stylistic separator that must survive on disk) |
 | v0.2.7.7 (dash auto-format) | EXTEND | `Input/MarkdownListHandler.swift` | Adds three new branches in `handleInsertion`. (1) Em-dash branch at the TOP of the function (before the fast-path filter so letter/digit keystrokes after `--` aren't short-circuited): replaces `--<non-dash>` with `—<non-dash>` when char N-3 is not `-` (preserves `---` HR / YAML frontmatter / 4+ dash HR) and not inside code. (2) En→em promotion branch right after the existing `<-` → `←` case: when the user types `-` immediately adjacent to an existing `–` on either side, replaces the `–` with `—` and consumes the typed `-`. Skips inside code; does NOT skip inside wikilinks (promotion is an explicit user gesture). (3) En-dash branch after the promotion case: replaces ` - <space>` with ` – <space>` when the line has non-whitespace content before the `-` (preserves top-level + nested bullets) and not inside code or `[[...]]` wikilink |
 
-All retained files keep their original Apache 2.0 license. New Pommora-side files (`PommoraMarkdownStyler`, `PommoraInlineScanner`, `SourceRangeToNSRange`, `MarkersShrinker`, `PommoraWikiLinkResolver`) live at `Pommora/Pommora/PageEditor/Styler/` and `Pommora/Pommora/PageEditor/Services/` (Pommora-licensed; not derivative of engine).
+All retained files keep their original Apache 2.0 license. New Pommora-side files (`PommoraMarkdownStyler`, `PommoraInlineScanner`, `MarkersShrinker`, `PommoraWikiLinkResolver`) live at `Pommora/Pommora/PageEditor/Styler/` and `Pommora/Pommora/PageEditor/Services/` (Pommora-licensed; not derivative of engine). NSRange conversion reuses the existing `SourceRangeConverter` (`Styling/AppleASTSupplementalStyler.swift:271`) rather than a new duplicate type.
