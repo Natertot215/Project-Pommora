@@ -12,11 +12,11 @@ The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are b
 |---|---|
 | **Parser** | Apple **`swift-markdown`** 0.8.0 (`swiftlang/swift-markdown`) — full GFM AST. |
 | **Renderer** | Apple **`NSAttributedString` + `NSTextView` + `NSTextLayoutManager`** — font/color/paragraph styling, link rendering, selection, find, native context menu, Writing Tools (15.1+), spell-check, autocorrect, IME, drag-select all free. |
-| **Live-preview chassis** | **`swift-markdown-engine`** (vendored as a local Swift Package at [`External/MarkdownEngine/`](../../External/MarkdownEngine/); upstream `nodes-app/swift-markdown-engine`, Apache 2.0). Contributes the two features Apple's bare NSTextView lacks: **dynamic syntax** (markers shrink when the caret leaves an AST node, expand when entered) + **Markdown-aware typing helpers** (list continuation; block auto-wrap; Pommora-side character-pair auto-pair). |
-| **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` in the vendored engine — walks `Document(parsing:)` for BlockQuote / Strikethrough / Table / ThematicBreak, composing attributes on top of the engine's regex tokenizer/styler. |
+| **Live-preview chassis** | **`MarkdownPM`** (Pommora-owned Swift Package at [`External/MarkdownPM/`](../../External/MarkdownPM/); originally vendored from `nodes-app/swift-markdown-engine`, Apache 2.0, now owned + maintained in-tree). Contributes the two features Apple's bare NSTextView lacks: **dynamic syntax** (markers shrink when the caret leaves an AST node, expand when entered) + **Markdown-aware typing helpers** (list continuation; block auto-wrap; Pommora-side character-pair auto-pair). |
+| **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` — the caret-unaware AST pass for BlockQuote / Strikethrough / Table / ThematicBreak, composed LAST (last-writer-wins) after the owned `MarkdownPMStyler`'s primary per-construct pass. |
 | **Domain wiring** | `PageRef`, `PageFile`, `PageContentManager.updatePage`, `PageEditorViewModel`, `PageEditorHost`, `AppGlobals`, inspector + sidebar wiring — editor-library-agnostic. |
 
-Engine vendoring rationale + per-file modification log → `// Guidelines//Markdown.md` §1.2 + `External/MarkdownEngine/NOTICE.md`.
+Engine vendoring rationale + per-file modification log → `// Guidelines//Markdown.md` §1.2 + `External/MarkdownPM/NOTICE.md`.
 
 ---
 
@@ -24,7 +24,7 @@ Engine vendoring rationale + per-file modification log → `// Guidelines//Markd
 
 `PageEditorView` ([Pommora/Pommora/Pages/PageEditorView.swift](../../Pommora/Pommora/Pages/PageEditorView.swift)) is a `ZStack(alignment: .topLeading)` of two layers:
 
-1. **Body `NativeTextViewWrapper`** (bottom layer) — from the vendored engine. `textInsets` apply 24pt horizontal (so body text aligns under the title's padding) + a 90pt vertical inset that reserves a scrollable empty zone at the top of the text container for the title overlay.
+1. **Body `MarkdownPMEditor`** (bottom layer) — the `MarkdownPM` package's `NSViewRepresentable` front door. `textInsets` apply 24pt horizontal (so body text aligns under the title's padding) + a 90pt vertical inset that reserves a scrollable empty zone at the top of the text container for the title overlay.
 2. **Title + divider overlay** (top layer) — a 28pt-bold plain `TextField` matched to macOS Notes' large title line, above a 1pt system-separator divider. The overlay tracks body scroll via `.offset` so the title scrolls in sync with the body and moves off-screen once scrolled past. Pressing Enter commits the rename and hands focus to the body editor. **Page icon:** when the per-Nexus `showPageIcon` setting is on (default OFF), the page's `frontmatter.icon` renders inline to the left of the title on the text baseline (tap → `IconPicker` to change/remove); with no icon set, hovering the row reveals a faint tertiary `plus.app` "Add Icon" affordance on the right. Off or unset → nothing leads the title (flush-left, zero reserved indent). The same icon propagates to the sidebar row + NavDropdown (a custom icon overrides the per-kind outline default).
 
 The inspector + its toolbar toggle live in `ContentView`, not here — so the inspector renders at the window's trailing edge rather than inside this sub-view. A cover-image / banner drops into the same overlay VStack above the title with no engine changes.
@@ -61,14 +61,14 @@ If `commitRename` fails (e.g. name collision), `pendingError` fires the alert an
 
 What the editor renders and supports today.
 
-**Inline marks** (engine regex tokenizer + caret-aware marker-shrink):
+**Inline marks** (hybrid tokenizer — emphasis locates on the Apple `swift-markdown` AST, other constructs on regex; caret-aware marker-shrink):
 - Bold (`**` / `__`), italic (`*` / `_`), bold-italic (`***`), inline code (`` ` ``)
 - Wikilinks (`[[Name]]`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Distinct from relation properties → [[Pages]] § "Wikilinks vs relations".
 - Standard Markdown links (`[text](url)`)
 - Image embeds (`![[name]]`) — render hook present; Pommora-side image provider deferred
 
 **Block constructs** (engine + Apple-AST supplemental):
-- Headings (`#`–`######`; H5/H6 render under body size and are omitted from the right-click menu). **Foldable** — hover a heading line to reveal a gutter chevron; click toggles a zero-height collapse of the section down to the next equal-or-higher heading (or document end). Fold state persists per-Page in frontmatter (`folded_headings`).
+- Headings (`#`–`######`) on the Pommora scale `[2.0, 1.75, 1.5, 1.25, 1.15, 1.0]` (H6 = body size; no heading below body). H5/H6 are omitted from the right-click menu (only H1–H4 are offered). **Foldable** — hover a heading line to reveal a gutter chevron; click toggles a zero-height collapse of the section down to the next equal-or-higher heading (or document end). Fold state persists per-Page in frontmatter (`folded_headings`).
 - Bullet + ordered lists, with portable CommonMark source (`- item`). A `•` glyph renders over the `-` marker; source on disk stays `-` for portability.
 - **Task-list checkboxes** — GFM `- [ ]` / `- [x]`. The fast Pommora shorthand `-[ ]` / `-[x]` (no space after the bullet) is **canonicalized to GFM on input**: typing `-[]` / `-[ ]` / `-[x]` then the space that starts the content rewrites the line to `- [ ] ` / `- [x] ` (caret lands after the trailing space, so typing flows straight on). This keeps the quick shorthand but writes portable, Obsidian-renderable source — matching Enter-continuation. The bare empty `-[]` is a transient marker shown as literal text (not a checkbox) until that space canonicalizes it; `[ ]` / `[x]` with an inner char render as a checkbox immediately. An SF Symbol glyph draws in place of the bracket marker; clicking it toggles the source.
 - Fenced code blocks (` ``` `)
@@ -128,4 +128,4 @@ If the editor library ever needs replacing again, the swap surface is:
 - **`AtomicYAMLMarkdown` write contract** — survives any editor.
 - **Apple swift-markdown AST** — portable across editor choices; the styler logic moves to a new library by re-implementing the rendering layer.
 
-The only Pommora-side editor-coupled code is the `NativeTextViewWrapper` call site in `PageEditorView.swift` (~10 lines) plus the Pommora customizations inside the vendored engine (`Styling/AppleASTSupplementalStyler.swift` + extensions to `Input/MarkdownInputHandler.swift`, `Renderer/MarkdownTextLayoutFragment.swift`, `TextView/ContextMenu.swift`).
+The only Pommora-side editor-coupled code is the `MarkdownPMEditor` call site in `PageEditorView.swift` (~10 lines) plus the Pommora customizations inside the `MarkdownPM` package (`Styling/AppleASTSupplementalStyler.swift` + extensions to `Input/MarkdownInputHandler.swift`, `Renderer/MarkdownTextLayoutFragment.swift`, `TextView/ContextMenu.swift`).
