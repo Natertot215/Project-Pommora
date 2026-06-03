@@ -11,6 +11,7 @@
 //
 
 import AppKit
+import Markdown
 
 extension NativeTextViewCoordinator {
     /// Atomically rebuilds the text view's contents + base attributes + Markdown styling from a storage-form `text`; caller handles scroll/overscroll and code-block selection refresh.
@@ -149,6 +150,11 @@ extension NativeTextViewCoordinator {
         }
 
         let tokens = MarkdownTokenizer.parseTokens(in: text)
+        // Phase 3 — parse the Apple AST ONCE here, in the same size-1 memo
+        // that already dedups the regex tokens. The supplemental styler and
+        // syncHeadingFolding read this cached Document instead of each
+        // running their own Document(parsing:) per keystroke.
+        let appleDocument = AppleDocumentParseProbe.parse(text)
         var codeTokens: [MarkdownToken] = []
         var latexTokens: [MarkdownToken] = []
         var blockLatexTokens: [MarkdownToken] = []
@@ -183,7 +189,8 @@ extension NativeTextViewCoordinator {
             latexTokens: latexTokens,
             blockLatexTokens: blockLatexTokens,
             wikiLinkTokens: wikiLinkTokens,
-            imageEmbedTokens: imageEmbedTokens
+            imageEmbedTokens: imageEmbedTokens,
+            appleDocument: appleDocument
         )
         cachedParsedText = text
         cachedParsedDocument = parsed

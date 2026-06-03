@@ -8,6 +8,7 @@
 // Keeps the editor in sync while you type, updating formatting, selections,
 // links, and other editing behavior in one place.
 import AppKit
+import Markdown
 import SwiftUI
 
 /// `NSTextViewDelegate` that bridges ``MarkdownPMEditor`` and the
@@ -147,6 +148,13 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         let blockLatexTokens: [MarkdownToken]
         let wikiLinkTokens: [MarkdownToken]
         let imageEmbedTokens: [MarkdownToken]
+        /// The Apple swift-markdown AST for the SAME `text` the regex
+        /// tokens were parsed from. Parsed exactly once inside
+        /// `parsedDocument(for:)` so the supplemental styler and the
+        /// heading-fold sync reuse one parse instead of each running their
+        /// own `Document(parsing:)` per keystroke (the #9 fix). Not
+        /// `Sendable` — consumed only on the @MainActor coordinator.
+        let appleDocument: Document
     }
 
     enum InlineTokenContext {
