@@ -27,7 +27,7 @@ enum AppleASTSupplementalStyler {
         document: Document,
         lineIndex: LineOffsetIndex,
         baseFont: NSFont,
-        theme: MarkdownEditorTheme
+        theme: MarkdownPMTheme
     ) -> [StyledRange] {
         // Phase 3 — Document is parsed once in parsedDocument(for:) and
         // handed in. This pass no longer runs its own Document(parsing:)
@@ -52,7 +52,7 @@ enum AppleASTSupplementalStyler {
         let nsText: NSString
         let lineIndex: LineOffsetIndex
         let baseFont: NSFont
-        let theme: MarkdownEditorTheme
+        let theme: MarkdownPMTheme
         var styledRanges: [StyledRange] = []
 
         mutating func defaultVisit(_ markup: any Markup) {

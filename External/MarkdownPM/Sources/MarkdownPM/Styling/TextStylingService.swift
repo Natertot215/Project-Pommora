@@ -16,7 +16,7 @@ struct TextStylingService {
     static func makeBaseTypingAttributes(
         font: NSFont,
         paragraphStyle: NSParagraphStyle,
-        theme: MarkdownEditorTheme = .default
+        theme: MarkdownPMTheme = .default
     ) -> [NSAttributedString.Key: Any] {
         [
             .font: font,

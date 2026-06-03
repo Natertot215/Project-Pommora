@@ -266,7 +266,7 @@ extension MarkdownPMStyler {
     static func appendSecondaryMarkers(
         for token: MarkdownToken,
         to attrs: inout [StyledRange],
-        theme: MarkdownEditorTheme
+        theme: MarkdownPMTheme
     ) {
         token.markerRanges.forEach {
             attrs.append(($0, [.foregroundColor: theme.mutedText]))

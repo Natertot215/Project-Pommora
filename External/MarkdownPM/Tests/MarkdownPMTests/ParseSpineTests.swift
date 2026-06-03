@@ -69,7 +69,7 @@ import Testing
     func supplementalStylerCachedMatchesUnparsed() {
         let text = "> quote line one\n> quote line two\n\n~~struck~~ word\n"
         let baseFont = NSFont.systemFont(ofSize: 15)
-        let theme = MarkdownEditorTheme.default
+        let theme = MarkdownPMTheme.default
         let document = Document(parsing: text)
 
         let fromCache = AppleASTSupplementalStyler.styleAttributes(

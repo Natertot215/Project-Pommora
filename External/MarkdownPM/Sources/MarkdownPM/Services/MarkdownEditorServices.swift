@@ -149,7 +149,7 @@ public protocol LatexRenderer: Sendable {
     /// Render `latex` at the requested font size, optionally tinted by `theme`.
     /// - Returns: A rendered result, or `nil` if the renderer cannot produce
     ///   an image (unsupported syntax, missing dependency, …).
-    func render(latex: String, fontSize: CGFloat, theme: MarkdownEditorTheme) -> LatexRenderResult?
+    func render(latex: String, fontSize: CGFloat, theme: MarkdownPMTheme) -> LatexRenderResult?
 }
 
 /// Output of a LaTeX render call.
@@ -171,7 +171,7 @@ public struct LatexRenderResult: Sendable {
 /// rendering the source text when this is in use.
 public struct NoOpLatexRenderer: LatexRenderer {
     public init() {}
-    public func render(latex: String, fontSize: CGFloat, theme: MarkdownEditorTheme) -> LatexRenderResult? { nil }
+    public func render(latex: String, fontSize: CGFloat, theme: MarkdownPMTheme) -> LatexRenderResult? { nil }
 }
 
 // MARK: - Event Bus
