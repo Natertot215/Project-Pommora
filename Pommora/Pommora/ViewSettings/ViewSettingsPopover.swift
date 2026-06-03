@@ -34,7 +34,13 @@ struct ViewSettingsPopover: View {
                     destination(for: route)
                 }
         }
-        .measuredPaneHeight()
+        // Width-locked; `fixedSize` makes the NavigationStack hug the active
+        // pane's definite height (each pane self-sizes between
+        // PUI.Pane.minHeight and .maxHeight via ViewSettingsPane). The system
+        // NSPopover owns the resize (it snaps content-size changes — the
+        // accepted behavior; SwiftUI can't animate the glass window's height).
+        .frame(width: PUI.Pane.width)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
@@ -44,13 +50,15 @@ struct ViewSettingsPopover: View {
             StorageMenuRoot(scope: scope, path: $path)
         default:
             // Non-storage scopes: empty 300x360 shell retained from chrome slice.
-            // Per-scope panes for those surfaces ship in later versions.
+            // Per-scope panes for those surfaces ship in later versions. Sized
+            // explicitly so the content-hugging NavigationStack has a definite
+            // height here (Color.clear has no intrinsic size of its own).
             Color.clear
+                .frame(width: PUI.Pane.width, height: PUI.Pane.minHeight)
         }
     }
 
-    /// Pushed-pane destinations. Task 7 shipped placeholders; Tasks 9-12
-    /// replace each in-place with the real pane.
+    /// Resolves each pushed route to its pane.
     @ViewBuilder
     private func destination(for route: ViewSettingsRoute) -> some View {
         switch route {
@@ -65,22 +73,6 @@ struct ViewSettingsPopover: View {
         case .propertyVisibility:
             PropertyVisibilityPane(scope: scope, path: $path)
         }
-    }
-
-    private func placeholder(title: String, note: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-            Text(note)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .navigationTitle(title)
     }
 }
 

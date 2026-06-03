@@ -9,6 +9,8 @@ struct PropertyEditorRow: View {
     var index: PommoraIndex? = nil
     var relationDisplay: RelationDisplayResolver? = nil
 
+    @State private var dateEditorOpen = false
+
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(definition.name)
@@ -26,10 +28,8 @@ struct PropertyEditorRow: View {
             numberEditor
         case .checkbox:
             checkboxEditor
-        case .date:
-            dateEditor(includeTime: false)
-        case .datetime:
-            dateEditor(includeTime: true)
+        case .date, .datetime:
+            dateEditor
         case .select:
             selectEditor
         case .multiSelect:
@@ -72,20 +72,52 @@ struct PropertyEditorRow: View {
         .labelsHidden()
     }
 
-    private func dateEditor(includeTime: Bool) -> some View {
-        DatePicker(
-            "",
-            selection: Binding(
-                get: {
-                    if case .date(let d) = value { return d }
-                    if case .datetime(let d) = value { return d }
-                    return Date()
-                },
-                set: { value = includeTime ? .datetime($0) : .date($0) }
-            ),
-            displayedComponents: includeTime ? [.date, .hourAndMinute] : [.date]
+    /// Unified Date editor. Inspector rows stay compact: the formatted value
+    /// is a tappable field pill that opens Pommora's custom `DateTimePicker`
+    /// (glass calendar + bespoke time row) in a popover — the picker draws its
+    /// own panel, so it's presented chromeless. Time inclusion comes from the
+    /// property's `timeFormat`; single-date mode maps `Date` ⇄
+    /// `DateSelection.single`.
+    private var dateEditor: some View {
+        Button { dateEditorOpen = true } label: {
+            Text(dateDisplayString)
+                .font(PUI.Typography.row)
+                .foregroundStyle(hasDateValue ? .primary : .secondary)
+                .padding(.horizontal, PUI.Spacing.md)
+                .padding(.vertical, PUI.Spacing.xs)
+                .fieldBackground()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $dateEditorOpen, arrowEdge: .bottom) {
+            DateTimePicker(
+                selection: dateSelectionBinding,
+                mode: .single,
+                timeFormat: definition.timeFormat ?? .none
+            )
+            .presentationBackground(.clear)
+        }
+    }
+
+    private var hasDateValue: Bool { value.dateSelection != nil }
+
+    /// Formatted via the canonical `DateFormat` / `TimeFormat` renderers (the
+    /// single sources of truth), or a placeholder when unset.
+    private var dateDisplayString: String {
+        guard let date = value.dateSelection?.anchorDate else { return "Empty" }
+        var text = (definition.dateFormat ?? .full).string(from: date)
+        if let time = (definition.timeFormat ?? .none).string(from: date) {
+            text += " \(time)"
+        }
+        return text
+    }
+
+    private var dateSelectionBinding: Binding<DateSelection?> {
+        let timeFormat = definition.timeFormat ?? .none
+        return Binding(
+            get: { value.dateSelection },
+            set: { value = .from(dateSelection: $0, timeFormat: timeFormat) }
         )
-        .labelsHidden()
     }
 
     private var selectEditor: some View {

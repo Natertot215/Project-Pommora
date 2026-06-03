@@ -31,11 +31,11 @@ struct PropertyVisibilityPane: View {
     @State private var commitError: String?
 
     var body: some View {
-        VStack(spacing: 0) {
+        ViewSettingsPane {
             PaneHeader(path: $path)
+        } content: {
             content
         }
-        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 
@@ -71,40 +71,39 @@ struct PropertyVisibilityPane: View {
         // property dragged here gets implicitly added to visibleProperties.
         let reorderable = visibleOrdered + unaccountedOrdered
 
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(reorderable, id: \.id) { def in
-                    PropertyVisibilityRow(
-                        definition: def,
-                        isVisible: !hiddenSet.contains(def.id),
-                        onToggle: { Task { await toggle(def.id, currentlyVisible: !hiddenSet.contains(def.id)) } }
-                    )
-                    .draggable(def.id)
-                    .dropDestination(for: String.self) { droppedIDs, _ in
-                        guard let droppedID = droppedIDs.first else { return false }
-                        return reorder(
-                            currentOrder: reorderable.map(\.id),
-                            droppedID: droppedID,
-                            ontoTargetID: def.id
-                        )
-                    }
-                }
-                ForEach(hiddenOrdered, id: \.id) { def in
-                    // Hidden rows are NOT draggable — drag-reorder is only
-                    // for the visible section. Tap-to-toggle still works.
-                    PropertyVisibilityRow(
-                        definition: def,
-                        isVisible: false,
-                        onToggle: { Task { await toggle(def.id, currentlyVisible: false) } }
+        // No ScrollView here — ViewSettingsPane owns the single scroll region.
+        VStack(spacing: 0) {
+            ForEach(reorderable, id: \.id) { def in
+                PropertyVisibilityRow(
+                    definition: def,
+                    isVisible: !hiddenSet.contains(def.id),
+                    onToggle: { Task { await toggle(def.id, currentlyVisible: !hiddenSet.contains(def.id)) } }
+                )
+                .draggable(def.id)
+                .dropDestination(for: String.self) { droppedIDs, _ in
+                    guard let droppedID = droppedIDs.first else { return false }
+                    return reorder(
+                        currentOrder: reorderable.map(\.id),
+                        droppedID: droppedID,
+                        ontoTargetID: def.id
                     )
                 }
-                if let err = commitError {
-                    Text(err)
-                        .font(PUI.Typography.caption)
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, PUI.Row.paddingHorizontal)
-                        .padding(.vertical, PUI.Row.paddingVertical)
-                }
+            }
+            ForEach(hiddenOrdered, id: \.id) { def in
+                // Hidden rows are NOT draggable — drag-reorder is only
+                // for the visible section. Tap-to-toggle still works.
+                PropertyVisibilityRow(
+                    definition: def,
+                    isVisible: false,
+                    onToggle: { Task { await toggle(def.id, currentlyVisible: false) } }
+                )
+            }
+            if let err = commitError {
+                Text(err)
+                    .font(PUI.Typography.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, PUI.Row.paddingHorizontal)
+                    .padding(.vertical, PUI.Row.paddingVertical)
             }
         }
     }

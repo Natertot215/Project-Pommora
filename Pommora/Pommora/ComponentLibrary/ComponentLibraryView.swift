@@ -46,6 +46,8 @@ struct ComponentLibraryView: View {
             ChipsGallery()
         case .windows:
             WindowsGallery()
+        case .pickers:
+            PickersGallery()
         case .none:
             ContentUnavailableView(
                 "Pick a category",
@@ -76,7 +78,7 @@ enum ComponentLibraryGroup: String, CaseIterable, Hashable {
     var categories: [ComponentCategory] {
         switch self {
         case .components:
-            return [.chips, .sidebar, .detailViews, .sheets, .pageEditor, .navDropdown, .windows]
+            return [.chips, .sidebar, .detailViews, .pickers, .sheets, .pageEditor, .navDropdown, .windows]
         case .foundations:
             return [.colors, .typography, .materials, .symbols, .spacing]
         }
@@ -90,6 +92,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
     case chips
     case sidebar
     case detailViews
+    case pickers
     case sheets
     case pageEditor
     case navDropdown
@@ -107,6 +110,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
         case .chips: return "Chips"
         case .sidebar: return "Sidebar"
         case .detailViews: return "Detail Views"
+        case .pickers: return "Date Picker"
         case .sheets: return "Sheets"
         case .pageEditor: return "Page Editor"
         case .navDropdown: return "NavDropdown"
@@ -124,6 +128,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
         case .chips: return "tag.fill"
         case .sidebar: return "sidebar.left"
         case .detailViews: return "rectangle.split.3x1"
+        case .pickers: return "calendar"
         case .sheets: return "doc.on.doc"
         case .pageEditor: return "text.alignleft"
         case .navDropdown: return "square.on.square"
@@ -155,6 +160,8 @@ enum ComponentCategory: String, CaseIterable, Hashable {
             return [
                 .init(name: "Detail Row", detail: "Row primitive consumed by all four storage-container detail-pane Tables (Vault / Type / Collection / Set)."),
             ]
+        case .pickers:
+            return []  // ships a real gallery (PickersGallery)
         case .sheets:
             return [
                 .init(name: "New Item Sheet", detail: "Name + Icon form for creating Items. Routes to ItemContentManager.createItem(in:type:) or createItem(inTypeRoot:)."),
@@ -950,6 +957,78 @@ private struct StatusCheckboxShowcase: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(.controlBackgroundColor).opacity(0.4))
         )
+    }
+}
+
+// MARK: - Date Picker Gallery (shipped)
+
+/// Live `DateTimePicker` in every mode/time configuration. The accent fill
+/// reads `\.nexusAccent` — defaults to the system accent here (no live Nexus).
+private struct PickersGallery: View {
+    @State private var dateOnly: DateSelection? = .single(.now)
+    @State private var time12: DateSelection? = .single(.now)
+    @State private var time24: DateSelection? = .single(.now)
+    @State private var range: DateSelection?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 48) {
+                GallerySection(
+                    title: "Date Picker",
+                    summary: "Pommora's custom Liquid-Glass calendar. Month/year header with a chevron month menu (in-card overlay, not a nested popover) + prev/next arrows. Selection is the per-Nexus accent at a translucent fill; range in-between days get a lighter band. Optional bespoke time row below a divider."
+                ) {
+                    VStack(alignment: .leading, spacing: 32) {
+                        variant("Single date — date only", selection: $dateOnly, mode: .single, timeFormat: .none)
+                        variant("Single date — 12-hour time", selection: $time12, mode: .single, timeFormat: .twelveHour)
+                        variant("Single date — 24-hour time", selection: $time24, mode: .single, timeFormat: .twentyFourHour)
+                        variant("Range — accent band on in-between days", selection: $range, mode: .range, timeFormat: .none)
+                    }
+                    .padding(.horizontal)
+                }
+
+                CodeBlock(
+                    title: "Usage",
+                    code: """
+                    DateTimePicker(
+                        selection: $selection,    // Binding<DateSelection?>
+                        mode: .single,            // or .range (Agenda events)
+                        timeFormat: .twelveHour   // .none | .twelveHour | .twentyFourHour
+                    )
+
+                    // Property cells bind .single; the accent fill reads the
+                    // nexusAccent environment value (system accent in previews).
+                    """
+                )
+                .padding(.horizontal)
+            }
+            .padding(.vertical, 24)
+        }
+    }
+
+    @ViewBuilder
+    private func variant(
+        _ title: String,
+        selection: Binding<DateSelection?>,
+        mode: DateSelection.Mode,
+        timeFormat: TimeFormat
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            DateTimePicker(selection: selection, mode: mode, timeFormat: timeFormat)
+            Text(readout(selection.wrappedValue))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func readout(_ selection: DateSelection?) -> String {
+        guard let selection else { return "nil" }
+        switch selection {
+        case .single(let d):
+            return "single(\(d.formatted(date: .abbreviated, time: .shortened)))"
+        case .range(let a, let b):
+            return "range(\(a.formatted(date: .abbreviated, time: .omitted)) … \(b.formatted(date: .abbreviated, time: .omitted)))"
+        }
     }
 }
 

@@ -143,6 +143,7 @@ struct ContentView: View {
             detail
         }
         .tint(currentAccent)
+        .environment(\.nexusAccent, currentAccent)
         .sheet(
             item: $bindableNexusManager.pendingAdoption,
             onDismiss: {
@@ -320,21 +321,7 @@ struct ContentView: View {
     /// manager hasn't loaded yet. Wired here (not in PommoraApp) because
     /// SettingsManager is per-Nexus and constructed inside `NexusEnvironment`.
     private var currentAccent: Color {
-        guard let manager = nexusEnvironment?.settingsManager,
-            let color = manager.settings.accentColor
-        else {
-            return .accentColor
-        }
-        switch color {
-        case .red: return .red
-        case .orange: return .orange
-        case .yellow: return .yellow
-        case .green: return .green
-        case .blue: return .blue
-        case .purple: return .purple
-        case .pink: return .pink
-        case .gray: return .gray
-        }
+        nexusEnvironment?.settingsManager.settings.accentColor?.color ?? .accentColor
     }
 
     /// (Re)build the per-Nexus manager container when `currentNexus` changes.

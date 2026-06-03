@@ -102,11 +102,12 @@ struct PropertyCellEditor: View {
             }
             .buttonStyle(.plain)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-                if isChipDropdownEditor {
-                    // ChipDropdown is self-contained — it draws its own
-                    // Liquid-Glass panel. Present it chromeless (clear the
-                    // system popover background, no padding wrapper) so the
-                    // popover doesn't stack a second container around it.
+                if isSelfPaneledEditor {
+                    // Self-paneled editors (chip dropdowns, RelationPicker, and
+                    // the DateTimePicker) draw their own Liquid-Glass panel.
+                    // Present them chromeless (clear the system popover
+                    // background, no padding wrapper) so the popover doesn't
+                    // stack a second container around them.
                     editor
                         .presentationBackground(.clear)
                         .onDisappear { commit(draft) }
@@ -120,13 +121,13 @@ struct PropertyCellEditor: View {
         }
     }
 
-    /// Select / MultiSelect / Status use the self-contained `ChipDropdown`,
-    /// and Relation uses `RelationPicker` — both draw their own Liquid-Glass
-    /// panel, so they present without the popover's chrome + padding (avoids a
-    /// container-in-a-container).
-    private var isChipDropdownEditor: Bool {
+    /// Editors that draw their own Liquid-Glass panel and so present without the
+    /// popover's chrome + padding (avoids a container-in-a-container): the chip
+    /// dropdowns (Select / MultiSelect / Status), the `RelationPicker`, and the
+    /// `DateTimePicker` (Date / Date-time).
+    private var isSelfPaneledEditor: Bool {
         switch definition.type {
-        case .select, .multiSelect, .status, .relation: return true
+        case .select, .multiSelect, .status, .relation, .date, .datetime: return true
         default: return false
         }
     }
@@ -179,10 +180,8 @@ struct PropertyCellEditor: View {
         switch definition.type {
         case .number:
             numberEditor
-        case .date:
-            dateEditor(includesTime: false)
-        case .datetime:
-            dateEditor(includesTime: true)
+        case .date, .datetime:
+            dateEditor
         case .select:
             selectEditor
         case .multiSelect:
@@ -221,25 +220,19 @@ struct PropertyCellEditor: View {
             .textFieldStyle(.roundedBorder)
     }
 
+    /// Unified Date editor — Pommora's custom `DateTimePicker` (glass calendar
+    /// + bespoke time row), which draws its own panel (hence self-paneled
+    /// above). Time inclusion comes from the property's `timeFormat` (`.none`
+    /// → date-only value). Single-date mode: the cell holds one `Date`, mapped
+    /// to/from `DateSelection.single`.
     @ViewBuilder
-    private func dateEditor(includesTime: Bool) -> some View {
-        let binding = Binding<Date>(
-            get: {
-                if case .date(let d) = draft { return d }
-                if case .datetime(let d) = draft { return d }
-                return Date()
-            },
-            set: { newDate in
-                draft = includesTime ? .datetime(newDate) : .date(newDate)
-            }
+    private var dateEditor: some View {
+        let timeFormat = definition.timeFormat ?? .none
+        let selection = Binding<DateSelection?>(
+            get: { draft?.dateSelection },
+            set: { draft = .from(dateSelection: $0, timeFormat: timeFormat) }
         )
-        DatePicker(
-            "",
-            selection: binding,
-            displayedComponents: includesTime ? [.date, .hourAndMinute] : [.date]
-        )
-        .labelsHidden()
-        .datePickerStyle(.graphical)
+        DateTimePicker(selection: selection, mode: .single, timeFormat: timeFormat)
     }
 
     @ViewBuilder

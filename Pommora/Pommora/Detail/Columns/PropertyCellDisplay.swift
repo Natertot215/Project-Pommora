@@ -48,10 +48,8 @@ struct PropertyCellDisplay: View {
                 numberCell
             case .checkbox:
                 checkboxCell
-            case .date:
+            case .date, .datetime:
                 dateCell
-            case .datetime:
-                datetimeCell
             case .select:
                 selectCell
             case .multiSelect:
@@ -124,50 +122,32 @@ struct PropertyCellDisplay: View {
 
     // MARK: - Date / DateTime
 
+    /// Unified Date cell. The on-disk value may be `.date` (date-only) or
+    /// `.datetime` (with time) — both carry a `Date`; the date/time *display* is
+    /// governed by the property's `dateFormat` + `timeFormat`, not the value case.
     @ViewBuilder
     private var dateCell: some View {
-        if case .date(let d) = value {
-            Text(formattedDate(d, includesTime: false))
+        if let d = dateValue {
+            Text(formattedDate(d))
                 .font(.system(size: 12))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
         } else { emptyCell }
     }
 
-    @ViewBuilder
-    private var datetimeCell: some View {
-        if case .datetime(let d) = value {
-            Text(formattedDate(d, includesTime: true))
-                .font(.system(size: 12))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-        } else { emptyCell }
+    private var dateValue: Date? {
+        switch value {
+        case .date(let d), .datetime(let d): return d
+        default: return nil
+        }
     }
 
-    private func formattedDate(_ date: Date, includesTime: Bool) -> String {
-        let f = DateFormatter()
-        f.timeZone = TimeZone.current
-        switch definition.dateFormat ?? .monthDayYearLong {
-        case .monthDayLong:
-            f.dateFormat = "MMMM d"
-        case .monthDayYearLong:
-            f.dateFormat = "MMMM d, yyyy"
-        case .numericShort:
-            f.dateFormat = "MM-dd"
-        case .numericMedium:
-            f.dateFormat = "MM-dd-yy"
-        case .numericLong:
-            f.dateFormat = "MM-dd-yyyy"
-        case .iso:
-            f.dateFormat = includesTime ? "yyyy-MM-dd'T'HH:mm:ssZ" : "yyyy-MM-dd"
+    private func formattedDate(_ date: Date) -> String {
+        let dateStr = (definition.dateFormat ?? .full).string(from: date)
+        if let timeStr = (definition.timeFormat ?? .none).string(from: date) {
+            return "\(dateStr) \(timeStr)"
         }
-        var base = f.string(from: date)
-        if includesTime, definition.dateFormat != .iso {
-            let t = DateFormatter()
-            t.timeStyle = .short
-            base += " \(t.string(from: date))"
-        }
-        return base
+        return dateStr
     }
 
     // MARK: - Select / MultiSelect

@@ -58,6 +58,8 @@ enum PageValidator {
         switch (value, type) {
         case (.number, .number), (.checkbox, .checkbox),
             (.date, .date), (.datetime, .datetime),
+            // Unified Date type: date-only + with-time values interchangeable.
+            (.date, .datetime), (.datetime, .date),
             (.select, .select), (.multiSelect, .multiSelect),
             (.relation, .relation), (.url, .url),
             (.null, _):

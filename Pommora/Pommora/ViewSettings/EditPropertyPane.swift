@@ -101,46 +101,43 @@ struct EditPropertyPane: View {
 
     @ViewBuilder
     private var editBody: some View {
-        VStack(spacing: 0) {
-            // Back affordance only ("‹ Edit Properties"). The property's own
-            // icon + name field below carries identity — no duplicate title.
+        let def = currentDefinition()
+        ViewSettingsPane {
+            // Back affordance only ("‹ Edit Properties") + the property's own
+            // icon + name field, which carries identity (no duplicate title).
             PaneHeader(path: $path, showsDivider: false)
-
-            if let def = currentDefinition() {
+            if let def {
                 iconTitleRow(def: def)
                 fieldDivider
-
-                // Flexible middle: the per-type editor (Options list, etc.)
-                // scrolls + absorbs all spare height.
-                ScrollView {
-                    VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
-                        middleSection(for: def)
-                        if hasBottomPicker(for: def) {
-                            // Display As / format scrolls WITH the options as a
-                            // per-type setting — no divider above it, just the
-                            // section spacing.
-                            bottomPicker(for: def)
-                        }
+            }
+        } content: {
+            if let def {
+                VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
+                    middleSection(for: def)
+                    if hasBottomPicker(for: def) {
+                        // Display As / format scrolls WITH the options as a
+                        // per-type setting — no divider above it, just the
+                        // section spacing.
+                        bottomPicker(for: def)
                     }
-                    .padding(.horizontal, PUI.Pane.contentPadding)
-                    .padding(.vertical, PUI.Pane.contentPadding)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: .infinity)
-
-                // Pinned bottom: ONLY the Delete / Duplicate footer (suppressed
-                // for reserved properties such as the tier entries).
-                bottomBlock(for: def)
+                .padding(.horizontal, PUI.Pane.contentPadding)
+                .padding(.vertical, PUI.Pane.contentPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 ContentUnavailableView(
                     "Property not found",
                     systemImage: "questionmark.circle",
                     description: Text("The property may have been deleted in another window.")
                 )
-                .frame(maxHeight: .infinity)
+            }
+        } footer: {
+            // Pinned bottom: ONLY the Delete / Duplicate footer (suppressed
+            // for reserved properties such as the tier entries).
+            if let def {
+                bottomBlock(for: def)
             }
         }
-        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
         .onAppear {
             if let def = currentDefinition() {
@@ -157,34 +154,30 @@ struct EditPropertyPane: View {
     /// source manager's `addProperty`. Nothing is written until Save fires.
     @ViewBuilder
     private var createRelationBody: some View {
-        VStack(spacing: 0) {
+        ViewSettingsPane {
             PaneHeader(path: $path, showsDivider: false)
             createRelationIconTitleRow
             fieldDivider
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
-                    RelationDraftTargetSection(
-                        catalog: catalog,
-                        selection: $relationDraft.relationTarget
-                    )
-                    RelationDraftMirrorSection(
-                        reverseName: $relationReverseName,
-                        reverseIcon: $relationDraft.reverseIcon
-                    )
-                }
-                .padding(.horizontal, PUI.Pane.contentPadding)
-                .padding(.vertical, PUI.Pane.contentPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        } content: {
+            VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
+                RelationDraftTargetSection(
+                    catalog: catalog,
+                    selection: $relationDraft.relationTarget
+                )
+                RelationDraftMirrorSection(
+                    reverseName: $relationReverseName,
+                    reverseIcon: $relationDraft.reverseIcon
+                )
             }
-            .frame(maxHeight: .infinity)
-
+            .padding(.horizontal, PUI.Pane.contentPadding)
+            .padding(.vertical, PUI.Pane.contentPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } footer: {
             PaneDivider()
             createRelationFooter
                 .padding(.horizontal, PUI.Pane.contentPadding)
                 .padding(.vertical, PUI.Spacing.lg)
         }
-        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 
@@ -670,7 +663,12 @@ struct EditPropertyPane: View {
         switch def.type {
         case .status: displayAsPicker(def: def)
         case .number: numberFormatPicker(def: def)
-        case .date, .datetime: dateFormatPicker(def: def)
+        case .date, .datetime:
+            // Unified Date type: date-portion format + time-portion display.
+            VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
+                dateFormatPicker(def: def)
+                timeFormatPicker(def: def)
+            }
         default: EmptyView()
         }
     }
@@ -725,13 +723,27 @@ struct EditPropertyPane: View {
         }
     }
 
+    /// Date-portion display format. No "Default" row — always a concrete pick
+    /// (nil reads as `.long`).
     @ViewBuilder
     private func dateFormatPicker(def: PropertyDefinition) -> some View {
-        menuSelectorRow("Display as", value: def.dateFormat.map(dateFormatLabel) ?? "Default") {
-            Picker("Display as", selection: bindingForDateFormat(def: def)) {
-                Text("Default").tag(DateFormat?.none)
+        menuSelectorRow("Display Date", value: (def.dateFormat ?? .full).displayLabel) {
+            Picker("Display Date", selection: bindingForDateFormat(def: def)) {
                 ForEach(DateFormat.allCases, id: \.self) { fmt in
-                    Text(dateFormatLabel(fmt)).tag(DateFormat?.some(fmt))
+                    Text(fmt.displayLabel).tag(fmt)
+                }
+            }
+        }
+    }
+
+    /// Time-portion display: None (date only) / 12 Hour / 24 Hour. nil reads as
+    /// `.none`.
+    @ViewBuilder
+    private func timeFormatPicker(def: PropertyDefinition) -> some View {
+        menuSelectorRow("Display Time", value: (def.timeFormat ?? .none).displayLabel) {
+            Picker("Display Time", selection: bindingForTimeFormat(def: def)) {
+                ForEach(TimeFormat.allCases, id: \.self) { fmt in
+                    Text(fmt.displayLabel).tag(fmt)
                 }
             }
         }
@@ -742,17 +754,6 @@ struct EditPropertyPane: View {
         case .box: return "Box"
         case .chip: return "Chip"
         case .select, .none: return "Select"
-        }
-    }
-
-    private func dateFormatLabel(_ fmt: DateFormat) -> String {
-        switch fmt {
-        case .monthDayLong: return "March 4"
-        case .monthDayYearLong: return "March 4, 2026"
-        case .numericShort: return "03-04"
-        case .numericMedium: return "03-04-26"
-        case .numericLong: return "03-04-2026"
-        case .iso: return "2026-03-04"
         }
     }
 
@@ -881,12 +882,23 @@ struct EditPropertyPane: View {
         )
     }
 
-    private func bindingForDateFormat(def: PropertyDefinition) -> Binding<DateFormat?> {
+    private func bindingForDateFormat(def: PropertyDefinition) -> Binding<DateFormat> {
         Binding(
-            get: { def.dateFormat },
+            get: { def.dateFormat ?? .full },
             set: { newValue in
                 Task {
                     await applyTransform { $0.dateFormat = newValue }
+                }
+            }
+        )
+    }
+
+    private func bindingForTimeFormat(def: PropertyDefinition) -> Binding<TimeFormat> {
+        Binding(
+            get: { def.timeFormat ?? .none },
+            set: { newValue in
+                Task {
+                    await applyTransform { $0.timeFormat = newValue }
                 }
             }
         )

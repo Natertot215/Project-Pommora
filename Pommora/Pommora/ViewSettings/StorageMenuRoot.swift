@@ -32,14 +32,16 @@ struct StorageMenuRoot: View {
     @FocusState private var renameFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(.horizontal, PUI.Pane.Header.paddingHorizontal)
-                .padding(.top, PUI.Pane.Header.paddingTop)
-                .padding(.bottom, PUI.Pane.Header.paddingBottom)
-
-            PaneDivider()
-
+        ViewSettingsPane {
+            // Pinned header: editable icon + title, then the divider.
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, PUI.Pane.Header.paddingHorizontal)
+                    .padding(.top, PUI.Pane.Header.paddingTop)
+                    .padding(.bottom, PUI.Pane.Header.paddingBottom)
+                PaneDivider()
+            }
+        } content: {
             VStack(spacing: 0) {
                 activeRow(
                     icon: "list.bullet.rectangle",
@@ -57,10 +59,7 @@ struct StorageMenuRoot: View {
                 mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
             }
             .padding(.vertical, PUI.Spacing.xs)
-
-            Spacer(minLength: 0)
         }
-        .measuredPaneHeight()
     }
 
     @ViewBuilder

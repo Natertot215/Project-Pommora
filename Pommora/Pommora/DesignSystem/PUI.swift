@@ -63,8 +63,9 @@ enum PUI {
         static let width: CGFloat = 300
         /// Minimum popover height — the floor; short panes sit here (today's look).
         static let minHeight: CGFloat = 360
-        /// Hard cap — panes grow to fit content up to here, then scroll (2× min).
-        static let maxHeight: CGFloat = 720
+        /// Hard cap — panes grow to fit content up to here, then scroll the
+        /// middle (header + footer stay pinned). Nathan-set 2026-06-02.
+        static let maxHeight: CGFloat = 500
         /// Inner content padding (for scrollable pane bodies).
         static let contentPadding: CGFloat = Spacing.xxl
         /// Vertical padding above + below an in-content divider (e.g. the

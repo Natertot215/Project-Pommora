@@ -8,7 +8,8 @@ extension PropertyType {
     static let userCreatable: [PropertyType] = [
         .number,
         .checkbox,
-        .date,
+        // `.date` (date-only) retired — the unified `.datetime` ("Date") covers
+        // it, with date-only display via the Display Time = None setting.
         .datetime,
         .select,
         .multiSelect,
@@ -24,7 +25,7 @@ extension PropertyType {
         case .number:        return "number"
         case .checkbox:      return "checkmark.square"
         case .date:          return "calendar"
-        case .datetime:      return "calendar.badge.clock"
+        case .datetime:      return "calendar"
         case .select:        return "chevron.up.chevron.down"
         case .multiSelect:   return "list.bullet"
         case .status:        return "circle.lefthalf.filled"
@@ -41,7 +42,7 @@ extension PropertyType {
         case .number:        return "Number"
         case .checkbox:      return "Checkbox"
         case .date:          return "Date"
-        case .datetime:      return "Date & Time"
+        case .datetime:      return "Date"
         case .select:        return "Select"
         case .multiSelect:   return "Multi-Select"
         case .status:        return "Status"

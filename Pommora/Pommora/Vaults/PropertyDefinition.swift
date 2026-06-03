@@ -35,7 +35,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     var dualProperty: DualPropertyConfig?  // relation — paired reverse on target Type
     var accept: [String]?  // file — MIME-type whitelist (e.g. ["application/pdf", "image/*"])
     var displayAs: DisplayVariant?  // status — render variant (nil = .box default)
-    var dateFormat: DateFormat?  // date / datetime — display format (nil = .monthDayYearLong default)
+    var dateFormat: DateFormat?  // date — date-portion display format (nil = .full default)
+    var timeFormat: TimeFormat?  // date — time-portion display (nil = .none, date only)
 
     init(
         id: String,
@@ -52,7 +53,8 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         dualProperty: DualPropertyConfig? = nil,
         accept: [String]? = nil,
         displayAs: DisplayVariant? = nil,
-        dateFormat: DateFormat? = nil
+        dateFormat: DateFormat? = nil,
+        timeFormat: TimeFormat? = nil
     ) {
         self.id = id
         self.name = name
@@ -69,6 +71,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.accept = accept
         self.displayAs = displayAs
         self.dateFormat = dateFormat
+        self.timeFormat = timeFormat
     }
 
     // MARK: - Nested types
@@ -273,6 +276,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         case accept
         case displayAs = "display_as"
         case dateFormat = "date_format"
+        case timeFormat = "time_format"
     }
 
     init(from decoder: any Decoder) throws {
@@ -281,7 +285,12 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         // adoption-scan migration backfills with a minted ULID before re-saving.
         self.id = (try? c.decode(String.self, forKey: .id)) ?? ""
         self.name = try c.decode(String.self, forKey: .name)
-        self.type = try c.decode(PropertyType.self, forKey: .type)
+        // Retire the date-only `.date` type: fold it into the unified `.datetime`
+        // ("Date") on read. The old type vanishes from the UI immediately and the
+        // file rewrites to the unified form on its next save (normalize-on-read).
+        // Date-only display is preserved by `timeFormat` defaulting to `.none`.
+        let decodedType = try c.decode(PropertyType.self, forKey: .type)
+        self.type = (decodedType == .date) ? .datetime : decodedType
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.numberFormat = try c.decodeIfPresent(NumberFormat.self, forKey: .numberFormat)
         self.dateIncludesTime = try c.decodeIfPresent(Bool.self, forKey: .dateIncludesTime)
@@ -300,6 +309,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.accept = try c.decodeIfPresent([String].self, forKey: .accept)
         self.displayAs = try c.decodeIfPresent(DisplayVariant.self, forKey: .displayAs)
         self.dateFormat = try c.decodeIfPresent(DateFormat.self, forKey: .dateFormat)
+        self.timeFormat = try c.decodeIfPresent(TimeFormat.self, forKey: .timeFormat)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -320,6 +330,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(accept, forKey: .accept)
         try c.encodeIfPresent(displayAs, forKey: .displayAs)
         try c.encodeIfPresent(dateFormat, forKey: .dateFormat)
+        try c.encodeIfPresent(timeFormat, forKey: .timeFormat)
     }
 
     // MARK: - SQLite index config blob

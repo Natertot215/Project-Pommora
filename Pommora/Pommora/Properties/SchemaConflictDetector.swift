@@ -88,8 +88,9 @@ enum SchemaConflictDetector {
         case .null: return false  // null is always compatible — no value set
         case .number: return type != .number
         case .checkbox: return type != .checkbox
-        case .date: return type != .date
-        case .datetime: return type != .datetime
+        // Unified Date type: date-only + with-time values are interchangeable
+        // under either schema type.
+        case .date, .datetime: return type != .date && type != .datetime
         case .select: return type != .select
         case .multiSelect: return type != .multiSelect
         case .status: return type != .status

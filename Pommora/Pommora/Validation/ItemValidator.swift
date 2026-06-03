@@ -77,6 +77,10 @@ enum ItemValidator {
             (.checkbox, .checkbox),
             (.date, .date),
             (.datetime, .datetime),
+            // Unified Date type: a date-only (`.date`) value and a with-time
+            // (`.datetime`) value are interchangeable under either schema type.
+            (.date, .datetime),
+            (.datetime, .date),
             (.select, .select),
             (.multiSelect, .multiSelect),
             (.status, .status),

@@ -35,18 +35,16 @@ struct PropertyTypePickerPane: View {
     @State private var commitError: String?
 
     var body: some View {
-        VStack(spacing: 0) {
+        ViewSettingsPane {
             PaneHeader(path: $path)
-
-            ScrollView {
-                PropertyTypePicker(selected: $selected) { type in
-                    commitError = nil
-                    Task { await commit(type) }
-                }
-                .padding(.horizontal, PUI.Spacing.xl)
-                .padding(.vertical, PUI.Pane.contentPadding)
+        } content: {
+            PropertyTypePicker(selected: $selected) { type in
+                commitError = nil
+                Task { await commit(type) }
             }
-
+            .padding(.horizontal, PUI.Spacing.xl)
+            .padding(.vertical, PUI.Pane.contentPadding)
+        } footer: {
             if let err = commitError {
                 Text(err)
                     .font(PUI.Typography.caption)
@@ -55,7 +53,6 @@ struct PropertyTypePickerPane: View {
                     .padding(.vertical, PUI.Row.paddingVertical)
             }
         }
-        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 

@@ -8,27 +8,29 @@ import Testing
 @Suite("PropertyTypePickerTests")
 struct PropertyTypePickerTests {
 
-    // MARK: - Test 1: userCreatable enumerates exactly 10 cases
+    // MARK: - Test 1: userCreatable enumerates exactly 9 cases
 
-    @Test("PropertyType.userCreatable enumerates exactly 10 cases")
-    func userCreatableCountIs10() {
-        #expect(PropertyType.userCreatable.count == 10)
+    @Test("PropertyType.userCreatable enumerates exactly 9 cases")
+    func userCreatableCountIs9() {
+        #expect(PropertyType.userCreatable.count == 9)
     }
 
-    // MARK: - Test 2: lastEditedTime is NOT in userCreatable
+    // MARK: - Test 2: auto-managed + retired types are NOT in userCreatable
 
-    @Test("PropertyType.userCreatable does NOT include .lastEditedTime")
-    func lastEditedTimeExcluded() {
-        let excluded = PropertyType.userCreatable.first(where: { $0 == .lastEditedTime })
-        #expect(excluded == nil)
+    @Test("PropertyType.userCreatable excludes .lastEditedTime and the retired .date")
+    func nonUserCreatableExcluded() {
+        // `.lastEditedTime` is auto-managed; `.date` (date-only) was retired in
+        // favour of the unified `.datetime` ("Date") on 2026-06-02.
+        #expect(PropertyType.userCreatable.first(where: { $0 == .lastEditedTime }) == nil)
+        #expect(PropertyType.userCreatable.first(where: { $0 == .date }) == nil)
     }
 
-    // MARK: - Test 3: the 10 expected cases are all present
+    // MARK: - Test 3: the 9 expected cases are all present
 
-    @Test("PropertyType.userCreatable contains all 10 expected property types")
+    @Test("PropertyType.userCreatable contains all 9 expected property types")
     func expectedCasesPresent() {
         let expected: Set<PropertyType> = [
-            .number, .checkbox, .date, .datetime,
+            .number, .checkbox, .datetime,
             .select, .multiSelect, .status, .url, .relation, .file,
         ]
         let actual = Set(PropertyType.userCreatable)

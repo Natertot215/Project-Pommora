@@ -25,14 +25,17 @@ struct PropertiesListPane: View {
     @State private var searchQuery: String = ""
 
     var body: some View {
-        VStack(spacing: 0) {
+        ViewSettingsPane {
             PaneHeader(path: $path)
+        } content: {
             propertyList
-                .frame(maxHeight: .infinity)
-            PaneDivider()
-            footer
+        } footer: {
+            // Pinned: the divider + global "New property" action.
+            VStack(spacing: 0) {
+                PaneDivider()
+                footer
+            }
         }
-        .measuredPaneHeight()
         .navigationBarBackButtonHidden(true)
     }
 
@@ -44,15 +47,15 @@ struct PropertiesListPane: View {
         if props.isEmpty {
             emptyState
         } else {
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(props, id: \.id) { def in
-                        PropertyRow(definition: def) {
-                            // Reserved properties are non-interactive; only
-                            // user-defined push to EditPropertyPane.
-                            guard !ReservedPropertyID.isReserved(def.id) else { return }
-                            path.append(.editProperty(propertyID: def.id))
-                        }
+            // No ScrollView here — ViewSettingsPane owns the single scroll
+            // region and measures this content's natural height.
+            VStack(spacing: 0) {
+                ForEach(props, id: \.id) { def in
+                    PropertyRow(definition: def) {
+                        // Reserved properties are non-interactive; only
+                        // user-defined push to EditPropertyPane.
+                        guard !ReservedPropertyID.isReserved(def.id) else { return }
+                        path.append(.editProperty(propertyID: def.id))
                     }
                 }
             }
@@ -126,7 +129,11 @@ struct PropertiesListPane: View {
                     .padding(.horizontal, PUI.Spacing.xxxl)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Finite (not maxHeight: .infinity) so it measures cleanly inside the
+        // container's scroll region; minHeight gives it presence and floors the
+        // pane to PUI.Pane.minHeight.
+        .frame(maxWidth: .infinity, minHeight: 220)
+        .padding(.vertical, PUI.Spacing.xxxl)
     }
 
     // MARK: - Footer
