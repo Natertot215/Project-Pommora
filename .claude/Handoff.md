@@ -32,13 +32,13 @@ This session **executed the entire MarkdownPM rebuild to completion** on Nathan'
 
 1. **Merge `markdownpm-rehome` → `main`.** The rebuild is complete + green (package 119, app 1166/0-fail, verified parallel-free). This is the gating step — nothing else (incl. the parallel session) should resume until it merges.
 2. **THEN the parked parallel session may resume** (date/datetime property + ViewSettings redesign). Its uncommitted work stays untouched on the branch.
-3. **Finish the parallel-contaminated docs cleanup** (deferred this session): add the MarkdownPM-rebuild entry to `History.md`; reconcile the stale rebuild references in `Framework.md` + `PommoraPRD.md`. Blocked only because those files carry the parallel session's uncommitted edits — do it once the parallel work commits, so my edits don't bundle theirs.
+3. ~~Finish the parallel-contaminated docs cleanup~~ — **DONE** (`e4dd5aa`): the `History.md` rebuild entry + `Framework.md` / `PommoraPRD.md` / `CLAUDE.md` stale-ref reconciliation landed on top of the (now-done) parallel doc work, committed together with the parallel session's date-redesign docs. Parallel CODE (DateTimePicker / PUI / ViewSettings / etc.) remains uncommitted.
 4. **The wikilink / DEC-1 session** (separate, post-rebuild): build the structural id-strip in the consolidated save path (LD-28), enable the `.disabled dec1TargetNoIdOnDisk` anchor, and bundle Phase-6.6 (ContextMenu save-path unification) with it.
 
 #### Pending Focuses
 
 - **[merge-ready] `markdownpm-rehome` → `main`** — 48 commits, complete + green; unmerged. The parallel session resumes only after this.
-- **[deferred — parallel-contaminated] Docs cleanup for `History.md` (add rebuild entry) / `Framework.md` / `PommoraPRD.md`** — those hold the parallel session's uncommitted date-redesign edits; finish after the parallel work commits.
+- **[done `e4dd5aa`] Docs cleanup for `History.md` / `Framework.md` / `PommoraPRD.md` / `CLAUDE.md`** — the rebuild-reference reconciliation landed on top of the parallel session's (now-done) date-redesign docs, all committed together. Parallel CODE stays uncommitted.
 - **[deferred — best-judgment, Nathan to ratify; all logged in the plan's Execution Record + ledger] rebuild polish:** D-CODE-1 multi-backtick inline-code AST relocation (ripples the `codeTokens` bucket); Task 5.4 renderer-color theme-lift (manual-visual; pairs with the v0.4.0 brand palette); Phase-6.1 apply-path DRY (load-bearing-distinct loops); Phase-6.2 HR Stage-0 unification (predicate already shared); Phase-6.6 ContextMenu unify (→ wikilink/DEC-1 session); the `[N]` fold-key ordinal hoist (byte-sensitive; needs a cross-site key-equality test first); shedding `onCodeBlockSelectionChange`/`onCaretRectChange` (live internal plumbing — needs a runtime check).
 - **[carried] v0.4.0 roadmap** — Symbols / Settings / Trash / **Wikilinks** (owns DEC-1) + file-watcher + FTS5.
 
