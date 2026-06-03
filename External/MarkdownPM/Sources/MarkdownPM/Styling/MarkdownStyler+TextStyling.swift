@@ -10,7 +10,7 @@
 import AppKit
 import Foundation
 
-extension MarkdownStyler {
+extension MarkdownPMStyler {
 
     // MARK: Headings
 

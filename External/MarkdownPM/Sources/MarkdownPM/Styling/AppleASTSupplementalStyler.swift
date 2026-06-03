@@ -5,9 +5,9 @@
 //  Walks Apple swift-markdown's Document AST to apply styling for
 //  Markdown constructs the engine's regex tokenizer doesn't cover:
 //  BlockQuote, Strikethrough, Table, ThematicBreak. Runs AFTER the
-//  primary MarkdownStyler pass so it composes additively — primary
-//  styler handles emphasis/links/code/lists/headings, this pass adds
-//  the GFM-and-extended block types Pommora needs.
+//  primary `MarkdownPMStyler` pass so it composes additively — the
+//  primary pass handles emphasis/links/code/lists/headings, this pass
+//  adds the GFM-and-extended block types Pommora needs.
 //
 //  Pommora-owned addition to the vendored engine (Session 9 follow-up).
 //

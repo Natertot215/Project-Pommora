@@ -10,13 +10,13 @@
 import AppKit
 import Foundation
 
-extension MarkdownStyler {
+extension MarkdownPMStyler {
 
     // MARK: Auto-detected plain URLs
 
     static func styleAutoLinks(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
-        guard let detector = MarkdownStyler.linkDataDetector else { return attrs }
+        guard let detector = MarkdownPMStyler.linkDataDetector else { return attrs }
 
         // Scope to edited paragraphs when provided; avoids full-doc URL scan per keystroke.
         let rangesToScan: [NSRange]

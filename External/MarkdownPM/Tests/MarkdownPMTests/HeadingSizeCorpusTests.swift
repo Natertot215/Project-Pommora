@@ -33,7 +33,7 @@ struct HeadingSizeCorpusTests {
             tokens: tokens,
             in: text as NSString
         )
-        let ranges = MarkdownStyler.styleAttributes(
+        let ranges = MarkdownPMStyler.styleAttributes(
             text: text,
             fontName: "SF Pro Text",
             fontSize: Self.baseFontSize,

@@ -4,7 +4,7 @@ import Markdown
 import Testing
 @testable import MarkdownPM
 
-/// Characterizes `MarkdownStyler.styleAttributes` output (the [StyledRange]
+/// Characterizes `MarkdownPMStyler.styleAttributes` output (the [StyledRange]
 /// list) at varied caret positions, plus the two structural invariants the
 /// Phase-5 styler merge must preserve: primary-before-supplemental ordering
 /// and ThematicBreak emitting NOTHING from either styler.
@@ -22,7 +22,7 @@ struct StyledRangeCorpusTests {
             tokens: tokens,
             in: text as NSString
         )
-        return MarkdownStyler.styleAttributes(
+        return MarkdownPMStyler.styleAttributes(
             text: text,
             fontName: "SF Pro Text",
             fontSize: 15,
@@ -34,7 +34,7 @@ struct StyledRangeCorpusTests {
 
     // Does any emitted range cover `location` and carry a foregroundColor
     // equal to the code-text color (currently NSColor.systemRed@0.85,
-    // duplicated MarkdownStyler.swift:462+:499)?
+    // duplicated in MarkdownPMStyler.swift's styleCodeBlocks / styleInlineCode)?
     private func hasCodeTextColor(_ ranges: [StyledRange], at location: Int) -> Bool {
         let target = NSColor.systemRed.withAlphaComponent(0.85)
         for r in ranges where NSLocationInRange(location, r.range) {
@@ -67,9 +67,9 @@ struct StyledRangeCorpusTests {
         // CHARACTERIZATION (plan-vs-actual reconciliation): the plan EXPECTED
         // the `.taskCheckbox` attribute to still emit when the caret sits on the
         // checkbox syntax. The SOURCE does the opposite — `styleTaskCheckboxes`
-        // (MarkdownStyler.swift:582 `if isActiveSyntax { continue }`) bails out
+        // (MarkdownPMStyler.swift `if isActiveSyntax { continue }`) bails out
         // of the whole per-match loop body BEFORE the `.taskCheckbox` append
-        // (MarkdownStyler.swift:602-609) when the caret is inside the syntax
+        // (the checkbox `attrs.append`) when the caret is inside the syntax
         // range. So "active reveal" means the glyph is REPLACED by the raw
         // `- [ ]` text: no `.taskCheckbox` attribute is emitted. We pin the
         // observed suppression, not the plan's expectation.
