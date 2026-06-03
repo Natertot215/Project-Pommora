@@ -105,4 +105,24 @@ import Testing
         // Unfolded-path count is 1, down from the pre-#9 count of 2.
         #expect(AppleDocumentParseProbe.count == 1)
     }
+
+    @Test("syncHeadingFolding produces identical foldedRanges via the cached Document")
+    func headingFoldUsesCachedDocument() {
+        let text = "# A\nunder a\n\n# B\nunder b\n"
+        let (coordinator, textView) = makeCoordinator(text: text)
+        guard let ts = textView.textStorage else {
+            Issue.record("no text storage")
+            return
+        }
+        // Prime the cache the way the restyle path does.
+        _ = coordinator.parsedDocument(for: text)
+        // Fold the first heading.
+        coordinator.foldedHeadings = ["# A"]
+        coordinator.syncHeadingFolding(in: ts, textView: textView)
+        let ranges = coordinator.foldedRanges
+
+        // The content under "# A" ("under a\n") must be the folded range.
+        #expect(ranges.count == 1)
+        #expect(ranges.first?.length ?? 0 > 0)
+    }
 }

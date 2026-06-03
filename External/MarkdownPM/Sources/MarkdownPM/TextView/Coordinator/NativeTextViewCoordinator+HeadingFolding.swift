@@ -157,7 +157,12 @@ extension NativeTextViewCoordinator {
 
         let text = ts.string
         let nsText = text as NSString
-        let document = AppleDocumentParseProbe.parse(text)
+        // Phase 3 — reuse the Document cached in parsedDocument(for:)
+        // instead of re-parsing here. This is the ONLY remaining Apple
+        // parse on the folded-edit hot path; folded pages no longer
+        // double-parse (tokens + AST) per keystroke. The fast-path above
+        // already guarantees we never reach here when no folds are active.
+        let document = parsedDocument(for: text).appleDocument
         let headings = MarkdownDetection.foldableHeadings(in: document, nsText: nsText)
 
         // Reduce to just the content ranges of headings the user has folded.
