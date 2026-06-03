@@ -162,8 +162,14 @@ extension NativeTextViewCoordinator {
         // parse on the folded-edit hot path; folded pages no longer
         // double-parse (tokens + AST) per keystroke. The fast-path above
         // already guarantees we never reach here when no folds are active.
-        let document = parsedDocument(for: text).appleDocument
-        let headings = MarkdownDetection.foldableHeadings(in: document, nsText: nsText)
+        // Phase 3.5 — bind the cached spine once and call the prebuilt-index
+        // overload so the line index is reused too, not rebuilt here.
+        let cached = parsedDocument(for: text)
+        let headings = MarkdownDetection.foldableHeadings(
+            in: cached.appleDocument,
+            nsText: nsText,
+            lineIndex: cached.lineIndex
+        )
 
         // Reduce to just the content ranges of headings the user has folded.
         // Zero-length content ranges (e.g. a heading at the very end of the

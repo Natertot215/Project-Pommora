@@ -54,6 +54,7 @@ struct TextStylingService {
         wikiLinkIDProvider: (NSRange) -> String?,
         precomputedTokens: [MarkdownToken]? = nil,
         precomputedDocument: Document,
+        precomputedLineIndex: LineOffsetIndex,
         configuration: MarkdownPMConfiguration = .default
     ) {
         let paragraphs = normalize(paragraphCandidates)
@@ -90,6 +91,7 @@ struct TextStylingService {
         let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
             text: textView.string,
             document: precomputedDocument,
+            lineIndex: precomputedLineIndex,
             baseFont: baseFont,
             theme: configuration.theme
         )

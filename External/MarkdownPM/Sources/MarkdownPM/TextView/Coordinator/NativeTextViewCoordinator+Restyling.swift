@@ -73,6 +73,7 @@ extension NativeTextViewCoordinator {
         let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
             text: displayText,
             document: parsed.appleDocument,
+            lineIndex: parsed.lineIndex,
             baseFont: baseFont,
             theme: configuration.theme
         )
@@ -119,12 +120,13 @@ extension NativeTextViewCoordinator {
             configuration: configuration
         )
 
-        // DRY guard: source the supplemental styler's Document from the SAME
-        // parsedDocument(for:) memo, never a fresh Document(parsing:). Callers
-        // (restyleParagraphs / textDidChange) already primed this memo for the
-        // current text this keystroke, so it dedups on text equality — a cache
-        // read in the common path, not a second parse.
-        let appleDocument = parsedDocument(for: textView.string).appleDocument
+        // DRY guard: source the supplemental styler's Document AND line index
+        // from the SAME parsedDocument(for:) memo, never a fresh
+        // Document(parsing:) / LineOffsetIndex(text:). Callers (restyleParagraphs
+        // / textDidChange) already primed this memo for the current text this
+        // keystroke, so it dedups on text equality — a cache read in the common
+        // path, not a second parse. Bind once to avoid hitting the memo twice.
+        let cached = parsedDocument(for: textView.string)
 
         TextStylingService.restyle(
             textView: textView,
@@ -138,7 +140,8 @@ extension NativeTextViewCoordinator {
                 self?.wikiLinkID(for: range)
             },
             precomputedTokens: tokens,
-            precomputedDocument: appleDocument,
+            precomputedDocument: cached.appleDocument,
+            precomputedLineIndex: cached.lineIndex,
             configuration: configuration
         )
 
@@ -165,6 +168,10 @@ extension NativeTextViewCoordinator {
         // syncHeadingFolding read this cached Document instead of each
         // running their own Document(parsing:) per keystroke.
         let appleDocument = AppleDocumentParseProbe.parse(text)
+        // Phase 3.5 — build the UTF-8↔UTF-16 line index ONCE here too, beside
+        // the parse, so the supplemental styler and syncHeadingFolding reuse a
+        // single O(n) build instead of each rebuilding their own per keystroke.
+        let lineIndex = LineOffsetIndexProbe.make(text)
         var codeTokens: [MarkdownToken] = []
         var latexTokens: [MarkdownToken] = []
         var blockLatexTokens: [MarkdownToken] = []
@@ -200,7 +207,8 @@ extension NativeTextViewCoordinator {
             blockLatexTokens: blockLatexTokens,
             wikiLinkTokens: wikiLinkTokens,
             imageEmbedTokens: imageEmbedTokens,
-            appleDocument: appleDocument
+            appleDocument: appleDocument,
+            lineIndex: lineIndex
         )
         cachedParsedText = text
         cachedParsedDocument = parsed

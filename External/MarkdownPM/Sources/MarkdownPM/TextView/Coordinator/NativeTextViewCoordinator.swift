@@ -155,6 +155,11 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         /// own `Document(parsing:)` per keystroke (the #9 fix). Not
         /// `Sendable` — consumed only on the @MainActor coordinator.
         let appleDocument: Document
+        /// The UTF-8↔UTF-16 line-offset map built from the SAME `text`,
+        /// caching it beside the parse so every Apple-AST consumer (the
+        /// supplemental styler, the heading-fold sync) reuses one O(n) index
+        /// build instead of each rebuilding its own per keystroke (Phase 3.5).
+        let lineIndex: LineOffsetIndex
     }
 
     enum InlineTokenContext {

@@ -115,6 +115,7 @@ extension StyledRangeCorpusTests {
         let bqRanges = AppleASTSupplementalStyler.styleAttributes(
             text: "> quote\n",
             document: Document(parsing: "> quote\n"),
+            lineIndex: LineOffsetIndex(text: "> quote\n"),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -123,6 +124,7 @@ extension StyledRangeCorpusTests {
         let hrRanges = AppleASTSupplementalStyler.styleAttributes(
             text: "---\n",
             document: Document(parsing: "---\n"),
+            lineIndex: LineOffsetIndex(text: "---\n"),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -135,6 +137,7 @@ extension StyledRangeCorpusTests {
         let ranges = AppleASTSupplementalStyler.styleAttributes(
             text: "a ~~b~~ c",
             document: Document(parsing: "a ~~b~~ c"),
+            lineIndex: LineOffsetIndex(text: "a ~~b~~ c"),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -151,6 +154,7 @@ extension StyledRangeCorpusTests {
         let ranges = AppleASTSupplementalStyler.styleAttributes(
             text: text,
             document: Document(parsing: text),
+            lineIndex: LineOffsetIndex(text: text),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )

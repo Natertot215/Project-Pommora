@@ -69,6 +69,7 @@ import Testing
         let fromCache = AppleASTSupplementalStyler.styleAttributes(
             text: text,
             document: document,
+            lineIndex: LineOffsetIndex(text: text),
             baseFont: baseFont,
             theme: theme
         )
@@ -98,6 +99,7 @@ import Testing
         _ = AppleASTSupplementalStyler.styleAttributes(
             text: text,
             document: parsed.appleDocument,
+            lineIndex: parsed.lineIndex,
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -180,6 +182,7 @@ import Testing
         _ = AppleASTSupplementalStyler.styleAttributes(
             text: text,
             document: parsed.appleDocument,
+            lineIndex: parsed.lineIndex,
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
