@@ -616,7 +616,7 @@ This same Task 2.1 commit also folds in the creation of the divergence ledger fi
 
 ### Task 2.2 — Start the divergence ledger
 
-**Why:** every intentional behavior change between now and Phase 6 must be signed off, not slipped in. The ledger is the single record. It lives in the Planning folder (not in a doc the engine reads) and is referenced by the commit that lands each divergence. It is the **single source** for divergence rows — the plan body does not re-maintain the same rows; at most one example row appears inline below for orientation.
+**Why:** every intentional behavior change between now and Phase 6 is LOGGED here (not slipped in); execution proceeds on best-judgment and the ledger is reviewed at the END (non-blocking — Nathan 2026-06-02). The ledger is the single record. It lives in the Planning folder (not in a doc the engine reads) and is referenced by the commit that lands each divergence. It is the **single source** for divergence rows — the plan body does not re-maintain the same rows; at most one example row appears inline below for orientation.
 
 **Step 2.2.1 — Create the ledger (its creation folds into the Task 2.1 commit; no separate docs commit).**
 
@@ -640,7 +640,7 @@ flagged-and-scoped list.
 | D-HEAD-2 | Heading size multipliers | shipped `[2.0,1.5,1.17,1.0,0.83,0.67]` (H4=body; H5/H6 below body) — pinned in P2 | new scale `[2.0,1.75,1.5,1.25,1.15,1.0]` (H6=body; no heading below body) | 5 | `HeadingSizeTests` (P5) | ACCEPTED (Nathan 2026-06-02) |
 | #9-PARSE | Apple Document parses per edit | 1 unfolded / 2 folded (today) | 1 (cached spine) | 3 | per-edit count pinned by P3 `unfoldedEditParsesOnce`/`foldedEditParsesOnce`; P2 `ParseCountProbeTests` characterize the direct-call count (1 per call / 2 on two passes) | PENDING |
 
-Add rows as new divergences are discovered. A divergence with no sign-off MUST NOT land.
+Add rows as new divergences are discovered. **Execution is NON-BLOCKING (Nathan ruling 2026-06-02):** proceed on the best read of Nathan's stated direction, LOG every divergence here (with where it can be adjusted), and surface the full ledger at the END of the rebuild for review — do NOT pause mid-build waiting for a pass. Wherever this plan says "sign-off" / "signed off," read it as *logged + best-judgment + reviewed at the end*, never a blocking gate.
 ```
 
 (That `#9-PARSE` row is the single authoritative home for the parse-count divergence — "Apple Document parses per edit: 1 unfolded / 2 folded (today) → 1 (after Phase 3)". The plan body does not restate it.)
