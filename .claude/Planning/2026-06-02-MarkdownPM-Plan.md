@@ -80,7 +80,7 @@ These are Nathan-locked rulings that fold into this plan as its single decisions
 
 **Theme (Phase 5)**
 
-- **LD-24 — `MarkdownPMTheme` = one navigable file** merging `MarkdownEditorTheme` (12 color slots: 8 dynamic system + 4 fixed literals) + `MarkdownEditorConfiguration`'s value sub-structs (16 inline sub-structs; the top-level config has 18 props), organized with MARK sections. Keep system colors via named slots (a brand palette is deferred to v0.4.0). Heading multipliers stay byte-for-byte `[2.0, 1.5, 1.17, 1.0, 0.83, 0.67]` (H5/H6 below body is confirmed intended).
+- **LD-24 — `MarkdownPMTheme` = one navigable file** merging `MarkdownEditorTheme` (12 color slots: 8 dynamic system + 4 fixed literals) + `MarkdownEditorConfiguration`'s value sub-structs (16 inline sub-structs; the top-level config has 18 props), organized with MARK sections. Keep system colors via named slots (a brand palette is deferred to v0.4.0). Heading multipliers change to the **new scale** `[H1 2.0, H2 1.75, H3 1.5, H4 1.25, H5 1.15, H6 TBD]` (Nathan 2026-06-02 — no heading below body size; supersedes the shipped `[2.0, 1.5, 1.17, 1.0, 0.83, 0.67]`). Intentional Phase-5 visual change (divergence D-HEAD-2): Phase 2 pins the CURRENT shipped values, Phase 5 applies the new scale + scales heading padding/spacing proportionally. **H6 value pending Nathan's confirm.**
 - **LD-25 — Hoist the duplicated code-text color** `NSColor.systemRed.withAlphaComponent(0.85)` (`MarkdownStyler.swift:462` **and** `:499`, same file) into one `MarkdownPMTheme.codeText` slot whose default reproduces it byte-for-byte (no visual change).
 - **LD-26 — Brand-meaningful renderer-resident values** (blockquote bar/card, divider, 1.5× bullet, checkbox tint): lift the **colors** into named theme slots; leave the **pixel geometry** with the verbatim draw code. Reading a value from the theme inside a verbatim file does **not** count as modifying that file.
 
@@ -634,9 +634,10 @@ flagged-and-scoped list.
 
 | # | Construct | OLD (pinned by) | NEW | Phase | Flipping test | Signed off |
 |---|---|---|---|---|---|---|
-| D-EMPH-1 | Emphasis delimiter | asterisk-only `*`/`**`/`***` (pinned: `TokenizerCorpusTests.underscoreIsNotEmphasis_currentBehavior`) | adopt underscore `_`/`__` (Apple + CommonMark + Obsidian) | 4 | `EmphasisCorpusTests.underscoreIsEmphasis` (added in P4) | PENDING |
-| D-EMPH-2 | Emphasis inside inline code / code fence | NOT suppressed (`*x*` inside `` `…` `` still tokenizes — pinned `TokenizerCorpusTests.emphasisInsideInlineCode_notSuppressed_currentBehavior`) | suppressed (Apple AST does not emit emphasis inside code) | 4 | TBD in P4 | PENDING |
-| D-HEAD-1 | Heading detector unification | two divergent regexes (styler `#{1,6} +`, detection `#{1,6}([ \t]\|$)`) — pinned `HeadingDetectorCorpusTests` + `TokenizerCorpusTests` on BOTH paths | ONE rule: CommonMark `#{1,6}([ \t]\|$)` (space/tab/EOL) | 4 | `HeadingDetectorCorpusTests.unifiedRule` (added in P4) | PENDING |
+| D-EMPH-1 | Emphasis delimiter | asterisk-only `*`/`**`/`***` (pinned: `TokenizerCorpusTests.underscoreIsNotEmphasis_currentBehavior`) | adopt underscore `_`/`__` (Apple + CommonMark + Obsidian) | 4 | `EmphasisCorpusTests.underscoreIsEmphasis` (added in P4) | ACCEPTED (Nathan 2026-06-02 — adopt underscore) |
+| D-EMPH-2 | Emphasis inside inline code / code fence | NOT suppressed (`*x*` inside `` `…` `` still tokenizes — pinned `TokenizerCorpusTests.emphasisInsideInlineCode_notSuppressed_currentBehavior`) | suppressed (Apple AST does not emit emphasis inside code) | 4 | `EmphasisCorpusTests.noEmphasisInsideCode` (P4) | ACCEPTED (Nathan 2026-06-02 — suppress, matches Apple) |
+| D-HEAD-1 | Heading detector unification | two divergent regexes (styler `#{1,6} +`, detection `#{1,6}([ \t]\|$)`) — pinned `HeadingDetectorCorpusTests` + `TokenizerCorpusTests` on BOTH paths | ONE rule: CommonMark `#{1,6}([ \t]\|$)` (space/tab/EOL) | 4 | `HeadingDetectorCorpusTests.unifiedRule` (added in P4) | ACCEPTED (Nathan — unify) |
+| D-HEAD-2 | Heading size multipliers | shipped `[2.0,1.5,1.17,1.0,0.83,0.67]` (H4=body; H5/H6 below body) — pinned in P2 | new scale `[2.0,1.75,1.5,1.25,1.15,TBD]` (no heading below body) | 5 | `HeadingSizeTests` (P5) | ACCEPTED (Nathan 2026-06-02; H6 TBD) |
 | #9-PARSE | Apple Document parses per edit | 1 unfolded / 2 folded (today) | 1 (cached spine) | 3 | per-edit count pinned by P3 `unfoldedEditParsesOnce`/`foldedEditParsesOnce`; P2 `ParseCountProbeTests` characterize the direct-call count (1 per call / 2 on two passes) | PENDING |
 
 Add rows as new divergences are discovered. A divergence with no sign-off MUST NOT land.
@@ -2780,7 +2781,7 @@ into one owned `MarkdownPMStyler` that walks the cached AST once. **Stage it (LD
 **Gate.** Suite-B styled-attribute golden (code / inline-code / checkbox active+inactive / incomplete-bracket / shrink-inactive-markers) holds at every caret position on both the scoped and unscoped paths; primary-before-supplemental order (last-writer-wins-per-key) preserved; ThematicBreak emits zero ranges asserted directly.
 
 **Open decisions recorded.**
-- **D5.1-a:** BlockQuote/Table markers collapse *unconditionally* today (gated only by trailing space/tab, NOT caret — CodeMap REFINED). Authoritative ruling: **preserve always-collapsed for blockquote** (locked). Table markers — record whether they get caret-aware reveal or stay always-collapsed; not asked for, so default to always-collapsed unless Nathan rules otherwise.
+- **D5.1-a:** BlockQuote/Table markers collapse *unconditionally* today (gated only by trailing space/tab, NOT caret — CodeMap REFINED). Authoritative ruling: **preserve always-collapsed for blockquote** (locked). Table markers — **Nathan ruling (2026-06-02): keep the engine's existing table rendering, but keep the table styling REFINABLE/extensible** (proper tables are a stated future focus per `Features/Pages.md` + `Features/PageEditor.md`) — do not rigidly lock the table path; structure it so the future tables work refines it cleanly.
 - **D5.1-b:** the full-rebuild path omits the spelling-disabled pre-pass (`TextStylingService.swift:96-108` has it; `+Restyling.swift` does not). CodeMap Open Q24 flags this as possibly a latent bug (spell-underlines on code/latex until first edit). Decide: unify so both paths run the pre-pass, or preserve the asymmetry. Recommend unify (one apply path) — but confirm it's not load-bearing for initial-load timing.
 - **D5.1-c:** centralize the ~11 scattered `activeTokenIndices.contains` caret reads into one accessor + a `markerAttributes(active:)` factory (Service doc DRY), **preserving the two caret carve-outs**: math-overlap activation and the checkbox end-of-syntax reveal (`MarkdownStyler.swift:540-545`). These carve-outs are in the Keep-Verbatim register — the DRY refactor reads them through the new accessor but does not change their logic.
 
@@ -2790,7 +2791,7 @@ into one owned `MarkdownPMStyler` that walks the cached AST once. **Stage it (LD
 - `MarkdownEditorTheme` — 12 color slots (8 system + 4 fixed literals: `headingMarker=.gray`, `latexLightModeText=.black`, `latexDarkModeText=.white`, plus the CodeMap-confirmed 4th; `MarkdownEditorTheme.swift:86,92,93`), and
 - `MarkdownEditorConfiguration`'s 16 inline value sub-structs (top-level config has 18 stored props = theme + services + 16 sub-structs; CodeMap REFINED).
 
-Keep system colors via named slots (brand palette deferred to v0.4.0; Service doc D16 dark-mode-adaptive). Heading multipliers byte-for-byte `[2.0, 1.5, 1.17, 1.0, 0.83, 0.67]` (H5/H6 below body is confirmed intended; D18). The `HeadingStyle` sub-struct is the **only** one with behavior (clamp+lookup helpers, `MarkdownEditorConfiguration.swift:264-272`) — preserve it.
+Keep system colors via named slots (brand palette deferred to v0.4.0; Service doc D16 dark-mode-adaptive). Heading multipliers: apply the **new scale** `[H1 2.0, H2 1.75, H3 1.5, H4 1.25, H5 1.15, H6 TBD]` (Nathan 2026-06-02; supersedes shipped `[2.0, 1.5, 1.17, 1.0, 0.83, 0.67]`; no heading below body). Intentional change vs the Phase-2-pinned current values (divergence D-HEAD-2); scale heading padding/spacing proportionally. **H6 pending confirm.** The `HeadingStyle` sub-struct is the **only** one with behavior (clamp+lookup helpers, `MarkdownEditorConfiguration.swift:264-272`) — preserve it.
 
 **Open decisions recorded.**
 - **D5.2-a:** keep the 16-sub-struct granularity or collapse to fewer grouped structs? (CodeMap Open Q19.) Recommend keep — granularity is cheap and the MARK sections give navigability.
@@ -2898,7 +2899,7 @@ Keep system colors via named slots (brand palette deferred to v0.4.0; Service do
 - D4.3-a code-overlap dedup divergence (sign-off) · D4.3-b autolink/bare-URL preserved-as-is
 - D4.4-a emphasis-inside-LaTeX suppression
 - D4.5-a top-level-only folding survives unification
-- D5.1-a table marker caret-reveal (default always-collapsed) · D5.1-b rebuild-path spelling pre-pass asymmetry · D5.1-c caret-accessor DRY preserving caret carve-outs
+- D5.1-a tables: keep existing rendering, kept refinable (Nathan) · D5.1-b rebuild-path spelling pre-pass asymmetry · D5.1-c caret-accessor DRY preserving caret carve-outs
 - D5.2-a sub-struct granularity · D5.2-b services seam placement · D5.2-c find-highlight strength source · D5.2-d non-goal config-prune trace
 - D5.3-a code-text theme slot vs highlighter (ruled: theme slot)
 - D6.6-a ContextMenu raw-write unification (RULED: unify through makeStorageState) · D6.6-b Fix Log #8 deferred (out of rebuild scope)
