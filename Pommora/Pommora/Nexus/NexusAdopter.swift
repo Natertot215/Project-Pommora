@@ -285,7 +285,7 @@ enum NexusAdopter {
     /// no writes. Safe to call repeatedly; on a second call after `apply`,
     /// the returned plan classifies migrated folders as `alreadyFlat` and is
     /// effectively a no-op.
-    static func scan(nexusRoot: URL) throws -> AdoptionPlan {
+    static func scan(nexusRoot: URL, filter: FolderFilter = .empty) throws -> AdoptionPlan {
         var freshSidecars: [PlannedFreshSidecar] = []
         var inPlaceRenames: [PlannedInPlaceRename] = []
         var unwrapSteps: [PlannedUnwrap] = []
@@ -300,10 +300,13 @@ enum NexusAdopter {
             // (`.nexus/`, `.trash/`, `.obsidian/`, `.makemd/`, etc.).
             if name.hasPrefix(".") || name.hasPrefix("_") { continue }
             if adoptionExcludedSubFolderNames.contains(name) { continue }
+            // Skip user-excluded folders — never classify or sidecar them.
+            if filter.isExcluded(folder) { skipped.append(folder); continue }
 
             do {
                 try classifyFolder(
                     folder,
+                    filter: filter,
                     freshSidecars: &freshSidecars,
                     inPlaceRenames: &inPlaceRenames,
                     unwrapSteps: &unwrapSteps,
@@ -335,6 +338,7 @@ enum NexusAdopter {
     /// Classifies one top-level folder. Mutates the plan accumulators.
     private static func classifyFolder(
         _ folder: URL,
+        filter: FolderFilter = .empty,
         freshSidecars: inout [PlannedFreshSidecar],
         inPlaceRenames: inout [PlannedInPlaceRename],
         unwrapSteps: inout [PlannedUnwrap],
@@ -357,6 +361,7 @@ enum NexusAdopter {
             if folderHasWrapperShapedChildren(folder) {
                 try classifyWrapperFolder(
                     folder,
+                    filter: filter,
                     unwrapSteps: &unwrapSteps,
                     warnings: &warnings
                 )
@@ -405,7 +410,7 @@ enum NexusAdopter {
                 )
             )
             // Sub-folders carrying `_collection.json` → rename to `_pagecollection.json`.
-            let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
+            let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
             for sub in subFolders where !isHiddenOrExcludedSub(sub) {
                 let legacyColl = sub.appendingPathComponent(
                     legacyCollectionSidecarFilename, isDirectory: false
@@ -442,6 +447,7 @@ enum NexusAdopter {
     /// Classifies a paradigmV2 wrapper folder (`Pages` / `Items` / `Agenda`).
     private static func classifyWrapperFolder(
         _ wrapper: URL,
+        filter: FolderFilter = .empty,
         unwrapSteps: inout [PlannedUnwrap],
         warnings: inout [String]
     ) throws {
@@ -455,7 +461,7 @@ enum NexusAdopter {
             }
         }()
 
-        let children = (try? Filesystem.childFolders(of: wrapper)) ?? []
+        let children = (try? Filesystem.childFolders(of: wrapper, folderFilter: filter)) ?? []
         var moves: [PlannedUnwrap.ChildMove] = []
 
         for child in children where !isHiddenOrExcludedSub(child) {

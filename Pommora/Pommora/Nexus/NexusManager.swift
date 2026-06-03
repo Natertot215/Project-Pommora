@@ -318,7 +318,11 @@ final class NexusManager {
 
         let plan: AdoptionPlan
         do {
-            plan = try NexusAdopter.scan(nexusRoot: url)
+            // FolderFilter.load only reads the rootURL — construct a temporary
+            // Nexus so we can pass the filter before currentNexus is set.
+            let tempNexus = Nexus(id: "", rootURL: url)
+            let filter = FolderFilter.load(for: tempNexus)
+            plan = try NexusAdopter.scan(nexusRoot: url, filter: filter)
         } catch {
             pendingError = .enumerationFailed(error.localizedDescription)
             return

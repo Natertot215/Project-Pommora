@@ -147,4 +147,23 @@ import Testing
         #expect(loaded.contains { $0.title == "kept" })
         #expect(!loaded.contains { $0.title == "secret" })
     }
+
+    // MARK: - NexusAdopter.scan exclusion
+
+    @Test func excludedFolderSkippedByAdoptionScan() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        for name in ["Notes", "Archive"] {
+            let f = nexus.rootURL.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: f, withIntermediateDirectories: true)
+            try FixtureFiles.write("# x", to: f.appendingPathComponent("Note.md"))
+        }
+        var s = Settings.defaultSeed(); s.excludedFolders = ["Archive"]
+        try AtomicJSON.write(s, to: NexusPaths.settingsFileURL(in: nexus))
+
+        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL, filter: FolderFilter.load(for: nexus))
+        let names = plan.freshSidecars.map { $0.folderURL.lastPathComponent }
+        #expect(names.contains("Notes"))
+        #expect(!names.contains("Archive"))
+    }
 }
