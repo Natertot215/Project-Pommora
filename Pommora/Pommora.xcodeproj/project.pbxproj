@@ -217,7 +217,7 @@
 				4443A67854CD971CB2619256 /* XCRemoteSwiftPackageReference "Yams" */,
 				GRDB3A7F2C1D8E4B5069A1B2 /* XCRemoteSwiftPackageReference "GRDB" */,
 				5A0E2D7B1F4C8A9D6B3E5014 /* XCRemoteSwiftPackageReference "swift-markdown" */,
-				5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownEngine" */,
+				5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownPM" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 545485B22FB5555E0076D5F2 /* Products */;
@@ -608,9 +608,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownEngine" */ = {
+		5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownPM" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../External/MarkdownEngine;
+			relativePath = ../External/MarkdownPM;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -649,7 +649,7 @@
 		};
 		5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownPM */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownEngine" */;
+			package = 5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownPM" */;
 			productName = MarkdownPM;
 		};
 		5E2C4C707607B1D3CB1123E0 /* Yams */ = {
