@@ -57,7 +57,7 @@ final class PageTypeManager {
 
     // MARK: - Load
 
-    func loadAll() async {
+    func loadAll(filter: FolderFilter = .empty) async {
         do {
             // flatlayout: PageType folders sit at the Nexus root. Discovery
             // filters folders by presence of `_pagetype.json`; folders carrying
@@ -69,7 +69,7 @@ final class PageTypeManager {
             // state).
             let root = nexus.rootURL
 
-            let topLevel = try Filesystem.childFolders(of: root)
+            let topLevel = try Filesystem.childFolders(of: root, folderFilter: filter)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
 
@@ -103,7 +103,7 @@ final class PageTypeManager {
                 // before adoption), write a fresh one in place. Best-effort: a write failure
                 // falls through to the existing nil-skip behavior.
                 let parentPropertyIDs = pageType.properties.map(\.id)
-                let cols = try Filesystem.childFolders(of: folder)
+                let cols = try Filesystem.childFolders(of: folder, folderFilter: filter)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> PageCollection? in

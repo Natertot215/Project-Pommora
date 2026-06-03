@@ -1,5 +1,5 @@
-import GRDB
 import Foundation
+import GRDB
 import Testing
 
 @testable import Pommora
@@ -44,5 +44,80 @@ import Testing
         }
         #expect(notes == 1)
         #expect(archive == 0)
+    }
+
+    // MARK: - PageTypeManager.loadAll(filter:) exclusion tests
+
+    @Test func excludedTypeAbsentFromPageTypeLoadAll() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        try makePageType("Notes", id: "PT_NOTES", in: nexus)
+        try makePageType("Archive", id: "PT_ARCHIVE", in: nexus)
+        try setExcluded(["Archive"], in: nexus)
+
+        let mgr = PageTypeManager(nexus: nexus)
+        await mgr.loadAll(filter: FolderFilter.load(for: nexus))
+        #expect(mgr.types.contains { $0.title == "Notes" })
+        #expect(!mgr.types.contains { $0.title == "Archive" })
+    }
+
+    @Test func removingFromListReExposesType() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        try makePageType("Archive", id: "PT_ARCHIVE", in: nexus)
+
+        try setExcluded(["Archive"], in: nexus)
+        let m1 = PageTypeManager(nexus: nexus)
+        await m1.loadAll(filter: FolderFilter.load(for: nexus))
+        #expect(!m1.types.contains { $0.title == "Archive" })
+
+        try setExcluded([], in: nexus)
+        let m2 = PageTypeManager(nexus: nexus)
+        await m2.loadAll(filter: FolderFilter.load(for: nexus))
+        #expect(m2.types.contains { $0.title == "Archive" })
+    }
+
+    @Test func excludedNestedCollectionAbsent() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Create the "Notes" PageType.
+        try makePageType("Notes", id: "PT_NOTES_COL", in: nexus)
+
+        // Create two sub-folder collections inside "Notes": "Inbox" and "Archive".
+        let inboxFolder = NexusPaths.collectionFolderURL(
+            forTitle: "Inbox", inVaultTitled: "Notes", in: nexus)
+        let archiveFolder = NexusPaths.collectionFolderURL(
+            forTitle: "Archive", inVaultTitled: "Notes", in: nexus)
+        try FileManager.default.createDirectory(at: inboxFolder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: archiveFolder, withIntermediateDirectories: true)
+
+        let inbox = PageCollection(
+            id: ULID.generate(),
+            typeID: "PT_NOTES_COL",
+            title: "Inbox",
+            folderURL: inboxFolder,
+            modifiedAt: Date()
+        )
+        let archive = PageCollection(
+            id: ULID.generate(),
+            typeID: "PT_NOTES_COL",
+            title: "Archive",
+            folderURL: archiveFolder,
+            modifiedAt: Date()
+        )
+        try inbox.save(to: inboxFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try archive.save(to: archiveFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+
+        // Exclude the nested "Notes/Archive" sub-folder.
+        try setExcluded(["Notes/Archive"], in: nexus)
+
+        let mgr = PageTypeManager(nexus: nexus)
+        await mgr.loadAll(filter: FolderFilter.load(for: nexus))
+
+        let notesType = try #require(mgr.types.first { $0.title == "Notes" })
+        let cols = mgr.pageCollections(in: notesType)
+        #expect(cols.contains { $0.title == "Inbox" })
+        #expect(!cols.contains { $0.title == "Archive" })
     }
 }

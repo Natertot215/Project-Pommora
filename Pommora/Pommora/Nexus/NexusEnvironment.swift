@@ -204,14 +204,19 @@ final class NexusEnvironment {
             pinnedManager: pinnedMgr,
             mainWindowRouter: router)
 
+        // Build the folder exclusion filter once — reads .nexus/settings.json
+        // synchronously (no SettingsManager dependency) so it is ready before
+        // the parallel load task fires.
+        let folderFilter = FolderFilter.load(for: nexus)
+
         // Initial load — fire all in parallel.
         // PageContentManager + ItemContentManager load per-collection lazily on
         // detail-view appear.
         Task {
             async let _ = spaceMgr.loadAll()
             async let _ = topicMgr.loadAll()
-            async let _ = vaultMgr.loadAll()
-            async let _ = itemTypeMgr.loadAll()
+            async let _ = vaultMgr.loadAll(filter: folderFilter)
+            async let _ = itemTypeMgr.loadAll(filter: folderFilter)
             async let _ = agendaTaskMgr.loadAll()
             async let _ = agendaEventMgr.loadAll()
             async let _ = homepageMgr.load()

@@ -71,7 +71,7 @@ final class ItemTypeManager {
 
     // MARK: - Load
 
-    func loadAll() async {
+    func loadAll(filter: FolderFilter = .empty) async {
         do {
             // flatlayout: ItemType folders sit at the Nexus root. Discovery
             // filters folders by presence of `_itemtype.json`; folders carrying
@@ -80,7 +80,7 @@ final class ItemTypeManager {
             // unrecognized folders for adoption (Phase 4).
             let root = nexus.rootURL
 
-            let topLevel = try Filesystem.childFolders(of: root)
+            let topLevel = try Filesystem.childFolders(of: root, folderFilter: filter)
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
 
@@ -112,7 +112,7 @@ final class ItemTypeManager {
                 // a fresh one in place. Best-effort: a write failure falls through
                 // to the existing nil-skip behavior.
                 let parentPropertyIDs = itemType.properties.map(\.id)
-                let cols = try Filesystem.childFolders(of: folder)
+                let cols = try Filesystem.childFolders(of: folder, folderFilter: filter)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> ItemCollection? in
