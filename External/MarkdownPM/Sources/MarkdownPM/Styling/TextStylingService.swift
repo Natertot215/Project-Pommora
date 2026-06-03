@@ -70,33 +70,25 @@ struct TextStylingService {
             return
         }
 
-        let primaryStyledRanges = MarkdownStyler.styleAttributes(
+        // Compose primary + supplemental styled ranges through the owned
+        // seam (primary first, supplemental last — last-writer-wins). The
+        // apply loop below is unchanged. `scopedRanges:` = the candidate
+        // paragraphs drives the per-edit scoped path.
+        let styledRanges = MarkdownPMStyler.styledRanges(
             text: textView.string,
             fontName: baseFont.fontName,
             fontSize: baseFont.pointSize,
+            baseFont: baseFont,
             layoutBridge: layoutBridge,
             caretLocation: caretLocation,
             activeTokenIndices: activeTokenIndices,
             wikiLinkIDProvider: wikiLinkIDProvider,
             precomputedTokens: precomputedTokens,
             scopedRanges: paragraphs,
-            configuration: configuration
-        )
-
-        // Supplemental pass: walk Apple swift-markdown's AST for GFM-and-
-        // extended block types the regex tokenizer doesn't cover (BlockQuote,
-        // Strikethrough, Table, ThematicBreak). Composes additively on top
-        // of the primary styler — primary handles emphasis/links/code/lists/
-        // headings; this fills the gaps.
-        let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
-            text: textView.string,
             document: precomputedDocument,
             lineIndex: precomputedLineIndex,
-            baseFont: baseFont,
-            theme: configuration.theme
+            configuration: configuration
         )
-
-        let styledRanges = primaryStyledRanges + supplementalRanges
 
         let spellingDisabledRanges = styledRanges.compactMap { (range, attrs) -> NSRange? in
             attrs[.spellingState] as? Int == 0 ? range : nil

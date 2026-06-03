@@ -55,29 +55,30 @@ extension NativeTextViewCoordinator {
             in: nsDisplay
         )
 
-        let ranges = MarkdownStyler.styleAttributes(
+        // Compose primary + supplemental styled ranges through the owned
+        // seam (primary first, supplemental last — last-writer-wins). The
+        // supplemental AST pass covers BlockQuote / Strikethrough / Table /
+        // ThematicBreak — block constructs the regex tokenizer doesn't emit.
+        // It must run on the initial-load / full-rebuild path too, otherwise
+        // these constructs render unstyled until the first per-edit restyle
+        // (e.g. a freshly-opened page would show raw `>` markers).
+        // `scopedRanges: nil` drives the whole-document rebuild path. The
+        // apply loop below is unchanged.
+        let styledRanges = MarkdownPMStyler.styledRanges(
             text: displayText,
             fontName: fontName,
             fontSize: fontSize,
+            baseFont: baseFont,
             layoutBridge: layoutBridge,
             caretLocation: caretLocation,
             activeTokenIndices: activeTokenIndices,
             precomputedTokens: tokens,
-            configuration: configuration
-        )
-        // Supplemental AST pass covers BlockQuote / Strikethrough / Table /
-        // ThematicBreak — block constructs the regex tokenizer doesn't emit.
-        // Must run on the initial-load / full-rebuild path too, otherwise
-        // these constructs render unstyled until the first per-edit restyle
-        // (e.g. a freshly-opened page would show raw `>` markers).
-        let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
-            text: displayText,
+            scopedRanges: nil,
             document: parsed.appleDocument,
             lineIndex: parsed.lineIndex,
-            baseFont: baseFont,
-            theme: configuration.theme
+            configuration: configuration
         )
-        for (range, attrs) in ranges + supplementalRanges {
+        for (range, attrs) in styledRanges {
             for (key, value) in attrs {
                 textView.textStorage?.addAttribute(key, value: value, range: range)
             }
