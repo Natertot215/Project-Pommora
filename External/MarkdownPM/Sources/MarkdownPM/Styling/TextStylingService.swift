@@ -9,6 +9,7 @@
 // stays smooth while Markdown formatting updates.
 import AppKit
 import Foundation
+import Markdown
 
 @MainActor
 struct TextStylingService {
@@ -52,6 +53,7 @@ struct TextStylingService {
         activeTokenIndices: Set<Int>,
         wikiLinkIDProvider: (NSRange) -> String?,
         precomputedTokens: [MarkdownToken]? = nil,
+        precomputedDocument: Document,
         configuration: MarkdownPMConfiguration = .default
     ) {
         let paragraphs = normalize(paragraphCandidates)
@@ -87,6 +89,7 @@ struct TextStylingService {
         // headings; this fills the gaps.
         let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
             text: textView.string,
+            document: precomputedDocument,
             baseFont: baseFont,
             theme: configuration.theme
         )

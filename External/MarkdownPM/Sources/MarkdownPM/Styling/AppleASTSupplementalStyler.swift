@@ -24,10 +24,15 @@ enum AppleASTSupplementalStyler {
     /// primary styler's output.
     static func styleAttributes(
         text: String,
+        document: Document,
         baseFont: NSFont,
         theme: MarkdownEditorTheme
     ) -> [StyledRange] {
-        let document = AppleDocumentParseProbe.parse(text)
+        // Phase 3 — Document is parsed once in parsedDocument(for:) and
+        // handed in. This pass no longer runs its own Document(parsing:)
+        // (was the primary #9 culprit: a whole-document Apple parse on
+        // every keystroke, uncached). LineOffsetIndex below is a UTF-8↔UTF-16
+        // line-offset cache, NOT a Markdown parse — it stays.
         let nsText = text as NSString
         let lineIndex = LineOffsetIndex(text: text)
         var visitor = Visitor(

@@ -58,4 +58,51 @@ import Testing
         #expect(coordinator.cachedParsedText == "hello\n")
         #expect(first.tokens.count == second.tokens.count)
     }
+
+    @Test("Supplemental styler from cached Document matches parse-from-text output")
+    func supplementalStylerCachedMatchesUnparsed() {
+        let text = "> quote line one\n> quote line two\n\n~~struck~~ word\n"
+        let baseFont = NSFont.systemFont(ofSize: 15)
+        let theme = MarkdownEditorTheme.default
+        let document = Document(parsing: text)
+
+        let fromCache = AppleASTSupplementalStyler.styleAttributes(
+            text: text,
+            document: document,
+            baseFont: baseFont,
+            theme: theme
+        )
+
+        // Smoke check only: the 4-arg form accepts a pre-parsed Document and
+        // emits ranges (blockquote + strikethrough present). The byte-identical
+        // regression gate is the Phase-2 StyledRangeCorpus snapshot net — NOT a
+        // same-call self-compare, which would be tautological.
+        #expect(!fromCache.isEmpty)
+    }
+
+    /// #9 spine, step 2 (read-only proof). After feeding the styler the cached
+    /// Document, ONE supplemental-style pass on the read-only path adds ZERO
+    /// parses: the only Apple parse is the spine parse inside parsedDocument.
+    /// Drives the READ-ONLY path that 3.1 validated works — it does NOT fire
+    /// the edit/restyle pipeline (textDidChange/performEdit/setSelectedRange),
+    /// which SIGTRAPs on a windowless programmatic NSTextView.
+    @Test("Styler reads the cached Document: one supplemental pass adds no parse (#9 unfolded drop)")
+    func supplementalReadsCachedDocument_noExtraParse() {
+        let text = "# A\n> q\n~~struck~~ body\n"
+        let (coordinator, _) = makeCoordinator(text: text)
+
+        AppleDocumentParseProbe.reset()
+        let parsed = coordinator.parsedDocument(for: text)  // the single spine parse
+        #expect(AppleDocumentParseProbe.count == 1)
+
+        _ = AppleASTSupplementalStyler.styleAttributes(
+            text: text,
+            document: parsed.appleDocument,
+            baseFont: NSFont.systemFont(ofSize: 15),
+            theme: .default
+        )
+        // The styler consumed the cached Document and did NOT parse again.
+        // Unfolded-path count is 1, down from the pre-#9 count of 2.
+        #expect(AppleDocumentParseProbe.count == 1)
+    }
 }

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Markdown
 import Testing
 @testable import MarkdownPM
 
@@ -113,6 +114,7 @@ extension StyledRangeCorpusTests {
     func supplementalCoversBlockquoteNotHR() {
         let bqRanges = AppleASTSupplementalStyler.styleAttributes(
             text: "> quote\n",
+            document: Document(parsing: "> quote\n"),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -120,6 +122,7 @@ extension StyledRangeCorpusTests {
 
         let hrRanges = AppleASTSupplementalStyler.styleAttributes(
             text: "---\n",
+            document: Document(parsing: "---\n"),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -131,6 +134,7 @@ extension StyledRangeCorpusTests {
     func supplementalStrikethrough() {
         let ranges = AppleASTSupplementalStyler.styleAttributes(
             text: "a ~~b~~ c",
+            document: Document(parsing: "a ~~b~~ c"),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )
@@ -146,6 +150,7 @@ extension StyledRangeCorpusTests {
         let len = (text as NSString).length
         let ranges = AppleASTSupplementalStyler.styleAttributes(
             text: text,
+            document: Document(parsing: text),
             baseFont: NSFont.systemFont(ofSize: 15),
             theme: .default
         )

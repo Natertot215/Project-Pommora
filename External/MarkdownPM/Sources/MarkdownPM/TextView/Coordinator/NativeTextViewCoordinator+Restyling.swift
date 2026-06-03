@@ -46,7 +46,8 @@ extension NativeTextViewCoordinator {
         textView.textStorage?.removeAttribute(.link, range: fullRange)
         textView.textStorage?.setAttributes(baseAttrs, range: fullRange)
 
-        let tokens = parsedDocument(for: displayText).tokens
+        let parsed = parsedDocument(for: displayText)
+        let tokens = parsed.tokens
         let caretLocation = textView.selectedRange().location
         activeTokenIndices = MarkdownDetection.computeActiveTokenIndices(
             selectionRange: textView.selectedRange(),
@@ -71,6 +72,7 @@ extension NativeTextViewCoordinator {
         // (e.g. a freshly-opened page would show raw `>` markers).
         let supplementalRanges = AppleASTSupplementalStyler.styleAttributes(
             text: displayText,
+            document: parsed.appleDocument,
             baseFont: baseFont,
             theme: configuration.theme
         )
@@ -117,6 +119,13 @@ extension NativeTextViewCoordinator {
             configuration: configuration
         )
 
+        // DRY guard: source the supplemental styler's Document from the SAME
+        // parsedDocument(for:) memo, never a fresh Document(parsing:). Callers
+        // (restyleParagraphs / textDidChange) already primed this memo for the
+        // current text this keystroke, so it dedups on text equality — a cache
+        // read in the common path, not a second parse.
+        let appleDocument = parsedDocument(for: textView.string).appleDocument
+
         TextStylingService.restyle(
             textView: textView,
             layoutBridge: layoutBridge,
@@ -129,6 +138,7 @@ extension NativeTextViewCoordinator {
                 self?.wikiLinkID(for: range)
             },
             precomputedTokens: tokens,
+            precomputedDocument: appleDocument,
             configuration: configuration
         )
 
