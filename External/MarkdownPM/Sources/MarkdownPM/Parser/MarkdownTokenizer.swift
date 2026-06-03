@@ -38,10 +38,6 @@ private extension MarkdownTokenizer {
         pattern: "^[ ]{0,3}(#{1,6})(?:[ \\t]+(.*))?$",
         options: [.anchorsMatchLines]
     )
-    static let taskListRegex = try! NSRegularExpression(
-        pattern: #"^([ \t]*)([-•]|\d+\.)([ \t]+)(\[[ xX]\])(?=[ \t])"#,
-        options: [.anchorsMatchLines]
-    )
     static let codeBlockRegex = try! NSRegularExpression(
         pattern: #"^```[ \t]*([A-Za-z0-9_+#.-]*?)[ \t]*\r?\n((?:(?!^```[^\r\n]*$)[\s\S])*?)^(```)[^\r\n]*$"#,
         options: [.anchorsMatchLines]
@@ -175,7 +171,6 @@ enum MarkdownTokenizer {
             let tokenRange = NSRange(location: full.location, length: tokenEnd - full.location)
             let openingLength = max(3, min(contentRange.location - tokenRange.location, tokenRange.length))
             let openingMarker = NSRange(location: tokenRange.location, length: openingLength)
-            _ = contentRange.location + contentRange.length
             let closingMarker = closingFence
             
             tokens.append(MarkdownToken(kind: .codeBlock,
