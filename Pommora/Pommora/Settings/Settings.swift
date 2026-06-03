@@ -27,13 +27,16 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
     /// here ahead of the v0.6.0 Settings editor so the future toggle row binds
     /// to an existing field rather than triggering a migration.
     var showPageIcon: Bool
+    /// Vault-relative folder paths excluded from discovery. Empty by default.
+    /// Paths are anchored to the nexus root (e.g. "Archive", "Projects/Old").
+    var excludedFolders: [String]
     var modifiedAt: Date
 
     // MARK: - Versioning constants
 
     /// The defaults version shipped with the current build.  Increment this
     /// whenever a default value changes and add a migration step in `migrate(_:)`.
-    static let currentDefaultsVersion: Int = 3
+    static let currentDefaultsVersion: Int = 4
 
     // MARK: - Codable
 
@@ -43,6 +46,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         case accentColor = "accent_color"
         case labels
         case showPageIcon = "show_page_icon"
+        case excludedFolders = "excluded_folders"
         case modifiedAt = "modified_at"
     }
 
@@ -52,6 +56,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         accentColor: SettingsAccentColor? = nil,
         labels: SettingsLabels,
         showPageIcon: Bool = false,
+        excludedFolders: [String] = [],
         modifiedAt: Date
     ) {
         self.version = version
@@ -59,6 +64,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         self.accentColor = accentColor
         self.labels = labels
         self.showPageIcon = showPageIcon
+        self.excludedFolders = excludedFolders
         self.modifiedAt = modifiedAt
     }
 
@@ -72,6 +78,9 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         // Old files lack "show_page_icon" → default OFF (matches the new default,
         // so migration has nothing to rewrite — see migrate(_:) v2→v3).
         showPageIcon = (try? c.decode(Bool.self, forKey: .showPageIcon)) ?? false
+        // Old files lack "excluded_folders" → default [] (matches the new default,
+        // so migration has nothing to rewrite — see migrate(_:) v3→v4).
+        excludedFolders = (try? c.decode([String].self, forKey: .excludedFolders)) ?? []
         modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
     }
 
@@ -84,6 +93,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
             accentColor: nil,  // nil = system default
             labels: SettingsLabels.defaults(),
             showPageIcon: false,  // opt-in per Nexus
+            excludedFolders: [],
             modifiedAt: Date()
         )
     }
@@ -134,6 +144,13 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
             // equals the new default, so there's nothing to rewrite. Just
             // record the version.
             s.defaultsVersion = 3
+        }
+
+        if s.defaultsVersion < 4 {
+            // v3→v4: added `excludedFolders`. Brand-new field — absent in older files,
+            // decoded as `[]`, which already equals the new default, so there's nothing
+            // to rewrite. Just record the version.
+            s.defaultsVersion = 4
         }
 
         // Clamp to current in case intermediate versions were skipped.
