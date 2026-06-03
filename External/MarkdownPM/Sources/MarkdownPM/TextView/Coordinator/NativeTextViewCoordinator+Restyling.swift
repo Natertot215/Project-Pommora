@@ -129,6 +129,12 @@ extension NativeTextViewCoordinator {
         // path, not a second parse. Bind once to avoid hitting the memo twice.
         let cached = parsedDocument(for: textView.string)
 
+        // The appearance-change path (`handleAppearanceChange`) calls in with
+        // `tokens == nil` — the text is unchanged, only the syntax-highlight
+        // palette flipped. Reuse the SAME cached spine's `tokens` rather than
+        // letting the styler re-tokenize (its `precomputedTokens ?? parseTokens`
+        // fallback). Same single-cached-spine contract as the #9 fix: one parse,
+        // one tokenize, one line index — all sourced from `cached`.
         TextStylingService.restyle(
             textView: textView,
             layoutBridge: layoutBridge,
@@ -140,7 +146,7 @@ extension NativeTextViewCoordinator {
             wikiLinkIDProvider: { [weak self] range in
                 self?.wikiLinkID(for: range)
             },
-            precomputedTokens: tokens,
+            precomputedTokens: tokens ?? cached.tokens,
             precomputedDocument: cached.appleDocument,
             precomputedLineIndex: cached.lineIndex,
             configuration: configuration
