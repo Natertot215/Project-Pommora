@@ -6,12 +6,13 @@ Plans are named `YYYY-MM-DD-<slug>.md`. They scope a single feature or refactor 
 
 #### Active
 
-- `2026-06-02-MarkdownPM-Service.md` — fold the vendored `MarkdownEngine` into a Pommora-owned `MarkdownPM` Swift package: consolidate the dual parser/styler onto one cached Apple-AST spine with strict DRY, transplant the TextKit 2 body verbatim, **Pages-scoped** (Items excluded; wikilinks = separate post-rebuild session). Provisional scaffolding pending the finalized plan.
-- `2026-06-02-MarkdownPM-Decisions.md` — the 26-decision surface for the MarkdownPM rebuild + Nathan's locked rulings (2026-06-02).
+- `2026-06-02-MarkdownPM-Plan.md` — the **finalized** MarkdownPM rebuild implementation plan: fold the vendored `MarkdownEngine` into a Pommora-owned `MarkdownPM` package; one cached Apple-AST parse spine (the #9 fix); delete the hand-rolled emphasis parser; merge the dual styler into one owned styler + `MarkdownPMTheme`; transplant the runtime-only TextKit 2 workarounds verbatim. **Pages-only** (Items excluded; wikilinks = separate post-rebuild session). Full bite-sized TDD for Phases 1–3, concrete outline for 4–6; Nathan's rulings folded in as `Locked Decisions` (LD-1..LD-32). Validated through 3 adversarial review rounds (blocker→cosmetic convergence).
+- `2026-06-02-MarkdownPM-CodeMap.md` — verified Code Map & Dependency Report for the rebuild (22-agent sweep against actual source); the `file:line` ground truth the plan is built on.
 - `2026-05-31-vault-table-displayonly-interim.md` — interim spec for display-only Type detail tables + creation-order default (shipped v0.3.4).
 
 #### Superseded
 
 `Superseded/` archives plans that have fully shipped or been abandoned.
 
+- `Superseded/2026-06-02-MarkdownPM-Service.md` — the v2 design/altitude doc for the MarkdownPM rebuild; superseded by the finalized `2026-06-02-MarkdownPM-Plan.md` (phase intent preserved there; the v2 doc's claims were re-verified + corrected by the CodeMap). The separate 26-decision surface (`MarkdownPM-Decisions.md`) was folded into the plan's `Locked Decisions` and removed.
 - `Superseded/2026-06-01-Items-as-Markdown-Plan.md` — convert Items from whole-`.json` to plain `.md` (Shape A; one `AtomicYAMLMarkdown` pipeline; folder-sidecar kind authority; foreign-key preservation; auto-run migration). SHIPPED 2026-06-02 (1153/1153 green); ratified as registry decision #14, logged in `History.md`.
