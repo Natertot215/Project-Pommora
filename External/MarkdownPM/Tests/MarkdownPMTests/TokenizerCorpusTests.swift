@@ -174,30 +174,75 @@ struct TokenizerCorpusTests {
         #expect(t[0].markerRanges.count == 4) // [ ] ( )
     }
 
-    // MARK: - Headings (STYLER path — requires a space; PINNED D-HEAD-1)
+    // MARK: - Headings (STYLER path — UNIFIED CommonMark rule; PINNED D-HEAD-1)
 
     @Test("Styler heading regex: `## Foo` is a heading token")
     func headingWithSpace() {
         let t = tokens("## Foo").filter { $0.kind == .heading }
         #expect(t.count == 1)
+        // Group 2 = the text after the space.
+        #expect(("## Foo" as NSString).substring(with: t[0].contentRange) == "Foo")
     }
 
-    @Test("Styler heading regex: bare `##` (no space) is NOT a token")
-    func headingNoSpace_currentBehavior() {
-        // headingRegex = ^\s*(#{1,6}) +(.*)$  — REQUIRES at least one space.
+    @Test("Styler heading regex: bare `##` (EOL) IS now a token (D-HEAD-1 unified)")
+    func headingNoSpaceIsNowToken() {
+        // Unified rule `^\s*(#{1,6})(?:[ \t]+(.*))?$` admits a hash run
+        // terminated by end-of-line. Group 2 is absent → contentRange is the
+        // valid zero-length range at the hash end (NOT NSNotFound). This now
+        // AGREES with `MarkdownDetection.isHeadingLine("##")`.
         let t = tokens("##").filter { $0.kind == .heading }
+        #expect(t.count == 1)
+        #expect(t[0].contentRange == NSRange(location: 2, length: 0))
+        // The `#` run is group 1 → first marker; no separator marker for a bare
+        // heading at EOL.
+        #expect(t[0].markerRanges.count == 1)
+        #expect(t[0].markerRanges[0] == NSRange(location: 0, length: 2))
+    }
+
+    @Test("Styler heading regex: tab-after-hash `##\\tFoo` IS now a token (D-HEAD-1 unified)")
+    func headingTabAfterHashIsNowToken() {
+        // Unified rule `^\s*(#{1,6})(?:[ \t]+(.*))?$` accepts a tab separator,
+        // so `##\tFoo` now tokenizes on the styler path — matching what the
+        // DETECTION path (`isHeadingLine`) already did. The space-only divergence
+        // is gone; both paths share the CommonMark space/tab/EOL rule.
+        let t = tokens("##\tFoo").filter { $0.kind == .heading }
+        #expect(t.count == 1)
+        #expect(("##\tFoo" as NSString).substring(with: t[0].contentRange) == "Foo")
+    }
+
+    @Test("Styler heading regex: `#Foo` (no separator) is NOT a token")
+    func headingNoSeparatorRejected() {
+        // No space/tab/EOL after the `#`s → the optional group is skipped and
+        // `$` fails after the hashes. Rejection stays locked on the styler path.
+        let t = tokens("#Foo").filter { $0.kind == .heading }
         #expect(t.isEmpty)
     }
 
-    @Test("Styler heading regex: tab-after-hash `##\\tFoo` is NOT a token")
-    func headingTabAfterHash_currentBehavior() {
-        // VERIFIED against source: styler headingRegex `^\s*(#{1,6}) +(.*)$`
-        // (MarkdownTokenizer.swift:23-24) uses ` +` (U+0020 only, no tabs), so
-        // `##\tFoo` does NOT tokenize as a heading on the styler path. The
-        // DETECTION path DOES accept it (verified: isHeadingLine("##\tFoo")
-        // == true) — that is the real D-HEAD-1 divergence Phase 4 reconciles.
-        let t = tokens("##\tFoo").filter { $0.kind == .heading }
+    @Test("Styler heading regex: 7 hashes `####### x` is NOT a token (max 6)")
+    func headingSevenHashesRejected() {
+        // `#{1,6}` caps at six; the 7th hash means the run never reaches a valid
+        // separator + `$`. Rejection stays locked on the styler path.
+        let t = tokens("####### x").filter { $0.kind == .heading }
         #expect(t.isEmpty)
+    }
+
+    @Test("D-HEAD-1 unified: styler + detection AGREE on tab / bare / no-separator")
+    func headingDetectorsUnified() {
+        // The single CommonMark space/tab/EOL rule now governs BOTH paths.
+        // For each case the styler (`headingRegex` → `.heading` token) and the
+        // detector (`MarkdownDetection.isHeadingLine`) must return the same
+        // verdict — that agreement IS the D-HEAD-1 unification.
+        func stylerSeesHeading(_ line: String) -> Bool {
+            tokens(line).contains { $0.kind == .heading }
+        }
+        func detectorSeesHeading(_ line: String) -> Bool {
+            MarkdownDetection.isHeadingLine(line, isInsideCodeBlock: false)
+        }
+        for (line, expected) in [("##\tFoo", true), ("###", true), ("#Foo", false)] {
+            #expect(stylerSeesHeading(line) == expected)
+            #expect(detectorSeesHeading(line) == expected)
+            #expect(stylerSeesHeading(line) == detectorSeesHeading(line))
+        }
     }
 
     // MARK: - Wikilinks + image embeds (STAY regex through the rebuild)

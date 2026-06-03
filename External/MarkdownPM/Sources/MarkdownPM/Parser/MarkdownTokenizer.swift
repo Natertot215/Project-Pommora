@@ -22,7 +22,13 @@ private extension MarkdownTokenizer {
         pattern: "\\[([^\\]\\r\\n]+)\\]\\(([^\\)\\r\\n]+)\\)"
     )
     static let headingRegex = try! NSRegularExpression(
-        pattern: "^\\s*(#{1,6}) +(.*)$",
+        // Unified CommonMark heading rule (D-HEAD-1): 1-6 `#`s followed by a
+        // space, a tab, OR end-of-line. Group 1 = the `#` run (marker sizing);
+        // group 2 = optional heading text (absent for a bare `##`/`###` at EOL,
+        // and now also matches tab-separated text). `#Foo` (no separator) is
+        // rejected because the optional group is skipped and `$` then fails
+        // after the `#`s. Matches `MarkdownDetection.isHeadingLine`.
+        pattern: "^\\s*(#{1,6})(?:[ \\t]+(.*))?$",
         options: [.anchorsMatchLines]
     )
     static let taskListRegex = try! NSRegularExpression(
@@ -121,19 +127,30 @@ enum MarkdownTokenizer {
                                         markerRanges: [openBracket, closeBracket, openParen, closeParen]))
         }
 
-        // Headings #... up to ######
+        // Headings #... up to ###### (unified CommonMark rule — D-HEAD-1).
         for match in headingRegex.matches(in: text, options: [], range: fullRange) {
             let fullMatchRange = match.range(at: 0)
             let hashes = match.range(at: 1)
-            let content = match.range(at: 2)
+            let hashEnd = hashes.location + hashes.length
+            // Group 2 is optional: a bare `##`/`###` at EOL has no text, so the
+            // capture is `{NSNotFound, 0}`. Normalize to a VALID zero-length
+            // range at the hash end — never let NSNotFound escape into
+            // `contentRange` (it would overflow `NSIntersectionRange` in the
+            // styling pass).
+            let rawContent = match.range(at: 2)
+            let content = rawContent.location == NSNotFound
+                ? NSRange(location: hashEnd, length: 0)
+                : rawContent
             let leadingWsLength = hashes.location - fullMatchRange.location
             let tokenRange = NSRange(location: hashes.location, length: fullMatchRange.length - leadingWsLength)
             var markerRanges = [hashes]
-            let hashEnd = hashes.location + hashes.length
+            // Highlight the single separator (space or tab) after the hashes,
+            // matching the unified rule. Absent for a bare heading.
             if hashEnd < nsText.length {
-                let spaceRange = NSRange(location: hashEnd, length: 1)
-                if nsText.substring(with: spaceRange) == " " {
-                    markerRanges.append(spaceRange)
+                let separatorRange = NSRange(location: hashEnd, length: 1)
+                let separator = nsText.substring(with: separatorRange)
+                if separator == " " || separator == "\t" {
+                    markerRanges.append(separatorRange)
                 }
             }
             tokens.append(MarkdownToken(kind: .heading,
