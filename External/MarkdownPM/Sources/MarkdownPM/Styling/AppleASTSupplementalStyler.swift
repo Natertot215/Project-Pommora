@@ -1,6 +1,6 @@
 //
 //  AppleASTSupplementalStyler.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Walks Apple swift-markdown's Document AST to apply styling for
 //  Markdown constructs the engine's regex tokenizer doesn't cover:

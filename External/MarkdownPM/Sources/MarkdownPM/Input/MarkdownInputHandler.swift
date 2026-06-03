@@ -1,6 +1,6 @@
 //
 //  MarkdownInputHandler.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Created by Luca Chen on 18.02.26.
 //

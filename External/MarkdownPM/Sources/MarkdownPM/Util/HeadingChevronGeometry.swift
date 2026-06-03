@@ -1,6 +1,6 @@
 //
 //  HeadingChevronGeometry.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Shared rect computation for the foldable-headings chevron. Renderer
 //  (`MarkdownTextLayoutFragment.drawHeadingChevron`) and hover handler

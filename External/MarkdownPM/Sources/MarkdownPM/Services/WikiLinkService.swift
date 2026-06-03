@@ -1,6 +1,6 @@
 //
 //  WikiLinkService.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Created by Luca Chen on 16.03.26.
 //

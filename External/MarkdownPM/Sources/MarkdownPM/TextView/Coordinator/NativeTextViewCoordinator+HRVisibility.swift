@@ -1,6 +1,6 @@
 //
 //  NativeTextViewCoordinator+HRVisibility.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Pommora addition: Obsidian-style dynamic syntax for Markdown horizontal
 //  rules. The styler does NOTHING for ThematicBreak paragraphs (see

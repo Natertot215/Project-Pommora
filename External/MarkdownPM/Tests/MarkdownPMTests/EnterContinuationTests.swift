@@ -1,6 +1,6 @@
 import AppKit
 import Testing
-@testable import MarkdownEngine
+@testable import MarkdownPM
 
 @MainActor
 private func pressEnter(on source: String, caretAt caret: Int) -> (handled: Bool, result: String) {

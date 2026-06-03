@@ -1,6 +1,6 @@
 //
 //  NativeTextViewCoordinator+HeadingFolding.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Pommora addition: foldable-headings service. Translates the user's
 //  `foldedHeadings: Set<String>` (exact heading source lines like `"## Foo"`)

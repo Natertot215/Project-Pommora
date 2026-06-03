@@ -1,6 +1,6 @@
 //
 //  NativeTextView+HeadingFoldHover.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Pommora addition: hover detection for the foldable-headings chevron.
 //  Maintains an NSTrackingArea covering the visible text area + handles

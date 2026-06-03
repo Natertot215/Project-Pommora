@@ -1,6 +1,6 @@
 //
 //  MarkdownPlainText.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Rendered-prose extraction: walks a parsed Markdown document and returns its
 //  readable text with all syntax stripped (no `#`, `*`, `-`, link URLs). Used

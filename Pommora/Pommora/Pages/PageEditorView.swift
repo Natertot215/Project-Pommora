@@ -14,7 +14,7 @@ import SwiftUI
 /// with the post-rename PageMeta so subsequent saves hit the new URL.
 ///
 /// The body editor is `MarkdownPMEditor` from the in-tree MarkdownPM
-/// package (External/MarkdownEngine/). Every keystroke
+/// package (External/MarkdownPM/). Every keystroke
 /// updates `viewModel.body` via Binding; `didSet` fires `scheduleSave()`
 /// which debounces 300ms then writes via `ContentManager.updatePage` →
 /// `PageFile.save` → atomic write. Frontmatter is preserved verbatim across
@@ -186,7 +186,7 @@ struct PageEditorView: View {
 
     private var editorZStack: some View {
         ZStack(alignment: .topLeading) {
-            // Body editor — TextKit-2 native via vendored MarkdownEngine.
+            // Body editor — TextKit-2 native via the in-tree MarkdownPM package.
             // The wrapper binds two-way to viewModel.body; every keystroke
             // flows through the VM's 300ms debounced save pipeline.
             // documentId scoped per-Page so undo history + per-document

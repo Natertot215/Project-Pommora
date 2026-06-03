@@ -1,6 +1,6 @@
 //
 //  CodeBlockButton.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Created by Luca Chen on 15.12.25
 //  Purpose: Shows a small copy button overlay for each code block.

@@ -1,6 +1,6 @@
 //
 //  NSTextLayoutFragment+NSRange.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Shared helper for converting a fragment's `rangeInElement` into a
 //  document-relative `NSRange`. Both the renderer

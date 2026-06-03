@@ -1,6 +1,6 @@
 //
 //  NativeTextViewCoordinator+Services.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Consolidated service-layer extensions on NativeTextViewCoordinator —
 //  callback handlers, autocorrect policy, code-block overlay tracking,
