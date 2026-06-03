@@ -52,7 +52,7 @@ extension MarkdownPMStyler {
             if let linkID {
                 contentAttributes[.wikiLinkID] = linkID
             }
-            let isActive = ctx.activeTokenIndices.contains(index)
+            let isActive = ctx.isActive(tokenIndex: index)
             // Check if the linked node actually exists, using whichever resolver
             // the embedder supplied via configuration.services.
             let nodeExists: Bool = {
@@ -92,7 +92,7 @@ extension MarkdownPMStyler {
                 if !urlCandidate.contains("://") {
                     urlCandidate = "https://\(urlCandidate)"
                 }
-                let isActive = ctx.activeTokenIndices.contains(idx)
+                let isActive = ctx.isActive(tokenIndex: idx)
                 if let url = URL(string: urlCandidate) {
                     if isActive {
                         attrs.append((token.contentRange, [

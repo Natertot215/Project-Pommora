@@ -19,7 +19,7 @@ extension MarkdownPMStyler {
         let blockLatexTokens = ctx.tokens.enumerated().filter { $0.element.kind == .blockLatex }
         for (idx, token) in blockLatexTokens {
             if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) { continue }
-            let isActive = ctx.activeTokenIndices.contains(idx)
+            let isActive = ctx.isActive(tokenIndex: idx)
             let rawLatexContent = ctx.nsText.substring(with: token.contentRange)
             let latexContent = rawLatexContent.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -66,7 +66,7 @@ extension MarkdownPMStyler {
 
             attrs.append((token.range, [NSAttributedString.Key.spellingState: 0]))
 
-            let isActive = ctx.activeTokenIndices.contains(idx)
+            let isActive = ctx.isActive(tokenIndex: idx)
             let latexContent = ctx.nsText.substring(with: token.contentRange)
             let latexFontSize = HeadingHelpers.latexFontSize(for: token, tokens: ctx.tokens, baseFont: ctx.baseFont)
 

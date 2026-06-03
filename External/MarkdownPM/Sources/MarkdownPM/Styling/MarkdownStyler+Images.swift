@@ -19,7 +19,7 @@ extension MarkdownPMStyler {
         for (idx, token) in ctx.tokens.enumerated() where token.kind == .imageEmbed {
             if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) { continue }
 
-            let isActive = ctx.activeTokenIndices.contains(idx)
+            let isActive = ctx.isActive(tokenIndex: idx)
             let rawContent = ctx.nsText.substring(with: token.contentRange)
             guard let reference = ImageEmbedReference(content: rawContent) else {
                 appendSecondaryMarkers(for: token, to: &attrs, theme: ctx.configuration.theme)

@@ -90,6 +90,17 @@ extension MarkdownPMStyler {
         let configuration: MarkdownPMConfiguration
 
         var services: MarkdownEditorServices { configuration.services }
+
+        /// Single accessor for the per-construct "is this token caret-active?"
+        /// read. Wraps the resolved `activeTokenIndices` set — the set's
+        /// construction (incl. the upstream math-overlap force-activation in
+        /// `MarkdownDetection.computeActiveTokenIndices`) is unchanged; this
+        /// only reads it. NOTE: the checkbox end-of-syntax reveal is a separate
+        /// LOCAL `caretLocation`-based reimplementation and intentionally does
+        /// NOT route through here.
+        func isActive(tokenIndex index: Int) -> Bool {
+            activeTokenIndices.contains(index)
+        }
     }
 }
 
@@ -466,7 +477,7 @@ extension MarkdownPMStyler {
 
     static func shrinkInactiveMarkers(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
-        for (i, token) in ctx.tokens.enumerated() where !ctx.activeTokenIndices.contains(i) {
+        for (i, token) in ctx.tokens.enumerated() where !ctx.isActive(tokenIndex: i) {
             if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex
                 || token.kind == .imageEmbed
             {
@@ -524,7 +535,7 @@ extension MarkdownPMStyler {
         var attrs: [StyledRange] = []
         for (idx, token) in ctx.tokens.enumerated() where token.kind == .codeBlock {
             let codeContent = ctx.nsText.substring(with: token.contentRange)
-            let isActive = ctx.activeTokenIndices.contains(idx)
+            let isActive = ctx.isActive(tokenIndex: idx)
             let language = MarkdownTokenizer.extractLanguage(from: token, in: ctx.text)
             attrs.append(
                 (
@@ -562,7 +573,7 @@ extension MarkdownPMStyler {
     static func styleInlineCode(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
         for (idx, token) in ctx.tokens.enumerated() where token.kind == .inlineCode {
-            let isActive = ctx.activeTokenIndices.contains(idx)
+            let isActive = ctx.isActive(tokenIndex: idx)
             attrs.append(
                 (
                     token.contentRange,
