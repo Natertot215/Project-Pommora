@@ -81,7 +81,7 @@ Pommora's domain model has three layers of naming that intentionally diverge:
 |---|---|
 | **Code + data** | `PageType` / `PageCollection` / `ItemType` / `ItemCollection` — always exact, side-prefixed, unambiguous. JSON keys, sidecar fields, file references all use these literal names. |
 | **Docs prose** | "Type" + "Collection" as generic terms; "Page Type" / "Item Type" / etc. when side-specific |
-| **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (v0.3.0). |
+| **UI label (default)** | Pages-side: **"Vault"** + "Collection". Items-side: "Type" + **"Set"** (intentional divergence — each side: one signature word + one shared word). All labels user-renameable via the Settings scaffold (storage v0.3.0; editing UI v0.6.0). |
 
 The on-disk JSON shape is identical across sides (every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_itemtype.json` / `_itemcollection.json` / `_taskconfig.json` / `_eventconfig.json` — and the file inside follows the same schema-carrier shape). Sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON. Only the UI label and the Swift type differ across sides. Because Pages and Items are now both `.md`, the extension no longer distinguishes them — the **parent folder's sidecar is the kind authority** (a `.md` under `_itemtype.json` is an Item; under `_pagetype.json` a Page). A reserved, UI-hidden, non-authoritative `Class` frontmatter stamp (`item` | `page`) records the form; a stamp/folder disagreement or a homeless file routes to a hidden `.unsorted` inbox.
 
@@ -130,7 +130,7 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 
 | Link | Stored as | Purpose |
 |---|---|---|
-| Page → Page (wikilink) | `[[Page Name\|01HXYZ...]]` in body (title for display, ULID for resolution) | Inline reference |
+| Page → Page (wikilink) | plain `[[Page Name]]` in body (id-resolution via a derived `wikilinks` frontmatter mirror, v0.4.0 — see [[Wiki-Link]]) | Inline reference |
 | Page → Context (tier N) | `tierN: [<id>, ...]` in frontmatter | Categorical assignment |
 | Item → Context (tier N) | `tierN: [<id>, ...]` in `.md` frontmatter | Categorical assignment |
 | Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
@@ -140,13 +140,13 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 | Item → Item Type / Item Collection | Implicit by file location | Membership |
 | Anything → Anything | Wikilinks in composed-page body / Markdown body | Free reference |
 
-Relations are stored by ID (rename-safe); body wikilinks reference by name and rewrite on rename.
+Relations are stored by ID (rename-safe); body wikilinks are plain `[[Title]]` on disk — id-keyed rename-safety arrives with the v0.4.0 wikilink system (a derived `wikilinks` frontmatter mirror), see [[Wiki-Link]].
 
 ---
 
 #### Sidebar shape
 
-Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — v0.3.0 storage / v0.4.0 editing UI):
+Five top-level groups (only four carry a heading; all labels renameable via Settings scaffold — v0.3.0 storage / v0.6.0 editing UI):
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Spaces** — flat rows for tier-1 Contexts
@@ -170,4 +170,4 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id, ordering, `icon`, and their own `views` (Sets also persist `pinned_properties`); only the property **schema** inherits from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. **11 property types in v1:** Number, Checkbox, Date, Date & Time, Select, Multi-select, Status, URL, Relation, Last Edited Time, File / Attachment. **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection-scoped relations are mandatory dual** — paired reverse property auto-created on target. Cross-side relations supported (Item ↔ Page). Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`.
+Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id, ordering, `icon`, and their own `views` (Sets also persist `pinned_properties`); only the property **schema** inherits from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. **10 property types in v1.** **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection-scoped relations are mandatory dual** — paired reverse property auto-created on target. Cross-side relations supported (Item ↔ Page). Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`.

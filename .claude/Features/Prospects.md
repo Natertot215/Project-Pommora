@@ -53,19 +53,19 @@ The `template_config` field is reserved in v0.3.0 so the on-disk shape is forwar
 #### Full Settings UI
 **Description:** The Settings scaffold ships at v0.3.0 with storage + label wiring only — `.nexus/settings.json` persists the user-overridable UI labels and accent color, and `SettingsManager` threads those labels into the sidebar, sheets, and detail panes. There is no editing UI in v0.3.0; defaults are baked in and overrides must be edited by hand in the JSON file.
 
-The full Settings UI ships v0.4.0 and brings:
+The full Settings UI ships v0.6.0 and brings:
 
 - **Accent color picker** — replace the JSON-edited hex value with a swatch grid + custom color well, plus live preview across selection chrome and link styling.
 - **Label rename forms** — text inputs for every renameable label (Pages section heading, Items section heading, "Vault" / "Collection" / "Type" / "Set" defaults, "Task" / "Event" defaults, tier labels). Per-Nexus scope.
 - **Tier-config consolidation** — the existing `.nexus/tier-config.json` (Space / Topic / Project label customization) folds into the same Settings surface so all label customization lives in one place.
 
-Slotted v0.4.0 (Symbols + Settings + Trash + Wikilinks batch).
+Slotted v0.6.0 (Settings + Quick Capture + LLM + global search batch).
 
 #### Sidebar Collection-kind indicator toggle
 **Description:** A setting that adds a small per-row icon distinguishing Page Collections from Item Collections in the sidebar. The default v1 sidebar already separates the two via the Pages / Items section split + the "Vault" / "Collection" vs "Type" / "Set" UI labels; this is a power-user detail for users who want an extra glance-level signal at the row level.
 
 #### Custom color picker for Select / Multi-select properties
-**Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work in v0.4.0.
+**Description:** v1 uses a fixed 9-color Notion-style palette (gray, brown, orange, yellow, green, blue, purple, pink, red). A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work in v0.6.0.
 
 #### Pulldown "show empty schema entries" toggle
 **Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (Page Preview, Item Window) are eager in v1 (already show every schema property). A per-Type setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Page Types where the user wants to fill in many properties per Page without opening the picker. Post-v1.

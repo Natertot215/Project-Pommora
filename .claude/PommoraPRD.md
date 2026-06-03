@@ -47,14 +47,14 @@ Full definitions, on-disk shapes, linking model → `// Features//Domain-Model.m
 
 ##### Stack
 
-Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NSTextView + Apple `swift-markdown` 0.8.0 + TextKit 2 + vendored `swift-markdown-engine`** (Apache 2.0, at `External/MarkdownEngine/`). The native TextKit-2 pivot (after a WKWebView fork attempt) gave Pommora Writing Tools (15.1+), Look Up / Translate, spell-check, IME, and dynamic system colors for free. Full editor spec → `// Features//PageEditor.md`.
+Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NSTextView + Apple `swift-markdown` 0.8.0 + TextKit 2 + the Pommora-owned `MarkdownPM` package** (Apache 2.0, `External/MarkdownPM/`; originally vendored from `swift-markdown-engine`, folded in-tree + rebuilt 2026-06-03). The native TextKit-2 pivot (after a WKWebView fork attempt) gave Pommora Writing Tools (15.1+), Look Up / Translate, spell-check, IME, and dynamic system colors for free. Full editor spec → `// Features//PageEditor.md`.
 
 | Layer | SwiftUI |
 |---|---|
 | Desktop shell | SwiftUI on macOS Tahoe (26+) |
 | UI framework | SwiftUI primary + AppKit interop where needed (NSTextView/TextKit 2, NSSplitView, NSItemProvider) |
 | Styling | SwiftUI native semantic colors / Materials / Font scale + small Pommora-brand `Color` / `Font` extensions (accent + code + callout) |
-| Editor (Pages) | Shipped v0.2.7.0: native NSTextView + `swift-markdown` 0.8.0 + TextKit 2 + vendored `swift-markdown-engine` (`External/MarkdownEngine/`). Pommora-side `AppleASTSupplementalStyler` adds BlockQuote / Strikethrough / Table / ThematicBreak on top of the engine's regex tokenizer. `MarkdownTextLayoutFragment.draw` overrides are the extension point for HR (Phase 1) + v0.2.7.2 Blockquote + Tables work. |
+| Editor (Pages) | Shipped v0.2.7.0, rebuilt 2026-06-03: native NSTextView + `swift-markdown` 0.8.0 + TextKit 2 + the Pommora-owned `MarkdownPM` package (`External/MarkdownPM/`). One owned `MarkdownPMStyler` (with an `AppleASTSupplementalStyler` AST helper) covers BlockQuote / Strikethrough / Table; emphasis locates on the Apple AST; HR/ThematicBreak is sole-written by the HR-visibility service. `MarkdownTextLayoutFragment.draw` overrides are the extension point for HR + Blockquote + Tables work. |
 | Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `Codable` block enum; candidate libs (`visfitness/reorderable`, `stevengharris/SplitView`) evaluated at build time |
 | Backend layer | Pure Swift |
 | Database | SQLite via GRDB.swift 6.29.3 (FTS5 + `ValueObservation`) |
@@ -331,7 +331,7 @@ WHERE start_at BETWEEN datetime('now') AND datetime('now', '+7 days');
 
 - **Values** in Page YAML frontmatter (`.md`), Item YAML frontmatter (`.md`), AgendaTask `properties` (`.task.json`), or AgendaEvent `properties` (`.event.json`). **Schemas** live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`). Collection-local overrides remain a post-v1 Prospect — Page Collections + Item Collections inherit their parent Type's schema in v0.3.0.
 - **Scoped per Type**, created via per-Type Settings sheet (Page Type Settings sheet on Pages side; Item Type Settings sheet on Items side — Notion-style). Members must conform; ad-hoc page-local properties out of v1 (Prospect).
-- **V1 catalog (11 types):** Number, Checkbox, Date, Date & Time, Select, Multi-select, Status, URL, Relation, Last Edited Time (auto), File / Attachment. No free-form text — filename = title; "text-shaped" values use Select/Multi-select with creatable options. **Status** has 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done) with user-editable options; group labels renamable, 3 structural slots fixed for EventKit compatibility. Status is built-in required on both AgendaTask AND AgendaEvent schemas; NOT auto-seeded on Page Types or Item Types.
+- **V1 catalog (10 types)** — full catalog in `// Features//Properties.md`. No free-form text — filename = title; "text-shaped" values use Select/Multi-select with creatable options. **Status** has 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done) with user-editable options; group labels renamable, 3 structural slots fixed for EventKit compatibility. Status is built-in required on both AgendaTask AND AgendaEvent schemas; NOT auto-seeded on Page Types or Item Types.
 - **Property identity = ID, not name.** Every property in a Type's schema carries a stable ULID `id`; frontmatter / JSON `properties` block keys reference the property ID. `name` is a renameable display label — renames are schema-only (no member-file cascade).
 - **Cross-side relations supported.** Pages-side schemas can target Item Types / Item Collections, and vice versa. Cross-side *promotion* (transforming an Item INTO a Page) remains a post-v1 Prospect — different concept.
 - **File / Attachment** property type — files copy into `<nexus>/.nexus/attachments/<entity-id>/<original-filename>` on attach; property stores nexus-relative paths. Especially load-bearing for Items.

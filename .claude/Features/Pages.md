@@ -95,17 +95,17 @@ Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a
 
 #### Wikilinks
 
-- **Disk format: `[[Page Name|01HXYZ...]]`** — the title is the human-readable label, the ULID after the pipe is the unambiguous reference.
-- Resolution is ID-keyed at render time, so renames never break a wikilink and need no cross-file body-scan rewrite; the displayed title updates automatically.
+Canonical spec → [[Wiki-Link]]; the on-disk form is ratified by blessed decision D1 (`// Planning//2026-06-02-MarkdownPM-Decisions.md`). The wikilink system itself lands as a separate post-rebuild session (roadmap → v0.4.0).
+
+- **Disk format: plain `[[Page Name]]`** (Obsidian-compatible) — Pommora never writes a piped `[[Title|<id>]]` form to disk. Rename-safe ID resolution comes from a derived `wikilinks: [<id>, ...]` frontmatter mirror, auto-maintained on save (v0.4.0) — not an inline pipe.
 - **Untargeted `[[Page Name]]`** (typed outside autocomplete, or pasted from another tool) resolves by current basename match. If multiple Pages share that name, the editor underlines it as ambiguous and the picker prompts for disambiguation at insertion.
 - Wikilinks render as styled colored inline text (Obsidian-style hyperlink), not as Notion-style chips/pills.
-- Obsidian sees `[[Page Name|01HXYZ...]]` and renders the title as the alias — it just loses Pommora's rename-safety outside Pommora.
 
 **Wikilinks vs relations.** These are two distinct linking mechanisms, in two different places:
 
 | | Where it lives | How it renders |
 |---|---|---|
-| **Wikilink** | inline in the Markdown **body** (`[[Page Name\|ULID]]`) | styled colored inline text, in the prose flow |
+| **Wikilink** | inline in the Markdown **body** (plain `[[Page Name]]`) | styled colored inline text, in the prose flow |
 | **Relation** | a **frontmatter** property value (array of tagged target IDs) | the target's **icon + title in styled colored text**, in the property surface — never a chip/pill |
 
 A wikilink is body content the editor renders in place; a relation is a typed property whose value is shown in the inspector, resolved from the target's current icon + title. Both resolve their target by ID and stay rename-safe, but they never share a surface — wikilinks never appear in the property surface, relation values never appear inline in the body.

@@ -2,6 +2,20 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### MarkdownPM rebuild — one cached parse spine + AST emphasis + one owned styler (2026-06-03)
+
+The vendored `swift-markdown-engine` folded into the Pommora-owned **`MarkdownPM`** package (`External/MarkdownPM/`) and reassembled cleaner behind a characterization net (branch `markdownpm-rehome`; package 119 tests / app 1166, 0 failures). Shipped: ONE cached Apple-AST parse spine per edit (`ParsedDocument` holds `appleDocument` + `lineIndex` — the #9 caret-stutter fix); the 173-line hand-rolled asterisk-only emphasis parser DELETED, emphasis now located on the Apple `swift-markdown` AST (underscore adopted; intra-word underscore + emphasis-inside-code / wikilinks / link-destinations suppressed; CommonMark rule-of-3 + cross-line); the two divergent heading detectors unified to one CommonMark rule; the dual styler collapsed into one owned `MarkdownPMStyler` + the theme merged into one `MarkdownPMTheme`; new heading scale `[2.0,1.75,1.5,1.25,1.15,1.0]` (H6 = body). Runtime TextKit / OS-bug workarounds preserved verbatim. Every behavior divergence logged (D-EMPH-1..7 / D-CODE-1 / D-HEAD-1/2 / #9).
+
+Full record → `Planning/2026-06-02-MarkdownPM-Plan.md` (Execution Record) + `Planning/MarkdownPM-Divergence-Ledger.md`; editor internals → `Features/PageEditor.md`; markdown behavior → `Guidelines/Markdown.md`.
+
+#### Date property redesign + View Settings dynamic sizing (2026-06-02)
+
+- **Date-only type retired → one unified "Date".** The separate date-only `.date` type is dropped from the picker (`userCreatable` 10→9); the unified type (`.datetime`, relabelled "Date", icon `calendar`) covers both, date-only vs with-time chosen by the new **Display Time** setting. Migration is normalize-on-read — `PropertyDefinition`'s decoder folds a `.date` schema type → `.datetime` (the `.date` enum case is retained for backward decode only). `ItemValidator` / `PageValidator` / `SchemaConflictDetector` treat `.date` and `.datetime` *values* as interchangeable, so existing date-only values load clean.
+- **Display config reworked.** `DateFormat` → 4 type-labelled formats (no "Default", no ISO): Short (`March 1st`) / Full (`Wednesday, March 1st 2026`) / `DD/MM/YYYY` / `MM/DD/YYYY`; new `TimeFormat` (None / 12 Hour / 24 Hour). Legacy v0.3.1 `DateFormat` values migrate on decode. Value editors use the native `.compact` `DatePicker`.
+- **View Settings popover sizes to content.** New `ViewSettingsPane` container — panes grow `PUI.Pane.minHeight`→`.maxHeight` (360→500) then scroll the middle with header + footer pinned (single container-owned `ScrollView`); the fixed `measuredPaneHeight` cage + `PaneHeight.swift` removed. Resize is the native `NSPopover`'s (SwiftUI can't animate the glass window height).
+
+Full spec → `Features/Properties.md`; design rule → `Guidelines/Design.md`.
+
 #### Items are Markdown — Shape A (2026-06-02)
 
 Items converted from whole-`.json` to plain `.md` (YAML frontmatter + body) over a 19-commit run, sharing Pages' `AtomicYAMLMarkdown` pipeline. **Shape A:** the capped description IS the markdown body — single source of truth, no frontmatter-description field, no mirror. Items stay a distinct *form* of one entity-type, not a separate codec.
