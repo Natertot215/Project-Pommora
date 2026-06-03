@@ -41,6 +41,10 @@ public struct MarkdownEditorTheme: Sendable {
     /// Tint used for accented affordances driven by user intent
     /// (e.g. the filled glyph of a checked task checkbox).
     public var accentColor: NSColor
+    /// Foreground color for code text — both inline `` `code` `` spans and
+    /// fenced code block content not claimed by a syntax highlighter.
+    /// Defaults to `systemRed` at 0.85 alpha to match the historical look.
+    public var codeText: NSColor
 
     // MARK: Links
 
@@ -85,6 +89,7 @@ public struct MarkdownEditorTheme: Sendable {
         disabledText: NSColor = .tertiaryLabelColor,
         headingMarker: NSColor = .gray,
         accentColor: NSColor = .controlAccentColor,
+        codeText: NSColor = NSColor.systemRed.withAlphaComponent(0.85),
         link: NSColor = .linkColor,
         incompleteLink: NSColor = .systemBlue,
         findMatchHighlight: NSColor = .systemYellow,
@@ -98,6 +103,7 @@ public struct MarkdownEditorTheme: Sendable {
         self.disabledText = disabledText
         self.headingMarker = headingMarker
         self.accentColor = accentColor
+        self.codeText = codeText
         self.link = link
         self.incompleteLink = incompleteLink
         self.findMatchHighlight = findMatchHighlight

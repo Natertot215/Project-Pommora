@@ -531,7 +531,7 @@ extension MarkdownPMStyler {
                     token.range,
                     [
                         .font: ctx.codeFont,
-                        .foregroundColor: NSColor.systemRed.withAlphaComponent(0.85),
+                        .foregroundColor: ctx.configuration.theme.codeText,
                         .backgroundColor: ctx.codeBackgroundColor,
                         .paragraphStyle: ctx.codeParagraphStyle,
                     ]
@@ -568,7 +568,7 @@ extension MarkdownPMStyler {
                     token.contentRange,
                     [
                         .font: ctx.codeFont,
-                        .foregroundColor: NSColor.systemRed.withAlphaComponent(0.85),
+                        .foregroundColor: ctx.configuration.theme.codeText,
                         .backgroundColor: ctx.codeBackgroundColor,
                     ]
                 ))
