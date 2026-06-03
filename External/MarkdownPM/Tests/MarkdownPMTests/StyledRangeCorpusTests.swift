@@ -106,6 +106,43 @@ struct StyledRangeCorpusTests {
         let ranges = styled(text, caret: 10)
         #expect(!ranges.contains { $0.attributes[.taskCheckbox] != nil })
     }
+
+    // Does any emitted range cover `location` and carry a font with the italic
+    // symbolic trait set?
+    private func hasItalicFont(_ ranges: [StyledRange], at location: Int) -> Bool {
+        for r in ranges where NSLocationInRange(location, r.range) {
+            if let f = r.attributes[.font] as? NSFont,
+               f.fontDescriptor.symbolicTraits.contains(.italic) { return true }
+        }
+        return false
+    }
+
+    @Test("Underscore emphasis inside a [[wikilink]] target is NOT italicized (D-EMPH-6)")
+    func emphasisInsideWikilinkUnderscoreSuppressed() {
+        // D-EMPH-6: wikilink/image-embed target text is literal. The AST emits an
+        // italic token for `_file_` inside `[[my _file_ name]]`, but styleEmphasis
+        // now skips any emphasis token intersecting a wikiLink/imageEmbed range.
+        // `[[my ` = indices 0..4; `_` at 5; `file` at 6..9; `_` at 10.
+        let ranges = styled("[[my _file_ name]]", caret: 0)
+        #expect(!hasItalicFont(ranges, at: 6)) // `f` of `file`
+        #expect(!hasItalicFont(ranges, at: 9)) // `e` of `file`
+    }
+
+    @Test("Asterisk emphasis inside a [[wikilink]] target is NOT italicized (D-EMPH-6)")
+    func emphasisInsideWikilinkAsteriskSuppressed() {
+        // The asterisk axis is the OLD-behavior witness: the legacy asterisk-only
+        // parser styled `*b*` inside the wikilink too, so suppressing it is the
+        // genuine NEW divergence D-EMPH-6. `[[a ` = 0..3; `*` at 4; `b` at 5.
+        let ranges = styled("[[a *b* c]]", caret: 0)
+        #expect(!hasItalicFont(ranges, at: 5)) // `b`
+    }
+
+    @Test("Control: _x_ OUTSIDE any wikilink IS still italicized")
+    func emphasisOutsideWikilinkStillApplies() {
+        // `before ` = indices 0..6; `_` at 7; `x` at 8; `_` at 9.
+        let ranges = styled("before _x_ after", caret: 0)
+        #expect(hasItalicFont(ranges, at: 8)) // `x`
+    }
 }
 
 extension StyledRangeCorpusTests {

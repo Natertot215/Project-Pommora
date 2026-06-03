@@ -56,6 +56,15 @@ extension MarkdownStyler {
         let boldBit: UInt8 = 1
         let italicBit: UInt8 = 2
 
+        // Wikilink / image-embed target text is LITERAL — emphasis markers that
+        // land inside `[[target]]` / `![[embed]]` must not be styled (mirrors the
+        // `isInsideCodeBlock` code-suppression guard below). The AST emits an
+        // emphasis token for `_file_` inside `[[my _file_ name]]`; that token is
+        // skipped here so the target reads as plain literal text.
+        let literalTargetTokens = ctx.tokens.filter {
+            $0.kind == .wikiLink || $0.kind == .imageEmbed
+        }
+
         for token in ctx.tokens {
             let mask: UInt8
             switch token.kind {
@@ -65,6 +74,9 @@ extension MarkdownStyler {
             default: continue
             }
             if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) { continue }
+            if literalTargetTokens.contains(where: {
+                NSIntersectionRange($0.range, token.range).length > 0
+            }) { continue }
             let r = token.contentRange
             let upper = min(r.location + r.length, len)
             for i in max(r.location, 0)..<upper {
