@@ -162,7 +162,6 @@ extension NativeTextViewCoordinator {
             return cachedParsedDocument
         }
 
-        let tokens = MarkdownTokenizer.parseTokens(in: text)
         // Phase 3 — parse the Apple AST ONCE here, in the same size-1 memo
         // that already dedups the regex tokens. The supplemental styler and
         // syncHeadingFolding read this cached Document instead of each
@@ -172,6 +171,13 @@ extension NativeTextViewCoordinator {
         // the parse, so the supplemental styler and syncHeadingFolding reuse a
         // single O(n) build instead of each rebuilding their own per keystroke.
         let lineIndex = LineOffsetIndexProbe.make(text)
+        // Phase 4.2 — emphasis is now AST-derived; feed it the cached Document
+        // and line index so the hot path adds NO extra Apple parse (#9). The
+        // parse + index are built ABOVE parseTokens so the spine stays single.
+        let tokens = MarkdownTokenizer.parseTokens(
+            in: text,
+            emphasisDocument: appleDocument,
+            lineIndex: lineIndex)
         var codeTokens: [MarkdownToken] = []
         var latexTokens: [MarkdownToken] = []
         var blockLatexTokens: [MarkdownToken] = []

@@ -2,11 +2,11 @@ import Foundation
 import Testing
 @testable import MarkdownPM
 
-/// Characterizes `MarkdownTokenizer.parseTokens(in:)` — the regex tokenizer
-/// that owns emphasis (asterisk-only, pre-Phase-4), inline code, links,
-/// headings (styler path), wikilinks, image embeds, and the $…$ math/currency
-/// heuristic. These assertions pin CURRENT behavior; Phase 4 flips the ones
-/// listed in the divergence ledger.
+/// Characterizes `MarkdownTokenizer.parseTokens(in:)` — the tokenizer that owns
+/// emphasis (Apple-AST-derived as of Phase 4.2), inline code, links, headings
+/// (styler path), wikilinks, image embeds, and the $…$ math/currency heuristic.
+/// The emphasis assertions pin the NEW AST behavior (D-EMPH-1/2/3/4, landed
+/// Phase 4.2); the rest pin current regex behavior.
 @Suite("TokenizerCorpus")
 struct TokenizerCorpusTests {
 
@@ -19,7 +19,7 @@ struct TokenizerCorpusTests {
         MarkdownTokenizer.parseTokens(in: text)
     }
 
-    // MARK: - Emphasis: asterisk-only (PINNED — divergence D-EMPH-1)
+    // MARK: - Emphasis: Apple-AST-derived (PINNED — divergences D-EMPH-1/2/3/4)
 
     @Test("Single asterisk pair is italic")
     func italic() {
@@ -44,44 +44,47 @@ struct TokenizerCorpusTests {
         #expect(em[0].range == NSRange(location: 0, length: 7))
     }
 
-    @Test("Underscore is NOT emphasis (asterisk-only — flips in Phase 4)")
-    func underscoreIsNotEmphasis_currentBehavior() {
+    @Test("Underscore IS emphasis: _b_ italic, __c__ bold (D-EMPH-1, AST)")
+    func underscoreIsEmphasis() {
+        // D-EMPH-1: the AST adopts CommonMark/Obsidian underscore emphasis.
+        // `_b_` → italic (0,3); `__c__` → bold (4,5).
         let em = tokens("_b_ __c__").filter {
             $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
         }
-        #expect(em.isEmpty)
+        #expect(em.count == 2)
+        let italics = em.filter { $0.kind == .italic }
+        let bolds = em.filter { $0.kind == .bold }
+        #expect(italics.count == 1)
+        #expect(italics[0].range == NSRange(location: 0, length: 3))
+        #expect(bolds.count == 1)
+        #expect(bolds[0].range == NSRange(location: 4, length: 5))
     }
 
-    @Test("Rule-of-3: **foo*bar**baz* resolves per CommonMark")
+    @Test("Rule-of-3: **foo*bar**baz* → ONE bold (0,11), no italic (D-EMPH-3, AST)")
     func ruleOfThree_a() {
-        // EXACT pin of the hand-rolled stack parser's output (Phase-4 width-
-        // subtraction emphasis reconstruction targets exactly this case).
-        // Observed: a bold over `**foo*bar**` (0,11) then an italic over
-        // `*bar**baz*` (5,10) — the runs overlap, which is the asterisk-only
-        // parser's CommonMark-divergent resolution we lock here.
+        // D-EMPH-3: Apple's AST emits ONE clean CommonMark node, not the legacy
+        // pair of overlapping runs. `**foo*bar**baz*` → a single Strong over
+        // (0,11); the trailing `*baz*` is not a closed emphasis (probe-verified
+        // 0.8.0). `styleEmphasis` reads only kind+contentRange, so render stays
+        // correct.
         let em = tokens("**foo*bar**baz*").filter {
             $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
         }
-        #expect(em.count == 2)
+        #expect(em.count == 1)
         #expect(em[0].kind == .bold)
         #expect(em[0].range == NSRange(location: 0, length: 11))
-        #expect(em[1].kind == .italic)
-        #expect(em[1].range == NSRange(location: 5, length: 10))
     }
 
-    @Test("Rule-of-3: *foo**bar*baz**")
+    @Test("Rule-of-3: *foo**bar*baz** → ONE italic (0,10), no bold (D-EMPH-3, AST)")
     func ruleOfThree_b() {
-        // EXACT pin (Phase-4 reconstruction target). Observed: an italic over
-        // `*foo**bar*` (0,10) then a bold over `**bar*baz**` (4,11) — again the
-        // two runs overlap under the asterisk-only stack parser.
+        // D-EMPH-3: Apple emits a single Emphasis over (0,10); the trailing
+        // `**baz**` is not a closed strong (probe-verified 0.8.0). No overlap.
         let em = tokens("*foo**bar*baz**").filter {
             $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
         }
-        #expect(em.count == 2)
+        #expect(em.count == 1)
         #expect(em[0].kind == .italic)
         #expect(em[0].range == NSRange(location: 0, length: 10))
-        #expect(em[1].kind == .bold)
-        #expect(em[1].range == NSRange(location: 4, length: 11))
     }
 
     @Test("Intra-word a*b*c emphasizes the inner asterisk pair")
@@ -91,15 +94,34 @@ struct TokenizerCorpusTests {
         #expect(em[0].range == NSRange(location: 1, length: 3))
     }
 
-    @Test("Cross-line *foo\\nbar* does NOT emphasize across the newline")
-    func crossLine() {
-        // collectAsteriskRuns tracks lineIdx; tryClose rejects opener/closer
-        // on different lines. So a single `*` on each of two lines yields no
-        // emphasis token spanning the break.
-        let em = tokens("*foo\nbar*").filter {
+    @Test("Intra-word underscore is suppressed: a_b_c → 0 tokens (D4.2-a, AST)")
+    func intraWordUnderscore() {
+        // D4.2-a: CommonMark/Apple disallow intra-word underscore emphasis.
+        let em = tokens("a_b_c").filter {
             $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
         }
         #expect(em.isEmpty)
+    }
+
+    @Test("snake_case_word → 0 emphasis tokens (D4.2-a, AST)")
+    func snakeCaseNoEmphasis() {
+        let em = tokens("snake_case_word").filter {
+            $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
+        }
+        #expect(em.isEmpty)
+    }
+
+    @Test("Cross-line *foo\\nbar* emphasizes across the SoftBreak (D-EMPH-4, AST)")
+    func crossLine() {
+        // D-EMPH-4: Apple emphasizes across the SoftBreak as one node,
+        // NSRange (0,9) — CommonMark-correct, matches Obsidian (the legacy
+        // per-line stack rejected this).
+        let em = tokens("*foo\nbar*").filter {
+            $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
+        }
+        #expect(em.count == 1)
+        #expect(em[0].kind == .italic)
+        #expect(em[0].range == NSRange(location: 0, length: 9))
     }
 
     @Test("Punctuation-flanking *(*  edge cases produce no spurious emphasis")
@@ -109,12 +131,15 @@ struct TokenizerCorpusTests {
         #expect(em.isEmpty)
     }
 
-    @Test("Emphasis inside inline code is NOT suppressed (flips in Phase 4)")
-    func emphasisInsideInlineCode_notSuppressed_currentBehavior() {
-        // parseTokens appends emphasis FIRST with no code-overlap exclusion
-        // (CodeMap claim #12). `*x*` inside backticks still tokenizes.
-        let em = tokens("`*x*`").filter { $0.kind == .italic }
-        #expect(em.count == 1)
+    @Test("Emphasis inside inline code IS suppressed (D-EMPH-2, AST)")
+    func emphasisInsideInlineCodeSuppressed() {
+        // D-EMPH-2: Apple does not emit Emphasis/Strong inside InlineCode, so
+        // `*x*` inside backticks yields no emphasis token — code suppression is
+        // free (the legacy regex emission emitted one italic here).
+        let em = tokens("`*x*`").filter {
+            $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
+        }
+        #expect(em.isEmpty)
     }
 
     // MARK: - Inline code (multi-backtick + content range)

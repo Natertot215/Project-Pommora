@@ -5,9 +5,10 @@
 //  Derives emphasis tokens (.italic / .bold / .boldItalic) from Apple
 //  swift-markdown's Document AST instead of the legacy `*`-stack parser.
 //
-//  Phase 4.1 — ADDITIVE + UNWIRED. This helper is called by NOTHING in the
-//  live token stream yet; `MarkdownTokenizer.parseEmphasisTokens` keeps
-//  running. Only `AppleEmphasisTokensTests` exercises this.
+//  Phase 4.2 — WIRED. `MarkdownTokenizer.parseTokens` emits emphasis through
+//  this helper as the first appended token group; the legacy asterisk-only
+//  `parseEmphasisTokens` is retired. `AppleEmphasisTokensTests` +
+//  `TokenizerCorpusTests` pin the output.
 //
 //  Why reconstruct by width-subtraction: Apple emits Emphasis/Strong nodes
 //  whose `.range` is delimiter-INCLUSIVE (e.g. `*a*` → (0,3), `**b**` →

@@ -8,6 +8,7 @@
 // Reads plain Markdown text and breaks it into recognizable parts like
 // headings, links, lists, code blocks, and LaTeX.
 import Foundation
+import Markdown
 
 // MARK: - Static Regexes
 private extension MarkdownTokenizer {
@@ -49,13 +50,32 @@ private extension MarkdownTokenizer {
 // MARK: - Tokenizer
 enum MarkdownTokenizer {
 
-    static func parseTokens(in text: String) -> [MarkdownToken] {
+    /// Tokenize `text` into the regex token stream, with emphasis derived from
+    /// Apple's `swift-markdown` AST (the asterisk-only stack parser is retired).
+    ///
+    /// - Parameters:
+    ///   - emphasisDocument: a cached Apple `Document` parsed from this exact
+    ///     `text`. When supplied alongside `lineIndex`, emphasis reuses it so
+    ///     the hot edit path adds NO extra Apple parse (invariant #9).
+    ///   - lineIndex: the cached UTF-8↔UTF-16 line index for this `text`.
+    ///
+    /// When either is nil (standalone / test callers without a Document on
+    /// hand), emphasis is derived from a fresh parse routed through the probes,
+    /// so those callers stay honest and observe the same AST behavior.
+    static func parseTokens(
+        in text: String,
+        emphasisDocument: Markdown.Document? = nil,
+        lineIndex: LineOffsetIndex? = nil
+    ) -> [MarkdownToken] {
         var tokens: [MarkdownToken] = []
         let nsText = text as NSString
         let fullRange = NSRange(location: 0, length: nsText.length)
 
-        // Emphasis via stack parser.
-        tokens.append(contentsOf: parseEmphasisTokens(in: text))
+        // Emphasis from Apple's AST (always the FIRST appended group).
+        let emphasisDoc = emphasisDocument ?? AppleDocumentParseProbe.parse(text)
+        let emphasisIndex = lineIndex ?? LineOffsetIndexProbe.make(text)
+        tokens.append(contentsOf: appleEmphasisTokens(
+            in: emphasisDoc, nsText: nsText, lineIndex: emphasisIndex))
 
         // Image embeds ![[Name]] (must be parsed before wikiLinks)
         var imageEmbedRanges: [NSRange] = []
