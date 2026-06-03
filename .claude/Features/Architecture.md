@@ -47,7 +47,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
   .nexus/                               ← app-internal config + index (nexus-portable; syncs)
     nexus.json                          ← ULID + createdAt
     state.json                          ← session state (open tabs, sidebar UI, Recents)
-    settings.json                       ← per-Nexus UI labels + accent color
+    settings.json                       ← per-Nexus UI labels + accent color + excluded_folders
     tier-config.json                    ← Contexts tier labels (singular + plural)
     saved-config.json                   ← Saved-section item labels
     homepage.json                       ← singleton Homepage entity (composed blocks)
@@ -68,6 +68,8 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 **No wrapper folders.** Page Types, Item Types, Tasks singleton, Events singleton all live as siblings at the nexus root. The legacy `Pages/` / `Items/` / `Agenda/` wrappers (paradigmV2-era) are unwrapped by the adopter and disappear from the on-disk shape.
 
 **Hidden + private.** `.nexus/` and `.trash/` (leading dot) are hidden from the sidebar and from non-Pommora tools by convention (matches `.obsidian/`). Pommora's own writes to `.nexus/` don't surface in the user-facing tree.
+
+**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Spaces / Topics) never consult the filter. Stale entries are inert (git semantics); editing UI ships with the v0.6.0 Settings panel. Spec → `Planning/2026-06-03-Folder-Exclusion-Plan.md`.
 
 ---
 
