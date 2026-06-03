@@ -1,6 +1,6 @@
 ### Markdown Editor — Rules + Reference
 
-The canonical playbook for any agent touching Pommora's page editor — the vendored `swift-markdown-engine` at `External/MarkdownEngine/`, Pommora's customizations on top of it, the Apple `swift-markdown` parser, and the TextKit 2 substrate. Every rule below is grounded in either (a) shipped engine code, (b) Apple-source documentation, or (c) a paradigm decision Nathan has locked. Anything written from intuition or speculation is flagged as such.
+The canonical playbook for any agent touching Pommora's page editor — the Pommora-owned `MarkdownPM` package at `External/MarkdownPM/` (originally vendored from `swift-markdown-engine`, now maintained in-tree), Pommora's customizations on top of it, the Apple `swift-markdown` parser, and the TextKit 2 substrate. Every rule below is grounded in either (a) shipped engine code, (b) Apple-source documentation, or (c) a paradigm decision Nathan has locked. Anything written from intuition or speculation is flagged as such.
 
 **The code is authoritative.** Where this doc cites engine files, the file is the spec; the citation is a pointer, not a copy. When the two disagree, the file is right and this doc is stale — fix the doc.
 
@@ -17,14 +17,14 @@ The canonical playbook for any agent touching Pommora's page editor — the vend
 - **Mutation pattern:** Either (a) get a mutable reference via `child(through:)`, mutate a property, reach the new tree via `.root`; or (b) implement `MarkupRewriter` and return `nil` (delete) or a new `Markup` (replace) from each `visitXxx`.
 - **Canonical emission:** `markup.format()` → `String`. For tables, pads cell contents to align widths in the emitted string.
 - **Source location tracking:** `markup.range: SourceRange?` with `.lowerBound.line` (1-based) + `.lowerBound.column` (1-based).
-- **CRITICAL LATENT BUG:** swift-markdown / cmark-gfm reports columns as **UTF-8 byte offsets** per the CommonMark spec. Pommora's [`LineOffsetIndex`](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift) treats them as **UTF-16 code-unit offsets**. ASCII coincides; multi-byte content (emoji, accented chars in a table cell, non-Latin scripts) misaligns. Out of scope to fix in any current patch but documented here so agents who hit it (most likely in Tables) know what they're seeing.
+- **CRITICAL LATENT BUG:** swift-markdown / cmark-gfm reports columns as **UTF-8 byte offsets** per the CommonMark spec. Pommora's [`LineOffsetIndex`](External/MarkdownPM/Sources/MarkdownPM/Styling/AppleASTSupplementalStyler.swift) treats them as **UTF-16 code-unit offsets**. ASCII coincides; multi-byte content (emoji, accented chars in a table cell, non-Latin scripts) misaligns. Out of scope to fix in any current patch but documented here so agents who hit it (most likely in Tables) know what they're seeing.
 
-##### 1.2 `swift-markdown-engine` (vendored)
+##### 1.2 `MarkdownPM` (Pommora-owned package)
 
-- **Upstream:** `nodes-app/swift-markdown-engine@e683a62`, Apache 2.0.
-- **Location:** `External/MarkdownEngine/` — a **local Swift Package**, not raw sources in the Pommora target.
-- **Why packaged:** Pommora is Swift 6 + strict concurrency + ExistentialAny; the engine targets Swift 5.9. The package boundary isolates the engine's concurrency contract from Pommora's.
-- **Modification log:** `External/MarkdownEngine/NOTICE.md` — per-file record of Pommora's edits to the vendored sources.
+- **Provenance:** originally vendored from `nodes-app/swift-markdown-engine@e683a62` (Apache 2.0, retained for attribution); the rebuild replaced the regex parser + styler with Apple-AST-backed implementations and the package is now Pommora-owned + maintained in-tree.
+- **Location:** `External/MarkdownPM/` — a **local Swift Package**, not raw sources in the Pommora target.
+- **Why packaged:** Pommora is Swift 6 + strict concurrency + ExistentialAny; the package boundary cleanly isolates this code's concurrency surface from the app target (historically it also bridged the old upstream's Swift 5.9 contract).
+- **Modification log:** `External/MarkdownPM/NOTICE.md` — upstream attribution + per-file modification log.
 - **What it adds on top of Apple's stack:** dynamic syntax (markers shrink when caret leaves AST node, expand when entered — Bear/iA Writer pattern) + Markdown-aware typing helpers (list continuation, block auto-wrap, character-pair auto-pair).
 - **Pommora's customizations live in:**
   - `Styling/AppleASTSupplementalStyler.swift` — AST walker for BlockQuote / Strikethrough / Table / ThematicBreak.
@@ -32,14 +32,14 @@ The canonical playbook for any agent touching Pommora's page editor — the vend
   - `TextView/Coordinator/NativeTextViewCoordinator+*.swift` — extensions on the engine's coordinator, including caret-awareness services (the HR visibility service is the canonical example).
   - `Input/MarkdownListHandler.swift` — list continuation + space-creates / Enter-continues / Shift+Enter-exits behavior + dash and arrow auto-format.
   - `TextView/ContextMenu.swift` — extended right-click menu.
-- **Ownership:** Pommora can edit any engine file. Edits get logged in `NOTICE.md`. The `External/` path was chosen so Xcode auto-includes new files without pbxproj surgery.
+- **Ownership:** the package is Pommora-owned — edit any file freely; log changes in `NOTICE.md`. The `External/` path was chosen so Xcode auto-includes new files without pbxproj surgery.
 
 ##### 1.3 TextKit 2 (substrate)
 
 - **Role:** Apple's text layout + rendering system. Pommora targets the modern TextKit 2 stack — `NSTextLayoutManager`, `NSTextContentManager`, `NSTextLayoutFragment`, `NSTextLineFragment`.
 - **What we get for free:** Writing Tools (macOS 15.1+), Look Up / Translate, spell-check, autocorrect, IME, dynamic system colors, drag-to-select, native context menu, find-in-document hooks.
 - **What we lose if we abandon TextKit 2:** `NSTextTable` is the most-cited example — it exists since OS X 10.4 but was never promoted to TextKit 2. Apple's own TextEdit silently downgrades to TextKit 1 when a table is inserted (Keith Blount quoted in Krzyzanowski Aug 14, 2025, "TextKit 2: The Promised Land"). Apple Notes uses a custom protobuf document model, not the AppKit text system (per public reverse engineering — Ciofeca Forensics, mac4n6, et al.; not Apple-confirmed). **Adopting `NSTextTable` forfeits everything in the previous bullet** — that's why Pommora rejected it.
-- **Main-thread guarantee:** TextKit 2 always invokes rendering on the main thread. The engine subclass exploits this via `@unchecked Sendable` + `MainActor.assumeIsolated` wrappers ([MarkdownTextLayoutFragment.swift:29-50](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L29-L50)).
+- **Main-thread guarantee:** TextKit 2 always invokes rendering on the main thread. The engine subclass exploits this via `@unchecked Sendable` + `MainActor.assumeIsolated` wrappers ([MarkdownTextLayoutFragment.swift:29-50](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L29-L50)).
 
 ##### 1.4 Pommora-specific design constraints
 
@@ -71,7 +71,7 @@ The single most-violated principle in past sessions. Internalize this before wri
 
 - ❌ Auto-padding table source on every save to align columns visually.
 - ❌ Replacing user-typed bare bullet markers like `-` with engine-specific glyphs like `\t• ` in storage.
-- ❌ Expanding `---` into a string of visible-width dashes when the user presses Enter (the legacy HR expansion — explicitly removed; see [MarkdownListHandler.swift:387-397](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L387-L397)).
+- ❌ Expanding `---` into a string of visible-width dashes when the user presses Enter (the legacy HR expansion — explicitly removed; see [MarkdownListHandler.swift:387-397](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L387-L397)).
 - ❌ Storing user content in any form that's not legible to an external Markdown reader.
 
 ##### 2.3 What this enables
@@ -98,7 +98,7 @@ Examples: ThematicBreak (`---`), BlockQuote (`> foo`), potential future construc
 
 Do NOT use it for:
 
-- Inline marks (bold / italic / strikethrough / inline code) — these are already handled by the engine's regex tokenizer + active-token-tracking system.
+- Inline marks (bold / italic / strikethrough / inline code) — these are already handled by `MarkdownPMStyler`'s primary token pass + active-token-tracking system (emphasis is located on the Apple AST via `MarkdownTokenizer.appleEmphasisTokens`; inline code stays regex-tokenized; strikethrough is emitted by the supplemental AST pass).
 - Constructs whose visual state is independent of caret position (e.g. fenced code block backgrounds — those use a different, simpler mechanism described below).
 - Non-interactive static glyphs (bullet `•`, task checkbox) — use the always-show overlay pattern instead (§9.10, L14).
 
@@ -106,9 +106,9 @@ Do NOT use it for:
 
 | Layer | Role | Implementation file |
 |---|---|---|
-| **Renderer** | Per-fragment custom draw. Detects construct membership via AST-backed detection at draw time. Draws the visual ONLY when the caret is NOT on the fragment's line. | [`MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) — `drawThematicBreak` is the canonical example (line 117-149). |
-| **Service** | SOLE writer of the construct's visual attributes (font / color / paragraphStyle on the marker chars). Walks the document on every selection change + every restyle. Applies hidden attrs when caret is OUT; revealed attrs when caret is IN. Reentry-guarded by a per-construct `Bool` flag on the coordinator. | [`NativeTextViewCoordinator+HRVisibility.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift) — `syncHRVisibility` is the canonical example. |
-| **Styler** | Emits NOTHING for the construct. The styler has zero authority over this construct's visual state. | [`AppleASTSupplementalStyler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift) — `visitThematicBreak` is the canonical example (line 164-178). |
+| **Renderer** | Per-fragment custom draw. Detects construct membership via AST-backed detection at draw time. Draws the visual ONLY when the caret is NOT on the fragment's line. | [`MarkdownTextLayoutFragment.swift`](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift) — `drawThematicBreak` is the canonical example (line 117-149). |
+| **Service** | SOLE writer of the construct's visual attributes (font / color / paragraphStyle on the marker chars). Walks the document on every selection change + every restyle. Applies hidden attrs when caret is OUT; revealed attrs when caret is IN. Reentry-guarded by a per-construct `Bool` flag on the coordinator. | [`NativeTextViewCoordinator+HRVisibility.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift) — `syncHRVisibility` is the canonical example. |
+| **Styler** | Emits NOTHING for the construct. The styler has zero authority over this construct's visual state. | [`AppleASTSupplementalStyler.swift`](External/MarkdownPM/Sources/MarkdownPM/Styling/AppleASTSupplementalStyler.swift) — `visitThematicBreak` is the canonical example (line 164-178). |
 
 ##### 3.3 Why service-as-sole-writer matters
 
@@ -146,16 +146,16 @@ All construct detection in the engine follows a three-stage pattern to keep the 
 
 **Stage 1 — Cheap string prefilter.** Eliminates ~99% of fragments before any AST parse fires. Examples from shipped code:
 
-- HR ([MarkdownTextLayoutFragment.swift:78-82](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L78-L82)): trimmed length ≥ 3 AND first char in `{-`, `*`, `_`}.
-- List context ([MarkdownListHandler.swift:91-96](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L91-L96)): regex match against `bareMarkerRegex` or `listRegex`.
+- HR ([MarkdownTextLayoutFragment.swift:78-82](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L78-L82)): trimmed length ≥ 3 AND first char in `{-`, `*`, `_`}.
+- List context ([MarkdownListHandler.swift:91-96](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L91-L96)): regex match against `bareMarkerRegex` or `listRegex`.
 
 **Stage 2 — AST parse.** Only on fragments that pass Stage 0 + Stage 1. For per-fragment detection: `Markdown.Document(parsing: fragmentString)`, then check `document.children.contains { $0 is ConstructType }`. For document-level detection (services): `Markdown.Document(parsing: textStorage.string)`, then iterate.
 
 ##### 4.2 Logic-sharing between renderer and service (L2)
 
-The renderer and the service MUST detect the construct identically. Drift causes "dashes hidden but no line drawn" / "line drawn over visible text" half-applied states. Today the HR detection is **duplicated** between the renderer ([MarkdownTextLayoutFragment.swift:69-87](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L69-L87)) and the service ([NativeTextViewCoordinator+HRVisibility.swift:87-107](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L87-L107)). Fragile but works because both implementations mirror each other exactly.
+The renderer and the service MUST detect the construct identically. Drift causes "dashes hidden but no line drawn" / "line drawn over visible text" half-applied states. The rebuild resolved the old HR-detection duplication: the renderer's `hasThematicBreak` ([MarkdownTextLayoutFragment.swift](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift)) and the service's `isThematicBreakParagraph` ([NativeTextViewCoordinator+HRVisibility.swift](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift)) now BOTH route through the shared `MarkdownDetection.isThematicBreakLine` helper ([Parser/MarkdownDetection.swift](External/MarkdownPM/Sources/MarkdownPM/Parser/MarkdownDetection.swift)) — one rule, no mirroring drift. Headings share `MarkdownDetection.isHeadingLine` the same way.
 
-**For new constructs:** either extract detection into a shared utility, or mirror the stages exactly and audit any divergence in code review. If you find drift, fix it before shipping — don't reason about which side is right.
+**For new constructs:** extract detection into a shared `MarkdownDetection` helper (the now-canonical pattern), rather than mirroring stages across sites and auditing for divergence. If you find any remaining drift, fix it before shipping — don't reason about which side is right.
 
 ---
 
@@ -163,9 +163,9 @@ The renderer and the service MUST detect the construct identically. Drift causes
 
 ##### 5.1 `isProgrammaticEdit` — the canonical guard
 
-Set true around any code path that programmatically mutates `textStorage` (i.e. anywhere Pommora writes to storage, not in response to a user keystroke). The delegate's `shouldChangeTextIn` short-circuits while it's true ([+TextDelegate.swift:335](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L335)).
+Set true around any code path that programmatically mutates `textStorage` (i.e. anywhere Pommora writes to storage, not in response to a user keystroke). The delegate's `shouldChangeTextIn` short-circuits while it's true ([+TextDelegate.swift:335](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L335)).
 
-Canonical wrapper pattern: see `MarkdownLists.performEdit` ([MarkdownListHandler.swift:15-30](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L15-L30)) — sets the flag, calls `shouldChangeText` + `replaceCharacters` + `didChangeText`, defer-resets the flag.
+Canonical wrapper pattern: see `MarkdownLists.performEdit` ([MarkdownListHandler.swift:15-30](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L15-L30)) — sets the flag, calls `shouldChangeText` + `replaceCharacters` + `didChangeText`, defer-resets the flag.
 
 Use it for:
 - Input handlers (list continuation, character-pair auto-pair, auto-delete, etc.)
@@ -178,13 +178,13 @@ Do NOT use it as a general "skip restyle" flag. It's specifically for storage mu
 
 Every caret-awareness service writes attributes to storage. Those writes can re-trigger `restyleTextView` (which calls the service) → infinite recursion. Guard with a per-service `Bool` flag on the coordinator: set on entry, defer-reset on exit, early-return if already set.
 
-Canonical example: `isSyncingHRVisibility` ([NativeTextViewCoordinator.swift:74](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator.swift#L74)) + the guard pattern at [NativeTextViewCoordinator+HRVisibility.swift:34-36](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L34-L36).
+Canonical example: `isSyncingHRVisibility` ([NativeTextViewCoordinator.swift:74](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator.swift#L74)) + the guard pattern at [NativeTextViewCoordinator+HRVisibility.swift:34-36](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L34-L36).
 
 When adding a new service, either add a per-service flag (preferred for clarity) or share an `isSyncingDynamicSyntax` flag across services (acceptable if multiple services would otherwise compete; verify no real cross-service recursion path exists before sharing).
 
 ##### 5.3 Batched mutation
 
-Wrap multiple-character storage mutations in either `ts.beginEditing()` / `ts.endEditing()` (NSTextStorage-level — older AppKit pattern, used by the HR service at [+HRVisibility.swift:51-52](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L51-L52)) or `NSTextContentManager.performEditingTransaction(_:)` (TextKit-2-native form, preferred for new code). Either pattern coalesces layout work and prevents per-char re-render hitches.
+Wrap multiple-character storage mutations in either `ts.beginEditing()` / `ts.endEditing()` (NSTextStorage-level — older AppKit pattern, used by the HR service at [+HRVisibility.swift:51-52](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L51-L52)) or `NSTextContentManager.performEditingTransaction(_:)` (TextKit-2-native form, preferred for new code). Either pattern coalesces layout work and prevents per-char re-render hitches.
 
 ##### 5.4 Atomic write contract
 
@@ -205,7 +205,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **The mistake:** add `nonisolated static let pommoraXxx = NSAttributedString.Key("PommoraXxx")` and emit it from the styler over a paragraph range; have the renderer read it via `enumerateAttribute` to drive drawing.
 
-**Why it fails:** AppKit's attribute-inheritance machinery leaks custom attributes onto newly-typed chars in ways `shouldChangeTypingAttributes` cannot prevent. The first HR attempt's `.pommoraThematicBreak: true` attribute caused the "duplicate HR on every Enter" bug — Enter at end of `---` created a new paragraph that inherited the HR-detection attribute. The shipped engine keeps the `.pommoraThematicBreak` key DEAD-but-reserved at [MarkdownTextLayoutFragment.swift:21-27](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L21-L27) as a reminder.
+**Why it fails:** AppKit's attribute-inheritance machinery leaks custom attributes onto newly-typed chars in ways `shouldChangeTypingAttributes` cannot prevent. The first HR attempt's `.pommoraThematicBreak: true` attribute caused the "duplicate HR on every Enter" bug — Enter at end of `---` created a new paragraph that inherited the HR-detection attribute. The shipped engine keeps the `.pommoraThematicBreak` key DEAD-but-reserved at [MarkdownTextLayoutFragment.swift:21-27](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L21-L27) as a reminder.
 
 **What to do instead:** AST-backed detection at draw time. See section 4.
 
@@ -215,7 +215,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **The mistake (forward-looking — applies to any new dynamic-syntax construct, including blockquote when it ships):** styler emits visual attributes (e.g. `.backgroundColor` / `.foregroundColor` / `.paragraphStyle`) AND a caret-awareness service later writes some of those when the caret moves. Today's styler `visitBlockQuote` still emits these — the new blockquote service hasn't been written yet. The race only materializes once both layers are live.
 
-**Why it fails:** restyle fires on every keystroke + every caret move. The styler re-applies its attributes; the service then re-applies its hide/reveal state. Race between them produces visible flicker. The order of execution isn't always what you think — `restyleTextView` runs supplemental styler, THEN `syncHRVisibility` ([+Restyling.swift:121-128](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift#L121-L128)), but a paragraph-scope restyle may not touch the construct's paragraphs and the service still walks the whole doc — those orderings get subtle. HR proved this in Session 12 by going service-sole-writer + styler-emits-nothing for ThematicBreak; the lesson generalizes.
+**Why it fails:** restyle fires on every keystroke + every caret move. The styler re-applies its attributes; the service then re-applies its hide/reveal state. Race between them produces visible flicker. The order of execution isn't always what you think — `restyleTextView` runs supplemental styler, THEN `syncHRVisibility` ([+Restyling.swift:121-128](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift#L121-L128)), but a paragraph-scope restyle may not touch the construct's paragraphs and the service still walks the whole doc — those orderings get subtle. HR proved this in Session 12 by going service-sole-writer + styler-emits-nothing for ThematicBreak; the lesson generalizes.
 
 **What to do instead:** when shipping a new caret-awareness service, simultaneously strip the styler's visit method for that construct down to a children-walker only. Service is the sole writer. See section 3.3.
 
@@ -241,7 +241,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **Why it fails:** macOS's default key bindings map both plain Return AND Shift+Return to the `insertNewline:` selector. The `insertLineBreak:` selector only fires on Ctrl+\.
 
-**What to do instead:** detect Shift+Return inside `shouldChangeText`'s `\n` branch via `NSApp.currentEvent.modifierFlags.contains(.shift)`. See [MarkdownListHandler.swift:405-412](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L405-L412).
+**What to do instead:** detect Shift+Return inside `shouldChangeText`'s `\n` branch via `NSApp.currentEvent.modifierFlags.contains(.shift)`. See [MarkdownListHandler.swift:405-412](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L405-L412).
 
 ##### 6.6 Don't use `paragraphStyle.alignment` for per-cell alignment
 
@@ -265,7 +265,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **Why it fails:** the source mutation inflates the construct's character range; the overlay assumes a fixed source shape. They conflict directly — visible glitches like "100 dashes drawn" or "overlay positioned at wrong baseline".
 
-**What to do instead:** pick one strategy per construct. The new pattern is overlay-only. Delete the legacy expansion when you ship the overlay. See [MarkdownListHandler.swift:387-397](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L387-L397) for the comment explaining the HR expansion removal.
+**What to do instead:** pick one strategy per construct. The new pattern is overlay-only. Delete the legacy expansion when you ship the overlay. See [MarkdownListHandler.swift:387-397](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L387-L397) for the comment explaining the HR expansion removal.
 
 ##### 6.9 Don't assume swift-markdown columns are UTF-16
 
@@ -273,7 +273,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 **Why it fails:** swift-markdown / cmark-gfm columns are UTF-8 byte offsets per the CommonMark spec. ASCII coincides; multi-byte content (emoji, accented chars, non-Latin scripts) misaligns.
 
-**What to do instead:** accept that the latent bug exists in `LineOffsetIndex` ([AppleASTSupplementalStyler.swift:206-251](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift#L206-L251)) and don't make it worse. When the bug actually triggers (most likely in Tables with non-ASCII cell content), the fix is to convert UTF-8 column counts to UTF-16 offsets via codepoint-aware iteration. Out of scope until a feature exercises it.
+**What to do instead:** accept that the latent bug exists in `LineOffsetIndex` ([AppleASTSupplementalStyler.swift:206-251](External/MarkdownPM/Sources/MarkdownPM/Styling/AppleASTSupplementalStyler.swift#L206-L251)) and don't make it worse. When the bug actually triggers (most likely in Tables with non-ASCII cell content), the fix is to convert UTF-8 column counts to UTF-16 offsets via codepoint-aware iteration. Out of scope until a feature exercises it.
 
 ##### 6.10 Don't try to make natural inline text layout honor custom widths
 
@@ -333,19 +333,19 @@ Each one of these has burned a session. The fix in every case was strip + restar
 2. Declare the class `@unchecked Sendable` so `self` and CGContext can cross into the MainActor.assumeIsolated body without sending-check errors.
 3. Wrap each override body in `MainActor.assumeIsolated { ... }` — safe because TextKit 2 always invokes rendering on the main thread.
 
-Canonical example: [MarkdownTextLayoutFragment.swift:29-50](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L29-L50) (class declaration) + [161-192](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L161-L192) (renderingSurfaceBounds override) + [196-215](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L196-L215) (draw override).
+Canonical example: [MarkdownTextLayoutFragment.swift:29-50](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L29-L50) (class declaration) + [161-192](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L161-L192) (renderingSurfaceBounds override) + [196-215](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L196-L215) (draw override).
 
 ##### 7.3 Swift 6 strict concurrency + ExistentialAny
 
-The engine targets Swift 5.9; Pommora is Swift 6 strict-concurrency + ExistentialAny (CLAUDE.md quirk #5). Custom Codable declarations: `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)`. Errors: `var foo: (any Error)?`. The local Swift Package boundary at `External/MarkdownEngine/` isolates the engine's older concurrency contract from Pommora's stricter one.
+The engine targets Swift 5.9; Pommora is Swift 6 strict-concurrency + ExistentialAny (CLAUDE.md quirk #5). Custom Codable declarations: `init(from decoder: any Decoder)` / `func encode(to encoder: any Encoder)`. Errors: `var foo: (any Error)?`. The local Swift Package boundary at `External/MarkdownPM/` isolates the engine's older concurrency contract from Pommora's stricter one.
 
 ##### 7.4 Restyle scoping vs service whole-document walk
 
-`restyleTextView(paragraphCandidates:)` scopes its work to the candidates ([+Restyling.swift:94-129](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift#L94-L129)). But services like `syncHRVisibility` walk the WHOLE document on every call ([+HRVisibility.swift:54-77](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L54-L77)). For documents with hundreds of paragraphs this is microseconds per pass — acceptable. If a future construct's detection cost is significantly higher (e.g. full-document AST parse), consider scoping the service to the candidate paragraphs too.
+`restyleTextView(paragraphCandidates:)` scopes its work to the candidates ([+Restyling.swift:94-129](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift#L94-L129)). But services like `syncHRVisibility` walk the WHOLE document on every call ([+HRVisibility.swift:54-77](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L54-L77)). For documents with hundreds of paragraphs this is microseconds per pass — acceptable. If a future construct's detection cost is significantly higher (e.g. full-document AST parse), consider scoping the service to the candidate paragraphs too.
 
 ##### 7.5 `shouldChangeTypingAttributes` re-baselines every keystroke
 
-The delegate forces base font / paragraphStyle / foregroundColor on every change ([+TextDelegate.swift:22-38](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38)). Newly-typed chars don't inherit decorative attributes from neighbors. This means:
+The delegate forces base font / paragraphStyle / foregroundColor on every change ([+TextDelegate.swift:22-38](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38)). Newly-typed chars don't inherit decorative attributes from neighbors. This means:
 
 - **Hide-via-attribute (font 0.1 + clear color) on a Markdown marker char doesn't leak to the next typed char.** Good for the service pattern.
 - **But Pommora-custom flag attributes (`.pommoraXxx`) ARE NOT included in the delegate's re-baseline** — the delegate only re-sets the standard attrs. That's why custom flag attrs still leak. See 6.1.
@@ -358,16 +358,16 @@ Each lesson is grounded in a shipped engine file or a documented Apple API. Cite
 
 | # | Lesson | Source citation |
 |---|---|---|
-| L1 | AST-backed detection > custom NSAttributedString attribute as render signal | HR Session 12; [MarkdownTextLayoutFragment.swift:21-27](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L21-L27) |
-| L2 | Renderer + service detection MUST share their logic | HR Session 12; [MarkdownTextLayoutFragment.swift:69-87](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift#L69-L87) ↔ [+HRVisibility.swift:87-107](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L87-L107) |
-| L3 | Service is sole writer; styler emits nothing for that construct | HR Session 12; [AppleASTSupplementalStyler.swift:164-178](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift#L164-L178) |
+| L1 | AST-backed detection > custom NSAttributedString attribute as render signal | HR Session 12; [MarkdownTextLayoutFragment.swift:21-27](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L21-L27) |
+| L2 | Renderer + service detection MUST share their logic | HR Session 12; [MarkdownTextLayoutFragment.swift:69-87](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift#L69-L87) ↔ [+HRVisibility.swift:87-107](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift#L87-L107) |
+| L3 | Service is sole writer; styler emits nothing for that construct | HR Session 12; [AppleASTSupplementalStyler.swift:164-178](External/MarkdownPM/Sources/MarkdownPM/Styling/AppleASTSupplementalStyler.swift#L164-L178) |
 | L4 | Caret-aware reveal/hide eliminates entire workaround categories | HR Session 12 — eliminates cursor-out push, smart-backspace, caret-policy hide |
 | L5 | Don't add safety guards that contradict design intent | HR Session 12 — the setext-underline guard contradicted CLAUDE.md's locked "no setext H2" decision |
-| L6 | Legacy source-mutation expansion + visual-overlay can't coexist | HR Session 12 + List Session 13; [MarkdownListHandler.swift:387-397](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L387-L397) |
+| L6 | Legacy source-mutation expansion + visual-overlay can't coexist | HR Session 12 + List Session 13; [MarkdownListHandler.swift:387-397](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L387-L397) |
 | L7 | Real-world testing finds bugs heavy planning misses — budget 2-4 hotfix iterations after first ship | HR Session 12 (planned 45min → 4h) + List Session 13 (planned ~1h → ~3h with revert) |
 | L8 | When fixing a problem and trying many things, STRIP and try again — don't pile fixes | HR Session 12 + List Session 13 |
-| L9 | macOS default key bindings collapse Shift+Return → `insertNewline:` | List Session 13; [MarkdownListHandler.swift:405-412](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift#L405-L412) |
-| L10 | `shouldChangeTypingAttributes` re-baselines but Pommora-custom flag attrs still leak | List Session 13 + HR Session 12; [+TextDelegate.swift:22-38](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38) |
+| L9 | macOS default key bindings collapse Shift+Return → `insertNewline:` | List Session 13; [MarkdownListHandler.swift:405-412](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift#L405-L412) |
+| L10 | `shouldChangeTypingAttributes` re-baselines but Pommora-custom flag attrs still leak | List Session 13 + HR Session 12; [+TextDelegate.swift:22-38](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift#L22-L38) |
 | L11 | When two layers must agree on detection, share the regex — AST and regex disagree on edge cases (e.g. empty `- ` parses as Paragraph) | Bullet glyph Session 14 (v0.2.7.4); §6.12 |
 | L12 | Font-collapse swallows advance width; use clear-color-only when natural width must survive | Task checkbox Session 14; §6.13 |
 | L13 | Detection regex MUST agree across every site describing the same construct — drift = silent half-applied state | Bullet/task Session 14; §6.14 |
@@ -443,7 +443,7 @@ The **empty `[]` is NOT a checkbox** anywhere it's rendered/continued/toggled (`
 
 ##### 9.9 Bracket-skip Enter intercept (v0.2.7.4 — 2026-05-21)
 
-When the caret sits between a matched open/close pair on the current line (`[ ]`, `( )`, `{ }`, `[[ ]]`), pressing Enter jumps the caret past the closer instead of inserting `\n` — VS Code's "Tab to escape brackets" pattern mapped to Enter. Position-based detection (no auto-pair state tracking; L15). Gated by `autoClosePairsEnabled`. Carve-out: matched pair inside the list-marker checkbox falls through to list-Enter so the user can continue the list from inside the brackets. Implementation: [MarkdownListHandler.swift](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift) `\n` branch, between the Shift+Enter intercept and the fenced-code completion intercept.
+When the caret sits between a matched open/close pair on the current line (`[ ]`, `( )`, `{ }`, `[[ ]]`), pressing Enter jumps the caret past the closer instead of inserting `\n` — VS Code's "Tab to escape brackets" pattern mapped to Enter. Position-based detection (no auto-pair state tracking; L15). Gated by `autoClosePairsEnabled`. Carve-out: matched pair inside the list-marker checkbox falls through to list-Enter so the user can continue the list from inside the brackets. Implementation: [MarkdownListHandler.swift](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift) `\n` branch, between the Shift+Enter intercept and the fenced-code completion intercept.
 
 ##### 9.10 Blockquote architecture: always-show overlay, NOT dynamic-syntax (v0.2.7.5 — 2026-05-21)
 
@@ -482,11 +482,11 @@ Foldable headings fit neither §9.1 (dynamic-syntax caret-reveal) nor §9.10 (al
 
 | Layer | Role | Implementation file |
 |---|---|---|
-| **Detection** | `MarkdownDetection.foldableHeadings(in:nsText:)` walks the AST once per restyle and returns `[FoldedHeading]` (key + level + headingRange + contentRange). Computes ordinal-disambiguated keys (Decision 1) so duplicate-text headings are independent fold targets. Both renderer and service consume the same set. `reconcileFoldedHeadings(_:in:)` filters a Set against current AST headings — used by Pommora-side save path to drop orphan keys. | [`Parser/MarkdownDetection.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Parser/MarkdownDetection.swift) |
-| **Content elision** | `NativeTextViewCoordinator` conforms to `NSTextContentStorageDelegate` (which inherits from `NSTextContentManagerDelegate`); implements `textContentManager(_:shouldEnumerate:options:)` returning `false` for any `NSTextElement` whose source range intersects `foldedRanges`. Apple's documented mechanism (`NSTextContentManager.h` line 40: *"it can skip a range… or hide some elements from the layout"*; line 112-113: *"Returning NO indicates textElement to be skipped from the enumeration"*) — the layout manager iterates via `enumerateTextElements` and our filter takes effect at each element. No fragments are created for skipped elements, no layout space allocated, and selection / find / spell-check naturally route through the same enumeration so folded content is unreachable to all of them. Wired in `NativeTextViewWrapper.makeNSView` BEFORE the first layout pass so cold-open of a page with pre-existing folds opens already-collapsed (no flash). | [`+HeadingFolding.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HeadingFolding.swift), [`NativeTextViewWrapper.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextViewWrapper.swift) |
-| **Service** | Sole writer of `coordinator.foldedRanges`. `syncHeadingFolding` rebuilds the set from AST + `foldedHeadings` set; when it changes, calls shared `invalidateFoldLayout(in:union:)` over the affected range (extended from fold-start through document-end so fragments BELOW the fold reposition upward when content shrinks). `applyFoldStateIfChanged` is the fold-toggle path (chevron click) — delegates to `syncHeadingFolding` and handles the engine-specific overscroll recalc. Owns the chevron rotation animation timer. The four-step layout-cascade trigger sequence (`invalidateLayout` → `ensureLayout` → `textLayoutFragment(for:)` hit-test → `textViewportLayoutController.layoutViewport()` → `needsDisplay = true`) is necessary because the chevron-click path skips `super.mouseDown` (to prevent caret jumping), so the natural hit-test layout cascade NSTextView would otherwise run has to be reproduced manually. | [`+HeadingFolding.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HeadingFolding.swift) |
-| **Renderer** | Draws the chevron via SF Symbol `chevron.right` rotated by `coordinator.currentChevronAngle(...)` in `draw(at:in:)` when this fragment is the hovered heading. Stage-0 code-block guard reads `coordinator.isFragmentRangeInsideCodeBlock(...)` (AST-grounded, not the prior fragile color-comparison). No `isInsideFoldedRange` guard needed — folded fragments don't exist in the layout model. Chevron rect computed via shared `HeadingChevronGeometry.rect(...)` so hover hit-test agrees with the drawn glyph (L2). | [`Renderer/MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) |
-| **Hover + click** | Single-create NSTrackingArea (`.inVisibleRect`); unified `headingHitTest(at:)` consumed by `mouseMoved`, `updateHeadingChevronCursor`, and `handleHeadingChevronClick`. Click handler mutates `coordinator.foldedHeadings`, calls `applyFoldStateIfChanged`, starts chevron rotation, and calls `unfocusCaretIfInsideFoldedRange` (Decision 2 — drop focus only when the caret would otherwise vanish inside an elided range). Mouse-down hook lives in `+DragSelectBoost.swift` (single mouseDown override; chevron hit-test comes before drag-boost arms). | [`NativeTextView+HeadingFoldHover.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextView/NativeTextView+HeadingFoldHover.swift), [`+DragSelectBoost.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextView/NativeTextView+DragSelectBoost.swift) |
+| **Detection** | `MarkdownDetection.foldableHeadings(in:nsText:)` walks the AST once per restyle and returns `[FoldedHeading]` (key + level + headingRange + contentRange). Computes ordinal-disambiguated keys (Decision 1) so duplicate-text headings are independent fold targets. Both renderer and service consume the same set. `reconcileFoldedHeadings(_:in:)` filters a Set against current AST headings — used by Pommora-side save path to drop orphan keys. | [`Parser/MarkdownDetection.swift`](External/MarkdownPM/Sources/MarkdownPM/Parser/MarkdownDetection.swift) |
+| **Content elision** | `NativeTextViewCoordinator` conforms to `NSTextContentStorageDelegate` (which inherits from `NSTextContentManagerDelegate`); implements `textContentManager(_:shouldEnumerate:options:)` returning `false` for any `NSTextElement` whose source range intersects `foldedRanges`. Apple's documented mechanism (`NSTextContentManager.h` line 40: *"it can skip a range… or hide some elements from the layout"*; line 112-113: *"Returning NO indicates textElement to be skipped from the enumeration"*) — the layout manager iterates via `enumerateTextElements` and our filter takes effect at each element. No fragments are created for skipped elements, no layout space allocated, and selection / find / spell-check naturally route through the same enumeration so folded content is unreachable to all of them. Wired in `MarkdownPMEditor.makeNSView` (in `NativeTextViewWrapper.swift`) BEFORE the first layout pass so cold-open of a page with pre-existing folds opens already-collapsed (no flash). | [`+HeadingFolding.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HeadingFolding.swift), [`NativeTextViewWrapper.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/NativeTextViewWrapper.swift) |
+| **Service** | Sole writer of `coordinator.foldedRanges`. `syncHeadingFolding` rebuilds the set from AST + `foldedHeadings` set; when it changes, calls shared `invalidateFoldLayout(in:union:)` over the affected range (extended from fold-start through document-end so fragments BELOW the fold reposition upward when content shrinks). `applyFoldStateIfChanged` is the fold-toggle path (chevron click) — delegates to `syncHeadingFolding` and handles the engine-specific overscroll recalc. Owns the chevron rotation animation timer. The four-step layout-cascade trigger sequence (`invalidateLayout` → `ensureLayout` → `textLayoutFragment(for:)` hit-test → `textViewportLayoutController.layoutViewport()` → `needsDisplay = true`) is necessary because the chevron-click path skips `super.mouseDown` (to prevent caret jumping), so the natural hit-test layout cascade NSTextView would otherwise run has to be reproduced manually. | [`+HeadingFolding.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HeadingFolding.swift) |
+| **Renderer** | Draws the chevron via SF Symbol `chevron.right` rotated by `coordinator.currentChevronAngle(...)` in `draw(at:in:)` when this fragment is the hovered heading. Stage-0 code-block guard reads `coordinator.isFragmentRangeInsideCodeBlock(...)` (AST-grounded, not the prior fragile color-comparison). No `isInsideFoldedRange` guard needed — folded fragments don't exist in the layout model. Chevron rect computed via shared `HeadingChevronGeometry.rect(...)` so hover hit-test agrees with the drawn glyph (L2). | [`Renderer/MarkdownTextLayoutFragment.swift`](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift) |
+| **Hover + click** | Single-create NSTrackingArea (`.inVisibleRect`); unified `headingHitTest(at:)` consumed by `mouseMoved`, `updateHeadingChevronCursor`, and `handleHeadingChevronClick`. Click handler mutates `coordinator.foldedHeadings`, calls `applyFoldStateIfChanged`, starts chevron rotation, and calls `unfocusCaretIfInsideFoldedRange` (Decision 2 — drop focus only when the caret would otherwise vanish inside an elided range). Mouse-down hook lives in `+DragSelectBoost.swift` (single mouseDown override; chevron hit-test comes before drag-boost arms). | [`NativeTextView+HeadingFoldHover.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/NativeTextView/NativeTextView+HeadingFoldHover.swift), [`+DragSelectBoost.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/NativeTextView/NativeTextView+DragSelectBoost.swift) |
 | **Persistence + reconciliation** | `PageFrontmatter.foldedHeadings: [String]?` (CodingKey `folded_headings`) — encoded-if-non-empty so empty folds don't pollute YAML. `PageEditorViewModel` exposes `Set<String>` with a `didSet` that mirrors to frontmatter + calls `scheduleSave()`. `flushNow()` calls `MarkdownDetection.reconcileFoldedHeadings(_:in:)` before save so orphan keys (heading renamed/deleted) get dropped — the on-disk list stays in lockstep with the current body's headings. | [`PageFrontmatter.swift`](Pommora/Pommora/Content/PageFrontmatter.swift), [`PageEditorViewModel.swift`](Pommora/Pommora/Pages/PageEditorViewModel.swift) |
 
 ###### Why `shouldEnumerateTextElement:`, not `textParagraphWith` paragraph substitution
@@ -530,7 +530,7 @@ Stable per-heading IDs (UUIDs in a `heading_ids:` map) is the v2 escalation if t
 - **`hasSuffix("\n")` is wrong for CRLF-terminated files.** Swift treats `\r\n` as a single extended grapheme cluster, so `"## Foo\r\n".hasSuffix("\n")` returns false. The fix is `trimmingCharacters(in: .newlines)` which handles LF / CR / CRLF / Unicode line/paragraph separators uniformly.
 - **`mouseDown` collision.** `NativeTextView` already has a `mouseDown` override in `+DragSelectBoost.swift`. Adding a parallel override in `+HeadingFoldHover.swift` fails to compile. The fix: integrate chevron hit-test into the existing `mouseDown`, positioned AFTER prior intercepts but BEFORE drag-boost arms.
 - **Class-level `final` blocks `open`.** `NativeTextView` is `final`; `override open func` on extension overrides emits a compiler diagnostic. Drop `open` on the overrides — `override func` is enough.
-- **Content storage delegate must be set BEFORE first layout.** Otherwise cold-open of a page with `folded_headings: ["## Foo"]` renders the section expanded for a frame, then collapses when the next layout pass queries the now-set delegate. Wire-up in `NativeTextViewWrapper.makeNSView` between layout-manager-delegate setup and `textView.string` assignment.
+- **Content storage delegate must be set BEFORE first layout.** Otherwise cold-open of a page with `folded_headings: ["## Foo"]` renders the section expanded for a frame, then collapses when the next layout pass queries the now-set delegate. Wire-up in `MarkdownPMEditor.makeNSView` (in `NativeTextViewWrapper.swift`) between layout-manager-delegate setup and `textView.string` assignment.
 - **`@Binding` stored on a class goes stale across SwiftUI re-renders** — see "Why a stored property + callback" above.
 - **`textContentStorage(_:textParagraphWith:)` is for paragraph SUBSTITUTION, not ELISION** — see "Why `shouldEnumerateTextElement:`" above.
 - **Chevron click skips `super.mouseDown`.** Returning `true` from the chevron-click handler short-circuits NSTextView's standard mouseDown processing — which is what we WANT (prevents caret jumping to the click point) but loses the natural layout-cascade NSTextView would otherwise run via `textLayoutFragment(for:)` hit-test. The fold-toggle path has to reproduce that cascade manually via `invalidateLayout` + `ensureLayout` + `textLayoutFragment(for:)` + `viewportLayoutController.layoutViewport()` + `needsDisplay`.
@@ -543,11 +543,11 @@ Stable per-heading IDs (UUIDs in a `heading_ids:` map) is the v2 escalation if t
 
 ###### Files touched
 
-Full per-file table in [`External/MarkdownEngine/NOTICE.md`](../External/MarkdownEngine/NOTICE.md).
+Full per-file table in [`External/MarkdownPM/NOTICE.md`](../External/MarkdownPM/NOTICE.md).
 
 ##### 9.12 Dash auto-format — em / en via input-time lookbehind (v0.2.7.7)
 
-**Status:** ✅ SHIPPED. Typed `--<non-dash>` → `—` (em-dash); typed ` - <space>` → ` – ` (en-dash); typed `-` adjacent to an existing `–` → `—` (en→em promotion). All three live in `MarkdownLists.handleInsertion` ([`Input/MarkdownListHandler.swift`](../External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift)) alongside the arrow auto-formats (`<-` → `←`, `->` → `→`, `<->` → `↔`), mirroring their pattern — defer the substitution to the *next* character so collisions resolve before the conversion fires.
+**Status:** ✅ SHIPPED. Typed `--<non-dash>` → `—` (em-dash); typed ` - <space>` → ` – ` (en-dash); typed `-` adjacent to an existing `–` → `—` (en→em promotion). All three live in `MarkdownLists.handleInsertion` ([`Input/MarkdownListHandler.swift`](../External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift)) alongside the arrow auto-formats (`<-` → `←`, `->` → `→`, `<->` → `↔`), mirroring their pattern — defer the substitution to the *next* character so collisions resolve before the conversion fires.
 
 ###### Pattern: input-time lookbehind with single-char collision guards
 
@@ -560,7 +560,7 @@ This is the second instance of the input-time-transform pattern in the engine. T
 
 ###### Why this trigger set (not iA Writer's `--` → `–`)
 
-The `--<non-dash>` → en-dash convention (iA Writer / Ulysses) is a keyboard mnemonic; the ` - <space>` trigger maps onto en-dash's actual typographic role — spaced ranges and named-pair separators (`Monday – Friday`, `9 – 5`, `Paris – Berlin`). The earlier `~~` → en-dash proposal was rejected because `~~` is GFM strikethrough syntax (shipped feature with theme color at [`MarkdownEditorTheme.swift:74`](../External/MarkdownEngine/Sources/MarkdownEngine/Configuration/MarkdownEditorTheme.swift#L74), context-menu insertion at [`ContextMenu.swift:31`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/ContextMenu.swift#L31), and AST styler at [`AppleASTSupplementalStyler.swift:163`](../External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift#L163)) — auto-converting `~~` would silently kill strikethrough on typed input, paste, and the right-click "Strikethrough" command. Apple's `NSTextView.isAutomaticDashSubstitutionEnabled` is forced `false` at [`NativeTextViewWrapper.swift:181`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/NativeTextViewWrapper.swift#L181) and [`+Services.swift:185`](../External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+Services.swift#L185), so the engine has full control over dash transforms with no native AppKit race.
+The `--<non-dash>` → en-dash convention (iA Writer / Ulysses) is a keyboard mnemonic; the ` - <space>` trigger maps onto en-dash's actual typographic role — spaced ranges and named-pair separators (`Monday – Friday`, `9 – 5`, `Paris – Berlin`). The earlier `~~` → en-dash proposal was rejected because `~~` is GFM strikethrough syntax (shipped feature with theme color at [`MarkdownPMTheme.swift:84`](../External/MarkdownPM/Sources/MarkdownPM/Configuration/MarkdownPMTheme.swift#L84), context-menu insertion at [`ContextMenu.swift:31`](../External/MarkdownPM/Sources/MarkdownPM/TextView/ContextMenu.swift#L31), and AST styler at [`AppleASTSupplementalStyler.swift:169`](../External/MarkdownPM/Sources/MarkdownPM/Styling/AppleASTSupplementalStyler.swift#L169)) — auto-converting `~~` would silently kill strikethrough on typed input, paste, and the right-click "Strikethrough" command. Apple's `NSTextView.isAutomaticDashSubstitutionEnabled` is forced `false` at [`NativeTextViewWrapper.swift:181`](../External/MarkdownPM/Sources/MarkdownPM/TextView/NativeTextViewWrapper.swift#L181) and [`+Services.swift:185`](../External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+Services.swift#L185), so the engine has full control over dash transforms with no native AppKit race.
 
 ###### En→em promotion — closing the path back to em-dash
 
@@ -580,21 +580,21 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 
 | File | Role | Key entry points |
 |---|---|---|
-| [`Renderer/MarkdownTextLayoutFragment.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Renderer/MarkdownTextLayoutFragment.swift) | Custom NSTextLayoutFragment subclass. Per-fragment custom draw for code blocks, LaTeX, HR, task checkboxes. | `draw(at:in:)` line 196; `renderingSurfaceBounds` line 161; `hasThematicBreak` line 69; `caretIsInFragment` line 94 |
-| [`Styling/AppleASTSupplementalStyler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Styling/AppleASTSupplementalStyler.swift) | Apple-AST walker for BlockQuote / Strikethrough / Table / ThematicBreak. Layered on top of the engine's regex tokenizer. | `Visitor.visitBlockQuote` line 58; `visitTable` line 95; `visitThematicBreak` line 164 (emits nothing); `SourceRangeConverter` line 187; `LineOffsetIndex` line 206 |
-| [`TextView/Coordinator/NativeTextViewCoordinator.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator.swift) | Main coordinator (NSTextViewDelegate). State: `isProgrammaticEdit`, `isSyncingHRVisibility`, `pendingEditedRange`, etc. | Class declaration line 25; flags line 50, 67-74 |
-| [`TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift) | Canonical caret-awareness service. Walks doc, applies hide/reveal. | `syncHRVisibility` line 33; `isThematicBreakParagraph` line 87; `applyHRHiding` line 131; `revealHRDashes` line 158 |
-| [`TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift) | Restyle pipeline. Primary + supplemental styler runs, then service. | `rebuildTextStorageAndStyle` line 17 (full rebuild); `restyleTextView` line 94 (scoped); `parsedDocument` line 131 (cached parse) |
-| [`TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift) | Hot delegate path. `textDidChange`, `textViewDidChangeSelection`, `shouldChangeTextIn`. Service hooks fire at the end of each. | `shouldChangeTypingAttributes` line 22; `textDidChange` line 40; `textViewDidChangeSelection` line 166; `shouldChangeTextIn` line 332 |
-| [`Input/MarkdownListHandler.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Input/MarkdownListHandler.swift) | List continuation, character-pair auto-pair, auto-delete. Canonical input-handler pattern. | `MarkdownLists.performEdit` line 15 (programmatic-edit guard pattern); `detectListContext` line 78 (three-stage detection); `handleInsertion` line 267 |
-| [`Parser/MarkdownTokenizer.swift`](External/MarkdownEngine/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift) | Primary regex tokenizer. Produces `[MarkdownToken]` for inline marks + code/latex/wikilink boundaries. | (read this when extending inline-mark handling, not for paragraph-level constructs) |
-| [`TextView/ContextMenu.swift`](External/MarkdownEngine/Sources/MarkdownEngine/TextView/ContextMenu.swift) | Right-click menu builder. Extended by Pommora's Format / Heading / Lists / Block submenus. | (read this when adding context-menu actions) |
+| [`Renderer/MarkdownTextLayoutFragment.swift`](External/MarkdownPM/Sources/MarkdownPM/Renderer/MarkdownTextLayoutFragment.swift) | Custom NSTextLayoutFragment subclass. Per-fragment custom draw for code blocks, LaTeX, HR, task checkboxes. | `draw(at:in:)` line 196; `renderingSurfaceBounds` line 161; `hasThematicBreak` line 69; `caretIsInFragment` line 94 |
+| [`Styling/AppleASTSupplementalStyler.swift`](External/MarkdownPM/Sources/MarkdownPM/Styling/AppleASTSupplementalStyler.swift) | Apple-AST walker for BlockQuote / Strikethrough / Table / ThematicBreak. Layered on top of the engine's regex tokenizer. | `Visitor.visitBlockQuote` line 58; `visitTable` line 95; `visitThematicBreak` line 164 (emits nothing); `SourceRangeConverter` line 187; `LineOffsetIndex` line 206 |
+| [`TextView/Coordinator/NativeTextViewCoordinator.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator.swift) | Main coordinator (NSTextViewDelegate). State: `isProgrammaticEdit`, `isSyncingHRVisibility`, `pendingEditedRange`, etc. | Class declaration line 25; flags line 50, 67-74 |
+| [`TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+HRVisibility.swift) | Canonical caret-awareness service. Walks doc, applies hide/reveal. | `syncHRVisibility` line 33; `isThematicBreakParagraph` line 87; `applyHRHiding` line 131; `revealHRDashes` line 158 |
+| [`TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift) | Restyle pipeline. Primary + supplemental styler runs, then service. | `rebuildTextStorageAndStyle` line 17 (full rebuild); `restyleTextView` line 94 (scoped); `parsedDocument` line 131 (cached parse) |
+| [`TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift) | Hot delegate path. `textDidChange`, `textViewDidChangeSelection`, `shouldChangeTextIn`. Service hooks fire at the end of each. | `shouldChangeTypingAttributes` line 22; `textDidChange` line 40; `textViewDidChangeSelection` line 166; `shouldChangeTextIn` line 332 |
+| [`Input/MarkdownListHandler.swift`](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift) | List continuation, character-pair auto-pair, auto-delete. Canonical input-handler pattern. | `MarkdownLists.performEdit` line 15 (programmatic-edit guard pattern); `detectListContext` line 78 (three-stage detection); `handleInsertion` line 267 |
+| [`Parser/MarkdownTokenizer.swift`](External/MarkdownPM/Sources/MarkdownPM/Parser/MarkdownTokenizer.swift) | Token producer for the primary pass. Emphasis is located on the Apple AST (`appleEmphasisTokens`, in `MarkdownTokenizer+AppleEmphasis.swift`, appended first); code/latex/wikilink boundaries stay regex-located. Produces `[MarkdownToken]`. | (read this when extending inline-mark handling, not for paragraph-level constructs) |
+| [`TextView/ContextMenu.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/ContextMenu.swift) | Right-click menu builder. Extended by Pommora's Format / Heading / Lists / Block submenus. | (read this when adding context-menu actions) |
 
 ##### 10.2 Pommora-side editor wiring
 
 | File | Role |
 |---|---|
-| [`Pommora/Pommora/Pages/PageEditorView.swift`](Pommora/Pommora/Pages/PageEditorView.swift) | SwiftUI view hosting `NativeTextViewWrapper`. Title TextField + body editor. Save pipeline entry point. |
+| [`Pommora/Pommora/Pages/PageEditorView.swift`](Pommora/Pommora/Pages/PageEditorView.swift) | SwiftUI view hosting `MarkdownPMEditor` (the front-door `NSViewRepresentable` in `NativeTextViewWrapper.swift`). Title TextField + body editor. Save pipeline entry point. |
 | `Pommora/Pommora/Pages/PageEditorViewModel.swift` | ViewModel binding body + frontmatter to PageContentManager. |
 | `PageSaver` protocol in `Pommora/Pommora/Pages/PageEditorViewModel.swift` | 300ms-debounced save scheduler (protocol + concrete impl). |
 | `Pommora/Pommora/Content/PageContentManager+CRUD.swift` | `updatePage(_:body:in:vault:)` write path. |
@@ -609,7 +609,7 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 | [`// Guidelines//Paradigm-Decisions.md`](.claude/Guidelines/Paradigm-Decisions.md) | Confirmation protocol + registry. Editor architecture decision recorded here (superseding the dead WKWebView entry). |
 | `Handoff.md` | Live session state. Most recent lessons (Session 12 HR + Session 13 Lists) preserved in the entry headers. |
 | `History.md` | Locked decision log. Brief — the canonical detail lives in the feature docs. |
-| `External/MarkdownEngine/NOTICE.md` | Per-file modification log for Pommora's edits to the vendored engine. |
+| `External/MarkdownPM/NOTICE.md` | Per-file modification log for Pommora's edits to the vendored engine. |
 
 ---
 
@@ -618,5 +618,5 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 - **Before writing any new code** that touches the markdown editor: re-read sections 2 (source-of-truth), 3 (dynamic-syntax), and 6 (anti-patterns). They're the densest summary of "what makes Pommora's editor different from a generic Markdown editor."
 - **When planning a new feature**: cite the relevant lessons by number in the plan doc. A plan that ignores L1-L10 risks repeating the failures they encode.
 - **When debugging**: section 5 (state mutation rules) + section 6 (anti-patterns) cover the most common footguns. If a bug surfaces, check whether it's a known pattern before adding speculative fixes (L8).
-- **When extending the engine itself**: log the modification in `External/MarkdownEngine/NOTICE.md`. Keep Pommora's customizations isolated to the four files named in section 1.2 + new files clearly named with a "Pommora" prefix or in the `+HRVisibility.swift`-style extension pattern.
+- **When extending the engine itself**: log the modification in `External/MarkdownPM/NOTICE.md`. Keep Pommora's customizations isolated to the four files named in section 1.2 + new files clearly named with a "Pommora" prefix or in the `+HRVisibility.swift`-style extension pattern.
 - **When a Nathan clarification lands**: add it to section 9 with a date stamp. Section 9 entries override any default behavior described elsewhere in this doc.
