@@ -27,7 +27,7 @@ enum AppleASTSupplementalStyler {
         baseFont: NSFont,
         theme: MarkdownEditorTheme
     ) -> [StyledRange] {
-        let document = Document(parsing: text)
+        let document = AppleDocumentParseProbe.parse(text)
         let nsText = text as NSString
         let lineIndex = LineOffsetIndex(text: text)
         var visitor = Visitor(

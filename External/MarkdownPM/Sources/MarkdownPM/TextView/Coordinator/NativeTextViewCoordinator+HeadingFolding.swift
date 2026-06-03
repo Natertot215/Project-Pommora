@@ -157,7 +157,7 @@ extension NativeTextViewCoordinator {
 
         let text = ts.string
         let nsText = text as NSString
-        let document = Markdown.Document(parsing: text)
+        let document = AppleDocumentParseProbe.parse(text)
         let headings = MarkdownDetection.foldableHeadings(in: document, nsText: nsText)
 
         // Reduce to just the content ranges of headings the user has folded.
