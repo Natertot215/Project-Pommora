@@ -301,7 +301,10 @@ enum NexusAdopter {
             if name.hasPrefix(".") || name.hasPrefix("_") { continue }
             if adoptionExcludedSubFolderNames.contains(name) { continue }
             // Skip user-excluded folders — never classify or sidecar them.
-            if filter.isExcluded(folder) { skipped.append(folder); continue }
+            if filter.isExcluded(folder) {
+                skipped.append(folder)
+                continue
+            }
 
             do {
                 try classifyFolder(
@@ -665,24 +668,28 @@ enum NexusAdopter {
     /// a stale id-keyed index row → a phantom RelationChip + a brokenLinks miss
     /// until the next launch's rebuild.
     @discardableResult
-    static func autoTagMissingSidecars(at nexusRoot: URL) -> Bool {
+    static func autoTagMissingSidecars(
+        at nexusRoot: URL, filter: FolderFilter = .empty
+    ) -> Bool {
         let now = Date()
         var didRelocate = false
         // Depth 0: Nexus root children
-        let topLevel = (try? Filesystem.childFolders(of: nexusRoot)) ?? []
+        let topLevel = (try? Filesystem.childFolders(of: nexusRoot, folderFilter: filter)) ?? []
         for folder in topLevel where !shouldSkipForAutoTag(folder) {
             // Sweep stray Item-shaped `.json` content files out of a folder that
             // is NOT a recognized Item Type BEFORE depth-0 tagging stamps it as a
             // Page Type. Otherwise the stray would be orphaned: the stamp pass
             // walks `.md` only, so a `.json` left in a Page-Type folder is never
             // converted, indexed, or relocated. Route it to `.unsorted` instead.
-            didRelocate = sweepStrayJSONItems(in: folder, nexusRoot: nexusRoot) || didRelocate
+            didRelocate =
+                sweepStrayJSONItems(in: folder, nexusRoot: nexusRoot, filter: filter)
+                || didRelocate
 
             tagDepth0IfMissing(folder, now: now)
             // After depth-0 tagging, descend into this folder for depth-1
             // and depth-2 work (even if we wrote the sidecar just now, we
             // still want to seed Collections + Folders inside).
-            walkDepth1(folder, now: now)
+            walkDepth1(folder, now: now, filter: filter)
             // Self-heal co-located legacy/orphan sidecars BEFORE the stamp pass.
             // A depth-0 stray (e.g. an inert `_pagecollection.json` co-located
             // with this folder's `_itemtype.json`, from an old wrapper unwrap)
@@ -693,12 +700,14 @@ enum NexusAdopter {
             // recognized sidecar in their own folder and are spared. Running
             // this here leaves a de-orphaned, single-kind folder for the stamp
             // pass to read.
-            cleanupLegacyOrphans(in: folder, fm: FileManager.default)
+            cleanupLegacyOrphans(in: folder, fm: FileManager.default, filter: filter)
             // LAST per-folder step. By now this folder's type sidecar exists
             // (written above or pre-existing) and any orphan sidecar is gone, so
             // `recognizedSidecarsAt` sees a settled single-kind set when the
             // stamp pass reads it. Keep the stamp pass last.
-            didRelocate = stampClassPass(in: folder, nexusRoot: nexusRoot) || didRelocate
+            didRelocate =
+                stampClassPass(in: folder, nexusRoot: nexusRoot, filter: filter)
+                || didRelocate
         }
         return didRelocate
     }
@@ -726,7 +735,9 @@ enum NexusAdopter {
     /// stray nested in a collection-like sub-folder is caught too. Item Types
     /// carry their `.json` members through the format migration, not here. Returns
     /// whether anything was relocated.
-    private static func sweepStrayJSONItems(in folder: URL, nexusRoot: URL) -> Bool {
+    private static func sweepStrayJSONItems(
+        in folder: URL, nexusRoot: URL, filter: FolderFilter = .empty
+    ) -> Bool {
         // A folder with an `_itemtype.json` is a real Item Type — its `.json`
         // members are the format migration's job, never relocated here.
         let itemSidecar = folder.appendingPathComponent(
@@ -734,7 +745,9 @@ enum NexusAdopter {
         guard !Filesystem.fileExists(at: itemSidecar) else { return false }
 
         let candidates =
-            (try? Filesystem.descendantFiles(of: folder) { isStrayItemJSONCandidate($0) }) ?? []
+            (try? Filesystem.descendantFiles(
+                of: folder, folderFilter: filter
+            ) { isStrayItemJSONCandidate($0) }) ?? []
         var didRelocate = false
         for file in candidates where (try? Item.decodeLegacyJSON(from: file)) != nil {
             relocateToUnsorted(file, nexusRoot: nexusRoot)
@@ -799,7 +812,9 @@ enum NexusAdopter {
     /// caller can force a same-launch index rebuild — a relocated file's stale
     /// id-keyed row must reconcile away this launch, not next).
     @discardableResult
-    private static func stampClassPass(in folder: URL, nexusRoot: URL) -> Bool {
+    private static func stampClassPass(
+        in folder: URL, nexusRoot: URL, filter: FolderFilter = .empty
+    ) -> Bool {
         // Folder kind from the authoritative sidecar. Only Page/Item Types
         // carry stampable content; everything else is a no-op.
         guard let firstKind = recognizedSidecarsAt(folder).first else { return false }
@@ -812,7 +827,9 @@ enum NexusAdopter {
         }
 
         let contentFiles =
-            (try? Filesystem.descendantFiles(of: folder) { $0.pathExtension == "md" }) ?? []
+            (try? Filesystem.descendantFiles(
+                of: folder, folderFilter: filter
+            ) { $0.pathExtension == "md" }) ?? []
         var didRelocate = false
         for file in contentFiles {
             didRelocate =
@@ -962,11 +979,11 @@ enum NexusAdopter {
     /// `_pagecollection.json` / `_itemcollection.json` sidecars (kind
     /// dictated by parent). Two tiers only — Pages + Items both stop at
     /// the Collection level.
-    private static func walkDepth1(_ typeFolder: URL, now: Date) {
+    private static func walkDepth1(_ typeFolder: URL, now: Date, filter: FolderFilter = .empty) {
         // Re-read parent kind after depth-0 write — the type sidecar should
         // now exist (or have existed before this run).
         guard let parent = loadTypeParent(at: typeFolder) else { return }
-        let children = (try? Filesystem.childFolders(of: typeFolder)) ?? []
+        let children = (try? Filesystem.childFolders(of: typeFolder, folderFilter: filter)) ?? []
         for child in children where !shouldSkipForAutoTag(child) {
             tagDepth1IfMissing(child, parent: parent, now: now)
         }
@@ -1280,14 +1297,17 @@ enum NexusAdopter {
     ///    matches the natural-parent inference (a folder at root carrying
     ///    both is a Type, not a Collection, because Collections must live
     ///    inside a Type).
-    private static func cleanupLegacyOrphans(in folder: URL, fm: FileManager) {
+    private static func cleanupLegacyOrphans(
+        in folder: URL, fm: FileManager, filter: FolderFilter = .empty
+    ) {
         cleanupOrphansAt(
             folder, fm: fm,
             legacyNames: [
                 legacyVaultSidecarFilename, paradigmV2UnifiedSidecarFilename,
             ])
-        // One-level-deep cleanup (Collections inside this Type)
-        let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
+        // One-level-deep cleanup (Collections inside this Type). Honor the
+        // user exclusion filter so a nested excluded sub-folder is never touched.
+        let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
         for sub in subFolders where !isHiddenOrExcludedSub(sub) {
             cleanupOrphansAt(
                 sub, fm: fm,

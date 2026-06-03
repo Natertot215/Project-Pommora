@@ -290,7 +290,9 @@ final class NexusManager {
     /// this launch, not next. The caller ORs this into `openIndex(forceRebuild:)`.
     private func runLaunchMigrations(at url: URL) async -> Bool {
         await runAdoptionIfNeeded(at: url)
-        let relocated = NexusAdopter.autoTagMissingSidecars(at: url)
+        let tempNexus = Nexus(id: "", rootURL: url)
+        let filter = FolderFilter.load(for: tempNexus)
+        let relocated = NexusAdopter.autoTagMissingSidecars(at: url, filter: filter)
         let migratedItems = runFormatMigration(at: url)
         return migratedItems || relocated
     }

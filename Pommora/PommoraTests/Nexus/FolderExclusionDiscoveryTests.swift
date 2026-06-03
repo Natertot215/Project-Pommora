@@ -23,6 +23,28 @@ import Testing
         try pt.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
     }
 
+    /// autoTag's depth-1 `cleanupLegacyOrphans` must not delete legacy sidecars
+    /// inside a user-excluded NESTED folder ("never touched" at any depth).
+    @Test func autoTagKeepsLegacySidecarsInExcludedNestedFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        // A recognized (kept) Type folder...
+        try makePageType("MyVault", id: "PT_V", in: nexus)
+        // ...with a depth-1 sub-folder carrying a legacy collection sidecar that
+        // cleanupLegacyOrphans would normally delete as an orphan.
+        let priv = NexusPaths.vaultFolderURL(forTitle: "MyVault", in: nexus)
+            .appendingPathComponent("Private")
+        try FileManager.default.createDirectory(at: priv, withIntermediateDirectories: true)
+        let legacy = priv.appendingPathComponent("_collection.json")
+        try FixtureFiles.write("{}", to: legacy)
+        try setExcluded(["MyVault/Private"], in: nexus)
+
+        _ = NexusAdopter.autoTagMissingSidecars(
+            at: nexus.rootURL, filter: FolderFilter.load(for: nexus))
+        // Excluded nested folder → cleanup never reaches it; the sidecar survives.
+        #expect(FileManager.default.fileExists(atPath: legacy.path))
+    }
+
     @Test func excludedFolderAbsentFromIndexAfterBuild() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -158,12 +180,55 @@ import Testing
             try FileManager.default.createDirectory(at: f, withIntermediateDirectories: true)
             try FixtureFiles.write("# x", to: f.appendingPathComponent("Note.md"))
         }
-        var s = Settings.defaultSeed(); s.excludedFolders = ["Archive"]
+        var s = Settings.defaultSeed()
+        s.excludedFolders = ["Archive"]
         try AtomicJSON.write(s, to: NexusPaths.settingsFileURL(in: nexus))
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL, filter: FolderFilter.load(for: nexus))
         let names = plan.freshSidecars.map { $0.folderURL.lastPathComponent }
         #expect(names.contains("Notes"))
         #expect(!names.contains("Archive"))
+    }
+
+    // MARK: - NexusAdopter.autoTagMissingSidecars exclusion
+
+    /// autoTagMissingSidecars must NOT write a sidecar or stamp Class frontmatter
+    /// into a folder that is excluded by the user.
+    ///
+    /// Without exclusion, autoTag would:
+    ///   1. Write `_pagetype.json` into the bare "Archive" folder (tagDepth0IfMissing).
+    ///   2. Stamp `Class: page` into `loose.md` inside it (stampClassPass).
+    /// With the filter, both of those must be suppressed.
+    @Test func autoTagDoesNotTouchExcludedFolder() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // A top-level folder with no sidecar — autoTag would tag it as a PageType.
+        let archive = nexus.rootURL.appendingPathComponent("Archive")
+        try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: true)
+
+        // A bare .md file inside it — autoTag's stampClassPass would stamp Class: page.
+        let stray = archive.appendingPathComponent("loose.md")
+        try FixtureFiles.write("# loose\n\nbody", to: stray)
+
+        // Exclude "Archive" via settings.
+        var s = Settings.defaultSeed()
+        s.excludedFolders = ["Archive"]
+        try AtomicJSON.write(s, to: NexusPaths.settingsFileURL(in: nexus))
+
+        let before = try String(contentsOf: stray, encoding: .utf8)
+
+        let tempNexus = Nexus(id: "", rootURL: nexus.rootURL)
+        _ = NexusAdopter.autoTagMissingSidecars(
+            at: nexus.rootURL, filter: FolderFilter.load(for: tempNexus))
+
+        // Sidecar must NOT have been written — the folder stays untagged.
+        let sidecar = archive.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        #expect(!FileManager.default.fileExists(atPath: sidecar.path))
+
+        // The .md file must be untouched — same path, same content.
+        #expect(FileManager.default.fileExists(atPath: stray.path))
+        let after = try String(contentsOf: stray, encoding: .utf8)
+        #expect(after == before)
     }
 }
