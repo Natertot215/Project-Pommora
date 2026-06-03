@@ -44,6 +44,29 @@ struct HeadingDetectorCorpusTests {
     @Test("7 hashes `####### x` is NOT a heading (max 6)")
     func sevenHashesNotHeading() { #expect(!isHeading("####### x")) }
 
+    @Test("3 leading spaces `   ## Foo` IS a heading (CommonMark max indent)")
+    func threeSpaceIndentIsHeading() {
+        // CommonMark allows ≤3 leading spaces before the `#` run. Post D-HEAD-1
+        // the styler agrees — see `TokenizerCorpusTests.headingThreeSpaceIndentToken`.
+        #expect(isHeading("   ## Foo"))
+    }
+
+    @Test("4 leading spaces `    ## Foo` is NOT a heading (indented code block)")
+    func fourSpaceIndentNotHeading() {
+        // 4+ leading spaces → indented code block (AST emits no Heading node).
+        // Post D-HEAD-1 the bounded styler regex rejects this too — see
+        // `TokenizerCorpusTests.headingFourSpaceIndentRejected`.
+        #expect(!isHeading("    ## Foo"))
+    }
+
+    @Test("Leading tab `\\t## Foo` is NOT a heading (4-col indent = code)")
+    func leadingTabNotHeading() {
+        // A leading tab is a 4-column indent → indented code block. Post D-HEAD-1
+        // the styler rejects this too — see
+        // `TokenizerCorpusTests.headingLeadingTabRejected`.
+        #expect(!isHeading("\t## Foo"))
+    }
+
     @Test("Heading inside a code block is NOT a heading (stage-0 guard)")
     func insideCodeBlockNotHeading() {
         #expect(!MarkdownDetection.isHeadingLine("## Foo", isInsideCodeBlock: true))

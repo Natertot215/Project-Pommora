@@ -22,13 +22,20 @@ private extension MarkdownTokenizer {
         pattern: "\\[([^\\]\\r\\n]+)\\]\\(([^\\)\\r\\n]+)\\)"
     )
     static let headingRegex = try! NSRegularExpression(
-        // Unified CommonMark heading rule (D-HEAD-1): 1-6 `#`s followed by a
-        // space, a tab, OR end-of-line. Group 1 = the `#` run (marker sizing);
-        // group 2 = optional heading text (absent for a bare `##`/`###` at EOL,
-        // and now also matches tab-separated text). `#Foo` (no separator) is
-        // rejected because the optional group is skipped and `$` then fails
-        // after the `#`s. Matches `MarkdownDetection.isHeadingLine`.
-        pattern: "^\\s*(#{1,6})(?:[ \\t]+(.*))?$",
+        // Unified CommonMark heading rule (D-HEAD-1): up to 3 leading spaces,
+        // then 1-6 `#`s followed by a space, a tab, OR end-of-line. Group 1 =
+        // the `#` run (marker sizing); group 2 = optional heading text (absent
+        // for a bare `##`/`###` at EOL, and also matches tab-separated text).
+        // `#Foo` (no separator) is rejected because the optional group is
+        // skipped and `$` then fails after the `#`s.
+        //
+        // Leading whitespace is bounded to CommonMark's 3-space max with literal
+        // ` ` (NOT `\s`): 4+ leading spaces — or a leading tab (a 4-column
+        // indent) — is an INDENTED CODE BLOCK, not a heading. The unbounded
+        // `\s*` previously styled `    ## Foo` (4 spaces) as a heading while the
+        // AST / `MarkdownDetection.isHeadingLine` treated it as code; this bound
+        // makes both paths agree on the indentation axis too (genuine D-HEAD-1).
+        pattern: "^[ ]{0,3}(#{1,6})(?:[ \\t]+(.*))?$",
         options: [.anchorsMatchLines]
     )
     static let taskListRegex = try! NSRegularExpression(

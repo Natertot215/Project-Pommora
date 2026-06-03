@@ -226,19 +226,54 @@ struct TokenizerCorpusTests {
         #expect(t.isEmpty)
     }
 
-    @Test("D-HEAD-1 unified: styler + detection AGREE on tab / bare / no-separator")
+    @Test("Styler heading regex: 3 leading spaces `   ## Foo` IS a token (CommonMark max indent)")
+    func headingThreeSpaceIndentToken() {
+        // CommonMark allows up to 3 leading spaces before the `#` run.
+        let t = tokens("   ## Foo").filter { $0.kind == .heading }
+        #expect(t.count == 1)
+        #expect(("   ## Foo" as NSString).substring(with: t[0].contentRange) == "Foo")
+    }
+
+    @Test("Styler heading regex: 4 leading spaces `    ## Foo` is NOT a token (indented code block)")
+    func headingFourSpaceIndentRejected() {
+        // 4+ leading spaces is an INDENTED CODE BLOCK in CommonMark, not a
+        // heading. The bounded `^[ ]{0,3}` rejects it — matching the AST /
+        // `isHeadingLine` (review #3/#6). The unbounded `\s*` used to accept it.
+        let t = tokens("    ## Foo").filter { $0.kind == .heading }
+        #expect(t.isEmpty)
+    }
+
+    @Test("Styler heading regex: leading tab `\\t## Foo` is NOT a token (4-col indent = code)")
+    func headingLeadingTabRejected() {
+        // A leading tab is a 4-column indent → indented code block, not a
+        // heading. Literal ` ` in the bound (not `\s`) excludes the tab.
+        let t = tokens("\t## Foo").filter { $0.kind == .heading }
+        #expect(t.isEmpty)
+    }
+
+    @Test("D-HEAD-1 unified: styler + detection AGREE on tab / bare / no-separator / indent")
     func headingDetectorsUnified() {
-        // The single CommonMark space/tab/EOL rule now governs BOTH paths.
-        // For each case the styler (`headingRegex` → `.heading` token) and the
-        // detector (`MarkdownDetection.isHeadingLine`) must return the same
-        // verdict — that agreement IS the D-HEAD-1 unification.
+        // The single CommonMark rule now governs BOTH paths — including the
+        // leading-indent axis (≤3 spaces = heading; 4+ spaces or a leading tab =
+        // indented code, NOT a heading). For each case the styler (`headingRegex`
+        // → `.heading` token) and the detector (`MarkdownDetection.isHeadingLine`)
+        // must return the same verdict — that agreement IS the D-HEAD-1
+        // unification.
         func stylerSeesHeading(_ line: String) -> Bool {
             tokens(line).contains { $0.kind == .heading }
         }
         func detectorSeesHeading(_ line: String) -> Bool {
             MarkdownDetection.isHeadingLine(line, isInsideCodeBlock: false)
         }
-        for (line, expected) in [("##\tFoo", true), ("###", true), ("#Foo", false)] {
+        let cases: [(String, Bool)] = [
+            ("##\tFoo", true),
+            ("###", true),
+            ("#Foo", false),
+            ("   ## Foo", true),   // 3 spaces — still a heading
+            ("    ## Foo", false), // 4 spaces — indented code, not a heading
+            ("\t## Foo", false),   // leading tab — indented code, not a heading
+        ]
+        for (line, expected) in cases {
             #expect(stylerSeesHeading(line) == expected)
             #expect(detectorSeesHeading(line) == expected)
             #expect(stylerSeesHeading(line) == detectorSeesHeading(line))
