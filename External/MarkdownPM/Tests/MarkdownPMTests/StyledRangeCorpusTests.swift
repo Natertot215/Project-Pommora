@@ -143,6 +143,28 @@ struct StyledRangeCorpusTests {
         let ranges = styled("before _x_ after", caret: 0)
         #expect(hasItalicFont(ranges, at: 8)) // `x`
     }
+
+    // Does any emitted range cover `location` and carry a near-zero font
+    // (the hidden-marker shrink, `hiddenMarkerFontSize` ≈ 0.1pt)?
+    private func hasShrunkMarkerFont(_ ranges: [StyledRange], at location: Int) -> Bool {
+        for r in ranges where NSLocationInRange(location, r.range) {
+            if let f = r.attributes[.font] as? NSFont, f.pointSize < 1 { return true }
+        }
+        return false
+    }
+
+    @Test("Emphasis markers inside a [[wikilink]] target are NOT shrunk (D-EMPH-6 complete)")
+    func emphasisMarkersInsideWikilinkNotShrunk() {
+        // Completes D-EMPH-6: `styleEmphasis` already suppresses the italic
+        // trait inside `[[my _file_ name]]`, but `shrinkInactiveMarkers` was
+        // still shrinking the `_` delimiters to ~invisible, so the target text
+        // wasn't fully literal. With the caret OFF the wikilink (inactive),
+        // the `_` markers at indices 5 and 10 must keep a full-size font.
+        // `[[my ` = 0..4; `_` at 5; `file` at 6..9; `_` at 10.
+        let ranges = styled("[[my _file_ name]] tail", caret: 22) // caret off the wikilink
+        #expect(!hasShrunkMarkerFont(ranges, at: 5))  // leading `_`
+        #expect(!hasShrunkMarkerFont(ranges, at: 10)) // trailing `_`
+    }
 }
 
 extension StyledRangeCorpusTests {

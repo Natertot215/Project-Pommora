@@ -477,11 +477,27 @@ extension MarkdownPMStyler {
 
     static func shrinkInactiveMarkers(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
+        // Wikilink / image-embed target text is LITERAL — emphasis markers
+        // (`*` / `_`) that land inside `[[target]]` / `![[embed]]` must stay
+        // full-size so the target reads verbatim. Mirrors the D-EMPH-6
+        // suppression guard in `styleEmphasis`: skip any emphasis-kind token
+        // whose range intersects a wikiLink/imageEmbed range.
+        let literalTargetTokens = ctx.tokens.filter {
+            $0.kind == .wikiLink || $0.kind == .imageEmbed
+        }
         for (i, token) in ctx.tokens.enumerated() where !ctx.isActive(tokenIndex: i) {
             if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex
                 || token.kind == .imageEmbed
             {
                 continue
+            }
+            switch token.kind {
+            case .italic, .bold, .boldItalic:
+                if literalTargetTokens.contains(where: {
+                    NSIntersectionRange($0.range, token.range).length > 0
+                }) { continue }
+            default:
+                break
             }
             // Block-code guard only. `ctx.codeTokens` mixes fenced code blocks
             // (`.codeBlock`) with inline spans (`.inlineCode`); intersecting an
