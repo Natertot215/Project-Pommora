@@ -54,23 +54,34 @@ struct TokenizerCorpusTests {
 
     @Test("Rule-of-3: **foo*bar**baz* resolves per CommonMark")
     func ruleOfThree_a() {
-        // Pin whatever the hand-rolled parser produces; the assertion records
-        // the count + first range. Read the result, then lock it.
+        // EXACT pin of the hand-rolled stack parser's output (Phase-4 width-
+        // subtraction emphasis reconstruction targets exactly this case).
+        // Observed: a bold over `**foo*bar**` (0,11) then an italic over
+        // `*bar**baz*` (5,10) — the runs overlap, which is the asterisk-only
+        // parser's CommonMark-divergent resolution we lock here.
         let em = tokens("**foo*bar**baz*").filter {
             $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
         }
-        // The stack parser produces a bold over the **…** span. Assert it
-        // emits at least one emphasis token and the FIRST is bold at 0.
-        #expect(!em.isEmpty)
-        #expect(em.contains { $0.kind == .bold && $0.range.location == 0 })
+        #expect(em.count == 2)
+        #expect(em[0].kind == .bold)
+        #expect(em[0].range == NSRange(location: 0, length: 11))
+        #expect(em[1].kind == .italic)
+        #expect(em[1].range == NSRange(location: 5, length: 10))
     }
 
     @Test("Rule-of-3: *foo**bar*baz**")
     func ruleOfThree_b() {
+        // EXACT pin (Phase-4 reconstruction target). Observed: an italic over
+        // `*foo**bar*` (0,10) then a bold over `**bar*baz**` (4,11) — again the
+        // two runs overlap under the asterisk-only stack parser.
         let em = tokens("*foo**bar*baz**").filter {
             $0.kind == .italic || $0.kind == .bold || $0.kind == .boldItalic
         }
-        #expect(!em.isEmpty)
+        #expect(em.count == 2)
+        #expect(em[0].kind == .italic)
+        #expect(em[0].range == NSRange(location: 0, length: 10))
+        #expect(em[1].kind == .bold)
+        #expect(em[1].range == NSRange(location: 4, length: 11))
     }
 
     @Test("Intra-word a*b*c emphasizes the inner asterisk pair")
