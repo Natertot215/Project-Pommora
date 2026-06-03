@@ -6,6 +6,35 @@
 
 _Verified against source 2026-06-02 (see the CodeMap report)._
 
+---
+
+## Execution Record — COMPLETE (branch `markdownpm-rehome`, 40 commits, 2026-06-02→03)
+
+**Status:** the rebuild shipped end-to-end on branch `markdownpm-rehome` (unmerged; the parked parallel session resumes after merge). FINAL gate GREEN — package **118 tests / 10 suites / 0 failures**; app **1166 tests / 0 failures** (1 expected skip: the `.disabled` DEC-1 target), verified in a parallel-free worktree of HEAD `28cb171`. Every behavior divergence is logged in `MarkdownPM-Divergence-Ledger.md`; every run-command/premise correction lives in that ledger's "Operational corrections + plan mismatches" section (the authoritative reconciliation — the detailed inline task specs below are the historical record of what was *planned*, reconciled here against what *shipped*).
+
+**Phases as executed** (execution order + scope diverged from the outline — re-assessed between green commits per the hard rule):
+
+- **Phase 1 — re-home** (`f586927` `3223ca3` `f7de7a6` `d5fcbf0`): `MarkdownEngine`→`MarkdownPM`. The exit-review caught a stale `@testable import MarkdownEngine` in the package *test* target that the green app build masked → every gate now runs `swift test` (the package test target), not just `swift build`.
+- **Phase 2 — characterization net** (`3d6a855`…`3af66bb`): 9 suites pinning current behavior before any change. Review added `HeadingSizeCorpus` + tightened the rule-of-3 ranges.
+- **Phase 3 — #9 cached spine** (`1f2b4fb`…`303bb6c`): one cached Apple `Document` per edit (was 1 unfolded / 2 folded). The adversarial review flagged `LineOffsetIndex` still rebuilt per-consumer → **Phase 3.5** (`7b42aca` `7704b94`) memoized it into `ParsedDocument` (built once beside the parse) + tightened the proof (a combined-consumer test pins "2→1" end-to-end).
+- **Phase 4 — AST emphasis + heading unify** (`0912831` `361bd20` `1bc0c30` `d74ce0f`): verify-first recon probed swift-markdown 0.8.0 (delimiter-inclusive ranges confirmed) → built `appleEmphasisTokens` → swapped emission to the AST + re-pinned the corpus + **deleted the 173-line `MarkdownTokenizer+Emphasis.swift`** → unified the two heading detectors. The exit review found a REAL nested-adjacent reconstruction bug (`***bold** then italic*` styled a literal `*`) → **fixed** (`20fcfbc`, two-signal clamp), plus wikilink emphasis suppression (`23eb7ae`, D-EMPH-6) + a heading 3-space indent bound (`818aa3a`, completing D-HEAD-1 on the indent axis). Divergences D-EMPH-1..6 + D-HEAD-1.
+- **Phase 5 — one owned styler + theme** (`e79421c` `3701e92` `c725036` `b399021` `a9a2fd2` `8d9505c`): A) compose seam → B) consolidated to one owned `MarkdownPMStyler` (verbatim) → D) `MarkdownEditorTheme`→`MarkdownPMTheme` (one navigable file; VISUAL sub-structs folded in, POLICY structs kept with the config — D5.2-b) + new heading scale `[2.0,1.75,1.5,1.25,1.15,1.0]` (D-HEAD-2, H6=body) + code-text slot (LD-25) → C) judicious caret-accessor DRY (`isActive(tokenIndex:)`; the `markerAttributes(active:)` factory was correctly NOT forced — each construct's marker dict is genuinely distinct). Exit review CLEAN (0 findings).
+- **Phase 6 — tidy** (`63bec06` `28cb171`): recon found most planned tidy was already done (Phase 3 did 6.4's substance; 6.2's HR predicate is already shared) or load-bearing-keep. Shipped the safe subset: 6.3 (deleted dead `taskListRegex` + a no-op) + 6.4 (dropped dead input-handler nil-fallbacks). 6.5 OS-bug workarounds confirmed intact (verbatim-keep, unchanged).
+
+**Deferred** (best-judgment, NON-blocking — Nathan to ratify/reverse; each leaves a WORKING, self-consistent system):
+
+- **D-CODE-1 — multi-backtick inline-code relocation to the AST** (logged DEFERRED): `.inlineCode` tokens feed the load-bearing `codeTokens` bucket (dash carve-out + latex/link/active-token suppression); relocating ripples for a multi-backtick edge case. Regex stays.
+- **Phase 5 Task 5.4 — lift renderer-resident colors** into theme slots: gated on manual-visual verification (unavailable autonomously) + the brand palette is v0.4.0. Do when the palette lands.
+- **Phase 6.1 — apply-path DRY**: the two apply loops are load-bearingly distinct (whole-doc-unclipped initial-load vs per-edit-clipped + the spelling-state pre-pass); over-merging regresses the caret-only HR sync. Keep separate.
+- **Phase 6.2 — HR-predicate "unification"**: already shared (`MarkdownDetection.isThematicBreakLine`); the only remaining difference is the Stage-0 code-block check (token-based in the fragment vs attribute-based in the service), correctly separate. No-op.
+- **Phase 6.6 — ContextMenu raw-write unification**: the helper doesn't exist yet, the 10 menu actions are visual-only, the save-semantics merge (dedup / Writing-Tools gate) is subtle, and its purpose (the DEC-1 chokepoint) is wikilink-session work — defer + bundle with DEC-1.
+- **`[N]` fold-key ordinal hoist**: only the format string is safely hoistable (the two counters genuinely differ); byte-sensitive fold membership; small payoff. Defer behind a cross-site key-equality test.
+- **Shed `onCodeBlockSelectionChange`/`onCaretRectChange`**: NOT pure dead params — they fire live internal plumbing (`updateCodeBlockSelection` + the code-block overlay types + `refreshActiveLinkCaretRect` ×9). The public-param trim is safe but the internal teardown wants a runtime check. Defer.
+
+**Cosmetic carry-forward:** the styler extension FILES are still named `MarkdownStyler+*.swift` though they now `extension MarkdownPMStyler` (the type was consolidated; filenames weren't renamed, to avoid churn). Rename in a cleanup pass.
+
+---
+
 ### Goal
 
 Fold the vendored `External/MarkdownEngine` Swift package into a Pommora-owned package + module named **`MarkdownPM`**, then disassemble and reassemble it cleaner: collapse the two independent parse passes (regex tokenizer + uncached Apple `swift-markdown` AST) into **one cached Apple-AST-backed spine** parsed once per text change; route the three inline constructs Apple parses cleanly (emphasis, inline-code, links) onto that AST and **delete the 173-line hand-rolled asterisk-only emphasis parser**; keep the regex layer for everything Apple is absent or wrong on (wikilinks `[[..]]`, embeds `![[..]]`, the `$…$` math/currency heuristic, the empty-`[]`/`- [ ]`/`-[x]` checkbox split, the Setext-suppression standalone-parse trick, heading marker reveal/sizing); merge the two styler sites into **one owned `MarkdownPMStyler`** with **one merged `MarkdownPMTheme`**; transplant the runtime-only TextKit 2 / OS-bug workarounds verbatim; and fix the #9 caret-stutter as a side-effect of the parse collapse. **Pages only** — Items are excluded beyond keeping a clean inert seam; the wikilink *feature* is a separate post-rebuild session and this plan preserves only its seam.
