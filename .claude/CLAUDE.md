@@ -60,7 +60,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 
-- Items open in a popover-style **Item Window** (title + properties + description, not a full-frame surface); Pages open in the main detail pane. (Standalone-window previews are queued behind the cross-feature PreviewWindow primitive; not yet wired.) 
+- Items open in an **Item Window** — a **draggable, dismissible floating panel** (movable around the screen and closeable; **not** a full-frame surface, and **not** a static/anchored popover or modal sheet). This has been the intended model from day one; any "popover" wording elsewhere in the docs is stale and must be read as this floating panel. Pages open in the main detail pane. (A separate standalone-window preview is queued behind the cross-feature PreviewWindow primitive; not yet wired.) 
 
 #### Document Map
 
