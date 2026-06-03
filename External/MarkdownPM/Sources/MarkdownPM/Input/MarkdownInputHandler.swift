@@ -187,17 +187,11 @@ enum MarkdownInputHandler {
         textView: NSTextView,
         affectedCharRange: NSRange,
         replacementString: String?,
-        blockLatexTokens: [MarkdownToken]? = nil
+        blockLatexTokens: [MarkdownToken]
     ) -> Bool {
-        let resolvedTokens: [MarkdownToken]
-        if let blockLatexTokens {
-            resolvedTokens = blockLatexTokens
-        } else {
-            resolvedTokens = MarkdownTokenizer.parseTokens(in: textView.string).filter { $0.kind == .blockLatex }
-        }
         return handleBlockAutoWrap(
             textView: textView, affectedCharRange: affectedCharRange,
-            replacementString: replacementString, tokens: resolvedTokens)
+            replacementString: replacementString, tokens: blockLatexTokens)
     }
 
     /// Ensures image embeds (![[...]]) stay on their own line by automatically inserting newlines.
@@ -205,17 +199,11 @@ enum MarkdownInputHandler {
         textView: NSTextView,
         affectedCharRange: NSRange,
         replacementString: String?,
-        imageEmbedTokens: [MarkdownToken]? = nil
+        imageEmbedTokens: [MarkdownToken]
     ) -> Bool {
-        let resolvedTokens: [MarkdownToken]
-        if let imageEmbedTokens {
-            resolvedTokens = imageEmbedTokens
-        } else {
-            resolvedTokens = MarkdownTokenizer.parseTokens(in: textView.string).filter { $0.kind == .imageEmbed }
-        }
         return handleBlockAutoWrap(
             textView: textView, affectedCharRange: affectedCharRange,
-            replacementString: replacementString, tokens: resolvedTokens)
+            replacementString: replacementString, tokens: imageEmbedTokens)
     }
 
     /// Shared auto-wrap logic: ensures a block-level token stays on its own line.
