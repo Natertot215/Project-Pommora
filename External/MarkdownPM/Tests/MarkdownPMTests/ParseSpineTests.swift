@@ -157,4 +157,62 @@ import Testing
         #expect(ranges.count == 1)
         #expect(ranges.first?.length ?? 0 > 0)
     }
+
+    /// #9 contract — UNFOLDED state: exactly ONE Apple `Document(parsing:)`
+    /// serves a restyle. The single spine parse lives in `parsedDocument(for:)`;
+    /// the supplemental styler reads that cached Document and parses nothing.
+    ///
+    /// Proven via the READ-ONLY path (3.1/3.2/3.3-safe), NOT `textDidChange`:
+    /// driving the edit/restyle pipeline SIGTRAPs on a windowless programmatic
+    /// NSTextView (Suite E + Tasks 3.2/3.5). Text is backtick-free so no
+    /// code-block detection parse is triggered. Was 1 before #9; the bar is now
+    /// flat at 1 for the unfolded path.
+    @Test("Unfolded edit triggers exactly one Apple Document parse (#9)")
+    func unfoldedEditParsesOnce() {
+        let text = "# A\n\n> quote\n\nbody text here\n"
+        let (coordinator, _) = makeCoordinator(text: text)
+
+        AppleDocumentParseProbe.reset()
+        let parsed = coordinator.parsedDocument(for: text)  // the single spine parse
+        #expect(AppleDocumentParseProbe.count == 1)
+
+        // Supplemental styler reads the cached Document → adds ZERO parses.
+        _ = AppleASTSupplementalStyler.styleAttributes(
+            text: text,
+            document: parsed.appleDocument,
+            baseFont: NSFont.systemFont(ofSize: 15),
+            theme: .default
+        )
+        #expect(AppleDocumentParseProbe.count == 1)
+    }
+
+    /// #9 contract — FOLDED state: exactly ONE Apple `Document(parsing:)` serves
+    /// a restyle even when headings are folded. Pre-#9 the folded path parsed
+    /// TWICE (supplemental styler + syncHeadingFolding each ran their own
+    /// `Document(parsing:)`); the spine collapses both to a single cached parse.
+    ///
+    /// Order matters: reset → prime `parsedDocument` (the one counted spine
+    /// parse) → `syncHeadingFolding`, which reads `parsedDocument(for: text)
+    /// .appleDocument` for the SAME text — a cache hit that adds ZERO parses.
+    /// `syncHeadingFolding` is harness-safe (proven by `headingFoldUsesCached
+    /// Document`, Task 3.3); no edit/restyle pipeline is fired (no SIGTRAP).
+    @Test("Folded edit triggers exactly one Apple Document parse (#9 folded drop 2→1)")
+    func foldedEditParsesOnce() {
+        let text = "# A\nunder a\n\n# B\nunder b\n"
+        let (coordinator, textView) = makeCoordinator(text: text)
+        coordinator.foldedHeadings = ["# A"]
+        guard let ts = textView.textStorage else {
+            Issue.record("no text storage")
+            return
+        }
+
+        AppleDocumentParseProbe.reset()
+        _ = coordinator.parsedDocument(for: text)  // the single spine parse
+        #expect(AppleDocumentParseProbe.count == 1)
+
+        // syncHeadingFolding reads the cached Document for the same text →
+        // cache hit, ZERO additional parses. Folded path is now flat at 1.
+        coordinator.syncHeadingFolding(in: ts, textView: textView)
+        #expect(AppleDocumentParseProbe.count == 1)
+    }
 }
