@@ -263,13 +263,15 @@ enum Filesystem {
         return contents.filter(predicate)
     }
 
-    /// Returns immediate child folders (not files).
-    static func childFolders(of folderURL: URL) throws -> [URL] {
+    /// Returns immediate child folders (not files). Folders matching `folderFilter`
+    /// are excluded from the result.
+    static func childFolders(of folderURL: URL, folderFilter: FolderFilter = .empty) throws -> [URL] {
         try children(of: folderURL) { url in
             var isDir: ObjCBool = false
             FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
             return isDir.boolValue
         }
+        .filter { !folderFilter.isExcluded($0) }
     }
 
     /// Top-level scan of the nexus root for adoption-eligible Type folders:
@@ -306,6 +308,7 @@ enum Filesystem {
     static func descendantFiles(
         of folderURL: URL,
         excluding excludedFolderURLs: Set<URL> = [],
+        folderFilter: FolderFilter = .empty,
         where predicate: (URL) -> Bool
     ) throws -> [URL] {
         guard folderExists(at: folderURL) else { return [] }
@@ -335,7 +338,7 @@ enum Filesystem {
                 let isExcludedByName =
                     name.hasPrefix(".") || name.hasPrefix("_") || name == "node_modules"
                 let isExcludedByPath = excludedPaths.contains(url.standardizedFileURL.path)
-                if isExcludedByName || isExcludedByPath {
+                if isExcludedByName || isExcludedByPath || folderFilter.isExcluded(url) {
                     enumerator.skipDescendants()
                 }
                 continue
