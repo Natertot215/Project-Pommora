@@ -259,4 +259,55 @@ struct FoldableHeadingsTests {
         let reconciled = MarkdownDetection.reconcileFoldedHeadings([], in: body)
         #expect(reconciled.isEmpty)
     }
+
+    // MARK: - [N] ordinal disambiguation + CRLF (Phase-2 characterization extension)
+
+    @Test("Duplicate-text headings get [N] ordinal keys in document order")
+    func duplicateHeadingsOrdinal() {
+        let text = "## Tasks\na\n## Tasks\nb\n## Tasks\nc\n"
+        let h = MarkdownDetection.foldableHeadings(in: text)
+        #expect(h.count == 3)
+        #expect(h[0].key == "## Tasks")
+        #expect(h[1].key == "## Tasks [2]")
+        #expect(h[2].key == "## Tasks [3]")
+    }
+
+    @Test("CRLF and LF produce identical fold keys (trailing-newline stripped)")
+    func crlfKeyEquivalence() {
+        let lf = MarkdownDetection.foldableHeadings(in: "## Foo\nbody\n")
+        let crlf = MarkdownDetection.foldableHeadings(in: "## Foo\r\nbody\r\n")
+        #expect(lf.first?.key == "## Foo")
+        #expect(crlf.first?.key == "## Foo")
+        #expect(lf.first?.key == crlf.first?.key)
+    }
+
+    @Test("contentRange ends at the next equal-or-higher heading, not a deeper one")
+    func contentRangeStopsAtSameLevel() {
+        // ## A  (content includes the ### B subsection, stops at ## C)
+        let text = "## A\nbody\n### B\nsub\n## C\ntail\n"
+        let h = MarkdownDetection.foldableHeadings(in: text)
+        let a = h.first { $0.key == "## A" }!
+        let ns = text as NSString
+        let cStart = ns.range(of: "## C").location
+        #expect(NSMaxRange(a.contentRange) == cStart)
+    }
+
+    @Test("reconcileFoldedHeadings drops keys whose heading was renamed")
+    func reconcileDropsOrphans() {
+        let body = "## Kept\nx\n"
+        let folded: Set<String> = ["## Kept", "## Gone"]
+        let kept = MarkdownDetection.reconcileFoldedHeadings(folded, in: body)
+        #expect(kept == ["## Kept"])
+    }
+
+    @Test("Heading on a multibyte line keys + ranges stay UTF-16 consistent")
+    func multibyteHeadingKey() {
+        let text = "## 日本語\nbody\n"
+        let h = MarkdownDetection.foldableHeadings(in: text)
+        #expect(h.count == 1)
+        #expect(h[0].key == "## 日本語")
+        // headingRange covers the full heading line in UTF-16 units.
+        let ns = text as NSString
+        #expect(h[0].headingRange == ns.lineRange(for: NSRange(location: 0, length: 0)))
+    }
 }
