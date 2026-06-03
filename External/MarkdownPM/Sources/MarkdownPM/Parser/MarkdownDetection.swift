@@ -406,31 +406,4 @@ public enum MarkdownDetection {
         }
         return false
     }
-
-    static func isInsideInlineLatex(range: NSRange, in text: String) -> Bool {
-        let latexTokens = MarkdownTokenizer.parseTokens(in: text).filter { $0.kind == .inlineLatex }
-        return isInsideInlineLatex(range: range, latexTokens: latexTokens)
-    }
-
-    static func isInsideInlineLatex(location: Int, in text: String) -> Bool {
-        isInsideInlineLatex(range: NSRange(location: location, length: 0), in: text)
-    }
-
-    static func isInsideInlineLatex(range: NSRange, latexTokens: [MarkdownToken]) -> Bool {
-        guard !latexTokens.isEmpty else { return false }
-        for token in latexTokens {
-            let start = token.range.location
-            let end = start + token.range.length
-            if range.length == 0 {
-                if range.location >= start && range.location <= end { return true }
-            } else {
-                if range.location < end && range.location + range.length > start { return true }
-            }
-        }
-        return false
-    }
-
-    static func isInsideInlineLatex(location: Int, latexTokens: [MarkdownToken]) -> Bool {
-        isInsideInlineLatex(range: NSRange(location: location, length: 0), latexTokens: latexTokens)
-    }
 }
