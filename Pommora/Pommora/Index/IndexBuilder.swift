@@ -144,9 +144,12 @@ final class IndexBuilder {
 
     /// Walks `nexus`'s on-disk content and populates `index`'s tables.
     /// Throws on filesystem read failure or DB write failure.
-    static func populate(index: PommoraIndex, from nexus: Nexus) async throws {
+    /// `filter` prunes excluded user folders from page-type and item-type
+    /// discovery; defaults to `.empty` (no exclusions) so existing callers
+    /// and tests that don't need filtering are unaffected.
+    static func populate(index: PommoraIndex, from nexus: Nexus, filter: FolderFilter = .empty) async throws {
         // Phase 1: Walk the filesystem on the @MainActor (domain types are @MainActor-isolated).
-        let snapshot = buildSnapshot(from: nexus)
+        let snapshot = buildSnapshot(from: nexus, filter: filter)
 
         // Phase 2: Write collected data into the DB inside a @Sendable closure.
         // No @MainActor calls happen inside here — all data is pre-collected in `snapshot`.
@@ -164,10 +167,10 @@ final class IndexBuilder {
 
     // MARK: - Phase 1: Filesystem walk (runs on @MainActor)
 
-    private static func buildSnapshot(from nexus: Nexus) -> NexusSnapshot {
+    private static func buildSnapshot(from nexus: Nexus, filter: FolderFilter = .empty) -> NexusSnapshot {
         NexusSnapshot(
-            pageTypes: collectPageTypes(from: nexus),
-            itemTypes: collectItemTypes(from: nexus),
+            pageTypes: collectPageTypes(from: nexus, filter: filter),
+            itemTypes: collectItemTypes(from: nexus, filter: filter),
             tasks: collectTasks(from: nexus),
             taskSchema: collectTaskSchema(from: nexus),
             events: collectEvents(from: nexus),
@@ -176,9 +179,9 @@ final class IndexBuilder {
         )
     }
 
-    private static func collectPageTypes(from nexus: Nexus) -> [PageTypeSnapshot] {
+    private static func collectPageTypes(from nexus: Nexus, filter: FolderFilter = .empty) -> [PageTypeSnapshot] {
         let root = nexus.rootURL
-        let topLevel = (try? Filesystem.childFolders(of: root)) ?? []
+        let topLevel = (try? Filesystem.childFolders(of: root, folderFilter: filter)) ?? []
         var result: [PageTypeSnapshot] = []
 
         for folder in topLevel
@@ -189,7 +192,7 @@ final class IndexBuilder {
             else { continue }
 
             // Collections
-            let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
+            let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
             var collections: [PageCollectionSnapshot] = []
             for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
                 let collURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
@@ -249,9 +252,9 @@ final class IndexBuilder {
         }
     }
 
-    private static func collectItemTypes(from nexus: Nexus) -> [ItemTypeSnapshot] {
+    private static func collectItemTypes(from nexus: Nexus, filter: FolderFilter = .empty) -> [ItemTypeSnapshot] {
         let root = nexus.rootURL
-        let topLevel = (try? Filesystem.childFolders(of: root)) ?? []
+        let topLevel = (try? Filesystem.childFolders(of: root, folderFilter: filter)) ?? []
         var result: [ItemTypeSnapshot] = []
 
         for folder in topLevel
@@ -261,7 +264,7 @@ final class IndexBuilder {
                 let itemType = try? ItemType.load(from: metaURL)
             else { continue }
 
-            let subFolders = (try? Filesystem.childFolders(of: folder)) ?? []
+            let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
             var collections: [ItemCollectionSnapshot] = []
             for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
                 let collURL = sub.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)

@@ -470,7 +470,8 @@ final class NexusManager {
             if needsRebuild || forceRebuild {
                 isIndexing = true
                 defer { isIndexing = false }
-                try await IndexBuilder.populate(index: idx, from: nexus)
+                let filter = FolderFilter.load(for: nexus)
+                try await IndexBuilder.populate(index: idx, from: nexus, filter: filter)
                 // Stamp the version ONLY after a successful populate, so a
                 // thrown/rolled-back rebuild leaves the version absent and the
                 // next launch retries instead of locking in an empty index.
