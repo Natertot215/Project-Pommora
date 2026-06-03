@@ -190,6 +190,41 @@ import Testing
         #expect(!names.contains("Archive"))
     }
 
+    // MARK: - Convention skips + TopicManager exemption
+
+    /// (a) Built-in convention skips (.obsidian, _internal, node_modules) work with
+    ///     an empty user exclusion list — they are never surfaced as Page Types.
+    /// (b) A root-level "topics" exclusion must NOT suppress the .nexus/topics
+    ///     Contexts read — TopicManager.loadAll() is the exempt internal path that
+    ///     bypasses FolderFilter entirely.
+    @Test func conventionsHoldAndContextsSurviveTopicsExclusion() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // (a) Convention skips hold with an empty user list.
+        for name in [".obsidian", "_internal", "node_modules"] {
+            try FileManager.default.createDirectory(
+                at: nexus.rootURL.appendingPathComponent(name), withIntermediateDirectories: true)
+        }
+        try makePageType("Notes", id: "PT_NOTES", in: nexus)
+        let ptm = PageTypeManager(nexus: nexus)
+        await ptm.loadAll(filter: FolderFilter.load(for: nexus))  // empty user exclusion list
+        #expect(ptm.types.contains { $0.title == "Notes" })
+        #expect(!ptm.types.contains { $0.title == ".obsidian" })
+        #expect(!ptm.types.contains { $0.title == "_internal" })
+        #expect(!ptm.types.contains { $0.title == "node_modules" })
+
+        // (b) A root-level "topics" exclusion must NOT suppress TopicManager.loadAll().
+        let tm = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        try await tm.createTopic(name: "Research", parents: [], icon: nil)
+
+        try setExcluded(["topics"], in: nexus)
+
+        let tm2 = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        await tm2.loadAll()  // exempt — no filter param
+        #expect(tm2.topics.contains { $0.title == "Research" })
+    }
+
     // MARK: - NexusAdopter.autoTagMissingSidecars exclusion
 
     /// autoTagMissingSidecars must NOT write a sidecar or stamp Class frontmatter
