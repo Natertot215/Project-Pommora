@@ -56,6 +56,12 @@ These are NOT behavior divergences — they are corrections execution surfaced a
 
 - D-HEAD-2 heading sizes were claimed-but-not-pinned → `HeadingSizeCorpus` added (7 tests). The two rule-of-3 emphasis tests were presence-only → tightened to exact ranges (Phase 4's reconstruction target).
 
+**Phase-3 review follow-ups (Phase 3.5):**
+
+- `LineOffsetIndex` is now memoized INTO the spine (`ParsedDocument.lineIndex`, built once via `LineOffsetIndexProbe.make`) alongside the cached Document — the styler + heading-fold reuse one O(n) index build, not one each (preps Phase 4's inline walk).
+- The parse-count proof is scoped to the **whole-document spine parse**; per-fragment single-line parses (`isThematicBreakLine` / `isHeadingLine` / `hasBlockquote` / `foldableHeadings(in: String)`) are an accepted, uncounted, cheap residual — NOT routed through any probe.
+- New `ParseSpineTests.combinedConsumersShareSingleSpine` pins "2→1" end-to-end: styler + `syncHeadingFolding` off one prime → `AppleDocumentParseProbe.count == 1` AND `LineOffsetIndexProbe.count == 1`.
+
 **Carry-forwards for Phases 4-6:**
 
 - **Phase 4:** the rule-of-3 exact ranges (`ruleOfThree_a`: bold(0,11)+italic(5,10); `ruleOfThree_b`: italic(0,10)+bold(4,11)) are the width-subtraction reconstruction target. Add a **multi-backtick inline-code divergence row** when Phase 4 moves inline-code locating to the Apple AST (Apple's range includes the backticks). Delete `MarkdownTokenizer+Emphasis.swift` (173 lines) only behind a green adversarial emphasis corpus.

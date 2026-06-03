@@ -2,11 +2,20 @@
 //  AppleDocumentParseProbe.swift
 //  MarkdownPM
 //
-//  Behavior-neutral instrumentation: a single chokepoint for the two
-//  uncached whole-document Apple parses (AppleASTSupplementalStyler +
-//  syncHeadingFolding). Counts invocations so Phase 2 can pin the current
-//  parse count and Phase 3 can assert the reduction. The Phase-3 cached
-//  spine replaces the call sites; this probe stays as the regression gate.
+//  Behavior-neutral instrumentation: a single chokepoint for the
+//  whole-document Apple spine parse — the one feeding both whole-document
+//  consumers (AppleASTSupplementalStyler + syncHeadingFolding). Counts
+//  invocations so Phase 2 can pin the count and Phase 3 can assert the
+//  reduction. The Phase-3 cached spine replaces the call sites; this probe
+//  stays as the regression gate.
+//
+//  SCOPE: this counts ONLY the whole-document spine parse. Per-fragment
+//  single-line `Document(parsing:)` calls elsewhere — MarkdownDetection
+//  .isThematicBreakLine / .isHeadingLine (Setext suppression) /
+//  foldableHeadings(in: String), and MarkdownTextLayoutFragment's blockquote
+//  probe — are intentionally NOT routed through this probe: they're cheap
+//  single-line parses, not whole-document passes, and are an accepted,
+//  uncounted residual.
 //
 import Foundation
 import Markdown
