@@ -1,5 +1,5 @@
 import AppKit
-import MarkdownEngine
+import MarkdownPM
 import SwiftUI
 
 /// The Page editor surface: editable title banner above the body editor.
@@ -13,8 +13,8 @@ import SwiftUI
 /// updates the in-memory caches. The viewModel.page reference is refreshed
 /// with the post-rename PageMeta so subsequent saves hit the new URL.
 ///
-/// The body editor is `NativeTextViewWrapper` from the locally-vendored
-/// `MarkdownEngine` package (External/MarkdownEngine/). Every keystroke
+/// The body editor is `MarkdownPMEditor` from the in-tree MarkdownPM
+/// package (External/MarkdownEngine/). Every keystroke
 /// updates `viewModel.body` via Binding; `didSet` fires `scheduleSave()`
 /// which debounces 300ms then writes via `ContentManager.updatePage` →
 /// `PageFile.save` → atomic write. Frontmatter is preserved verbatim across
@@ -207,7 +207,7 @@ struct PageEditorView: View {
             // change with the normalized scroll Y (0 at rest, positive
             // when scrolled down). We mirror it to `scrollOffset` so the
             // overlay can track it via `.offset`.
-            NativeTextViewWrapper(
+            MarkdownPMEditor(
                 text: $viewModel.body,
                 foldedHeadings: $viewModel.foldedHeadings,
                 configuration: Self.pommoraEditorConfiguration,
@@ -348,8 +348,8 @@ struct PageEditorView: View {
     /// above the scroll overscroll region. Trailing whitespace below the
     /// final body line is acceptable and matches the visual treatment most
     /// long-form editors use.
-    private static let pommoraEditorConfiguration: MarkdownEditorConfiguration = {
-        var config = MarkdownEditorConfiguration.default
+    private static let pommoraEditorConfiguration: MarkdownPMConfiguration = {
+        var config = MarkdownPMConfiguration.default
         config.textInsets = TextInsets(horizontal: 24, vertical: titleAreaHeight)
         return config
     }()

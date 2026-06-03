@@ -19,9 +19,9 @@ struct MarkdownLists {
         let len = min(range.length, max(0, maxLen))
         let safeRange = NSRange(location: loc, length: len)
 
-        if let coord = textView.delegate as? NativeTextViewWrapper.Coordinator { coord.isProgrammaticEdit = true }
+        if let coord = textView.delegate as? MarkdownPMEditor.Coordinator { coord.isProgrammaticEdit = true }
         defer {
-            if let coord = textView.delegate as? NativeTextViewWrapper.Coordinator { coord.isProgrammaticEdit = false }
+            if let coord = textView.delegate as? MarkdownPMEditor.Coordinator { coord.isProgrammaticEdit = false }
         }
 
         guard textView.shouldChangeText(in: safeRange, replacementString: string) else { return }
@@ -233,7 +233,7 @@ struct MarkdownLists {
         listsEnabled: Bool,
         defaultLineHeight: CGFloat,
         defaultParagraphSpacing: CGFloat,
-        configuration: MarkdownEditorConfiguration = .default
+        configuration: MarkdownPMConfiguration = .default
     ) -> [(range: NSRange, attributes: [NSAttributedString.Key: Any])] {
         var attributesList: [(range: NSRange, attributes: [NSAttributedString.Key: Any])] = []
         guard listsEnabled else { return attributesList }
@@ -628,7 +628,7 @@ struct MarkdownLists {
                 {
                     let ws = (currentLine as NSString).substring(with: wsMatch.range)
                     let level = MarkdownLists.indentLevel(from: ws)
-                    if level >= MarkdownEditorConfiguration.default.lists.maximumNestingLevel {
+                    if level >= MarkdownPMConfiguration.default.lists.maximumNestingLevel {
                         return false
                     }
                 }
@@ -645,7 +645,7 @@ struct MarkdownLists {
                 {
                     let ws = (currentLine as NSString).substring(with: wsMatch.range)
                     let level = MarkdownLists.indentLevel(from: ws)
-                    if level >= MarkdownEditorConfiguration.default.lists.maximumNestingLevel { return false }
+                    if level >= MarkdownPMConfiguration.default.lists.maximumNestingLevel { return false }
                 }
                 MarkdownLists.performEdit(
                     textView, replace: NSRange(location: currentLineRange.location, length: 0), with: "\t")

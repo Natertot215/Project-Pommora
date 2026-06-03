@@ -24,16 +24,16 @@ final class NativeTextView: NSTextView {
     var suppressAutoRevealOnce: Bool = false
 
     // MARK: Configuration
-    var configuration: MarkdownEditorConfiguration = .default {
+    var configuration: MarkdownPMConfiguration = .default {
         didSet {
             overscrollPercent = configuration.overscroll.percent
             maxOverscrollPoints = configuration.overscroll.maxPoints
             minOverscrollPoints = configuration.overscroll.minPoints
         }
     }
-    var overscrollPercent: CGFloat = MarkdownEditorConfiguration.default.overscroll.percent
-    var maxOverscrollPoints: CGFloat = MarkdownEditorConfiguration.default.overscroll.maxPoints
-    var minOverscrollPoints: CGFloat = MarkdownEditorConfiguration.default.overscroll.minPoints
+    var overscrollPercent: CGFloat = MarkdownPMConfiguration.default.overscroll.percent
+    var maxOverscrollPoints: CGFloat = MarkdownPMConfiguration.default.overscroll.maxPoints
+    var minOverscrollPoints: CGFloat = MarkdownPMConfiguration.default.overscroll.minPoints
 
     // MARK: Editor wiring
     var onPasteImage: ((NSPasteboard) -> String?)?

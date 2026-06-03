@@ -16,7 +16,7 @@
 //    1. `rebuildTextStorageAndStyle` (initial-load + full rebuild) and
 //       `restyleTextView` (per-edit hot path) call `syncHeadingFolding`
 //       after `syncHRVisibility`.
-//    2. `NativeTextViewWrapper.updateNSView` calls `applyFoldStateIfChanged`
+//    2. `MarkdownPMEditor.updateNSView` calls `applyFoldStateIfChanged`
 //       inside its text-unchanged early-return so fold-only updates
 //       (chevron clicks) get picked up.
 //

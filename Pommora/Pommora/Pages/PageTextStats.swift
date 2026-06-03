@@ -1,5 +1,5 @@
 import Foundation
-import MarkdownEngine
+import MarkdownPM
 
 /// Document statistics for the Page stats footer.
 ///

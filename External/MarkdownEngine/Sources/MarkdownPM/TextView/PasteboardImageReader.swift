@@ -15,7 +15,7 @@ import UniformTypeIdentifiers
 ///
 /// Used internally when the user pastes into the editor and externally by
 /// embedders that want to validate a pasteboard before invoking
-/// ``NativeTextViewWrapper/onPasteImage``.
+/// ``MarkdownPMEditor/onPasteImage``.
 public enum PasteboardImageReader {
     /// Returns `true` when the pasteboard carries either an image file URL
     /// or raw image data the engine can decode.

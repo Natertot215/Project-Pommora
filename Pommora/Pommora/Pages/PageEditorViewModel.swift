@@ -1,5 +1,5 @@
 import Foundation
-import MarkdownEngine
+import MarkdownPM
 import Observation
 
 /// Owns the editable body of a Page. Debounces writes to disk (300ms),

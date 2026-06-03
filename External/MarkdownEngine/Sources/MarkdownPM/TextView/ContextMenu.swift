@@ -10,7 +10,7 @@
 import Cocoa
 import SwiftUI
 
-extension NativeTextViewWrapper.Coordinator {
+extension MarkdownPMEditor.Coordinator {
     public func textView(
         _ textView: NSTextView,
         menu: NSMenu,
@@ -435,7 +435,7 @@ extension NativeTextViewWrapper.Coordinator {
 }
 
 // MARK: - Menu Item Validation
-extension NativeTextViewWrapper.Coordinator: NSMenuItemValidation {
+extension MarkdownPMEditor.Coordinator: NSMenuItemValidation {
     public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let tv = textView else { return true }
         let nsText = tv.string as NSString

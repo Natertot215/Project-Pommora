@@ -1,6 +1,6 @@
 //
 //  NativeTextViewWrapper.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Created by Luca Chen on 18.02.26.
 //
@@ -13,14 +13,14 @@
 import SwiftUI
 import AppKit
 
-/// SwiftUI bridge for MarkdownEngine's AppKit-backed editor.
+/// SwiftUI bridge for MarkdownPM's AppKit-backed editor.
 ///
 /// Wraps a TextKit 2 `NSTextView` inside an `NSScrollView` and exposes a
 /// SwiftUI-friendly API of bindings (text, link state, replacement requests)
 /// and callback closures (link clicks, caret movement, inline-selection and
 /// code-block change notifications). All visual styling and external
-/// dependencies are routed through ``MarkdownEditorConfiguration``.
-public struct NativeTextViewWrapper: NSViewRepresentable {
+/// dependencies are routed through ``MarkdownPMConfiguration``.
+public struct MarkdownPMEditor: NSViewRepresentable {
     public typealias Coordinator = NativeTextViewCoordinator
     public typealias NSViewType = NSScrollView
 
@@ -43,11 +43,11 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
     /// The full editor configuration (theme + services + style toggles). Engine
     /// embedders construct this themselves and pass it in; the wrapper does
     /// not read UserDefaults or know about app-specific colors/services.
-    public var configuration: MarkdownEditorConfiguration
+    public var configuration: MarkdownPMConfiguration
     /// PostScript name of the base font used for body text.
     public var fontName: String
     /// Base font size in points. Headings, code blocks, and LaTeX are scaled
-    /// off this value via ``MarkdownEditorConfiguration``.
+    /// off this value via ``MarkdownPMConfiguration``.
     public var fontSize: CGFloat
     /// Opaque document identifier. Changing this invalidates undo history
     /// and resets per-document editor state. Set a stable, unique value
@@ -87,7 +87,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         isWikiLinkActive: Binding<Bool> = .constant(false),
         pendingInlineReplacement: Binding<InlineReplacementRequest?> = .constant(nil),
         foldedHeadings: Binding<Set<String>> = .constant([]),
-        configuration: MarkdownEditorConfiguration = .default,
+        configuration: MarkdownPMConfiguration = .default,
         fontName: String = "SF Pro",
         fontSize: CGFloat = 16,
         documentId: String = "default",

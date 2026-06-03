@@ -10,7 +10,7 @@
 import AppKit
 import SwiftUI
 
-/// `NSTextViewDelegate` that bridges ``NativeTextViewWrapper`` and the
+/// `NSTextViewDelegate` that bridges ``MarkdownPMEditor`` and the
 /// underlying `NSTextView`.
 ///
 /// The coordinator is created automatically by SwiftUI; embedders never
@@ -38,7 +38,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     /// `onFoldedHeadingsChanged` is set on every `updateNSView` to push
     /// click-handler mutations BACK to viewModel through a fresh binding.
     var foldedHeadings: Set<String> = []
-    /// Set by `NativeTextViewWrapper.updateNSView` on every call so the
+    /// Set by `MarkdownPMEditor.updateNSView` on every call so the
     /// callback always closes over the CURRENT render's `$foldedHeadings`
     /// binding (which the @Bindable proxy is freshly attached to). Click
     /// handler calls this after mutating `foldedHeadings` to propagate the
@@ -46,7 +46,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var onFoldedHeadingsChanged: ((Set<String>) -> Void)?
     var fontName: String
     var fontSize: CGFloat
-    var configuration: MarkdownEditorConfiguration = .default {
+    var configuration: MarkdownPMConfiguration = .default {
         didSet {
             subscribeToBusNotifications(replacing: oldValue.services.bus)
             subscribeToAppearanceNotification()

@@ -1,5 +1,5 @@
 import Foundation
-import MarkdownEngine
+import MarkdownPM
 import Testing
 
 /// Tests for `MarkdownDetection.foldableHeadings` — the AST walker that pairs

@@ -1,6 +1,6 @@
 //
 //  MarkdownEditorConfiguration.swift
-//  MarkdownEngine
+//  MarkdownPM
 //
 //  Created by Luca Chen on 16.03.26.
 //
@@ -24,7 +24,7 @@ import Foundation
 /// orthogonal feature areas (markers, code blocks, lists, …), each group
 /// owns the values that belong together. Default values are the production
 /// defaults used by the Nodes app and have been chosen empirically.
-public struct MarkdownEditorConfiguration: Sendable {
+public struct MarkdownPMConfiguration: Sendable {
 
     public var theme: MarkdownEditorTheme
     public var services: MarkdownEditorServices
@@ -85,7 +85,7 @@ public struct MarkdownEditorConfiguration: Sendable {
         self.textInsets = textInsets
     }
 
-    public static let `default` = MarkdownEditorConfiguration()
+    public static let `default` = MarkdownPMConfiguration()
 }
 
 // MARK: - Scroll bars

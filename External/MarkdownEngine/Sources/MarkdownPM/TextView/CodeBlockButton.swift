@@ -12,7 +12,7 @@ import SwiftUI
 /// the editor.
 ///
 /// Delivered to embedders through
-/// ``NativeTextViewWrapper/onCodeBlockSelectionChange`` so they can overlay
+/// ``MarkdownPMEditor/onCodeBlockSelectionChange`` so they can overlay
 /// a copy button (see ``CodeBlockButton``) at the right place.
 public struct CodeBlockSelection: Identifiable, Sendable {
     /// Index of the source token, stable for as long as the block exists.

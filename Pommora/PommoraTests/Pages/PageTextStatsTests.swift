@@ -5,7 +5,7 @@
 
 import Foundation
 import Testing
-import MarkdownEngine
+import MarkdownPM
 
 @testable import Pommora
 

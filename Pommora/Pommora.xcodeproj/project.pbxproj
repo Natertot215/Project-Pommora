@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5A0E2D7B1F4C8A9D6B3E5012 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0E2D7B1F4C8A9D6B3E5013 /* Markdown */; };
-		5A0E2D7B1F4C8A9D6B3E5020 /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownEngine */; };
+		5A0E2D7B1F4C8A9D6B3E5020 /* MarkdownPM in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownPM */; };
 		8475654BCB51D0B18213B9EB /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 5E2C4C707607B1D3CB1123E0 /* Yams */; };
 		GRDB9E1F5A3B7C2D4608E5F6 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = GRDB7B9C4D2E1F3A6085C3D4 /* GRDB */; };
 		GRDB5F3E2A1B9C4D8076E5F6 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = GRDB4B8A2D6F1E3C5097B4A3 /* GRDB */; };
@@ -61,7 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A0E2D7B1F4C8A9D6B3E5012 /* Markdown in Frameworks */,
-				5A0E2D7B1F4C8A9D6B3E5020 /* MarkdownEngine in Frameworks */,
+				5A0E2D7B1F4C8A9D6B3E5020 /* MarkdownPM in Frameworks */,
 				8475654BCB51D0B18213B9EB /* Yams in Frameworks */,
 				GRDB9E1F5A3B7C2D4608E5F6 /* GRDB in Frameworks */,
 			);
@@ -126,7 +126,7 @@
 			name = Pommora;
 			packageProductDependencies = (
 				5A0E2D7B1F4C8A9D6B3E5013 /* Markdown */,
-				5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownEngine */,
+				5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownPM */,
 				5E2C4C707607B1D3CB1123E0 /* Yams */,
 				GRDB7B9C4D2E1F3A6085C3D4 /* GRDB */,
 			);
@@ -647,10 +647,10 @@
 			package = 5A0E2D7B1F4C8A9D6B3E5014 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
 		};
-		5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownEngine */ = {
+		5A0E2D7B1F4C8A9D6B3E5021 /* MarkdownPM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0E2D7B1F4C8A9D6B3E5022 /* XCLocalSwiftPackageReference "../External/MarkdownEngine" */;
-			productName = MarkdownEngine;
+			productName = MarkdownPM;
 		};
 		5E2C4C707607B1D3CB1123E0 /* Yams */ = {
 			isa = XCSwiftPackageProductDependency;

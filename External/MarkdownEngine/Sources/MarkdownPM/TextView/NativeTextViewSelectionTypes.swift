@@ -4,7 +4,7 @@
 //
 //  Created by Luca Chen on 16.03.26.
 //
-//  Public selection / replacement value types exposed by NativeTextViewWrapper.
+//  Public selection / replacement value types exposed by MarkdownPMEditor.
 //
 
 import Foundation
@@ -37,7 +37,7 @@ public enum InlineSelectionKind: Sendable {
 }
 
 /// Snapshot of the inline token the caret is inside, delivered through
-/// ``NativeTextViewWrapper/onInlineSelectionChange``.
+/// ``MarkdownPMEditor/onInlineSelectionChange``.
 public struct InlineSelectionState: Sendable {
     /// Whether the active token is a wiki-link or an image embed.
     public let kind: InlineSelectionKind
@@ -53,7 +53,7 @@ public struct InlineSelectionState: Sendable {
 /// Request to replace an inline token's source with a new storage fragment.
 ///
 /// Embedders push one of these into
-/// ``NativeTextViewWrapper/pendingInlineReplacement`` to commit the result of
+/// ``MarkdownPMEditor/pendingInlineReplacement`` to commit the result of
 /// a rename / autocomplete UI. The engine applies the replacement, restores
 /// the caret past it, and clears the binding.
 public struct InlineReplacementRequest: Sendable {

@@ -70,7 +70,7 @@ extension MarkdownStyler {
         let hiddenMarkerFont: NSFont
         let inlineMarkerFont: NSFont
         let latexMarkerFont: NSFont
-        let configuration: MarkdownEditorConfiguration
+        let configuration: MarkdownPMConfiguration
 
         var services: MarkdownEditorServices { configuration.services }
     }
@@ -93,7 +93,7 @@ enum MarkdownStyler {
         wikiLinkIDProvider: (NSRange) -> String? = { _ in nil },
         precomputedTokens: [MarkdownToken]? = nil,
         scopedRanges: [NSRange]? = nil,
-        configuration: MarkdownEditorConfiguration = .default
+        configuration: MarkdownPMConfiguration = .default
     ) -> [StyledRange] {
         let tokens = precomputedTokens ?? MarkdownTokenizer.parseTokens(in: text)
         let nsText = text as NSString

@@ -226,7 +226,7 @@ public struct MarkdownEditorBus: Sendable {
 
 /// Bundles every external service the engine needs.
 ///
-/// Held by ``MarkdownEditorConfiguration/services``. The engine reads its
+/// Held by ``MarkdownPMConfiguration/services``. The engine reads its
 /// dependencies exclusively from this container; embedders inject the
 /// implementations they want.
 public struct MarkdownEditorServices: Sendable {

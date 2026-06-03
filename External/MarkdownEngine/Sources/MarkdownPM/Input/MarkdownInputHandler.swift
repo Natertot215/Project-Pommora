@@ -171,11 +171,11 @@ enum MarkdownInputHandler {
     private static func insertTextProgrammatically(
         _ textView: NSTextView, text: String, at range: NSRange, cursorAfter: Int
     ) {
-        if let coord = textView.delegate as? NativeTextViewWrapper.Coordinator {
+        if let coord = textView.delegate as? MarkdownPMEditor.Coordinator {
             coord.isProgrammaticEdit = true
         }
         textView.insertText(text, replacementRange: range)
-        if let coord = textView.delegate as? NativeTextViewWrapper.Coordinator {
+        if let coord = textView.delegate as? MarkdownPMEditor.Coordinator {
             coord.isProgrammaticEdit = false
         }
         textView.setSelectedRange(NSRange(location: cursorAfter, length: 0))

@@ -28,7 +28,7 @@ struct TextStylingService {
         fontName: String,
         fontSize: CGFloat,
         layoutBridge: LayoutBridge? = nil,
-        configuration: MarkdownEditorConfiguration = .default
+        configuration: MarkdownPMConfiguration = .default
     ) -> (font: NSFont, style: NSMutableParagraphStyle) {
         let baseFont = NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
         let defaultLineHeight = layoutBridgeDefaultLineHeight(for: baseFont, using: layoutBridge)
@@ -52,7 +52,7 @@ struct TextStylingService {
         activeTokenIndices: Set<Int>,
         wikiLinkIDProvider: (NSRange) -> String?,
         precomputedTokens: [MarkdownToken]? = nil,
-        configuration: MarkdownEditorConfiguration = .default
+        configuration: MarkdownPMConfiguration = .default
     ) {
         let paragraphs = normalize(paragraphCandidates)
 
