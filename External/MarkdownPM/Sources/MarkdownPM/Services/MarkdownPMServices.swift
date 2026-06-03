@@ -182,7 +182,7 @@ public struct NoOpLatexRenderer: LatexRenderer {
 /// The engine observes the request notifications it is configured with and
 /// posts the response notifications when supplied. Embedders that don't
 /// need cross-view formatting commands simply leave every name `nil`.
-public struct MarkdownEditorBus: Sendable {
+public struct MarkdownPMBus: Sendable {
     /// Posted by the host UI to request the engine apply bold styling.
     public var applyBoldRequest: Notification.Name?
     /// Posted by the host UI to request the engine apply italic styling.
@@ -219,7 +219,7 @@ public struct MarkdownEditorBus: Sendable {
         self.findClearHighlights = findClearHighlights
     }
 
-    public static let `default` = MarkdownEditorBus()
+    public static let `default` = MarkdownPMBus()
 }
 
 // MARK: - Services Container
@@ -234,14 +234,14 @@ public struct MarkdownPMServices: Sendable {
     public var images: any EmbeddedImageProvider
     public var syntaxHighlighter: any SyntaxHighlighter
     public var latex: any LatexRenderer
-    public var bus: MarkdownEditorBus
+    public var bus: MarkdownPMBus
 
     public init(
         wikiLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
         images: any EmbeddedImageProvider = NoOpEmbeddedImageProvider(),
         syntaxHighlighter: any SyntaxHighlighter = PlainTextSyntaxHighlighter(),
         latex: any LatexRenderer = NoOpLatexRenderer(),
-        bus: MarkdownEditorBus = .default
+        bus: MarkdownPMBus = .default
     ) {
         self.wikiLinks = wikiLinks
         self.images = images

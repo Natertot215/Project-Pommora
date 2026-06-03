@@ -232,7 +232,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     /// Subscribe to whichever bus notification names the current configuration
     /// supplies. Removes any previous subscriptions first so that swapping
     /// configurations at runtime doesn't double-fire handlers.
-    private func subscribeToBusNotifications(replacing previous: MarkdownEditorBus) {
+    private func subscribeToBusNotifications(replacing previous: MarkdownPMBus) {
         let center = NotificationCenter.default
 
         // Remove any prior subscriptions by their explicit name+selector pairs

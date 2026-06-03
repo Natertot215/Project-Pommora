@@ -20,7 +20,7 @@ import AppKit
 // MARK: - Find-in-document highlighting
 //
 // Find-in-document highlighting. The host app posts the bus notifications
-// registered in `MarkdownEditorBus.findScrollToRange` / `findClearHighlights`
+// registered in `MarkdownPMBus.findScrollToRange` / `findClearHighlights`
 // to drive the highlight overlay; this extension renders the highlights into
 // the underlying NSTextStorage and scrolls the current match into view.
 

@@ -11,7 +11,7 @@
 //  single override is enough to retheme the editor. Defaults map to system
 //  colors so light/dark-mode switching keeps working without extra code.
 //  Behavior/layout policy (scrollers, insets, overscroll, drag) lives with
-//  the top-level config in `MarkdownEditorConfiguration.swift`, NOT here —
+//  the top-level config in `MarkdownPMConfiguration.swift`, NOT here —
 //  this file is the visual layer only (decision D5.2-b / LD-24).
 //
 
