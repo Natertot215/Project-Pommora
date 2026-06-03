@@ -40,8 +40,10 @@ extension MarkdownPMEditor.Coordinator {
             formatItem.submenu = formatSubmenu
             customMenu.insertItem(formatItem, at: fontIndex)
 
-            // Heading submenu — H1 through H4. H5/H6 omitted because they
-            // render smaller than body text at typical Pommora font scales.
+            // Heading submenu — H1 through H4. H5/H6 are omitted as a UX
+            // choice: the menu surfaces the common heading levels, not the
+            // full GFM range. (H5/H6 are still typeable and styled — the
+            // heading scale runs to H6.)
             let headingItem = NSMenuItem(title: "Heading", action: nil, keyEquivalent: "")
             let headingSubmenu = NSMenu(title: "Heading")
             for level in 1...4 {
