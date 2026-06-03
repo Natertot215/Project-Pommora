@@ -162,7 +162,8 @@ final class PageContentManager {
         do {
             let pageFiles = try Filesystem.descendantFiles(
                 of: folder,
-                excluding: excludedCollectionFolders
+                excluding: excludedCollectionFolders,
+                folderFilter: FolderFilter.load(for: nexus)
             ) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }

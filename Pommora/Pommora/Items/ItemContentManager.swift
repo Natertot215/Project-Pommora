@@ -116,7 +116,8 @@ final class ItemContentManager {
         do {
             let itemFiles = try Filesystem.descendantFiles(
                 of: folder,
-                excluding: excludedCollectionFolders
+                excluding: excludedCollectionFolders,
+                folderFilter: FolderFilter.load(for: nexus)
             ) { url in
                 Self.isItemFile(url)
             }

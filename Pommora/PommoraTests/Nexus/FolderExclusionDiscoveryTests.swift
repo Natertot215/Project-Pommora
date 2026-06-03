@@ -120,4 +120,31 @@ import Testing
         #expect(cols.contains { $0.title == "Inbox" })
         #expect(!cols.contains { $0.title == "Archive" })
     }
+
+    // MARK: - PageContentManager type-root roll-up exclusion
+
+    @Test func excludedNestedFolderPagesDoNotRollUp() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        try makePageType("Notes", id: "PT_NOTES", in: nexus)
+
+        // A kept page directly in Notes/ — should remain visible.
+        let notesFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        try FixtureFiles.write("# kept", to: notesFolder.appendingPathComponent("kept.md"))
+
+        // A page inside an excluded nested sub-folder — must NOT roll up.
+        let scratch = notesFolder.appendingPathComponent("Scratch")
+        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        try FixtureFiles.write("# secret", to: scratch.appendingPathComponent("secret.md"))
+
+        try setExcluded(["Notes/Scratch"], in: nexus)
+
+        let pt = PageType(id: "PT_NOTES", title: "Notes", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let pcm = PageContentManager(nexus: nexus, contextProvider: { .empty })
+        await pcm.loadAll(for: pt)
+
+        let loaded = pcm.pages(in: pt)
+        #expect(loaded.contains { $0.title == "kept" })
+        #expect(!loaded.contains { $0.title == "secret" })
+    }
 }
