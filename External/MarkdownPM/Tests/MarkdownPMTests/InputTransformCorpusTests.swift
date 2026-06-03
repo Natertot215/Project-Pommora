@@ -10,25 +10,21 @@ import Testing
 /// transform) and auto-dash is forced OFF — both documented, neither tested as
 /// engine behavior here.
 ///
-/// HARNESS NOTE (plan-vs-reality adaptation — see report): the plan called for a
-/// delegate-backed host (a real `NativeTextViewCoordinator` set as `tv.delegate`)
-/// "mirroring the Phase-3 makeCoordinator harness" so the transforms would run
-/// against the production *cached* code-block query. That harness does not exist
-/// yet: (a) no `ParseSpineTests.makeCoordinator` has landed, and (b) the Phase-3
-/// rewire of `MarkdownListHandler.swift:381/:416` to a cached query has NOT
-/// happened — both call sites still read `textView.string` directly via
-/// `MarkdownDetection.isInsideCodeBlock(location:in:)`. So the delegate has zero
-/// effect on what these goldens characterize today; `handleInsertion` (358–898)
-/// references neither the coordinator nor any cache. Wiring a live coordinator as
-/// delegate instead fires its full restyle/selection pipeline on every
-/// `performEdit` (`didChangeText()` + `setSelectedRange`), which force-unwraps
-/// layout infrastructure a bare programmatic NSTextView lacks → SIGTRAP. The
-/// already-landed, passing input-transform suites (EnterContinuationTests,
-/// CheckboxCanonicalizationTests) use the same delegate-less bare host this one
-/// does. WHEN PHASE 3 LANDS the cached code-block path, re-wire `makeHost` to a
-/// delegate-backed coordinator and re-pin `dashSkipsInsideCode` against it — that
-/// re-pin is the guard the plan intended, deferred until the path it guards
-/// exists.
+/// HARNESS NOTE (Phase 3 / Task 3.5 landed): `MarkdownListHandler.handleInsertion`
+/// now routes the dash transforms' code carve-out through the coordinator
+/// delegate's CACHED parse (`coordinator?.isInsideCode(...) ?? false`) instead of
+/// re-reading `textView.string`. This suite keeps the delegate-less bare host —
+/// wiring a live `NativeTextViewCoordinator` as `tv.delegate` fires its full
+/// restyle/selection pipeline on every `performEdit` (`didChangeText()` +
+/// `setSelectedRange`), which force-unwraps layout infrastructure a bare
+/// programmatic NSTextView lacks → SIGTRAP (Suite E). The already-landed, passing
+/// input-transform suites (EnterContinuationTests, CheckboxCanonicalizationTests)
+/// use the same bare host. CONSEQUENCE: with no delegate, the carve-out coalesces
+/// to `false`, so the transform-level code-carve-out goldens can no longer pass
+/// honestly here — they were removed and the carve-out's DETECTION is re-pinned
+/// read-only in `ParseSpineTests.cacheRoutedCodeBlockCarveOutDetection` (see the
+/// "code carve-out" MARK below). Every other transform here is
+/// delegate-independent and is unaffected by the rewire.
 @MainActor
 struct InputTransformCorpusTests {
 
@@ -163,28 +159,21 @@ struct InputTransformCorpusTests {
 
     // MARK: - code carve-out (shared by dash transforms)
     //
-    // RECONCILIATION (plan-vs-actual): the plan used an UNTERMINATED fence
-    // ("```\na--") and expected the dash transform to be carved out. It is NOT —
-    // the carve-out keys on `MarkdownDetection.isInsideCodeBlock`, which returns
-    // false for an open/incomplete fence (the tokenizer emits no `.codeBlock`
-    // token spanning the caret), so the em-dash fires. The carve-out only
-    // engages when the caret sits inside a CLOSED fenced block. Both pinned.
-
-    @Test("Dash transform skips inside a CLOSED fenced code block")
-    func dashSkipsInsideClosedCode() {
-        // Caret inside a complete ```...``` block, right after `a--`. The
-        // isInsideCodeBlock guard fires → em-dash suppressed, dashes stay literal.
-        let source = "```\na--\n```"
-        let r = type("b", on: source, caretAt: 7)  // just after the second `-`
-        #expect(r.result == "```\na--b\n```")  // literal, no em-dash
-    }
-
-    @Test("Dash transform is NOT carved out inside an UNTERMINATED fence")
-    func dashFiresInsideOpenFence() {
-        // Open fence → isInsideCodeBlock returns false → em-dash DOES fire.
-        // Current behavior; would flip if open fences ever counted as code.
-        let source = "```\na--"
-        let r = type("b", on: source, caretAt: (source as NSString).length)
-        #expect(r.result == "```\na—b")  // em-dash applied
-    }
+    // HARNESS LIMITATION (Phase 3 / Task 3.5): the dash transforms' code carve-out
+    // no longer reads `textView.string` directly — `MarkdownListHandler.swift`
+    // now routes code-block detection through the coordinator delegate's CACHED
+    // parse (`coordinator?.isInsideCode(...) ?? false`). This bare host has no
+    // delegate (wiring a live coordinator fires its restyle/selection pipeline on
+    // every `performEdit` → SIGTRAP on a windowless NSTextView — Suite E), so the
+    // carve-out coalesces to `false` here and the transform-level
+    // `dashSkipsInsideClosedCode` golden could no longer pass HONESTLY. It and its
+    // companion `dashFiresInsideOpenFence` were therefore REMOVED.
+    //
+    // The carve-out's DETECTION — exactly what 3.5 changed — is now pinned in
+    // `ParseSpineTests.cacheRoutedCodeBlockCarveOutDetection`, which drives the
+    // read-only `coordinator.isInsideCode(range:in:)` cache path (safe per Tasks
+    // 3.1/3.3): CLOSED fence → code, OPEN fence → not code. That is the honest
+    // guard for the rewired behavior. All other transforms above (em-/en-dash,
+    // arrows, bracket-skip, `enDashSkipsWikilink`) are delegate-independent and
+    // stay pinned here unchanged.
 }

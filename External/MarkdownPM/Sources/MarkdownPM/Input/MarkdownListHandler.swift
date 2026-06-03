@@ -358,6 +358,10 @@ struct MarkdownLists {
     static func handleInsertion(textView: NSTextView, affectedCharRange: NSRange, replacementString: String?) -> Bool {
         guard let replacementString = replacementString else { return true }
 
+        // Phase 3 — route code-block detection through the coordinator's
+        // cached parse instead of re-tokenizing the whole string here.
+        let coordinator = textView.delegate as? NativeTextViewCoordinator
+
         // Em-dash auto-format: `--<non-dash>` → `—<non-dash>`. Triggers on any
         // single non-dash character typed after `--`. Skipped when char N-3 is
         // also `-` (preserves `---` HR, YAML frontmatter delim, 4+ dash HRs)
@@ -377,8 +381,11 @@ struct MarkdownLists {
                     insertLoc >= 3
                     && nsText.substring(with: NSRange(location: insertLoc - 3, length: 1)) == "-"
                 if !hrConflict {
-                    let inCode = textView.string.contains("`")
-                        ? MarkdownDetection.isInsideCodeBlock(location: insertLoc, in: textView.string)
+                    let inCode =
+                        textView.string.contains("`")
+                        ? (coordinator?.isInsideCode(
+                            range: NSRange(location: insertLoc, length: 0),
+                            in: textView.string) ?? false)
                         : false
                     if !inCode {
                         let replaceRange = NSRange(location: insertLoc - 2, length: 2)
@@ -413,7 +420,9 @@ struct MarkdownLists {
 
         let isInCodeBlock =
             textView.string.contains("`")
-            ? MarkdownDetection.isInsideCodeBlock(location: affectedCharRange.location, in: textView.string)
+            ? (coordinator?.isInsideCode(
+                range: NSRange(location: affectedCharRange.location, length: 0),
+                in: textView.string) ?? false)
             : false
         if replacementString == ">" && affectedCharRange.length == 0 && !isInCodeBlock {
             let insertionLocation = affectedCharRange.location

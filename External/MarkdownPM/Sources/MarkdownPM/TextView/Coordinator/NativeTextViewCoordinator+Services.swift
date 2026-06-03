@@ -153,13 +153,15 @@ extension NativeTextViewCoordinator {
         if let codeTokens = codeTokens {
             inCode = MarkdownDetection.isInsideCodeBlock(location: caretLocation, codeTokens: codeTokens)
         } else {
-            inCode = MarkdownDetection.isInsideCodeBlock(location: caretLocation, in: textView.string)
+            inCode = isInsideCode(
+                range: NSRange(location: caretLocation, length: 0),
+                in: textView.string)
         }
         let inLatex: Bool
         if let latexTokens = latexTokens {
             inLatex = MarkdownDetection.isInsideLatex(location: caretLocation, latexTokens: latexTokens)
         } else {
-            inLatex = MarkdownDetection.isInsideLatex(location: caretLocation, in: textView.string)
+            inLatex = isInsideLatex(location: caretLocation, in: textView.string)
         }
         let inSpellcheckSuppressedToken: Bool
         if let allTokens = allTokens {

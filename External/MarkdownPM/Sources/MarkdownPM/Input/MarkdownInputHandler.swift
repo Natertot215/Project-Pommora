@@ -71,19 +71,18 @@ enum MarkdownInputHandler {
         // Suppress inside code blocks / inline code so literal markers in
         // code samples aren't paired. Lazily compute code tokens if caller
         // didn't pass them in.
-        let resolvedCodeTokens: [MarkdownToken]
+        // Phase 3 — prefer caller-supplied tokens; otherwise hit the
+        // coordinator's cached parse rather than re-tokenizing the string.
+        let inCode: Bool
         if let codeTokens {
-            resolvedCodeTokens = codeTokens
+            inCode = MarkdownDetection.isInsideCodeBlock(
+                range: affectedCharRange, codeTokens: codeTokens)
+        } else if let coordinator = textView.delegate as? NativeTextViewCoordinator {
+            inCode = coordinator.isInsideCode(range: affectedCharRange, in: textView.string)
         } else {
-            resolvedCodeTokens = MarkdownTokenizer.parseTokens(in: textView.string)
-                .filter { $0.kind == .codeBlock || $0.kind == .inlineCode }
+            inCode = false
         }
-        if MarkdownDetection.isInsideCodeBlock(
-            range: affectedCharRange,
-            codeTokens: resolvedCodeTokens
-        ) {
-            return false
-        }
+        if inCode { return false }
 
         // Also suppress if the NEXT character is already the close marker —
         // user is typing into an existing pair; double-insert would corrupt.

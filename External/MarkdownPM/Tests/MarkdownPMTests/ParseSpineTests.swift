@@ -106,6 +106,38 @@ import Testing
         #expect(AppleDocumentParseProbe.count == 1)
     }
 
+    /// Phase 3 (Task 3.5) — pins the CODE-BLOCK carve-out's *detection* through
+    /// the cache-routed `coordinator.isInsideCode(range:in:)`, the exact path the
+    /// 3.5 rewire of the dash transforms / auto-pair / spell-suppression now uses.
+    ///
+    /// This replaces the transform-level `dashSkipsInsideClosedCode` /
+    /// `dashFiresInsideOpenFence` goldens in InputTransformCorpusTests: post-rewire
+    /// those transforms read the carve-out from the coordinator delegate, which the
+    /// corpus suite's bare (delegate-less) host cannot supply without firing the
+    /// edit/restyle pipeline that SIGTRAPs on a windowless NSTextView (Suite E).
+    /// The read-only `parsedDocument`/`isInsideCode` path used here is the safe one
+    /// (Tasks 3.1/3.3), so it honestly proves the rewired detection returns the
+    /// right answers: inside a CLOSED fence → code; inside an OPEN fence → not code.
+    @Test("Cache-routed isInsideCode: CLOSED fence is code, OPEN fence is not (carve-out detection)")
+    func cacheRoutedCodeBlockCarveOutDetection() {
+        // CLOSED fence: caret 7 sits just after the second `-` inside ```...```.
+        let closed = "```\na--\n```"
+        let (closedCoord, _) = makeCoordinator(text: closed)
+        #expect(
+            closedCoord.isInsideCode(
+                range: NSRange(location: 7, length: 0), in: closed) == true)
+
+        // OPEN (unterminated) fence: the tokenizer emits no .codeBlock spanning
+        // the caret, so detection is false — matches the Suite-E-pinned
+        // "open fence is not code" behavior.
+        let open = "```\na--"
+        let (openCoord, _) = makeCoordinator(text: open)
+        #expect(
+            openCoord.isInsideCode(
+                range: NSRange(location: (open as NSString).length, length: 0),
+                in: open) == false)
+    }
+
     @Test("syncHeadingFolding produces identical foldedRanges via the cached Document")
     func headingFoldUsesCachedDocument() {
         let text = "# A\nunder a\n\n# B\nunder b\n"
