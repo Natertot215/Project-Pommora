@@ -102,7 +102,7 @@ final class EmbeddedImageCache {
     private var cache: [String: NSImage] = [:]
     private var lastFingerprint: AnyHashable?
 
-    func image(for reference: ImageEmbedReference, services: MarkdownEditorServices) -> NSImage? {
+    func image(for reference: ImageEmbedReference, services: MarkdownPMServices) -> NSImage? {
         let currentFingerprint = services.images.fingerprint()
         if currentFingerprint != lastFingerprint {
             cache.removeAll()

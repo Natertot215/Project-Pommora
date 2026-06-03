@@ -1,5 +1,5 @@
 //
-//  MarkdownEditorServices.swift
+//  MarkdownPMServices.swift
 //  MarkdownPM
 //
 //  Created by Luca Chen on 16.03.26.
@@ -229,7 +229,7 @@ public struct MarkdownEditorBus: Sendable {
 /// Held by ``MarkdownPMConfiguration/services``. The engine reads its
 /// dependencies exclusively from this container; embedders inject the
 /// implementations they want.
-public struct MarkdownEditorServices: Sendable {
+public struct MarkdownPMServices: Sendable {
     public var wikiLinks: any WikiLinkResolver
     public var images: any EmbeddedImageProvider
     public var syntaxHighlighter: any SyntaxHighlighter
@@ -250,5 +250,5 @@ public struct MarkdownEditorServices: Sendable {
         self.bus = bus
     }
 
-    public static let `default` = MarkdownEditorServices()
+    public static let `default` = MarkdownPMServices()
 }

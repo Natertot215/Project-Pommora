@@ -33,7 +33,7 @@ import Foundation
 public struct MarkdownPMConfiguration: Sendable {
 
     public var theme: MarkdownPMTheme
-    public var services: MarkdownEditorServices
+    public var services: MarkdownPMServices
     public var markers: MarkerStyle
     public var codeBlock: CodeBlockStyle
     public var inlineCode: InlineCodeStyle
@@ -53,7 +53,7 @@ public struct MarkdownPMConfiguration: Sendable {
 
     public init(
         theme: MarkdownPMTheme = .default,
-        services: MarkdownEditorServices = .default,
+        services: MarkdownPMServices = .default,
         markers: MarkerStyle = .default,
         codeBlock: CodeBlockStyle = .default,
         inlineCode: InlineCodeStyle = .default,

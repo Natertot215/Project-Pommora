@@ -89,7 +89,7 @@ extension MarkdownPMStyler {
         let latexMarkerFont: NSFont
         let configuration: MarkdownPMConfiguration
 
-        var services: MarkdownEditorServices { configuration.services }
+        var services: MarkdownPMServices { configuration.services }
 
         /// Single accessor for the per-construct "is this token caret-active?"
         /// read. Wraps the resolved `activeTokenIndices` set — the set's
