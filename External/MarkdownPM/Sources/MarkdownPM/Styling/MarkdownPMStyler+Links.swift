@@ -1,5 +1,5 @@
 //
-//  MarkdownStyler+Links.swift
+//  MarkdownPMStyler+Links.swift
 //  MarkdownPM
 //
 //  Created by Luca Chen on 16.03.26.

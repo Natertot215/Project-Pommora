@@ -26,10 +26,10 @@
 // Token-class–specific styling lives partly in this file (fenced/inline
 // code, task list checkboxes, horizontal rules — historical) and partly
 // in sibling extension files:
-//   - MarkdownStyler+TextStyling.swift   (headings, emphasis)
-//   - MarkdownStyler+Links.swift         (auto / markdown / wiki links)
-//   - MarkdownStyler+Latex.swift         (block + inline LaTeX)
-//   - MarkdownStyler+Images.swift        (image embeds)
+//   - MarkdownPMStyler+TextStyling.swift   (headings, emphasis)
+//   - MarkdownPMStyler+Links.swift         (auto / markdown / wiki links)
+//   - MarkdownPMStyler+Latex.swift         (block + inline LaTeX)
+//   - MarkdownPMStyler+Images.swift        (image embeds)
 
 import AppKit
 import Foundation

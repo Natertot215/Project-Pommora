@@ -11,7 +11,7 @@ import PackageDescription
 //     concurrency + ExistentialAny. The package boundary lets MarkdownPM
 //     keep its own concurrency contract while Pommora's app code stays
 //     Swift-6-strict.
-//  2. MarkdownPM internals (MarkdownStyler, MarkdownTokenizer) are
+//  2. MarkdownPM internals (MarkdownPMStyler, MarkdownTokenizer) are
 //     module-internal types; the app consumes only the public front door.
 //  3. Apple's swift-markdown supplies the GFM AST.
 //
