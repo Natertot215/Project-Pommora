@@ -1,10 +1,10 @@
-## Items V2 — Specification (PRD)
+## Items V2 — Implemented (As-Built Spec)
 
-> **What this is:** a consolidated product spec for the Items redesign ("ItemsV2") — the settled model, the codebase realities that support it, the landmines, and the open questions. **What this is NOT:** an implementation plan. No tasks, no file-by-file steps, no sequencing, no dates.
+> **What this is:** the **as-built record** of ItemsV2 — the model that **SHIPPED** (30 green tasks, 2026-06-03). The body below describes what was built; the closing **As-Built Status** notes the deviations + what's deferred/muted. Everything here is IMPLEMENTED.
 >
-> **Next phase:** post-compact, exploration agents evaluate options against this spec, then it becomes a concrete phased execution plan. This doc is the source of truth for that work.
+> **⚠️ Do not conflate with the planned rework.** The next-iteration redesign — a **zone-based Item Window that RETIRES the `LayoutArchetype`/archetype model described below** — lives in `06-03-ItemsV2-Planned.md` and is **design-only, not built**. This doc = what exists; that doc = what's next.
 >
-> **Status:** model settled across a multi-round brainstorm + two grounded verification workflows (a 9-agent revert-evaluation, then a 6-agent template-feasibility pass). Decisions below are Nathan-ratified unless marked *Open*.
+> **Companions:** execution record → `06-03-ItemsV2-Plan.md` (30 tasks, all green) · ship log → `History.md` · schema → `Guidelines/Paradigm-Decisions.md` (#15).
 
 ### Background — the Decision That Frames Everything
 
@@ -49,6 +49,8 @@ We considered reverting Items off Markdown into "something else entirely" (JSON 
 - **Cap enforcement (resolved):** change the single `ItemValidator.maxDescriptionLength` constant (1000 → 250); `ItemTemplateConfig.descriptionCap` becomes an optional **per-type override** layered over the 250 default. In-app saves over cap **reject with an error** (today's behavior, files-are-canonical). A raw Obsidian edit that overflows surfaces a **non-blocking warning** rather than hard-failing the file (Pommora must tolerate external edits).
 
 #### Layout Archetypes (Render Recipes) + Single-Renderer Architecture
+
+> **⚠️ Superseded direction.** This archetype model SHIPPED (only `standard` has a real recipe; the rest are muted stubs), but the planned rework **retires `LayoutArchetype` entirely** in favor of fixed type-bound **zones** — see `06-03-ItemsV2-Planned.md`. Read this section as "what's built," not "where it's going."
 
 The Template's `layout` selects one archetype. Each archetype declares **how its "all properties" overflow surface presents** — a **dropdown** button/frame *or* a side-pane **inspector** (Nathan's directive: the overflow mode is a property of the layout, not a separate archetype and not a free user toggle). Promoted properties always render on the main panel; the rest live in that overflow surface, which **supplements** them (never duplicates — see Landmines). **Target: 5 layouts** pre-populated in the settings pane (exact set *Open* — finalized in Figma):
 
@@ -137,16 +139,15 @@ Verified against source (`file:line`):
 - **Doc-sweep pending** — ~9 downstream docs still call the Item Window a "popover" (`PommoraPRD.md`, `Features/Items.md`, `Pages.md`, `Agenda.md`, `Properties.md`). The canonical `CLAUDE.md` directive is already corrected to "floating panel"; the rest are queued (3 assert behavior — "anchored," "never standalone window" — tied to the panel-form decision). **Plus an Item-Templates correctness pass (Nathan):** existing docs (`Features/Items.md`, `Features/Prospects.md`, possibly `Properties.md`) may already describe Item Templates with stale intent — the doc pass must reconcile them to the **locked ItemsV2 model** (single renderer, overflow-mode-per-archetype, native reorder, image-filtered cover), not just the popover wording.
 - **Precedent guardrail** — keeping records as frontmatter-on-a-uniform-substrate preserves file-legibility (Obsidian Bases model); the template-not-substrate approach is what keeps Pommora's differentiator intact.
 
-### Open Questions (for the Execution-Planning Phase)
+### As-Built Status (shipped 2026-06-03)
 
-*Resolved during recon (now locked above): layout encoding (enum + region-recipe), panel form (native scene, PreviewWindow-first), archetype roster (5 layouts + overflow-mode-per-archetype), inspector (supplement), description cap (250, reject in-app / warn external). Remaining genuinely-open:*
+Shipped in 30 green tasks (`a027145`…`40d910f`; whole test target green at 1278). What landed against this spec:
 
-- **Layout enum string values** — the `LayoutArchetype` cases are the resolved encoding; the exact **on-disk string values** lock a schema → confirm via AskUserQuestion at plan-write time + amend registry decision #14.
-- **Per-archetype sizing** — default + min size per archetype; user-resizable; side-pane/inspector reflow vs force-grow.
-- ~~Promote/pin reconciliation~~ **(resolved)** — Collection overrides Type; Type is the default for non-Collection items; one cascade for both archetype + promoted set (see Template Scope). The plan adds Collection-level `templateConfig`.
-- **`@item` graph edge-weighting** — `@item` is pre-decided as a MarkdownPM grammar (above); how body-level item edges are stored/indexed and how the graph weighs wikilink vs chip vs relation (incl. orbiting-duplicate nodes) stays open → v0.4.0.
-- **Page-template depth** — how much Page-side template UI ships alongside Items vs follows (open-in inert until PreviewWindow regardless).
+- **Built as specified:** one config-driven `ItemWindowRenderer`; `LayoutArchetype` enum (on-disk `compact|standard|banner_two_column|gallery|wide|reserved` + tolerant `unknown`) via `AnyLayout`; `template_config` (`layout` + `promoted_properties:[{id,display}]` + `cover_property_id` + `description_cap` + `default_description`) on **Type + Collection** (Collection override → Type default); 250-char cap + per-Type override; native floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)` + the reusable `PreviewWindow` primitive) **replacing the deleted `.sheet`/`ItemWindow.swift`**; promoted/overflow **disjoint** (double-render fixed structurally); the **Templates settings pane** (archetype picker + WYSIWYG mockup-item-frame + per-property display + image-filtered cover + Type→Collection override + reset).
+- **Two deviations from the written plan:** **T4.0** simplified to just publishing the live env via `AppGlobals.current` (the `ItemWindow` relationDisplay refactor was throwaway — the scene hosts the renderer); **T4.5 inserted** to restore the live window's save machinery (`hydrate`/`save`/`commitSave`/drift guard) — so the live window edits **title + icon + description** (drift-guarded save), but property-**value** rows are **display-only** for now (the save path carries `draftProperties` through, ready for the editable-rows follow-up).
+- **Selectable-but-muted:** only `standard` has a real recipe (`ItemWindowLayouts.hasRecipe`); compact / banner_two_column / gallery / wide / reserved are stock-layout stubs disabled in the picker until their Figma visuals land.
+- **Deferred (not built):** `@item` chips + graph edge-weighting (→ v0.4.0); Page open-in-preview UI (parallel track once Pages consume `PreviewWindow`); the bespoke Banner/Two-Column region `Layout`.
+- **Post-review fix:** `renameItemCollection`/`renamePageCollection` were silently dropping `templateConfig` (+ icon/pins/views) on rename — fixed to copy-mutate (`6508d28`).
+- **Reused (not built by ItemsV2):** the footer is the parallel session's `DetailFooterBar`; the read-side renderer is the generalized `PropertyCellDisplay`; the reorder splice is `PropertyIDReorder.move`; the promoted→definition join is `TemplateResolver.promotedEntries`.
 
-### Next Step
-
-**Done:** the recon (9-agent research + codebase-mapping workflow) verified every `file:line` claim and surfaced the conflicts; Nathan resolved them (decisions locked inline above). **Next:** write the concrete phased execution plan via `/writing-plans` against this updated spec, then run adversarial review agents until bulletproof. The plan is **codebase-first** (directive #3): build the data model, single renderer, PreviewWindow primitive, settings pane, and DRY property-display layer now; wire archetype visuals to real Figma designs as Nathan produces them in parallel during execution.
+> **This whole model is slated for rework.** The `LayoutArchetype`/archetype layer is replaced by a fixed type-bound **zone framework** in `06-03-ItemsV2-Planned.md` (design-only). The pieces likely to survive the rework: the floating scene + `PreviewWindow`, `template_config` as the assignment store (shape evolves), the Templates pane (becomes the zone assigner), `PropertyCellDisplay` as the field renderer, and Type→Collection override.
