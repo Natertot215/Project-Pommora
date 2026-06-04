@@ -48,3 +48,52 @@ enum LayoutArchetype: Codable, Hashable, Sendable {
     /// third overflow style ever appears).
     var usesInspector: Bool { self == .bannerTwoColumn }
 }
+
+/// How a promoted property renders on the main panel (LD-4). Tolerant decode so
+/// new options add without breaking older files. The archetype sets a default;
+/// a non-nil `PromotedProperty.display` overrides it.
+enum PropertyDisplay: Codable, Hashable, Sendable {
+    case inline, thumbnail, banner, chips, list
+    case unknown(String)
+
+    var rawValue: String {
+        switch self {
+        case .inline: return "inline"
+        case .thumbnail: return "thumbnail"
+        case .banner: return "banner"
+        case .chips: return "chips"
+        case .list: return "list"
+        case .unknown(let s): return s
+        }
+    }
+    init(rawValue: String) {
+        switch rawValue {
+        case "inline": self = .inline
+        case "thumbnail": self = .thumbnail
+        case "banner": self = .banner
+        case "chips": self = .chips
+        case "list": self = .list
+        default: self = .unknown(rawValue)
+        }
+    }
+    init(from decoder: any Decoder) throws {
+        self = PropertyDisplay(rawValue: try decoder.singleValueContainer().decode(String.self))
+    }
+    func encode(to encoder: any Encoder) throws {
+        var c = encoder.singleValueContainer(); try c.encode(rawValue)
+    }
+}
+
+/// A property promoted to a template's main panel, with an optional per-property
+/// display override (LD-4). `display == nil` ⇒ the archetype's default treatment.
+struct PromotedProperty: Codable, Hashable, Sendable {
+    var id: String
+    var display: PropertyDisplay?
+    enum CodingKeys: String, CodingKey { case id, display }
+}
+
+/// Page open-in default (reserved/inert until PreviewWindow — LD-11).
+enum OpenInMode: String, Codable, Hashable, Sendable {
+    case preview
+    case fullPage = "full_page"
+}
