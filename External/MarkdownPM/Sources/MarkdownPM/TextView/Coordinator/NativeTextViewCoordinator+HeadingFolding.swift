@@ -65,6 +65,27 @@ extension NativeTextViewCoordinator {
         )
     }
 
+    /// True when the fragment at `range` is a thematic-break (HR) line — O(1)
+    /// lookup into the per-document precompute, the HR counterpart to
+    /// `isFragmentRangeAHeading`. Fragments are line-aligned, so `range.location`
+    /// is the line-start key. Nil-cache fallback returns false (matches the
+    /// prior behavior when detection couldn't run before the first parse).
+    func isFragmentRangeAThematicBreak(_ range: NSRange) -> Bool {
+        cachedParsedDocument?.constructLineStarts.thematicBreaks.contains(range.location) ?? false
+    }
+
+    /// True when the fragment at `range` is a blockquote line. See
+    /// `isFragmentRangeAThematicBreak` for the line-alignment + nil-cache contract.
+    func isFragmentRangeABlockquote(_ range: NSRange) -> Bool {
+        cachedParsedDocument?.constructLineStarts.blockquotes.contains(range.location) ?? false
+    }
+
+    /// True when the fragment at `range` is a dash-bullet line. See
+    /// `isFragmentRangeAThematicBreak` for the line-alignment + nil-cache contract.
+    func isFragmentRangeADashBullet(_ range: NSRange) -> Bool {
+        cachedParsedDocument?.constructLineStarts.dashBullets.contains(range.location) ?? false
+    }
+
     // MARK: - Redraw-trigger helpers
 
     /// Compute the ordinal-disambiguated key for a heading line at
