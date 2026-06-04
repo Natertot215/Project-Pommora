@@ -16,7 +16,7 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     var icon: String?  // SF Symbol name
     var properties: [PropertyDefinition]  // schema shared across Items
     var views: [SavedView]  // saved views (empty placeholder in v0.2)
-    var templateConfig: ItemTemplateConfig?  // reserved for post-v1 templates
+    var templateConfig: ItemTemplateConfig?  // per-Item-Type template config (layout + promoted props + cover + description cap)
     var modifiedAt: Date
     /// Forward-compat: pre-v0.3.0 sidecars decode as `0`. New sidecars write
     /// `PropertyIDMigration.currentTypeSchemaVersion` (2). Per EC2.
@@ -103,16 +103,31 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
     }
 }
 
-/// Reserved for post-v1 per-Item-Type template feature. All fields optional —
-/// nothing renders for this in v0.3.0; struct exists so the on-disk shape is
-/// stable when templates ship.
+/// Per-Item-Type template config: the layout archetype, the promoted-property
+/// display recipe (which properties surface on the Item Window panel + how),
+/// the cover property, and the description cap/seed. All fields optional, so a
+/// nil/empty config round-trips cleanly and older free-string `layout` values
+/// still decode (LayoutArchetype tolerates any string).
 struct ItemTemplateConfig: Codable, Equatable, Hashable, Sendable {
-    var layout: String?
+    var layout: LayoutArchetype?
+    var promotedProperties: [PromotedProperty]?
+    var coverPropertyID: String?
     var descriptionCap: Int?
     var defaultDescription: String?
 
+    init(layout: LayoutArchetype? = nil, promotedProperties: [PromotedProperty]? = nil,
+         coverPropertyID: String? = nil, descriptionCap: Int? = nil, defaultDescription: String? = nil) {
+        self.layout = layout
+        self.promotedProperties = promotedProperties
+        self.coverPropertyID = coverPropertyID
+        self.descriptionCap = descriptionCap
+        self.defaultDescription = defaultDescription
+    }
+
     enum CodingKeys: String, CodingKey {
         case layout
+        case promotedProperties = "promoted_properties"
+        case coverPropertyID = "cover_property_id"
         case descriptionCap = "description_cap"
         case defaultDescription = "default_description"
     }
