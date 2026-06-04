@@ -238,22 +238,11 @@ struct FrontmatterInspector: View {
         page.frontmatter.tier3.isEmpty ? "—" : "(\(page.frontmatter.tier3.count))"
     }
 
-    /// Fallback label shown before the VM initializes. Reads directly from frontmatter.
+    /// Fallback label shown before the VM initializes. Reads directly from
+    /// frontmatter and routes through `PropertyCellDisplay.placeholder(for:)` —
+    /// the single source of truth for value→string placeholders — rather than
+    /// duplicating the per-type switch here.
     private func valueLabel(for prop: PropertyDefinition) -> String {
-        guard let val = page.frontmatter.properties[prop.id] else { return "—" }
-        switch val {
-        case .null: return "—"
-        case .number(let n): return n.formatted()
-        case .checkbox(let b): return b ? "Yes" : "No"
-        case .select(let s): return s.isEmpty ? "—" : s
-        case .multiSelect(let xs): return xs.isEmpty ? "—" : xs.joined(separator: ", ")
-        case .status(let s): return s.isEmpty ? "—" : s
-        case .date(let d): return d.formatted(date: .abbreviated, time: .omitted)
-        case .datetime(let d): return d.formatted(date: .abbreviated, time: .shortened)
-        case .url(let u): return u.absoluteString
-        case .relation: return "→"
-        case .file(let refs): return "\(refs.count) file(s)"
-        case .lastEditedTime: return DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
-        }
+        PropertyCellDisplay.placeholder(for: page.frontmatter.properties[prop.id])
     }
 }

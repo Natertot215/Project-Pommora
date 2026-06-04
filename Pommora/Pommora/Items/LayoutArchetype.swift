@@ -84,6 +84,36 @@ enum PropertyDisplay: Codable, Hashable, Sendable {
     }
 }
 
+/// How `PropertyCellDisplay` should render a value once a `PropertyDisplay` mode
+/// and the property's `PropertyType` are both known. The pure resolution surface
+/// (`PropertyDisplay.treatment(for:)`) keeps the read-side branching unit-testable
+/// without a SwiftUI snapshot — only `.default` ever changes the chip rendering.
+enum DisplayTreatment: Hashable, Sendable {
+    /// Image treatment for file properties (`thumbnail`/`banner` on `.file`).
+    case image
+    /// Vertical stack for relations (`list` on `.relation`).
+    case verticalList
+    /// Today's inline chip rendering — every other (display, type) pair.
+    case `default`
+}
+
+extension PropertyDisplay {
+    /// Resolves which read-side treatment a (display, type) pair yields.
+    /// Only `.file` + `thumbnail`/`banner` and `.relation` + `list` diverge from
+    /// the default inline chips; everything else (including `.inline`, `.chips`,
+    /// and any `.unknown`) falls through to `.default`.
+    func treatment(for type: PropertyType) -> DisplayTreatment {
+        switch self {
+        case .thumbnail, .banner:
+            return type == .file ? .image : .default
+        case .list:
+            return type == .relation ? .verticalList : .default
+        case .inline, .chips, .unknown:
+            return .default
+        }
+    }
+}
+
 /// A property promoted to a template's main panel, with an optional per-property
 /// display override (LD-4). `display == nil` ⇒ the archetype's default treatment.
 struct PromotedProperty: Codable, Hashable, Sendable {

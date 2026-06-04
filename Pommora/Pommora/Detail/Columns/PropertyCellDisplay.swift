@@ -29,17 +29,26 @@ import SwiftUI
 struct PropertyCellDisplay: View {
     let definition: PropertyDefinition
     let value: PropertyValue?
+    /// Per-property render mode (LD-4). Defaults to `.inline` so existing call
+    /// sites — Table cells that always want today's chips — compile unchanged.
+    /// Only `.file` (`thumbnail`/`banner`) and `.relation` (`list`) diverge.
+    let display: PropertyDisplay
     let relationResolver: (String) -> (icon: String, title: String)?
 
     init(
         definition: PropertyDefinition,
         value: PropertyValue?,
+        display: PropertyDisplay = .inline,
         relationResolver: @escaping (String) -> (icon: String, title: String)? = { _ in nil }
     ) {
         self.definition = definition
         self.value = value
+        self.display = display
         self.relationResolver = relationResolver
     }
+
+    /// Resolved read-side treatment for this property's (display, type) pair.
+    private var treatment: DisplayTreatment { display.treatment(for: definition.type) }
 
     var body: some View {
         Group {
@@ -144,10 +153,12 @@ struct PropertyCellDisplay: View {
 
     private func formattedDate(_ date: Date) -> String {
         let dateStr = (definition.dateFormat ?? .full).string(from: date)
-        if let timeStr = (definition.timeFormat ?? .none).string(from: date) {
-            return "\(dateStr) \(timeStr)"
-        }
-        return dateStr
+        // Show time only when the stored value is .datetime — a .date value
+        // means the user never set a time, even on a datetime property.
+        guard case .datetime = value,
+              let timeStr = (definition.timeFormat ?? .none).string(from: date)
+        else { return dateStr }
+        return "\(dateStr) \(timeStr)"
     }
 
     // MARK: - Select / MultiSelect
@@ -229,23 +240,32 @@ struct PropertyCellDisplay: View {
     @ViewBuilder
     private var relationCell: some View {
         if case .relation(let targetIDs) = value, !targetIDs.isEmpty {
-            HStack(spacing: 4) {
-                ForEach(Array(targetIDs.prefix(3).enumerated()), id: \.offset) { _, targetID in
-                    if let resolved = relationResolver(targetID) {
-                        RelationChip(icon: resolved.icon, title: resolved.title)
-                    } else {
-                        Text("(missing)")
-                            .font(.system(size: 12).italic())
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                if targetIDs.count > 3 {
-                    Text("+\(targetIDs.count - 3)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
+            // `list` display lays the chips out vertically; everything else keeps
+            // the inline horizontal run. The chip content is identical either way.
+            if treatment == .verticalList {
+                VStack(alignment: .leading, spacing: 4) { relationChips(for: targetIDs) }
+            } else {
+                HStack(spacing: 4) { relationChips(for: targetIDs) }
             }
         } else { emptyCell }
+    }
+
+    @ViewBuilder
+    private func relationChips(for targetIDs: [String]) -> some View {
+        ForEach(Array(targetIDs.prefix(3).enumerated()), id: \.offset) { _, targetID in
+            if let resolved = relationResolver(targetID) {
+                RelationChip(icon: resolved.icon, title: resolved.title)
+            } else {
+                Text("(missing)")
+                    .font(.system(size: 12).italic())
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        if targetIDs.count > 3 {
+            Text("+\(targetIDs.count - 3)")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - File
@@ -255,7 +275,11 @@ struct PropertyCellDisplay: View {
         if case .file(let refs) = value, !refs.isEmpty {
             HStack(spacing: 4) {
                 ForEach(Array(refs.prefix(3).enumerated()), id: \.offset) { _, ref in
-                    FileChip(filename: ref.originalName)
+                    // `thumbnail`/`banner` display give image files a photo-glyph
+                    // chip; every other case (and non-image files) keeps the
+                    // generic link chip. Byte loading is out of scope here — this
+                    // cell stays pure of nexus-root / manager dependencies.
+                    FileCellChip(ref: ref, imageTreatment: treatment == .image)
                 }
                 if refs.count > 3 {
                     Text("+\(refs.count - 3)")
@@ -310,6 +334,69 @@ struct PropertyCellDisplay: View {
         case .red: return .red
         case .teal: return .teal
         case .indigo: return .indigo
+        }
+    }
+
+    // MARK: - Shared placeholder string
+
+    /// Plain-text placeholder for a property value. The single source of truth for
+    /// any `String`-only read surface (e.g. `FrontmatterInspector`'s pre-VM
+    /// fallback) so the per-type mapping isn't duplicated as a parallel switch.
+    /// `nil` / `.null` / empty renders the em-dash placeholder.
+    static func placeholder(for value: PropertyValue?) -> String {
+        switch value {
+        case nil, .null, .lastEditedTime?:
+            // lastEditedTime is virtual; its placeholder is the current time.
+            if case .lastEditedTime = value {
+                return DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
+            }
+            return "—"
+        case .number(let n): return n.formatted()
+        case .checkbox(let b): return b ? "Yes" : "No"
+        case .select(let s): return s.isEmpty ? "—" : s
+        case .multiSelect(let xs): return xs.isEmpty ? "—" : xs.joined(separator: ", ")
+        case .status(let s): return s.isEmpty ? "—" : s
+        case .date(let d): return d.formatted(date: .abbreviated, time: .omitted)
+        case .datetime(let d): return d.formatted(date: .abbreviated, time: .shortened)
+        case .url(let u): return u.absoluteString
+        case .relation(let ids): return ids.isEmpty ? "—" : "→"
+        case .file(let refs): return refs.isEmpty ? "—" : "\(refs.count) file(s)"
+        }
+    }
+}
+
+// MARK: - File cell chip (per-ref, value-isolated)
+
+/// Single-file chip for the read-side File cell. Isolated as a plain value-typed
+/// sub-view (quirk #12) so the per-ref image-vs-generic decision lives outside
+/// the parent's `@ViewBuilder`. Image files under `thumbnail`/`banner` get a
+/// photo-glyph chip; everything else falls back to the generic `FileChip`.
+private struct FileCellChip: View {
+    let ref: FileRef
+    let imageTreatment: Bool
+
+    private var isImage: Bool { ref.mimeType.hasPrefix("image/") }
+
+    var body: some View {
+        if imageTreatment && isImage {
+            HStack(spacing: 4) {
+                Image(systemName: "photo")
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(.secondary)
+                Text(ref.originalName)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .help(ref.originalName)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(.quaternarySystemFill))
+            )
+        } else {
+            FileChip(filename: ref.originalName)
         }
     }
 }
