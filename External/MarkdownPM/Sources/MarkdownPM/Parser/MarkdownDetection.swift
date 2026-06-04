@@ -92,6 +92,15 @@ public enum MarkdownDetection {
     /// - Parameters:
     ///   - paragraphString: The line(s) to test, including any trailing newline.
     ///   - isInsideCodeBlock: Stage 0 result from the caller's context.
+    /// Matches a dash/asterisk/plus/bullet list-item line. Pre-compiled once —
+    /// `isDashBulletLine` is called per visible fragment on every redraw, so a
+    /// fresh `NSRegularExpression` per call was needless compile churn on the
+    /// draw hot path. Mirrors the static-regex pattern in `MarkdownTokenizer`.
+    private static let dashBulletRegex = try! NSRegularExpression(
+        pattern: #"^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$"#,
+        options: [.anchorsMatchLines]
+    )
+
     static func isDashBulletLine(
         _ paragraphString: String,
         isInsideCodeBlock: Bool
@@ -103,13 +112,9 @@ public enum MarkdownDetection {
         // so the renderer's bullet-glyph detection and the styler's hide-attr
         // are guaranteed to agree. No AST parse needed — the regex already
         // encodes CommonMark's space-after-marker requirement.
-        let pattern = #"^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else {
-            return false
-        }
         let nsLine = paragraphString as NSString
         guard
-            let match = regex.firstMatch(
+            let match = dashBulletRegex.firstMatch(
                 in: paragraphString,
                 options: [],
                 range: NSRange(location: 0, length: nsLine.length)
@@ -141,6 +146,14 @@ public enum MarkdownDetection {
     ///   - isInsideCodeBlock: Stage 0 result from the caller's context — `# X`
     ///     inside a fenced block parses as code, not a heading; must not be
     ///     foldable.
+    /// ATX-heading prefix matcher (1-6 `#` then space/tab/EOL). Pre-compiled
+    /// once — `isHeadingLine` runs per visible fragment on every redraw via
+    /// the renderer's `hasHeadingMarker`. Replaces a per-call
+    /// `range(of:options:.regularExpression)` compile.
+    private static let headingPrefixRegex = try! NSRegularExpression(
+        pattern: #"^#{1,6}([ \t]|$)"#
+    )
+
     static func isHeadingLine(
         _ paragraphString: String,
         isInsideCodeBlock: Bool
@@ -152,7 +165,12 @@ public enum MarkdownDetection {
         // a space, tab, or end-of-line; `#Foo` (no space) is NOT a heading.
         let trimmed = paragraphString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("#") else { return false }
-        guard trimmed.range(of: #"^#{1,6}([ \t]|$)"#, options: .regularExpression) != nil else {
+        let trimmedNS = trimmed as NSString
+        guard
+            headingPrefixRegex.firstMatch(
+                in: trimmed, range: NSRange(location: 0, length: trimmedNS.length)
+            ) != nil
+        else {
             return false
         }
 
@@ -342,6 +360,48 @@ public enum MarkdownDetection {
 
     static func isInsideCodeBlock(location: Int, codeTokens: [MarkdownToken]) -> Bool {
         isInsideCodeBlock(range: NSRange(location: location, length: 0), codeTokens: codeTokens)
+    }
+
+    // MARK: - Token-based heading detection (draw-path optimization)
+
+    /// Draw-path-optimized heading check: answers "is the line at `range` a
+    /// heading?" from the already-parsed token stream instead of re-parsing the
+    /// line's AST per fragment per repaint.
+    ///
+    /// Defined to be EQUIVALENT to
+    /// `isHeadingLine(line, isInsideCodeBlock: isInsideCodeBlock(range:, codeTokens: blockCodeTokens))`.
+    /// `HeadingTokenParityTests` pins that equivalence across the D-HEAD-1 corpus.
+    ///
+    /// Why the code guard is still needed: the tokenizer emits `.heading` tokens
+    /// even for `#` lines INSIDE a fenced code block (its heading regex has no
+    /// code-block guard — see MarkdownTokenizer.swift). A bare token-presence
+    /// check would therefore wrongly fire inside code; this function re-applies
+    /// the same block-code guard the renderer's Stage 0 used.
+    ///
+    /// - Parameters:
+    ///   - range: the fragment's line range (document-relative).
+    ///   - headingTokens: tokens pre-filtered to `.heading` kind.
+    ///   - blockCodeTokens: tokens pre-filtered to `.codeBlock` kind (fenced/
+    ///     indented blocks only — never `.inlineCode`, which may legitimately
+    ///     sit on a heading line).
+    static func headingTokenCovers(
+        range: NSRange,
+        headingTokens: [MarkdownToken],
+        blockCodeTokens: [MarkdownToken]
+    ) -> Bool {
+        // Stage 0 — block-code guard (identical to the renderer's prior Stage 0).
+        if isInsideCodeBlock(range: range, codeTokens: blockCodeTokens) {
+            return false
+        }
+        // A heading is line-scoped and its token starts at the first `#` of the
+        // line. The line is a heading iff some `.heading` token's range falls
+        // within it. Intersection (not containment) because the token range
+        // starts after any leading whitespace and excludes the trailing newline,
+        // so it is a strict subrange of the fragment's line range.
+        for token in headingTokens where NSIntersectionRange(token.range, range).length > 0 {
+            return true
+        }
+        return false
     }
 
     // MARK: - Wikilink Detection
