@@ -93,14 +93,30 @@ extension NativeTextViewCoordinator {
 
         let context = makeHRStylingContext()
 
-        // De-dupe by paragraph start location — callers may pass overlapping
-        // ranges (e.g. prev == current when the paragraph didn't change).
+        // Expand each input range to EVERY paragraph it spans, de-duped by
+        // paragraph start location. A single-paragraph candidate (the caret's
+        // line, an edited line) yields exactly one paragraph — keeping the
+        // caret-move path cheap (the jerk fix). A whole-document range — passed
+        // by `handleAppearanceChange` and the code-block-structure-change branch
+        // in `textDidChange` as `[0, length]` — expands to every paragraph, so
+        // those callers still get a FULL HR re-sync after their base-attribute
+        // reset (without it, every other HR loses its hidden-dash + spacing).
         var seen: Set<Int> = []
-        let unique: [NSRange] = paragraphs.compactMap { raw in
-            guard raw.location != NSNotFound, raw.location <= ts.length else { return nil }
-            let safeLocation = min(raw.location, ts.length)
-            let para = nsText.lineRange(for: NSRange(location: safeLocation, length: 0))
-            return seen.insert(para.location).inserted ? para : nil
+        var unique: [NSRange] = []
+        for raw in paragraphs {
+            guard raw.location != NSNotFound, raw.location <= ts.length else { continue }
+            var pos = min(raw.location, ts.length)
+            let end = min(NSMaxRange(raw), ts.length)
+            // `repeat` so a zero-length range still covers its start paragraph.
+            repeat {
+                let para = nsText.lineRange(for: NSRange(location: pos, length: 0))
+                if seen.insert(para.location).inserted {
+                    unique.append(para)
+                }
+                let next = NSMaxRange(para)
+                if next <= pos { break }
+                pos = next
+            } while pos < end
         }
         guard !unique.isEmpty else { return }
 

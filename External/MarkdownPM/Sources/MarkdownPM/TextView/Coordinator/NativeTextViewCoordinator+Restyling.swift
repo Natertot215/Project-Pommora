@@ -158,8 +158,15 @@ extension NativeTextViewCoordinator {
         // cleared them. Reentry-guarded to prevent recursion. The fold
         // sync recomputes `foldedRanges` if text changes added/removed/
         // renamed any headings.
+        //
+        // Scoped (not full-walk): only paragraphs in `paragraphCandidates`
+        // were reset by TextStylingService.restyle and could need HR
+        // re-application. A full O(N) walk here calls addAttribute on
+        // every HR in the document — even unchanged ones — which marks
+        // those ranges as edited in NSTextStorage, triggering layout
+        // invalidation for all of them and causing the heading-entry jerk.
         if let ts = textView.textStorage {
-            syncHRVisibility(in: ts, textView: textView)
+            syncHRVisibility(in: ts, textView: textView, scopedTo: paragraphCandidates)
             syncHeadingFolding(in: ts, textView: textView)
         }
     }
