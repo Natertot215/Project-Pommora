@@ -31,6 +31,12 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// "no pinned properties".
     var pinnedProperties: [String]
 
+    /// Per-Collection template override (T1.5). When set, overrides the parent
+    /// ItemType's `templateConfig` for new Items created in this Collection. All
+    /// fields optional → encoded under `template_config`; absent on legacy
+    /// sidecars. Distinct from the legacy `pinnedProperties` fallback above.
+    var templateConfig: ItemTemplateConfig?
+
     /// Per-Collection saved views. Each Collection is INDEPENDENT of its parent
     /// ItemType (locked decision): its own `views[0]` config separate from the
     /// ItemType's. Empty array on legacy sidecars; Task 5's loadAll default-view
@@ -44,6 +50,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case schemaVersion = "schema_version"
         case itemOrder = "item_order"
         case pinnedProperties = "pinned_properties"
+        case templateConfig = "template_config"
     }
 
     init(
@@ -56,6 +63,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         icon: String? = nil,
         itemOrder: [String]? = nil,
         pinnedProperties: [String] = [],
+        templateConfig: ItemTemplateConfig? = nil,
         views: [SavedView] = []
     ) {
         self.id = id
@@ -67,6 +75,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.icon = icon
         self.itemOrder = itemOrder
         self.pinnedProperties = pinnedProperties
+        self.templateConfig = templateConfig
         self.views = views
     }
 
@@ -82,6 +91,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.itemOrder = try c.decodeIfPresent([String].self, forKey: .itemOrder)
         // Legacy decode: field absent in pre-J.2 sidecars → default to empty.
         self.pinnedProperties = (try? c.decode([String].self, forKey: .pinnedProperties)) ?? []
+        self.templateConfig = try c.decodeIfPresent(ItemTemplateConfig.self, forKey: .templateConfig)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
 
@@ -96,6 +106,7 @@ struct ItemCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         // Always encode pinnedProperties (even when empty) so the field is
         // always present in freshly-written sidecars — makes later reads unambiguous.
         try c.encode(pinnedProperties, forKey: .pinnedProperties)
+        try c.encodeIfPresent(templateConfig, forKey: .templateConfig)
         try c.encode(views, forKey: .views)
     }
 }
