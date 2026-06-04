@@ -817,6 +817,48 @@ extension ItemTypeManager {
         }
     }
 
+    /// Clears a container's `template_config` back to **nil** (NOT an empty
+    /// config). The reset companion to `updateTemplateConfig`. Same two-branch
+    /// lookup (ItemType first, then ItemCollection) + in-memory cache write-back
+    /// + disk persist. Nil is load-bearing: `TemplateResolver.effective`
+    /// falls back to the Type default only when the Collection's config is nil —
+    /// an empty-but-non-nil config would still override (LD-10). Idempotent: a
+    /// no-op (no write) when the container's config is already nil.
+    func clearTemplateConfig(in containerID: String) async throws {
+        do {
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                guard types[i].templateConfig != nil else { return }
+                var updated = types[i]
+                updated.templateConfig = nil
+                updated.modifiedAt = Date()
+                let meta = NexusPaths.itemTypeMetadataURL(
+                    in: nexus.rootURL, typeFolderName: updated.title
+                )
+                try updated.save(to: meta)
+                types[i] = updated
+                return
+            }
+            for (typeID, cols) in itemCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    guard cols[ci].templateConfig != nil else { return }
+                    var coll = cols[ci]
+                    coll.templateConfig = nil
+                    coll.modifiedAt = Date()
+                    let meta = coll.folderURL.appendingPathComponent(
+                        NexusPaths.itemCollectionSidecarFilename
+                    )
+                    try coll.save(to: meta)
+                    itemCollectionsByType[typeID]?[ci] = coll
+                    return
+                }
+            }
+            throw ItemTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Duplicate property
 
     /// Mirror of PageTypeManager.duplicateProperty. Deep-copies a property,
