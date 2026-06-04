@@ -472,6 +472,36 @@ final class ItemTypeManager {
         }
     }
 
+    /// Sets an ItemCollection's legacy `pinnedProperties`. Mirror of
+    /// `updateItemCollectionIcon`. Used by the template editor (T5.3) to collapse
+    /// the legacy row-preview pin list to a single source once the Collection's
+    /// `template_config.promoted_properties` is established — the resolver returns
+    /// `promoted` first, so an empty `pinnedProperties` makes that the only source.
+    func updateItemCollectionPinnedProperties(
+        _ collection: ItemCollection, to pinned: [String]
+    ) async throws {
+        do {
+            guard collection.pinnedProperties != pinned else { return }
+            var updated = collection
+            updated.pinnedProperties = pinned
+            updated.modifiedAt = Date()
+            let metaURL = collection.folderURL
+                .appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
+            try updated.save(to: metaURL)
+            if let updater = indexUpdater {
+                do { try updater.upsertItemCollection(updated) } catch { self.pendingError = error }
+            }
+            var arr = itemCollectionsByType[collection.typeID] ?? []
+            if let i = arr.firstIndex(where: { $0.id == collection.id }) {
+                arr[i] = updated
+            }
+            itemCollectionsByType[collection.typeID] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     func deleteItemCollection(_ collection: ItemCollection) async throws {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
