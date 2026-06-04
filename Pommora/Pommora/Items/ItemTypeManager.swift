@@ -740,6 +740,53 @@ extension ItemTypeManager {
         }
     }
 
+    // MARK: - Update template config (the single template-persist path)
+
+    /// The ONLY writer of `template_config`. Mirror of `updateView` — see that
+    /// method for the rationale. `containerID` may be an ItemType.id or an
+    /// ItemCollection.id; we search both. Seeds a fresh `ItemTemplateConfig()`
+    /// when nil before applying `transform`, writes the updated container back
+    /// into the in-memory cache, and persists to the matching sidecar.
+    func updateTemplateConfig(
+        in containerID: String,
+        transform: (inout ItemTemplateConfig) -> Void
+    ) async throws {
+        do {
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                var updated = types[i]
+                var config = updated.templateConfig ?? ItemTemplateConfig()
+                transform(&config)
+                updated.templateConfig = config
+                updated.modifiedAt = Date()
+                let meta = NexusPaths.itemTypeMetadataURL(
+                    in: nexus.rootURL, typeFolderName: updated.title
+                )
+                try updated.save(to: meta)
+                types[i] = updated
+                return
+            }
+            for (typeID, cols) in itemCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    var coll = cols[ci]
+                    var config = coll.templateConfig ?? ItemTemplateConfig()
+                    transform(&config)
+                    coll.templateConfig = config
+                    coll.modifiedAt = Date()
+                    let meta = coll.folderURL.appendingPathComponent(
+                        NexusPaths.itemCollectionSidecarFilename
+                    )
+                    try coll.save(to: meta)
+                    itemCollectionsByType[typeID]?[ci] = coll
+                    return
+                }
+            }
+            throw ItemTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Duplicate property
 
     /// Mirror of PageTypeManager.duplicateProperty. Deep-copies a property,
