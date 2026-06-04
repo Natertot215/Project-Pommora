@@ -1,3 +1,4 @@
+import MarkdownPM
 import SwiftUI
 
 /// T3.1 — the single config-driven renderer that draws an Item Window from its
@@ -24,6 +25,16 @@ struct ItemWindowRenderer: View {
 
     @Environment(RelationDisplayResolver.self) private var relationDisplay
     @Environment(TierConfigManager.self) private var tierConfigManager
+
+    // MARK: - Description editor state (T3.2)
+
+    /// Local draft of the Item's description (Markdown source). Seeded from
+    /// `item.description` in `.task` (the renderer is memberwise-init-only, so
+    /// there's no custom init to seed in). Edits are LOCAL @State only — the
+    /// floating window isn't hosted live yet, so there's no commit path here.
+    @State private var draftDescription: String = ""
+    /// Per-document fold state for the MarkdownPM editor (UI-only).
+    @State private var foldedHeadings: Set<String> = []
 
     // MARK: - Derived template facts
 
@@ -94,6 +105,11 @@ struct ItemWindowRenderer: View {
             }
             .background(.bar)
         }
+        // Seed the local description draft from the resolved Item. `.task` keys
+        // on `item.id` so swapping the rendered Item reseeds the editor.
+        .task(id: item.id) {
+            draftDescription = item.description
+        }
     }
 
     // MARK: - 1. Header (icon + title)
@@ -156,14 +172,18 @@ struct ItemWindowRenderer: View {
         }
     }
 
-    /// The description body. STUB: plain Text for now.
-    // T3.2: replace with MarkdownPMEditor + effective-cap counter
+    /// The description body — the real MarkdownPM editor + an effective-cap
+    /// counter. The cap reads `ItemValidator.effectiveCap(for: itemType)`, so a
+    /// Type with a custom `descriptionCap` shows/colors against ITS cap, not the
+    /// flat 250 default. Over-cap colorizes the counter only — it never blocks
+    /// (LD-7). Edits are local @State; commit lands when the window goes live.
     private var bodyRegion: some View {
-        Text(item.description.isEmpty ? " " : item.description)
-            .font(.body)
-            .foregroundStyle(item.description.isEmpty ? .tertiary : .primary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .textSelection(.enabled)
+        DescriptionEditorRegion(
+            text: $draftDescription,
+            foldedHeadings: $foldedHeadings,
+            documentId: item.id,
+            cap: ItemValidator.effectiveCap(for: itemType)
+        )
     }
 
     // MARK: - 4. Overflow surface (non-promoted properties)
@@ -323,6 +343,52 @@ private struct PropertyDisplayRow: View {
                 relationResolver: relationResolver
             )
             Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - DescriptionEditorRegion (T3.2)
+
+/// The Item Window's description body: the in-tree MarkdownPM editor plus a
+/// non-blocking effective-cap counter. Isolated as a plain value-typed sub-view
+/// (quirk #12 — keeps GRDB String-overload pollution out of the parent's
+/// `@ViewBuilder`; `String.count` + the `>` comparison live here cleanly).
+///
+/// `documentId` is the Item id — per-Item undo history + editor state, NOT a
+/// shared default (a bare `MarkdownPMEditor(text:)` init would default it to
+/// `"default"`, sharing undo across every Item). The configuration reuses the
+/// shared Pommora editor config (`MarkdownEditorConfig.pommora`) — vertical
+/// inset 0 since the Item Window has no in-editor title overlay.
+private struct DescriptionEditorRegion: View {
+    @Binding var text: String
+    @Binding var foldedHeadings: Set<String>
+    let documentId: String
+    let cap: Int
+
+    private var count: Int { text.count }
+    private var isOverCap: Bool {
+        ItemValidator.descriptionCounterIsOverCap(count: count, cap: cap)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            MarkdownPMEditor(
+                text: $text,
+                foldedHeadings: $foldedHeadings,
+                configuration: MarkdownEditorConfig.pommora(verticalInset: 0),
+                fontName: "SF Pro Text",
+                fontSize: 15,
+                documentId: documentId,
+                onScrollOffsetChange: { _ in }
+                // T4.4: wire commit/save when the floating window goes live.
+            )
+            .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+
+            Text("\(count) / \(cap)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(isOverCap ? Color.orange : Color.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityLabel("\(count) of \(cap) characters")
         }
     }
 }

@@ -29,6 +29,12 @@ struct ItemValidatorCapTests {
         #expect(ItemValidator.effectiveCap(for: plain) == 250)
     }
 
+    @Test("description counter over-cap decision (T3.2): strictly greater than cap warns")
+    func counterOverCapDecision() {
+        #expect(ItemValidator.descriptionCounterIsOverCap(count: 251, cap: 250) == true)
+        #expect(ItemValidator.descriptionCounterIsOverCap(count: 250, cap: 250) == false)
+    }
+
     @Test("over the effective cap throws .descriptionTooLong(cap:)")
     func rejectsOverEffectiveCap() {
         let t = ItemType(

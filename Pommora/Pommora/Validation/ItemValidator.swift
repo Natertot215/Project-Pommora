@@ -22,6 +22,14 @@ enum ItemValidator {
         itemType.templateConfig?.descriptionCap ?? maxDescriptionLength
     }
 
+    /// Pure decision for the Item Window's description counter: is the current
+    /// character count over the effective cap? Drives the non-blocking WARN
+    /// colorization only — over-cap NEVER blocks load or save (LD-7: a raw
+    /// Obsidian file that overflows must still open).
+    static func descriptionCounterIsOverCap(count: Int, cap: Int) -> Bool {
+        count > cap
+    }
+
     /// Save-time validation for an Item. Schema is sourced from the **Item
     /// Type** (`itemType.properties`) — the stored user-defined schema (tier
     /// relation properties live at the frontmatter root and are validated by

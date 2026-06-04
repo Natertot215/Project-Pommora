@@ -362,11 +362,8 @@ struct PageEditorView: View {
     /// above the scroll overscroll region. Trailing whitespace below the
     /// final body line is acceptable and matches the visual treatment most
     /// long-form editors use.
-    private static let pommoraEditorConfiguration: MarkdownPMConfiguration = {
-        var config = MarkdownPMConfiguration.default
-        config.textInsets = TextInsets(horizontal: 24, vertical: titleAreaHeight)
-        return config
-    }()
+    private static let pommoraEditorConfiguration: MarkdownPMConfiguration =
+        MarkdownEditorConfig.pommora(verticalInset: titleAreaHeight)
 
     /// Move focus from the title TextField to the body NSTextView. Walks
     /// the key window's view tree to find the first NSTextView (which is
