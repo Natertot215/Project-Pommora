@@ -278,7 +278,7 @@ private struct WindowsGallery: View {
                     WindowLaunchRow(
                         title: "Item Window",
                         symbol: "macwindow",
-                        summary: "Popover-style Item Window — title + properties + 1000-char description. Two-column body (description left, properties right). No traffic lights; Liquid Glass X (left) + Inspector toggle (right).",
+                        summary: "Draggable floating Item Window — title + properties + 250-char description, config-driven from the per-Type template (archetype + promoted-property recipe). No traffic lights; custom close + drag chrome.",
                         action: { showingItemWindow = true }
                     )
 
@@ -297,7 +297,7 @@ private struct WindowsGallery: View {
             WindowStubSheet(
                 title: "Item Window",
                 symbol: "macwindow",
-                description: "Stub — real Item Window chrome lands next. Will show title + properties + 1000-char description in a two-column popover with Liquid Glass X + Inspector toggle in lieu of traffic lights."
+                description: "Shipped — the Item Window is a native draggable floating scene (PreviewWindow): title + properties + 250-char description, config-driven from the per-Type template; custom close + drag handle in lieu of traffic lights."
             ) { showingItemWindow = false }
         }
         .sheet(isPresented: $showingPagePreview) {
