@@ -117,6 +117,36 @@ struct ItemWindowRenderer: View {
         return (main, overflow)
     }
 
+    // MARK: - Per-property display resolution (pure, T3.4)
+
+    /// The display for a promoted property: its explicit per-property override
+    /// (`PromotedProperty.display`) if set, else the archetype's default treatment
+    /// for that property's type (LD-4). One source: per-property wins over archetype.
+    static func resolvedDisplay(for promoted: PromotedProperty, propertyType: PropertyType, archetype: LayoutArchetype) -> PropertyDisplay {
+        if let explicit = promoted.display { return explicit }
+        return archetypeDefaultDisplay(for: propertyType, archetype: archetype)
+    }
+
+    /// The archetype's default `PropertyDisplay` for a property type when no
+    /// per-property override is set. Intentionally small: most types are `.inline`;
+    /// image-forward archetypes give a `.file` property a `.thumbnail`/`.banner`
+    /// treatment, and relations default to `.chips`. The point is the RESOLUTION
+    /// logic (override wins) — not an exhaustive design matrix.
+    static func archetypeDefaultDisplay(for type: PropertyType, archetype: LayoutArchetype) -> PropertyDisplay {
+        switch type {
+        case .relation:
+            return .chips
+        case .file:
+            switch archetype {
+            case .gallery: return .thumbnail
+            case .bannerTwoColumn: return .banner
+            default: return .inline
+            }
+        default:
+            return .inline
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -197,7 +227,11 @@ struct ItemWindowRenderer: View {
                     PropertyDisplayRow(
                         definition: entry.definition,
                         value: item.properties[entry.definition.id],
-                        display: entry.promotion.display ?? .inline,
+                        display: Self.resolvedDisplay(
+                            for: entry.promotion,
+                            propertyType: entry.definition.type,
+                            archetype: archetype
+                        ),
                         relationResolver: relationResolver
                     )
                 }
