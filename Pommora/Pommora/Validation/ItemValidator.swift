@@ -4,17 +4,23 @@ enum ItemValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
-        case descriptionTooLong
+        case descriptionTooLong(cap: Int)
         case tierMismatch(expectedTier: Int, id: String)
         case unknownProperty(id: String)
         case propertyTypeMismatch(id: String)
     }
 
-    /// Cap on an Item's description/body, counted in Markdown **source**
+    /// Default cap on an Item's description/body, counted in Markdown **source**
     /// characters (Shape A: description == body). One source of truth — the
     /// Item Window's counter + over-limit colorization reference this constant
-    /// rather than a hardcoded literal.
-    static let maxDescriptionLength = 1000
+    /// rather than a hardcoded literal. A Type may override per-template via
+    /// `ItemTemplateConfig.descriptionCap`; resolve with `effectiveCap(for:)`.
+    static let maxDescriptionLength = 250
+
+    /// Effective per-Item cap: the Type template override, else the 250 default (LD-7).
+    static func effectiveCap(for itemType: ItemType) -> Int {
+        itemType.templateConfig?.descriptionCap ?? maxDescriptionLength
+    }
 
     /// Save-time validation for an Item. Schema is sourced from the **Item
     /// Type** (`itemType.properties`) — the stored user-defined schema (tier
@@ -36,8 +42,9 @@ enum ItemValidator {
             throw ValidationError.invalidTitleCharacters
         }
 
-        guard description.count <= maxDescriptionLength else {
-            throw ValidationError.descriptionTooLong
+        let cap = effectiveCap(for: itemType)
+        guard description.count <= cap else {
+            throw ValidationError.descriptionTooLong(cap: cap)
         }
 
         // tier rules
@@ -92,6 +99,22 @@ enum ItemValidator {
             return
         default:
             throw ValidationError.propertyTypeMismatch(id: id)
+        }
+    }
+
+    /// User-facing message for each `ValidationError` case. Static + internal so
+    /// the save path AND the test suite reach the real mapping (no
+    /// re-implementation). Exhaustive switch — no `default`, so a new
+    /// `ValidationError` case fails to compile until it's mapped here.
+    static func friendly(_ error: ValidationError) -> String {
+        switch error {
+        case .emptyTitle: return "Title can't be empty."
+        case .invalidTitleCharacters: return "Title can't contain / \\ :"
+        case .descriptionTooLong(let cap):
+            return "Description over \(cap) source/markdown characters."
+        case .tierMismatch: return "Internal: tier reference invalid."
+        case .unknownProperty(let id): return "Unknown property '\(id)' for this Item Type."
+        case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
         }
     }
 }

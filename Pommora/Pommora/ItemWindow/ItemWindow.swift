@@ -482,25 +482,9 @@ struct ItemWindow: View {
     /// rename atomicity, IO) via its `localizedDescription`.
     private func surface(_ error: any Error) -> String {
         if let validation = error as? ItemValidator.ValidationError {
-            return Self.friendly(validation)
+            return ItemValidator.friendly(validation)
         }
         return error.localizedDescription
-    }
-
-    /// User-facing message for each `ItemValidator.ValidationError` case. Static
-    /// + internal so the save path AND the test suite reach the real mapping
-    /// (no re-implementation). Exhaustive switch — no `default`, so a new
-    /// `ValidationError` case fails to compile until it's mapped here.
-    static func friendly(_ error: ItemValidator.ValidationError) -> String {
-        switch error {
-        case .emptyTitle: return "Title can't be empty."
-        case .invalidTitleCharacters: return "Title can't contain / \\ :"
-        case .descriptionTooLong:
-            return "Description over \(ItemValidator.maxDescriptionLength) source/markdown characters."
-        case .tierMismatch: return "Internal: tier reference invalid."
-        case .unknownProperty(let id): return "Unknown property '\(id)' for this Item Type."
-        case .propertyTypeMismatch(let id): return "Property '\(id)' has wrong type."
-        }
     }
 }
 

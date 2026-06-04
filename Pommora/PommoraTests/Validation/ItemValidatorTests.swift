@@ -7,7 +7,7 @@ import Testing
 /// into all six Item CRUD entry points for the FIRST time (save-time validation
 /// previously had zero production callers). These cover the validator in
 /// isolation, the live wiring through the manager (proving validation is not
-/// dead), and the `ItemWindow.friendly(_:)` mapping.
+/// dead), and the `ItemValidator.friendly(_:)` mapping.
 @MainActor
 @Suite("ItemValidator")
 struct ItemValidatorTests {
@@ -130,7 +130,7 @@ struct ItemValidatorTests {
     func bodyOverCapThrows() {
         let itemType = makeItemType(properties: [])
         let body = String(repeating: "a", count: ItemValidator.maxDescriptionLength + 1)
-        #expect(throws: ItemValidator.ValidationError.descriptionTooLong) {
+        #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength)) {
             try ItemValidator.validate(
                 title: "X", tier1: [], tier2: [], tier3: [],
                 description: body, properties: [:],
@@ -149,7 +149,7 @@ struct ItemValidatorTests {
 
         var updated = created
         updated.description = String(repeating: "a", count: ItemValidator.maxDescriptionLength + 1)
-        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong) {
+        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength)) {
             try await manager.updateItem(updated, in: coll, type: itemType)
         }
     }
@@ -162,7 +162,7 @@ struct ItemValidatorTests {
 
         var updated = created
         updated.description = String(repeating: "a", count: ItemValidator.maxDescriptionLength + 1)
-        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong) {
+        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength)) {
             try await manager.updateItem(updated, inTypeRoot: itemType)
         }
     }
@@ -226,26 +226,26 @@ struct ItemValidatorTests {
         }
     }
 
-    // MARK: - friendly(_:) mapping (ItemWindow save-path surface)
+    // MARK: - friendly(_:) mapping (ItemValidator save-path surface)
 
     @Test("friendly maps every ValidationError case to a non-empty string")
     func friendlyAllCasesNonEmpty() {
         let cases: [ItemValidator.ValidationError] = [
             .emptyTitle,
             .invalidTitleCharacters,
-            .descriptionTooLong,
+            .descriptionTooLong(cap: 250),
             .tierMismatch(expectedTier: 1, id: "01H"),
             .unknownProperty(id: "p"),
             .propertyTypeMismatch(id: "p"),
         ]
         for error in cases {
-            #expect(!ItemWindow.friendly(error).isEmpty)
+            #expect(!ItemValidator.friendly(error).isEmpty)
         }
     }
 
     @Test("friendly(.descriptionTooLong) mentions source/markdown characters")
     func friendlyDescriptionMentionsSource() {
-        let message = ItemWindow.friendly(.descriptionTooLong)
+        let message = ItemValidator.friendly(.descriptionTooLong(cap: 250))
         #expect(message.contains("source/markdown characters"))
     }
 
