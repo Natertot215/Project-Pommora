@@ -121,6 +121,49 @@ struct PageTypeManagerTests {
         #expect(manager.pageCollections(in: pageType).first?.title == "To-dos")
     }
 
+    @Test("renamePageCollection preserves templateConfig + icon (cache + disk)")
+    func renamePageCollectionPreservesOverrides() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = PageTypeManager(nexus: nexus)
+        await manager.loadAll()
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
+        let coll = manager.pageCollections(in: pageType).first!
+
+        // Set an icon via the manager, and a templateConfig directly into the
+        // sidecar (the Page side has no template-update method yet), then reload
+        // so the in-memory collection carries the override.
+        try await manager.updatePageCollectionIcon(coll, to: "doc")
+        let withIcon = manager.pageCollections(in: pageType).first!
+        var seeded = withIcon
+        seeded.templateConfig = PageTemplateConfig(layout: .gallery)
+        try seeded.save(to: withIcon.folderURL
+            .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+
+        let seededManager = PageTypeManager(nexus: nexus)
+        await seededManager.loadAll()
+        let loaded = seededManager.pageCollections(in: seededManager.types.first!).first!
+        #expect(loaded.templateConfig?.layout == .gallery)
+        #expect(loaded.icon == "doc")
+
+        // Rename must NOT reset templateConfig / icon.
+        try await seededManager.renamePageCollection(loaded, to: "To-dos")
+        let renamed = seededManager.pageCollections(in: seededManager.types.first!).first!
+        #expect(renamed.title == "To-dos")
+        #expect(renamed.templateConfig?.layout == .gallery)
+        #expect(renamed.icon == "doc")
+
+        // ...and survive a reload-from-disk.
+        let reloaded = PageTypeManager(nexus: nexus)
+        await reloaded.loadAll()
+        let fromDisk = reloaded.pageCollections(in: reloaded.types.first!).first!
+        #expect(fromDisk.title == "To-dos")
+        #expect(fromDisk.templateConfig?.layout == .gallery)
+        #expect(fromDisk.icon == "doc")
+    }
+
     @Test("deletePageCollection removes folder")
     func deletePageCollection() async throws {
         let nexus = try TempNexus.make()

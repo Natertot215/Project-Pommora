@@ -581,10 +581,11 @@ struct ItemWindowRenderer: View {
     }
 
     /// The description body — the real MarkdownPM editor + an effective-cap
-    /// counter. The cap reads `ItemValidator.effectiveCap(for: itemType)`, so a
-    /// Type with a custom `descriptionCap` shows/colors against ITS cap, not the
-    /// flat 250 default. Over-cap colorizes the counter only — it never blocks
-    /// (LD-7). Edits are local @State; commit lands when the window goes live.
+    /// counter. The cap reads `ItemValidator.effectiveCap(template: template)`
+    /// off the RESOLVED template (Collection→Type, LD-10), so a Set overriding
+    /// `descriptionCap` shows/colors against ITS cap, not the Type's — consistent
+    /// with every other template field. Over-cap colorizes the counter only — it
+    /// never blocks (LD-7). Edits are local @State; commit lands when live.
     @ViewBuilder
     private var bodyRegion: some View {
         if editing {
@@ -599,7 +600,7 @@ struct ItemWindowRenderer: View {
                 text: $draftDescription,
                 foldedHeadings: $foldedHeadings,
                 documentId: item.id,
-                cap: ItemValidator.effectiveCap(for: itemType)
+                cap: ItemValidator.effectiveCap(template: template)
             )
         }
     }

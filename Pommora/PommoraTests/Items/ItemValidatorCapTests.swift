@@ -29,6 +29,12 @@ struct ItemValidatorCapTests {
         #expect(ItemValidator.effectiveCap(for: plain) == 250)
     }
 
+    @Test("effective cap from a resolved template honors its override, else the 250 default")
+    func effectiveCapFromResolvedTemplate() {
+        #expect(ItemValidator.effectiveCap(template: ItemTemplateConfig(descriptionCap: 500)) == 500)
+        #expect(ItemValidator.effectiveCap(template: ItemTemplateConfig()) == 250)
+    }
+
     @Test("description counter over-cap decision (T3.2): strictly greater than cap warns")
     func counterOverCapDecision() {
         #expect(ItemValidator.descriptionCounterIsOverCap(count: 251, cap: 250) == true)

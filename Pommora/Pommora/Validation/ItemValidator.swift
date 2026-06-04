@@ -22,6 +22,14 @@ enum ItemValidator {
         itemType.templateConfig?.descriptionCap ?? maxDescriptionLength
     }
 
+    /// Effective per-Item cap from an ALREADY-RESOLVED template (Collection→Type,
+    /// LD-10). The live Item Window resolves the template via `TemplateResolver`,
+    /// so a Set overriding `descriptionCap` must color its counter against ITS
+    /// cap — not the Type's. Same default fallback as `effectiveCap(for:)`.
+    static func effectiveCap(template: ItemTemplateConfig) -> Int {
+        template.descriptionCap ?? maxDescriptionLength
+    }
+
     /// Pure decision for the Item Window's description counter: is the current
     /// character count over the effective cap? Drives the non-blocking WARN
     /// colorization only — over-cap NEVER blocks load or save (LD-7: a raw

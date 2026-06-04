@@ -398,17 +398,15 @@ final class PageTypeManager {
             )
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
-            // Bump modified_at in the sidecar at its new location. Preserve
-            // pageOrder so a rename doesn't drop persisted ordering.
+            // Copy-mutate so a rename only touches what a rename legitimately
+            // changes (title / folderURL / modifiedAt) and preserves every other
+            // field — templateConfig, icon, views, schemaVersion, pageOrder, and
+            // any future field — automatically.
             let now = Date()
-            let updated = PageCollection(
-                id: collection.id,
-                typeID: collection.typeID,
-                title: newName,
-                folderURL: newURL,
-                modifiedAt: now,
-                pageOrder: collection.pageOrder
-            )
+            var updated = collection
+            updated.title = newName
+            updated.folderURL = newURL
+            updated.modifiedAt = now
             let metaURL = newURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             do {
                 try updated.save(to: metaURL)

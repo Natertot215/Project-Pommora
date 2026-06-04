@@ -156,6 +156,45 @@ struct ItemTypeManagerTests {
         #expect(renamed.folderURL == newFolder)
     }
 
+    @Test("renameItemCollection preserves templateConfig + icon + pins (cache + disk)")
+    func renameItemCollectionPreservesOverrides() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = ItemTypeManager(nexus: nexus)
+        await manager.loadAll()
+        try await manager.createItemType(name: "Errands", icon: nil)
+        let itemType = manager.types.first!
+        try await manager.createItemCollection(name: "Groceries", inItemType: itemType)
+        let coll = manager.itemCollections(in: itemType).first!
+
+        // Establish a Collection-level template override, an icon, and pins.
+        // Re-fetch the latest collection before each update so each copy-mutate
+        // starts from current state (each updater persists the whole sidecar).
+        try await manager.updateItemCollectionIcon(coll, to: "cart")
+        let afterIcon = manager.itemCollections(in: itemType).first!
+        try await manager.updateItemCollectionPinnedProperties(afterIcon, to: ["prop-a"])
+        try await manager.updateTemplateConfig(in: coll.id) { $0.layout = .gallery }
+
+        // Rename must NOT reset templateConfig / icon / pinnedProperties.
+        let toRename = manager.itemCollections(in: itemType).first!
+        try await manager.renameItemCollection(toRename, to: "Supplies")
+
+        let renamed = manager.itemCollections(in: itemType).first!
+        #expect(renamed.title == "Supplies")
+        #expect(renamed.templateConfig?.layout == .gallery)
+        #expect(renamed.icon == "cart")
+        #expect(renamed.pinnedProperties == ["prop-a"])
+
+        // ...and survive a reload-from-disk (the sidecar carries them, not just the cache).
+        let reloaded = ItemTypeManager(nexus: nexus)
+        await reloaded.loadAll()
+        let fromDisk = reloaded.itemCollections(in: reloaded.types.first!).first!
+        #expect(fromDisk.title == "Supplies")
+        #expect(fromDisk.templateConfig?.layout == .gallery)
+        #expect(fromDisk.icon == "cart")
+        #expect(fromDisk.pinnedProperties == ["prop-a"])
+    }
+
     @Test("deleteItemCollection removes folder + clears in-memory entry")
     func deleteItemCollection() async throws {
         let nexus = try TempNexus.make()

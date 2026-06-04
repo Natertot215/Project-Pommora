@@ -427,15 +427,15 @@ final class ItemTypeManager {
             )
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
+            // Copy-mutate so a rename only touches what a rename legitimately
+            // changes (title / folderURL / modifiedAt) and preserves every other
+            // field — templateConfig, icon, pinnedProperties, views, schemaVersion,
+            // itemOrder, and any future field — automatically.
             let now = Date()
-            let updated = ItemCollection(
-                id: collection.id,
-                typeID: collection.typeID,
-                title: newName,
-                folderURL: newURL,
-                modifiedAt: now,
-                itemOrder: collection.itemOrder
-            )
+            var updated = collection
+            updated.title = newName
+            updated.folderURL = newURL
+            updated.modifiedAt = now
             let metaURL = newURL.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
             do {
                 try updated.save(to: metaURL)
