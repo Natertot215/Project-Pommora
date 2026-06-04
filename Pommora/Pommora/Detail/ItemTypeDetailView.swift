@@ -268,28 +268,16 @@ struct ItemTypeDetailView: View {
 
     private var footer: some View {
         let setLabel = settingsManager.settings.labels.itemCollection.singular
-        return HStack {
-            Button {
-                createItem()
-            } label: {
-                Label("New Item", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingItem)
-
-            Button {
-                createItemCollection()
-            } label: {
-                Label("New \(setLabel)", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingCollection)
-
-            Spacer()
+        let crumbs: [FooterCrumb] = [FooterCrumb(title: type.title)]
+        return DetailFooterBar(crumbs: crumbs) {
+            FooterAddMenuButton(
+                items: [
+                    .init(label: "New Item", isDisabled: isCreatingItem, action: createItem),
+                    .init(label: "New \(setLabel)", isDisabled: isCreatingCollection, action: createItemCollection),
+                ],
+                allDisabled: isCreatingItem && isCreatingCollection
+            )
         }
-        .padding(8)
     }
 
     /// Stub-and-edit "New Item" (at ItemType root) from the detail-view footer.

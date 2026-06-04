@@ -25,15 +25,21 @@ struct DateTimePicker: View {
     @State private var visibleMonth: CalendarMonth
     @State private var monthMenuOpen = false
     @State private var headerHovered = false
+    /// Whether the user has explicitly set a time (AM or PM selected).
+    /// Bound externally so callers can derive it from their stored value's case
+    /// (.datetime = set, .date = not set) and update the display accordingly.
+    @Binding private var isTimeSet: Bool
     /// First tap of a range, awaiting its second (range mode only).
     @State private var pendingRangeStart: Date?
 
     init(
         selection: Binding<DateSelection?>,
+        isTimeSet: Binding<Bool> = .constant(false),
         mode: DateSelection.Mode = .single,
         timeFormat: TimeFormat = .none
     ) {
         _selection = selection
+        _isTimeSet = isTimeSet
         self.mode = mode
         self.timeFormat = timeFormat
         let anchor = selection.wrappedValue?.anchorDate ?? Date()
@@ -41,54 +47,51 @@ struct DateTimePicker: View {
     }
 
     var body: some View {
-        VStack(spacing: PUI.Spacing.md) {
-            header
-            Divider()
-            calendarArea
+        VStack(spacing: 0) {
+            VStack(spacing: PUI.Spacing.md) {
+                header
+                Divider().padding(.horizontal, PUI.Spacing.md)
+                calendarArea
+            }
             if showsTime {
-                Divider()
-                TimeFieldRow(
-                    date: selectedDateBinding,
-                    is24Hour: timeFormat == .twentyFourHour
-                )
+                // Single container — outer VStack sees one child, no double spacing.
+                // Always allocated so the card height stays fixed; opacity gates
+                // visibility until a date is picked.
+                VStack(spacing: PUI.Spacing.sm) {
+                    Divider().padding(.horizontal, PUI.Spacing.md)
+                    TimeFieldRow(
+                        date: selectedDateBinding,
+                        isTimeSet: $isTimeSet,
+                        is24Hour: timeFormat == .twentyFourHour
+                    )
+                }
+                .opacity(selection != nil ? 1 : 0)
+                .allowsHitTesting(selection != nil)
+                .animation(.easeInOut(duration: 0.15), value: selection != nil)
             }
         }
         .frame(width: DateTimePickerMetrics.cell * 7)
         .padding(DateTimePickerMetrics.cardPadding)
-        // House Liquid-Glass panel surface (`.regularMaterial`) — same as every
-        // other inline floating panel; the popover hosts it chromeless via
-        // `.presentationBackground(.clear)` so there's a single glass layer.
         .chipDropdownPanel()
+        // Any tap anywhere in the card resigns the time field's caret —
+        // .simultaneousGesture fires alongside child button gestures, so
+        // calendar taps, nav arrows, etc. all still work normally.
+        .simultaneousGesture(TapGesture().onEnded {
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        })
     }
 
-    /// The calendar grid, or the month-jump list swapped in. The region is a
-    /// fixed height (≈ 6 weeks) so month-length variance never resizes the
-    /// card; the grid is top-aligned (a short month shows one blank trailing
-    /// week) and the menu fills the same height. Horizontal swipe on the grid
-    /// steps the month.
-    @ViewBuilder
     private var calendarArea: some View {
-        Group {
-            if monthMenuOpen {
-                MonthYearMenu(visibleMonth: visibleMonth) { picked in
-                    visibleMonth = picked
-                    withAnimation(.snappy(duration: 0.15)) { monthMenuOpen = false }
-                }
-                .transition(.opacity)
-            } else {
-                CalendarGridView(
-                    month: visibleMonth,
-                    selection: selection,
-                    pendingRangeStart: pendingRangeStart,
-                    accent: accent,
-                    accentForeground: accentForeground,
-                    onPick: handlePick
-                )
-                .gesture(monthSwipe)
-                .transition(.opacity)
-            }
-        }
-        .frame(height: DateTimePickerMetrics.calendarHeight, alignment: .top)
+        CalendarGridView(
+            month: visibleMonth,
+            selection: selection,
+            pendingRangeStart: pendingRangeStart,
+            accent: accent,
+            accentForeground: accentForeground,
+            onPick: handlePick
+        )
+        .gesture(monthSwipe)
+        .frame(maxHeight: DateTimePickerMetrics.calendarHeight)
     }
 
     /// Horizontal swipe across the grid → previous / next month.
@@ -112,25 +115,35 @@ struct DateTimePicker: View {
     private var header: some View {
         HStack(spacing: PUI.Spacing.sm) {
             Button {
-                withAnimation(.snappy(duration: 0.18)) { monthMenuOpen.toggle() }
+                monthMenuOpen.toggle()
             } label: {
                 HStack(spacing: PUI.Spacing.xs) {
                     Text(visibleMonth.title)
                         .font(DateTimePickerMetrics.titleFont)
                         .foregroundStyle(.primary)
-                    // Disclosure chevron: `›` when closed, rotating smoothly to
-                    // `⌄` when open. Hidden until hover (or while open).
                     Image(systemName: "chevron.right")
                         .font(DateTimePickerMetrics.menuChevronFont)
                         .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(monthMenuOpen ? 90 : 0))
+                        .animation(.snappy(duration: 0.15), value: monthMenuOpen)
                         .opacity(headerHovered || monthMenuOpen ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.12), value: headerHovered)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.12)) { headerHovered = hovering }
+            .onHover { hovering in headerHovered = hovering }
+            .popover(isPresented: $monthMenuOpen, arrowEdge: .bottom) {
+                MonthYearMenu(visibleMonth: visibleMonth) { picked in
+                    visibleMonth = picked
+                    monthMenuOpen = false
+                }
+                .frame(
+                    width: DateTimePickerMetrics.monthMenuWidth,
+                    height: DateTimePickerMetrics.monthMenuHeight
+                )
+                .chipDropdownPanel()
+                .presentationBackground(.clear)
             }
 
             Spacer(minLength: PUI.Spacing.md)
@@ -141,6 +154,8 @@ struct DateTimePicker: View {
                 }
             }
         }
+        .padding(.top, PUI.Spacing.sm)
+        .padding(.horizontal, PUI.Spacing.md)
     }
 
     // MARK: - Time
@@ -170,8 +185,15 @@ struct DateTimePicker: View {
         }
         switch mode {
         case .single:
-            // Preserve any time the user already set when the day changes.
-            selection = .single(DateTimeMath.combine(day: day, time: selection?.anchorDate ?? day))
+            if case .single(let current)? = selection,
+                Calendar.current.isDate(current, inSameDayAs: day) {
+                selection = nil
+                isTimeSet = false
+            } else {
+                // Preserve time when switching dates if already set; otherwise midnight.
+                let base = isTimeSet ? (selection?.anchorDate ?? Date()) : Calendar.current.startOfDay(for: day)
+                selection = .single(DateTimeMath.combine(day: day, time: base))
+            }
         case .range:
             if let start = pendingRangeStart {
                 let lo = min(start, day), hi = max(start, day)

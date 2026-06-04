@@ -7,6 +7,9 @@ struct PageTypeDetailView: View {
     @Binding var presentedItem: Item?  // drives Item Window popover
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
+    /// Last page visited before navigating back to this vault; shown as a
+    /// ghost trail crumb if the page lives at this vault's root.
+    var trailPage: PageMeta? = nil
 
     @State private var isCreatingPage: Bool = false
     @State private var isCreatingCollection: Bool = false
@@ -235,28 +238,21 @@ struct PageTypeDetailView: View {
     // MARK: - Footer
 
     private var footer: some View {
-        HStack {
-            Button {
-                createPage()
-            } label: {
-                Label("New Page", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingPage)
-
-            Button {
-                createCollection()
-            } label: {
-                Label("New Collection", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingCollection)
-
-            Spacer()
+        let collectionLabel = settingsManager.settings.labels.pageCollection.singular
+        var crumbs: [FooterCrumb] = [FooterCrumb(title: pageType.title)]
+        if let trail = trailPage,
+           contentManager.pages(in: pageType).contains(where: { $0.id == trail.id }) {
+            crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
         }
-        .padding(8)
+        return DetailFooterBar(crumbs: crumbs) {
+            FooterAddMenuButton(
+                items: [
+                    .init(label: "New Page", isDisabled: isCreatingPage, action: createPage),
+                    .init(label: "New \(collectionLabel)", isDisabled: isCreatingCollection, action: createCollection),
+                ],
+                allDisabled: isCreatingPage && isCreatingCollection
+            )
+        }
     }
 
     /// Stub-and-edit "New Page" (at this PageType's root) trigger from the

@@ -14,11 +14,17 @@ extension PropertyValue {
         }
     }
 
-    /// Encode a single-date selection back into a property value, choosing
-    /// `.datetime` vs `.date` by whether the format shows time. A non-single
-    /// or `nil` selection clears the value (`.null`).
-    static func from(dateSelection selection: DateSelection?, timeFormat: TimeFormat) -> PropertyValue {
+    /// Encode a single-date selection back into a property value. Stores
+    /// `.datetime` only when both the format shows time AND `isTimeSet` is
+    /// true — a date with no explicit time becomes `.date` even on a datetime
+    /// property, so the display can skip the time portion. A non-single or
+    /// `nil` selection clears the value (`.null`).
+    static func from(
+        dateSelection selection: DateSelection?,
+        timeFormat: TimeFormat,
+        isTimeSet: Bool = true
+    ) -> PropertyValue {
         guard case .single(let d)? = selection else { return .null }
-        return timeFormat.showsTime ? .datetime(d) : .date(d)
+        return (timeFormat.showsTime && isTimeSet) ? .datetime(d) : .date(d)
     }
 }

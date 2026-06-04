@@ -6,6 +6,9 @@ struct SidebarDetailView: View {
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
     @State private var presentedItem: Item?
+    /// Last page viewed; surfaces as a ghost breadcrumb trail in the parent
+    /// collection or vault view so the user can tap back to it.
+    @State private var pageTrail: PageMeta? = nil
 
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -57,7 +60,8 @@ struct SidebarDetailView: View {
                     presentedSheet: $presentedSheet,
                     presentedItem: $presentedItem,
                     editingID: $editingID,
-                    justCreatedID: $justCreatedID
+                    justCreatedID: $justCreatedID,
+                    trailPage: pageTrail
                 )
 
             case .collection(let c):
@@ -71,7 +75,8 @@ struct SidebarDetailView: View {
                         presentedSheet: $presentedSheet,
                         presentedItem: $presentedItem,
                         editingID: $editingID,
-                        justCreatedID: $justCreatedID
+                        justCreatedID: $justCreatedID,
+                        trailPage: pageTrail
                     )
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -100,7 +105,7 @@ struct SidebarDetailView: View {
                 }
 
             case .page(let p):
-                PageEditorHost(page: p)
+                PageEditorHost(page: p, selection: $selection)
 
             case .itemType(let t):
                 ItemTypeDetailView(
@@ -129,6 +134,18 @@ struct SidebarDetailView: View {
         .onAppear {
             AppGlobals.presentItemAction = { item in
                 presentedItem = item
+            }
+        }
+        .onChange(of: selection) { _, newSel in
+            switch newSel {
+            case .page(let p):
+                pageTrail = p
+            case .collection, .pageType:
+                // Keep trail — child views validate membership before rendering
+                // the ghost crumb; irrelevant pages are silently skipped.
+                break
+            default:
+                pageTrail = nil
             }
         }
         .sheet(item: $presentedSheet) { sheet in

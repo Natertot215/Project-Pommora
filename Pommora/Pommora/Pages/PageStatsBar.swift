@@ -1,37 +1,29 @@
 import SwiftUI
 
-/// The expanded Page stats row: a `Vault › Collection › Page` breadcrumb
-/// (Finder-style `›` separators) on the left, `Lines · Words · Characters` on
-/// the right. The toggle chevron lives as an editor overlay in `PageEditorView`
-/// (outside this bar) so the bar's height stays minimal.
+/// The expandable Page stats row: breadcrumb on the left (Finder-style `›`
+/// separators, each ancestor segment tappable for back-navigation), document
+/// statistics on the right. The toggle chevron lives as an editor overlay in
+/// `PageEditorView` (outside this bar) so the bar's height stays minimal.
 struct PageStatsBar: View {
-    /// Breadcrumb component titles, outermost first: [Vault, Collection?, Page].
-    let breadcrumb: [String]
+    /// Breadcrumb segments outermost-first. Ancestor crumbs carry an `action`
+    /// for back-navigation; the current page segment has `action: nil`.
+    let crumbs: [FooterCrumb]
     let stats: PageTextStats
 
     var body: some View {
-        HStack(spacing: 0) {
-            // "Vault › Collection › Page", Finder-style.
-            Text(joined(breadcrumb, separator: " › "))
-            Spacer(minLength: PUI.Spacing.xl)
-            // "12 · 340 · 1,890".
+        DetailFooterBar(crumbs: crumbs) {
             Text(joined(countComponents, separator: " · "))
+                .foregroundStyle(.secondary)
                 .help("Lines · Words · Characters")
         }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, PUI.Spacing.xl)
-        .padding(.vertical, PUI.Spacing.sm)
-        .frame(maxWidth: .infinity)
     }
 
     private var countComponents: [String] {
         [stats.lines, stats.words, stats.characters].map { $0.formatted() }
     }
 
-    /// Joins `parts` with a `separator` tinted a touch fainter than the parts:
-    /// the parts inherit the bar's `.secondary` tint, the separator renders in
-    /// tertiary label. Used for both the breadcrumb (`›`) and the counts (`·`).
+    /// Joins `parts` with a `separator` tinted a touch fainter, matching the
+    /// breadcrumb's own `›` separator treatment.
     private func joined(_ parts: [String], separator: String) -> AttributedString {
         var sep = AttributedString(separator)
         sep.foregroundColor = Color(nsColor: .tertiaryLabelColor)

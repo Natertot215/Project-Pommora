@@ -230,9 +230,33 @@ struct PropertyCellEditor: View {
         let timeFormat = definition.timeFormat ?? .none
         let selection = Binding<DateSelection?>(
             get: { draft?.dateSelection },
-            set: { draft = .from(dateSelection: $0, timeFormat: timeFormat) }
+            set: { newSel in
+                // Preserve .date vs .datetime based on whether time is currently
+                // set — avoids overwriting the case when the user just moves dates.
+                let hasTime: Bool
+                if case .datetime = draft { hasTime = true } else { hasTime = false }
+                draft = .from(dateSelection: newSel, timeFormat: timeFormat, isTimeSet: hasTime)
+            }
         )
-        DateTimePicker(selection: selection, mode: .single, timeFormat: timeFormat)
+        DateTimePicker(selection: selection, isTimeSet: isTimeSetBinding, mode: .single, timeFormat: timeFormat)
+    }
+
+    /// Derived binding from `draft`'s case — `true` when the stored value is
+    /// `.datetime`, `false` for `.date` or nil. Writing converts between the
+    /// two cases so the display omits time until the user explicitly sets it.
+    private var isTimeSetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .datetime = draft { return true }
+                return false
+            },
+            set: { newIsTimeSet in
+                guard let date = draft?.dateSelection?.anchorDate else { return }
+                let tf = definition.timeFormat ?? .none
+                guard tf.showsTime else { return }
+                draft = .from(dateSelection: .single(date), timeFormat: tf, isTimeSet: newIsTimeSet)
+            }
+        )
     }
 
     @ViewBuilder

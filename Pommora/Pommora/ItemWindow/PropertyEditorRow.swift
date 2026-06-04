@@ -92,6 +92,7 @@ struct PropertyEditorRow: View {
         .popover(isPresented: $dateEditorOpen, arrowEdge: .bottom) {
             DateTimePicker(
                 selection: dateSelectionBinding,
+                isTimeSet: isTimeSetBinding,
                 mode: .single,
                 timeFormat: definition.timeFormat ?? .none
             )
@@ -101,22 +102,43 @@ struct PropertyEditorRow: View {
 
     private var hasDateValue: Bool { value.dateSelection != nil }
 
-    /// Formatted via the canonical `DateFormat` / `TimeFormat` renderers (the
-    /// single sources of truth), or a placeholder when unset.
+    /// Formatted via the canonical `DateFormat` / `TimeFormat` renderers.
+    /// Time is only appended when the stored value is `.datetime` — a `.date`
+    /// value means the user never set a time, so it renders date-only even on
+    /// a datetime property.
     private var dateDisplayString: String {
         guard let date = value.dateSelection?.anchorDate else { return "Empty" }
-        var text = (definition.dateFormat ?? .full).string(from: date)
-        if let time = (definition.timeFormat ?? .none).string(from: date) {
-            text += " \(time)"
-        }
-        return text
+        let dateStr = (definition.dateFormat ?? .full).string(from: date)
+        guard case .datetime = value,
+              let time = (definition.timeFormat ?? .none).string(from: date)
+        else { return dateStr }
+        return "\(dateStr) \(time)"
     }
 
     private var dateSelectionBinding: Binding<DateSelection?> {
         let timeFormat = definition.timeFormat ?? .none
         return Binding(
             get: { value.dateSelection },
-            set: { value = .from(dateSelection: $0, timeFormat: timeFormat) }
+            set: { newSel in
+                let hasTime: Bool
+                if case .datetime = value { hasTime = true } else { hasTime = false }
+                value = .from(dateSelection: newSel, timeFormat: timeFormat, isTimeSet: hasTime)
+            }
+        )
+    }
+
+    private var isTimeSetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .datetime = value { return true }
+                return false
+            },
+            set: { newIsTimeSet in
+                guard let date = value.dateSelection?.anchorDate else { return }
+                let tf = definition.timeFormat ?? .none
+                guard tf.showsTime else { return }
+                value = .from(dateSelection: .single(date), timeFormat: tf, isTimeSet: newIsTimeSet)
+            }
         )
     }
 

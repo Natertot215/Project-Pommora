@@ -7,27 +7,31 @@ import SwiftUI
 /// mouse-steppable. Edits the time portion of `date`, preserving its day.
 struct TimeFieldRow: View {
     @Binding var date: Date
+    /// Whether the user has explicitly set a time. False = fields muted,
+    /// neither AM/PM segment highlighted. Clicking AM or PM activates it;
+    /// clicking the active segment again clears it back to unset.
+    @Binding var isTimeSet: Bool
     let is24Hour: Bool
 
     private let calendar: Calendar = .current
 
     var body: some View {
-        HStack(spacing: PUI.Spacing.md) {
-            Text("Time")
-                .font(PUI.Typography.row)
+        HStack(spacing: PUI.Spacing.sm) {
+            SteppableNumberField(value: hourBinding, range: hourRange)
+                .opacity(isTimeSet ? 1 : 0.35)
+                .allowsHitTesting(isTimeSet)
+            Text(":")
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Spacer(minLength: PUI.Spacing.md)
-            HStack(spacing: PUI.Spacing.sm) {
-                SteppableNumberField(value: hourBinding, range: hourRange)
-                Text(":")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                SteppableNumberField(value: minuteBinding, range: 0...59, zeroPadded: true)
-                if !is24Hour {
-                    AMPMToggle(isPM: isPMBinding)
-                }
+                .opacity(isTimeSet ? 1 : 0.35)
+            SteppableNumberField(value: minuteBinding, range: 0...59, zeroPadded: true)
+                .opacity(isTimeSet ? 1 : 0.35)
+                .allowsHitTesting(isTimeSet)
+            if !is24Hour {
+                AMPMToggle(isPM: isPMNullableBinding)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     // MARK: - Time arithmetic
@@ -62,14 +66,33 @@ struct TimeFieldRow: View {
         )
     }
 
-    private var isPMBinding: Binding<Bool> {
+    /// Optional AM/PM binding — nil when time is unset (neither segment active).
+    /// Setting a non-nil value for the first time seeds the time from the
+    /// current wall clock; toggling the already-active segment clears to nil.
+    private var isPMNullableBinding: Binding<Bool?> {
         Binding(
-            get: { calendar.component(.hour, from: date) >= 12 },
+            get: { isTimeSet ? calendar.component(.hour, from: date) >= 12 : nil },
             set: { pm in
-                let h = calendar.component(.hour, from: date)
-                guard pm != (h >= 12) else { return }
-                let newHour = pm ? h + 12 : h - 12
-                date = DateTimeMath.setting(hour: newHour, minute: calendar.component(.minute, from: date), on: date)
+                if let pm {
+                    if !isTimeSet {
+                        let now = Date()
+                        let h = calendar.component(.hour, from: now)
+                        let m = calendar.component(.minute, from: now)
+                        let hour24 = pm ? (h < 12 ? h + 12 : h) : (h >= 12 ? h - 12 : h)
+                        date = DateTimeMath.setting(hour: hour24, minute: m, on: date)
+                        isTimeSet = true
+                    } else {
+                        let h = calendar.component(.hour, from: date)
+                        guard pm != (h >= 12) else { return }
+                        let newHour = pm ? h + 12 : h - 12
+                        date = DateTimeMath.setting(hour: newHour,
+                                                    minute: calendar.component(.minute, from: date),
+                                                    on: date)
+                    }
+                } else {
+                    isTimeSet = false
+                    date = DateTimeMath.setting(hour: 0, minute: 0, on: date)
+                }
             }
         )
     }
@@ -95,13 +118,18 @@ private struct SteppableNumberField: View {
                 .font(DateTimePickerMetrics.timeDigitFont)
                 .frame(width: DateTimePickerMetrics.timeFieldWidth)
                 .focused($focused)
-                .padding(.horizontal, PUI.Spacing.sm)
-                .padding(.vertical, PUI.Spacing.xs)
-                .fieldBackground()
+                .onExitCommand { focused = false }
                 .onChange(of: text) { _, newText in commit(newText) }
                 .onChange(of: value) { _, newValue in if !focused { text = format(newValue) } }
                 .onChange(of: focused) { _, isFocused in if !isFocused { text = format(value) } }
                 .onAppear { text = format(value) }
+                .padding(.horizontal, PUI.Spacing.sm)
+                .padding(.vertical, PUI.Spacing.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous)
+                        .fill(PUI.Fill.field)
+                        .onTapGesture { focused = true }
+                )
 
             VStack(spacing: 0) {
                 stepButton(icon: "chevron.up", delta: 1)
@@ -142,16 +170,17 @@ private struct SteppableNumberField: View {
 // MARK: - AM/PM toggle
 
 /// Two-segment AM/PM control. Active segment fills with the per-Nexus accent.
+/// `isPM == nil` means neither is selected (time unset); tapping the currently
+/// active segment deselects both by setting nil.
 private struct AMPMToggle: View {
-    @Binding var isPM: Bool
+    @Binding var isPM: Bool?
     @Environment(\.nexusAccent) private var accent
 
     var body: some View {
-        HStack(spacing: 0) {
-            segment("AM", active: !isPM) { isPM = false }
-            segment("PM", active: isPM) { isPM = true }
+        HStack(spacing: PUI.Spacing.xs) {
+            segment("AM", active: isPM == false) { isPM = (isPM == false) ? nil : false }
+            segment("PM", active: isPM == true)  { isPM = (isPM == true)  ? nil : true  }
         }
-        .fieldBackground()
     }
 
     private func segment(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {

@@ -8,6 +8,9 @@ struct PageCollectionDetailView: View {
     @Binding var presentedItem: Item?
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
+    /// Last page visited before navigating back to this collection; shown as
+    /// a ghost trail crumb if the page belongs to this collection.
+    var trailPage: PageMeta? = nil
 
     @State private var isCreatingPage: Bool = false
 
@@ -193,18 +196,20 @@ struct PageCollectionDetailView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Button {
-                createPage()
-            } label: {
-                Label("New Page", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(isCreatingPage)
-            Spacer()
+        var crumbs: [FooterCrumb] = [
+            FooterCrumb(title: vault.title) { selection = .pageType(vault) },
+            FooterCrumb(title: collection.title),
+        ]
+        if let trail = trailPage,
+           contentManager.pages(in: collection).contains(where: { $0.id == trail.id }) {
+            crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
         }
-        .padding(8)
+        return DetailFooterBar(crumbs: crumbs) {
+            FooterAddMenuButton(
+                items: [.init(label: "New Page", isDisabled: isCreatingPage, action: createPage)],
+                allDisabled: isCreatingPage
+            )
+        }
     }
 
     /// Stub-and-edit "New Page" trigger fired from the detail-view footer.

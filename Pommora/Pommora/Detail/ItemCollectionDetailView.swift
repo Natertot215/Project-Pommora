@@ -234,21 +234,22 @@ struct ItemCollectionDetailView: View {
 
     private var footer: some View {
         // Parent must exist for + New Item — Sets are always inside a Type.
-        // If parent isn't loaded yet, disable the button rather than ship a
-        // bogus PlaceholderType into the sheet flow.
         let parent = itemTypeManager.parentItemType(for: collection)
-        return HStack {
-            Button {
-                if let parent { createItem(parent: parent) }
-            } label: {
-                Label("New Item", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.primary)
-            .disabled(parent == nil || isCreatingItem)
-            Spacer()
+        var crumbs: [FooterCrumb] = []
+        if let p = parent {
+            crumbs.append(FooterCrumb(title: p.title) { selection = .itemType(p) })
         }
-        .padding(8)
+        crumbs.append(FooterCrumb(title: collection.title))
+        return DetailFooterBar(crumbs: crumbs) {
+            FooterAddMenuButton(
+                items: [
+                    .init(label: "New Item", isDisabled: parent == nil || isCreatingItem) {
+                        if let parent { createItem(parent: parent) }
+                    },
+                ],
+                allDisabled: parent == nil || isCreatingItem
+            )
+        }
     }
 
     private var rows: [DetailRow] {

@@ -28,6 +28,8 @@ struct PageEditorView: View {
     let vault: PageType
     /// nil = vault-root Page (no Collection parent)
     let collection: PageCollection?
+    /// Drives breadcrumb back-navigation. Set by SidebarDetailView.
+    @Binding var selection: SidebarSelection
 
     @Environment(PageContentManager.self) private var contentManager
     /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
@@ -96,11 +98,13 @@ struct PageEditorView: View {
     init(
         viewModel: PageEditorViewModel,
         vault: PageType,
-        collection: PageCollection?
+        collection: PageCollection?,
+        selection: Binding<SidebarSelection>
     ) {
         self.viewModel = viewModel
         self.vault = vault
         self.collection = collection
+        self._selection = selection
         self._titleDraft = State(initialValue: viewModel.page.title)
     }
 
@@ -117,11 +121,8 @@ struct PageEditorView: View {
 
             if statsExpanded {
                 Divider()
-                PageStatsBar(
-                    breadcrumb: [vault.title, collection?.title, viewModel.page.title].compactMap { $0 },
-                    stats: stats
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                PageStatsBar(crumbs: breadcrumbCrumbs, stats: stats)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         // Recompute debounced while the footer is open: any body keystroke (or
@@ -151,6 +152,19 @@ struct PageEditorView: View {
     private struct StatsRecomputeKey: Equatable {
         let expanded: Bool
         let body: String
+    }
+
+    /// Breadcrumb segments for the stats bar footer: vault and collection
+    /// are tappable ancestors; the page itself is the non-navigable tail.
+    private var breadcrumbCrumbs: [FooterCrumb] {
+        var crumbs: [FooterCrumb] = [
+            FooterCrumb(title: vault.title) { selection = .pageType(vault) }
+        ]
+        if let c = collection {
+            crumbs.append(FooterCrumb(title: c.title) { selection = .collection(c) })
+        }
+        crumbs.append(FooterCrumb(title: viewModel.page.title))
+        return crumbs
     }
 
     /// Toggle chevron — an editor overlay (outside `PageStatsBar`) so it floats

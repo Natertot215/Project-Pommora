@@ -44,6 +44,9 @@ enum DateTimePickerMetrics {
     // Month menu (year-grouped) — years shown around the viewed year.
     static let yearsBack = 3
     static let yearsForward = 3
+    // Month-jump popover dimensions — floats above the picker card.
+    static let monthMenuWidth: CGFloat = cell * 7
+    static let monthMenuHeight: CGFloat = 220
 
     // Typography — semantic styles where they fit; explicit only for the small
     // glyphs the scale doesn't reach.

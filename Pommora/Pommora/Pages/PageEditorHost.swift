@@ -15,6 +15,7 @@ import SwiftUI
 /// close() of the outgoing VM.
 struct PageEditorHost: View {
     let page: PageMeta
+    @Binding var selection: SidebarSelection
 
     @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -27,7 +28,7 @@ struct PageEditorHost: View {
     var body: some View {
         Group {
             if let vm = viewModel, let vault = resolvedVault {
-                PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection)
+                PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection, selection: $selection)
                     // Force a full teardown + rebuild of PageEditorView when
                     // the loaded Page changes — guarantees @State (titleDraft)
                     // resets cleanly per-page and that the body editor
