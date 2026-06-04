@@ -60,7 +60,7 @@ The only pure text field is the **title** (the filename, not a property). Where 
 The **target** surface architecture gives properties two homes, split by where the entity opens:
 
 - **Properties dropdown** (`PropertiesPulldown`) — for **Pages, Contexts, and storage views** (the main content pane); a dropdown frees the trailing inspector to host the LLM / CLI interface.
-- **Property panel** (in a pop-out inspector) — for **Items, Page Previews, and Agenda items**, plus always-on pinned-property chips above an Item Window's title.
+- **Property panel** (in a pop-out inspector) — for **Page Previews and Agenda items**; the Item Window splits its properties into a template-driven main panel (`promoted_properties`) and a per-archetype overflow surface ([[Items]] § "Item Templates").
 
 This split is **planned — not yet wired**: today Pages surface their properties in the property panel (`FrontmatterInspector`, the window `.inspector`) and the dropdown scaffold is unbuilt. The State column tracks where each surface stands.
 
@@ -68,7 +68,7 @@ This split is **planned — not yet wired**: today Pages surface their propertie
 |---|---|---|
 | **Page** (main pane) | Properties dropdown | Planned — currently the property panel in the editor's `.inspector` (`FrontmatterInspector`); migrating to free the inspector for the LLM |
 | **Context / storage view** | Properties dropdown | Planned (same migration) |
-| **Item Window** (popover) | Property panel in the popover inspector + pinned chips above the title | Inspector toggle, default closed; pinned chips render whenever the Collection has any |
+| **Item Window** (floating panel) | Promoted properties on the main panel + the rest in the per-archetype overflow surface (inspector for `banner_two_column`, dropdown otherwise) | Template-driven via `promoted_properties` ([[Items]] § "Item Templates") |
 | **Page Preview** (standalone window) | Property panel in the window inspector | *Pending* — queued behind the PreviewWindow primitive |
 | **Agenda item** | Property panel | — |
 
@@ -402,7 +402,7 @@ Auto-managed properties sit at the bottom of every property surface, in a separa
 
 Items, Agenda Tasks, and Agenda Events also carry a built-in `description` — but **its storage differs by entity** (the description asymmetry):
 
-- **Items** — `description` IS the `.md` body. Single source of truth: no frontmatter `description` field, no mirror. Hard cap **1000 markdown-source characters** (provisional — was 250). Capped short so the Item Window stays scroll-free; markdown is honored (Items share Pages' `AtomicYAMLMarkdown` codec) — the cap, not the format, distinguishes an Item from a Page.
+- **Items** — `description` IS the `.md` body. Single source of truth: no frontmatter `description` field, no mirror. Hard cap **250 markdown-source characters** (`ItemValidator.maxDescriptionLength`, with an optional per-Type `description_cap` override). Capped short so the Item Window stays scroll-free; markdown is honored (Items share Pages' `AtomicYAMLMarkdown` codec) — the cap, not the format, distinguishes an Item from a Page.
 - **Agenda Tasks / Events** — `description` is a plain-text JSON field (Agenda stays JSON), same role. Not markdown.
 
 ##### `modified_at` trigger semantics
@@ -431,7 +431,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 1. Every property value's shape matches its schema entry's type (looked up by property ID).
 2. Relation `$rel` ULIDs must resolve to a live entity (warned, not enforced — broken-link semantics).
 3. Select / Multi-select / Status values must reference live option `value`s (cleaned up on schema mutation).
-4. Item `description` (the `.md` body) is at most **1000 markdown-source characters** (raw `.count`; markup counts). Validated on save by `ItemValidator` and rejected over-cap — never silently clamped. The Agenda `description` is a plain-text JSON field with **no length validation** — no Agenda validator enforces a cap (the 1000-char limit is Items-only).
+4. Item `description` (the `.md` body) is at most **250 markdown-source characters** (`ItemValidator.maxDescriptionLength`, with an optional per-Type `description_cap` override; raw `.count`, markup counts). Validated on save by `ItemValidator` and rejected over-cap — never silently clamped. The Agenda `description` is a plain-text JSON field with **no length validation** — no Agenda validator enforces a cap (the description cap is Items-only).
 
 ---
 
@@ -446,7 +446,7 @@ The schema editor for a Vault / Type. Reached from the Type detail view toolbar 
 | Section | Contents |
 |---|---|
 | **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, relation target, dual reverse name + icon, status groups, etc.). |
-| **Templates** | Empty wiring — placeholder anchor for future content templates (Page / Item templates pre-filling body + properties at creation). Reserved post-v1. |
+| **Templates** | Item scopes only (muted for Pages): a WYSIWYG mockup frame editing the Type/Collection `template_config` — archetype, promoted properties (pin/unpin + drag-reorder), per-property display, image-filtered cover. See [[Items]] § "Item Templates". |
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
 
@@ -493,16 +493,18 @@ View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-c
 
 ##### 4. Item Inspector → Pinned Properties
 
-Per-Collection UI preference managed inside the Item Window inspector. Right-click any property row in the inspector → "Pin to chips"; right-click chip → "Unpin." Pinned set persists at the Item Collection level in the Collection's config file:
+Pinning moved into the **template**: promoted properties are pinned/unpinned + drag-reordered in the Templates pane's mockup frame ([[Items]] § "Item Templates"), persisting as `promoted_properties: [{id, display}]` in the Type's `template_config` (or the Collection's, which overrides the Type). The legacy `pinned_properties` array on `_itemcollection.json` is read-tolerated and collapsed into `promoted_properties` by the resolver:
 
 ```json
-// _itemcollection.json
+// _itemcollection.json (template_config overrides the parent Type)
 {
-  "pinned_properties": ["prop_01HXY...", "prop_01HAB..."]
+  "template_config": {
+    "promoted_properties": [{ "id": "prop_01HXY..." }, { "id": "prop_01HAB..." }]
+  }
 }
 ```
 
-All Items in a Collection share the chip layout. Chips render above the title in the Item Window popover.
+All Items the Type/Collection governs share the template; promoted properties render on the main panel of the floating Item Window.
 
 ##### Settings scaffold integration
 

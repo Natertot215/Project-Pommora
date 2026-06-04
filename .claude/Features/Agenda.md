@@ -11,7 +11,7 @@ The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate 
 
 In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
-UX-wise both entities behave identically to [[Items]] — Item Window popover, tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
+UX-wise both entities behave identically to [[Items]] — the floating Item Window, tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
 
 ---
 
@@ -100,7 +100,7 @@ External `EKEventStore` changes are observed via async sequences over the `.EKEv
 
 #### UI: Item Window for AgendaTask + AgendaEvent
 
-Tasks and Events open in the same Item Window popover used for [[Items]] — title + properties + 1000-char description, not a full-frame surface. (Agenda's description stays a JSON field on `.task.json` / `.event.json`; only Item *content* files became `.md` with the body as description.) (Not yet wired; rows in the placeholder Calendar list aren't yet clickable.) Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
+Tasks and Events open in the same floating Item Window used for [[Items]] — title + properties + 1000-char description, not a full-frame surface. (Agenda's description stays a JSON field on `.task.json` / `.event.json`; only Item *content* files became `.md` with the body as description.) (Not yet wired; rows in the placeholder Calendar list aren't yet clickable.) Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
 
 ---
 

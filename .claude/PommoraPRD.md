@@ -156,7 +156,7 @@ Both directives resolve to inert text + standard Markdown for external tools (No
 Symmetric operational-layer container layer. Both kinds:
 
 - **Page Type** — folder at `<nexus>/<Title>/` + `_pagetype.json` sidecar (`id`, `icon`, `properties[]` shared schema, `views[]`, `collection_order`, `page_order`). Title = folder name. **Page Collections** are sub-folders inside a Page Type, sharing the Type's schema (their own `_pagecollection.json` carries `id` + `type_id` + `page_order` only). UI label "Vault" / "Collection" by default. Full detail → `// Features//PageTypes.md`.
-- **Item Type** — folder at `<nexus>/<Title>/` + `_itemtype.json` sidecar (mirror shape, plus `item_order`, `template_config` reserved). **Item Collections** are sub-folders inside an Item Type, each carrying `_itemcollection.json`. UI label "Type" / "Set" by default. Full detail → `// Features//Items.md`.
+- **Item Type** — folder at `<nexus>/<Title>/` + `_itemtype.json` sidecar (mirror shape, plus `item_order` and `template_config` — the per-Type Item-Window template; see `// Features//Items.md` § "Item Templates"). **Item Collections** are sub-folders inside an Item Type, each carrying `_itemcollection.json` (which may carry its own `template_config` to override the Type). UI label "Type" / "Set" by default. Full detail → `// Features//Items.md`.
 
 Both Types have no text-editor surface — pure database viewers (table / board / list / cards / gallery). Move-strip applies cross-Type (Page across Page Types, Item across Item Types). Schema-bearing layer + organizational sub-folder layer is the shared pattern across both sides.
 
@@ -240,7 +240,7 @@ CREATE TABLE items (
   item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
   item_collection_id TEXT REFERENCES item_collections(id) ON DELETE SET NULL, -- nullable
   title TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',                                       -- PROJECTION of the .md body (1000 source-char cap, provisional)
+  description TEXT NOT NULL DEFAULT '',                                       -- PROJECTION of the .md body (250 source-char cap, per-Type description_cap override)
   properties TEXT NOT NULL DEFAULT '{}',                                     -- JSON
   modified_at TEXT NOT NULL
 );
@@ -388,7 +388,7 @@ Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side pan
 |---|---|
 | **Page in main window** | NavDropdown-style pulldown at top of content (populated-only + "+ Add property" picker; lazy properties) |
 | **Page Preview** (standalone window, PreviewWindow primitive) | Property panel inside the window's own inspector (toggle, default closed) |
-| **Item Window** (popover) | Property panel inside the popover's own inspector (toggle, default closed) + pinned-property chips above title, saved at Item Collection level |
+| **Item Window** (floating panel) | Promoted properties on the main panel (template-driven); the rest in the per-archetype overflow surface (inspector for `banner_two_column`, dropdown otherwise) |
 
 **Window chrome — macOS unified title bar.** No separate Pommora title bar. Traffic-lights render OS-rendered in the sidebar pane's column. A single unified toolbar (`.windowToolbarStyle(.unified(showsTitle: false))`) holds sidebar toggle, back/forward arrows, NavDropdown trigger, and inspector toggle, all in the same row as traffic-lights. No second toolbar row. Pattern: Mail / Notes / Finder.
 
@@ -398,13 +398,13 @@ Built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with inspec
 
 Main pane is **single-pane.** Navigation history lives in a Liquid Glass dropdown button (SF Symbol `square.on.square`) in the toolbar — popover with two toggleable lists: **Pinned** (user-curated via right-click) and **Recents** (auto-tracked LRU). Replaces the earlier "Top-Bar Tabs" model. Pattern: Things 3 Quick Find, Notes.app Move-To popover.
 
-Single-click highlights, double-click opens in main detail pane. Items open in the existing `ItemWindow` popover; standalone-window previews deferred to the cross-feature PreviewWindow primitive (`// Guidelines//CRUD-Patterns.md → Preview-window prerequisite`). Keyboard: `⌘T` opens dropdown; `⌘[` / `⌘]` walk Recents back/forward. State persists in `<nexus>/.nexus/state.json` (per-nexus, vault-portable); Pinned uncapped; Recents store cap 500; dropdown shows top 100; full-frame Recents view (v0.6.0) shows the full store.
+Single-click highlights, double-click opens in main detail pane. Items open in the floating Item Window (built on the PreviewWindow primitive); the standalone-window *Page* preview is still deferred behind that primitive (`// Guidelines//CRUD-Patterns.md → Preview-window prerequisite`). Keyboard: `⌘T` opens dropdown; `⌘[` / `⌘]` walk Recents back/forward. State persists in `<nexus>/.nexus/state.json` (per-nexus, vault-portable); Pinned uncapped; Recents store cap 500; dropdown shows top 100; full-frame Recents view (v0.6.0) shows the full store.
 
 Shipped at v0.2.7.1. Full spec → `// Features//NavDropdown.md`.
 
 ##### Item Window
 
-Items open in a popover-style floating surface (Calendar-app event-detail pattern) anchored to click location — not in tabs, not in the inspector. Holds title (editable filename) + icon + parent Item Type's schema property editors + the body description (1000 source-char cap, provisional) + tier1/2/3 relations + read-only meta footer (`id`/`created_at`/`modified_at`). Save commits via `ItemContentManager.updateItem`. Full spec + v0.3.1 modal-window redesign → `// Features//Items.md`.
+Items open in a native, draggable, chromeless floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)`, hosted by the reusable `PreviewWindow` primitive) — not in tabs, not in the inspector. One config-driven `ItemWindowRenderer` draws it from the resolved per-Type `template_config`: title (editable filename) + icon + promoted/overflow property surfaces + the body description (250 source-char cap, per-Type `description_cap` override) + tier1/2/3 relations + read-only meta footer (`id`/`created_at`/`modified_at`). Save commits via `ItemContentManager.updateItem`. Full spec → `// Features//Items.md`.
 
 ##### First-Launch Experience
 
@@ -445,11 +445,11 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `linked_relations` as typed multi-valued property.
 - **Page Types + Page Collections + Pages** (Pages side) and **Item Types + Item Collections + Items** (Items side) — symmetric container layers. Each Type carries its per-kind sidecar (`_pagetype.json` / `_itemtype.json`); Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` / `_itemcollection.json` carries id + type_id + ordering only). UI labels: Pages get "Vault" + "Collection"; Items get "Type" + "Set" (renameable via Settings).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
-- **Items** — `.md` (YAML frontmatter + body). Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; frontmatter carries `id`, `icon`, `tier1/2/3`, timestamps, properties (keyed by property ID), and a reserved UI-hidden non-authoritative `Class` stamp (`item` | `page`) — the parent Type folder's sidecar is the kind authority. The capped description IS the Markdown body (1000 source-char cap, provisional; single source of truth, no frontmatter description field). Shares Pages' `AtomicYAMLMarkdown` pipeline. Open in Item Window popover, not a tab.
+- **Items** — `.md` (YAML frontmatter + body). Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; frontmatter carries `id`, `icon`, `tier1/2/3`, timestamps, properties (keyed by property ID), and a reserved UI-hidden non-authoritative `Class` stamp (`item` | `page`) — the parent Type folder's sidecar is the kind authority. The capped description IS the Markdown body (250 source-char cap, per-Type `description_cap` override; single source of truth, no frontmatter description field). Shares Pages' `AtomicYAMLMarkdown` pipeline. Open in the floating Item Window, not a tab.
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.5.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
 - **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.4.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.
-- Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 11 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + Templates placeholder). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
+- Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 11 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + the Templates pane — live for Items, muted for Pages). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
 - Wikilinks (styled colored inline text).
 - Automatic file rename with cross-nexus wikilink rewrite.
 - File watcher keeping SQLite synced.

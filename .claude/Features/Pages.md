@@ -75,7 +75,7 @@ Currently, a Page's properties surface as the **property panel** in the editor's
 
 **Standalone-window path: deferred.** There is no standalone-window scene for Pages. Standalone Page previews / multi-instance windows ship later via the PreviewWindow primitive (queued).
 
-Items use a different model — they open in the **Item Window popover** (Calendar-event-detail pattern), never in a standalone window. See [[Items]].
+Items use a different model — they open in the **floating Item Window**, a draggable, dismissible window scene built on the shared PreviewWindow primitive (the first consumer of that primitive; Pages reuse it for the deferred preview path above). See [[Items]].
 
 ---
 
