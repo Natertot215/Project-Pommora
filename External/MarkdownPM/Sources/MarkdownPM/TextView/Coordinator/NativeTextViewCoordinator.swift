@@ -160,6 +160,16 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         /// supplemental styler, the heading-fold sync) reuses one O(n) index
         /// build instead of each rebuilding its own per keystroke (Phase 3.5).
         let lineIndex: LineOffsetIndex
+
+        /// `codeTokens` mixes fenced/indented code BLOCKS (`.codeBlock`) with
+        /// inline `` `code` `` spans (`.inlineCode`). Block-construct guards
+        /// (heading / HR / bullet / blockquote) care only about real blocks —
+        /// an inline span may legitimately sit on a block line. Single source
+        /// of truth for that filter; read by `isFragmentRangeInsideCodeBlock`
+        /// and `isFragmentRangeAHeading`.
+        var blockCodeTokens: [MarkdownToken] {
+            codeTokens.filter { $0.kind == .codeBlock }
+        }
     }
 
     enum InlineTokenContext {

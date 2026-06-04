@@ -35,17 +35,12 @@ extension NativeTextViewCoordinator {
     /// depended on the syntax highlighter's background-color tolerance
     /// check and could briefly mis-classify during theme switches).
     func isFragmentRangeInsideCodeBlock(_ range: NSRange) -> Bool {
-        guard let codeTokens = cachedParsedDocument?.codeTokens, !codeTokens.isEmpty
+        // `blockCodeTokens` filters to real code BLOCKS (not inline `` `code` ``
+        // spans), which is the only kind that disqualifies a line from rendering
+        // its block construct — see `ParsedDocument.blockCodeTokens`.
+        guard let blockCodeTokens = cachedParsedDocument?.blockCodeTokens,
+            !blockCodeTokens.isEmpty
         else { return false }
-        // Block-level guard only. `codeTokens` mixes fenced/indented code blocks
-        // (`.codeBlock`) with inline code spans (`.inlineCode`). Only a real code
-        // BLOCK disqualifies a line from rendering its block construct (bullet •,
-        // heading, HR, blockquote bar, fold chevron). An inline `` `code` `` span
-        // is line-internal — a `- foo `bar`` bullet or `# Foo `bar`` heading must
-        // still render. Filtering to `.codeBlock` keeps the real code-block guard
-        // intact while letting inline code coexist on a block line.
-        let blockCodeTokens = codeTokens.filter { $0.kind == .codeBlock }
-        guard !blockCodeTokens.isEmpty else { return false }
         return MarkdownDetection.isInsideCodeBlock(range: range, codeTokens: blockCodeTokens)
     }
 
@@ -63,14 +58,10 @@ extension NativeTextViewCoordinator {
         guard let parsed = cachedParsedDocument else { return false }
         let headingTokens = parsed.tokens.filter { $0.kind == .heading }
         guard !headingTokens.isEmpty else { return false }
-        // `codeTokens` mixes `.codeBlock` + `.inlineCode`; only a real code BLOCK
-        // disqualifies a heading line (an inline `` `code` `` span may sit on a
-        // heading line). Same filter `isFragmentRangeInsideCodeBlock` applies.
-        let blockCodeTokens = parsed.codeTokens.filter { $0.kind == .codeBlock }
         return MarkdownDetection.headingTokenCovers(
             range: range,
             headingTokens: headingTokens,
-            blockCodeTokens: blockCodeTokens
+            blockCodeTokens: parsed.blockCodeTokens
         )
     }
 
