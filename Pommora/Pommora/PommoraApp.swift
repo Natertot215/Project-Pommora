@@ -49,6 +49,25 @@ struct PommoraApp: App {
             InspectorCommands()
         }
 
+        // T4.3 — floating Item Window scene. Value-typed `WindowGroup(for:)`
+        // keyed on `ItemRef`; `ItemWindowSceneRoot` resolves the ref against the
+        // live Nexus env (`AppGlobals.current`) and hosts `ItemWindowRenderer`
+        // inside `PreviewWindow` chrome. `.injectNexusEnvironment` (inside the
+        // root) satisfies every `@Environment(Manager)` the renderer reads
+        // (quirk #15). `.restorationBehavior(.disabled)` stops macOS restoring
+        // Item windows at cold launch before the Nexus env exists (crash /
+        // quirk-#16 launch-modal hazard); value WindowGroups default to
+        // `.automatic` restoration otherwise.
+        WindowGroup(for: ItemRef.self) { $ref in
+            if let ref = $ref.wrappedValue {
+                ItemWindowSceneRoot(ref: ref)
+            }
+        }
+        .windowStyle(.plain)
+        .windowLevel(.floating)
+        .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
+
         #if DEBUG
         // Debug-only: in-app design system explorer. Open via Cmd+Shift+D.
         Window("Pommora Component Library", id: "component-library") {
