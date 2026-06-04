@@ -161,6 +161,11 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         /// build instead of each rebuilding its own per keystroke (Phase 3.5).
         let lineIndex: LineOffsetIndex
 
+        /// Line-start offsets of HR / blockquote / dash-bullet lines, computed
+        /// once per parse so the renderer's draw path does an O(1) lookup
+        /// instead of re-parsing each fragment's line per frame.
+        let constructLineStarts: MarkdownDetection.ConstructLineStarts
+
         /// `codeTokens` mixes fenced/indented code BLOCKS (`.codeBlock`) with
         /// inline `` `code` `` spans (`.inlineCode`). Block-construct guards
         /// (heading / HR / bullet / blockquote) care only about real blocks —

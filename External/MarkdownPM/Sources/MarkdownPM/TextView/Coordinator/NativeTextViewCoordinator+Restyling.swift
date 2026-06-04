@@ -220,6 +220,13 @@ extension NativeTextViewCoordinator {
             }
         }
 
+        let nsTextForConstructs = text as NSString
+        let blockCodeTokensForConstructs = codeTokens.filter { $0.kind == .codeBlock }
+        let constructLineStarts = MarkdownDetection.constructLineStarts(
+            in: nsTextForConstructs,
+            blockCodeTokens: blockCodeTokensForConstructs
+        )
+
         let parsed = ParsedDocument(
             tokens: tokens,
             codeTokens: codeTokens,
@@ -228,7 +235,8 @@ extension NativeTextViewCoordinator {
             wikiLinkTokens: wikiLinkTokens,
             imageEmbedTokens: imageEmbedTokens,
             appleDocument: appleDocument,
-            lineIndex: lineIndex
+            lineIndex: lineIndex,
+            constructLineStarts: constructLineStarts
         )
         cachedParsedText = text
         cachedParsedDocument = parsed
