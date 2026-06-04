@@ -69,12 +69,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// returns ThematicBreak for `---\n` in isolation, so dropping the guard
     /// is structurally correct: AST already gives the desired answer.
     private var hasThematicBreak: Bool {
-        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return false }
-        let fragmentString = ts.attributedSubstring(from: range).string
-        return MarkdownDetection.isThematicBreakLine(
-            fragmentString,
-            isInsideCodeBlock: isInsideCodeBlockAST
-        )
+        MainActor.assumeIsolated {
+            guard let range = nsRange, let coordinator = nearestCoordinator() else { return false }
+            return coordinator.isFragmentRangeAThematicBreak(range)
+        }
     }
 
     /// True when the caret rests inside the paragraph that owns this fragment.
@@ -330,12 +328,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     /// characters (no hide, no overlay). Same UX guarantee as task checkboxes:
     /// always-on, no caret-aware reveal.
     private var hasDashBulletMarker: Bool {
-        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return false }
-        let fragmentString = ts.attributedSubstring(from: range).string
-        return MarkdownDetection.isDashBulletLine(
-            fragmentString,
-            isInsideCodeBlock: isInsideCodeBlockAST
-        )
+        MainActor.assumeIsolated {
+            guard let range = nsRange, let coordinator = nearestCoordinator() else { return false }
+            return coordinator.isFragmentRangeADashBullet(range)
+        }
     }
 
     /// Document-level NSRange location of the `-` source marker for this
@@ -421,33 +417,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     ///     doesn't activate until `- `.
     ///   - Stage 2: per-fragment swift-markdown AST parse — canonical answer.
     private var hasBlockquoteMarker: Bool {
-        guard !isInsideCodeBlockAST,
-            let ts = textStorage,
-            let range = nsRange,
-            range.length > 0
-        else { return false }
-        let fragmentString = ts.attributedSubstring(from: range).string
-
-        // Stage 1: scan raw string. Skip leading whitespace, find `>`,
-        // require next char to be space or tab.
-        let nsFragment = fragmentString as NSString
-        var i = 0
-        while i < nsFragment.length {
-            let c = nsFragment.character(at: i)
-            if c == 0x20 || c == 0x09 {
-                i += 1
-                continue
-            }
-            break
+        MainActor.assumeIsolated {
+            guard let range = nsRange, let coordinator = nearestCoordinator() else { return false }
+            return coordinator.isFragmentRangeABlockquote(range)
         }
-        guard i < nsFragment.length, nsFragment.character(at: i) == 0x3E else { return false }
-        guard i + 1 < nsFragment.length else { return false }
-        let next = nsFragment.character(at: i + 1)
-        guard next == 0x20 || next == 0x09 else { return false }
-
-        // Stage 2: AST confirms (canonical).
-        let document = Markdown.Document(parsing: fragmentString)
-        return document.children.contains { $0 is BlockQuote }
     }
 
     /// Position of this fragment within a multi-paragraph blockquote.
