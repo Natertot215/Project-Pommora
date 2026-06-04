@@ -49,6 +49,31 @@ extension NativeTextViewCoordinator {
         return MarkdownDetection.isInsideCodeBlock(range: range, codeTokens: blockCodeTokens)
     }
 
+    /// AST-grounded heading check for a fragment at `range`, read from the
+    /// coordinator's cached token stream — the heading counterpart to
+    /// `isFragmentRangeInsideCodeBlock`. Replaces the renderer's prior
+    /// per-fragment `isHeadingLine` AST re-parse on every repaint.
+    ///
+    /// Nil-cache fallback returns `false` (= "not a heading"), matching the
+    /// pre-existing behavior when detection couldn't run: TextKit 2 can draw a
+    /// fragment before `cachedParsedDocument` is first populated; one frame
+    /// renders without the chevron, then the post-rebuild relayout corrects it.
+    /// Same contract `isFragmentRangeInsideCodeBlock` already lives with.
+    func isFragmentRangeAHeading(_ range: NSRange) -> Bool {
+        guard let parsed = cachedParsedDocument else { return false }
+        let headingTokens = parsed.tokens.filter { $0.kind == .heading }
+        guard !headingTokens.isEmpty else { return false }
+        // `codeTokens` mixes `.codeBlock` + `.inlineCode`; only a real code BLOCK
+        // disqualifies a heading line (an inline `` `code` `` span may sit on a
+        // heading line). Same filter `isFragmentRangeInsideCodeBlock` applies.
+        let blockCodeTokens = parsed.codeTokens.filter { $0.kind == .codeBlock }
+        return MarkdownDetection.headingTokenCovers(
+            range: range,
+            headingTokens: headingTokens,
+            blockCodeTokens: blockCodeTokens
+        )
+    }
+
     // MARK: - Redraw-trigger helpers
 
     /// Compute the ordinal-disambiguated key for a heading line at
