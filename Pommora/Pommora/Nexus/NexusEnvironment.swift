@@ -203,6 +203,7 @@ final class NexusEnvironment {
             recentsManager: recentsMgr,
             pinnedManager: pinnedMgr,
             mainWindowRouter: router)
+        AppGlobals.current = self
 
         // Build the folder exclusion filter once — reads .nexus/settings.json
         // synchronously (no SettingsManager dependency) so it is ready before

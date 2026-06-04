@@ -29,6 +29,11 @@ enum AppGlobals {
     static var pinnedManager: PinnedManager?
     static var mainWindowRouter: MainWindowRouter?
 
+    /// The live per-Nexus environment, for sibling scenes/popovers that aren't
+    /// descendants of the injectNexusEnvironment-modified main scene (Item Window
+    /// scene T4.3, Templates popover T5.1). They inject this via injectNexusEnvironment.
+    static var current: NexusEnvironment?
+
     /// Publishes every cross-scene manager ref in one call. Single source for the
     /// slot list so `NexusEnvironment.init` doesn't hand-assign each one (DRY);
     /// adding/removing a published manager touches only this signature + body.
