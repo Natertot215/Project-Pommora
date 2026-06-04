@@ -334,6 +334,43 @@ extension ItemContentManager {
         }
     }
 
+    // MARK: - Draft commit seam (T4.5)
+
+    /// The single testable persist seam the LIVE Item Window's `commitSave`
+    /// routes through. Applies the window's draft title / icon / description /
+    /// properties onto `item`, then persists via the right `updateItem` path
+    /// (Collection-scoped when `collection` is non-nil, else Type-root). Title is
+    /// trimmed; a blank icon clears it to `nil`. `properties` flows through
+    /// unchanged — the live window keeps property rows read-only for now, but the
+    /// machinery carries the dict so a property-editing UI can be added later
+    /// without touching this seam.
+    ///
+    /// Pure-of-view: takes plain values, returns nothing, and reuses the existing
+    /// `updateItem` (which stamps `modifiedAt`, validates, saves, and upserts the
+    /// index) — so a unit test can apply an edit and assert the round-trip.
+    func commitItemEdits(
+        _ item: Item,
+        title: String,
+        icon: String,
+        description: String,
+        properties: [String: PropertyValue],
+        type itemType: ItemType,
+        collection: ItemCollection?
+    ) async throws {
+        var updated = item
+        updated.title = title.trimmingCharacters(in: .whitespaces)
+        let trimmedIcon = icon.trimmingCharacters(in: .whitespaces)
+        updated.icon = trimmedIcon.isEmpty ? nil : trimmedIcon
+        updated.description = description
+        updated.properties = properties
+
+        if let collection {
+            try await updateItem(updated, in: collection, type: itemType)
+        } else {
+            try await updateItem(updated, inTypeRoot: itemType)
+        }
+    }
+
     func deleteItem(_ item: Item, inTypeRoot itemType: ItemType) async throws {
         do {
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: folderURL(for: itemType))

@@ -44,6 +44,10 @@ struct ItemWindowRenderer: View {
     /// full env in T5.1), so this is quirk-#15-safe even though tests never
     /// instantiate the renderer in a host.
     @Environment(ItemTypeManager.self) private var itemTypeManager
+    /// LIVE-window save target (T4.5). Same injected instance the old `.sheet`
+    /// window used; satisfied by `injectNexusEnvironment` in the live scene
+    /// (quirk #15-safe). Read only on the `editing == false` save path.
+    @Environment(ItemContentManager.self) private var itemContentManager
 
     // MARK: - Description editor state (T3.2)
 
@@ -54,6 +58,28 @@ struct ItemWindowRenderer: View {
     @State private var draftDescription: String = ""
     /// Per-document fold state for the MarkdownPM editor (UI-only).
     @State private var foldedHeadings: Set<String> = []
+
+    // MARK: - Live-window save state (T4.5)
+    //
+    // These drive the LIVE window's save machinery and are ACTIVE only when
+    // `editing == false`. In edit mode (template mockup) `hydrate()`/`save()`
+    // never run and these stay at their seeds — that mode arranges layout, not
+    // values. Ported from the old `.sheet` ItemWindow (deleted in T4.4).
+
+    /// Editable title draft (LIVE window only). Seeded from `item.title`.
+    @State private var draftTitle: String = ""
+    /// Editable icon draft (SF Symbol name; empty == no icon). Seeded from `item.icon`.
+    @State private var draftIcon: String = ""
+    /// Item property values carried THROUGH the save unchanged. The live window
+    /// keeps property rows read-only (no editor here), but the machinery persists
+    /// this dict so a property-editing UI can land later without redoing the path.
+    @State private var draftProperties: [String: PropertyValue] = [:]
+    /// The ItemType schema captured at hydrate — the drift-detection baseline (EC4).
+    @State private var originalItemType: ItemType?
+    /// Set when drift is detected on save; drives the `SchemaConflictDialog` sheet.
+    @State private var schemaConflict: SchemaConflictPayload?
+    /// Surfaced save/validation failure (footer text).
+    @State private var errorMessage: String?
 
     // MARK: - Derived template facts
 
@@ -205,24 +231,198 @@ struct ItemWindowRenderer: View {
             }
             .background(.bar)
         }
-        // Seed the local description draft from the resolved Item. `.task` keys
-        // on `item.id` so swapping the rendered Item reseeds the editor.
+        // Seed every draft from the resolved Item. `.task` keys on `item.id` so
+        // swapping the rendered Item reseeds. In edit mode (template mockup) only
+        // the description seed matters; `hydrate()` is gated to the LIVE window.
         .task(id: item.id) {
             draftDescription = item.description
+            if !editing { hydrate() }
         }
+        // EC4 schema-drift dialog — LIVE window only (no payload is ever set in
+        // edit mode because `save()` never runs there).
+        .sheet(item: $schemaConflict) { payload in
+            SchemaConflictDialog(
+                isPresented: Binding(
+                    get: { schemaConflict != nil },
+                    set: { if !$0 { schemaConflict = nil } }
+                ),
+                removedPropertyNames: payload.removed,
+                typeChangedPropertyNames: payload.typeChanged,
+                onReload: {
+                    reloadFromDisk()
+                    schemaConflict = nil
+                },
+                onSaveValidSubset: { Task { await saveValidSubset() } },
+                onCancel: { schemaConflict = nil }
+            )
+        }
+    }
+
+    // MARK: - Live-window save machinery (T4.5)
+    //
+    // Ported from the deleted `.sheet` ItemWindow. ACTIVE only when
+    // `editing == false`. The renderer already holds `itemType` + `collection`
+    // as `let` props (resolved by the scene root), so the old window's
+    // `resolveItemType` / `resolveParentCollection` walks are unnecessary — the
+    // container is known.
+
+    /// Seeds the live-window drafts from `item` and captures `originalItemType`
+    /// (the passed-in resolved type) as the drift baseline. Called from `.task`
+    /// only when `editing == false`.
+    private func hydrate() {
+        draftTitle = item.title
+        draftIcon = item.icon ?? ""
+        draftProperties = item.properties
+        originalItemType = itemType
+    }
+
+    /// Save with the EC4 schema-drift guard: reload the fresh on-disk schema,
+    /// detect drift against the baseline, and either route to the conflict dialog
+    /// (removed / type-changed props) or commit. Blank title is rejected.
+    private func save() async {
+        guard !draftTitle.trimmingCharacters(in: .whitespaces).isEmpty else {
+            errorMessage = "Title can't be empty."
+            return
+        }
+        let baseline = originalItemType ?? itemType
+
+        let metaURL = NexusPaths.itemTypeMetadataURL(
+            in: itemContentManager.nexus.rootURL, typeFolderName: baseline.title
+        )
+        let freshType: ItemType
+        do {
+            freshType = try ItemType.load(from: metaURL)
+        } catch {
+            errorMessage = "Could not reload schema: \(error.localizedDescription)"
+            return
+        }
+
+        let drift = SchemaConflictDetector.detectDrift(
+            editingProperties: draftProperties,
+            freshSchema: freshType.properties,
+            originalSchema: baseline.properties
+        )
+
+        guard drift.removed.isEmpty && drift.typeChanged.isEmpty else {
+            schemaConflict = SchemaConflictPayload(removed: drift.removed, typeChanged: drift.typeChanged)
+            return
+        }
+
+        await commitSave(properties: draftProperties)
+    }
+
+    /// "Save valid subset" path from the conflict dialog: drop stale / type-
+    /// mismatched values against the fresh schema, then commit the remainder.
+    private func saveValidSubset() async {
+        let baseline = originalItemType ?? itemType
+        let metaURL = NexusPaths.itemTypeMetadataURL(
+            in: itemContentManager.nexus.rootURL, typeFolderName: baseline.title
+        )
+        let freshType = (try? ItemType.load(from: metaURL)) ?? baseline
+        let filtered = SchemaConflictDetector.filterToValidSubset(
+            editingProperties: draftProperties,
+            freshSchema: freshType.properties
+        )
+        schemaConflict = nil
+        await commitSave(properties: filtered)
+    }
+
+    /// "Reload" path from the conflict dialog: re-read the Item + fresh schema
+    /// from disk so the user re-edits against current truth. Uses `loadLenient`
+    /// (the bulk-read surface) so an id-less adopted `.md` reloads instead of
+    /// silently no-opping with a drifted draft.
+    private func reloadFromDisk() {
+        let baseline = originalItemType ?? itemType
+        let folder: URL
+        if let collection {
+            folder = collection.folderURL
+        } else {
+            folder = itemContentManager.folderURL(for: baseline)
+        }
+        let itemURL = NexusPaths.itemFileURL(forTitle: item.title, in: folder)
+        guard let reloaded = try? Item.loadLenient(from: itemURL) else { return }
+        draftTitle = reloaded.title
+        draftIcon = reloaded.icon ?? ""
+        draftDescription = reloaded.description
+        draftProperties = reloaded.properties
+
+        let metaURL = NexusPaths.itemTypeMetadataURL(
+            in: itemContentManager.nexus.rootURL, typeFolderName: baseline.title
+        )
+        if let freshType = try? ItemType.load(from: metaURL) {
+            originalItemType = freshType
+        }
+        errorMessage = nil
+    }
+
+    /// Applies the drafts onto the Item and persists via the single
+    /// `ItemContentManager.commitItemEdits` seam (Collection-scoped or Type-root
+    /// chosen there). Maps save-path throws to a footer message.
+    private func commitSave(properties: [String: PropertyValue]) async {
+        let baseline = originalItemType ?? itemType
+        do {
+            try await itemContentManager.commitItemEdits(
+                item,
+                title: draftTitle,
+                icon: draftIcon,
+                description: draftDescription,
+                properties: properties,
+                type: baseline,
+                collection: collection
+            )
+            errorMessage = nil
+        } catch {
+            errorMessage = surface(error)
+        }
+    }
+
+    /// Maps a save-path throw to a user-facing message across BOTH domains the
+    /// Item CRUD path raises: `ItemValidator.ValidationError` (schema/tier/body
+    /// validation, via `friendly`) and any other `LocalizedError` (title
+    /// collisions, rename atomicity, IO) via `localizedDescription`.
+    private func surface(_ error: any Error) -> String {
+        if let validation = error as? ItemValidator.ValidationError {
+            return ItemValidator.friendly(validation)
+        }
+        return error.localizedDescription
     }
 
     // MARK: - 1. Header (icon + title)
 
+    /// In the LIVE window (`editing == false`) the title + icon are editable
+    /// (TextField bound to `$draftTitle`; SF Symbol field bound to `$draftIcon`,
+    /// previewing the live glyph). In edit mode (template mockup) they stay
+    /// non-editable placeholders — that mode arranges layout, not values.
+    @ViewBuilder
     private var header: some View {
-        HStack(spacing: PUI.Spacing.md) {
-            Image(systemName: itemType.icon ?? item.icon ?? "list.bullet.rectangle")
-                .font(.system(size: 22))
-                .foregroundStyle(.secondary)
-            Text(item.title)
-                .font(.title2.weight(.semibold))
-                .lineLimit(2)
-            Spacer(minLength: 0)
+        if editing {
+            HStack(spacing: PUI.Spacing.md) {
+                Image(systemName: itemType.icon ?? item.icon ?? "list.bullet.rectangle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.secondary)
+                Text(item.title)
+                    .font(.title2.weight(.semibold))
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+        } else {
+            HStack(spacing: PUI.Spacing.md) {
+                Image(systemName: draftIcon.isEmpty ? (itemType.icon ?? "list.bullet.rectangle") : draftIcon)
+                    .font(.system(size: 22))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+                    TextField("Title", text: $draftTitle)
+                        .textFieldStyle(.plain)
+                        .font(.title2.weight(.semibold))
+                        .onSubmit { Task { await save() } }
+                    TextField("SF Symbol", text: $draftIcon)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                        .frame(maxWidth: 200)
+                        .onSubmit { Task { await save() } }
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -385,13 +585,23 @@ struct ItemWindowRenderer: View {
     /// Type with a custom `descriptionCap` shows/colors against ITS cap, not the
     /// flat 250 default. Over-cap colorizes the counter only — it never blocks
     /// (LD-7). Edits are local @State; commit lands when the window goes live.
+    @ViewBuilder
     private var bodyRegion: some View {
-        DescriptionEditorRegion(
-            text: $draftDescription,
-            foldedHeadings: $foldedHeadings,
-            documentId: item.id,
-            cap: ItemValidator.effectiveCap(for: itemType)
-        )
+        if editing {
+            // Template mockup — non-editable placeholder. The mockup arranges
+            // layout, not values, so the editor (and its commit path) is absent.
+            Text(item.description.isEmpty ? "Description" : item.description)
+                .font(.body)
+                .foregroundStyle(item.description.isEmpty ? .tertiary : .secondary)
+                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        } else {
+            DescriptionEditorRegion(
+                text: $draftDescription,
+                foldedHeadings: $foldedHeadings,
+                documentId: item.id,
+                cap: ItemValidator.effectiveCap(for: itemType)
+            )
+        }
     }
 
     // MARK: - 4. Overflow surface (non-promoted properties)
@@ -499,14 +709,28 @@ struct ItemWindowRenderer: View {
 
     private var footer: some View {
         DetailFooterBar(crumbs: footerCrumbs) {
-            Menu {
-                // T3.5: template / view options land here (edit mode, layout switch).
-                Text("Options")
-            } label: {
-                Image(systemName: "ellipsis.circle")
+            HStack(spacing: PUI.Spacing.md) {
+                // LIVE window only: error surface + the Save affordance (the
+                // commit trigger ported from the old window's footer button).
+                if !editing {
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                    Button("Save") { Task { await save() } }
+                        .keyboardShortcut("s", modifiers: .command)
+                }
+                Menu {
+                    // T3.5: template / view options land here (edit mode, layout switch).
+                    Text("Options")
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
         }
     }
 
