@@ -13,4 +13,25 @@ enum TemplateResolver {
         if let explicit = effective(type: type, collection: collection).promotedProperties { return explicit }
         return (collection?.pinnedProperties ?? []).map { PromotedProperty(id: $0, display: nil) }
     }
+
+    /// Promoted entries paired with their definitions, in the renderer's partition
+    /// order, dropping any promoted id with no matching definition. One source for
+    /// both the live renderer (promotedSchema) and the template pane (promotedEntries).
+    ///
+    /// Reproduces `ItemWindowRenderer.partition(...).main`: promoted order, real
+    /// ids only (a promoted id absent from `type.properties` is dropped, never
+    /// crashed). Each surviving id joins to its `PropertyDefinition` from
+    /// `type.properties`. Pure value code — both call sites consume the array.
+    static func promotedEntries(
+        type: ItemType, collection: ItemCollection?
+    ) -> [(promotion: PromotedProperty, definition: PropertyDefinition)] {
+        let promoted = self.promoted(type: type, collection: collection)
+        let definitionByID = Dictionary(
+            type.properties.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }
+        )
+        return promoted.compactMap { promotion in
+            guard let definition = definitionByID[promotion.id] else { return nil }
+            return (promotion, definition)
+        }
+    }
 }

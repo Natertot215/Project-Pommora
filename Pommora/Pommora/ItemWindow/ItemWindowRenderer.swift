@@ -127,16 +127,12 @@ struct ItemWindowRenderer: View {
     }
 
     /// Promoted user properties, in promoted order, resolved to definitions paired
-    /// with their promotion config. Derived from the partition's `main` ids, so it's
-    /// disjoint from `overflowSchema` by construction.
+    /// with their promotion config. Disjoint from `overflowSchema` by construction:
+    /// the shared `TemplateResolver.promotedEntries` reproduces the partition's
+    /// `main` ordering (promoted order, real ids only), so the same join feeds both
+    /// the live renderer here and the Templates pane (one source, review DRY #5).
     private var promotedSchema: [(promotion: PromotedProperty, definition: PropertyDefinition)] {
-        let promotionByID = Dictionary(promoted.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return idPartition.main.compactMap { id in
-            guard let promotion = promotionByID[id],
-                  let def = userSchema.first(where: { $0.id == id })
-            else { return nil }
-            return (promotion, def)
-        }
+        TemplateResolver.promotedEntries(type: itemType, collection: collection)
     }
 
     /// Closure fed to every `PropertyCellDisplay` — wraps the shared env resolver

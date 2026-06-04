@@ -279,19 +279,15 @@ struct ItemTemplatePane: View {
     }
 
     /// The promoted entries (definition + promotion config) for the resolved
-    /// scope, in promoted order. Resolved through `TemplateResolver.promoted` so
-    /// a legacy `pinnedProperties` Collection still surfaces rows before its
-    /// first template write. Properties no longer in the schema are dropped.
+    /// scope, in the renderer's partition order. Delegates to the shared
+    /// `TemplateResolver.promotedEntries` — the SAME join the embedded
+    /// `ItemWindowRenderer` uses — so the pickers below match the mockup
+    /// pixel-for-pixel (review DRY #5). A legacy `pinnedProperties` Collection
+    /// still surfaces rows; properties no longer in the schema are dropped.
     private func promotedEntries(
         _ resolved: ResolvedScope
     ) -> [(promotion: PromotedProperty, definition: PropertyDefinition)] {
-        let promoted = TemplateResolver.promoted(type: resolved.type, collection: resolved.collection)
-        return promoted.compactMap { promotion in
-            guard let def = resolved.type.properties.first(where: { $0.id == promotion.id }) else {
-                return nil
-            }
-            return (promotion, def)
-        }
+        TemplateResolver.promotedEntries(type: resolved.type, collection: resolved.collection)
     }
 
     /// A minimal synthetic Item for a scope with zero members — a placeholder so
