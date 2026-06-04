@@ -108,29 +108,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         nearestTextView()?.delegate as? NativeTextViewCoordinator
     }
 
-    /// AST-grounded code-block check for this fragment. Reads via
-    /// `coordinator.isFragmentRangeInsideCodeBlock(_:)` which uses the
-    /// cached `[MarkdownToken]` from the engine's parsed-document cache.
-    /// Replaces the prior `hasCodeBlockBackground` color-comparison check
-    /// for the stage-0 guards (ThematicBreak / DashBullet / Blockquote /
-    /// Heading detection). `hasCodeBlockBackground` stays for
-    /// `drawCodeBlockBackground` which legitimately needs to know whether
-    /// the styler has applied the code-block background-color attribute.
-    ///
-    /// Nonisolated property body wraps coordinator access in
-    /// `MainActor.assumeIsolated` so the existing nonisolated callers
-    /// (`hasThematicBreak`, `hasDashBulletMarker`, `hasBlockquoteMarker`,
-    /// `hasHeadingMarker`) can read it directly. Safe because TextKit 2
-    /// runs all rendering on the main thread.
-    private var isInsideCodeBlockAST: Bool {
-        MainActor.assumeIsolated {
-            guard let range = nsRange,
-                let coordinator = nearestCoordinator()
-            else { return false }
-            return coordinator.isFragmentRangeInsideCodeBlock(range)
-        }
-    }
-
     /// True when this fragment IS an ATX heading line. Three-stage detection
     /// via the shared `MarkdownDetection.isHeadingLine` so renderer + hover
     /// tracker + fold service agree on what counts as a heading (L2).
@@ -141,7 +118,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         // `isFragmentRangeAHeading` are @MainActor too (the coordinator class is
         // annotated `@MainActor`, so its un-marked methods inherit that
         // isolation) — the whole call chain is in-isolation. (Contrast
-        // `isInsideCodeBlockAST`, which is nonisolated and therefore must wrap
+        // `hasThematicBreak`, which is nonisolated and therefore must wrap
         // its coordinator access in `MainActor.assumeIsolated`.)
         guard let range = nsRange, let coordinator = nearestCoordinator() else {
             return false
