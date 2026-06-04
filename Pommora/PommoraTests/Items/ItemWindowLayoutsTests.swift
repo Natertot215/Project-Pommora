@@ -28,11 +28,18 @@ struct ItemWindowLayoutsTests {
     @Test("hasRecipe is true only for the standard archetype")
     func hasRecipeOnlyStandard() {
         #expect(ItemWindowLayouts.hasRecipe(for: .standard) == true)
-        #expect(ItemWindowLayouts.hasRecipe(for: .reserved) == false)
-        #expect(ItemWindowLayouts.hasRecipe(for: .compact) == false)
-        #expect(ItemWindowLayouts.hasRecipe(for: .bannerTwoColumn) == false)
-        #expect(ItemWindowLayouts.hasRecipe(for: .gallery) == false)
-        #expect(ItemWindowLayouts.hasRecipe(for: .wide) == false)
+        // Every other selectable case stays muted until its Figma visual ships.
+        for archetype in LayoutArchetype.selectable where archetype != .standard {
+            #expect(ItemWindowLayouts.hasRecipe(for: archetype) == false)
+        }
         #expect(ItemWindowLayouts.hasRecipe(for: .unknown("x")) == false)
+    }
+
+    @Test("usesInspector is true only for bannerTwoColumn among selectable")
+    func usesInspectorOnlyBannerTwoColumn() {
+        #expect(LayoutArchetype.bannerTwoColumn.usesInspector == true)
+        for archetype in LayoutArchetype.selectable where archetype != .bannerTwoColumn {
+            #expect(archetype.usesInspector == false)
+        }
     }
 }

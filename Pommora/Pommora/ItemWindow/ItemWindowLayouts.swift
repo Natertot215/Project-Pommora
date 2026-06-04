@@ -9,16 +9,27 @@ import SwiftUI
 /// deferred to their own Figma sessions (T3.6+); for now they reuse stock stacks
 /// so the renderer composes correctly without a real design behind them.
 enum ItemWindowLayouts {
-    /// Archetype → layout recipe. v1 stubs use stock stacks; the bespoke region
-    /// recipe for banner/two-column is deferred to its own Figma session (T3.6+).
+    /// Archetype → layout recipe. Each archetype gets a DISTINCT but stock recipe
+    /// (no custom `Layout`): the bespoke region recipe for banner/two-column (and a
+    /// real gallery grid) is deferred to its own Figma session. `.standard` is the
+    /// v1 baseline; `.reserved`/`.unknown` fall back to it.
     static func layout(for archetype: LayoutArchetype) -> AnyLayout {
         switch archetype {
-        case .standard, .compact, .wide, .reserved, .unknown:
+        case .standard, .reserved, .unknown:
+            // v1 baseline — comfortable leading VStack.
             return AnyLayout(VStackLayout(alignment: .leading, spacing: PUI.Spacing.xl))
-        case .bannerTwoColumn:
-            return AnyLayout(HStackLayout(alignment: .top, spacing: PUI.Spacing.xl + PUI.Spacing.xs))
+        case .compact:
+            // Tight vertical rhythm.
+            return AnyLayout(VStackLayout(alignment: .leading, spacing: PUI.Spacing.sm))
+        case .wide:
+            // Full-width intent — stretch children edge-to-edge, generous gaps.
+            return AnyLayout(VStackLayout(alignment: .leading, spacing: PUI.Spacing.xxl))
         case .gallery:
-            return AnyLayout(VStackLayout(alignment: .leading, spacing: PUI.Spacing.xl))
+            // Stock grid (SwiftUI `GridLayout`, not a custom Layout) — generous gaps.
+            return AnyLayout(GridLayout(alignment: .topLeading, horizontalSpacing: PUI.Spacing.xl, verticalSpacing: PUI.Spacing.xl))
+        case .bannerTwoColumn:
+            // Top-aligned two-column — bespoke region geometry deferred to Figma.
+            return AnyLayout(HStackLayout(alignment: .top, spacing: PUI.Spacing.xl + PUI.Spacing.xs))
         }
     }
 
