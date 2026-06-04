@@ -168,6 +168,51 @@ public enum MarkdownDetection {
         return document.children.contains { $0 is BlockQuote }
     }
 
+    // MARK: - Per-document construct precompute (draw-path optimization)
+
+    /// Line-start offsets for the block constructs the renderer draws per
+    /// fragment. Computed ONCE per `parsedDocument(for:)` (memoized per text
+    /// change) so the draw path does an O(1) Set lookup instead of allocating a
+    /// line string + parsing an AST per fragment per frame.
+    struct ConstructLineStarts: Sendable {
+        let thematicBreaks: Set<Int>
+        let blockquotes: Set<Int>
+        let dashBullets: Set<Int>
+    }
+
+    /// Walk every line once and record which lines are thematic breaks /
+    /// blockquote lines / dash-bullets, BY CALLING THE PER-LINE DETECTORS — so
+    /// the result is equivalent-by-construction to the renderer's prior
+    /// per-fragment checks. Must NOT short-circuit via the whole-document AST:
+    /// the per-line detectors parse each line in isolation (e.g. `Foo\n---`
+    /// keeps `---` an HR — Pommora has no setext guard), which a whole-doc parse
+    /// would not reproduce.
+    ///
+    /// - Parameters:
+    ///   - nsText: the full document text.
+    ///   - blockCodeTokens: tokens filtered to `.codeBlock` (the Stage-0 guard).
+    static func constructLineStarts(
+        in nsText: NSString,
+        blockCodeTokens: [MarkdownToken]
+    ) -> ConstructLineStarts {
+        var hr: Set<Int> = []
+        var bq: Set<Int> = []
+        var bullet: Set<Int> = []
+        var pos = 0
+        while pos < nsText.length {
+            let lineRange = nsText.lineRange(for: NSRange(location: pos, length: 0))
+            let line = nsText.substring(with: lineRange)
+            let insideCode = isInsideCodeBlock(range: lineRange, codeTokens: blockCodeTokens)
+            if isThematicBreakLine(line, isInsideCodeBlock: insideCode) { hr.insert(lineRange.location) }
+            if isBlockquoteLine(line, isInsideCodeBlock: insideCode) { bq.insert(lineRange.location) }
+            if isDashBulletLine(line, isInsideCodeBlock: insideCode) { bullet.insert(lineRange.location) }
+            let next = NSMaxRange(lineRange)
+            if next <= pos { break }
+            pos = next
+        }
+        return ConstructLineStarts(thematicBreaks: hr, blockquotes: bq, dashBullets: bullet)
+    }
+
     // MARK: - Heading detection (foldable headings)
 
     /// Three-stage detection for whether a paragraph string is an ATX heading
