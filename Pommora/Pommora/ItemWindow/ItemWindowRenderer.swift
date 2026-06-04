@@ -23,8 +23,27 @@ struct ItemWindowRenderer: View {
     let itemType: ItemType
     let collection: ItemCollection?
 
+    /// T3.5 — edit/mockup mode. When `true` the renderer becomes the WYSIWYG
+    /// template-editing surface the Templates pane (T5.3) reuses: promoted rows
+    /// gain drag-reorder + a pin/unpin "Add Property" affordance, both writing
+    /// `template_config.promoted_properties`. When `false` (the LIVE window) the
+    /// renderer is pure-render — NO edit affordances, and `promoted_properties`
+    /// is NEVER mutated (only property VALUES are editable in the live window).
+    var editing: Bool = false
+
+    /// The container whose `template_config` edit-mode writes persist to. When
+    /// `nil`, derives `collection?.id ?? itemType.id` (Collection override wins,
+    /// LD-10). Lets the Templates pane target a specific container explicitly.
+    var templateContainerID: String? = nil
+
     @Environment(RelationDisplayResolver.self) private var relationDisplay
     @Environment(TierConfigManager.self) private var tierConfigManager
+    /// Used ONLY in edit mode to persist pin/unpin + reorder via the single
+    /// template-persist path. Always injected wherever the renderer is hosted
+    /// (live scene via `injectNexusEnvironment`; Templates popover injects the
+    /// full env in T5.1), so this is quirk-#15-safe even though tests never
+    /// instantiate the renderer in a host.
+    @Environment(ItemTypeManager.self) private var itemTypeManager
 
     // MARK: - Description editor state (T3.2)
 
@@ -115,6 +134,24 @@ struct ItemWindowRenderer: View {
         let main = promoted.filter { all.contains($0) }  // promoted order, real ids only
         let overflow = all.filter { !promotedSet.contains($0) }  // remainder, original order
         return (main, overflow)
+    }
+
+    // MARK: - Edit-mode reorder (pure, T3.5)
+
+    /// Reorders the promoted list by ID (via `PropertyIDReorder.move`), PRESERVING
+    /// each `PromotedProperty` entry (its per-property `display`). The edit-mode
+    /// drag handler routes through this. Pure value code OUTSIDE any `@ViewBuilder`
+    /// body, so it stays unit-testable without a SwiftUI host (quirk #12-safe).
+    static func reorderPromoted(_ promoted: [PromotedProperty], moving: String, onto target: String) -> [PromotedProperty] {
+        let newIDOrder = PropertyIDReorder.move(promoted.map(\.id), moving: moving, onto: target)
+        return newIDOrder.compactMap { id in promoted.first { $0.id == id } }
+    }
+
+    /// The container `template_config` edit writes persist to. Explicit
+    /// `templateContainerID` wins; otherwise the Collection override (LD-10),
+    /// falling back to the Type. Single source for every edit-mode write.
+    private var writeTargetID: String {
+        templateContainerID ?? (collection?.id ?? itemType.id)
     }
 
     // MARK: - Per-property display resolution (pure, T3.4)
@@ -217,25 +254,129 @@ struct ItemWindowRenderer: View {
     /// Promoted properties as icon + name + value rows, drawn from the partition's
     /// `main` ids (promoted order). Disjoint from `overflowSchema` by construction —
     /// both derive from the same `idPartition`, so no property renders twice.
+    ///
+    /// In edit mode each row becomes drag-reorderable and a pin/unpin "Add
+    /// Property" affordance appears below; both writes go to `template_config`.
+    /// In the live window NEITHER affordance renders — pure read-only.
     @ViewBuilder
     private var promotedRegion: some View {
-        if promotedSchema.isEmpty {
+        if promotedSchema.isEmpty && !editing {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: PUI.Spacing.md) {
                 ForEach(promotedSchema, id: \.definition.id) { entry in
-                    PropertyDisplayRow(
-                        definition: entry.definition,
-                        value: item.properties[entry.definition.id],
-                        display: Self.resolvedDisplay(
-                            for: entry.promotion,
-                            propertyType: entry.definition.type,
-                            archetype: archetype
-                        ),
-                        relationResolver: relationResolver
-                    )
+                    promotedRow(for: entry)
+                }
+                if editing {
+                    addPropertyAffordance
                 }
             }
+        }
+    }
+
+    /// One promoted row. In edit mode it carries the inline native drag/drop
+    /// (mirroring `PropertyVisibilityPane`): `.draggable(<id>)` +
+    /// `.dropDestination(for: String.self)` routing through `reorderPromoted` and
+    /// persisting via the single template-persist path.
+    @ViewBuilder
+    private func promotedRow(for entry: (promotion: PromotedProperty, definition: PropertyDefinition)) -> some View {
+        let row = PropertyDisplayRow(
+            definition: entry.definition,
+            value: mockupValue(for: entry.definition),
+            display: Self.resolvedDisplay(
+                for: entry.promotion,
+                propertyType: entry.definition.type,
+                archetype: archetype
+            ),
+            relationResolver: relationResolver
+        )
+        if editing {
+            row
+                .draggable(entry.definition.id)
+                .dropDestination(for: String.self) { droppedIDs, _ in
+                    guard let droppedID = droppedIDs.first else { return false }
+                    return reorderPromoted(droppedID: droppedID, ontoTargetID: entry.definition.id)
+                }
+        } else {
+            row
+        }
+    }
+
+    // MARK: - Edit-mode persistence (T3.5)
+
+    /// Reorders the live promoted list and persists the new order to
+    /// `template_config.promoted_properties` via the single writer. No-op when the
+    /// order is unchanged. Returns whether the drop was accepted.
+    private func reorderPromoted(droppedID: String, ontoTargetID: String) -> Bool {
+        let current = promoted
+        let newOrder = Self.reorderPromoted(current, moving: droppedID, onto: ontoTargetID)
+        guard newOrder.map(\.id) != current.map(\.id) else { return false }
+        let target = writeTargetID
+        Task { try? await itemTypeManager.updateTemplateConfig(in: target) { $0.promotedProperties = newOrder } }
+        return true
+    }
+
+    /// Pins (appends `PromotedProperty(id:, display: nil)`) or unpins (removes) a
+    /// property, persisting the mutated promoted list to `template_config`. One
+    /// path for both directions — pin/unpin is just a membership flip on the array.
+    private func togglePin(_ propertyID: String, isPinned: Bool) {
+        var newOrder = promoted
+        if isPinned {
+            newOrder.removeAll { $0.id == propertyID }
+        } else if !newOrder.contains(where: { $0.id == propertyID }) {
+            newOrder.append(PromotedProperty(id: propertyID, display: nil))
+        }
+        let target = writeTargetID
+        Task { try? await itemTypeManager.updateTemplateConfig(in: target) { $0.promotedProperties = newOrder } }
+    }
+
+    /// The pin/unpin "Add Property" affordance — a `Menu` checklist of the Type's
+    /// user properties; checking pins, unchecking unpins. Each toggle persists via
+    /// `updateTemplateConfig`. Edit-mode only (gated by the caller).
+    private var addPropertyAffordance: some View {
+        let pinnedIDs = Set(promotedIDs)
+        return Menu {
+            ForEach(userSchema, id: \.id) { def in
+                Toggle(isOn: Binding(
+                    get: { pinnedIDs.contains(def.id) },
+                    set: { _ in togglePin(def.id, isPinned: pinnedIDs.contains(def.id)) }
+                )) {
+                    Label(def.name, systemImage: def.icon ?? def.type.pickerIcon)
+                }
+            }
+        } label: {
+            Label("Add Property", systemImage: "plus.circle")
+                .font(.callout)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    /// The value to fill a promoted row in the mockup. In the live window (and
+    /// whenever the Item carries a real value) it's the Item's value; in edit mode
+    /// with no concrete value, a representative placeholder so the pane "looks like
+    /// the item it governs" even for a template with no item.
+    private func mockupValue(for definition: PropertyDefinition) -> PropertyValue? {
+        if let real = item.properties[definition.id] { return real }
+        guard editing else { return nil }
+        return Self.placeholderValue(for: definition.type)
+    }
+
+    /// Representative placeholder value per property type for the edit-mode mockup.
+    /// Pure value code (outside any `@ViewBuilder`) so the `switch` stays legible.
+    /// Types whose placeholder would need a concrete reference (relations, files,
+    /// the virtual last-edited timestamp) render empty rather than fabricate one.
+    static func placeholderValue(for type: PropertyType) -> PropertyValue? {
+        switch type {
+        case .number: return .number(42)
+        case .checkbox: return .checkbox(true)
+        case .date: return .date(Date())
+        case .datetime: return .datetime(Date())
+        case .select: return .select("Option")
+        case .multiSelect: return .multiSelect(["Option A", "Option B"])
+        case .status: return .status("In Progress")
+        case .url: return URL(string: "https://example.com").map(PropertyValue.url)
+        case .relation, .file, .lastEditedTime: return nil
         }
     }
 
