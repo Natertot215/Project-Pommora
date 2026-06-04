@@ -133,26 +133,22 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         }
     }
 
-    /// Exact source-line string for this fragment with no trailing newline —
-    /// the same shape used as the fold-state key. Returns nil when the
-    /// fragment has no backing storage (teardown).
-    @MainActor
-    private var headingFragmentString: String? {
-        guard let ts = textStorage, let range = nsRange, range.length > 0 else {
-            return nil
-        }
-        return ts.attributedSubstring(from: range).string
-    }
-
     /// True when this fragment IS an ATX heading line. Three-stage detection
     /// via the shared `MarkdownDetection.isHeadingLine` so renderer + hover
     /// tracker + fold service agree on what counts as a heading (L2).
     @MainActor
     private var hasHeadingMarker: Bool {
-        guard let fragmentString = headingFragmentString else { return false }
-        return MarkdownDetection.isHeadingLine(
-            fragmentString, isInsideCodeBlock: isInsideCodeBlockAST
-        )
+        // Direct call (no MainActor.assumeIsolated): this property is already
+        // @MainActor, and both `nearestCoordinator()` and
+        // `isFragmentRangeAHeading` are @MainActor too (the coordinator class is
+        // annotated `@MainActor`, so its un-marked methods inherit that
+        // isolation) — the whole call chain is in-isolation. (Contrast
+        // `isInsideCodeBlockAST`, which is nonisolated and therefore must wrap
+        // its coordinator access in `MainActor.assumeIsolated`.)
+        guard let range = nsRange, let coordinator = nearestCoordinator() else {
+            return false
+        }
+        return coordinator.isFragmentRangeAHeading(range)
     }
 
     /// Key for this heading fragment — bare source line for the first
