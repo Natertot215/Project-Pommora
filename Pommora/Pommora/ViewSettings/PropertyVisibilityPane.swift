@@ -119,17 +119,8 @@ struct PropertyVisibilityPane: View {
         droppedID: String,
         ontoTargetID: String
     ) -> Bool {
-        guard droppedID != ontoTargetID,
-              let srcIdx = currentOrder.firstIndex(of: droppedID),
-              let dstIdx = currentOrder.firstIndex(of: ontoTargetID)
-        else { return false }
-        var newOrder = currentOrder
-        let item = newOrder.remove(at: srcIdx)
-        // Removing the source first shifts everything after it left by one, so
-        // a downward move targets dstIdx - 1 to land on the target's slot.
-        let adjusted = srcIdx < dstIdx ? dstIdx - 1 : dstIdx
-        let clamped = min(max(adjusted, 0), newOrder.count)
-        newOrder.insert(item, at: clamped)
+        let newOrder = PropertyIDReorder.move(currentOrder, moving: droppedID, onto: ontoTargetID)
+        guard newOrder != currentOrder else { return false }
 
         guard let view = currentView(), let cid = containerID(), let side else { return false }
         let viewID = view.id
