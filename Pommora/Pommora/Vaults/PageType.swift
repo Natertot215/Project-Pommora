@@ -29,6 +29,9 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
     /// Phase J wires this to column-header sort persistence.
     var defaultSort: DefaultSortConfig?
+    /// Page-side template config — reserved parity with ItemType (symmetric-code
+    /// HARD RULE). All optional; absent in pre-T1.4 sidecars (decodeIfPresent → nil).
+    var templateConfig: PageTemplateConfig?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
@@ -37,6 +40,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         case collectionOrder = "collection_order"
         case pageOrder = "page_order"
         case defaultSort = "default_sort"
+        case templateConfig = "template_config"
     }
 
     init(
@@ -45,7 +49,8 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         schemaVersion: Int = 2,
         collectionOrder: [String]? = nil,
         pageOrder: [String]? = nil,
-        defaultSort: DefaultSortConfig? = nil
+        defaultSort: DefaultSortConfig? = nil,
+        templateConfig: PageTemplateConfig? = nil
     ) {
         self.id = id
         self.title = title
@@ -57,6 +62,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.collectionOrder = collectionOrder
         self.pageOrder = pageOrder
         self.defaultSort = defaultSort
+        self.templateConfig = templateConfig
     }
 
     init(from decoder: any Decoder) throws {
@@ -71,6 +77,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
         self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
+        self.templateConfig = try c.decodeIfPresent(PageTemplateConfig.self, forKey: .templateConfig)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -84,6 +91,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
         try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
+        try c.encodeIfPresent(templateConfig, forKey: .templateConfig)
     }
 }
 
