@@ -5,15 +5,16 @@ struct SidebarDetailView: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
-    @State private var presentedItem: Item?
     /// Last page viewed; surfaces as a ghost breadcrumb trail in the parent
     /// collection or vault view so the user can tap back to it.
     @State private var pageTrail: PageMeta? = nil
 
+    @Environment(\.openWindow) private var openWindow
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(RelationDisplayResolver.self) private var relationDisplay
+    @Environment(ItemTypeManager.self) private var itemTypeManager
+    @Environment(ItemContentManager.self) private var itemContentManager
 
     var body: some View {
         Group {
@@ -58,7 +59,6 @@ struct SidebarDetailView: View {
                     pageType: t,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
-                    presentedItem: $presentedItem,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID,
                     trailPage: pageTrail
@@ -73,7 +73,6 @@ struct SidebarDetailView: View {
                         vault: v,
                         selection: $selection,
                         presentedSheet: $presentedSheet,
-                        presentedItem: $presentedItem,
                         editingID: $editingID,
                         justCreatedID: $justCreatedID,
                         trailPage: pageTrail
@@ -112,7 +111,6 @@ struct SidebarDetailView: View {
                     type: t,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
-                    presentedItem: $presentedItem,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID
                 )
@@ -122,18 +120,33 @@ struct SidebarDetailView: View {
                     collection: c,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
-                    presentedItem: $presentedItem,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID
                 )
             }
         }
-        .sheet(item: $presentedItem) { item in
-            ItemWindow(item: item, relationDisplay: relationDisplay)
-        }
         .onAppear {
+            // Open the item in its floating Item Window scene
+            // (`WindowGroup(for: ItemRef.self)`). Resolve the Item's owning Type +
+            // parent Set so the ref carries the IDs the scene root resolves against.
+            let openWindow = openWindow
+            let itemTypeManager = itemTypeManager
+            let itemContentManager = itemContentManager
             AppGlobals.presentItemAction = { item in
-                presentedItem = item
+                guard
+                    let location = ItemLocationResolver.locate(
+                        itemID: item.id,
+                        itemTypeManager: itemTypeManager,
+                        itemContentManager: itemContentManager
+                    )
+                else { return }
+                openWindow(
+                    value: ItemRef(
+                        itemID: item.id,
+                        typeID: location.typeID,
+                        collectionID: location.collectionID
+                    )
+                )
             }
         }
         .onChange(of: selection) { _, newSel in

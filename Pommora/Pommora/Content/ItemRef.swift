@@ -12,6 +12,38 @@ struct ItemRef: Codable, Hashable, Sendable {
     let collectionID: String?
 }
 
+/// Reverse lookup: given an Item's ID, find its owning Item Type + (optional)
+/// parent Set by scanning the live managers. The inverse of `ItemRef.resolve`
+/// (which goes ref → entities); this goes Item → ref IDs so an open-action can
+/// build an `ItemRef` from nothing but the `Item`. Single source for the scan so
+/// the open path doesn't re-implement it inline.
+enum ItemLocationResolver {
+    /// The IDs needed to build an `ItemRef` for `itemID`. `collectionID` is `nil`
+    /// for a type-root Item; non-`nil` when the Item lives inside a Set.
+    struct Location {
+        let typeID: String
+        let collectionID: String?
+    }
+
+    @MainActor
+    static func locate(
+        itemID: String,
+        itemTypeManager: ItemTypeManager,
+        itemContentManager: ItemContentManager
+    ) -> Location? {
+        for type in itemTypeManager.types {
+            if itemContentManager.items(in: type).contains(where: { $0.id == itemID }) {
+                return Location(typeID: type.id, collectionID: nil)
+            }
+            for collection in itemTypeManager.itemCollections(in: type)
+            where itemContentManager.items(in: collection).contains(where: { $0.id == itemID }) {
+                return Location(typeID: type.id, collectionID: collection.id)
+            }
+        }
+        return nil
+    }
+}
+
 extension ItemRef {
     /// Resolve to live Item + ItemType + ItemCollection via the running managers.
     /// Returns `nil` if any link in the chain is missing — e.g., the Item Type was

@@ -4,7 +4,6 @@ struct PageTypeDetailView: View {
     let pageType: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
-    @Binding var presentedItem: Item?  // drives Item Window popover
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
     /// Last page visited before navigating back to this vault; shown as a
@@ -370,7 +369,7 @@ struct PageTypeDetailView: View {
         case .collection(let c):
             selection = .collection(c)
         case .item(let i):
-            presentedItem = i
+            AppGlobals.presentItemAction?(i)
         case .page(let p):
             selection = .page(p)
         case .itemCollection:

@@ -5,7 +5,6 @@ struct PageCollectionDetailView: View {
     let vault: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
-    @Binding var presentedItem: Item?
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
     /// Last page visited before navigating back to this collection; shown as
@@ -189,7 +188,7 @@ struct PageCollectionDetailView: View {
 
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
-        case .item(let i): presentedItem = i
+        case .item(let i): AppGlobals.presentItemAction?(i)
         case .page(let p): selection = .page(p)
         case .collection, .itemCollection: break
         }

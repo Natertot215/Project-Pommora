@@ -26,7 +26,6 @@ struct ItemCollectionDetailView: View {
     let collection: ItemCollection
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?
-    @Binding var presentedItem: Item?
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
 
@@ -261,7 +260,7 @@ struct ItemCollectionDetailView: View {
 
     private func handleDoubleTap(_ row: DetailRow) {
         if case .item(let i) = row.kind {
-            presentedItem = i
+            AppGlobals.presentItemAction?(i)
         }
     }
 

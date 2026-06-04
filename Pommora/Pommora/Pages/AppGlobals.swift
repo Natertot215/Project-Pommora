@@ -62,8 +62,11 @@ enum AppGlobals {
 
     // MARK: - Item Window bridge
 
-    /// Registered by `SidebarDetailView` on appear. Calling this closure
-    /// flips `SidebarDetailView.presentedItem`, which drives the ItemWindow sheet.
+    /// Registered by `SidebarDetailView` on appear. Calling this closure resolves
+    /// the Item's owning Type + parent Set and calls `openWindow(value: ItemRef)`
+    /// to open it in its floating Item Window scene
+    /// (`WindowGroup(for: ItemRef.self)`). Also consumed by `BackForwardButtons`
+    /// when stepping back/forward lands on an Item.
     static var presentItemAction: ((Item) -> Void)?
 
     // MARK: - Editor VM registry
