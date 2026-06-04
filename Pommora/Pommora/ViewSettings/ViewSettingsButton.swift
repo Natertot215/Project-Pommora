@@ -22,14 +22,18 @@ struct ViewSettingsButton: View {
     /// via `@Environment(PageTypeManager.self)` here asserts at toolbar
     /// render (app launch crash).
     ///
-    /// We then re-inject them onto the popover content via `.environment(_:)`
-    /// modifiers — macOS popovers present their content in a detached
-    /// context that doesn't inherit the button's ancestor env chain either,
-    /// so explicit injection at the popover boundary is required for
-    /// every popover-hosted view that declares `@Environment(X.self)`
-    /// (PropertiesListPane / PropertyTypePickerPane / EditPropertyPane /
-    /// EditOptionPane / PropertyVisibilityPane). See quirk #16's two
-    /// variants in Handoff.md.
+    /// macOS popovers present their content in a detached context that doesn't
+    /// inherit the button's ancestor env chain, so explicit injection at the
+    /// popover boundary is required for every popover-hosted view that declares
+    /// `@Environment(X.self)`. We inject the FULL Nexus environment via
+    /// `.injectNexusEnvironment(_:)` (sourced from `AppGlobals.current`, the
+    /// live env) rather than hand-injecting a partial subset — the embedded
+    /// `ItemWindowRenderer` mockup (T5.3) transitively reads `ItemContentManager`
+    /// + `RelationDisplayResolver` (+ more), and a missing manager SIGTRAPs a
+    /// `.task`-bearing view (quirk #15). The full inject is a superset of every
+    /// pane's needs, so it's safe. These params are still threaded in because
+    /// the toolbar lives OUTSIDE ContentView's `.environment(...)` chain; they
+    /// remain available for any future button-level use.
     let pageTypeManager: PageTypeManager
     let itemTypeManager: ItemTypeManager
     let tierConfigManager: TierConfigManager
@@ -52,11 +56,21 @@ struct ViewSettingsButton: View {
         }
         .help("View Settings")
         .popover(isPresented: $isPresented, arrowEdge: .top) {
+            popoverContent
+        }
+    }
+
+    /// Popover content with the FULL Nexus environment injected (quirk #15).
+    /// `AppGlobals.current` is non-nil whenever a Nexus is open, which is always
+    /// true when the popover is reachable; if it's somehow absent we fall back to
+    /// the bare popover (no panes that need managers can be reached anyway).
+    @ViewBuilder
+    private var popoverContent: some View {
+        if let env = AppGlobals.current {
             ViewSettingsPopover(scope: scope)
-                .environment(pageTypeManager)
-                .environment(itemTypeManager)
-                .environment(tierConfigManager)
-                .environment(pageContentManager)
+                .injectNexusEnvironment(env)
+        } else {
+            ViewSettingsPopover(scope: scope)
         }
     }
 }

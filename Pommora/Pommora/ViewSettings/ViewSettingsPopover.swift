@@ -72,6 +72,8 @@ struct ViewSettingsPopover: View {
             EditPropertyPane(scope: scope, mode: .createRelation, path: $path)
         case .propertyVisibility:
             PropertyVisibilityPane(scope: scope, path: $path)
+        case .itemTemplate:
+            ItemTemplatePane(scope: scope, path: $path)
         }
     }
 }

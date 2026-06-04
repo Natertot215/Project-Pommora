@@ -53,7 +53,16 @@ struct StorageMenuRoot: View {
                     title: "Property Visibility",
                     route: .propertyVisibility
                 )
-                mutedRow(icon: "doc.on.doc", title: "Templates")
+                // ITEM scopes get the live Templates pane (T5.x); PAGE scopes
+                // keep the muted placeholder. Branch on the scope-derived side
+                // (mirrors PropertyVisibilityPane's `side`) so unmuting an
+                // Item Type/Set doesn't also unmute Pages.
+                switch side {
+                case .items:
+                    activeRow(icon: "doc.on.doc", title: "Templates", route: .itemTemplate)
+                case .pages, .none:
+                    mutedRow(icon: "doc.on.doc", title: "Templates")
+                }
                 mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
                 mutedRow(icon: "square.stack.3d.down.right", title: "Group")
                 mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
@@ -178,6 +187,18 @@ struct StorageMenuRoot: View {
                 itemTypeManager.itemCollectionsByType[c.typeID]?.first(where: { $0.id == c.id }) ?? c)
         default:
             return scope
+        }
+    }
+
+    /// Item-vs-page side derived from the scope (mirrors
+    /// PropertyVisibilityPane's `side`). Drives which scopes get the live
+    /// Templates pane vs. the muted placeholder.
+    private enum SideKind { case pages, items }
+    private var side: SideKind? {
+        switch scope {
+        case .pageType, .pageCollection: return .pages
+        case .itemType, .itemCollection: return .items
+        default: return nil
         }
     }
 
