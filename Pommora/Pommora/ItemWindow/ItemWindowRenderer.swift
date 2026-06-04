@@ -65,15 +65,31 @@ struct ItemWindowRenderer: View {
     /// overflow region subtracts from.
     private var promotedIDs: [String] { promoted.map(\.id) }
 
-    /// Non-promoted user properties — the overflow surface's content.
-    private var overflowSchema: [PropertyDefinition] {
-        userSchema.filter { !promotedIDs.contains($0.id) }
+    /// The disjoint id partition for this Item: the full user-schema id list split
+    /// into `main` (promoted, in promoted order) and `overflow` (the remainder, in
+    /// schema order). The single source of truth both regions derive from — no id
+    /// can land in both (Fix Log #10). See `partition(all:promoted:)`.
+    private var idPartition: (main: [String], overflow: [String]) {
+        Self.partition(all: userSchema.map(\.id), promoted: promotedIDs)
     }
 
-    /// Promoted user properties, in promoted order, resolved to definitions.
+    /// Non-promoted user properties — the overflow surface's content. Derived from
+    /// the partition's `overflow` ids (schema order), so it's disjoint from
+    /// `promotedSchema` by construction.
+    private var overflowSchema: [PropertyDefinition] {
+        let order = idPartition.overflow
+        return order.compactMap { id in userSchema.first(where: { $0.id == id }) }
+    }
+
+    /// Promoted user properties, in promoted order, resolved to definitions paired
+    /// with their promotion config. Derived from the partition's `main` ids, so it's
+    /// disjoint from `overflowSchema` by construction.
     private var promotedSchema: [(promotion: PromotedProperty, definition: PropertyDefinition)] {
-        promoted.compactMap { promotion in
-            guard let def = userSchema.first(where: { $0.id == promotion.id }) else { return nil }
+        let promotionByID = Dictionary(promoted.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return idPartition.main.compactMap { id in
+            guard let promotion = promotionByID[id],
+                  let def = userSchema.first(where: { $0.id == id })
+            else { return nil }
             return (promotion, def)
         }
     }
@@ -82,6 +98,23 @@ struct ItemWindowRenderer: View {
     /// (matches the detail-view call sites; keeps the cell pure of managers).
     private var relationResolver: (String) -> (icon: String, title: String)? {
         { relationDisplay.resolve($0) }
+    }
+
+    // MARK: - Promoted / overflow partition (pure)
+
+    /// Splits the full ordered property-id list into the promoted set (main panel,
+    /// in promoted order) and the overflow remainder, GUARANTEED disjoint — no id
+    /// appears in both region (resolves the legacy double-render, Fix Log #10).
+    /// Promoted ids not present in `all` are ignored; overflow preserves `all`'s
+    /// order minus the promoted ids.
+    ///
+    /// Pure value code OUTSIDE any `@ViewBuilder` body, so `Array.contains` is safe
+    /// here (quirk #12's GRDB String-overload ambiguity only bites inside views).
+    static func partition(all: [String], promoted: [String]) -> (main: [String], overflow: [String]) {
+        let promotedSet = Set(promoted)
+        let main = promoted.filter { all.contains($0) }  // promoted order, real ids only
+        let overflow = all.filter { !promotedSet.contains($0) }  // remainder, original order
+        return (main, overflow)
     }
 
     // MARK: - Body
@@ -151,9 +184,9 @@ struct ItemWindowRenderer: View {
         }
     }
 
-    /// Promoted properties as icon + name + value rows. T3.3 formalizes the
-    /// disjoint partition; here promoted-on-main / rest-below already guarantees
-    /// no property renders twice (overflowSchema subtracts the promoted ids).
+    /// Promoted properties as icon + name + value rows, drawn from the partition's
+    /// `main` ids (promoted order). Disjoint from `overflowSchema` by construction —
+    /// both derive from the same `idPartition`, so no property renders twice.
     @ViewBuilder
     private var promotedRegion: some View {
         if promotedSchema.isEmpty {
@@ -188,10 +221,11 @@ struct ItemWindowRenderer: View {
 
     // MARK: - 4. Overflow surface (non-promoted properties)
 
+    /// The overflow region — exactly the partition's `overflow` properties (those
+    /// NOT promoted into the main panel), so it never re-renders a promoted prop.
     /// Inspector archetypes get a side-pane column; everything else a disclosure
-    /// dropdown. A simple stub — T3.3 formalizes the partition + the inspector
-    /// chrome. Tiers render as their own rows ABOVE the user properties in
-    /// inspector mode (handled in `inspectorOverflow`).
+    /// dropdown (branch from T3.1, kept). Tiers render as their own rows ABOVE the
+    /// user properties in inspector mode (handled in `inspectorOverflow`).
     @ViewBuilder
     private var overflowSurface: some View {
         if overflowSchema.isEmpty {
