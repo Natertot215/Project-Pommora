@@ -133,6 +133,41 @@ public enum MarkdownDetection {
         return true
     }
 
+    // MARK: - Blockquote detection
+
+    /// Per-line blockquote detection — the shared definition behind the
+    /// renderer's `hasBlockquoteMarker` and the construct precompute. Mirrors
+    /// `isThematicBreakLine`'s shape: a cheap gate then an isolated AST confirm.
+    ///
+    /// Stage 1 scans the RAW line (not trimmed — a `> ` line's significant
+    /// trailing space must survive): skip leading whitespace, require `>`, then
+    /// require the next char to be space or tab (bare `>` does not activate,
+    /// matching the list `- ` rule). Stage 2 parses the line in isolation and
+    /// confirms a top-level `BlockQuote` node.
+    ///
+    /// - Parameters:
+    ///   - paragraphString: the line to test, including any trailing newline.
+    ///   - isInsideCodeBlock: Stage-0 result from the caller's context.
+    static func isBlockquoteLine(
+        _ paragraphString: String,
+        isInsideCodeBlock: Bool
+    ) -> Bool {
+        if isInsideCodeBlock { return false }
+        let ns = paragraphString as NSString
+        var i = 0
+        while i < ns.length {
+            let c = ns.character(at: i)
+            if c == 0x20 || c == 0x09 { i += 1; continue }
+            break
+        }
+        guard i < ns.length, ns.character(at: i) == 0x3E else { return false }   // `>`
+        guard i + 1 < ns.length else { return false }
+        let next = ns.character(at: i + 1)
+        guard next == 0x20 || next == 0x09 else { return false }
+        let document = Markdown.Document(parsing: paragraphString)
+        return document.children.contains { $0 is BlockQuote }
+    }
+
     // MARK: - Heading detection (foldable headings)
 
     /// Three-stage detection for whether a paragraph string is an ATX heading
