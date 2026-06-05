@@ -7,14 +7,15 @@
 //  Generic wiki-link transformer used by the editor engine.
 //
 //  Wiki-links live in two forms:
-//    Storage form    [[Name|<opaque-id>]]
+//    Storage form    [[Name]]   (title-only on disk — LD-28)
 //    Display form    [[Name]]
 //
-//  This service converts between the two and maintains a metadata map
-//  that lets callers look up the storage range and identifier for any
-//  display occurrence. The identifier is opaque to the engine — it can
-//  be a UUID, a slug, a database key, anything an embedder hands out
-//  via the ``WikiLinkResolver`` protocol.
+//  Storage and display are now identical strings; the opaque id is never
+//  persisted. This service converts between the two and maintains a
+//  metadata map that lets callers look up the storage range and identifier
+//  for any display occurrence. The identifier is opaque to the engine —
+//  it can be a UUID, a slug, a database key, anything an embedder hands
+//  out via the ``WikiLinkResolver`` protocol — but it only lives in-memory.
 //
 
 import AppKit
@@ -103,9 +104,10 @@ public enum WikiLinkService {
         return (result, metadata)
     }
 
-    /// Convert display form `[[Name]]` back into storage form `[[Name|<id>]]`,
-    /// preferring an id read from the live text storage's `.wikiLinkID`
-    /// attribute and falling back to `existingMetadata`.
+    /// Convert display form `[[Name]]` into storage form `[[Name]]` (title-only;
+    /// LD-28 — the opaque id is never persisted). Any id read from the live text
+    /// storage's `.wikiLinkID` attribute or from `existingMetadata` is preserved
+    /// in the returned in-memory metadata map only.
     public static func makeStorageState(
         from displayText: String,
         existingMetadata: [RangeKey: LinkMetadata],
@@ -143,12 +145,10 @@ public enum WikiLinkService {
                 linkID = existingMetadata[RangeKey(match.range)]?.id
             }
 
-            let storageFragment: String
-            if let linkID, !linkID.isEmpty {
-                storageFragment = "[[\(name)|\(linkID)]]"
-            } else {
-                storageFragment = "[[\(name)]]"
-            }
+            // LD-28: Pommora stores wiki-links title-only on disk ([[Name]]). The opaque
+            // id is never persisted — resolution is title-keyed via the index. `linkID`
+            // may still populate the returned in-memory `metadata` map, but never storage.
+            let storageFragment = "[[\(name)]]"
             let fragmentLength = storageFragment.utf16.count
             let storageRange = NSRange(location: storageLength, length: fragmentLength)
             storage.append(storageFragment)
