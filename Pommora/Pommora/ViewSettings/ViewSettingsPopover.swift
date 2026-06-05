@@ -67,9 +67,7 @@ struct ViewSettingsPopover: View {
         case .propertyTypePicker:
             PropertyTypePickerPane(scope: scope, path: $path)
         case .editProperty(let id):
-            EditPropertyPane(scope: scope, mode: .edit(propertyID: id), path: $path)
-        case .newRelation:
-            EditPropertyPane(scope: scope, mode: .createRelation, path: $path)
+            EditPropertyPane(scope: scope, propertyID: id, path: $path)
         case .propertyVisibility:
             PropertyVisibilityPane(scope: scope, path: $path)
         case .itemTemplate:
@@ -79,18 +77,18 @@ struct ViewSettingsPopover: View {
 }
 
 #if DEBUG
-    #Preview("Popover — PageType scope") {
-        ViewSettingsPopover(
-            scope: .pageType(
-                PageType(
-                    id: "01HPT", title: "Notes", icon: "note.text",
-                    properties: [], views: [], modifiedAt: Date()
-                )
+#Preview("Popover — PageType scope") {
+    ViewSettingsPopover(
+        scope: .pageType(
+            PageType(
+                id: "01HPT", title: "Notes", icon: "note.text",
+                properties: [], views: [], modifiedAt: Date()
             )
         )
-    }
+    )
+}
 
-    #Preview("Popover — none scope (empty shell)") {
-        ViewSettingsPopover(scope: .none)
-    }
+#Preview("Popover — none scope (empty shell)") {
+    ViewSettingsPopover(scope: .none)
+}
 #endif

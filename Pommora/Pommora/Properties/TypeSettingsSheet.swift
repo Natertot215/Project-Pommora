@@ -75,7 +75,7 @@ final class TypeSettingsViewModel {
 
     func moveDown(_ propertyID: String) {
         guard let idx = draftProperties.firstIndex(where: { $0.id == propertyID }),
-              idx < draftProperties.count - 1
+            idx < draftProperties.count - 1
         else { return }
         draftProperties.swapAt(idx, idx + 1)
         recordReorders()
@@ -322,15 +322,8 @@ private struct TypeSettingsPropertiesSection: View {
                         .foregroundStyle(.secondary)
                     PropertyTypePicker(
                         selected: $vm.pendingNewType,
-                        onSelect: { type in
-                            if type == .relation {
-                                // Relation creation is handled by the View Settings popover
-                                // (PropertyTypePickerPane → EditPropertyPane .newRelation route).
-                                // Silently cancel here rather than entering a broken wizard path.
-                                vm.resetNewPropertyState()
-                            } else {
-                                vm.showingTypePicker = false
-                            }
+                        onSelect: { _ in
+                            vm.showingTypePicker = false
                         }
                     )
                     Button("Cancel") {

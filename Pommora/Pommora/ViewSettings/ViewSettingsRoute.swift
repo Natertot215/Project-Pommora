@@ -9,14 +9,8 @@ import Foundation
 /// `.navigationDestination(for:)`:
 ///   - `.editProperties` (PropertiesListPane)
 ///   - `.propertyTypePicker` (PropertyTypePickerPane)
-///   - `.editProperty(propertyID:)` (EditPropertyPane — edit-existing mode)
-///   - `.newRelation` (EditPropertyPane — relation create-draft mode)
+///   - `.editProperty(propertyID:)` (EditPropertyPane)
 ///   - `.propertyVisibility` (PropertyVisibilityPane)
-///
-/// `.newRelation` carries no propertyID: the property doesn't exist yet. The
-/// pane holds a draft and only commits (via the source manager's paired
-/// `addProperty`) when the user taps Save. Picking `.relation` in the type
-/// picker routes here instead of pre-adding a shell.
 ///
 /// Option editing is NOT a route — the live editor is the inline
 /// `OptionEditPopover` (double-click a chip). The former `.editOption` route
@@ -25,7 +19,6 @@ enum ViewSettingsRoute: Hashable {
     case editProperties
     case propertyTypePicker
     case editProperty(propertyID: String)
-    case newRelation
     case propertyVisibility
     case itemTemplate
 }
@@ -38,7 +31,6 @@ extension ViewSettingsRoute {
         case .editProperties: return "Edit Properties"
         case .propertyTypePicker: return "New Property"
         case .editProperty: return "Edit Property"
-        case .newRelation: return "New Relation"
         case .propertyVisibility: return "Property Visibility"
         case .itemTemplate: return "Templates"
         }

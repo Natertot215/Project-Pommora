@@ -49,7 +49,7 @@ final class VaultSettingsViewModel {
     private let originalProperties: [PropertyDefinition]
 
     // Pending operation log — order matters for replay.
-    private var pendingDeletes: [String] = []          // propertyIDs
+    private var pendingDeletes: [String] = []  // propertyIDs
     private var pendingRenames: [(id: String, name: String)] = []
     private var pendingAdds: [PropertyDefinition] = []
     private var pendingReorders: [(id: String, toIndex: Int)] = []
@@ -101,7 +101,7 @@ final class VaultSettingsViewModel {
     /// Moves a property down one slot.
     func moveDown(_ propertyID: String) {
         guard let idx = draftProperties.firstIndex(where: { $0.id == propertyID }),
-              idx < draftProperties.count - 1
+            idx < draftProperties.count - 1
         else { return }
         draftProperties.swapAt(idx, idx + 1)
         recordReorders()
@@ -114,7 +114,7 @@ final class VaultSettingsViewModel {
         }
     }
 
-    /// Appends a new (non-relation) property definition to the draft.
+    /// Appends a new property definition to the draft.
     func addDraft(_ definition: PropertyDefinition) {
         draftProperties.append(definition)
         pendingAdds.append(definition)
@@ -362,15 +362,8 @@ private struct VaultSettingsPropertiesSection: View {
                         .foregroundStyle(.secondary)
                     PropertyTypePicker(
                         selected: $vm.pendingNewType,
-                        onSelect: { type in
-                            if type == .relation {
-                                // Relation creation is handled by the View Settings popover
-                                // (PropertyTypePickerPane → EditPropertyPane .newRelation route).
-                                // Silently cancel here rather than entering a broken wizard path.
-                                vm.resetNewPropertyState()
-                            } else {
-                                vm.showingTypePicker = false
-                            }
+                        onSelect: { _ in
+                            vm.showingTypePicker = false
                         }
                     )
                     Button("Cancel") {
@@ -476,7 +469,7 @@ private struct VaultPropertyTypeBadge: View {
 // MARK: - VaultSettingsNewPropertyConfig
 
 /// Inline sub-view for configuring a new property before adding it.
-/// Shown after a non-relation type is chosen in `PropertyTypePicker`.
+/// Shown after a property type is chosen in `PropertyTypePicker`.
 private struct VaultSettingsNewPropertyConfig: View {
     @Bindable var vm: VaultSettingsViewModel
 

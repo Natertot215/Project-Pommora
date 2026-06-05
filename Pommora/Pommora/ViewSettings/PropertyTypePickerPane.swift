@@ -4,15 +4,12 @@ import SwiftUI
 ///
 /// Wraps the existing `PropertyTypePicker` for pushed-pane mode + handles
 /// the type-aware routing:
-///   - Relation → push `.newRelation` (NO shell pre-added); the create-draft
-///     editor commits the full pair on Save.
 ///   - Select / MultiSelect / Status → commit a default property of that type
 ///     AND push .editProperty(propertyID:) onto the path so the user lands in
 ///     the configuration editor immediately (these types need post-create
 ///     setup).
-///   - Number / Checkbox / Date / DateTime / URL / File → commit a default
-///     property of that type AND pop back to the Properties list (simple
-///     types are usable as-is).
+///   - Number / Checkbox / Date / DateTime / URL / File / Relation → commit a
+///     default property of that type AND pop back to the Properties list.
 ///
 /// Commits via PageTypeManager / ItemTypeManager addProperty. Schema lives
 /// on the Type (Collections inherit), so Collection-scope adds route to the
@@ -59,18 +56,6 @@ struct PropertyTypePickerPane: View {
     // MARK: - Commit
 
     private func commit(_ type: PropertyType) async {
-        // Relation is special: nothing is pre-added. The create-draft editor
-        // (`.newRelation`) holds the draft and commits the full pair on Save.
-        // Drop the type-picker frame so back-tap from the draft editor lands
-        // on the Properties list, not the picker we just left.
-        if type == .relation {
-            if path.last == .propertyTypePicker {
-                path.removeLast()
-            }
-            path.append(.newRelation)
-            return
-        }
-
         var definition = makeDefaultDefinition(for: type)
         // Mint the property ID in the caller so the route argument carries
         // the real ULID. The manager would otherwise mint internally and
@@ -121,8 +106,7 @@ struct PropertyTypePickerPane: View {
 
     /// Types that ship empty configuration on creation and demand the user
     /// fill in options before the property is useful — auto-routes to
-    /// `EditPropertyPane` in edit mode. Relation is NOT here: it routes to the
-    /// `.newRelation` create-draft editor without pre-adding anything.
+    /// `EditPropertyPane` in edit mode.
     static func requiresOptionConfig(_ type: PropertyType) -> Bool {
         switch type {
         case .select, .multiSelect, .status:
@@ -173,9 +157,8 @@ struct PropertyTypePickerPane: View {
         case .file:
             return PropertyDefinition(id: "", name: name, type: .file)
         case .relation:
-            // Unreachable: `commit` routes `.relation` to `.newRelation`
-            // before reaching here (no shell is pre-added). Kept only to
-            // satisfy the exhaustive switch.
+            // Kept only to satisfy the exhaustive switch over PropertyType
+            // (KEEP-substrate: .relation case must not be removed).
             return PropertyDefinition(id: "", name: name, type: .relation)
         case .lastEditedTime:
             // Excluded from PropertyType.userCreatable — unreachable, but
