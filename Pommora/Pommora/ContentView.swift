@@ -286,7 +286,7 @@ struct ContentView: View {
                 page: p,
                 vault: resolved.vault,
                 index: nexusManager.currentIndex,
-                relationDisplay: env.relationResolver,
+                relationDisplay: env.contextResolver,
                 onSave: { updated in
                     Task {
                         try? await env.contentManager.updatePageFrontmatter(

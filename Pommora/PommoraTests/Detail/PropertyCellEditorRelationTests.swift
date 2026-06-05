@@ -5,9 +5,9 @@ import Testing
 @testable import Pommora
 
 /// Construction tests for `PropertyCellEditor`'s `.relation` case — the inline
-/// Table-cell relation editor wired to `RelationPicker`.
+/// Table-cell relation editor wired to `ContextPicker`.
 ///
-/// `RelationPicker` loads candidates from a live SQLite DB via
+/// `ContextPicker` loads candidates from a live SQLite DB via
 /// `IndexQuery.entitiesByTarget(_:)`, so these tests validate that the editor
 /// constructs without a DB (`index: nil`) and across the relation-definition
 /// shapes the cell must tolerate — a relation with a target, a relation with no

@@ -57,10 +57,10 @@ final class NexusEnvironment {
     let mainWindowRouter: MainWindowRouter
     let settingsManager: SettingsManager
 
-    /// Shared relation/tier display resolver (icon + title from the index).
+    /// Shared context-link/tier display resolver (icon + title from the index).
     /// Its index closure captures `nexusManager` and reads `.currentIndex`
     /// lazily, so it tracks index swaps within this Nexus.
-    let relationResolver: RelationDisplayResolver
+    let contextResolver: ContextDisplayResolver
 
     /// Constructs and wires every manager (see the class doc above). The NexusContext
     /// snapshot closures built inline below are **one-shot**: they capture manager arrays
@@ -145,7 +145,7 @@ final class NexusEnvironment {
         // Shared relation/tier display resolver. Captures `nexusManager` (the
         // stable @Observable instance) and reads `.currentIndex` lazily so it
         // tracks index swaps within this Nexus.
-        let relationRes = RelationDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
+        let contextRes = ContextDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
 
         // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
         // (Space + Topic added so Contexts sync to the `contexts` index table).
@@ -177,7 +177,7 @@ final class NexusEnvironment {
         self.pinnedManager = pinnedMgr
         self.settingsManager = settingsMgr
         self.mainWindowRouter = router
-        self.relationResolver = relationRes
+        self.contextResolver = contextRes
 
         // Publish manager refs so standalone WindowGroup scenes can reach
         // them without restructuring the ContentView dependency graph.
@@ -243,6 +243,6 @@ extension View {
             .environment(env.pinnedManager)
             .environment(env.mainWindowRouter)
             .environment(env.settingsManager)
-            .environment(env.relationResolver)
+            .environment(env.contextResolver)
     }
 }

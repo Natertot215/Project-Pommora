@@ -92,7 +92,7 @@ struct FrontmatterInspector: View {
     let page: PageMeta
     let vault: PageType
     let index: PommoraIndex?
-    let relationDisplay: RelationDisplayResolver?
+    let relationDisplay: ContextDisplayResolver?
     let onSave: ((PageFrontmatter) -> Void)?
 
     @Environment(SpaceManager.self) private var spaceManager
@@ -104,7 +104,7 @@ struct FrontmatterInspector: View {
         page: PageMeta,
         vault: PageType,
         index: PommoraIndex? = nil,
-        relationDisplay: RelationDisplayResolver? = nil,
+        relationDisplay: ContextDisplayResolver? = nil,
         onSave: ((PageFrontmatter) -> Void)? = nil
     ) {
         self.page = page
@@ -146,7 +146,7 @@ struct FrontmatterInspector: View {
         }
     }
 
-    // MARK: - Tiers section (editable via RelationValueEditor; persists through the VM's debounced onSave)
+    // MARK: - Tiers section (editable via ContextValueEditor; persists through the VM's debounced onSave)
 
     private var tiersSection: some View {
         Section("Tiers") {
@@ -164,7 +164,7 @@ struct FrontmatterInspector: View {
 
     private func tierRow(_ label: String, tier: Int, ids: Binding<[String]>) -> some View {
         LabeledContent(label) {
-            RelationValueEditor(ids: ids, scope: .contextTier(tier), index: index, resolver: relationDisplay)
+            ContextValueEditor(ids: ids, scope: .contextTier(tier), index: index, resolver: relationDisplay)
         }
     }
 

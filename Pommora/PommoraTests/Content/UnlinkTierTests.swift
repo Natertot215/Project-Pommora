@@ -307,7 +307,7 @@ struct UnlinkTierTests {
         return try await index.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM relations WHERE target_id = ? AND property_id = ?",
+                sql: "SELECT COUNT(*) FROM context_links WHERE target_id = ? AND property_id = ?",
                 arguments: [target, propertyID]
             ) ?? -1
         }

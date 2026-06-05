@@ -477,7 +477,7 @@ final class IndexBuilder {
     }
 
     private nonisolated static func clearAllTables(_ db: Database) throws {
-        try db.execute(sql: "DELETE FROM relations")
+        try db.execute(sql: "DELETE FROM context_links")
         try db.execute(sql: "DELETE FROM property_definitions")
         try db.execute(sql: "DELETE FROM pages")
         try db.execute(sql: "DELETE FROM page_collections")
@@ -734,7 +734,7 @@ final class IndexBuilder {
                     {
                         try db.execute(
                             literal: """
-                                INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
+                                INSERT INTO context_links (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
                                 VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propertyID), \(iso8601(modifiedAt)))
                                 """
                         )

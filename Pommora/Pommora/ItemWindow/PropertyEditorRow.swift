@@ -3,11 +3,11 @@ import SwiftUI
 struct PropertyEditorRow: View {
     let definition: PropertyDefinition
     @Binding var value: PropertyValue
-    /// Supplied by hosts that can edit relations inline (defaulted so non-relation
+    /// Supplied by hosts that can edit context-links inline (defaulted so non-relation
     /// call sites compile unchanged). `index` feeds the picker's candidate query;
     /// `relationDisplay` renders the current value as icon+title chips.
     var index: PommoraIndex? = nil
-    var relationDisplay: RelationDisplayResolver? = nil
+    var relationDisplay: ContextDisplayResolver? = nil
 
     @State private var dateEditorOpen = false
 
@@ -79,7 +79,9 @@ struct PropertyEditorRow: View {
     /// property's `timeFormat`; single-date mode maps `Date` ⇄
     /// `DateSelection.single`.
     private var dateEditor: some View {
-        Button { dateEditorOpen = true } label: {
+        Button {
+            dateEditorOpen = true
+        } label: {
             Text(dateDisplayString)
                 .font(PUI.Typography.row)
                 .foregroundStyle(hasDateValue ? .primary : .secondary)
@@ -110,7 +112,7 @@ struct PropertyEditorRow: View {
         guard let date = value.dateSelection?.anchorDate else { return "Empty" }
         let dateStr = (definition.dateFormat ?? .full).string(from: date)
         guard case .datetime = value,
-              let time = (definition.timeFormat ?? .none).string(from: date)
+            let time = (definition.timeFormat ?? .none).string(from: date)
         else { return dateStr }
         return "\(dateStr) \(time)"
     }
@@ -175,7 +177,7 @@ struct PropertyEditorRow: View {
     @ViewBuilder
     private var relationEditor: some View {
         if let target = definition.relationTarget {
-            RelationValueEditor(
+            ContextValueEditor(
                 ids: Binding(
                     get: { if case .relation(let ids) = value { return ids } else { return [] } },
                     set: { value = .relation($0) }

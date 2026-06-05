@@ -82,14 +82,14 @@ struct IndexQuery: Sendable {
 
     // MARK: - Reverse-view query
 
-    /// Every operational entity whose `relations` rows point AT the given target ID
+    /// Every operational entity whose `context_links` rows point AT the given target ID
     /// (the canonical reverse-view query; powers the future LinkedFromDropdown).
     ///
-    /// One `EntityRef` per `relations` row, built from `source_id` + `source_kind`.
+    /// One `EntityRef` per `context_links` row, built from `source_id` + `source_kind`.
     /// `source_kind` resolves to `EntityKind` via the same string map as
     /// `brokenLinks`; the source's current title is read by joining `source_id`
     /// to its source-kind table (mirrors how `entitiesByTarget` sources titles —
-    /// `relations` itself carries no title). Sources whose row is dangling (no
+    /// `context_links` itself carries no title). Sources whose row is dangling (no
     /// matching entity) fall back to an empty title.
     func incomingRelations(targetID: String) async throws -> [EntityRef] {
         // Inline kind conversion to avoid calling actor-isolated helpers inside the @Sendable closure
@@ -129,7 +129,7 @@ struct IndexQuery: Sendable {
 
             let rows = try Row.fetchAll(
                 db,
-                sql: "SELECT source_id, source_kind FROM relations WHERE target_id = ?",
+                sql: "SELECT source_id, source_kind FROM context_links WHERE target_id = ?",
                 arguments: [targetID]
             )
 
@@ -292,7 +292,7 @@ struct IndexQuery: Sendable {
 
     // MARK: - Broken links
 
-    /// Returns relations whose target_id no longer exists in the corresponding entity table.
+    /// Returns context_links whose target_id no longer exists in the corresponding entity table.
     func brokenLinks() async throws -> [BrokenLinkReport] {
         // Inline kind conversion to avoid calling actor-isolated helpers inside @Sendable closure.
         let kindFromString: @Sendable (String) -> EntityKind = { s in
@@ -332,7 +332,7 @@ struct IndexQuery: Sendable {
                 "item_collection": "item_collections",
             ]
 
-            let distinctKinds = try String.fetchAll(db, sql: "SELECT DISTINCT target_kind FROM relations")
+            let distinctKinds = try String.fetchAll(db, sql: "SELECT DISTINCT target_kind FROM context_links")
 
             var reports: [BrokenLinkReport] = []
             for kindStr in distinctKinds {
@@ -344,7 +344,7 @@ struct IndexQuery: Sendable {
                            r.target_id,
                            r.target_kind,
                            r.property_id
-                    FROM relations r
+                    FROM context_links r
                     LEFT JOIN \(joinTable) t ON r.target_id = t.id
                     WHERE r.target_kind = ?
                       AND t.id IS NULL
@@ -521,7 +521,7 @@ private enum FilterBuilder {
             return ("?", [json])
         case .relation(let ids):
             // Relations are always-multi; mirror multiSelect and serialize the id array.
-            // Edge-resolution queries hit the `relations` table directly (one row per target),
+            // Edge-resolution queries hit the `context_links` table directly (one row per target),
             // not this scalar value column — this branch only feeds raw-value comparisons.
             let json = (try? String(data: JSONEncoder().encode(ids), encoding: .utf8)) ?? "[]"
             return ("?", [json])

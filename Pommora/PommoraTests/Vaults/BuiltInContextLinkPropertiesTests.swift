@@ -3,11 +3,11 @@ import Testing
 
 @testable import Pommora
 
-@Suite("BuiltInRelationProperties") struct BuiltInRelationPropertiesTests {
+@Suite("BuiltInContextLinkProperties") struct BuiltInContextLinkPropertiesTests {
     private let defaultTierConfig = TierConfig.defaultSeed()
 
     @Test func mergeAppendsThreeTierEntriesWhenNoneInSidecar() {
-        let result = BuiltInRelationProperties.merge(
+        let result = BuiltInContextLinkProperties.merge(
             existing: [],
             tierConfig: defaultTierConfig,
             sourceTypeID: "type_test"
@@ -25,7 +25,7 @@ import Testing
             type: .relation,
             icon: "books.vertical"
         )
-        let result = BuiltInRelationProperties.merge(
+        let result = BuiltInContextLinkProperties.merge(
             existing: [sidecarTier1],
             tierConfig: defaultTierConfig,
             sourceTypeID: "type_test"
@@ -36,7 +36,7 @@ import Testing
     }
 
     @Test func mergeUsesTierConfigDefaultWhenSidecarNameAbsent() {
-        let result = BuiltInRelationProperties.merge(
+        let result = BuiltInContextLinkProperties.merge(
             existing: [],
             tierConfig: defaultTierConfig,
             sourceTypeID: "type_test"
@@ -47,7 +47,7 @@ import Testing
     }
 
     @Test func mergeUsesHardcodedFallbackIconsWhenSidecarAbsent() {
-        let result = BuiltInRelationProperties.merge(
+        let result = BuiltInContextLinkProperties.merge(
             existing: [],
             tierConfig: defaultTierConfig,
             sourceTypeID: "type_test"
@@ -70,7 +70,7 @@ import Testing
             type: .relation,
             relationTarget: .contextTier(99)
         )
-        let result = BuiltInRelationProperties.merge(
+        let result = BuiltInContextLinkProperties.merge(
             existing: [tamperedTier1],
             tierConfig: defaultTierConfig,
             sourceTypeID: "type_test"

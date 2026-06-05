@@ -20,7 +20,7 @@ import SwiftUI
 ///   - multiSelect → ChipDropdown (.multi) — checkboxes + drag-reorder
 ///   - status → ChipDropdown (.single), options flattened across groups
 ///   - url → TextField with `keyboardType` URL hint
-///   - relation → RelationPicker (always-multi, self-paneled) bound to the
+///   - relation → ContextPicker (always-multi, self-paneled) bound to the
 ///     cell's `.relation(ids)` value; candidates load from the threaded index
 ///   - file → FileAttachmentEditor (existing component)
 ///   - lastEditedTime → read-only display, no popover
@@ -30,8 +30,8 @@ struct PropertyCellEditor: View {
     let relationResolver: (String) -> (icon: String, title: String)?
     let commit: (PropertyValue?) -> Void
     /// Live SQLite index, threaded from the host detail view
-    /// (`nexusManager.currentIndex`). Powers the inline RelationPicker's
-    /// candidate load. Nil → RelationPicker renders its own empty state.
+    /// (`nexusManager.currentIndex`). Powers the inline ContextPicker's
+    /// candidate load. Nil → ContextPicker renders its own empty state.
     let index: PommoraIndex?
 
     @State private var isPresented: Bool = false
@@ -103,7 +103,7 @@ struct PropertyCellEditor: View {
             .buttonStyle(.plain)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) {
                 if isSelfPaneledEditor {
-                    // Self-paneled editors (chip dropdowns, RelationPicker, and
+                    // Self-paneled editors (chip dropdowns, ContextPicker, and
                     // the DateTimePicker) draw their own Liquid-Glass panel.
                     // Present them chromeless (clear the system popover
                     // background, no padding wrapper) so the popover doesn't
@@ -123,7 +123,7 @@ struct PropertyCellEditor: View {
 
     /// Editors that draw their own Liquid-Glass panel and so present without the
     /// popover's chrome + padding (avoids a container-in-a-container): the chip
-    /// dropdowns (Select / MultiSelect / Status), the `RelationPicker`, and the
+    /// dropdowns (Select / MultiSelect / Status), the `ContextPicker`, and the
     /// `DateTimePicker` (Date / Date-time).
     private var isSelfPaneledEditor: Bool {
         switch definition.type {
@@ -344,7 +344,7 @@ struct PropertyCellEditor: View {
     @ViewBuilder
     private var relationEditor: some View {
         if let target = definition.relationTarget {
-            RelationPicker(
+            ContextPicker(
                 selectedIDs: Binding(
                     get: {
                         if case .relation(let ids) = draft { return ids }

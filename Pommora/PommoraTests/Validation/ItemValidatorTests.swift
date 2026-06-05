@@ -28,7 +28,7 @@ struct ItemValidatorTests {
             icon: nil, blocks: [], modifiedAt: Date())
         let project = Project(
             id: projectID, title: "U", parents: ["01HX"],
-            linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
+            projectLinks: [], icon: nil, blocks: [], modifiedAt: Date())
         let context = NexusContext(
             lookupSpace: { id in id == spaceID ? space : nil },
             lookupTopic: { id in id == topicID ? topic : nil },
@@ -149,7 +149,8 @@ struct ItemValidatorTests {
 
         var updated = created
         updated.description = String(repeating: "a", count: ItemValidator.maxDescriptionLength + 1)
-        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength)) {
+        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength))
+        {
             try await manager.updateItem(updated, in: coll, type: itemType)
         }
     }
@@ -162,7 +163,8 @@ struct ItemValidatorTests {
 
         var updated = created
         updated.description = String(repeating: "a", count: ItemValidator.maxDescriptionLength + 1)
-        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength)) {
+        await #expect(throws: ItemValidator.ValidationError.descriptionTooLong(cap: ItemValidator.maxDescriptionLength))
+        {
             try await manager.updateItem(updated, inTypeRoot: itemType)
         }
     }

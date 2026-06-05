@@ -60,7 +60,7 @@ struct ViewSettingsScopeMappingTests {
     @Test("project selection maps to .project scope")
     func projectMapsToProject() {
         let p = Project(
-            id: "01HPROJ", title: "Launch", parents: [], linkedRelations: [],
+            id: "01HPROJ", title: "Launch", parents: [], projectLinks: [],
             icon: nil, blocks: [], modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .project(p))

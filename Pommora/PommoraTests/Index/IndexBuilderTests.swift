@@ -121,7 +121,8 @@ struct IndexBuilderTests {
 
         // Verify FK: page_collection.page_type_id matches the page_type row.
         let matched = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db,
+            try Int.fetchOne(
+                db,
                 sql: """
                     SELECT COUNT(*) FROM page_collections pc
                     JOIN page_types pt ON pc.page_type_id = pt.id
@@ -337,19 +338,21 @@ struct IndexBuilderTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)
 
-        // The page's tier1 value emits one `relations` row carrying the reserved
+        // The page's tier1 value emits one `context_links` row carrying the reserved
         // tier-1 property id and the space as target.
         let relCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db,
-                sql: "SELECT COUNT(*) FROM relations WHERE source_kind = 'page' AND property_id = ?",
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM context_links WHERE source_kind = 'page' AND property_id = ?",
                 arguments: [ReservedPropertyID.tier1]
             ) ?? -1
         }
         #expect(relCount == 1)
 
         let targetID = try await idx.dbQueue.read { db in
-            try String.fetchOne(db,
-                sql: "SELECT target_id FROM relations WHERE source_kind = 'page' AND property_id = ?",
+            try String.fetchOne(
+                db,
+                sql: "SELECT target_id FROM context_links WHERE source_kind = 'page' AND property_id = ?",
                 arguments: [ReservedPropertyID.tier1]
             )
         }
@@ -376,14 +379,16 @@ struct IndexBuilderTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         let count = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db,
+            try Int.fetchOne(
+                db,
                 sql: "SELECT COUNT(*) FROM property_definitions WHERE owning_type_kind = 'page_type'"
             ) ?? -1
         }
         #expect(count == 1)
 
         let name = try await idx.dbQueue.read { db in
-            try String.fetchOne(db,
+            try String.fetchOne(
+                db,
                 sql: "SELECT name FROM property_definitions WHERE owning_type_kind = 'page_type'"
             )
         }

@@ -29,7 +29,7 @@ struct ViewSettingsButton: View {
     /// `.injectNexusEnvironment(_:)` (sourced from `AppGlobals.current`, the
     /// live env) rather than hand-injecting a partial subset — the embedded
     /// `ItemWindowRenderer` mockup (T5.3) transitively reads `ItemContentManager`
-    /// + `RelationDisplayResolver` (+ more), and a missing manager SIGTRAPs a
+    /// + `ContextDisplayResolver` (+ more), and a missing manager SIGTRAPs a
     /// `.task`-bearing view (quirk #15). The full inject is a superset of every
     /// pane's needs, so it's safe. These params are still threaded in because
     /// the toolbar lives OUTSIDE ContentView's `.environment(...)` chain; they

@@ -4,13 +4,13 @@ import Testing
 
 @testable import Pommora
 
-/// Tests for `RelationPicker` — the scope-aware relation picker added in Phase J.4.
+/// Tests for `ContextPicker` — the scope-aware context-link picker added in Phase J.4.
 ///
 /// `IndexQuery.entitiesByTarget(_:)` requires a live SQLite DB, so these tests
 /// validate the pure selection logic via `computeSelection(id:wasSelected:current:)`,
 /// and validate nil-index construction without a DB.
-@Suite("RelationPickerTests")
-struct RelationPickerTests {
+@Suite("ContextPickerTests")
+struct ContextPickerTests {
 
     // MARK: - Helpers
 
@@ -18,9 +18,9 @@ struct RelationPickerTests {
         selectedIDs: [String] = [],
         scope: PropertyDefinition.RelationTarget = .contextTier(2),
         index: PommoraIndex? = nil
-    ) -> RelationPicker {
+    ) -> ContextPicker {
         var ids = selectedIDs
-        return RelationPicker(
+        return ContextPicker(
             selectedIDs: Binding(get: { ids }, set: { ids = $0 }),
             scope: scope,
             index: index,
@@ -30,7 +30,7 @@ struct RelationPickerTests {
 
     // MARK: - Test 1: nil index constructs without crashing
 
-    @Test("RelationPicker with nil index constructs without crashing")
+    @Test("ContextPicker with nil index constructs without crashing")
     func nilIndexNoCrash() {
         let picker = makePicker(index: nil)
         _ = picker
@@ -38,7 +38,7 @@ struct RelationPickerTests {
 
     // MARK: - Test 2: scope .contextTier returns flat (tier-only post-Relations-redesign)
 
-    @Test("RelationPicker accepts .contextTier scope without crashing")
+    @Test("ContextPicker accepts .contextTier scope without crashing")
     func contextTierScopeAccepted2() {
         let picker = makePicker(scope: .contextTier(1), index: nil)
         _ = picker
@@ -46,7 +46,7 @@ struct RelationPickerTests {
 
     // MARK: - Test 3: scope contextTier(2) accepted
 
-    @Test("RelationPicker accepts .contextTier(2) scope without crashing")
+    @Test("ContextPicker accepts .contextTier(2) scope without crashing")
     func contextTierScopeAccepted() {
         let picker = makePicker(scope: .contextTier(2), index: nil)
         _ = picker
@@ -112,7 +112,7 @@ struct RelationPickerTests {
 
     // MARK: - Test 8: contextTier scopes accepted
 
-    @Test("RelationPicker accepts contextTier scopes without crashing")
+    @Test("ContextPicker accepts contextTier scopes without crashing")
     func contextTierScopesAccepted() {
         let scopes: [PropertyDefinition.RelationTarget] = [
             .contextTier(1),

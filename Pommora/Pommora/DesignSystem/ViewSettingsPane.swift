@@ -21,7 +21,7 @@ import SwiftUI
 /// "footers pin to the bottom; the scrollable middle absorbs spare space".
 ///
 /// Heights come from `onGeometryChange` (the codebase's measurement idiom — see
-/// `RelationPicker.SizedPanel`). Each slot is wrapped in a zero-spacing `VStack`
+/// `ContextPicker.SizedPanel`). Each slot is wrapped in a zero-spacing `VStack`
 /// so multi-view slots measure as a single frame. The content's measured height
 /// is its natural height (a `ScrollView` never constrains its content along the
 /// scroll axis), so it's independent of the pane frame — no layout feedback loop.

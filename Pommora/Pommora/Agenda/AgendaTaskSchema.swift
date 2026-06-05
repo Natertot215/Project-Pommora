@@ -121,11 +121,11 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
 
 extension AgendaTaskSchema {
     /// Stored `properties` plus the three pre-configured tier relation properties
-    /// (Spaces/Topics/Projects), merged via BuiltInRelationProperties. Surfaces that
+    /// (Spaces/Topics/Projects), merged via BuiltInContextLinkProperties. Surfaces that
     /// must SHOW tiers read this; everything that persists or mutates the schema
     /// keeps using the stored `properties`.
     func resolvedProperties(tierConfig: TierConfig) -> [PropertyDefinition] {
-        BuiltInRelationProperties.merge(
+        BuiltInContextLinkProperties.merge(
             existing: properties,
             tierConfig: tierConfig,
             sourceTypeID: ReservedTypeID.agendaTasks

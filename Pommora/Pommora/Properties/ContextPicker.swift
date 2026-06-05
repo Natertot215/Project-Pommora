@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Scope-aware relation value picker — a chromeless liquid-glass dropdown styled
+/// Scope-aware context-link value picker — a chromeless liquid-glass dropdown styled
 /// like a native macOS menu. Data-driven via `IndexQuery.entitiesByTargetGrouped`:
 /// `.pageType` / `.itemType` scopes show Collection/Set rows that pop out a member
 /// panel to the side (macOS-submenu style) with loose pages/items below an inset
@@ -14,7 +14,7 @@ import SwiftUI
 /// 5-row floor and a compact cap; it scrolls once rows overflow the cap. The floor
 /// doubles as the anti-collapse guard (the `9deb818` fix): the popover only ever
 /// grows from the floor, never collapsing before the list loads.
-struct RelationPicker: View {
+struct ContextPicker: View {
     @Binding var selectedIDs: [String]
     let scope: PropertyDefinition.RelationTarget
     let index: PommoraIndex?
@@ -56,7 +56,7 @@ struct RelationPicker: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(grouped.groups, id: \.container.id) { group in
-                        RelationCollectionRow(
+                        ContextCollectionRow(
                             icon: group.container.icon,
                             title: group.container.title.isEmpty ? "Untitled" : group.container.title,
                             isActive: isActiveGroup(group)
@@ -101,8 +101,8 @@ struct RelationPicker: View {
     }
 
     private func leafRow(_ entity: EntityRef) -> some View {
-        RelationLeafRow(
-            icon: entity.icon ?? RelationDisplayResolver.defaultIcon(for: entity.kind),
+        ContextLeafRow(
+            icon: entity.icon ?? ContextDisplayResolver.defaultIcon(for: entity.kind),
             title: entity.title.isEmpty ? "Untitled" : entity.title,
             isSelected: selectedIDs.containsID(entity.id)
         ) {
@@ -158,7 +158,7 @@ struct RelationPicker: View {
 /// A Collection/Set row: the container's icon (or a folder glyph fallback) + title
 /// + trailing chevron. The whole row is the drill button — tapping pops out (or
 /// closes) that collection's member panel.
-private struct RelationCollectionRow: View {
+private struct ContextCollectionRow: View {
     let icon: String?
     let title: String
     let isActive: Bool
@@ -200,7 +200,7 @@ private struct RelationCollectionRow: View {
 /// rendered only on selected rows. An unselected row gives its full width to the
 /// title (no reserved checkbox column); on selection the checkmark materializes at the
 /// trailing edge and the title fills right up to it. The whole row toggles selection.
-private struct RelationLeafRow: View {
+private struct ContextLeafRow: View {
     let icon: String
     let title: String
     let isSelected: Bool

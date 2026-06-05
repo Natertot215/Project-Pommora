@@ -88,7 +88,7 @@ struct PropertyPanel: View {
     @Binding var tier3: [String]
     let autoManaged: AutoManagedFields
     let index: PommoraIndex?
-    let relationDisplay: RelationDisplayResolver
+    let relationDisplay: ContextDisplayResolver
     let onValueChange: (String, PropertyValue) -> Void
     let onTierChange: (Int, [String]) -> Void
 
@@ -117,17 +117,17 @@ struct PropertyPanel: View {
             }
 
             // Tier relations — always rendered (icon + title chips via the shared resolver)
-            RelationChipRow(label: "Spaces", ids: tier1, resolver: relationDisplay)
+            ContextChipRow(label: "Spaces", ids: tier1, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
             Divider()
                 .padding(.horizontal, 12)
-            RelationChipRow(label: "Topics", ids: tier2, resolver: relationDisplay)
+            ContextChipRow(label: "Topics", ids: tier2, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
             Divider()
                 .padding(.horizontal, 12)
-            RelationChipRow(label: "Projects", ids: tier3, resolver: relationDisplay)
+            ContextChipRow(label: "Projects", ids: tier3, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
 

@@ -124,6 +124,6 @@ struct ProjectValidatorTests {
     private func makeProject(title: String, parents: [String]) -> Project {
         Project(
             id: ULID.generate(), title: title, parents: parents,
-            linkedRelations: [], icon: nil, blocks: [], modifiedAt: Date())
+            projectLinks: [], icon: nil, blocks: [], modifiedAt: Date())
     }
 }

@@ -16,9 +16,9 @@ import SwiftUI
 /// the resolved `Item` + `ItemTemplateConfig` + schema. Edit-mode persists ONLY
 /// `template_config` (pin/unpin + reorder), never Item values.
 ///
-/// Relation/tier display resolves through the shared `RelationDisplayResolver`
+/// Context-link/tier display resolves through the shared `ContextDisplayResolver`
 /// from the environment (the same instance every detail surface uses); the
-/// resolver closure handed to `PropertyCellDisplay` is `{ relationDisplay.resolve($0) }`,
+/// resolver closure handed to `PropertyCellDisplay` is `{ contextDisplay.resolve($0) }`,
 /// matching the detail-view call sites.
 struct ItemWindowRenderer: View {
     let item: Item
@@ -39,7 +39,7 @@ struct ItemWindowRenderer: View {
     /// LD-10). Lets the Templates pane target a specific container explicitly.
     var templateContainerID: String? = nil
 
-    @Environment(RelationDisplayResolver.self) private var relationDisplay
+    @Environment(ContextDisplayResolver.self) private var contextDisplay
     @Environment(TierConfigManager.self) private var tierConfigManager
     /// Used ONLY in edit mode to persist pin/unpin + reorder via the single
     /// template-persist path. Always injected wherever the renderer is hosted
@@ -105,7 +105,7 @@ struct ItemWindowRenderer: View {
     /// Closure fed to every `PropertyCellDisplay` — wraps the shared env resolver
     /// (matches the detail-view call sites; keeps the cell pure of managers).
     private var relationResolver: (String) -> (icon: String, title: String)? {
-        { relationDisplay.resolve($0) }
+        { contextDisplay.resolve($0) }
     }
 
     // MARK: - Promoted / overflow partition (pure)
@@ -131,7 +131,9 @@ struct ItemWindowRenderer: View {
     /// each `PromotedProperty` entry (its per-property `display`). The edit-mode
     /// drag handler routes through this. Pure value code OUTSIDE any `@ViewBuilder`
     /// body, so it stays unit-testable without a SwiftUI host (quirk #12-safe).
-    static func reorderPromoted(_ promoted: [PromotedProperty], moving: String, onto target: String) -> [PromotedProperty] {
+    static func reorderPromoted(
+        _ promoted: [PromotedProperty], moving: String, onto target: String
+    ) -> [PromotedProperty] {
         let newIDOrder = PropertyIDReorder.move(promoted.map(\.id), moving: moving, onto: target)
         return newIDOrder.compactMap { id in promoted.first { $0.id == id } }
     }
@@ -148,7 +150,9 @@ struct ItemWindowRenderer: View {
     /// The display for a promoted property: its explicit per-property override
     /// (`PromotedProperty.display`) if set, else the archetype's default treatment
     /// for that property's type (LD-4). One source: per-property wins over archetype.
-    static func resolvedDisplay(for promoted: PromotedProperty, propertyType: PropertyType, archetype: LayoutArchetype) -> PropertyDisplay {
+    static func resolvedDisplay(
+        for promoted: PromotedProperty, propertyType: PropertyType, archetype: LayoutArchetype
+    ) -> PropertyDisplay {
         if let explicit = promoted.display { return explicit }
         return archetypeDefaultDisplay(for: propertyType, archetype: archetype)
     }
@@ -250,7 +254,8 @@ struct ItemWindowRenderer: View {
     @ViewBuilder
     private var coverSlot: some View {
         if let coverID = template.coverPropertyID,
-           let coverDef = userSchema.first(where: { $0.id == coverID }) {
+            let coverDef = userSchema.first(where: { $0.id == coverID })
+        {
             CoverSlotView(
                 definition: coverDef,
                 value: item.properties[coverID],
@@ -354,10 +359,12 @@ struct ItemWindowRenderer: View {
         let pinnedIDs = Set(promotedIDs)
         return Menu {
             ForEach(userSchema, id: \.id) { def in
-                Toggle(isOn: Binding(
-                    get: { pinnedIDs.contains(def.id) },
-                    set: { _ in togglePin(def.id, isPinned: pinnedIDs.contains(def.id)) }
-                )) {
+                Toggle(
+                    isOn: Binding(
+                        get: { pinnedIDs.contains(def.id) },
+                        set: { _ in togglePin(def.id, isPinned: pinnedIDs.contains(def.id)) }
+                    )
+                ) {
                     Label(def.name, systemImage: def.icon ?? def.type.pickerIcon)
                 }
             }

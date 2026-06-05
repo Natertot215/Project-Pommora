@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The shared Liquid-Glass panel surface for chip-dropdown popovers
-/// (`ChipDropdown` + `RelationPicker`). Single source of truth for the
+/// (`ChipDropdown` + `ContextPicker`). Single source of truth for the
 /// `.regularMaterial` fill + hairline border + clip. Callers own their own
-/// padding and sizing (ChipDropdown is content-fixed; RelationPicker scrolls).
+/// padding and sizing (ChipDropdown is content-fixed; ContextPicker scrolls).
 private struct ChipDropdownPanelBackground: ViewModifier {
     func body(content: Content) -> some View {
         content

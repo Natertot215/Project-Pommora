@@ -9,7 +9,7 @@ import SwiftUI
 ///     - Status → switches on `definition.displayAs` (default `.select`
 ///       colored chip / `.box` colored dot / `.chip` icon-only). nil resolves
 ///       to `.select` to match the editor binding (which stores nil for it).
-///     - Relation → `RelationChip` (default-grey, rounded rectangle,
+///     - Relation → `ContextChip` (default-grey, rounded rectangle,
 ///       resolved-target icon + title)
 /// - Non-chip (7 types):
 ///     - Number → Text(NumberFormatter per `numberFormat`)
@@ -95,7 +95,9 @@ struct PropertyCellDisplay: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     private func formattedNumber(_ n: Double) -> String {
@@ -141,7 +143,9 @@ struct PropertyCellDisplay: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     private var dateValue: Date? {
@@ -156,7 +160,7 @@ struct PropertyCellDisplay: View {
         // Show time only when the stored value is .datetime — a .date value
         // means the user never set a time, even on a datetime property.
         guard case .datetime = value,
-              let timeStr = (definition.timeFormat ?? .none).string(from: date)
+            let timeStr = (definition.timeFormat ?? .none).string(from: date)
         else { return dateStr }
         return "\(dateStr) \(timeStr)"
     }
@@ -166,10 +170,12 @@ struct PropertyCellDisplay: View {
     @ViewBuilder
     private var selectCell: some View {
         if case .select(let optionValue) = value,
-           let opt = definition.selectOptions?.first(where: { $0.value == optionValue })
+            let opt = definition.selectOptions?.first(where: { $0.value == optionValue })
         {
             PropertyChip(label: opt.label, color: chipColor(from: opt.color), size: .compact)
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     @ViewBuilder
@@ -182,7 +188,9 @@ struct PropertyCellDisplay: View {
                     }
                 }
             }
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     // MARK: - Status
@@ -197,7 +205,8 @@ struct PropertyCellDisplay: View {
             // unset); the group→state mapping lives in StatusCheckbox.
             StatusCheckbox(value: statusValue, groups: definition.statusGroups ?? [])
         } else if let optionValue = statusValue,
-                  let (option, group) = findStatusOption(value: optionValue) {
+            let (option, group) = findStatusOption(value: optionValue)
+        {
             let color = chipColor(from: option.color ?? group.color)
             if variant == .chip {
                 PropertyChip(icon: "square.dashed", color: color, size: .compact)
@@ -214,7 +223,9 @@ struct PropertyCellDisplay: View {
         return nil
     }
 
-    private func findStatusOption(value: String) -> (
+    private func findStatusOption(
+        value: String
+    ) -> (
         PropertyDefinition.StatusOption, PropertyDefinition.StatusGroup
     )? {
         guard let groups = definition.statusGroups else { return nil }
@@ -232,7 +243,9 @@ struct PropertyCellDisplay: View {
     private var urlCell: some View {
         if case .url(let u) = value {
             LinkChip(url: u)
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     // MARK: - Relation
@@ -247,14 +260,16 @@ struct PropertyCellDisplay: View {
             } else {
                 HStack(spacing: 4) { relationChips(for: targetIDs) }
             }
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     @ViewBuilder
     private func relationChips(for targetIDs: [String]) -> some View {
         ForEach(Array(targetIDs.prefix(3).enumerated()), id: \.offset) { _, targetID in
             if let resolved = relationResolver(targetID) {
-                RelationChip(icon: resolved.icon, title: resolved.title)
+                ContextChip(icon: resolved.icon, title: resolved.title)
             } else {
                 Text("(missing)")
                     .font(.system(size: 12).italic())
@@ -287,7 +302,9 @@ struct PropertyCellDisplay: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     // MARK: - LastEditedTime
@@ -307,7 +324,9 @@ struct PropertyCellDisplay: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-        } else { emptyCell }
+        } else {
+            emptyCell
+        }
     }
 
     private func relativeText(_ date: Date) -> String {

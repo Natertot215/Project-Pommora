@@ -404,11 +404,11 @@ struct IndexUpdaterTests {
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
         try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
 
-        // The page's tier1 value emits one `relations` row carrying the reserved
+        // The page's tier1 value emits one `context_links` row carrying the reserved
         // tier-1 property id and the Context as target.
-        let relCount = try countRows(in: "relations", db: idx)
+        let relCount = try countRows(in: "context_links", db: idx)
         #expect(relCount == 1)
-        let rel = try firstRow(in: "relations", db: idx)
+        let rel = try firstRow(in: "context_links", db: idx)
         #expect(rel?["source_id"] as String? == pageID)
         #expect(rel?["property_id"] as String? == ReservedPropertyID.tier1)
         #expect(rel?["target_id"] as String? == contextID)

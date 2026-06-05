@@ -151,50 +151,127 @@ enum ComponentCategory: String, CaseIterable, Hashable {
             return []
         case .sidebar:
             return [
-                .init(name: "Selectable Row", detail: "Pure-content row primitive. Selection chrome lives at row file level via .listRowBackground(SelectionChrome(...)) per active quirk #10."),
-                .init(name: "Renameable Row", detail: "Inline-rename mode for any sidebar row. Used by Space / Project / PageType / Topic / Page / PageCollection / ItemType."),
-                .init(name: "Section Header", detail: "Sidebar section header strip: secondary-styled title + trailing hover-revealed + button + right-click context menu."),
-                .init(name: "Selection Chrome", detail: "RoundedRectangle selection fill applied per sidebar row via .listRowBackground. Two styles: .flat and .disclosure."),
+                .init(
+                    name: "Selectable Row",
+                    detail:
+                        "Pure-content row primitive. Selection chrome lives at row file level via .listRowBackground(SelectionChrome(...)) per active quirk #10."
+                ),
+                .init(
+                    name: "Renameable Row",
+                    detail:
+                        "Inline-rename mode for any sidebar row. Used by Space / Project / PageType / Topic / Page / PageCollection / ItemType."
+                ),
+                .init(
+                    name: "Section Header",
+                    detail:
+                        "Sidebar section header strip: secondary-styled title + trailing hover-revealed + button + right-click context menu."
+                ),
+                .init(
+                    name: "Selection Chrome",
+                    detail:
+                        "RoundedRectangle selection fill applied per sidebar row via .listRowBackground. Two styles: .flat and .disclosure."
+                ),
             ]
         case .detailViews:
             return [
-                .init(name: "Detail Row", detail: "Row primitive consumed by all four storage-container detail-pane Tables (Vault / Type / Collection / Set)."),
+                .init(
+                    name: "Detail Row",
+                    detail:
+                        "Row primitive consumed by all four storage-container detail-pane Tables (Vault / Type / Collection / Set)."
+                )
             ]
         case .pickers:
             return []  // ships a real gallery (PickersGallery)
         case .sheets:
             return [
-                .init(name: "New Item Sheet", detail: "Name + Icon form for creating Items. Routes to ItemContentManager.createItem(in:type:) or createItem(inTypeRoot:)."),
-                .init(name: "Vault Settings Sheet", detail: "Pages-side schema editor. Add/edit/delete properties on a PageType."),
-                .init(name: "Type Settings Sheet", detail: "Items-side schema editor. Add/edit/delete properties on an ItemType."),
-                .init(name: "Icon Picker", detail: "Pommora-native compact Liquid-Glass SF Symbol chooser — full catalog, search, and Saved icons. Replaces the third-party SymbolPicker."),
-                .init(name: "Color Picker Sheet", detail: "SpaceColor chooser — Pommora's hand-picked Space accent palette."),
+                .init(
+                    name: "New Item Sheet",
+                    detail:
+                        "Name + Icon form for creating Items. Routes to ItemContentManager.createItem(in:type:) or createItem(inTypeRoot:)."
+                ),
+                .init(
+                    name: "Vault Settings Sheet",
+                    detail: "Pages-side schema editor. Add/edit/delete properties on a PageType."),
+                .init(
+                    name: "Type Settings Sheet",
+                    detail: "Items-side schema editor. Add/edit/delete properties on an ItemType."),
+                .init(
+                    name: "Icon Picker",
+                    detail:
+                        "Pommora-native compact Liquid-Glass SF Symbol chooser — full catalog, search, and Saved icons. Replaces the third-party SymbolPicker."
+                ),
+                .init(
+                    name: "Color Picker Sheet",
+                    detail: "SpaceColor chooser — Pommora's hand-picked Space accent palette."),
             ]
         case .pageEditor:
             return [
-                .init(name: "Blockquote", detail: "Always-show overlay rendering of `> ` quotes; renderer-drawn rounded card with vertical pill accent bar. Shipped v0.2.7.5."),
+                .init(
+                    name: "Blockquote",
+                    detail:
+                        "Always-show overlay rendering of `> ` quotes; renderer-drawn rounded card with vertical pill accent bar. Shipped v0.2.7.5."
+                ),
                 .init(name: "Code Block", detail: "Code block with system-semantic colors. Shipped v0.2.7.4."),
-                .init(name: "Lists", detail: "Bulleted / numbered / task list with bullet-glyph substitution and dynamic-syntax markers. Shipped v0.2.7.2."),
+                .init(
+                    name: "Lists",
+                    detail:
+                        "Bulleted / numbered / task list with bullet-glyph substitution and dynamic-syntax markers. Shipped v0.2.7.2."
+                ),
                 .init(name: "HR", detail: "Horizontal rule with layout-constant jitter fix. Shipped v0.2.7.4."),
             ]
         case .navDropdown:
             return [
-                .init(name: "NavDropdown Button", detail: "Liquid Glass dropdown navigation surface. Shipped v0.2.7.1; supersedes the earlier tab-strip model."),
-                .init(name: "Entity Row", detail: "Single row inside the NavDropdown (Pinned + Recents). Icon + title + secondary metadata."),
-                .init(name: "BackForward Buttons", detail: "⌘[ / ⌘] navigation through Recents stack. Shipped with NavDropdown."),
+                .init(
+                    name: "NavDropdown Button",
+                    detail:
+                        "Liquid Glass dropdown navigation surface. Shipped v0.2.7.1; supersedes the earlier tab-strip model."
+                ),
+                .init(
+                    name: "Entity Row",
+                    detail: "Single row inside the NavDropdown (Pinned + Recents). Icon + title + secondary metadata."),
+                .init(
+                    name: "BackForward Buttons",
+                    detail: "⌘[ / ⌘] navigation through Recents stack. Shipped with NavDropdown."),
             ]
         case .windows:
             return []
         case .colors:
-            return [.init(name: "Palette", detail: "PropertyChipColor palette + Apple system colors + Pommora accent palette. Cross-referenced from Guidelines/Design.md.")]
+            return [
+                .init(
+                    name: "Palette",
+                    detail:
+                        "PropertyChipColor palette + Apple system colors + Pommora accent palette. Cross-referenced from Guidelines/Design.md."
+                )
+            ]
         case .typography:
-            return [.init(name: "Type Scale", detail: "Apple's text scale × how Pommora applies each style. SF Pro Semibold 12pt for chip text, etc.")]
+            return [
+                .init(
+                    name: "Type Scale",
+                    detail:
+                        "Apple's text scale × how Pommora applies each style. SF Pro Semibold 12pt for chip text, etc.")
+            ]
         case .materials:
-            return [.init(name: "Materials", detail: "Background swatches: .regularMaterial, .sidebar, .bar; how Liquid Glass renders across contexts.")]
+            return [
+                .init(
+                    name: "Materials",
+                    detail:
+                        "Background swatches: .regularMaterial, .sidebar, .bar; how Liquid Glass renders across contexts."
+                )
+            ]
         case .symbols:
-            return [.init(name: "Symbol Registry", detail: "Live registry from Guidelines/Symbols.md — semantic-role → SF Symbol mapping with searchable preview.")]
+            return [
+                .init(
+                    name: "Symbol Registry",
+                    detail:
+                        "Live registry from Guidelines/Symbols.md — semantic-role → SF Symbol mapping with searchable preview."
+                )
+            ]
         case .spacing:
-            return [.init(name: "Spacing Tokens", detail: "Pommora-specific spacing tokens (if/as they emerge). v1: standard SwiftUI spacing only.")]
+            return [
+                .init(
+                    name: "Spacing Tokens",
+                    detail: "Pommora-specific spacing tokens (if/as they emerge). v1: standard SwiftUI spacing only.")
+            ]
         }
     }
 }
@@ -217,35 +294,40 @@ private struct ChipsGallery: View {
             VStack(alignment: .leading, spacing: 48) {
                 GallerySection(
                     title: "Property Chip",
-                    summary: "Two variants of the same primitive. Pill carries a text label (50pt minWidth, 20pt height). Chip carries a single SF Symbol icon (32pt minWidth, 20pt height). Both share the same Capsule background."
+                    summary:
+                        "Two variants of the same primitive. Pill carries a text label (50pt minWidth, 20pt height). Chip carries a single SF Symbol icon (32pt minWidth, 20pt height). Both share the same Capsule background."
                 ) {
                     PropertyChipShowcase()
                 }
 
                 GallerySection(
-                    title: "Relation Chip",
-                    summary: "Relation property values — the target entity's icon + title in a standard-button-radius rounded rectangle with a quinary fill + hairline stroke (distinct from PropertyChip's Capsule). One primitive; every relation surface (table cells, picker rows, tier rows) routes through it."
+                    title: "Context Chip",
+                    summary:
+                        "Relation property values — the target entity's icon + title in a standard-button-radius rounded rectangle with a quinary fill + hairline stroke (distinct from PropertyChip's Capsule). One primitive; every relation surface (table cells, picker rows, tier rows) routes through it."
                 ) {
-                    RelationChipShowcase()
+                    ContextChipShowcase()
                 }
 
                 GallerySection(
                     title: "Chip Dropdown",
-                    summary: "The pill itself opens the dropdown — no surrounding trigger frame. Multi-select renders selected pills inline in the trigger area, in the dropdown's option order (drag-reorder to change). Liquid Glass panel, always-on."
+                    summary:
+                        "The pill itself opens the dropdown — no surrounding trigger frame. Multi-select renders selected pills inline in the trigger area, in the dropdown's option order (drag-reorder to change). Liquid Glass panel, always-on."
                 ) {
                     ChipDropdownShowcase()
                 }
 
                 GallerySection(
                     title: "Property Checkbox",
-                    summary: "Standard-checkbox-shaped property control. Custom fill color + custom SF Symbol shown when checked. Distinct from PropertyChip (different shape, different mental model). Used in Status property cells when display-as = Checkbox."
+                    summary:
+                        "Standard-checkbox-shaped property control. Custom fill color + custom SF Symbol shown when checked. Distinct from PropertyChip (different shape, different mental model). Used in Status property cells when display-as = Checkbox."
                 ) {
                     PropertyCheckboxShowcase()
                 }
 
                 GallerySection(
                     title: "Status Checkbox",
-                    summary: "Tri-state checkbox projection of a Status value (Display As = Box): empty for the 'upcoming' group, the value's color + minus for 'in_progress', the value's color + checkmark for 'done'. The group→state mapping is standardized in StatusCheckbox so every status-checkbox surface renders identically."
+                    summary:
+                        "Tri-state checkbox projection of a Status value (Display As = Box): empty for the 'upcoming' group, the value's color + minus for 'in_progress', the value's color + checkmark for 'done'. The group→state mapping is standardized in StatusCheckbox so every status-checkbox surface renders identically."
                 ) {
                     StatusCheckboxShowcase()
                 }
@@ -278,14 +360,16 @@ private struct WindowsGallery: View {
                     WindowLaunchRow(
                         title: "Item Window",
                         symbol: "macwindow",
-                        summary: "Draggable floating Item Window — title + properties + 250-char description, config-driven from the per-Type template (archetype + promoted-property recipe). No traffic lights; custom close + drag chrome.",
+                        summary:
+                            "Draggable floating Item Window — title + properties + 250-char description, config-driven from the per-Type template (archetype + promoted-property recipe). No traffic lights; custom close + drag chrome.",
                         action: { showingItemWindow = true }
                     )
 
                     WindowLaunchRow(
                         title: "Page Preview",
                         symbol: "doc.richtext",
-                        summary: "Standalone-window preview of a Page — full editor surface in its own window. Queued behind the cross-feature PreviewWindow primitive; chrome matches Item Window.",
+                        summary:
+                            "Standalone-window preview of a Page — full editor surface in its own window. Queued behind the cross-feature PreviewWindow primitive; chrome matches Item Window.",
                         action: { showingPagePreview = true }
                     )
                 }
@@ -297,14 +381,16 @@ private struct WindowsGallery: View {
             WindowStubSheet(
                 title: "Item Window",
                 symbol: "macwindow",
-                description: "Shipped — the Item Window is a native draggable floating scene (PreviewWindow): title + properties + 250-char description, config-driven from the per-Type template; custom close + drag handle in lieu of traffic lights."
+                description:
+                    "Shipped — the Item Window is a native draggable floating scene (PreviewWindow): title + properties + 250-char description, config-driven from the per-Type template; custom close + drag handle in lieu of traffic lights."
             ) { showingItemWindow = false }
         }
         .sheet(isPresented: $showingPagePreview) {
             WindowStubSheet(
                 title: "Page Preview",
                 symbol: "doc.richtext",
-                description: "Stub — real Page Preview chrome lands alongside the cross-feature PreviewWindow primitive. Will render the full Page editor in a standalone window with matching chrome."
+                description:
+                    "Stub — real Page Preview chrome lands alongside the cross-feature PreviewWindow primitive. Will render the full Page editor in a standalone window with matching chrome."
             ) { showingPagePreview = false }
         }
     }
@@ -313,9 +399,11 @@ private struct WindowsGallery: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Windows")
                 .font(.title.bold())
-            Text("Click a row to launch the window stub. As real designs land, each stub gets replaced in-place with the real window chrome.")
-                .foregroundStyle(.secondary)
-                .font(.callout)
+            Text(
+                "Click a row to launch the window stub. As real designs land, each stub gets replaced in-place with the real window chrome."
+            )
+            .foregroundStyle(.secondary)
+            .font(.callout)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
@@ -358,7 +446,9 @@ private struct WindowLaunchRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isHovered ? Color(.controlBackgroundColor).opacity(0.8) : Color(.controlBackgroundColor).opacity(0.4))
+                    .fill(
+                        isHovered
+                            ? Color(.controlBackgroundColor).opacity(0.8) : Color(.controlBackgroundColor).opacity(0.4))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -565,7 +655,7 @@ private struct PropertyChipShowcase: View {
                 )
                 Text(
                     ".default surfaces as the No-color affordance in OptionColorPicker (writes nil to the option's color). "
-                    + ".accent reflects the current Nexus accent — can't render as a fixed swatch in the picker grid."
+                        + ".accent reflects the current Nexus accent — can't render as a fixed swatch in the picker grid."
                 )
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -574,19 +664,19 @@ private struct PropertyChipShowcase: View {
             CodeBlock(
                 title: "Usage",
                 code: """
-                // Pill — text label, 50pt × 20pt
-                PropertyChip(label: "Personal", color: .blue)
+                    // Pill — text label, 50pt × 20pt
+                    PropertyChip(label: "Personal", color: .blue)
 
-                // Chip — SF Symbol icon, 32pt × 20pt
-                PropertyChip(icon: "star.fill", color: .yellow)
+                    // Chip — SF Symbol icon, 32pt × 20pt
+                    PropertyChip(icon: "star.fill", color: .yellow)
 
-                // Pommora-custom hex overrides
-                //   .pink   = #E89EB8 (Pommora pink)
-                //   .yellow = #FFDE21 (brighter than systemYellow)
-                //
-                // .green + .teal use systemGreen / systemTeal at opacity 0.7
-                // for a softer fill against the chip background.
-                """
+                    // Pommora-custom hex overrides
+                    //   .pink   = #E89EB8 (Pommora pink)
+                    //   .yellow = #FFDE21 (brighter than systemYellow)
+                    //
+                    // .green + .teal use systemGreen / systemTeal at opacity 0.7
+                    // for a softer fill against the chip background.
+                    """
             )
             .padding(.horizontal)
         }
@@ -627,12 +717,12 @@ private struct PropertyChipShowcase: View {
     }
 }
 
-// MARK: - RelationChip Showcase
+// MARK: - ContextChip Showcase
 
-/// Showcases the relation-value chip: target icon + title in a button-radius
+/// Showcases the context-link chip: target icon + title in a button-radius
 /// rounded rectangle with a quinary fill + hairline stroke. The single
-/// render primitive every relation surface routes through.
-private struct RelationChipShowcase: View {
+/// render primitive every context-link surface routes through.
+private struct ContextChipShowcase: View {
     private let samples: [(icon: String, title: String)] = [
         ("square.dashed", "Relation"),
         ("doc.text", "Project Brief"),
@@ -646,7 +736,7 @@ private struct RelationChipShowcase: View {
             section(title: "Default — target icon + title, quinary fill, button radius") {
                 FlowingHStack {
                     ForEach(samples, id: \.title) { s in
-                        RelationChip(icon: s.icon, title: s.title)
+                        ContextChip(icon: s.icon, title: s.title)
                     }
                 }
             }
@@ -662,11 +752,11 @@ private struct RelationChipShowcase: View {
             CodeBlock(
                 title: "Usage",
                 code: """
-                // The single render primitive for every relation value.
-                // icon + title resolve from the LINKED target entity
-                // (via RelationDisplayResolver), never the source property.
-                RelationChip(icon: "doc.text", title: "Project Brief")
-                """
+                    // The single render primitive for every relation value.
+                    // icon + title resolve from the LINKED target entity
+                    // (via ContextDisplayResolver), never the source property.
+                    ContextChip(icon: "doc.text", title: "Project Brief")
+                    """
             )
             .padding(.horizontal)
         }
@@ -682,7 +772,7 @@ private struct RelationChipShowcase: View {
 
     private func surfaceCell(_ surface: Color, _ label: String) -> some View {
         VStack(spacing: 8) {
-            RelationChip(icon: "square.dashed", title: "Relation")
+            ContextChip(icon: "square.dashed", title: "Relation")
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.tertiary)
@@ -718,17 +808,17 @@ private struct ChipDropdownShowcase: View {
             CodeBlock(
                 title: "Trigger + dropdown contract",
                 code: """
-                Trigger:
-                  - The pill itself IS the trigger (no surrounding frame)
-                  - Single-select: one pill; click → dropdown
-                  - Multi-select: N pills inline (HStack); any pill click → dropdown
+                    Trigger:
+                      - The pill itself IS the trigger (no surrounding frame)
+                      - Single-select: one pill; click → dropdown
+                      - Multi-select: N pills inline (HStack); any pill click → dropdown
 
-                Dropdown:
-                  - Liquid Glass background (.regularMaterial) + 0.5pt border
-                  - Horizontally compressed — content-driven width
-                  - Multi-select rows are draggable: drag-to-reorder the options;
-                    the new order propagates to the trigger field's pill order
-                """
+                    Dropdown:
+                      - Liquid Glass background (.regularMaterial) + 0.5pt border
+                      - Horizontally compressed — content-driven width
+                      - Multi-select rows are draggable: drag-to-reorder the options;
+                        the new order propagates to the trigger field's pill order
+                    """
             )
             .padding(.horizontal)
         }
@@ -738,7 +828,9 @@ private struct ChipDropdownShowcase: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Single-select").font(.headline)
 
-            Button { showingSingle.toggle() } label: {
+            Button {
+                showingSingle.toggle()
+            } label: {
                 if let sel = singleSelected {
                     PropertyChip(label: sel.label, color: sel.color)
                 } else {
@@ -769,7 +861,9 @@ private struct ChipDropdownShowcase: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Multi-select").font(.headline)
 
-            Button { showingMulti.toggle() } label: {
+            Button {
+                showingMulti.toggle()
+            } label: {
                 if multiSelectedOptions.isEmpty {
                     PropertyChip(label: "Empty", color: .default)
                 } else {
@@ -878,13 +972,13 @@ private struct PropertyCheckboxShowcase: View {
             CodeBlock(
                 title: "Usage",
                 code: """
-                PropertyCheckbox(
-                    isChecked: $isDone,
-                    color: .green,
-                    icon: "checkmark",      // any SF Symbol
-                    size: 16                // any CGFloat
-                )
-                """
+                    PropertyCheckbox(
+                        isChecked: $isDone,
+                        color: .green,
+                        icon: "checkmark",      // any SF Symbol
+                        size: 16                // any CGFloat
+                    )
+                    """
             )
             .padding(.horizontal)
         }
@@ -923,11 +1017,15 @@ private struct StatusCheckboxShowcase: View {
     private let groups: [PropertyDefinition.StatusGroup] = [
         PropertyDefinition.StatusGroup(
             id: .upcoming, label: "Upcoming", color: .gray,
-            options: [PropertyDefinition.StatusOption(value: "reserved", label: "Reserved", color: nil, groupID: .upcoming)]
+            options: [
+                PropertyDefinition.StatusOption(value: "reserved", label: "Reserved", color: nil, groupID: .upcoming)
+            ]
         ),
         PropertyDefinition.StatusGroup(
             id: .inProgress, label: "In Progress", color: .blue,
-            options: [PropertyDefinition.StatusOption(value: "active", label: "Active", color: nil, groupID: .inProgress)]
+            options: [
+                PropertyDefinition.StatusOption(value: "active", label: "Active", color: nil, groupID: .inProgress)
+            ]
         ),
         PropertyDefinition.StatusGroup(
             id: .done, label: "Done", color: .green,
@@ -975,13 +1073,19 @@ private struct PickersGallery: View {
             VStack(alignment: .leading, spacing: 48) {
                 GallerySection(
                     title: "Date Picker",
-                    summary: "Pommora's custom Liquid-Glass calendar. Month/year header with a chevron month menu (in-card overlay, not a nested popover) + prev/next arrows. Selection is the per-Nexus accent at a translucent fill; range in-between days get a lighter band. Optional bespoke time row below a divider."
+                    summary:
+                        "Pommora's custom Liquid-Glass calendar. Month/year header with a chevron month menu (in-card overlay, not a nested popover) + prev/next arrows. Selection is the per-Nexus accent at a translucent fill; range in-between days get a lighter band. Optional bespoke time row below a divider."
                 ) {
                     VStack(alignment: .leading, spacing: 32) {
                         variant("Single date — date only", selection: $dateOnly, mode: .single, timeFormat: .none)
-                        variant("Single date — 12-hour time", selection: $time12, mode: .single, timeFormat: .twelveHour)
-                        variant("Single date — 24-hour time", selection: $time24, mode: .single, timeFormat: .twentyFourHour)
-                        variant("Range — accent band on in-between days", selection: $range, mode: .range, timeFormat: .none)
+                        variant(
+                            "Single date — 12-hour time", selection: $time12, mode: .single, timeFormat: .twelveHour)
+                        variant(
+                            "Single date — 24-hour time", selection: $time24, mode: .single, timeFormat: .twentyFourHour
+                        )
+                        variant(
+                            "Range — accent band on in-between days", selection: $range, mode: .range, timeFormat: .none
+                        )
                     }
                     .padding(.horizontal)
                 }
@@ -989,15 +1093,15 @@ private struct PickersGallery: View {
                 CodeBlock(
                     title: "Usage",
                     code: """
-                    DateTimePicker(
-                        selection: $selection,    // Binding<DateSelection?>
-                        mode: .single,            // or .range (Agenda events)
-                        timeFormat: .twelveHour   // .none | .twelveHour | .twentyFourHour
-                    )
+                        DateTimePicker(
+                            selection: $selection,    // Binding<DateSelection?>
+                            mode: .single,            // or .range (Agenda events)
+                            timeFormat: .twelveHour   // .none | .twelveHour | .twentyFourHour
+                        )
 
-                    // Property cells bind .single; the accent fill reads the
-                    // nexusAccent environment value (system accent in previews).
-                    """
+                        // Property cells bind .single; the accent fill reads the
+                        // nexusAccent environment value (system accent in previews).
+                        """
                 )
                 .padding(.horizontal)
             }
@@ -1027,7 +1131,8 @@ private struct PickersGallery: View {
         case .single(let d):
             return "single(\(d.formatted(date: .abbreviated, time: .shortened)))"
         case .range(let a, let b):
-            return "range(\(a.formatted(date: .abbreviated, time: .omitted)) … \(b.formatted(date: .abbreviated, time: .omitted)))"
+            return
+                "range(\(a.formatted(date: .abbreviated, time: .omitted)) … \(b.formatted(date: .abbreviated, time: .omitted)))"
         }
     }
 }

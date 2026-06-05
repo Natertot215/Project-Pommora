@@ -156,7 +156,7 @@ struct IndexUpdater: Sendable {
     func deletePage(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM pages WHERE id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
         }
     }
 
@@ -259,7 +259,7 @@ struct IndexUpdater: Sendable {
     func deleteItem(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM items WHERE id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
         }
     }
 
@@ -295,7 +295,7 @@ struct IndexUpdater: Sendable {
     func deleteAgendaTask(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM agenda_tasks WHERE id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
         }
     }
 
@@ -331,7 +331,7 @@ struct IndexUpdater: Sendable {
     func deleteAgendaEvent(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM agenda_events WHERE id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM relations WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
         }
     }
 
@@ -425,11 +425,11 @@ struct IndexUpdater: Sendable {
     // MARK: - Private: relation + tier-link reconciliation
 
     /// Extracts all `.relation([ids])` values from `properties` and re-indexes them
-    /// in the `relations` table for `sourceID` (one row per target id). Clears existing rows first —
+    /// in the `context_links` table for `sourceID` (one row per target id). Clears existing rows first —
     /// ensures removed relation values are cleaned up cleanly. Tier values
-    /// (`tier1`/`tier2`/`tier3`) are mirrored into the same `relations` table here —
+    /// (`tier1`/`tier2`/`tier3`) are mirrored into the same `context_links` table here —
     /// after the DELETE, so the new rows survive — letting the reverse-view query
-    /// (`IndexQuery.incomingRelations`, which reads `relations`) surface tier-based
+    /// (`IndexQuery.incomingRelations`, which reads `context_links`) surface tier-based
     /// links to a Context.
     private func reconcileRelations(
         db: Database,
@@ -441,7 +441,7 @@ struct IndexUpdater: Sendable {
         tier3: [String]
     ) throws {
         try db.execute(
-            sql: "DELETE FROM relations WHERE source_id = ?",
+            sql: "DELETE FROM context_links WHERE source_id = ?",
             arguments: [sourceID]
         )
         // Tier relations — emitted after the DELETE above so they aren't wiped.
@@ -457,7 +457,7 @@ struct IndexUpdater: Sendable {
                 let relID = ULID.generate()
                 try db.execute(
                     sql: """
-                        INSERT INTO relations
+                        INSERT INTO context_links
                             (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,

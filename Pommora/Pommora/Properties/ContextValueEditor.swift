@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Inline relation / tier value editor: shows the current value as icon + title
+/// Inline context-link / tier value editor: shows the current value as icon + title
 /// chips (or an "Add" affordance when empty) and presents the grouped
-/// `RelationPicker` in a chromeless popover on tap.
+/// `ContextPicker` in a chromeless popover on tap.
 ///
 /// This is the reusable inline-editing + picker-hosting unit — `PropertyEditorRow`
 /// (relation properties), the Page inspector's tier rows, and any future Item Window
@@ -11,11 +11,11 @@ import SwiftUI
 /// (`.presentationBackground(.clear)`) never collapses. A nil `resolver` falls back
 /// to a count label; a nil `index` still presents the picker (which shows its own
 /// empty state).
-struct RelationValueEditor: View {
+struct ContextValueEditor: View {
     @Binding var ids: [String]
     let scope: PropertyDefinition.RelationTarget
     let index: PommoraIndex?
-    var resolver: RelationDisplayResolver? = nil
+    var resolver: ContextDisplayResolver? = nil
 
     @State private var isPresented = false
 
@@ -27,7 +27,7 @@ struct RelationValueEditor: View {
         }
         .buttonStyle(.plain)
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            RelationPicker(
+            ContextPicker(
                 selectedIDs: $ids,
                 scope: scope,
                 index: index,
@@ -48,7 +48,7 @@ struct RelationValueEditor: View {
             HStack(spacing: 4) {
                 ForEach(Array(ids.enumerated()), id: \.offset) { _, id in
                     if let resolved = resolver.resolve(id) {
-                        RelationChip(icon: resolved.icon, title: resolved.title)
+                        ContextChip(icon: resolved.icon, title: resolved.title)
                     } else {
                         Text("(missing)").font(.callout.italic()).foregroundStyle(.tertiary)
                     }

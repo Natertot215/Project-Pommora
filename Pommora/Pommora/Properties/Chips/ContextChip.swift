@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// **The single rendering primitive for relation property values across every
+/// **The single rendering primitive for context-link property values across every
 /// Pommora surface.** Every surface that displays a relation value routes
 /// through this primitive; adding a parallel rendering path duplicates it.
 ///
@@ -10,7 +10,7 @@ import SwiftUI
 /// - `PropertiesPulldown` (planned property dropdown — not yet wired)
 /// - `FrontmatterInspector` (page editor inspector)
 /// - `ItemWindow` (item popover)
-/// - `RelationPicker` (value-assignment popover rows)
+/// - `ContextPicker` (value-assignment popover rows)
 /// - `LinkedFromDropdown` (Context-side reverse view — stub in v1; deferred)
 ///
 /// **Data-model contract:** both `icon` and `title` resolve from the LINKED
@@ -22,11 +22,11 @@ import SwiftUI
 /// **Visual:** the target's icon + title inside a standard-button-radius
 /// rounded rectangle with a `.quinary` fill and a hairline separator stroke
 /// (so it pops against standard surfaces) — distinct from `PropertyChip`'s
-/// Capsule. Staged in the Component Library (Chips → Relation Chip) per
+/// Capsule. Staged in the Component Library (Chips → Context Chip) per
 /// Nathan's 2026-05-29 design.
 ///
 /// Stays at this path (`Properties/Chips/`). Do NOT move.
-struct RelationChip: View {
+struct ContextChip: View {
     let icon: String
     let title: String
 

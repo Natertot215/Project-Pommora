@@ -324,7 +324,7 @@ final class TopicManager {
                 id: ULID.generate(),
                 title: name,
                 parents: [parent.id],
-                linkedRelations: [],
+                projectLinks: [],
                 icon: icon,
                 blocks: [],
                 modifiedAt: Date()

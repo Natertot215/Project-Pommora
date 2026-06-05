@@ -1,9 +1,9 @@
 import Foundation
 
-/// Produces the three pre-configured tier relation PropertyDefinitions
+/// Produces the three pre-configured tier context-link PropertyDefinitions
 /// (`_tier1` / `_tier2` / `_tier3`) merged with any per-Type sidecar overrides.
 /// Pure logic — no I/O, no environment, no UI.
-enum BuiltInRelationProperties {
+enum BuiltInContextLinkProperties {
     private struct TierDescriptor {
         let id: String
         let tierNumber: Int
@@ -17,7 +17,7 @@ enum BuiltInRelationProperties {
     ]
 
     /// Returns the schema's user-defined properties followed by the three merged
-    /// tier relation properties.
+    /// tier context-link properties.
     ///
     /// Merge rules:
     /// - Display name: sidecar override → TierConfig plural → "Tier N" fallback.

@@ -33,7 +33,7 @@ struct ItemCollectionDetailView: View {
     @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
-    @Environment(RelationDisplayResolver.self) private var relationDisplay
+    @Environment(ContextDisplayResolver.self) private var contextDisplay
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -137,7 +137,7 @@ struct ItemCollectionDetailView: View {
                             value: def.type == .relation
                                 ? .relation(item.relationIDs(forPropertyID: def.id))
                                 : item.properties[def.id],
-                            relationResolver: { relationDisplay.resolve($0) },
+                            relationResolver: { contextDisplay.resolve($0) },
                             commit: { newValue in
                                 Task {
                                     try? await itemContentManager.updateItemProperty(
@@ -155,7 +155,7 @@ struct ItemCollectionDetailView: View {
                         PropertyCellDisplay(
                             definition: def,
                             value: nil,
-                            relationResolver: { relationDisplay.resolve($0) }
+                            relationResolver: { contextDisplay.resolve($0) }
                         )
                     }
                 }
@@ -179,7 +179,7 @@ struct ItemCollectionDetailView: View {
             }
         }
         .task(id: visibleRelationIDs) {
-            await relationDisplay.warm(visibleRelationIDs)
+            await contextDisplay.warm(visibleRelationIDs)
         }
     }
 
@@ -199,7 +199,9 @@ struct ItemCollectionDetailView: View {
     /// are dropped by the planner.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else {
+            return
+        }
         if plan.kind == .item {
             itemContentManager.reorderItems(in: collection, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         }
@@ -244,7 +246,7 @@ struct ItemCollectionDetailView: View {
                 items: [
                     .init(label: "New Item", isDisabled: parent == nil || isCreatingItem) {
                         if let parent { createItem(parent: parent) }
-                    },
+                    }
                 ],
                 allDisabled: parent == nil || isCreatingItem
             )

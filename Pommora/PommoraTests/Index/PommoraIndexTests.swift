@@ -84,7 +84,7 @@ struct PommoraIndexTests {
         let expected: [String] = [
             "meta", "page_types", "item_types", "page_collections", "item_collections",
             "pages", "items", "agenda_tasks", "agenda_events", "contexts",
-            "relations", "property_definitions"
+            "context_links", "property_definitions",
         ]
         let actual = try index.dbQueue.read { db -> Set<String> in
             let names = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -100,7 +100,8 @@ struct PommoraIndexTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let nexusDir = root.appendingPathComponent(".nexus")
         try FileManager.default.createDirectory(at: nexusDir, withIntermediateDirectories: true)
-        try "not a sqlite file at all".write(to: nexusDir.appendingPathComponent("index.db"), atomically: true, encoding: .utf8)
+        try "not a sqlite file at all".write(
+            to: nexusDir.appendingPathComponent("index.db"), atomically: true, encoding: .utf8)
 
         let (_, needsRebuild) = try PommoraIndex.open(at: root)
         #expect(needsRebuild == true)

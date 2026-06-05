@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A labeled row that renders a list of relation/tier target IDs as their current
-/// icon + title chips, via the shared `RelationDisplayResolver`. The reusable
+/// icon + title chips, via the shared `ContextDisplayResolver`. The reusable
 /// display for the property panel + Item Window tier rows (Spaces / Topics /
 /// Projects) and any labeled relation display.
 ///
@@ -9,10 +9,10 @@ import SwiftUI
 /// synchronously at render. An unresolved ID renders "(missing)"; an empty list
 /// renders "None". Pure value-type inputs keep it clear of GRDB's `String`
 /// overloads inside the view body (quirk #13).
-struct RelationChipRow: View {
+struct ContextChipRow: View {
     let label: String
     let ids: [String]
-    let resolver: RelationDisplayResolver
+    let resolver: ContextDisplayResolver
     var labelWidth: CGFloat = 100
 
     var body: some View {
@@ -40,7 +40,7 @@ struct RelationChipRow: View {
     @ViewBuilder
     private func chip(_ id: String) -> some View {
         if let resolved = resolver.resolve(id) {
-            RelationChip(icon: resolved.icon, title: resolved.title)
+            ContextChip(icon: resolved.icon, title: resolved.title)
         } else {
             Text("(missing)")
                 .font(.callout.italic())

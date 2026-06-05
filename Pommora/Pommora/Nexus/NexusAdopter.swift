@@ -665,7 +665,7 @@ enum NexusAdopter {
     /// `.json` in a non-Item-Type folder). The launch caller ORs this into
     /// `openIndex(forceRebuild:)`: a relocation moves a file by id, so a steady-
     /// state launch (where the format migration is a no-op) would otherwise leave
-    /// a stale id-keyed index row → a phantom RelationChip + a brokenLinks miss
+    /// a stale id-keyed index row → a phantom ContextChip + a brokenLinks miss
     /// until the next launch's rebuild.
     @discardableResult
     static func autoTagMissingSidecars(

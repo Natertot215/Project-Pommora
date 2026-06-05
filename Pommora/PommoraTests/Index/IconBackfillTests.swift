@@ -3,8 +3,8 @@
 //  PommoraTests
 //
 //  Task 7 — v5 rebuild smoke-test. A full `IndexBuilder.populate` must backfill
-//  entity icons into the index (so `RelationDisplayResolver.resolve` returns
-//  icon + title) AND emit tier links into the `relations` table. Complements
+//  entity icons into the index (so `ContextDisplayResolver.resolve` returns
+//  icon + title) AND emit tier links into the `context_links` table. Complements
 //  `IndexBuilderTests` (structure) + `TierRelationsEmitTests` (tier emit) with an
 //  explicit icon-survives-rebuild assertion through `resolveEntities` — the
 //  fixtures in those suites use `icon: nil`, so icon backfill was unasserted.

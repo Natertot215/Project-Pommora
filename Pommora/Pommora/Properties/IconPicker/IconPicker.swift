@@ -224,7 +224,7 @@ private struct IconCell: View {
 
 extension View {
     /// Present `IconPicker` as a clean single-glass popover anchored to this
-    /// view — the canonical way to host it (mirrors `RelationValueEditor`'s
+    /// view — the canonical way to host it (mirrors `ContextValueEditor`'s
     /// `.presentationBackground(.clear)` so only the picker's own
     /// `.chipDropdownPanel()` shows). Replaces the old
     /// `.popover { SymbolPicker(...).frame(540, 460) }` blocks at every call site.

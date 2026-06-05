@@ -8,7 +8,7 @@ import SwiftUI
 /// `ItemWindowRenderer` wrapped in `PreviewWindow` chrome.
 ///
 /// **Quirk #15 safety.** The renderer reads several `@Environment(Manager)`
-/// values (RelationDisplayResolver, TierConfigManager, ItemTypeManager). Those
+/// values (ContextDisplayResolver, TierConfigManager, ItemTypeManager). Those
 /// are satisfied by `.injectNexusEnvironment(env)` applied in
 /// `ItemWindowSceneContent`. Nothing in THIS file reads a per-Nexus manager
 /// through `@Environment` outside that modifier — the env is passed as a plain
@@ -81,8 +81,10 @@ private struct ItemWindowSceneContent: View {
     private func loadContainer() async {
         guard let itemType = env.itemTypeManager.types.first(where: { $0.id == ref.typeID }) else { return }
         if let collectionID = ref.collectionID {
-            guard let collection = env.itemTypeManager.itemCollections(in: itemType)
-                .first(where: { $0.id == collectionID }) else { return }
+            guard
+                let collection = env.itemTypeManager.itemCollections(in: itemType)
+                    .first(where: { $0.id == collectionID })
+            else { return }
             await env.itemContentManager.loadAll(for: collection)
         } else {
             await env.itemContentManager.loadAll(for: itemType)

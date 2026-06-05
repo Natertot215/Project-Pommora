@@ -9,7 +9,7 @@ import SwiftUI
 /// PropertyCellEditor at Phase H).
 ///
 /// Lives under Properties/Chips/ for naming consistency with PropertyChip /
-/// RelationChip / FileChip even though it renders as styled text rather
+/// ContextChip / FileChip even though it renders as styled text rather
 /// than a capsule/rectangle. Treat it as the "URL display primitive."
 struct LinkChip: View {
     let url: URL

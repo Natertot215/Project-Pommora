@@ -6,9 +6,9 @@ import Testing
 
 // MARK: - Suite
 
-/// Tier values (`tier1`/`tier2`/`tier3`) must be emitted into the `relations`
+/// Tier values (`tier1`/`tier2`/`tier3`) must be emitted into the `context_links`
 /// table so the reverse-view query `IndexQuery.incomingRelations(targetID:)`
-/// (which reads `relations`) surfaces tier-based links to a Context. Covers both
+/// (which reads `context_links`) surfaces tier-based links to a Context. Covers both
 /// index paths: `IndexUpdater` (incremental upsert) and `IndexBuilder` (full rebuild).
 ///
 /// Struct name MATCHES the filename (`-only-testing:PommoraTests/TierRelationsEmitTests`
@@ -28,7 +28,7 @@ struct TierRelationsEmitTests {
         try index.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM relations WHERE target_id = ? AND property_id = ?",
+                sql: "SELECT COUNT(*) FROM context_links WHERE target_id = ? AND property_id = ?",
                 arguments: [targetID, propertyID]
             ) ?? -1
         }
@@ -72,7 +72,7 @@ struct TierRelationsEmitTests {
         try index.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM relations WHERE source_id = ?",
+                sql: "SELECT COUNT(*) FROM context_links WHERE source_id = ?",
                 arguments: [sourceID]
             ) ?? -1
         }
@@ -113,7 +113,7 @@ struct TierRelationsEmitTests {
         let targetKind = try await idx.dbQueue.read { db in
             try String.fetchOne(
                 db,
-                sql: "SELECT target_kind FROM relations WHERE target_id = ? AND property_id = ?",
+                sql: "SELECT target_kind FROM context_links WHERE target_id = ? AND property_id = ?",
                 arguments: [contextID, ReservedPropertyID.tier1]
             )
         }
@@ -175,7 +175,7 @@ struct TierRelationsEmitTests {
         let targetKind = try await idx.dbQueue.read { db in
             try String.fetchOne(
                 db,
-                sql: "SELECT target_kind FROM relations WHERE target_id = ? AND property_id = ?",
+                sql: "SELECT target_kind FROM context_links WHERE target_id = ? AND property_id = ?",
                 arguments: [contextID, ReservedPropertyID.tier1]
             )
         }
@@ -269,7 +269,7 @@ struct TierRelationsEmitTests {
         let userRelCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM relations WHERE source_id = ? AND property_id = ?",
+                sql: "SELECT COUNT(*) FROM context_links WHERE source_id = ? AND property_id = ?",
                 arguments: [pageID, relPropID]
             ) ?? -1
         }
@@ -320,11 +320,11 @@ struct TierRelationsEmitTests {
         let userRelCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM relations WHERE target_id = ?",
+                sql: "SELECT COUNT(*) FROM context_links WHERE target_id = ?",
                 arguments: [userTargetID]
             ) ?? -1
         }
-        #expect(userRelCount == 0, "user-relation target must not appear in relations after Task 6")
+        #expect(userRelCount == 0, "user-relation target must not appear in context_links after Task 6")
     }
 
     // MARK: - IndexBuilder (full rebuild) — Page tier1 survives populate

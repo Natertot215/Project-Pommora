@@ -17,7 +17,7 @@ struct PageCollectionDetailView: View {
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
-    @Environment(RelationDisplayResolver.self) private var relationDisplay
+    @Environment(ContextDisplayResolver.self) private var contextDisplay
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -121,7 +121,7 @@ struct PageCollectionDetailView: View {
                             value: def.type == .relation
                                 ? .relation(pageMeta.frontmatter.relationIDs(forPropertyID: def.id))
                                 : pageMeta.frontmatter.properties[def.id],
-                            relationResolver: { relationDisplay.resolve($0) },
+                            relationResolver: { contextDisplay.resolve($0) },
                             commit: { newValue in
                                 Task {
                                     try? await contentManager.updatePageProperty(
@@ -139,7 +139,7 @@ struct PageCollectionDetailView: View {
                         PropertyCellDisplay(
                             definition: def,
                             value: nil,
-                            relationResolver: { relationDisplay.resolve($0) }
+                            relationResolver: { contextDisplay.resolve($0) }
                         )
                     }
                 }
@@ -163,7 +163,7 @@ struct PageCollectionDetailView: View {
             }
         }
         .task(id: visibleRelationIDs) {
-            await relationDisplay.warm(visibleRelationIDs)
+            await contextDisplay.warm(visibleRelationIDs)
         }
     }
 
@@ -180,7 +180,9 @@ struct PageCollectionDetailView: View {
     /// the table reports; unknown payloads and no-ops are dropped by the planner.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else { return }
+        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else {
+            return
+        }
         if plan.kind == .page {
             contentManager.reorderPages(in: collection, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         }
@@ -200,7 +202,8 @@ struct PageCollectionDetailView: View {
             FooterCrumb(title: collection.title),
         ]
         if let trail = trailPage,
-           contentManager.pages(in: collection).contains(where: { $0.id == trail.id }) {
+            contentManager.pages(in: collection).contains(where: { $0.id == trail.id })
+        {
             crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
         }
         return DetailFooterBar(crumbs: crumbs) {

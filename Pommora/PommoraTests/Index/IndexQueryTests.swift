@@ -302,7 +302,7 @@ struct IndexQueryTests {
             // Valid relation: PBL1 → PBL1 (self, but still valid)
             try db.execute(
                 sql: """
-                        INSERT INTO relations(id, source_id, source_kind, target_id, target_kind, property_id, modified_at) VALUES
+                        INSERT INTO context_links(id, source_id, source_kind, target_id, target_kind, property_id, modified_at) VALUES
                         ('R1', 'PBL1', 'page', 'PBL1',  'page', 'prop_X', '2026-05-24T00:00:00Z'),
                         ('R2', 'PBL1', 'page', 'GHOST1', 'page', 'prop_Y', '2026-05-24T00:00:00Z')
                     """)
@@ -343,7 +343,7 @@ struct IndexQueryTests {
                     """)
             try db.execute(
                 sql: """
-                        INSERT INTO relations(id, source_id, source_kind, target_id, target_kind, property_id, modified_at) VALUES
+                        INSERT INTO context_links(id, source_id, source_kind, target_id, target_kind, property_id, modified_at) VALUES
                         ('REL1', 'PSRC1', 'page', 'TARGET1', 'unknown', 'prop_X', '2026-05-24T00:00:00Z'),
                         ('REL2', 'PSRC2', 'page', 'TARGET1', 'unknown', 'prop_X', '2026-05-24T00:00:00Z'),
                         ('REL3', 'ISRC1', 'item', 'TARGET1', 'unknown', 'prop_Y', '2026-05-24T00:00:00Z'),

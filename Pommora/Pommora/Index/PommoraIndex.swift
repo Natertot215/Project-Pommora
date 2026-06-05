@@ -55,7 +55,12 @@ final class PommoraIndex: @unchecked Sendable {
     // source of truth; this column is the regeneratable fast copy. Bumping
     // 5 → 6 forces one rebuild so existing indexes gain the new column and
     // backfill icons from the sidecars via IndexBuilder.
-    static let currentSchemaVersion: Int = 6
+    //
+    // v7 (2026-06-05): rename `relations` table → `context_links` + indexes
+    // `idx_relations_*` → `idx_context_links_*`. Pure DDL rename; no data-model
+    // change. Bumping 6 → 7 forces one rebuild so existing databases are
+    // recreated with the renamed table.
+    static let currentSchemaVersion: Int = 7
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL

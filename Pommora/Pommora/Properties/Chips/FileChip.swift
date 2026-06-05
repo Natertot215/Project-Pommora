@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// Quaternary fill + chain-link SF Symbol + filename truncated at 13 chars
 /// with `…` (per the locked spec). Distinct visual class from PropertyChip
-/// (vivid colors, full-name) and RelationChip (default-grey, rounded
+/// (vivid colors, full-name) and ContextChip (default-grey, rounded
 /// rectangle) — files get their own attachment-language affordance.
 ///
 /// Multi-file File values render multiple FileChips side-by-side at the

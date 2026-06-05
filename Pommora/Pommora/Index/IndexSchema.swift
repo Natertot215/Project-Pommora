@@ -12,7 +12,7 @@ enum IndexSchema {
         try db.execute(sql: agendaTasksDDL)
         try db.execute(sql: agendaEventsDDL)
         try db.execute(sql: contextsDDL)
-        try db.execute(sql: relationsDDL)
+        try db.execute(sql: contextLinksDDL)
         try db.execute(sql: propertyDefinitionsDDL)
         try db.execute(sql: indexesDDL)
     }
@@ -119,8 +119,8 @@ enum IndexSchema {
         );
         """
 
-    private static let relationsDDL = """
-        CREATE TABLE IF NOT EXISTS relations (
+    private static let contextLinksDDL = """
+        CREATE TABLE IF NOT EXISTS context_links (
             id TEXT PRIMARY KEY,
             source_id TEXT NOT NULL,
             source_kind TEXT NOT NULL,
@@ -153,9 +153,9 @@ enum IndexSchema {
         CREATE INDEX IF NOT EXISTS idx_items_item_collection_id ON items(item_collection_id);
         CREATE INDEX IF NOT EXISTS idx_page_collections_page_type_id ON page_collections(page_type_id);
         CREATE INDEX IF NOT EXISTS idx_item_collections_item_type_id ON item_collections(item_type_id);
-        CREATE INDEX IF NOT EXISTS idx_relations_source_id ON relations(source_id);
-        CREATE INDEX IF NOT EXISTS idx_relations_target_id ON relations(target_id);
-        CREATE INDEX IF NOT EXISTS idx_relations_property_id ON relations(property_id);
+        CREATE INDEX IF NOT EXISTS idx_context_links_source_id ON context_links(source_id);
+        CREATE INDEX IF NOT EXISTS idx_context_links_target_id ON context_links(target_id);
+        CREATE INDEX IF NOT EXISTS idx_context_links_property_id ON context_links(property_id);
         CREATE INDEX IF NOT EXISTS idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
         CREATE INDEX IF NOT EXISTS idx_contexts_tier ON contexts(tier);
         CREATE INDEX IF NOT EXISTS idx_contexts_parent_topic ON contexts(parent_topic_id);

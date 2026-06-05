@@ -18,7 +18,7 @@ struct PageTypeDetailView: View {
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
-    @Environment(RelationDisplayResolver.self) private var relationDisplay
+    @Environment(ContextDisplayResolver.self) private var contextDisplay
 
     @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
@@ -148,7 +148,7 @@ struct PageTypeDetailView: View {
                             value: def.type == .relation
                                 ? .relation(pageMeta.frontmatter.relationIDs(forPropertyID: def.id))
                                 : pageMeta.frontmatter.properties[def.id],
-                            relationResolver: { relationDisplay.resolve($0) },
+                            relationResolver: { contextDisplay.resolve($0) },
                             commit: { newValue in
                                 Task {
                                     try? await contentManager.updatePageProperty(
@@ -166,7 +166,7 @@ struct PageTypeDetailView: View {
                         PropertyCellDisplay(
                             definition: def,
                             value: nil,
-                            relationResolver: { relationDisplay.resolve($0) }
+                            relationResolver: { contextDisplay.resolve($0) }
                         )
                     }
                 }
@@ -195,7 +195,7 @@ struct PageTypeDetailView: View {
             }
         }
         .task(id: visibleRelationIDs) {
-            await relationDisplay.warm(visibleRelationIDs)
+            await contextDisplay.warm(visibleRelationIDs)
         }
     }
 
@@ -240,7 +240,8 @@ struct PageTypeDetailView: View {
         let collectionLabel = settingsManager.settings.labels.pageCollection.singular
         var crumbs: [FooterCrumb] = [FooterCrumb(title: pageType.title)]
         if let trail = trailPage,
-           contentManager.pages(in: pageType).contains(where: { $0.id == trail.id }) {
+            contentManager.pages(in: pageType).contains(where: { $0.id == trail.id })
+        {
             crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
         }
         return DetailFooterBar(crumbs: crumbs) {

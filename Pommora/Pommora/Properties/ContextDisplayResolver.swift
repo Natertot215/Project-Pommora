@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// Shared, app-wide resolver: a relation/tier target ID → its current display
+/// Shared, app-wide resolver: a context-link/tier target ID → its current display
 /// (icon + title). Render surfaces call `resolve(_:)` SYNCHRONOUSLY during
 /// layout, so the host must `warm(_:)` the needed IDs first (async, off the
 /// index); resolved values land in the cache and `resolve` is a pure dict read.
 /// One instance is injected at `ContentView` and shared by every surface —
-/// the single source of truth for relation display resolution (DRY).
+/// the single source of truth for context-link display resolution (DRY).
 @Observable
 @MainActor
-final class RelationDisplayResolver {
+final class ContextDisplayResolver {
     private var cache: [String: EntityRef] = [:]
     private let index: () -> PommoraIndex?
 
@@ -21,7 +21,7 @@ final class RelationDisplayResolver {
     }
 
     /// Full cached entity (kind / title / icon) for an ID, or nil if un-warmed /
-    /// unknown. Future-proofs a relation-chip redesign that may style by kind or
+    /// unknown. Future-proofs a context-chip redesign that may style by kind or
     /// color; `resolve(_:)` stays the lightweight icon+title accessor.
     func entity(_ id: String) -> EntityRef? {
         cache[id]

@@ -20,7 +20,7 @@ struct ProjectFileTests {
             id: "01HPROJ",
             title: "GTD method",
             parents: ["01HTOPIC-PRODUCTIVITY"],
-            linkedRelations: ["01HTOPIC-OTHER", "01HSPACE-PERSONAL"],
+            projectLinks: ["01HTOPIC-OTHER", "01HSPACE-PERSONAL"],
             icon: "checklist",
             blocks: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)
@@ -31,7 +31,7 @@ struct ProjectFileTests {
         #expect(loaded.id == "01HPROJ")
         #expect(loaded.title == "GTD method")
         #expect(loaded.parents == ["01HTOPIC-PRODUCTIVITY"])
-        #expect(loaded.linkedRelations == ["01HTOPIC-OTHER", "01HSPACE-PERSONAL"])
+        #expect(loaded.projectLinks == ["01HTOPIC-OTHER", "01HSPACE-PERSONAL"])
         #expect(loaded.icon == "checklist")
         #expect(loaded.tier == 3)
     }
@@ -49,7 +49,7 @@ struct ProjectFileTests {
             id: "01H",
             title: "Foo",
             parents: ["01HPARENT"],
-            linkedRelations: [],
+            projectLinks: [],
             icon: nil,
             blocks: [],
             modifiedAt: Date()
@@ -59,8 +59,8 @@ struct ProjectFileTests {
         #expect(!raw.contains("\"title\""))
     }
 
-    @Test("Project uses snake_case linked_relations on disk")
-    func linkedRelationsKey() throws {
+    @Test("Project uses snake_case project_links on disk")
+    func projectLinksKey() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL
@@ -70,11 +70,31 @@ struct ProjectFileTests {
 
         let p = Project(
             id: "01H", title: "Y", parents: ["01HP"],
-            linkedRelations: ["01HZ"], icon: nil, blocks: [], modifiedAt: Date()
+            projectLinks: ["01HZ"], icon: nil, blocks: [], modifiedAt: Date()
         )
         try p.save(to: url)
         let raw = try String(contentsOf: url, encoding: .utf8)
-        #expect(raw.contains("\"linked_relations\""))
-        #expect(!raw.contains("\"linkedRelations\""))
+        #expect(raw.contains("\"project_links\""))
+        #expect(!raw.contains("\"linked_relations\""))
+        #expect(!raw.contains("\"projectLinks\""))
+    }
+
+    @Test("Project decodes legacy linked_relations key")
+    func legacyLinkedRelationsDecode() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = nexus.rootURL
+            .appendingPathComponent(".nexus/topics/X", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appendingPathComponent("Legacy.project.json")
+
+        // Write a JSON with the OLD key "linked_relations" directly.
+        let legacyJSON = """
+            {"id":"01HLEG","tier":3,"parents":["01HP"],"linked_relations":["01HOLD"],"modified_at":"2026-01-01T00:00:00Z"}
+            """
+        try legacyJSON.write(to: url, atomically: true, encoding: .utf8)
+
+        let loaded = try Project.load(from: url)
+        #expect(loaded.projectLinks == ["01HOLD"])
     }
 }
