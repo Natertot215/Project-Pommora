@@ -477,6 +477,7 @@ final class IndexBuilder {
     }
 
     private nonisolated static func clearAllTables(_ db: Database) throws {
+        try db.execute(sql: "DELETE FROM connections")
         try db.execute(sql: "DELETE FROM context_links")
         try db.execute(sql: "DELETE FROM property_definitions")
         try db.execute(sql: "DELETE FROM pages")

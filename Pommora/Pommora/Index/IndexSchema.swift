@@ -13,6 +13,7 @@ enum IndexSchema {
         try db.execute(sql: agendaEventsDDL)
         try db.execute(sql: contextsDDL)
         try db.execute(sql: contextLinksDDL)
+        try db.execute(sql: connectionsDDL)
         try db.execute(sql: propertyDefinitionsDDL)
         try db.execute(sql: indexesDDL)
     }
@@ -131,6 +132,22 @@ enum IndexSchema {
         );
         """
 
+    private static let connectionsDDL = """
+        CREATE TABLE IF NOT EXISTS connections (
+            id TEXT PRIMARY KEY,
+            source_id TEXT NOT NULL,
+            source_kind TEXT NOT NULL,          -- "page" | "item"
+            target_id TEXT,                     -- NULL while phantom (unresolved)
+            target_kind TEXT NOT NULL,          -- "page" (from [[ ]]) | "item" (from {{ }})
+            target_title TEXT NOT NULL,         -- normalized (trimmed+lowercased) — resolution key
+            surface TEXT NOT NULL,              -- "page_body" | "item_body"
+            multiplicity INTEGER NOT NULL DEFAULT 1,
+            weight REAL NOT NULL DEFAULT 1.0,
+            resolved INTEGER NOT NULL DEFAULT 0,
+            modified_at TEXT NOT NULL
+        );
+        """
+
     private static let propertyDefinitionsDDL = """
         CREATE TABLE IF NOT EXISTS property_definitions (
             id TEXT PRIMARY KEY,
@@ -159,5 +176,10 @@ enum IndexSchema {
         CREATE INDEX IF NOT EXISTS idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
         CREATE INDEX IF NOT EXISTS idx_contexts_tier ON contexts(tier);
         CREATE INDEX IF NOT EXISTS idx_contexts_parent_topic ON contexts(parent_topic_id);
+        CREATE INDEX IF NOT EXISTS idx_connections_source_id ON connections(source_id);
+        CREATE INDEX IF NOT EXISTS idx_connections_target_id ON connections(target_id);
+        CREATE INDEX IF NOT EXISTS idx_connections_target_title ON connections(target_kind, target_title);
+        CREATE INDEX IF NOT EXISTS idx_pages_title ON pages(title COLLATE NOCASE);
+        CREATE INDEX IF NOT EXISTS idx_items_title ON items(title COLLATE NOCASE);
         """
 }

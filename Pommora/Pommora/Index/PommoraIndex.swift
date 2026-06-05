@@ -60,7 +60,13 @@ final class PommoraIndex: @unchecked Sendable {
     // `idx_relations_*` → `idx_context_links_*`. Pure DDL rename; no data-model
     // change. Bumping 6 → 7 forces one rebuild so existing databases are
     // recreated with the renamed table.
-    static let currentSchemaVersion: Int = 7
+    //
+    // v8 (2026-06-05): add the `connections` table (inline-link edges scanned from
+    // Page/Item bodies — [[ ]]/{{ }}) + idx_connections_* + title indexes on
+    // pages/items. Net-new derived data; bumping 7 → 8 forces one rebuild so
+    // existing DBs gain the table and IndexBuilder backfills connections from
+    // on-disk bodies. No user data at risk (regeneratable index).
+    static let currentSchemaVersion: Int = 8
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
