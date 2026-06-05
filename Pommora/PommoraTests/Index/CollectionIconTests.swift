@@ -4,7 +4,7 @@
 //
 //  #45 (TDD). A per-Collection/Set icon must round-trip through the sidecar
 //  JSON (the source of truth). The grouped-query assertions (pageType-scoped
-//  entitiesByTargetGrouped) are removed: post-Relations-redesign, grouped
+//  entitiesByContextTargetGrouped) are removed: post-Relations-redesign, grouped
 //  queries are tier-only and the .pageType case no longer exists.
 //
 //  Struct name MATCHES the filename (quirk #18).

@@ -44,7 +44,7 @@ struct UnlinkTierTests {
         try await setPageTier(manager, p2, tier: 1, ids: [spaceA, spaceB], vault: vault)
 
         // Sanity: the index sees both Pages as referencing spaceA before the cascade.
-        let before = try await IndexQuery(index).incomingRelations(targetID: spaceA)
+        let before = try await IndexQuery(index).incomingContextLinks(targetID: spaceA)
         #expect(Set(before.map(\.id)) == [p1.id, p2.id])
 
         try await manager.unlinkTier(contextID: spaceA, tier: 1, index: index)

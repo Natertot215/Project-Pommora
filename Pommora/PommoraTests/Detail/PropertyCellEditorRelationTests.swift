@@ -8,7 +8,7 @@ import Testing
 /// Table-cell relation editor wired to `ContextPicker`.
 ///
 /// `ContextPicker` loads candidates from a live SQLite DB via
-/// `IndexQuery.entitiesByTarget(_:)`, so these tests validate that the editor
+/// `IndexQuery.entitiesByContextTarget(_:)`, so these tests validate that the editor
 /// constructs without a DB (`index: nil`) and across the relation-definition
 /// shapes the cell must tolerate — a relation with a target, a relation with no
 /// stored value, and the defensive no-target case (the property validator

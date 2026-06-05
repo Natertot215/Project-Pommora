@@ -696,7 +696,7 @@ extension ItemContentManager {
     func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
         guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
 
-        let refs = try await IndexQuery(index).incomingRelations(targetID: contextID)
+        let refs = try await IndexQuery(index).incomingContextLinks(targetID: contextID)
         let itemRefs = refs.filter { $0.kind == .item }
 
         for ref in itemRefs {

@@ -16,7 +16,7 @@ final class SpaceManager {
     /// Injected by ContentView.constructManagers. Nil until wired; CRUD methods
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     /// Spaces index into `contexts` as tier 1 via `upsertContext(_:)` — without this,
-    /// `IndexQuery.entitiesByTarget(.contextTier(1))` (the inline tier picker source)
+    /// `IndexQuery.entitiesByContextTarget(.contextTier(1))` (the inline tier picker source)
     /// never sees Spaces created/edited since the last full IndexBuilder rebuild.
     var indexUpdater: IndexUpdater?
 

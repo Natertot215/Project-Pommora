@@ -68,7 +68,7 @@ struct PropertyCellDisplay: View {
             case .url:
                 urlCell
             case .relation:
-                relationCell
+                contextLinkCell
             case .file:
                 fileCell
             case .lastEditedTime:
@@ -248,10 +248,10 @@ struct PropertyCellDisplay: View {
         }
     }
 
-    // MARK: - Relation
+    // MARK: - Context Link
 
     @ViewBuilder
-    private var relationCell: some View {
+    private var contextLinkCell: some View {
         if case .relation(let targetIDs) = value, !targetIDs.isEmpty {
             // `list` display lays the chips out vertically; everything else keeps
             // the inline horizontal run. The chip content is identical either way.

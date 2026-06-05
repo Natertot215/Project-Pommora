@@ -251,12 +251,12 @@ final class AgendaTaskManager {
     /// Mirrors `PageContentManager.unlinkTier` — see that method for the full
     /// contract. Agenda files live in a flat singleton folder, so (unlike Pages /
     /// Items) there is no container to resolve: the on-disk URL derives directly
-    /// from the title carried by `incomingRelations` (sourced from the
+    /// from the title carried by `incomingContextLinks` (sourced from the
     /// `agenda_tasks` table), with an in-memory fallback for index/disk drift.
     /// Each referencing Task is loaded, mutated through the `setRelationIDs`
     /// adapter (tiers route to the Task root, NOT `properties["_tierN"]`),
     /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
-    /// re-indexed so the stale `relations` rows reconcile away.
+    /// re-indexed so the stale `context_links` rows reconcile away.
     ///
     /// Resilient per-entity: a Task that can't be located or loaded is skipped
     /// (the first failure is recorded on `pendingError`) so one bad file never
@@ -264,7 +264,7 @@ final class AgendaTaskManager {
     func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
         guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
 
-        let refs = try await IndexQuery(index).incomingRelations(targetID: contextID)
+        let refs = try await IndexQuery(index).incomingContextLinks(targetID: contextID)
         let taskRefs = refs.filter { $0.kind == .agendaTask }
 
         for ref in taskRefs {
@@ -295,7 +295,7 @@ final class AgendaTaskManager {
         }
     }
 
-    /// Resolves an AgendaTask's `.task.json` URL from an `incomingRelations`
+    /// Resolves an AgendaTask's `.task.json` URL from an `incomingContextLinks`
     /// ref. Prefers the in-memory record's current title (rename-fresh), falling
     /// back to the index-sourced `ref.title`; returns the title-derived URL only
     /// if a file exists there.

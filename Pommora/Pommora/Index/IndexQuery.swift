@@ -11,7 +11,7 @@ struct IndexQuery: Sendable {
     // MARK: - Target queries
 
     /// Returns all entities matching a target. Tier-only post-Relations-redesign.
-    func entitiesByTarget(_ target: PropertyDefinition.RelationTarget) async throws -> [EntityRef] {
+    func entitiesByContextTarget(_ target: PropertyDefinition.RelationTarget) async throws -> [EntityRef] {
         try await index.dbQueue.read { db in
             switch target {
             case .contextTier(let tier):
@@ -32,16 +32,16 @@ struct IndexQuery: Sendable {
     /// Entities flat in `rootEntities` with no groups — the picker renders flat rows.
     /// Post-Relations-redesign: only `.contextTier` survives; `.pageType` / `.itemType`
     /// grouped paths are retired.
-    func entitiesByTargetGrouped(_ target: PropertyDefinition.RelationTarget) async throws -> GroupedEntities {
+    func entitiesByContextTargetGrouped(_ target: PropertyDefinition.RelationTarget) async throws -> GroupedEntities {
         switch target {
         default:
-            return GroupedEntities(groups: [], rootEntities: try await entitiesByTarget(target))
+            return GroupedEntities(groups: [], rootEntities: try await entitiesByContextTarget(target))
         }
     }
 
-    // MARK: - Batch ID resolution (relation/tier display)
+    // MARK: - Batch ID resolution (context-link/tier display)
 
-    /// Batch-resolve relation/tier target IDs to their current display (icon + title).
+    /// Batch-resolve context-link/tier target IDs to their current display (icon + title).
     /// Searches every table a relation value can point at (pages, items, contexts,
     /// agenda tasks/events). IDs are globally-unique ULIDs, so a hit in one table is
     /// authoritative. Missing IDs are absent from the result (caller renders the
@@ -88,10 +88,10 @@ struct IndexQuery: Sendable {
     /// One `EntityRef` per `context_links` row, built from `source_id` + `source_kind`.
     /// `source_kind` resolves to `EntityKind` via the same string map as
     /// `brokenLinks`; the source's current title is read by joining `source_id`
-    /// to its source-kind table (mirrors how `entitiesByTarget` sources titles —
+    /// to its source-kind table (mirrors how `entitiesByContextTarget` sources titles —
     /// `context_links` itself carries no title). Sources whose row is dangling (no
     /// matching entity) fall back to an empty title.
-    func incomingRelations(targetID: String) async throws -> [EntityRef] {
+    func incomingContextLinks(targetID: String) async throws -> [EntityRef] {
         // Inline kind conversion to avoid calling actor-isolated helpers inside the @Sendable closure
         // (mirrors `brokenLinks`).
         let kindFromString: @Sendable (String) -> EntityKind = { s in
@@ -161,7 +161,7 @@ struct IndexQuery: Sendable {
     /// `IndexUpdater.upsert…` after a mutation).
     ///
     /// Backs `unlinkTier` on `PageContentManager` / `ItemContentManager`: those
-    /// managers receive only an entity id + kind from `incomingRelations` (no URL),
+    /// managers receive only an entity id + kind from `incomingContextLinks` (no URL),
     /// and hold no `PageTypeManager` / `ItemTypeManager` reference, so the index
     /// is the single source of truth for an entity's container.
     ///
@@ -325,7 +325,7 @@ struct IndexQuery: Sendable {
                 // type/collection target — see RelationTargetKind.string), so real
                 // rows resolve via the keys above. These fine-grained keys stay
                 // snake_case for consistency with this function's `kindFromString`
-                // and `incomingRelations`.
+                // and `incomingContextLinks`.
                 "page_type": "page_types",
                 "item_type": "item_types",
                 "page_collection": "page_collections",

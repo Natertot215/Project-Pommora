@@ -277,7 +277,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     /// that column — used by both `IndexBuilder` (full rebuild) and
     /// `IndexUpdater` (incremental upsert) so a row written by either path
     /// round-trips identically (notably `relation_target`, decoded back out by
-    /// `IndexUpdater.reconcileRelations` to derive `relations.target_kind`).
+    /// `IndexUpdater.reconcileContextLinks` to derive `context_links.target_kind`).
     /// `relation_target` is encoded via `RelationTarget`'s own Codable, so the
     /// on-disk and in-DB shapes match. `nonisolated`: pure computation, callable
     /// from `IndexBuilder`'s off-actor GRDB-write closures.

@@ -28,7 +28,7 @@
 //  `PommoraTests/Nexus/LoadAllIndexSyncTests.swift` verbatim (TempNexus on
 //  disk, `PommoraIndex.open(at:)`, `PageFile(...).save(to:)` /
 //  `Space(...).save(...)` / `Topic(...).save(...)` seeding via `NexusPaths`
-//  helpers, `IndexQuery(index).entitiesByTarget(.contextTier(N))`). The one
+//  helpers, `IndexQuery(index).entitiesByContextTarget(.contextTier(N))`). The one
 //  new ingredient vs. IndexPopulationRepro is that this drives the real
 //  `IndexBuilder.populate(index:from:)` directly (the bug lives in `populate`,
 //  not in the manager `loadAll` sync path).
@@ -127,10 +127,10 @@ struct RebuildResilienceTests {
         // rollback leaves `contexts` EMPTY, so both assertions FAIL =
         // reproduction. Once the rebuild skips the dup page, the contexts land
         // and both assertions PASS. ---
-        let tier1 = try await IndexQuery(index).entitiesByTarget(.contextTier(1))
+        let tier1 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(1))
         #expect(tier1.contains { $0.id == spaceID })
 
-        let tier2 = try await IndexQuery(index).entitiesByTarget(.contextTier(2))
+        let tier2 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(2))
         #expect(tier2.contains { $0.id == topicID })
     }
 }

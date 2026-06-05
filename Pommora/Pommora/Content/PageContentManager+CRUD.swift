@@ -685,13 +685,13 @@ extension PageContentManager {
     /// references it. Source-side cascade: invoked at the Context-delete call
     /// site (×4, once per content manager) **before** the Context file is removed.
     ///
-    /// `index` is queried via `IndexQuery.incomingRelations(targetID:)` (which
-    /// reads the `relations` table — tier links are mirrored there for all four
+    /// `index` is queried via `IndexQuery.incomingContextLinks(targetID:)` (which
+    /// reads the `context_links` table — tier links are mirrored there for all four
     /// entity kinds). Each Page that references `contextID` is located from the
     /// index (no in-hand URL), loaded, mutated through the `setRelationIDs`
     /// adapter (tiers route to the frontmatter root, NOT `properties["_tierN"]`),
     /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
-    /// re-indexed so the stale `relations` rows reconcile away.
+    /// re-indexed so the stale `context_links` rows reconcile away.
     ///
     /// Resilient per-entity: a Page that can't be located or loaded is skipped so
     /// one bad file doesn't abort the cascade. The first such failure is recorded
@@ -700,7 +700,7 @@ extension PageContentManager {
     func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
         guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
 
-        let refs = try await IndexQuery(index).incomingRelations(targetID: contextID)
+        let refs = try await IndexQuery(index).incomingContextLinks(targetID: contextID)
         let pageRefs = refs.filter { $0.kind == .page }
 
         for ref in pageRefs {

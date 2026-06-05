@@ -6,7 +6,7 @@ import Testing
 
 /// Tests for `ContextPicker` — the scope-aware context-link picker added in Phase J.4.
 ///
-/// `IndexQuery.entitiesByTarget(_:)` requires a live SQLite DB, so these tests
+/// `IndexQuery.entitiesByContextTarget(_:)` requires a live SQLite DB, so these tests
 /// validate the pure selection logic via `computeSelection(id:wasSelected:current:)`,
 /// and validate nil-index construction without a DB.
 @Suite("ContextPickerTests")

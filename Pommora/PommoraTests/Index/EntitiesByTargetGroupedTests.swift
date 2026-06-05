@@ -2,7 +2,7 @@
 //  EntitiesByTargetGroupedTests.swift
 //  PommoraTests
 //
-//  Task 4a — `IndexQuery.entitiesByTargetGrouped`: the grouped data feed for the
+//  Task 4a — `IndexQuery.entitiesByContextTargetGrouped`: the grouped data feed for the
 //  relation value picker. Post-Relations-redesign: only `.contextTier` survives;
 //  `.pageType` / `.itemType` grouped paths are retired.
 //
@@ -29,7 +29,7 @@ struct EntitiesByTargetGroupedTests {
             Space(id: spaceID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
         )
 
-        let grouped = try await IndexQuery(index).entitiesByTargetGrouped(.contextTier(1))
+        let grouped = try await IndexQuery(index).entitiesByContextTargetGrouped(.contextTier(1))
 
         // Non-pageType/itemType scope → flat: no groups; the Space lands in rootEntities.
         #expect(grouped.groups.isEmpty)

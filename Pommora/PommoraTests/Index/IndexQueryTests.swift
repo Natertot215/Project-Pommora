@@ -233,7 +233,7 @@ struct IndexQueryTests {
                     """)
         }
 
-        let results = try await IndexQuery(idx).entitiesByTarget(.contextTier(1))
+        let results = try await IndexQuery(idx).entitiesByContextTarget(.contextTier(1))
         #expect(results.count == 2)
         #expect(results.allSatisfy { $0.kind == .space })
         let titles = Set(results.map(\.title))
@@ -316,9 +316,9 @@ struct IndexQueryTests {
         #expect(broken[0].sourceKind == .page)
     }
 
-    // MARK: - Incoming relations (reverse view)
+    // MARK: - Incoming context links (reverse view)
 
-    @Test func incomingRelationsReturnsSourcesPointingAtTarget() async throws {
+    @Test func incomingContextLinksReturnsSourcesPointingAtTarget() async throws {
         let (dir, idx) = try await setupIndex()
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -351,7 +351,7 @@ struct IndexQueryTests {
                     """)
         }
 
-        let incoming = try await IndexQuery(idx).incomingRelations(targetID: "TARGET1")
+        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: "TARGET1")
 
         #expect(incoming.count == 3)
         let ids = Set(incoming.map(\.id))

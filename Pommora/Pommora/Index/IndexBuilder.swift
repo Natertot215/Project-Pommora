@@ -160,7 +160,7 @@ final class IndexBuilder {
             insertAgendaTasks(db, snapshot: snapshot)
             insertAgendaEvents(db, snapshot: snapshot)
             insertContexts(db, snapshot: snapshot)
-            insertTierRelations(db, snapshot: snapshot)
+            insertTierContextLinks(db, snapshot: snapshot)
         }
     }
 
@@ -661,18 +661,18 @@ final class IndexBuilder {
         }
     }
 
-    private nonisolated static func insertTierRelations(_ db: Database, snapshot: NexusSnapshot) {
+    private nonisolated static func insertTierContextLinks(_ db: Database, snapshot: NexusSnapshot) {
         for pt in snapshot.pageTypes {
             for coll in pt.collections {
                 for page in coll.pages {
-                    insertTierRelationRows(
+                    insertTierContextLinkRows(
                         db, sourceID: page.id, sourceKind: "page",
                         tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                         modifiedAt: page.modifiedAt)
                 }
             }
             for page in pt.directPages {
-                insertTierRelationRows(
+                insertTierContextLinkRows(
                     db, sourceID: page.id, sourceKind: "page",
                     tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
                     modifiedAt: page.modifiedAt)
@@ -681,37 +681,37 @@ final class IndexBuilder {
         for it in snapshot.itemTypes {
             for coll in it.collections {
                 for item in coll.items {
-                    insertTierRelationRows(
+                    insertTierContextLinkRows(
                         db, sourceID: item.id, sourceKind: "item",
                         tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                         modifiedAt: item.modifiedAt)
                 }
             }
             for item in it.directItems {
-                insertTierRelationRows(
+                insertTierContextLinkRows(
                     db, sourceID: item.id, sourceKind: "item",
                     tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
                     modifiedAt: item.modifiedAt)
             }
         }
         for task in snapshot.tasks {
-            insertTierRelationRows(
+            insertTierContextLinkRows(
                 db, sourceID: task.id, sourceKind: "agenda_task",
                 tier1: task.tier1, tier2: task.tier2, tier3: task.tier3,
                 modifiedAt: task.modifiedAt)
         }
         for event in snapshot.events {
-            insertTierRelationRows(
+            insertTierContextLinkRows(
                 db, sourceID: event.id, sourceKind: "agenda_event",
                 tier1: event.tier1, tier2: event.tier2, tier3: event.tier3,
                 modifiedAt: event.modifiedAt)
         }
     }
 
-    /// Emits one `relations` row per tier value.
+    /// Emits one `context_links` row per tier value.
     /// `target_kind` derives from `RelationTargetKind.string(from: .contextTier(n))`
     /// (DRY — shared with property relations); `property_id` is the reserved tier ID.
-    private nonisolated static func insertTierRelationRows(
+    private nonisolated static func insertTierContextLinkRows(
         _ db: Database,
         sourceID: String,
         sourceKind: String,

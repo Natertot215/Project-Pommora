@@ -20,7 +20,7 @@ final class TopicManager {
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     /// Topics index into `contexts` as tier 2 and Projects as tier 3 via the
     /// `upsertContext(_:)` overloads — without this, the inline tier pickers
-    /// (`IndexQuery.entitiesByTarget(.contextTier(2/3))`) never see Topics/Projects
+    /// (`IndexQuery.entitiesByContextTarget(.contextTier(2/3))`) never see Topics/Projects
     /// created or edited since the last full IndexBuilder rebuild.
     var indexUpdater: IndexUpdater?
 

@@ -6,7 +6,7 @@
 //  twin runtime bug observed on a clean build:
 //
 //    (1) the inline tier picker shows NO Contexts —
-//        `IndexQuery.entitiesByTarget(.contextTier(N))` returns empty even
+//        `IndexQuery.entitiesByContextTarget(.contextTier(N))` returns empty even
 //        though the user has Spaces/Topics;
 //    (2) "SQLite error 19: FOREIGN KEY constraint failed - while executing
 //        INSERT OR REPLACE INTO pages" when disclosing a Collection group.
@@ -124,10 +124,10 @@ struct IndexPopulationReproTests {
         await topicManager.loadAll()
 
         // --- ASSERT: tier pickers see the Space + Topic. ---
-        let tier1 = try await IndexQuery(index).entitiesByTarget(.contextTier(1))
+        let tier1 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(1))
         #expect(tier1.contains { $0.id == spaceID })
 
-        let tier2 = try await IndexQuery(index).entitiesByTarget(.contextTier(2))
+        let tier2 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(2))
         #expect(tier2.contains { $0.id == topicID })
 
         // --- ASSERT: writing a real user property on the loaded Page does not
@@ -300,7 +300,7 @@ struct IndexPopulationReproTests {
         // --- ASSERT: the malformed Topic was skipped in-memory AND the tier-2
         // picker surfaces no Topics (reproducing the empty picker). ---
         #expect(topicManager.topics.isEmpty)
-        let tier2 = try await IndexQuery(index).entitiesByTarget(.contextTier(2))
+        let tier2 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(2))
         #expect(tier2.isEmpty)
     }
 }

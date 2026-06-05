@@ -60,9 +60,9 @@ struct IconBackfillTests {
         #expect(resolved[spaceID]?.title == "Personal")
         #expect(resolved[pageID]?.icon == "doc.text")
 
-        // --- Tier link emitted into `relations` (page --tier1--> space), via the
+        // --- Tier link emitted into `context_links` (page --tier1--> space), via the
         // tested reverse-lookup query rather than raw SQL. ---
-        let incoming = try await IndexQuery(idx).incomingRelations(targetID: spaceID)
+        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: spaceID)
         #expect(incoming.contains { $0.id == pageID })
     }
 }

@@ -7,7 +7,7 @@ import Testing
 // MARK: - Suite
 
 /// Tier values (`tier1`/`tier2`/`tier3`) must be emitted into the `context_links`
-/// table so the reverse-view query `IndexQuery.incomingRelations(targetID:)`
+/// table so the reverse-view query `IndexQuery.incomingContextLinks(targetID:)`
 /// (which reads `context_links`) surfaces tier-based links to a Context. Covers both
 /// index paths: `IndexUpdater` (incremental upsert) and `IndexBuilder` (full rebuild).
 ///
@@ -105,8 +105,8 @@ struct TierRelationsEmitTests {
         let count = try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx)
         #expect(count == 1)
 
-        // incomingRelations (reverse view over `relations`) finds the page.
-        let incoming = try await IndexQuery(idx).incomingRelations(targetID: contextID)
+        // incomingContextLinks (reverse view over `context_links`) finds the page.
+        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: contextID)
         #expect(incoming.contains { $0.id == pageID })
 
         // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "space").
@@ -145,9 +145,9 @@ struct TierRelationsEmitTests {
         #expect(try tierRelationCount(targetID: topicID, propertyID: ReservedPropertyID.tier2, db: idx) == 1)
         #expect(try tierRelationCount(targetID: projectID, propertyID: ReservedPropertyID.tier3, db: idx) == 1)
 
-        let incomingTopic = try await IndexQuery(idx).incomingRelations(targetID: topicID)
+        let incomingTopic = try await IndexQuery(idx).incomingContextLinks(targetID: topicID)
         #expect(incomingTopic.contains { $0.id == item.id })
-        let incomingProject = try await IndexQuery(idx).incomingRelations(targetID: projectID)
+        let incomingProject = try await IndexQuery(idx).incomingContextLinks(targetID: projectID)
         #expect(incomingProject.contains { $0.id == item.id })
     }
 
@@ -167,8 +167,8 @@ struct TierRelationsEmitTests {
         let count = try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx)
         #expect(count == 1)
 
-        // incomingRelations (reverse view over `relations`) finds the task.
-        let incoming = try await IndexQuery(idx).incomingRelations(targetID: contextID)
+        // incomingContextLinks (reverse view over `context_links`) finds the task.
+        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: contextID)
         #expect(incoming.contains { $0.id == task.id })
 
         // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "space").
@@ -360,7 +360,7 @@ struct TierRelationsEmitTests {
 
         #expect(try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx) == 1)
 
-        let incoming = try await IndexQuery(idx).incomingRelations(targetID: contextID)
+        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: contextID)
         #expect(incoming.contains { $0.id == pageID })
     }
 }

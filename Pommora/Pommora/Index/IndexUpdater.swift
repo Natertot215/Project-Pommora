@@ -120,7 +120,7 @@ struct IndexUpdater: Sendable {
                         meta.id, pageTypeID, collectionID, meta.title, meta.frontmatter.icon, propsJSON, modifiedAt,
                     ]
                 )
-                try reconcileRelations(
+                try reconcileContextLinks(
                     db: db,
                     sourceID: meta.id,
                     sourceKind: "page",
@@ -225,7 +225,7 @@ struct IndexUpdater: Sendable {
                         item.title, item.icon, item.description, propsJSON, iso(item.modifiedAt),
                     ]
                 )
-                try reconcileRelations(
+                try reconcileContextLinks(
                     db: db,
                     sourceID: item.id,
                     sourceKind: "item",
@@ -280,7 +280,7 @@ struct IndexUpdater: Sendable {
                     propsJSON, iso(task.modifiedAt),
                 ]
             )
-            try reconcileRelations(
+            try reconcileContextLinks(
                 db: db,
                 sourceID: task.id,
                 sourceKind: "agenda_task",
@@ -316,7 +316,7 @@ struct IndexUpdater: Sendable {
                     propsJSON, iso(event.modifiedAt),
                 ]
             )
-            try reconcileRelations(
+            try reconcileContextLinks(
                 db: db,
                 sourceID: event.id,
                 sourceKind: "agenda_event",
@@ -422,16 +422,16 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    // MARK: - Private: relation + tier-link reconciliation
+    // MARK: - Private: context-link + tier-link reconciliation
 
     /// Extracts all `.relation([ids])` values from `properties` and re-indexes them
     /// in the `context_links` table for `sourceID` (one row per target id). Clears existing rows first —
     /// ensures removed relation values are cleaned up cleanly. Tier values
     /// (`tier1`/`tier2`/`tier3`) are mirrored into the same `context_links` table here —
     /// after the DELETE, so the new rows survive — letting the reverse-view query
-    /// (`IndexQuery.incomingRelations`, which reads `context_links`) surface tier-based
+    /// (`IndexQuery.incomingContextLinks`, which reads `context_links`) surface tier-based
     /// links to a Context.
-    private func reconcileRelations(
+    private func reconcileContextLinks(
         db: Database,
         sourceID: String,
         sourceKind: String,

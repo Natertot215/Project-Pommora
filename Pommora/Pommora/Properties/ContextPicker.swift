@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Scope-aware context-link value picker — a chromeless liquid-glass dropdown styled
-/// like a native macOS menu. Data-driven via `IndexQuery.entitiesByTargetGrouped`:
+/// like a native macOS menu. Data-driven via `IndexQuery.entitiesByContextTargetGrouped`:
 /// `.pageType` / `.itemType` scopes show Collection/Set rows that pop out a member
 /// panel to the side (macOS-submenu style) with loose pages/items below an inset
 /// divider; every other scope (tiers, agenda) renders a flat list (no submenu).
@@ -145,7 +145,7 @@ struct ContextPicker: View {
         guard let idx = index else { return }
         isLoading = true
         do {
-            grouped = try await IndexQuery(idx).entitiesByTargetGrouped(scope)
+            grouped = try await IndexQuery(idx).entitiesByContextTargetGrouped(scope)
         } catch {
             grouped = .init(groups: [], rootEntities: [])
         }

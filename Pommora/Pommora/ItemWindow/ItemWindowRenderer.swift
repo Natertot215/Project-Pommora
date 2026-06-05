@@ -190,7 +190,7 @@ struct ItemWindowRenderer: View {
                     coverSlot
                     mainRegion
                     overflowSurface
-                    relationsRegion
+                    contextLinksRegion
                     metaRegion
                 } else {
                     // LIVE window — a clean display-only stub: icon + title + body
@@ -488,7 +488,7 @@ struct ItemWindowRenderer: View {
     /// Tier relations always render here in the non-inspector layouts. In
     /// inspector mode tiers were promoted into the inspector overflow above, so
     /// this region only carries the user RELATION properties to avoid a double.
-    private var relationsRegion: some View {
+    private var contextLinksRegion: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
             Text("Relations")
                 .font(.caption)

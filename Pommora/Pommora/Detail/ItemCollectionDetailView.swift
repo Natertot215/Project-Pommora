@@ -102,7 +102,7 @@ struct ItemCollectionDetailView: View {
 
     /// Relation + tier target IDs across every visible Item row — drives the
     /// resolver warm so cells render icon + title instead of "(missing)".
-    private var visibleRelationIDs: [String] {
+    private var visibleContextLinkIDs: [String] {
         let relationColumns = userPropertyColumns.filter { $0.type == .relation }
         return rows.flatMap { row -> [String] in
             guard case .item(let item) = row.kind else { return [] }
@@ -178,8 +178,8 @@ struct ItemCollectionDetailView: View {
                 handleDrop(payloads: payloads, toOffset: offset)
             }
         }
-        .task(id: visibleRelationIDs) {
-            await contextDisplay.warm(visibleRelationIDs)
+        .task(id: visibleContextLinkIDs) {
+            await contextDisplay.warm(visibleContextLinkIDs)
         }
     }
 
