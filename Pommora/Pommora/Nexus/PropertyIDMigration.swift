@@ -447,9 +447,10 @@ enum PropertyIDMigration {
     }
 
     /// Removes entries from `properties` whose value is a relation shape
-    /// (`.relation([...])`) AND whose key is absent from `validIDs`. Used during
-    /// the migration member-walk to clear orphaned user-relation values left behind
-    /// by retired property definitions. Only operates on the modeled `properties`
+    /// (`.relation([...])`) AND whose key is absent from `validIDs` (the migrating
+    /// Type's own current property IDs). Used during the migration member-walk to
+    /// clear orphaned user-relation values left behind by retired property definitions.
+    /// Only operates on the modeled `properties`
     /// dict — root-level tier arrays (`tier1`/`tier2`/`tier3`) are never in this
     /// dict and are therefore never touched.
     /// Returns `true` iff any entry was removed.

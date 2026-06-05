@@ -1,8 +1,8 @@
 import Foundation
 
-/// Single source of truth for the `relations.target_kind` string written when a
+/// Single source of truth for the `context_links.target_kind` string written when a
 /// relation row is indexed. Maps a property's `RelationTarget` to the coarse
-/// entity-kind string the `relations` table stores (`space` / `topic` / `project`).
+/// entity-kind string the `context_links` table stores (`space` / `topic` / `project`).
 ///
 /// Used by `IndexBuilder` (full rebuild) and `IndexUpdater` (incremental upsert)
 /// so both paths derive `target_kind` identically.

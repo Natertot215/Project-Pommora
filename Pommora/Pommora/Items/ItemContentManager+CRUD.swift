@@ -688,7 +688,7 @@ extension ItemContentManager {
     /// index (no in-hand URL), loaded, mutated through the `setRelationIDs`
     /// adapter (tiers route to the Item root, NOT `properties["_tierN"]`),
     /// atomically rewritten, its in-memory cache entry refreshed if loaded, and
-    /// re-indexed so the stale `relations` rows reconcile away.
+    /// re-indexed so the stale `context_links` rows reconcile away.
     ///
     /// Resilient per-entity: an Item that can't be located or loaded is skipped
     /// (the first failure is recorded on `pendingError`) so one bad file never

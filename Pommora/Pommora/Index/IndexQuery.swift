@@ -34,7 +34,7 @@ struct IndexQuery: Sendable {
     /// grouped paths are retired.
     func entitiesByContextTargetGrouped(_ target: PropertyDefinition.RelationTarget) async throws -> GroupedEntities {
         switch target {
-        default:
+        case .contextTier:
             return GroupedEntities(groups: [], rootEntities: try await entitiesByContextTarget(target))
         }
     }
@@ -338,7 +338,7 @@ struct IndexQuery: Sendable {
             for kindStr in distinctKinds {
                 guard let joinTable = kindTableMap[kindStr] else { continue }
                 let sql = """
-                    SELECT r.id AS relation_id,
+                    SELECT r.id AS context_link_id,
                            r.source_id,
                            r.source_kind,
                            r.target_id,
@@ -355,7 +355,7 @@ struct IndexQuery: Sendable {
                     let tkStr: String = row["target_kind"]
                     reports.append(
                         BrokenLinkReport(
-                            relationID: row["relation_id"],
+                            relationID: row["context_link_id"],
                             sourceID: row["source_id"],
                             sourceKind: kindFromString(skStr),
                             targetID: row["target_id"],

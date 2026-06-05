@@ -81,7 +81,7 @@ struct SidebarView: View {
                 let derivedTag = SelectionTag(selection)
                 if derivedTag != selectedTag { selectedTag = derivedTag }
             }
-            .background(NSTableSelectionStyleSuppressor()) // Nathan's Note: This is what prevents the double-accent fill and allows for the finder-like quartenary opacity.
+            .background(NSTableSelectionStyleSuppressor())  // Nathan's Note: This is what prevents the double-accent fill and allows for the finder-like quartenary opacity.
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
@@ -238,7 +238,7 @@ struct SidebarView: View {
 
     /// Removes a Context's ID from every referencing entity's tier array across all
     /// four content kinds, BEFORE the Context file is deleted (the unlink queries the
-    /// SQLite `relations` index, so the refs must still resolve at call time).
+    /// SQLite `context_links` index, so the refs must still resolve at call time).
     /// Best-effort per manager — one failure must not block the others or the delete.
     private func cascadeUnlinkTier(contextID: String, tier: Int) async {
         guard let index = nexusManager.currentIndex else { return }  // degraded mode: skip cascade
