@@ -157,6 +157,7 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM pages WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [id])
         }
     }
 
@@ -260,6 +261,7 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM items WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [id])
         }
     }
 
@@ -527,6 +529,25 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: "UPDATE connections SET target_id = NULL, resolved = 0, modified_at = ? WHERE target_id = ?",
                 arguments: [nowISO(), targetID])
+        }
+    }
+
+    /// After a delete, if the deleted title now has exactly ONE holder, activate
+    /// that survivor's inbound phantoms (spec: activation is automatic the moment a
+    /// matching entity exists — resolves a previously-ambiguous adopted duplicate).
+    func reactivateIfNowUnique(targetKind: String, title: String) throws {
+        let key = ConnectionTitle.normalize(title)
+        try index.dbQueue.write { db in
+            let table = targetKind == "page" ? "pages" : "items"
+            let ids = try String.fetchAll(
+                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [key])
+            guard ids.count == 1 else { return }
+            try db.execute(
+                sql: """
+                    UPDATE connections SET target_id = ?, resolved = 1, modified_at = ?
+                    WHERE target_kind = ? AND target_title = ? AND target_id IS NULL
+                    """,
+                arguments: [ids[0], nowISO(), targetKind, key])
         }
     }
 

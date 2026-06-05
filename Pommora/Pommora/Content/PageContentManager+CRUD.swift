@@ -80,6 +80,9 @@ extension PageContentManager {
                 do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
                     self.pendingError = error
                 }
+                do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -147,6 +150,10 @@ extension PageContentManager {
             try Filesystem.moveToTrash(page.url, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
+                do { try updater.deactivateConnections(targetID: page.id) } catch { self.pendingError = error }
+                do { try updater.reactivateIfNowUnique(targetKind: "page", title: page.title) } catch {
+                    self.pendingError = error
+                }
             }
             var arr = pagesByCollection[collection.id] ?? []
             arr.removeAll { $0.id == page.id }
@@ -188,6 +195,12 @@ extension PageContentManager {
 
             if let updater = indexUpdater {
                 do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
+                    self.pendingError = error
+                }
+                do {
+                    try updater.reconcileConnections(
+                        sourceID: page.id, sourceKind: "page", sourceTitle: page.title, body: body)
+                } catch {
                     self.pendingError = error
                 }
             }
@@ -236,6 +249,9 @@ extension PageContentManager {
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
             if let updater = indexUpdater {
                 do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: nil) } catch {
+                    self.pendingError = error
+                }
+                do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
                     self.pendingError = error
                 }
             }
@@ -303,6 +319,10 @@ extension PageContentManager {
             try Filesystem.moveToTrash(page.url, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
+                do { try updater.deactivateConnections(targetID: page.id) } catch { self.pendingError = error }
+                do { try updater.reactivateIfNowUnique(targetKind: "page", title: page.title) } catch {
+                    self.pendingError = error
+                }
             }
             var arr = pagesByTypeRoot[vault.id] ?? []
             arr.removeAll { $0.id == page.id }
@@ -343,6 +363,12 @@ extension PageContentManager {
 
             if let updater = indexUpdater {
                 do { try updater.upsertPage(page, pageTypeID: vault.id, pageCollectionID: nil) } catch {
+                    self.pendingError = error
+                }
+                do {
+                    try updater.reconcileConnections(
+                        sourceID: page.id, sourceKind: "page", sourceTitle: page.title, body: body)
+                } catch {
                     self.pendingError = error
                 }
             }

@@ -100,6 +100,9 @@ extension ItemContentManager {
                 do { try updater.upsertItem(item, itemTypeID: itemType.id, itemCollectionID: collection.id) } catch {
                     self.pendingError = error
                 }
+                do { try updater.activateConnections(targetID: item.id, targetKind: "item", targetTitle: trimmed) } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -190,6 +193,13 @@ extension ItemContentManager {
                 do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: collection.id) } catch {
                     self.pendingError = error
                 }
+                do {
+                    try updater.reconcileConnections(
+                        sourceID: updated.id, sourceKind: "item",
+                        sourceTitle: updated.title, body: updated.description)
+                } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -209,6 +219,10 @@ extension ItemContentManager {
             try Filesystem.moveToTrash(url, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deleteItem(id: item.id) } catch { self.pendingError = error }
+                do { try updater.deactivateConnections(targetID: item.id) } catch { self.pendingError = error }
+                do { try updater.reactivateIfNowUnique(targetKind: "item", title: item.title) } catch {
+                    self.pendingError = error
+                }
             }
             var arr = itemsByCollection[collection.id] ?? []
             arr.removeAll { $0.id == item.id }
@@ -247,6 +261,9 @@ extension ItemContentManager {
 
             if let updater = indexUpdater {
                 do { try updater.upsertItem(item, itemTypeID: itemType.id, itemCollectionID: nil) } catch {
+                    self.pendingError = error
+                }
+                do { try updater.activateConnections(targetID: item.id, targetKind: "item", targetTitle: trimmed) } catch {
                     self.pendingError = error
                 }
             }
@@ -335,6 +352,13 @@ extension ItemContentManager {
                 do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: nil) } catch {
                     self.pendingError = error
                 }
+                do {
+                    try updater.reconcileConnections(
+                        sourceID: updated.id, sourceKind: "item",
+                        sourceTitle: updated.title, body: updated.description)
+                } catch {
+                    self.pendingError = error
+                }
             }
 
             var arr = existing
@@ -391,6 +415,10 @@ extension ItemContentManager {
             try Filesystem.moveToTrash(url, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deleteItem(id: item.id) } catch { self.pendingError = error }
+                do { try updater.deactivateConnections(targetID: item.id) } catch { self.pendingError = error }
+                do { try updater.reactivateIfNowUnique(targetKind: "item", title: item.title) } catch {
+                    self.pendingError = error
+                }
             }
             var arr = itemsByTypeRoot[itemType.id] ?? []
             arr.removeAll { $0.id == item.id }
