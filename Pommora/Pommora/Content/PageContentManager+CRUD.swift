@@ -427,18 +427,15 @@ extension PageContentManager {
         }
     }
 
-    // MARK: - Move (cross-Type, with property strip + paired-relation back-ref clear)
+    // MARK: - Move (cross-Type, with property strip)
 
     /// Moves `page` from one PageType (and optional PageCollection) to a different
     /// PageType (and optional PageCollection). Performs:
     ///
     /// 1. **Strip:** property values whose property NAMES don't exist on
     ///    `destination` are removed from the page's frontmatter.
-    /// 2. **Paired-relation back-ref clear:** for each relation property with a
-    ///    `dualProperty` config that is being stripped (or that points to a
-    ///    different Type), the reverse entries on target entities are cleared.
-    /// 3. **Atomic commit:** all writes (page rewrite + back-ref clears) go through
-    ///    a single `SchemaTransaction`. Any failure rolls the entire set back.
+    /// 2. **Atomic commit:** all writes go through a single `SchemaTransaction`.
+    ///    Any failure rolls the entire set back.
     ///
     /// If `source.id == destination.id`, callers should use
     /// `movePageBetweenCollections` instead (this method enforces the distinction).
@@ -488,35 +485,13 @@ extension PageContentManager {
             )
             tx.stage(payload: pagePayload, to: destURL)
 
-            // 6. Stage paired-relation back-ref clears for every relation property
-            //    that is being stripped and has a dualProperty config.
-            for def in strippedDefs where def.type == .relation {
-                guard let dual = def.dualProperty else { continue }
-                // The reverse property lives on the target Type (page type or item type).
-                // Pull the current value from the page's frontmatter (pre-strip).
-                guard let value = pageFile.frontmatter.properties[def.id] else { continue }
-                // Relation values: `.relation([id,...])` or legacy `.multiSelect([id,...])`.
-                let targetIDs = Self.extractRelationIDs(from: value)
-                guard !targetIDs.isEmpty else { continue }
-
-                // Clear this page's id from each target's reverse property.
-                try Self.stageBackRefClear(
-                    sourcePageID: page.id,
-                    reversePropertyID: dual.syncedPropertyID,
-                    onTypeID: dual.syncedPropertyDefinedOnTypeID,
-                    targetEntityIDs: targetIDs,
-                    tx: tx,
-                    nexus: nexus
-                )
-            }
-
-            // 7. Commit the whole batch atomically.
+            // 6. Commit the whole batch atomically.
             try tx.commit()
 
-            // 8. Remove the source file (SchemaTransaction only writes new files).
+            // 7. Remove the source file (SchemaTransaction only writes new files).
             try Filesystem.deleteFile(at: page.url)
 
-            // 9. Update index.
+            // 8. Update index.
             var updated = page
             updated.url = destURL
             updated.frontmatter = updatedFrontmatter
@@ -532,7 +507,7 @@ extension PageContentManager {
                 }
             }
 
-            // 10. Update in-memory caches — remove from source bucket, add to destination.
+            // 9. Update in-memory caches — remove from source bucket, add to destination.
             if let srcColl = fromCollection {
                 var arr = pagesByCollection[srcColl.id] ?? []
                 arr.removeAll { $0.id == page.id }
@@ -565,128 +540,6 @@ extension PageContentManager {
         } catch {
             self.pendingError = error
             throw error
-        }
-    }
-
-    // MARK: - Private move helpers
-
-    /// Extracts target entity IDs from a relation property value.
-    /// Handles `.relation([ids])` and legacy `.multiSelect([ids])` (bare-array relations
-    /// stored before the always-multi migration still decode as multiSelect).
-    private static func extractRelationIDs(from value: PropertyValue) -> [String] {
-        switch value {
-        case .relation(let ids): return ids
-        case .multiSelect(let ids): return ids
-        default: return []
-        }
-    }
-
-    /// Stages back-ref clears on files owned by the Type identified by `onTypeID`.
-    /// Walks every `.md` (PageType) or `.json` (ItemType) file under that type's
-    /// folder and removes `sourcePageID` from the `reversePropertyID` value on
-    /// any file whose id appears in `targetEntityIDs`.
-    ///
-    /// The type is identified purely by folder walk — we don't need a live manager
-    /// reference because we're staging filesystem ops, not mutating in-memory state.
-    private static func stageBackRefClear(
-        sourcePageID: String,
-        reversePropertyID: String,
-        onTypeID: String,
-        targetEntityIDs: [String],
-        tx: SchemaTransaction,
-        nexus: Nexus
-    ) throws {
-        let targetSet = Set(targetEntityIDs)
-
-        // Walk all PageType folders looking for the matching type (by sidecar id).
-        let nexusRoot = nexus.rootURL
-        let allDirs =
-            (try? FileManager.default.contentsOfDirectory(
-                at: nexusRoot,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: [.skipsHiddenFiles]
-            )) ?? []
-
-        for dir in allDirs {
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir),
-                isDir.boolValue
-            else { continue }
-
-            // Check for PageType sidecar.
-            let ptSidecar = dir.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-            if FileManager.default.fileExists(atPath: ptSidecar.path) {
-                if let pt = try? AtomicJSON.decode(PageType.self, from: ptSidecar),
-                    pt.id == onTypeID
-                {
-                    // Found the target PageType folder — walk .md files.
-                    let mdFiles =
-                        (try? Filesystem.descendantFiles(
-                            of: dir,
-                            where: { $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_") }
-                        )) ?? []
-                    for mdURL in mdFiles {
-                        var (fm, body) = try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: mdURL)
-                        guard targetSet.contains(fm.id),
-                            let val = fm.properties[reversePropertyID]
-                        else { continue }
-                        let cleared = removeID(sourcePageID, from: val)
-                        fm.properties[reversePropertyID] = cleared
-                        let data = try AtomicYAMLMarkdown.encode(
-                            frontmatter: fm, body: body,
-                            preservingFrom: mdURL, modeledKeys: PageFrontmatter.modeledKeys)
-                        tx.stage(payload: data, to: mdURL)
-                    }
-                    return
-                }
-            }
-
-            // Check for ItemType sidecar.
-            let itSidecar = dir.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-            if FileManager.default.fileExists(atPath: itSidecar.path) {
-                if let it = try? AtomicJSON.decode(ItemType.self, from: itSidecar),
-                    it.id == onTypeID
-                {
-                    // Found the target ItemType folder — walk .md item files.
-                    let itemFiles =
-                        (try? Filesystem.descendantFiles(
-                            of: dir,
-                            where: {
-                                $0.pathExtension == "md" && !$0.lastPathComponent.hasPrefix("_")
-                            }
-                        )) ?? []
-                    for itemURL in itemFiles {
-                        var item = try Item.load(from: itemURL)
-                        guard targetSet.contains(item.id),
-                            let val = item.properties[reversePropertyID]
-                        else { continue }
-                        let cleared = removeID(sourcePageID, from: val)
-                        item.properties[reversePropertyID] = cleared
-                        let data = try AtomicYAMLMarkdown.encode(
-                            frontmatter: item.frontmatter, body: item.description,
-                            preservingFrom: itemURL, modeledKeys: ItemFrontmatter.modeledKeys)
-                        tx.stage(payload: data, to: itemURL)
-                    }
-                    return
-                }
-            }
-        }
-    }
-
-    /// Removes `idToRemove` from a relation property value.
-    /// - `.relation([ids])` → `.relation` with the id filtered out (nil if empty)
-    /// - `.multiSelect([ids])` → `.multiSelect` with the id filtered out (nil if empty)
-    /// - Other cases → value unchanged
-    private static func removeID(_ idToRemove: String, from value: PropertyValue) -> PropertyValue? {
-        switch value {
-        case .relation(let ids):
-            let filtered = ids.filter { $0 != idToRemove }
-            return filtered.isEmpty ? .null : .relation(filtered)
-        case .multiSelect(let ids):
-            let filtered = ids.filter { $0 != idToRemove }
-            return filtered.isEmpty ? .null : .multiSelect(filtered)
-        default:
-            return value
         }
     }
 
