@@ -180,7 +180,7 @@ struct PropertyVisibilityPane: View {
     /// Visible-in-pane properties: user-defined + the three tier relations +
     /// `_modified_at` (kept as the locked-always-visible default sort
     /// criterion). The remaining reserved IDs (`_id`, `_created_at`,
-    /// `_status`, `_wikilinks`) are filtered out — visibility is meaningless
+    /// `_status`) are filtered out — visibility is meaningless
     /// for system-managed columns. Tier columns are surfaced via
     /// `resolvedProperties` (the schema doesn't store them; they're merged in)
     /// so users can hide/show them like any other column.

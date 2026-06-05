@@ -98,7 +98,6 @@ struct PropertiesPulldownTests {
             makeDef(id: "prop_user", name: "Custom", type: .number),
             makeDef(id: "_status", name: "Status", type: .status),
             makeDef(id: "_tier1", name: "Tier 1", type: .relation),
-            makeDef(id: "_wikilinks", name: "Links", type: .relation),
             makeDef(id: "prop_last_edited", name: "Last Edited", type: .lastEditedTime),
         ]
         let vm = makeVM(schema: schema, values: [:])
@@ -111,7 +110,6 @@ struct PropertiesPulldownTests {
         // Reserved IDs excluded
         #expect(addable.first(where: { $0.id == "_status" }) == nil)
         #expect(addable.first(where: { $0.id == "_tier1" }) == nil)
-        #expect(addable.first(where: { $0.id == "_wikilinks" }) == nil)
         // lastEditedTime excluded (L15)
         #expect(addable.first(where: { $0.type == .lastEditedTime }) == nil)
     }

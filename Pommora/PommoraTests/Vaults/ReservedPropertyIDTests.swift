@@ -8,10 +8,14 @@ import Testing
             "_id", "_created_at", "_modified_at",
             "_status",
             "_tier1", "_tier2", "_tier3",
-            "_wikilinks",
         ] {
             #expect(ReservedPropertyID.isReserved(reserved))
         }
+    }
+
+    @Test func wikilinksIDIsRetired() {
+        #expect(ReservedPropertyID.isReserved("_wikilinks") == false)
+        #expect(ReservedPropertyID.all.contains("_wikilinks") == false)
     }
 
     @Test func userPropertyIDsAreNotReserved() {
@@ -47,7 +51,6 @@ import Testing
         #expect(ReservedPropertyID.tier1      == "_tier1")
         #expect(ReservedPropertyID.tier2      == "_tier2")
         #expect(ReservedPropertyID.tier3      == "_tier3")
-        #expect(ReservedPropertyID.wikilinks  == "_wikilinks")
     }
 
     @Test func tierConstantsAreReserved() {

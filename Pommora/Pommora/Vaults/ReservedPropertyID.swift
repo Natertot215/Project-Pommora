@@ -21,7 +21,6 @@ enum ReservedPropertyID {
     nonisolated static let tier1       = "_tier1"
     nonisolated static let tier2       = "_tier2"
     nonisolated static let tier3       = "_tier3"
-    nonisolated static let wikilinks   = "_wikilinks"
 
     // MARK: - Catalog
 
@@ -31,7 +30,6 @@ enum ReservedPropertyID {
         status,
         type,
         tier1, tier2, tier3,
-        wikilinks,
     ]
 
     // MARK: - Helpers
