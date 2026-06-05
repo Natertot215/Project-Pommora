@@ -2,14 +2,13 @@
 //  MemberFileStripResilienceTests.swift
 //  PommoraTests
 //
-//  Task 8 / Bug A — the member-file value-strip (paired-relation delete,
-//  property delete, change-type) must TOLERATE a member file it can't decode.
-//  Pre-fix every strip site did a hard `try load(...)` / `decode(...)` per member;
-//  a hand-authored frontmatter-less `.md` decodes to `{}`, and
-//  `PageFrontmatter.init(from:)` requires `id`, so it throws
-//  `DecodingError.keyNotFound(.id)` — surfaced as the "The data couldn't be read
-//  because it is missing." toast and aborted the whole schema mutation (leaving an
-//  orphaned half-pair). The fix routes every strip site through
+//  Task 8 / Bug A — the member-file value-strip (property delete, change-type)
+//  must TOLERATE a member file it can't decode. Pre-fix every strip site did a
+//  hard `try load(...)` / `decode(...)` per member; a hand-authored
+//  frontmatter-less `.md` decodes to `{}`, and `PageFrontmatter.init(from:)`
+//  requires `id`, so it throws `DecodingError.keyNotFound(.id)` — surfaced as
+//  the "The data couldn't be read because it is missing." toast and aborted the
+//  whole schema mutation. The fix routes every strip site through
 //  `MemberFileStrip.forEach`, which skips + logs an unreadable member: a file we
 //  can't read can't be carrying the property value, so skipping is lossless (the
 //  canonical schema-sidecar strip is staged separately).

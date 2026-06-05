@@ -18,15 +18,6 @@ final class PageTypeManager {
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     var indexUpdater: IndexUpdater?
 
-    /// Cross-manager in-memory refresh hook. Injected in `ContentView.constructManagers`
-    /// (snapshot-closure pattern, quirk #5). Given any Type ID, the closure finds the
-    /// owning manager (PageTypeManager / ItemTypeManager / Agenda) and reloads that type
-    /// from disk into its in-memory `types`. Paired-relation create/delete call it for the
-    /// CROSS-side target (which lives in the OTHER manager) so the reverse property
-    /// appears/disappears immediately instead of only after restart. Same-manager targets
-    /// are reloaded inline and never routed here. Nil until wired.
-    var reloadTypeByID: (@MainActor (String) -> Void)?
-
     /// Backing store for the lazily-constructed `schemaAdapter` (declared in the
     /// per-type schema-adapter extension). Held here because stored properties can't
     /// live on an extension. Not observed — purely an internal service bridge.
@@ -44,9 +35,7 @@ final class PageTypeManager {
     /// No-op if the ID isn't one of this manager's types (the cross-manager router
     /// only dispatches IDs it has already matched to this manager). Best-effort: a
     /// load failure leaves the stale in-memory copy in place (disk is canonical; a
-    /// later loadAll converges). Used by the cross-manager `reloadTypeByID` hook so a
-    /// paired-relation reverse created/deleted by the OTHER manager surfaces here
-    /// without a restart.
+    /// later loadAll converges).
     func reloadTypeFromDisk(id: String) {
         guard let i = types.firstIndex(where: { $0.id == id }) else { return }
         let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
@@ -530,109 +519,8 @@ extension PageTypeManager {
     /// a new user-property ID (`prop_<ulid>`) is minted. Validates against existing
     /// properties via `PropertyDefinitionValidator`. Schema-only write (member files
     /// are not touched — identity is stored by ID).
-    ///
-    /// **Paired relations** (`definition.type == .relation && definition.dualProperty != nil`):
-    /// Routed through `DualRelationCoordinator.createPairedRelation` which writes both
-    /// Type sidecars atomically. The authoritative target kind+id is `definition.relationTarget`;
-    /// the target `TypeKind` is resolved from it: same-side PageType from in-memory `types`,
-    /// cross-side ItemType + Agenda singletons from disk. `definition.reverseName` carries the
-    /// reverse property display name (caller convention at add-time); the coordinator mints the
-    /// reverse property and writes its ID into `dualProperty.syncedPropertyID` after creation.
-    /// Collection / context-tier targets reject dual pairing.
     func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
         do { try PerTypeSchemaService.addProperty(definition, in: typeID, on: schemaAdapter) } catch {
-            self.pendingError = error
-            throw error
-        }
-    }
-
-    /// Resolves a paired-relation's target `DualRelationCoordinator.TypeKind` from
-    /// its `RelationTarget`. Same-side PageType reads in-memory `types`; cross-side
-    /// ItemType + Agenda singletons load from disk (they live outside this manager).
-    /// Collection / context-tier targets never carry a `dualProperty` in practice —
-    /// they throw here (context-tier is additionally rejected inside the coordinator).
-    private func resolveDualTargetKind(
-        for scope: PropertyDefinition.RelationTarget
-    ) throws -> DualRelationCoordinator.TypeKind {
-        switch scope {
-        case .pageType(let id):
-            guard let pt = types.first(where: { $0.id == id }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            return .pageType(pt)
-        case .itemType(let id):
-            guard let it = ItemType.find(id: id, in: nexus) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            return .itemType(it)
-        case .agendaTasks:
-            let schema = try AtomicJSON.decode(
-                AgendaTaskSchema.self, from: NexusPaths.taskSchemaURL(in: nexus))
-            return .agendaTasks(schema)
-        case .agendaEvents:
-            let schema = try AtomicJSON.decode(
-                AgendaEventSchema.self, from: NexusPaths.eventSchemaURL(in: nexus))
-            return .agendaEvents(schema)
-        case .pageCollection, .itemCollection, .contextTier:
-            // Collections are legacy / not user-creatable; context-tier carries no
-            // dualProperty. None reaches a dual-pair create in practice.
-            throw PageTypeManagerError.propertyNotFound
-        }
-    }
-
-    // MARK: - Update paired relation (reverse/mirror side)
-
-    /// Updates ONLY the reverse (mirror) side of a paired relation; the home
-    /// side is edited separately via `renameProperty` / the icon transform. Reads
-    /// the current home name/icon (passed through unchanged) and routes both sides
-    /// through `DualRelationCoordinator.updatePairedRelation` (F3), then reloads
-    /// both Types into memory. Mirror of `addProperty`'s paired branch.
-    func updatePairedRelation(
-        propertyID: String, newReverseName: String, newReverseIcon: String?, in typeID: String
-    ) async throws {
-        do {
-            guard let i = types.firstIndex(where: { $0.id == typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            guard let def = types[i].properties.first(where: { $0.id == propertyID }),
-                def.type == .relation, def.dualProperty != nil,
-                let scope = def.relationTarget
-            else {
-                throw PageTypeManagerError.propertyNotFound
-            }
-            let sourceKind = DualRelationCoordinator.TypeKind.pageType(types[i])
-            let targetKind = try resolveDualTargetKind(for: scope)
-            try DualRelationCoordinator.updatePairedRelation(
-                sourcePropertyID: propertyID,
-                sourceKind: sourceKind,
-                targetKind: targetKind,
-                newHomeName: def.name,
-                newHomeIcon: def.icon,
-                newReverseName: newReverseName,
-                newReverseIcon: newReverseIcon,
-                nexus: nexus
-            )
-            // Reload both sides into memory so live views reflect the atomic sidecar
-            // write. Same-manager target reloads inline; a cross-manager (ItemType)
-            // target routes through the injected hook. No re-index: the reverse
-            // name/icon are display-only and the index is regeneratable (relation
-            // VALUES key on ID), so the in-memory reload keeps every view correct.
-            let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
-            if let reloaded = try? PageType.load(from: meta) {
-                types[i] = reloaded
-            }
-            let targetID = targetKind.typeID
-            if targetID != typeID {
-                if let j = types.firstIndex(where: { $0.id == targetID }) {
-                    let targetMeta = NexusPaths.vaultMetadataURL(forTitle: types[j].title, in: nexus)
-                    if let reloaded = try? PageType.load(from: targetMeta) {
-                        types[j] = reloaded
-                    }
-                } else {
-                    reloadTypeByID?(targetID)
-                }
-            }
-        } catch {
             self.pendingError = error
             throw error
         }
@@ -652,13 +540,6 @@ extension PageTypeManager {
 
     // MARK: - Delete property
 
-    /// Deletes a property from the schema. Atomically removes the schema entry and
-    /// strips the corresponding key from every member Page's frontmatter
-    /// `properties` dictionary via `SchemaTransaction`.
-    ///
-    /// **Paired relations** (`property.dualProperty != nil`): routed through
-    /// `DualRelationCoordinator.deletePair` which cascades the delete to both
-    /// Type sidecars and strips all values from member files on each side.
     // MARK: - Update view (per-container SavedView edit)
 
     /// Apply a transform to a SavedView on a PageType or PageCollection
@@ -719,14 +600,6 @@ extension PageTypeManager {
     /// owning Type's schema. Member Page files are NOT touched (per locked
     /// rule: "add property = schema-only write" — new copies start empty
     /// on every member entity, ready to fill).
-    ///
-    /// Paired-relation duplicates: the dualProperty config is preserved but
-    /// each duplicate is paired anew with the existing target — this is
-    /// effectively "create another relation to the same target Type."
-    /// SchemaTransaction handles the atomic write across both sides.
-    /// At v0.3.1 we keep this case simple — duplicate skips the relation
-    /// dual-pair re-creation and just adds the non-relation fields fresh.
-    /// Relation dup is flagged for v0.3.1.5 follow-up.
     func duplicateProperty(id propertyID: String, in typeID: String) async throws {
         do {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
@@ -739,7 +612,6 @@ extension PageTypeManager {
             var duplicated = types[i].properties[j]
             duplicated.id = ReservedPropertyID.mintUserPropertyID()
             duplicated.name = "\(duplicated.name) (copy)"
-            duplicated.dualProperty = nil  // Defer relation dup re-pairing to v0.3.1.5.
 
             try PropertyDefinitionValidator.validate(
                 duplicated, in: types[i].properties, nexus: NexusContext.forTypeResolution(in: nexus))
@@ -940,40 +812,6 @@ extension PageTypeManager {
             m.types[i] = updated
             stagedType = nil
         }
-
-        // MARK: Paired-relation collaborators
-
-        func typeKind(forTypeID typeID: String) throws -> DualRelationCoordinator.TypeKind {
-            guard let pt = m.types.first(where: { $0.id == typeID }) else {
-                throw PageTypeManagerError.typeNotFound
-            }
-            return .pageType(pt)
-        }
-
-        func reverseRelationTarget(forTypeID typeID: String) -> PropertyDefinition.RelationTarget {
-            .pageType(typeID)
-        }
-
-        func resolveDualTargetKind(
-            for scope: PropertyDefinition.RelationTarget
-        ) throws -> DualRelationCoordinator.TypeKind {
-            try m.resolveDualTargetKind(for: scope)
-        }
-
-        func reloadType(byID typeID: String) {
-            // Same-side (a PageType this manager owns) reloads from disk inline;
-            // cross-manager targets route through the injected `reloadTypeByID?` hook.
-            if let i = m.types.firstIndex(where: { $0.id == typeID }) {
-                let meta = NexusPaths.vaultMetadataURL(forTitle: m.types[i].title, in: m.nexus)
-                if let reloaded = try? PageType.load(from: meta) {
-                    m.types[i] = reloaded
-                }
-            } else {
-                m.reloadTypeByID?(typeID)
-            }
-        }
-
-        var nexusForCoordinator: Nexus { m.nexus }
 
         // MARK: Member files
 

@@ -107,7 +107,7 @@ extension PageType {
     /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectPageTypes`
     /// use (root child folders, skip `.`/`_` prefixes, require `_pagetype.json`).
     /// Returns nil if no folder carries a matching sidecar. Used for cross-side
-    /// paired-relation resolution (ItemTypeManager → PageType target), where the
+    /// relation target resolution (ItemTypeManager → PageType target), where the
     /// target lives outside the calling manager's in-memory `types`.
     static func find(id: String, in nexus: Nexus) -> PageType? {
         let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []

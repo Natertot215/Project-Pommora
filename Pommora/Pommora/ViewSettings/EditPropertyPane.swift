@@ -293,7 +293,7 @@ struct EditPropertyPane: View {
     ///   - Home: the icon + name field at the top of `editBody` (`iconTitleRow`),
     ///     edited via the existing rename/updateProperty path. NOT rendered here.
     ///   - Target: a LOCKED `⇄` + pill showing the resolved target (fixed at
-    ///     creation; no re-pairing). For a tier entry it shows the tier label.
+    ///     creation; target cannot be changed after creation). For a tier entry it shows the tier label.
     ///   - Reverse: tier entries edit `reverseName` / `reverseIcon` live via
     ///     `applyTransform`.
     @ViewBuilder

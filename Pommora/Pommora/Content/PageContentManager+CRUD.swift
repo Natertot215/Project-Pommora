@@ -557,10 +557,6 @@ extension PageContentManager {
     /// Caller passes `collection: nil` for Page-Type-root-scoped pages and
     /// the matching PageCollection otherwise.
     ///
-    /// Dual-relation reverse-mirror via DualRelationCoordinator is deferred
-    /// to v0.3.1.x — basic write path lands now; the reverse-side mirror on
-    /// relation values surfaces when the relation cell editor wires up at
-    /// Task 20 + 21.
     func updatePageProperty(
         _ page: PageMeta,
         propertyID: String,

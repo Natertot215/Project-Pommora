@@ -32,7 +32,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     var reverseName: String? = nil
     /// Reverse-side icon override. Same semantics as reverseName.
     var reverseIcon: String? = nil
-    var dualProperty: DualPropertyConfig?  // relation — paired reverse on target Type
     var accept: [String]?  // file — MIME-type whitelist (e.g. ["application/pdf", "image/*"])
     var displayAs: DisplayVariant?  // status — render variant (nil = .box default)
     var dateFormat: DateFormat?  // date — date-portion display format (nil = .full default)
@@ -50,7 +49,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         relationTarget: RelationTarget? = nil,
         reverseName: String? = nil,
         reverseIcon: String? = nil,
-        dualProperty: DualPropertyConfig? = nil,
         accept: [String]? = nil,
         displayAs: DisplayVariant? = nil,
         dateFormat: DateFormat? = nil,
@@ -67,7 +65,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.relationTarget = relationTarget
         self.reverseName = reverseName
         self.reverseIcon = reverseIcon
-        self.dualProperty = dualProperty
         self.accept = accept
         self.displayAs = displayAs
         self.dateFormat = dateFormat
@@ -153,20 +150,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
                     ]
                 ),
             ]
-        }
-    }
-
-    /// Paired-relation config (per Properties.md § "Dual relations"). Container-scoped
-    /// relations (`page_type` / `item_type` / `page_collection` / `item_collection`) MUST
-    /// carry this; `context_tier` rejects it (Contexts have no `properties[]` schema).
-    /// Both sides' configs reference each other by property ID — rename-safe per L2.
-    struct DualPropertyConfig: Codable, Equatable, Hashable, Sendable {
-        var syncedPropertyID: String  // the reverse property's ID on the target Type
-        var syncedPropertyDefinedOnTypeID: String  // the target Type's ID (never a Collection)
-
-        enum CodingKeys: String, CodingKey {
-            case syncedPropertyID = "synced_property_id"
-            case syncedPropertyDefinedOnTypeID = "synced_property_defined_on_type_id"
         }
     }
 
@@ -272,7 +255,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         case legacyRelationScope = "relation_scope"
         case reverseName = "reverse_name"
         case reverseIcon = "reverse_icon"
-        case dualProperty = "dual_property"
         case accept
         case displayAs = "display_as"
         case dateFormat = "date_format"
@@ -305,7 +287,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         }
         self.reverseName = try c.decodeIfPresent(String.self, forKey: .reverseName)
         self.reverseIcon = try c.decodeIfPresent(String.self, forKey: .reverseIcon)
-        self.dualProperty = try c.decodeIfPresent(DualPropertyConfig.self, forKey: .dualProperty)
         self.accept = try c.decodeIfPresent([String].self, forKey: .accept)
         self.displayAs = try c.decodeIfPresent(DisplayVariant.self, forKey: .displayAs)
         self.dateFormat = try c.decodeIfPresent(DateFormat.self, forKey: .dateFormat)
@@ -326,7 +307,6 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         try c.encodeIfPresent(relationTarget, forKey: .relationTarget)
         try c.encodeIfPresent(reverseName, forKey: .reverseName)
         try c.encodeIfPresent(reverseIcon, forKey: .reverseIcon)
-        try c.encodeIfPresent(dualProperty, forKey: .dualProperty)
         try c.encodeIfPresent(accept, forKey: .accept)
         try c.encodeIfPresent(displayAs, forKey: .displayAs)
         try c.encodeIfPresent(dateFormat, forKey: .dateFormat)

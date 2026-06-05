@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("PropertyDefinition") struct PropertyDefinitionTests {
@@ -42,10 +43,6 @@ import Testing
             selectOptions: nil,
             statusGroups: nil,
             relationTarget: .pageType("01HTARGET"),
-            dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "prop_01HREVERSE",
-                syncedPropertyDefinedOnTypeID: "01HTARGET"
-            ),
             accept: nil
         )
         let data = try JSONEncoder().encode(def)
@@ -60,7 +57,6 @@ import Testing
         // No null-valued optionals in the JSON
         #expect(!s.contains("\"icon\""))
         #expect(!s.contains("\"relation_scope\""))
-        #expect(!s.contains("\"dual_property\""))
         #expect(!s.contains("\"accept\""))
     }
 
@@ -120,26 +116,6 @@ import Testing
         #expect(s.contains(#""value":"blocked""#))
     }
 
-    @Test func dualPropertyConfigSnakeCase() throws {
-        let dual = PropertyDefinition.DualPropertyConfig(
-            syncedPropertyID: "prop_01HCITED",
-            syncedPropertyDefinedOnTypeID: "01HMATERIAL"
-        )
-        let data = try JSONEncoder().encode(dual)
-        let s = String(data: data, encoding: .utf8)!
-        #expect(s.contains(#""synced_property_id":"prop_01HCITED""#))
-        #expect(s.contains(#""synced_property_defined_on_type_id":"01HMATERIAL""#))
-    }
-
-    @Test func dualPropertyConfigRoundTrip() throws {
-        let dual = PropertyDefinition.DualPropertyConfig(
-            syncedPropertyID: "prop_a", syncedPropertyDefinedOnTypeID: "01HT"
-        )
-        let data = try JSONEncoder().encode(dual)
-        let decoded = try JSONDecoder().decode(PropertyDefinition.DualPropertyConfig.self, from: data)
-        #expect(decoded == dual)
-    }
-
     // MARK: - reverseName / reverseIcon (Phase 3)
 
     @Test func reverseFieldsRoundTrip() throws {
@@ -160,13 +136,13 @@ import Testing
     @Test func legacyDecodeWithoutReverseKeys() throws {
         // JSON that has no reverse_name / reverse_icon keys — both must decode to nil.
         let json = """
-        {
-            "id": "_tier1",
-            "name": "Branch",
-            "type": "relation",
-            "relation_scope": {"kind": "context_tier", "tier": 1}
-        }
-        """.data(using: .utf8)!
+            {
+                "id": "_tier1",
+                "name": "Branch",
+                "type": "relation",
+                "relation_scope": {"kind": "context_tier", "tier": 1}
+            }
+            """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: json)
         #expect(decoded.reverseName == nil)
         #expect(decoded.reverseIcon == nil)
@@ -189,14 +165,14 @@ import Testing
         // Old on-disk JSON that still contains "allows_multiple": true must decode
         // without error; the unknown key is simply ignored.
         let json = """
-        {
-            "id": "prop_01HLEGACY",
-            "name": "Related Items",
-            "type": "relation",
-            "relation_scope": {"kind": "item_type", "item_type_id": "t1"},
-            "allows_multiple": true
-        }
-        """.data(using: .utf8)!
+            {
+                "id": "prop_01HLEGACY",
+                "name": "Related Items",
+                "type": "relation",
+                "relation_scope": {"kind": "item_type", "item_type_id": "t1"},
+                "allows_multiple": true
+            }
+            """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: json)
         #expect(decoded.id == "prop_01HLEGACY")
     }
@@ -220,23 +196,23 @@ import Testing
     @Test func decoderAcceptsBothRelationScopeAndRelationTargetKeys() throws {
         // JSON using the legacy "relation_scope" key
         let legacyJSON = """
-        {
-            "id": "prop_01HLEG",
-            "name": "Legacy Rel",
-            "type": "relation",
-            "relation_scope": {"kind": "page_type", "page_type_id": "01HPTYPE"}
-        }
-        """.data(using: .utf8)!
+            {
+                "id": "prop_01HLEG",
+                "name": "Legacy Rel",
+                "type": "relation",
+                "relation_scope": {"kind": "page_type", "page_type_id": "01HPTYPE"}
+            }
+            """.data(using: .utf8)!
 
         // JSON using the new "relation_target" key
         let newJSON = """
-        {
-            "id": "prop_01HNEW",
-            "name": "New Rel",
-            "type": "relation",
-            "relation_target": {"kind": "page_type", "page_type_id": "01HPTYPE"}
-        }
-        """.data(using: .utf8)!
+            {
+                "id": "prop_01HNEW",
+                "name": "New Rel",
+                "type": "relation",
+                "relation_target": {"kind": "page_type", "page_type_id": "01HPTYPE"}
+            }
+            """.data(using: .utf8)!
 
         let decodedLegacy = try JSONDecoder().decode(PropertyDefinition.self, from: legacyJSON)
         let decodedNew = try JSONDecoder().decode(PropertyDefinition.self, from: newJSON)

@@ -147,7 +147,7 @@ extension ItemType {
     /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectItemTypes`
     /// use (root child folders, skip `.`/`_` prefixes, require `_itemtype.json`).
     /// Returns nil if no folder carries a matching sidecar. Used for cross-side
-    /// paired-relation resolution (PageTypeManager → ItemType target), where the
+    /// relation target resolution (PageTypeManager → ItemType target), where the
     /// target lives outside the calling manager's in-memory `types`.
     static func find(id: String, in nexus: Nexus) -> ItemType? {
         let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []

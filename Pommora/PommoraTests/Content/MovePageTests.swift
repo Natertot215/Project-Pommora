@@ -8,7 +8,6 @@ import Testing
 /// Tests cover:
 /// - Same-Type moves (no strip, just file relocation between Collections).
 /// - Cross-Type moves (strip non-shared properties by name, retain shared ones).
-/// - Cross-Type moves with paired-relation back-ref clearing.
 /// - Rollback on mid-transaction failure.
 @MainActor
 @Suite("Move Page")

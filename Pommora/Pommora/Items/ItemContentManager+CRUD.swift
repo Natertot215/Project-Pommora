@@ -598,9 +598,7 @@ extension ItemContentManager {
     /// the in-memory cache + SQLite index.
     ///
     /// Mirror of PageContentManager.updatePageProperty (Task 13). Same
-    /// nil-clears-key semantics. Same deferral of dual-relation reverse-
-    /// mirror (Item ↔ Page relations + Item ↔ Item relations both wire up
-    /// via DualRelationCoordinator in a v0.3.1.x follow-up).
+    /// nil-clears-key semantics.
     ///
     /// Caller passes `collection: nil` for Item-Type-root items.
     func updateItemProperty(

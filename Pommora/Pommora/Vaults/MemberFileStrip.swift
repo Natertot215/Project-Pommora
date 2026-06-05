@@ -3,15 +3,14 @@
 //  Pommora
 //
 //  Resilient iteration for member-file property strips. Schema mutations
-//  (delete-property, change-type, paired-relation delete) rewrite every member
-//  file of a Type to drop a property's value. A hand-authored member that can't be
-//  decoded — e.g. a frontmatter-less `.md` (no `id`, so `PageFrontmatter` decode
-//  throws `keyNotFound(.id)`) or a corrupt `.json` — must NOT abort the whole
-//  mutation. A file we can't read can't be carrying the property value, so skipping
-//  it is lossless (the canonical schema-sidecar strip is staged separately).
+//  (delete-property, change-type) rewrite every member file of a Type to drop a
+//  property's value. A hand-authored member that can't be decoded — e.g. a
+//  frontmatter-less `.md` (no `id`, so `PageFrontmatter` decode throws
+//  `keyNotFound(.id)`) or a corrupt `.json` — must NOT abort the whole mutation.
+//  A file we can't read can't be carrying the property value, so skipping it is
+//  lossless (the canonical schema-sidecar strip is staged separately).
 //
-//  This is the SINGLE source of that guard, shared by
-//  `DualRelationCoordinator.stageValueStrip` and the `PageTypeManager` /
+//  This is the SINGLE source of that guard, shared by the `PageTypeManager` /
 //  `ItemTypeManager` delete-property + change-type loops. The per-Type load / strip /
 //  encode stays inline at each call site (it genuinely differs — YAML+`PageFrontmatter`
 //  vs JSON+`Item`/`AgendaTask`/`AgendaEvent`); only the resilient iteration is hoisted.

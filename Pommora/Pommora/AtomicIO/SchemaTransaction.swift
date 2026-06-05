@@ -13,11 +13,10 @@ enum SchemaTransactionError: Error, Sendable {
 
 /// Atomic multi-file commit primitive for schema mutations that touch >1 file.
 ///
-/// Required for Properties v0.3.0 by paired-relation create/delete (writes both
-/// Type sidecars), schema type-change with value-drop (writes schema sidecar +
-/// every affected member file), ID-rekey migration (writes schema + every
-/// member file per Type), and move-strip (writes source + destination member
-/// files + each side of paired-relation reverse).
+/// Used by schema mutations that touch >1 file: schema type-change with
+/// value-drop (writes schema sidecar + every affected member file), ID-rekey
+/// migration (writes schema + every member file per Type), and move-strip
+/// (writes source + destination member files).
 ///
 /// ## Pattern (two-phase commit)
 ///

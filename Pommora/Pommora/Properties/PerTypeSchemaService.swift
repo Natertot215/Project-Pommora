@@ -20,10 +20,6 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderProperty
 /// singleton adapter by:
 /// - taking a `typeID` on every read/commit (and throwing `errTypeNotFound` when
 ///   the type is absent), rather than operating on one implicit `schema`;
-/// - carrying the paired-relation collaborators (`typeKind(forTypeID:)`,
-///   `reverseRelationTarget(forTypeID:)`, `reloadType(byID:)`, `nexus`) for the
-///   `DualRelationCoordinator` branches in `addProperty` / `deleteProperty`, which
-///   the singletons never enter;
 /// - having NO builtin-property guard (`canDelete`) — per-type managers permit
 ///   deleting any property — and NO `commitInMemory` / `rebuildTypesByID` hook.
 ///
@@ -59,37 +55,6 @@ protocol PerTypeSchemaAdapter: AnyObject {
     /// `stageType` once `tx.commit()` has succeeded. Carries the same
     /// `properties` + bumped `modifiedAt` as the staged sidecar.
     func commitStagedType(forTypeID typeID: String)
-
-    // MARK: Paired-relation collaborators
-
-    /// The `DualRelationCoordinator.TypeKind` for the type identified by `typeID`
-    /// (used as the source/owner of a paired relation). Throws `errTypeNotFound`.
-    func typeKind(forTypeID typeID: String) throws -> DualRelationCoordinator.TypeKind
-
-    /// The `RelationTarget` that points back at the type identified by `typeID`
-    /// (the reverse scope for a paired relation). E.g. `.pageType(typeID)` on the
-    /// Page side, `.itemType(typeID)` on the Item side.
-    func reverseRelationTarget(forTypeID typeID: String) -> PropertyDefinition.RelationTarget
-
-    /// Resolve a paired-relation target's `DualRelationCoordinator.TypeKind` from
-    /// its `RelationTarget` scope. Same-side reads in-memory `types`; cross-side
-    /// and Agenda singletons load from disk. Throws `errTypeNotFound` (or
-    /// `errPropertyNotFound` for collection / context-tier scopes that never carry
-    /// a `dualProperty`).
-    func resolveDualTargetKind(
-        for scope: PropertyDefinition.RelationTarget
-    ) throws
-        -> DualRelationCoordinator.TypeKind
-
-    /// Reload the type identified by `typeID` into memory after a coordinator
-    /// write. Same-side (a type this manager owns) reloads from disk inline;
-    /// cross-manager targets route through the injected `reloadTypeByID?` hook so
-    /// the OTHER manager refreshes without a restart.
-    func reloadType(byID typeID: String)
-
-    /// The active `Nexus` passed to `DualRelationCoordinator` for sidecar-URL
-    /// resolution in the paired-relation branches.
-    var nexusForCoordinator: Nexus { get }
 
     // MARK: Member files
 
@@ -143,10 +108,9 @@ protocol PerTypeSchemaAdapter: AnyObject {
 /// failures are still routed to `adapter.recordIndexError`, matching the original
 /// `if let updater { ... } catch { self.pendingError = error }` shape.)
 ///
-/// Methods are synchronous `throws`: the Page bodies contain no `await` (the
-/// `DualRelationCoordinator` calls are synchronous), so the service does not need
-/// to be `async`. The managers' delegators remain `async throws` for their public
-/// surface and call these synchronous methods directly.
+/// Methods are synchronous `throws`: the Page bodies contain no `await`, so the
+/// service does not need to be `async`. The managers' delegators remain `async throws`
+/// for their public surface and call these synchronous methods directly.
 enum PerTypeSchemaService {
 
     // MARK: - Add property
@@ -155,13 +119,6 @@ enum PerTypeSchemaService {
     /// a new user-property ID (`prop_<ulid>`) is minted. Validates against existing
     /// properties via `PropertyDefinitionValidator`. Schema-only write (member
     /// files are not touched — identity is stored by ID).
-    ///
-    /// **Paired relations** (`type == .relation && dualProperty != nil`): routed
-    /// through `DualRelationCoordinator.createPairedRelation` which writes both
-    /// Type sidecars atomically. The authoritative target kind+id is
-    /// `definition.relationTarget`; the reverse scope points back to the source
-    /// type. After the coordinator write, the source type and (if distinct) the
-    /// target type are reloaded into memory.
     @MainActor
     static func addProperty(
         _ definition: PropertyDefinition,
@@ -173,62 +130,6 @@ enum PerTypeSchemaService {
         var def = definition
         if def.id.isEmpty {
             def.id = ReservedPropertyID.mintUserPropertyID()
-        }
-
-        // Paired relation: a non-nil `dualProperty` is the pairing signal; route
-        // through DualRelationCoordinator. The reverse name flows via
-        // `def.reverseName` (the empty `syncedPropertyID` is filled with the minted
-        // reverse-property ID by the coordinator post-creation).
-        if def.type == .relation, def.dualProperty != nil {
-            guard let scope = def.relationTarget else {
-                throw adapter.errPropertyNotFound
-            }
-            let sourceKind = try adapter.typeKind(forTypeID: typeID)
-            // Resolve the target TypeKind from the authoritative `relationTarget`.
-            // Same-side reads in-memory `types`; cross-side ItemType and Agenda
-            // singletons load from disk (they live outside this manager).
-            let targetKind = try adapter.resolveDualTargetKind(for: scope)
-            // Reverse scope points back to source Type.
-            let targetScope = adapter.reverseRelationTarget(forTypeID: typeID)
-            // Reverse name: caller carries the reverse display name in `reverseName`
-            // at add-time; the coordinator later mints the reverse property's ID.
-            let reverseName = (def.reverseName?.isEmpty == false) ? def.reverseName! : def.name
-
-            let (srcID, _) = try DualRelationCoordinator.createPairedRelation(
-                source: sourceKind,
-                sourcePropertyName: def.name,
-                sourceScope: scope,
-                target: targetKind,
-                targetPropertyName: reverseName,
-                targetScope: targetScope,
-                sourceIcon: def.icon,
-                targetIcon: def.reverseIcon,
-                nexus: adapter.nexusForCoordinator
-            )
-            // Reload source type from disk so in-memory reflects the coordinator's write.
-            adapter.reloadType(byID: typeID)
-            // Reload the target so the reverse property appears immediately (not
-            // after restart). Same-manager reloads inline; cross-manager routes
-            // through the injected hook. Agenda targets reject dual pairing and
-            // never reach here.
-            let targetID = targetKind.typeID
-            if targetID != typeID {
-                adapter.reloadType(byID: targetID)
-            }
-            if let updater = adapter.indexUpdater {
-                let reloadedProps = (try? adapter.properties(forTypeID: typeID)) ?? []
-                if let addedDef = reloadedProps.first(where: { $0.id == srcID }) {
-                    let position = reloadedProps.count - 1
-                    do {
-                        try updater.upsertPropertyDefinition(
-                            addedDef,
-                            owningTypeID: typeID,
-                            owningTypeKind: adapter.indexOwningTypeKind,
-                            position: position)
-                    } catch { adapter.recordIndexError(error) }
-                }
-            }
-            return
         }
 
         try PropertyDefinitionValidator.validate(
@@ -301,13 +202,6 @@ enum PerTypeSchemaService {
 
     /// Deletes a property from the schema. Atomically removes the schema entry and
     /// strips the corresponding key from every member file via `SchemaTransaction`.
-    ///
-    /// **Paired relations** (`property.dualProperty != nil`): routed through
-    /// `DualRelationCoordinator.deletePair` which cascades the delete to both Type
-    /// sidecars and strips all values from member files on each side. A property
-    /// delete must NEVER be blocked by an unresolvable reverse — if reverse
-    /// resolution fails, the reverse index row is best-effort cleaned and the path
-    /// falls through to the owner-only removal below.
     @MainActor
     static func deleteProperty(
         id propertyID: String,
@@ -317,50 +211,6 @@ enum PerTypeSchemaService {
         let typeProperties = try adapter.properties(forTypeID: typeID)
         guard let propIndex = typeProperties.firstIndex(where: { $0.id == propertyID }) else {
             throw adapter.errPropertyNotFound
-        }
-
-        let prop = typeProperties[propIndex]
-
-        // Paired relation: route through DualRelationCoordinator (cascades both
-        // sides). The reverse Type may live in EITHER manager — resolve it
-        // cross-manager via the SAME resolver `addProperty` uses
-        // (`prop.relationTarget` is the scope pointing at the reverse Type).
-        if prop.type == .relation, let dualConfig = prop.dualProperty,
-            let scope = prop.relationTarget
-        {
-            // Best-effort reverse cascade. A property delete must NEVER be blocked
-            // by an unresolvable reverse (legacy collection scope, or a
-            // drifted/missing target type id) — if resolution fails, skip the
-            // reverse cleanup and fall through to the owner-only removal below so
-            // the owner property can always be deleted.
-            if let reverseKind = try? adapter.resolveDualTargetKind(for: scope) {
-                let ownerKind = try adapter.typeKind(forTypeID: typeID)
-                let targetTypeID = reverseKind.typeID  // == dualConfig.syncedPropertyDefinedOnTypeID
-                try DualRelationCoordinator.deletePair(
-                    propertyID: propertyID,
-                    owner: ownerKind,
-                    reverse: reverseKind,
-                    nexus: adapter.nexusForCoordinator
-                )
-                // Reload the owning (source) type in-memory.
-                adapter.reloadType(byID: typeID)
-                // Reload the reverse type in-memory: same-manager inline,
-                // cross-manager via the injected router hook so it doesn't need a
-                // restart.
-                adapter.reloadType(byID: targetTypeID)
-                if let updater = adapter.indexUpdater {
-                    do { try updater.deletePropertyDefinition(id: propertyID) } catch {
-                        adapter.recordIndexError(error)
-                    }
-                    do { try updater.deletePropertyDefinition(id: dualConfig.syncedPropertyID) } catch {
-                        adapter.recordIndexError(error)
-                    }
-                }
-                return
-            }
-            // Unresolvable reverse: best-effort clean the reverse index row, then
-            // fall through to the owner-only delete below.
-            try? adapter.indexUpdater?.deletePropertyDefinition(id: dualConfig.syncedPropertyID)
         }
 
         var properties = typeProperties
