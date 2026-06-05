@@ -471,6 +471,65 @@ struct IndexUpdater: Sendable {
         }
     }
 
+    // MARK: - Connections (body-scanned inline links)
+
+    /// Re-index every `[[ ]]`/`{{ }}` in `body` for `sourceID`. Delete-then-insert
+    /// (mirrors reconcileContextLinks). A target resolves only when EXACTLY one
+    /// entity of its kind holds the title (0 / >1 → phantom). Self-links skipped.
+    func reconcileConnections(sourceID: String, sourceKind: String, sourceTitle: String, body: String) throws {
+        let scanned = ConnectionScanner.scan(body: body)          // off the write closure
+        let selfKey = ConnectionTitle.normalize(sourceTitle)
+        let surface = sourceKind == "page" ? "page_body" : "item_body"
+        try index.dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [sourceID])
+            for c in scanned {
+                // Self-connection guard: same kind + same title = the source itself.
+                if c.syntax.targetKind == sourceKind && c.normalizedTitle == selfKey { continue }
+                let table = c.syntax == .page ? "pages" : "items"
+                let matches = try String.fetchAll(
+                    db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [c.normalizedTitle])
+                let targetID: String? = matches.count == 1 ? matches[0] : nil
+                try db.execute(
+                    sql: """
+                        INSERT INTO connections
+                            (id, source_id, source_kind, target_id, target_kind, target_title,
+                             surface, multiplicity, weight, resolved, modified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.0, ?, ?)
+                        """,
+                    arguments: [ULID.generate(), sourceID, sourceKind, targetID, c.syntax.targetKind,
+                                c.normalizedTitle, surface, c.multiplicity, targetID != nil ? 1 : 0, nowISO()])
+            }
+        }
+    }
+
+    /// A new/renamed entity's title appeared → activate matching phantom edges, but
+    /// ONLY when exactly one entity now holds the title (an adopted duplicate must
+    /// stay phantom). Safe because in-app uniqueness guarantees one holder.
+    func activateConnections(targetID: String, targetKind: String, targetTitle: String) throws {
+        let key = ConnectionTitle.normalize(targetTitle)
+        try index.dbQueue.write { db in
+            let table = targetKind == "page" ? "pages" : "items"
+            let holders = try String.fetchAll(
+                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [key])
+            guard holders.count == 1 else { return }
+            try db.execute(
+                sql: """
+                    UPDATE connections SET target_id = ?, resolved = 1, modified_at = ?
+                    WHERE target_kind = ? AND target_title = ? AND target_id IS NULL
+                    """,
+                arguments: [targetID, nowISO(), targetKind, key])
+        }
+    }
+
+    /// A permanently-deleted target → revert its inbound edges to phantom (inert).
+    func deactivateConnections(targetID: String) throws {
+        try index.dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE connections SET target_id = NULL, resolved = 0, modified_at = ? WHERE target_id = ?",
+                arguments: [nowISO(), targetID])
+        }
+    }
+
     // MARK: - Private: config JSON
 
     /// Serialises type-specific config fields into the `config` JSON blob
