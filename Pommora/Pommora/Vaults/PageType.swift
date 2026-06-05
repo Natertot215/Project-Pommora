@@ -70,7 +70,8 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.id = try c.decode(String.self, forKey: .id)
         self.title = ""
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
-        self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
+        self.properties = (try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? [])
+            .droppingUserRelations()
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0

@@ -77,7 +77,8 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = ""  // caller (load(from:)) overwrites from folder name
         self.singular = try c.decodeIfPresent(String.self, forKey: .singular)
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
-        self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
+        self.properties = (try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? [])
+            .droppingUserRelations()
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
         self.templateConfig = try c.decodeIfPresent(ItemTemplateConfig.self, forKey: .templateConfig)
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
@@ -115,8 +116,10 @@ struct ItemTemplateConfig: Codable, Equatable, Hashable, Sendable {
     var descriptionCap: Int?
     var defaultDescription: String?
 
-    init(layout: LayoutArchetype? = nil, promotedProperties: [PromotedProperty]? = nil,
-         coverPropertyID: String? = nil, descriptionCap: Int? = nil, defaultDescription: String? = nil) {
+    init(
+        layout: LayoutArchetype? = nil, promotedProperties: [PromotedProperty]? = nil,
+        coverPropertyID: String? = nil, descriptionCap: Int? = nil, defaultDescription: String? = nil
+    ) {
         self.layout = layout
         self.promotedProperties = promotedProperties
         self.coverPropertyID = coverPropertyID

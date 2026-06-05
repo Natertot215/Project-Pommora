@@ -378,3 +378,13 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         return str
     }
 }
+
+// MARK: - Decode-time filter
+
+extension Array where Element == PropertyDefinition {
+    /// User relations retired; tiers are synthesized at runtime. Drop stored `.relation` defs on decode,
+    /// EXCEPT reserved tier ids (`_tier1/2/3`) — those persist a user's reverse-name/icon override.
+    func droppingUserRelations() -> [PropertyDefinition] {
+        filter { $0.type != .relation || ReservedPropertyID.isReserved($0.id) }
+    }
+}

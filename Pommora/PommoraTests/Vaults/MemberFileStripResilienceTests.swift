@@ -27,60 +27,6 @@ import Testing
 @Suite("MemberFileStripResilienceTests")
 struct MemberFileStripResilienceTests {
 
-    /// Nathan's exact bug: deleting a PAIRED relation property whose owning Vault
-    /// holds a hand-authored frontmatter-less `.md`. Routes through
-    /// `DualRelationCoordinator.deletePair` → `stageValueStrip(.pageType)`.
-    @Test func pairedRelationDeleteToleratesFrontmatterlessMemberPage() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
-        try await manager.createPageType(name: "Projects", icon: nil)
-        try await manager.createPageType(name: "Tasks", icon: nil)
-
-        let projects = manager.types.first { $0.title == "Projects" }!
-        let tasks = manager.types.first { $0.title == "Tasks" }!
-
-        let def = PropertyDefinition(
-            id: "",
-            name: "Tasks",
-            type: .relation,
-            relationTarget: .pageType(tasks.id),
-            reverseName: "Projects",
-            dualProperty: PropertyDefinition.DualPropertyConfig(
-                syncedPropertyID: "",
-                syncedPropertyDefinedOnTypeID: tasks.id
-            )
-        )
-        try await manager.addProperty(def, to: projects.id)
-        let sourcePropertyID = manager.types.first { $0.title == "Projects" }!
-            .properties.first { $0.type == .relation }!.id
-
-        // Hand-author a frontmatter-less `.md` directly in the Projects Vault folder —
-        // a plain Markdown doc with no `id`, exactly like Nathan's `The Nexus/Systems`
-        // pages. `PageFrontmatter.init(from:)` requires `id`, so this file's decode
-        // throws keyNotFound(.id) — the crash this test pins.
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Projects", in: nexus)
-        let plainURL = vaultFolder.appendingPathComponent("Plain Note.md")
-        try "# Just a heading\n\nNo frontmatter here.\n"
-            .write(to: plainURL, atomically: true, encoding: .utf8)
-
-        // Pre-fix: throws keyNotFound(.id) → test fails. Post-fix: the unreadable
-        // member is skipped and the paired delete completes cleanly.
-        try await manager.deleteProperty(id: sourcePropertyID, in: projects.id)
-
-        #expect(
-            manager.types.first { $0.title == "Projects" }!
-                .properties.contains { $0.type == .relation } == false)
-        #expect(
-            manager.types.first { $0.title == "Tasks" }!
-                .properties.contains { $0.type == .relation } == false)
-        // The hand-authored doc is left untouched.
-        let surviving = try String(contentsOf: plainURL, encoding: .utf8)
-        #expect(surviving.contains("Just a heading"))
-    }
-
     /// The non-paired path: deleting a plain property also strips member files via
     /// `PageTypeManager.deleteProperty`'s inline loop. The same frontmatter-less
     /// `.md` must be tolerated.

@@ -53,8 +53,9 @@ struct AgendaEventSchema: Codable, Equatable, Hashable, Sendable {
         // fails because `builtin` is missing. Decoding an old-shape array as
         // `[PropertyDefinition]` succeeds but yields `id == ""` for every entry —
         // we use `builtin`-presence as the clean discriminator via the LegacyEventProperty path.
+        let rawProperties: [PropertyDefinition]
         if let legacyProps = try? c.decode([LegacyEventProperty].self, forKey: .properties) {
-            self.properties = legacyProps.map { legacy in
+            rawProperties = legacyProps.map { legacy in
                 PropertyDefinition(
                     id: legacy.builtin ? "_\(legacy.name)" : ReservedPropertyID.mintUserPropertyID(),
                     name: legacy.name,
@@ -63,8 +64,9 @@ struct AgendaEventSchema: Codable, Equatable, Hashable, Sendable {
                 )
             }
         } else {
-            self.properties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
+            rawProperties = try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? []
         }
+        self.properties = rawProperties.droppingUserRelations()
     }
 
     func encode(to encoder: any Encoder) throws {
