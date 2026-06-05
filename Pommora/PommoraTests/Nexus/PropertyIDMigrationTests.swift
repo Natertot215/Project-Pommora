@@ -463,4 +463,115 @@ import Testing
         #expect(it.schemaVersion == 2)
     }
 
+    // MARK: - Orphan user-relation clearing
+
+    /// A member under a MIGRATING PageType carrying an orphaned `$rel`-keyed
+    /// property (a `prop_`-prefixed key whose ID is absent from the post-migration
+    /// schema) must have that entry dropped. The root `tier1` array and any
+    /// foreign frontmatter are unaffected.
+    @Test func clearOrphanRelationValuesOnPageMemberDuringMigration() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        // Type with one legit property ("Status"); needs migration (schemaVersion 0).
+        let folder = try Self.makeLegacyPageType(
+            in: nexus, title: "Notes",
+            properties: [("Status", .select)])
+
+        // Write a page with:
+        //   - name-keyed "Status" (will be rekeyed to prop_<ulid>)
+        //   - orphaned prop_OLDREL with a .relation value (NOT in schema → must be cleared)
+        //   - tier1 root array (must survive untouched)
+        //   - body content (must survive)
+        let pageURL = folder.appendingPathComponent("Page-1.md")
+        let orphanRelKey = "prop_OLDREL_ORPHAN"
+        let targetID = "01HTARGET01HTARGET01HTARGET"
+        let spaceID = "01HSPACE01HSPACE01HSPACE01H"
+        let fm = PageFrontmatter(
+            id: "01HPAGE1", icon: nil,
+            tier1: [spaceID], tier2: [], tier3: [],
+            properties: [
+                "Status": .select("active"),
+                orphanRelKey: .relation([targetID]),
+            ],
+            createdAt: Date()
+        )
+        try AtomicYAMLMarkdown.write(frontmatter: fm, body: "## Body survives\n", to: pageURL)
+
+        let report = PropertyIDMigration.runIfNeeded(at: nexus)
+        #expect(report.typesMigrated == 1)
+        #expect(report.memberFilesRewritten == 1)
+        #expect(report.failedTypes.isEmpty)
+
+        // Reload and assert:
+        let pf = try PageFile.load(from: pageURL)
+
+        // Orphan relation key must be gone.
+        #expect(pf.frontmatter.properties[orphanRelKey] == nil, "orphaned $rel key must be cleared")
+
+        // Legit property is rekeyed (not name-keyed any more, not the orphan key).
+        let pt = try PageType.load(
+            from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
+        #expect(pf.frontmatter.properties[statusID] == .select("active"), "legit property survives rekeyed")
+
+        // Root tier array survives.
+        #expect(pf.frontmatter.tier1 == [spaceID], "root tier1 array must not be touched")
+
+        // Body survives.
+        #expect(pf.body.contains("Body survives"), "page body must survive the rewrite")
+    }
+
+    /// Same contract for ItemType members: orphaned `$rel` value cleared,
+    /// tier arrays and body survive.
+    @Test func clearOrphanRelationValuesOnItemMemberDuringMigration() throws {
+        let nexus = try Self.makeTempNexus()
+        defer { try? FileManager.default.removeItem(at: nexus) }
+
+        let folder = try Self.makeLegacyItemType(
+            in: nexus, title: "Tasks",
+            properties: [("Stage", .select)])
+
+        // Write a legacy JSON item (pre-ItemFormatMigration) with an orphan
+        // relation value and a real tier2 root array.
+        let itemURL = folder.appendingPathComponent("Task-1.json")
+        let orphanRelKey = "prop_DEAD_REL"
+        let targetID = "01HDEADTARGET01HDEADTARGET"
+        let topicID = "01HTOPIC01HTOPIC01HTOPIC01H"
+        let now = Date()
+        let item = Item(
+            id: "01HITEM1", title: "Task", icon: nil, description: "item body",
+            tier1: [], tier2: [topicID], tier3: [],
+            properties: [
+                "Stage": .select("todo"),
+                orphanRelKey: .relation([targetID]),
+            ],
+            createdAt: now, modifiedAt: now
+        )
+        try AtomicJSON.write(item, to: itemURL)
+
+        let report = PropertyIDMigration.runIfNeeded(at: nexus)
+        #expect(report.typesMigrated == 1)
+        #expect(report.memberFilesRewritten == 1)
+        #expect(report.failedTypes.isEmpty)
+
+        // Still a .json file at this stage (ItemFormatMigration hasn't run).
+        let reloaded = try Item.decodeLegacyJSON(from: itemURL)
+
+        // Orphan relation key gone.
+        #expect(reloaded.properties[orphanRelKey] == nil, "orphaned $rel key must be cleared")
+
+        // Legit property rekeyed.
+        let it = try ItemType.load(
+            from: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
+        let stageID = it.properties.first(where: { $0.name == "Stage" })!.id
+        #expect(reloaded.properties[stageID] == .select("todo"), "legit property survives rekeyed")
+
+        // Root tier array survives.
+        #expect(reloaded.tier2 == [topicID], "root tier2 array must not be touched")
+
+        // Description (body) survives.
+        #expect(reloaded.description == "item body", "item description must survive")
+    }
+
 }

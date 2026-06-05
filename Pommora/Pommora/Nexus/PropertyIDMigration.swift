@@ -270,11 +270,15 @@ enum PropertyIDMigration {
         let txn = SchemaTransaction()
         txn.stage(payload: migration.updatedSchemaJSON, to: migration.sidecarURL)
 
+        let validPropIDs = Set(migration.nameToID.values)
         var memberCount = 0
         for pageURL in enumeratePageMembers(in: migration.typeFolderURL) {
             do {
                 var pageFile = try PageFile.load(from: pageURL)
-                if rekey(properties: &pageFile.frontmatter.properties, with: migration.nameToID) {
+                let didRekey = rekey(properties: &pageFile.frontmatter.properties, with: migration.nameToID)
+                let didClear = clearOrphanRelationValues(
+                    &pageFile.frontmatter.properties, validIDs: validPropIDs)
+                if didRekey || didClear {
                     pageFile.frontmatter.modifiedAt = Date()
                     let payload = try AtomicYAMLMarkdown.encode(
                         frontmatter: pageFile.frontmatter, body: pageFile.body,
@@ -307,6 +311,7 @@ enum PropertyIDMigration {
         let txn = SchemaTransaction()
         txn.stage(payload: migration.updatedSchemaJSON, to: migration.sidecarURL)
 
+        let validPropIDs = Set(migration.nameToID.values)
         var memberCount = 0
         for itemURL in enumerateItemMembers(in: migration.typeFolderURL) {
             do {
@@ -316,7 +321,9 @@ enum PropertyIDMigration {
                 // sequence, so `.json` members can still exist here and must be
                 // re-keyed in place; ItemFormatMigration then converts them.
                 var item = try decodeItemMember(at: itemURL)
-                if rekey(properties: &item.properties, with: migration.nameToID) {
+                let didRekey = rekey(properties: &item.properties, with: migration.nameToID)
+                let didClear = clearOrphanRelationValues(&item.properties, validIDs: validPropIDs)
+                if didRekey || didClear {
                     item.modifiedAt = Date()
                     // Re-stage in the member's OWN format so we never write a
                     // JSON blob into a `.md` file (or vice versa). A `.json`
@@ -437,6 +444,28 @@ enum PropertyIDMigration {
             properties = newDict
         }
         return changed
+    }
+
+    /// Removes entries from `properties` whose value is a relation shape
+    /// (`.relation([...])`) AND whose key is absent from `validIDs`. Used during
+    /// the migration member-walk to clear orphaned user-relation values left behind
+    /// by retired property definitions. Only operates on the modeled `properties`
+    /// dict — root-level tier arrays (`tier1`/`tier2`/`tier3`) are never in this
+    /// dict and are therefore never touched.
+    /// Returns `true` iff any entry was removed.
+    @discardableResult
+    private static func clearOrphanRelationValues(
+        _ properties: inout [String: PropertyValue], validIDs: Set<String>
+    ) -> Bool {
+        var removed = false
+        for key in properties.keys {
+            guard case .relation = properties[key] else { continue }
+            if !validIDs.contains(key) {
+                properties.removeValue(forKey: key)
+                removed = true
+            }
+        }
+        return removed
     }
 
     private static func enumeratePageMembers(in typeFolder: URL) -> [URL] {

@@ -363,4 +363,90 @@ struct TierRelationsEmitTests {
         let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: contextID)
         #expect(incoming.contains { $0.id == pageID })
     }
+
+    // MARK: - Post-migration index: tier rows present; no orphan user-relation rows
+
+    /// After a migration run that clears orphaned user-relation values, indexing
+    /// the resulting member produces tier rows but zero rows for the cleared orphan key.
+    @Test func postMigrationIndexHasTierRowsButNoOrphanRelationRows() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+
+        // Build a legacy PageType (schemaVersion 0, one property) and a member that
+        // carries an orphaned user-relation key + a tier1 value.
+        let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
+        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
+
+        let propsJSON: [[String: Any]] = [["id": "", "name": "Status", "type": "select"]]
+        let sidecarData = try JSONSerialization.data(
+            withJSONObject: [
+                "id": "01HPTMIG",
+                "schema_version": 0,
+                "modified_at": ISO8601DateFormatter().string(from: Date()),
+                "properties": propsJSON,
+                "views": [],
+            ] as [String: Any],
+            options: [.prettyPrinted])
+        try sidecarData.write(
+            to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename),
+            options: [.atomic])
+
+        let spaceID = ULID.generate()
+        let orphanRelKey = "prop_ORPHAN_REL"
+        let orphanTargetID = ULID.generate()
+        let pageID = ULID.generate()
+
+        let fm = PageFrontmatter(
+            id: pageID, icon: nil,
+            tier1: [spaceID], tier2: [], tier3: [],
+            properties: [
+                "Status": .select("active"),
+                orphanRelKey: .relation([orphanTargetID]),
+            ],
+            createdAt: Date()
+        )
+        try AtomicYAMLMarkdown.write(frontmatter: fm, body: "# Test\n", to: typeFolder.appendingPathComponent("Doc.md"))
+
+        // Run migration — orphan key cleared, tier1 preserved.
+        _ = PropertyIDMigration.runIfNeeded(at: nexus.rootURL)
+
+        // Now index the migrated nexus.
+        let updater = IndexUpdater(idx)
+        let pt = try PageType.load(
+            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try updater.upsertPageType(pt)
+
+        let pageURL = typeFolder.appendingPathComponent("Doc.md")
+        let reloadedFile = try PageFile.load(from: pageURL)
+        let meta = PageMeta(
+            id: pageID, title: "Doc", url: pageURL,
+            frontmatter: reloadedFile.frontmatter)
+        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+
+        // Tier row must exist.
+        #expect(
+            try tierRelationCount(targetID: spaceID, propertyID: ReservedPropertyID.tier1, db: idx) == 1,
+            "tier1 context_links row must be present after migration + index")
+
+        // Orphan relation target must NOT appear in context_links.
+        let orphanCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM context_links WHERE target_id = ?",
+                arguments: [orphanTargetID]
+            ) ?? -1
+        }
+        #expect(orphanCount == 0, "orphaned user-relation target must not appear in context_links")
+
+        // The orphan property key must not appear as a source property in context_links either.
+        let orphanPropCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM context_links WHERE property_id = ?",
+                arguments: [orphanRelKey]
+            ) ?? -1
+        }
+        #expect(orphanPropCount == 0, "cleared orphan property key must not appear in context_links")
+    }
 }
