@@ -29,6 +29,7 @@ private struct PageSnapshot: Sendable {
     let id: String
     let title: String
     let icon: String?
+    let body: String
     let properties: [String: PropertyValue]
     let modifiedAt: Date
     let pageTypeID: String
@@ -161,6 +162,7 @@ final class IndexBuilder {
             insertAgendaEvents(db, snapshot: snapshot)
             insertContexts(db, snapshot: snapshot)
             insertTierContextLinks(db, snapshot: snapshot)
+            insertConnections(db, snapshot: snapshot)
         }
     }
 
@@ -240,6 +242,7 @@ final class IndexBuilder {
                 id: fm.id,
                 title: pf.title,
                 icon: fm.icon,
+                body: pf.body,
                 properties: fm.properties,
                 modifiedAt: fm.modifiedAt ?? fm.createdAt,
                 pageTypeID: pageTypeID,
@@ -741,6 +744,45 @@ final class IndexBuilder {
                         )
                     })
             }
+        }
+    }
+
+    /// Cold-start backfill of the `connections` table from Page + Item bodies.
+    /// Runs AFTER the entity rows are inserted so single-match title resolution
+    /// can see targets. Best-effort: on a freshly-adopted nexus, a target whose
+    /// type/collection wasn't indexed yet resolves as phantom and self-heals on the
+    /// next CRUD write or loadAll (quirk #14). Each row is resilient via attemptInsert.
+    private nonisolated static func insertConnections(_ db: Database, snapshot: NexusSnapshot) {
+        func emit(sourceID: String, sourceKind: String, sourceTitle: String, body: String) {
+            let selfKey = ConnectionTitle.normalize(sourceTitle)
+            let surface = sourceKind == "page" ? "page_body" : "item_body"
+            for c in ConnectionScanner.scan(body: body) {
+                if c.syntax.targetKind == sourceKind && c.normalizedTitle == selfKey { continue }
+                let table = c.syntax == .page ? "pages" : "items"
+                let matches = (try? String.fetchAll(
+                    db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE",
+                    arguments: [c.normalizedTitle])) ?? []
+                let targetID: String? = matches.count == 1 ? matches[0] : nil
+                attemptInsert("connection \(sourceKind) \(sourceID) → \(c.normalizedTitle)") {
+                    try db.execute(
+                        sql: """
+                            INSERT INTO connections
+                                (id, source_id, source_kind, target_id, target_kind, target_title,
+                                 surface, multiplicity, weight, resolved, modified_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.0, ?, ?)
+                            """,
+                        arguments: [UUID().uuidString, sourceID, sourceKind, targetID, c.syntax.targetKind,
+                                    c.normalizedTitle, surface, c.multiplicity, targetID != nil ? 1 : 0, iso8601(Date())])
+                }
+            }
+        }
+        for pt in snapshot.pageTypes {
+            for coll in pt.collections { for p in coll.pages { emit(sourceID: p.id, sourceKind: "page", sourceTitle: p.title, body: p.body) } }
+            for p in pt.directPages { emit(sourceID: p.id, sourceKind: "page", sourceTitle: p.title, body: p.body) }
+        }
+        for it in snapshot.itemTypes {
+            for coll in it.collections { for i in coll.items { emit(sourceID: i.id, sourceKind: "item", sourceTitle: i.title, body: i.description ?? "") } }
+            for i in it.directItems { emit(sourceID: i.id, sourceKind: "item", sourceTitle: i.title, body: i.description ?? "") }
         }
     }
 
