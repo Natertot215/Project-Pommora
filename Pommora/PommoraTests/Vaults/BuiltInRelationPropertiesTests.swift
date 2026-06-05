@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("BuiltInRelationProperties") struct BuiltInRelationPropertiesTests {
@@ -60,11 +61,14 @@ import Testing
     }
 
     @Test func mergeIgnoresStructurallyLockedRelationTargetInSidecar() {
+        // A sidecar _tier1 entry with a wrong tier number must be overridden by merge
+        // to the structurally correct .contextTier(1). The on-disk target is never
+        // trusted for reserved tier IDs.
         let tamperedTier1 = PropertyDefinition(
             id: ReservedPropertyID.tier1,
             name: "Spaces",
             type: .relation,
-            relationTarget: .pageType("tampered")
+            relationTarget: .contextTier(99)
         )
         let result = BuiltInRelationProperties.merge(
             existing: [tamperedTier1],

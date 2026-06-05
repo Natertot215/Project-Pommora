@@ -12,15 +12,13 @@ struct PropertyDefinitionValidatorTests {
         id: String = "prop_abc",
         name: String = "My Property",
         type: PropertyType = .number,
-        selectOptions: [PropertyDefinition.SelectOption]? = nil,
-        relationTarget: PropertyDefinition.RelationTarget? = nil
+        selectOptions: [PropertyDefinition.SelectOption]? = nil
     ) -> PropertyDefinition {
         PropertyDefinition(
             id: id,
             name: name,
             type: type,
-            selectOptions: selectOptions,
-            relationTarget: relationTarget
+            selectOptions: selectOptions
         )
     }
 
@@ -65,76 +63,6 @@ struct PropertyDefinitionValidatorTests {
         #expect(throws: PropertyDefinitionValidator.ValidationError.duplicateName) {
             try PropertyDefinitionValidator.validate(
                 makeDef(id: "prop_abc", name: "PRIORITY"), in: existing, nexus: .empty)
-        }
-    }
-
-    // MARK: - Relation: missing target
-
-    @Test func rejectsRelationWithNoTarget() {
-        let def = makeDef(type: .relation, relationTarget: nil)
-        #expect(throws: PropertyDefinitionValidator.ValidationError.relationMissingTarget) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
-        }
-    }
-
-    // MARK: - Relation: unresolvable PageType target
-
-    @Test func rejectsRelationWithUnresolvablePageTypeTarget() {
-        let def = makeDef(type: .relation, relationTarget: .pageType("does_not_exist"))
-        #expect(
-            throws: PropertyDefinitionValidator.ValidationError.relationTargetNotResolvable(
-                typeID: "does_not_exist")
-        ) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
-        }
-    }
-
-    // MARK: - Relation: unresolvable ItemType target
-
-    @Test func rejectsRelationWithUnresolvableItemTypeTarget() {
-        let def = makeDef(type: .relation, relationTarget: .itemType("missing_item_type"))
-        #expect(
-            throws: PropertyDefinitionValidator.ValidationError.relationTargetNotResolvable(
-                typeID: "missing_item_type")
-        ) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
-        }
-    }
-
-    // MARK: - Relation: legacy Collection targets rejected at save time
-
-    @Test func rejectsRelationWithLegacyCollectionTarget() {
-        let def = makeDef(type: .relation, relationTarget: .pageCollection("legacy_collection"))
-        #expect(
-            throws: PropertyDefinitionValidator.ValidationError.relationTargetNotResolvable(
-                typeID: "legacy_collection")
-        ) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
-        }
-    }
-
-    // MARK: - Relation: Agenda singleton targets accepted without catalog lookup
-
-    @Test func acceptsRelationWithAgendaTasksTarget() {
-        let def = makeDef(type: .relation, relationTarget: .agendaTasks)
-        #expect(throws: Never.self) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
-        }
-    }
-
-    @Test func acceptsRelationWithAgendaEventsTarget() {
-        let def = makeDef(type: .relation, relationTarget: .agendaEvents)
-        #expect(throws: Never.self) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
-        }
-    }
-
-    // MARK: - Relation: contextTier accepted without catalog lookup (Rule 6 retired)
-
-    @Test func acceptsRelationWithContextTierTarget() {
-        let def = makeDef(type: .relation, relationTarget: .contextTier(3))
-        #expect(throws: Never.self) {
-            try PropertyDefinitionValidator.validate(def, in: [], nexus: .empty)
         }
     }
 

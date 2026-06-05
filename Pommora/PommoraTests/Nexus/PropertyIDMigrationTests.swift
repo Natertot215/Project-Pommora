@@ -463,20 +463,4 @@ import Testing
         #expect(it.schemaVersion == 2)
     }
 
-    @Test func planAllEventsEmptyForPlainIDMintMigration() throws {
-        // A plain ID-mint / version-bump migration (no Collection or
-        // context_tier relation targets) carries no MigrationEvents.
-        let nexus = try Self.makeTempNexus()
-        defer { try? FileManager.default.removeItem(at: nexus) }
-
-        try Self.makeLegacyPageType(
-            in: nexus, title: "Notes", properties: [("Status", .select)])
-        try Self.makeLegacyItemType(
-            in: nexus, title: "Bookmarks", properties: [("Stage", .select)])
-
-        let plan = PropertyIDMigration.scan(at: nexus)
-        #expect(plan.hasAnyMigration)
-        #expect(plan.allEvents.isEmpty)
-    }
-
 }

@@ -54,7 +54,7 @@ struct PropertyCellEditorRelationTests {
 
     @Test("Relation editor constructs with no stored value (unset cell)")
     func relationWithNoValueConstructs() {
-        let editor = makeEditor(relationTarget: .pageType("01HTYPE"), value: nil)
+        let editor = makeEditor(relationTarget: .contextTier(1), value: nil)
         _ = editor
     }
 

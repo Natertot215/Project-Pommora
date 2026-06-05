@@ -39,7 +39,7 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
     case select(String)
     case multiSelect([String])
     case status(String)  // option value; encodes as {"$status": value}
-    case relation([String])  // ULIDs of target entities; encodes as [{"$rel": id}, ...]
+    case relation([String])  // ULIDs of target entities; encodes as [{"$rel": id}, ...]; tier-only tolerance; retired from user creation
     case url(URL)
     case file([FileRef])
     case lastEditedTime  // virtual — never persisted; encoding throws
@@ -66,8 +66,8 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
         // match here, and a bare `[String]` isn't `[[String: String]]`. The non-empty
         // guard excludes `[]` so empty arrays keep falling through to `.file([])`.
         if let arr = try? c.decode([[String: String]].self),
-           !arr.isEmpty,
-           arr.allSatisfy({ $0["$rel"] != nil })
+            !arr.isEmpty,
+            arr.allSatisfy({ $0["$rel"] != nil })
         {
             self = .relation(arr.compactMap { $0["$rel"] })
             return

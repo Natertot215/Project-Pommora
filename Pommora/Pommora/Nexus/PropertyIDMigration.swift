@@ -51,20 +51,6 @@ enum PropertyIDMigration {
     /// current so they never re-migrate.
     static let currentTypeSchemaVersion = 2
 
-    // MARK: - Collection-parent map
-
-    /// Nexus-wide lookup from a Collection's ULID to its parent Type's ULID.
-    /// Built once at the top of `scan(at:)` by walking every root Type folder
-    /// and its immediate sub-folders; used to rewrite legacy
-    /// `.pageCollection` / `.itemCollection` relation targets onto the parent
-    /// Type (Collections aren't valid relation targets post-Relations-redesign).
-    struct CollectionParentMap: Sendable, Equatable {
-        var pageCollections: [String: String]  // collectionID → parent PageType ID
-        var itemCollections: [String: String]  // collectionID → parent ItemType ID
-
-        static let empty = CollectionParentMap(pageCollections: [:], itemCollections: [:])
-    }
-
     // MARK: - Plan
 
     struct Plan: Sendable, Equatable {
@@ -97,35 +83,6 @@ enum PropertyIDMigration {
         var totalMemberFileCandidates: Int {
             pageTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
                 + itemTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
-        }
-
-        /// Every per-property MigrationEvent across all migrating Types, flattened
-        /// for the adoption preview sheet. Populated by scan's relation transforms
-        /// (Collection→Type rewrites + context_tier drops).
-        var allEvents: [MigrationEvent] {
-            pageTypeMigrations.flatMap(\.events) + itemTypeMigrations.flatMap(\.events)
-        }
-
-        /// True iff the migration contains a LOSSY change the user must explicitly
-        /// acknowledge before commit (today: dropping a context-tier-targeted
-        /// relation property). Lossless normalizations do not require consent and
-        /// apply silently. Single source of truth for both the launch-gate
-        /// (NexusManager) and the Adopt-button gate (AdoptionPreviewView).
-        var requiresAcknowledgment: Bool {
-            allEvents.contains { event in
-                if case .contextTierDropped = event { return true }
-                return false
-            }
-        }
-
-        /// Per-tier counts of context-tier-drop events, for preview display.
-        /// Key = tier (1/2/3), value = number of relation properties dropped.
-        var contextTierDropCountsByTier: [Int: Int] {
-            var counts: [Int: Int] = [:]
-            for case .contextTierDropped(_, let tier, _) in allEvents {
-                counts[tier, default: 0] += 1
-            }
-            return counts
         }
 
         static func empty(at root: URL) -> Plan {
@@ -165,11 +122,6 @@ enum PropertyIDMigration {
         /// `schemaVersion: currentTypeSchemaVersion`). Apply stages this
         /// directly via SchemaTransaction.
         var updatedSchemaJSON: Data
-
-        /// Per-property MigrationEvents surfaced in the adoption preview
-        /// (Collection→Type rewrites + context_tier drops). Empty for a Type
-        /// that needed only a plain ID-mint / version-bump pass.
-        var events: [MigrationEvent] = []
     }
 
     // MARK: - Report (post-apply)
@@ -210,23 +162,18 @@ enum PropertyIDMigration {
         var pageTypesScanned = 0
         var itemTypesScanned = 0
 
-        // Build the Collection-parent map once up front so both scan helpers
-        // can rewrite legacy `.pageCollection` / `.itemCollection` targets onto
-        // their parent Type.
-        let parentMap = buildCollectionParentMap(at: nexusRoot)
-
         for folder in Filesystem.rootTypeFolders(at: nexusRoot) {
             let pageSidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             let itemSidecar = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
             if FileManager.default.fileExists(atPath: pageSidecar.path) {
                 pageTypesScanned += 1
-                if let m = scanPageType(at: folder, sidecarURL: pageSidecar, parentMap: parentMap) {
+                if let m = scanPageType(at: folder, sidecarURL: pageSidecar) {
                     pageTypeMigrations.append(m)
                 }
             } else if FileManager.default.fileExists(atPath: itemSidecar.path) {
                 itemTypesScanned += 1
-                if let m = scanItemType(at: folder, sidecarURL: itemSidecar, parentMap: parentMap) {
+                if let m = scanItemType(at: folder, sidecarURL: itemSidecar) {
                     itemTypeMigrations.append(m)
                 }
             }
@@ -267,20 +214,13 @@ enum PropertyIDMigration {
 
     // MARK: - Scan helpers
 
-    private static func scanPageType(
-        at folder: URL, sidecarURL: URL, parentMap: CollectionParentMap
-    ) -> TypeMigration? {
+    private static func scanPageType(at folder: URL, sidecarURL: URL) -> TypeMigration? {
         guard let pageType = try? PageType.load(from: sidecarURL),
             needsMigration(pageType)
         else { return nil }
 
         var mutable = pageType
         let mintResult = mintMissingIDs(in: &mutable.properties)
-        // Relation transforms ride along on the v1→v2 pass: rewrite legacy
-        // Collection targets onto their parent Type, then drop context_tier
-        // declarations. Both record MigrationEvents for the preview sheet.
-        let events = applyRelationTransforms(
-            to: &mutable.properties, typeID: mutable.id, parentMap: parentMap)
         mutable.schemaVersion = currentTypeSchemaVersion
         mutable.modifiedAt = Date()
 
@@ -295,22 +235,17 @@ enum PropertyIDMigration {
             propertiesToMint: mintResult.minted,
             memberFileCandidates: candidateCount,
             nameToID: mintResult.nameToID,
-            updatedSchemaJSON: encoded,
-            events: events
+            updatedSchemaJSON: encoded
         )
     }
 
-    private static func scanItemType(
-        at folder: URL, sidecarURL: URL, parentMap: CollectionParentMap
-    ) -> TypeMigration? {
+    private static func scanItemType(at folder: URL, sidecarURL: URL) -> TypeMigration? {
         guard let itemType = try? ItemType.load(from: sidecarURL),
             needsMigration(itemType)
         else { return nil }
 
         var mutable = itemType
         let mintResult = mintMissingIDs(in: &mutable.properties)
-        let events = applyRelationTransforms(
-            to: &mutable.properties, typeID: mutable.id, parentMap: parentMap)
         mutable.schemaVersion = currentTypeSchemaVersion
         mutable.modifiedAt = Date()
 
@@ -325,126 +260,8 @@ enum PropertyIDMigration {
             propertiesToMint: mintResult.minted,
             memberFileCandidates: candidateCount,
             nameToID: mintResult.nameToID,
-            updatedSchemaJSON: encoded,
-            events: events
+            updatedSchemaJSON: encoded
         )
-    }
-
-    /// Applies the two semantic relation transforms to `properties` in place:
-    ///
-    /// 1. **Collection → parent Type rewrite (lossless).** A property targeting
-    ///    `.pageCollection(cid)` is repointed to `.pageType(parentID)` when the
-    ///    parent resolves via `parentMap` (mirror for `.itemCollection`). An
-    ///    unresolvable Collection (orphan / external) is left untouched — never
-    ///    break a target we can't resolve.
-    /// 2. **context_tier drop (lossy).** A user-created property targeting
-    ///    `.contextTier(n)` is removed from the schema entirely. This drops only
-    ///    the property *declaration* — tier VALUES live in the `tier1/2/3`
-    ///    frontmatter root arrays and are untouched. The synthesized
-    ///    `_tier1/_tier2/_tier3` rows are merged at runtime and never appear in
-    ///    the stored `properties`, so they're never seen here.
-    ///
-    /// Order matters: rewrite first (mutates targets in place), then drop
-    /// (removes entries). Returns the collected events for the TypeMigration.
-    private static func applyRelationTransforms(
-        to properties: inout [PropertyDefinition],
-        typeID: String,
-        parentMap: CollectionParentMap
-    ) -> [MigrationEvent] {
-        var events: [MigrationEvent] = []
-
-        // Pass 1 — rewrite Collection targets in place.
-        for idx in properties.indices {
-            switch properties[idx].relationTarget {
-            case .pageCollection(let cid):
-                if let parentID = parentMap.pageCollections[cid] {
-                    properties[idx].relationTarget = .pageType(parentID)
-                    events.append(
-                        .pageCollectionRewritten(
-                            propertyID: properties[idx].id, from: cid, to: parentID))
-                }
-            case .itemCollection(let cid):
-                if let parentID = parentMap.itemCollections[cid] {
-                    properties[idx].relationTarget = .itemType(parentID)
-                    events.append(
-                        .itemCollectionRewritten(
-                            propertyID: properties[idx].id, from: cid, to: parentID))
-                }
-            default:
-                break
-            }
-        }
-
-        // Pass 2 — drop context_tier declarations. Iterate indices in reverse so
-        // removals don't invalidate not-yet-visited indices.
-        for idx in properties.indices.reversed() {
-            if case .contextTier(let tier) = properties[idx].relationTarget {
-                events.append(
-                    .contextTierDropped(
-                        propertyID: properties[idx].id, tier: tier, typeID: typeID))
-                properties.remove(at: idx)
-            }
-        }
-
-        return events
-    }
-
-    /// Walks every root Type folder and its immediate sub-folders, recording
-    /// each Collection's `id → parent Type id`. Malformed sidecars (or Types
-    /// that fail to load) are skipped via `try?`/guard — never fatal, since the
-    /// map is a best-effort lookup for relation rewriting.
-    private static func buildCollectionParentMap(at nexusRoot: URL) -> CollectionParentMap {
-        var map = CollectionParentMap.empty
-        let fm = FileManager.default
-
-        for typeFolder in Filesystem.rootTypeFolders(at: nexusRoot) {
-            let pageSidecar = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-            let itemSidecar = typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-
-            // Determine the parent Type's ID + which Collection sidecar to look
-            // for in the sub-folders.
-            let parentID: String
-            let collectionSidecarName: String
-            let isPage: Bool
-            if fm.fileExists(atPath: pageSidecar.path) {
-                guard let pt = try? PageType.load(from: pageSidecar) else { continue }
-                parentID = pt.id
-                collectionSidecarName = NexusPaths.pageCollectionSidecarFilename
-                isPage = true
-            } else if fm.fileExists(atPath: itemSidecar.path) {
-                guard let it = try? ItemType.load(from: itemSidecar) else { continue }
-                parentID = it.id
-                collectionSidecarName = NexusPaths.itemCollectionSidecarFilename
-                isPage = false
-            } else {
-                continue
-            }
-
-            guard
-                let subEntries = try? fm.contentsOfDirectory(
-                    at: typeFolder,
-                    includingPropertiesForKeys: [.isDirectoryKey],
-                    options: [.skipsHiddenFiles])
-            else { continue }
-
-            for sub in subEntries {
-                var isDir: ObjCBool = false
-                guard fm.fileExists(atPath: sub.path, isDirectory: &isDir), isDir.boolValue
-                else { continue }
-                let collectionSidecar = sub.appendingPathComponent(collectionSidecarName)
-                guard fm.fileExists(atPath: collectionSidecar.path) else { continue }
-
-                if isPage {
-                    guard let c = try? PageCollection.load(from: collectionSidecar) else { continue }
-                    map.pageCollections[c.id] = parentID
-                } else {
-                    guard let c = try? ItemCollection.load(from: collectionSidecar) else { continue }
-                    map.itemCollections[c.id] = parentID
-                }
-            }
-        }
-
-        return map
     }
 
     // MARK: - Apply helpers

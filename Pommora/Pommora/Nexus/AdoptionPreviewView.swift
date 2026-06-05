@@ -28,11 +28,6 @@ struct AdoptionPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    /// Gates the Adopt button when the plan carries a LOSSY context-tier-drop.
-    /// The user must tick the acknowledgment box before committing; lossless
-    /// plans leave Adopt enabled (this stays `false` and is never consulted).
-    @State private var contextTierDropsAcknowledged = false
-
     /// Default UI labels — adoption happens before SettingsManager is built so
     /// we go through SettingsLabels' default seed (the seed values are the
     /// canonical per-side defaults; per-Nexus overrides land later).
@@ -61,7 +56,6 @@ struct AdoptionPreviewView: View {
                     inPlaceRenamesSection
                     freshSidecarsSection
                     propertyMigrationSection
-                    contextTierDropsSection
                     alreadyFlatSection
                     warningsSection
                     skippedSection
@@ -305,7 +299,7 @@ struct AdoptionPreviewView: View {
                         Text("·").foregroundStyle(.tertiary)
                         Text(
                             "\(m.memberFileCandidates) member "
-                            + "file\(m.memberFileCandidates == 1 ? "" : "s")"
+                                + "file\(m.memberFileCandidates == 1 ? "" : "s")"
                         )
                     }
                 }
@@ -313,61 +307,6 @@ struct AdoptionPreviewView: View {
                 .foregroundStyle(.tertiary)
             }
             Spacer()
-        }
-    }
-
-    /// LOSSY change disclosure — shown only when the plan drops one or more
-    /// user-created relation properties that targeted a Context tier (tier
-    /// targets are no longer valid relation targets post-Relations-redesign).
-    /// Requires an explicit acknowledgment tick before Adopt is enabled.
-    @ViewBuilder
-    private var contextTierDropsSection: some View {
-        if let migrationPlan, migrationPlan.requiresAcknowledgment {
-            let counts = migrationPlan.contextTierDropCountsByTier
-            let total = counts.values.reduce(0, +)
-            sectionHeader(
-                "Remove invalid relation"
-                    + " propert\(total == 1 ? "y" : "ies") (\(total))",
-                detail:
-                    "\(total) relation propert\(total == 1 ? "y" : "ies") pointing at a "
-                    + "Context tier will be permanently removed — tiers can no longer be "
-                    + "relation targets. Tier tagging itself is unaffected; only these "
-                    + "user-created relation properties go away."
-            )
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(counts.sorted(by: { $0.key < $1.key }), id: \.key) { tier, count in
-                    HStack(spacing: 8) {
-                        Image(systemName: "minus.circle")
-                            .foregroundStyle(.orange)
-                            .frame(width: 16)
-                        Text(
-                            "\(count) propert\(count == 1 ? "y" : "ies") → "
-                            + contextTierName(tier)
-                        )
-                        .font(.callout)
-                        Spacer()
-                    }
-                }
-
-                Toggle(isOn: $contextTierDropsAcknowledged) {
-                    Text("I understand these relation properties will be permanently removed.")
-                        .font(.caption)
-                }
-                .toggleStyle(.checkbox)
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    /// Maps a Context tier number to its default tier name. Adoption runs
-    /// before SettingsManager exists, so per-Nexus tier-label overrides aren't
-    /// available here — the defaults match the seeded Context tier labels.
-    private func contextTierName(_ tier: Int) -> String {
-        switch tier {
-        case 1: return "Spaces"
-        case 2: return "Topics"
-        case 3: return "Projects"
-        default: return "Tier \(tier)"
         }
     }
 
@@ -475,12 +414,8 @@ struct AdoptionPreviewView: View {
         .padding(.vertical, 14)
     }
 
-    /// Adopt is blocked only while a LOSSY context-tier drop is pending and the
-    /// user hasn't acknowledged it. Composes the shared `requiresAcknowledgment`
-    /// predicate with the local @State tick. "Skip — open empty" stays enabled.
-    private var adoptDisabled: Bool {
-        (migrationPlan?.requiresAcknowledgment ?? false) && !contextTierDropsAcknowledged
-    }
+    /// Adopt is always enabled post-Relations-redesign (no lossy changes remain).
+    private var adoptDisabled: Bool { false }
 
     // MARK: - Label helpers
 

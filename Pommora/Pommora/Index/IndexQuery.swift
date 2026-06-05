@@ -10,34 +10,10 @@ struct IndexQuery: Sendable {
 
     // MARK: - Target queries
 
-    /// Returns all entities matching a target (Page Type, Item Type, etc.).
+    /// Returns all entities matching a target. Tier-only post-Relations-redesign.
     func entitiesByTarget(_ target: PropertyDefinition.RelationTarget) async throws -> [EntityRef] {
         try await index.dbQueue.read { db in
             switch target {
-            case .pageType(let id):
-                return try Row.fetchAll(
-                    db, sql: "SELECT id, title, icon FROM pages WHERE page_type_id = ?", arguments: [id]
-                )
-                .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
-
-            case .itemType(let id):
-                return try Row.fetchAll(
-                    db, sql: "SELECT id, title, icon FROM items WHERE item_type_id = ?", arguments: [id]
-                )
-                .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
-
-            case .pageCollection(let id):
-                return try Row.fetchAll(
-                    db, sql: "SELECT id, title, icon FROM pages WHERE page_collection_id = ?", arguments: [id]
-                )
-                .map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
-
-            case .itemCollection(let id):
-                return try Row.fetchAll(
-                    db, sql: "SELECT id, title, icon FROM items WHERE item_collection_id = ?", arguments: [id]
-                )
-                .map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
-
             case .contextTier(let tier):
                 return try Row.fetchAll(
                     db, sql: "SELECT id, title, icon, tier FROM contexts WHERE tier = ?", arguments: [tier]
@@ -47,76 +23,17 @@ struct IndexQuery: Sendable {
                     let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
                     return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
                 }
-
-            case .agendaTasks:
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM agenda_tasks", arguments: [])
-                    .map { EntityRef(id: $0["id"], kind: .agendaTask, title: $0["title"], icon: $0["icon"]) }
-
-            case .agendaEvents:
-                return try Row.fetchAll(db, sql: "SELECT id, title, icon FROM agenda_events", arguments: [])
-                    .map { EntityRef(id: $0["id"], kind: .agendaEvent, title: $0["title"], icon: $0["icon"]) }
             }
         }
     }
 
     // MARK: - Grouped target query (value picker)
 
-    /// Collection/Set groups + loose (no-collection) leaves for the grouped value
-    /// picker. Groups appear only for `.pageType` / `.itemType` (members live in
-    /// Collections); every other scope (tiers, agenda, collection-scoped) returns its
-    /// entities flat in `rootEntities` with no groups — the picker then renders flat rows.
+    /// Entities flat in `rootEntities` with no groups — the picker renders flat rows.
+    /// Post-Relations-redesign: only `.contextTier` survives; `.pageType` / `.itemType`
+    /// grouped paths are retired.
     func entitiesByTargetGrouped(_ target: PropertyDefinition.RelationTarget) async throws -> GroupedEntities {
         switch target {
-        case .pageType(let typeID):
-            return try await index.dbQueue.read { db in
-                let cols = try Row.fetchAll(
-                    db,
-                    sql: "SELECT id, title, icon FROM page_collections WHERE page_type_id = ? ORDER BY title",
-                    arguments: [typeID]
-                ).map { EntityRef(id: $0["id"], kind: .pageCollection, title: $0["title"], icon: $0["icon"]) }
-                var groups: [EntityGroup] = []
-                for c in cols {
-                    let members = try Row.fetchAll(
-                        db,
-                        sql: "SELECT id, title, icon FROM pages WHERE page_collection_id = ? ORDER BY title",
-                        arguments: [c.id]
-                    ).map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
-                    groups.append(EntityGroup(container: c, members: members))
-                }
-                let root = try Row.fetchAll(
-                    db,
-                    sql:
-                        "SELECT id, title, icon FROM pages WHERE page_type_id = ? AND page_collection_id IS NULL ORDER BY title",
-                    arguments: [typeID]
-                ).map { EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"]) }
-                return GroupedEntities(groups: groups, rootEntities: root)
-            }
-
-        case .itemType(let typeID):
-            return try await index.dbQueue.read { db in
-                let cols = try Row.fetchAll(
-                    db,
-                    sql: "SELECT id, title, icon FROM item_collections WHERE item_type_id = ? ORDER BY title",
-                    arguments: [typeID]
-                ).map { EntityRef(id: $0["id"], kind: .itemCollection, title: $0["title"], icon: $0["icon"]) }
-                var groups: [EntityGroup] = []
-                for c in cols {
-                    let members = try Row.fetchAll(
-                        db,
-                        sql: "SELECT id, title, icon FROM items WHERE item_collection_id = ? ORDER BY title",
-                        arguments: [c.id]
-                    ).map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
-                    groups.append(EntityGroup(container: c, members: members))
-                }
-                let root = try Row.fetchAll(
-                    db,
-                    sql:
-                        "SELECT id, title, icon FROM items WHERE item_type_id = ? AND item_collection_id IS NULL ORDER BY title",
-                    arguments: [typeID]
-                ).map { EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"]) }
-                return GroupedEntities(groups: groups, rootEntities: root)
-            }
-
         default:
             return GroupedEntities(groups: [], rootEntities: try await entitiesByTarget(target))
         }

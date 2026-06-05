@@ -153,39 +153,20 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         }
     }
 
-    /// Picker constraint for a Relation property. Seven mutually-exclusive target kinds;
-    /// no fallback "anywhere" target (per Properties.md § "Relation scope").
+    /// Picker constraint for a Relation property. Tier-only post-Relations-redesign.
     ///
-    /// On-disk shape is a tagged object: `{"kind": "<discriminator>", "<id-field>": "..."}`.
-    /// Container targets (page_type / item_type / page_collection / item_collection) carry
-    /// a target ULID; context_tier carries the tier number (1/2/3). Agenda targets carry
-    /// no additional payload.
-    ///
-    /// Container targets are mandatorily paired with a `dual_property` reverse on the target
-    /// Type's sidecar; context_tier and agenda targets reject dual (the reverse view is
-    /// SQLite-query-derived).
+    /// On-disk shape is a tagged object: `{"kind": "context_tier", "tier": N}`.
+    /// Retired user cases (page_type / item_type / page_collection / item_collection /
+    /// agenda_tasks / agenda_events) are tolerated on READ via the `try?` wrapping in
+    /// `PropertyDefinition.init(from:)` — they degrade to `nil` and the def is dropped
+    /// by `droppingUserRelations()`. Tier-only tolerance; retired from user creation.
     enum RelationTarget: Codable, Equatable, Hashable, Sendable {
-        /// User-creatable: targets a specific Page Type by ULID.
-        case pageType(String)
-        /// User-creatable: targets a specific Item Type by ULID.
-        case itemType(String)
-        /// LEGACY — decoded for tolerance only; migration rewrites to the parent type in a later phase.
-        case pageCollection(String)
-        /// LEGACY — decoded for tolerance only; migration rewrites to the parent type in a later phase.
-        case itemCollection(String)
         /// Internal-only: built-in Spaces / Topics / Projects context tiers (tier 1 / 2 / 3).
+        /// Tier-only tolerance; retired from user creation.
         case contextTier(Int)
-        /// User-creatable singleton target: all Agenda Tasks in the nexus.
-        case agendaTasks
-        /// User-creatable singleton target: all Agenda Events in the nexus.
-        case agendaEvents
 
         private enum CodingKeys: String, CodingKey {
             case kind
-            case pageTypeID = "page_type_id"
-            case itemTypeID = "item_type_id"
-            case pageCollectionID = "page_collection_id"
-            case itemCollectionID = "item_collection_id"
             case tier
         }
 
@@ -193,21 +174,11 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
             let c = try decoder.container(keyedBy: CodingKeys.self)
             let kind = try c.decode(String.self, forKey: .kind)
             switch kind {
-            case "page_type":
-                self = .pageType(try c.decode(String.self, forKey: .pageTypeID))
-            case "item_type":
-                self = .itemType(try c.decode(String.self, forKey: .itemTypeID))
-            case "page_collection":
-                self = .pageCollection(try c.decode(String.self, forKey: .pageCollectionID))
-            case "item_collection":
-                self = .itemCollection(try c.decode(String.self, forKey: .itemCollectionID))
             case "context_tier":
                 self = .contextTier(try c.decode(Int.self, forKey: .tier))
-            case "agenda_tasks":
-                self = .agendaTasks
-            case "agenda_events":
-                self = .agendaEvents
             default:
+                // All non-context_tier kinds are retired user cases. This throw is caught by
+                // the try? in PropertyDefinition.init(from:) — the sidecar still loads.
                 throw DecodingError.dataCorruptedError(
                     forKey: .kind, in: c,
                     debugDescription: "Unknown RelationTarget.kind: \(kind)"
@@ -218,25 +189,9 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         func encode(to encoder: any Encoder) throws {
             var c = encoder.container(keyedBy: CodingKeys.self)
             switch self {
-            case .pageType(let id):
-                try c.encode("page_type", forKey: .kind)
-                try c.encode(id, forKey: .pageTypeID)
-            case .itemType(let id):
-                try c.encode("item_type", forKey: .kind)
-                try c.encode(id, forKey: .itemTypeID)
-            case .pageCollection(let id):
-                try c.encode("page_collection", forKey: .kind)
-                try c.encode(id, forKey: .pageCollectionID)
-            case .itemCollection(let id):
-                try c.encode("item_collection", forKey: .kind)
-                try c.encode(id, forKey: .itemCollectionID)
             case .contextTier(let tier):
                 try c.encode("context_tier", forKey: .kind)
                 try c.encode(tier, forKey: .tier)
-            case .agendaTasks:
-                try c.encode("agenda_tasks", forKey: .kind)
-            case .agendaEvents:
-                try c.encode("agenda_events", forKey: .kind)
             }
         }
     }
@@ -280,11 +235,13 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.statusGroups = try c.decodeIfPresent([StatusGroup].self, forKey: .statusGroups)
         // Dual-key tolerance: accept both the new "relation_target" key and the
         // legacy "relation_scope" key. New key takes precedence; legacy is the fallback.
-        if let t = try c.decodeIfPresent(RelationTarget.self, forKey: .relationTarget) {
-            self.relationTarget = t
-        } else {
-            self.relationTarget = try c.decodeIfPresent(RelationTarget.self, forKey: .legacyRelationScope)
-        }
+        // Wrapped in try? so a retired user-relation target (e.g. page_type, agenda_tasks)
+        // degrades gracefully to nil rather than failing the whole sidecar decode.
+        // The def (still type: .relation) is dropped by the upstream droppingUserRelations()
+        // filter; tier-only tolerance boundary.
+        self.relationTarget =
+            ((try? c.decodeIfPresent(RelationTarget.self, forKey: .relationTarget)) ?? nil)
+            ?? ((try? c.decodeIfPresent(RelationTarget.self, forKey: .legacyRelationScope)) ?? nil)
         self.reverseName = try c.decodeIfPresent(String.self, forKey: .reverseName)
         self.reverseIcon = try c.decodeIfPresent(String.self, forKey: .reverseIcon)
         self.accept = try c.decodeIfPresent([String].self, forKey: .accept)

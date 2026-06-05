@@ -11,7 +11,7 @@ enum PropertyType: String, Codable, CaseIterable, Hashable, Sendable {
     case multiSelect = "multi_select"
     case status  // single choice with workflow semantics
     case url
-    case relation  // points to another entity by ID
+    case relation  // points to another entity by ID; tier-only tolerance; retired from user creation
     case lastEditedTime = "last_edited_time"  // auto-managed timestamp
     case file  // file attachment(s)
 }

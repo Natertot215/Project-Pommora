@@ -42,7 +42,7 @@ import Testing
             dateIncludesTime: nil,
             selectOptions: nil,
             statusGroups: nil,
-            relationTarget: .pageType("01HTARGET"),
+            relationTarget: .contextTier(1),
             accept: nil
         )
         let data = try JSONEncoder().encode(def)
@@ -162,8 +162,9 @@ import Testing
     // MARK: - allows_multiple legacy tolerance (Relations Redesign)
 
     @Test func decoderToleratesLegacyAllowsMultipleField() throws {
-        // Old on-disk JSON that still contains "allows_multiple": true must decode
-        // without error; the unknown key is simply ignored.
+        // Old on-disk JSON that still contains "allows_multiple": true and a retired
+        // relation target must decode without error. The allows_multiple key is ignored;
+        // the retired item_type target degrades to nil via the tolerant try? decode.
         let json = """
             {
                 "id": "prop_01HLEGACY",
@@ -175,6 +176,7 @@ import Testing
             """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: json)
         #expect(decoded.id == "prop_01HLEGACY")
+        #expect(decoded.relationTarget == nil)  // retired target degrades to nil
     }
 
     @Test func encoderDoesNotEmitAllowsMultiple() throws {
@@ -184,23 +186,23 @@ import Testing
             id: "prop_01HREL",
             name: "Links",
             type: .relation,
-            relationTarget: .itemType("t1")
+            relationTarget: .contextTier(2)
         )
         let data = try JSONEncoder().encode(def)
         let json = String(data: data, encoding: .utf8)!
         #expect(!json.contains("allows_multiple"))
     }
 
-    // MARK: - Phase 7: dual-key decode tolerance + encoder key
+    // MARK: - Dual-key decode tolerance + encoder key (tier-only post-Relations-redesign)
 
     @Test func decoderAcceptsBothRelationScopeAndRelationTargetKeys() throws {
-        // JSON using the legacy "relation_scope" key
+        // JSON using the legacy "relation_scope" key with a surviving context_tier target
         let legacyJSON = """
             {
                 "id": "prop_01HLEG",
                 "name": "Legacy Rel",
                 "type": "relation",
-                "relation_scope": {"kind": "page_type", "page_type_id": "01HPTYPE"}
+                "relation_scope": {"kind": "context_tier", "tier": 1}
             }
             """.data(using: .utf8)!
 
@@ -210,15 +212,15 @@ import Testing
                 "id": "prop_01HNEW",
                 "name": "New Rel",
                 "type": "relation",
-                "relation_target": {"kind": "page_type", "page_type_id": "01HPTYPE"}
+                "relation_target": {"kind": "context_tier", "tier": 1}
             }
             """.data(using: .utf8)!
 
         let decodedLegacy = try JSONDecoder().decode(PropertyDefinition.self, from: legacyJSON)
         let decodedNew = try JSONDecoder().decode(PropertyDefinition.self, from: newJSON)
 
-        #expect(decodedLegacy.relationTarget == .pageType("01HPTYPE"))
-        #expect(decodedNew.relationTarget == .pageType("01HPTYPE"))
+        #expect(decodedLegacy.relationTarget == .contextTier(1))
+        #expect(decodedNew.relationTarget == .contextTier(1))
     }
 
     @Test func encoderEmitsRelationTargetKeyNotRelationScope() throws {
@@ -226,7 +228,7 @@ import Testing
             id: "prop_01HENCODE",
             name: "My Relation",
             type: .relation,
-            relationTarget: .pageType("01HPTYPE")
+            relationTarget: .contextTier(1)
         )
         let data = try JSONEncoder().encode(def)
         let json = String(data: data, encoding: .utf8)!

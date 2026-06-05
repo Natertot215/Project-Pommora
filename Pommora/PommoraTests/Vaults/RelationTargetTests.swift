@@ -1,66 +1,19 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 @Suite("RelationTargetTests") struct RelationTargetTests {
     typealias Target = PropertyDefinition.RelationTarget
 
-    @Test func decodePageTypeScope() throws {
-        let json = #"{"kind": "page_type", "page_type_id": "01HPAGETYPE"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Target.self, from: json)
-        guard case let .pageType(id) = s else {
-            #expect(Bool(false), "expected .pageType, got \(s)")
-            return
-        }
-        #expect(id == "01HPAGETYPE")
-    }
-
-    @Test func decodeItemTypeScope() throws {
-        let json = #"{"kind": "item_type", "item_type_id": "01HITEMTYPE"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Target.self, from: json)
-        guard case let .itemType(id) = s else {
-            #expect(Bool(false), "expected .itemType, got \(s)")
-            return
-        }
-        #expect(id == "01HITEMTYPE")
-    }
-
-    @Test func decodePageCollectionScope() throws {
-        let json = #"{"kind": "page_collection", "page_collection_id": "01HPC"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Target.self, from: json)
-        guard case let .pageCollection(id) = s else {
-            #expect(Bool(false), "expected .pageCollection, got \(s)")
-            return
-        }
-        #expect(id == "01HPC")
-    }
-
-    @Test func decodeItemCollectionScope() throws {
-        let json = #"{"kind": "item_collection", "item_collection_id": "01HIC"}"#.data(using: .utf8)!
-        let s = try JSONDecoder().decode(Target.self, from: json)
-        guard case let .itemCollection(id) = s else {
-            #expect(Bool(false), "expected .itemCollection, got \(s)")
-            return
-        }
-        #expect(id == "01HIC")
-    }
-
     @Test func decodeContextTier() throws {
         let json = #"{"kind": "context_tier", "tier": 2}"#.data(using: .utf8)!
         let s = try JSONDecoder().decode(Target.self, from: json)
-        guard case let .contextTier(tier) = s else {
+        guard case .contextTier(let tier) = s else {
             #expect(Bool(false), "expected .contextTier, got \(s)")
             return
         }
         #expect(tier == 2)
-    }
-
-    @Test func encodePageType() throws {
-        let s: Target = .pageType("01HPAGETYPE")
-        let data = try JSONEncoder().encode(s)
-        let str = String(data: data, encoding: .utf8)!
-        #expect(str.contains(#""kind":"page_type""#))
-        #expect(str.contains(#""page_type_id":"01HPAGETYPE""#))
     }
 
     @Test func encodeContextTier() throws {
@@ -71,19 +24,11 @@ import Testing
         #expect(str.contains(#""tier":3"#))
     }
 
-    @Test func roundTripAllFiveCases() throws {
-        let cases: [Target] = [
-            .pageType("01H1"),
-            .itemType("01H2"),
-            .pageCollection("01H3"),
-            .itemCollection("01H4"),
-            .contextTier(1),
-        ]
-        for s in cases {
-            let data = try JSONEncoder().encode(s)
-            let decoded = try JSONDecoder().decode(Target.self, from: data)
-            #expect(decoded == s)
-        }
+    @Test func roundTripContextTier() throws {
+        let target: Target = .contextTier(1)
+        let data = try JSONEncoder().encode(target)
+        let decoded = try JSONDecoder().decode(Target.self, from: data)
+        #expect(decoded == target)
     }
 
     @Test func decodeUnknownKindThrows() throws {
@@ -95,47 +40,28 @@ import Testing
 
     @Test func legacyStringScopeIsRejected() throws {
         // Pre-v0.3.0 schemas used bare-string enum form ("same_vault" / "anywhere").
-        // These now fail to decode; the adoption-pass migration is expected to
-        // rewrite them to the new tagged-object shape (or surface as broken-schema
-        // toast per L21).
         let json = #""same_vault""#.data(using: .utf8)!
         #expect(throws: DecodingError.self) {
             _ = try JSONDecoder().decode(Target.self, from: json)
         }
     }
 
-    // MARK: - Phase 7: agendaTasks / agendaEvents
+    // MARK: - Tolerant decode regression: retired user-target degrades to nil in PropertyDefinition
 
-    @Test func agendaCasesRoundTripJSON() throws {
-        let cases: [Target] = [.agendaTasks, .agendaEvents]
-        for target in cases {
-            let data = try JSONEncoder().encode(target)
-            let decoded = try JSONDecoder().decode(Target.self, from: data)
-            #expect(decoded == target)
-        }
-    }
-
-    @Test func agendaTasksEncodesExpectedJSON() throws {
-        let data = try JSONEncoder().encode(Target.agendaTasks)
-        let str = String(data: data, encoding: .utf8)!
-        #expect(str.contains(#""kind":"agenda_tasks""#))
-    }
-
-    @Test func agendaEventsEncodesExpectedJSON() throws {
-        let data = try JSONEncoder().encode(Target.agendaEvents)
-        let str = String(data: data, encoding: .utf8)!
-        #expect(str.contains(#""kind":"agenda_events""#))
-    }
-
-    @Test func agendaTasksDecodesFromKindString() throws {
-        let json = #"{"kind":"agenda_tasks"}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(Target.self, from: json)
-        #expect(decoded == .agendaTasks)
-    }
-
-    @Test func agendaEventsDecodesFromKindString() throws {
-        let json = #"{"kind":"agenda_events"}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(Target.self, from: json)
-        #expect(decoded == .agendaEvents)
+    @Test func retiredPageTypeTargetDegradesPropertyDefinitionToNilRelationTarget() throws {
+        // A sidecar JSON carrying a page_type relation_target must decode successfully
+        // (the sidecar LOADS); the def's relationTarget becomes nil (tolerance boundary).
+        let json = """
+            {
+                "id": "prop_01HRET",
+                "name": "Legacy",
+                "type": "relation",
+                "relation_target": {"kind": "page_type", "page_type_id": "X"}
+            }
+            """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PropertyDefinition.self, from: json)
+        #expect(decoded.id == "prop_01HRET")
+        #expect(decoded.type == .relation)
+        #expect(decoded.relationTarget == nil)
     }
 }

@@ -36,13 +36,11 @@ struct RelationPickerTests {
         _ = picker
     }
 
-    // MARK: - Test 2: scope .pageType returns only .page kind entities
-    // Validated via computeSelection — scope-level filtering is IndexQuery's
-    // responsibility, tested in IndexQueryTests.
+    // MARK: - Test 2: scope .contextTier returns flat (tier-only post-Relations-redesign)
 
-    @Test("RelationPicker accepts .pageType scope without crashing")
-    func pageTypeScopeAccepted() {
-        let picker = makePicker(scope: .pageType("01HTYPE"), index: nil)
+    @Test("RelationPicker accepts .contextTier scope without crashing")
+    func contextTierScopeAccepted2() {
+        let picker = makePicker(scope: .contextTier(1), index: nil)
         _ = picker
     }
 
@@ -112,15 +110,11 @@ struct RelationPickerTests {
         #expect(result.isEmpty)
     }
 
-    // MARK: - Test 8: all RelationTarget kinds are accepted
+    // MARK: - Test 8: contextTier scopes accepted
 
-    @Test("RelationPicker accepts all RelationTarget kinds without crashing")
-    func allScopeKindsAccepted() {
+    @Test("RelationPicker accepts contextTier scopes without crashing")
+    func contextTierScopesAccepted() {
         let scopes: [PropertyDefinition.RelationTarget] = [
-            .pageType("01H"),
-            .itemType("01H"),
-            .pageCollection("01H"),
-            .itemCollection("01H"),
             .contextTier(1),
             .contextTier(2),
             .contextTier(3),

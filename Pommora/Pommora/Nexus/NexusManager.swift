@@ -337,11 +337,9 @@ final class NexusManager {
         let migrationPlan = PropertyIDMigration.scan(at: url)
 
         // The preview is a CONSENT surface — show it only when the user
-        // genuinely needs to decide: adopting a new folder, or acknowledging a
-        // LOSSY migration change (context-tier-targeted relation drop). A pure
-        // lossless normalization (`hasAnyMigration` but no
-        // `requiresAcknowledgment`) applies SILENTLY — no surprise launch modal.
-        let needsPreview = plan.hasAnythingToAdopt || migrationPlan.requiresAcknowledgment
+        // genuinely needs to decide: adopting a new folder. Lossless normalizations
+        // apply SILENTLY — no surprise launch modal.
+        let needsPreview = plan.hasAnythingToAdopt
 
         if needsPreview {
             // The sheet should be visible WITHOUT the indexing HUD competing for
