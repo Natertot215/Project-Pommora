@@ -82,12 +82,12 @@ Slotted v0.6.0 (Settings + Quick Capture + LLM + global search batch).
 #### Synced blocks (inline Page-body editing inside embeds)
 **Description:** Notion-style synced blocks — embedding a Page inside a composed-page surface such that body edits mirror both ways. v1 covers properties, relations, Items, Agenda, and Collection-row inline editing; **full Page-body transclusion is deferred**. Requires per-block addressable IDs in Markdown, transclusion-aware undo/redo, cross-surface cursor coordination, conflict resolution, and a richer serializer. Post-v1 once the v1 editor + watcher loop is exercised. v1 stand-in: Linked Pages widget (title + frontmatter inline; click opens Page tab).
 
-#### Relations Redesign — post-v1 deferrals
-**Description:** Items deferred from the v1 Relations Redesign (executed + landed by v0.3.4; ship record in `History.md`). Near-term follow-ups (relation chip visual, hierarchical value pickers) are tracked in `Handoff.md` as next-session work, not here. Genuinely post-v1:
+#### Context-link tier — post-v1 deferrals
+**Description:** Genuinely post-v1 items remaining after the Relation→Context refactor (ship record in `History.md`):
 
-- **Tier property icon overrides** at the nexus-default level (IconConfig effort). `BuiltInRelationProperties` falls back sidecar-override → hardcoded SF Symbol today; when IconConfig ships, the chain extends to sidecar override → IconConfig default → hardcoded fallback.
+- **Tier property icon overrides** at the nexus-default level (IconConfig effort). `BuiltInContextLinkProperties` falls back sidecar-override → hardcoded SF Symbol today; when IconConfig ships, the chain extends to sidecar override → IconConfig default → hardcoded fallback.
 
-(Two former entries here — `LinkedFromDropdown` real surface and relation sort/filter — are now committed roadmap work, promoted to `Framework.md` (both at v0.7.0 — Context-views surface + per-view sort/group), not post-v1 prospects.)
+(Two former entries here — `LinkedFromDropdown` real surface and context-link sort/filter — are now committed roadmap work, promoted to `Framework.md` (both at v0.7.0 — Context-views surface + per-view sort/group), not post-v1 prospects.)
 
 #### Retire legacy-Item-JSON migration machinery
 **Description:** The Items-as-Markdown migration made Items `.md`-only at runtime, but a small amount of legacy `.json`-reading machinery is intentionally retained solely to power the one-time launch migration (`ItemFormatMigration`) that converts any legacy `.json` Item to `.md`. Once every nexus has run that migration — no `.json` Items remain on disk anywhere — this machinery is dead weight and should be removed:

@@ -1,8 +1,8 @@
 ## Wikilinks
 
-A wikilink is an inline `[[Title]]` reference in a Page's Markdown **body** that points to another Page. It's Pommora's in-prose linking mechanism — distinct from [[Properties|relations]] (which are frontmatter property values). This spec defines **what** wikilinks must be; implementation sequencing is deliberately out of scope (decisions are still settling in a parallel track).
+A wikilink is an inline `[[Title]]` reference in a Page's Markdown **body** that points to another Page. It's Pommora's in-prose linking mechanism — distinct from context-link properties (the pre-configured `tier1` / `tier2` / `tier3` frontmatter values). This spec defines **what** wikilinks must be; implementation sequencing is deliberately out of scope (decisions are still settling in a parallel track).
 
-Related: [[Pages]] (body + on-disk shape) · [[PageEditor]] (editor surface) · [[Architecture]] (portability) · [[Properties]] (relations, the frontmatter counterpart).
+Related: [[Pages]] (body + on-disk shape) · [[PageEditor]] (editor surface) · [[Architecture]] (portability) · [[Properties]] (context-link properties, the frontmatter counterpart).
 
 ---
 
@@ -12,7 +12,7 @@ The wikilink **system is Pommora's own code**: the grammar, the parser that read
 
 > **Compatibility, not dependency.** Pommora and the editor agree on the *same* link grammar, but Pommora does **not** depend on the editor to understand its own links — it has its own parser and resolver. If the editor is ever replaced (the React/Electron contingency, or any future swap), the wikilink grammar, resolution, index, navigation, and graph data survive untouched; only a thin render/input adapter is rewritten.
 
-This mirrors how **relations** already work: an app-owned, ID-based linking system the editor knows nothing about. Wikilinks are the same kind of citizen — body-level instead of property-level.
+This mirrors how **context-link properties** already work: an app-owned, ID-based linking system the editor knows nothing about. Wikilinks are the same kind of citizen — body-level instead of property-level.
 
 ---
 
@@ -81,14 +81,14 @@ Pommora uses these as the **render + input surface** and supplies all semantics.
 
 ### Link index + graph data
 
-Every body wikilink is recorded as a **directed edge** (`source Page → target`) in Pommora's own index, **kept separate from relations** (relations are frontmatter properties; wikilinks are body prose — two distinct mechanisms, two distinct stores).
+Every body wikilink is recorded as a **directed edge** (`source Page → target`) in Pommora's own index, **kept separate from context-link properties** (context-link properties are frontmatter tier values; wikilinks are body prose — two distinct mechanisms, two distinct stores).
 
 The index must capture, from day one, enough for a future graph:
 - **Resolved and unresolved (phantom)** edges — a link to a not-yet-existing or deleted Page is still a recorded edge (a phantom node).
 - **Multiplicity** — how many times a source links a target (the natural seed for graph **weights**).
 - **Bidirectional queryability** — backlinks are the inverse query; no second store.
 
-No backlinks panel and no graph view are built now. The **requirement** is that wikilink data is fully *expressible graphically*: a future node-graph will combine wikilinks **+** relations **+** container (vault/collection) membership with weights, and the wikilink edges must already be there to pull from.
+No backlinks panel and no graph view are built now. The **requirement** is that wikilink data is fully *expressible graphically*: a future node-graph will combine wikilinks **+** context-tier links **+** container (vault/collection) membership with weights, and the wikilink edges must already be there to pull from. (The v0.4.0 connection model — separate per-shape edge tables, weight-at-query, contexts as graph cores — is the planned direction; not yet built.)
 
 ---
 
@@ -98,18 +98,18 @@ No backlinks panel and no graph view are built now. The **requirement** is that 
 - **Links never create Pages.** Clicking a link to an existing Page opens it. An **unresolved** link — its target was deleted, or a Title typed ahead of the Page existing — renders **muted and is inert** (no navigation, no page creation); it resolves automatically once a matching Page exists.
 - **Duplicate Titles** are allowed across different containers (uniqueness is per-container). Resolution is **duplicate-tolerant**: prefer a match in the linking Page's own container, otherwise a deterministic pick. Showing the target's vault/collection is the intended disambiguation lever if duplicates ever become a problem.
 - **Rename auto-updates links** across every linking Page (Obsidian parity), driven by Pommora's link index — targeted, not a full scan. Rewrites stay safe in the presence of duplicate Titles.
-- **Display** — wikilinks render as styled colored inline text (Obsidian-style hyperlink), in the prose flow — never as a chip/pill (chips are the relation visual).
+- **Display** — wikilinks render as styled colored inline text (Obsidian-style hyperlink), in the prose flow — never as a chip/pill.
 
 ---
 
-### Wikilinks vs relations
+### Wikilinks vs context-link properties
 
 | | Where it lives | What it links | How it renders |
 |---|---|---|---|
 | **Wikilink** | inline in the Markdown **body** | one Page → another Page (in prose) | styled colored inline text |
-| **Relation** | a **frontmatter** property value | typed property → target entities (by ID) | the target's icon + Title (chip-free styled text), in the property surface |
+| **Context-link property** | a **frontmatter** property value — the pre-configured `tier1` / `tier2` / `tier3` arrays | operational entity → Context (Space / Topic / Project) | the target's icon + Title (chip-free styled text), in the property surface |
 
-Both resolve by stable identity and are rename-safe, but they are separate systems on separate surfaces — a wikilink never appears in the property surface, a relation value never appears inline in the body.
+Both resolve by stable identity and are rename-safe, but they are separate systems on separate surfaces — a wikilink never appears in the property surface, a context-link value never appears inline in the body.
 
 ---
 

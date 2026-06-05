@@ -15,7 +15,7 @@ The parallel Items-side entity is the Item — a property-bearing `.md` record w
 - Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it within the same Page Type (between Page Collection sub-folders) → no strip; schema is shared.
 
 - YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Page Type's schema. **No `page_type` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
-- **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (wikilinks, relation values, tier links) resolve via `id`, never by filename. Two Pages in the same Page Type / Page Collection cannot share a title — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] § "Entity identity vs title").
+- **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (wikilinks, context-link tier values) resolve via `id`, never by filename. Two Pages in the same Page Type / Page Collection cannot share a title — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] § "Entity identity vs title").
 
 - Properties on a Page must conform to the Page Type's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
 
@@ -101,11 +101,11 @@ Canonical spec → [[Wiki-Link]]; the on-disk form is ratified by blessed decisi
 - **Untargeted `[[Page Name]]`** (typed outside autocomplete, or pasted from another tool) resolves by current basename match. If multiple Pages share that name, the editor underlines it as ambiguous and the picker prompts for disambiguation at insertion.
 - Wikilinks render as styled colored inline text (Obsidian-style hyperlink), not as Notion-style chips/pills.
 
-**Wikilinks vs relations.** These are two distinct linking mechanisms, in two different places:
+**Wikilinks vs context-link properties.** These are two distinct linking mechanisms, in two different places:
 
 | | Where it lives | How it renders |
 |---|---|---|
 | **Wikilink** | inline in the Markdown **body** (plain `[[Page Name]]`) | styled colored inline text, in the prose flow |
-| **Relation** | a **frontmatter** property value (array of tagged target IDs) | the target's **icon + title in styled colored text**, in the property surface — never a chip/pill |
+| **Context-link property** | a **frontmatter** property value — the pre-configured `tier1` / `tier2` / `tier3` arrays (tagged target IDs) | the target's **icon + title in styled colored text**, in the property surface — never a chip/pill |
 
-A wikilink is body content the editor renders in place; a relation is a typed property whose value is shown in the inspector, resolved from the target's current icon + title. Both resolve their target by ID and stay rename-safe, but they never share a surface — wikilinks never appear in the property surface, relation values never appear inline in the body.
+A wikilink is body content the editor renders in place; a context-link property is a pre-configured tier property whose value is shown in the inspector, resolved from the target's current icon + title. Both resolve their target by ID and stay rename-safe, but they never share a surface — wikilinks never appear in the property surface, context-link values never appear inline in the body.

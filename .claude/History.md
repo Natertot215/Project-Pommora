@@ -2,6 +2,20 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### Contextv2 — Drop Relations → Contexts (2026-06-04)
+
+User-creatable relation properties removed; context tiers (`tier1`/`tier2`/`tier3`) are now the only relation-type connection in Pommora. The substrate is kept: `$rel` token, `PropertyValue.relation` codec, `RelationTarget.contextTier`, `TierRelationCarrying`, `RelationTargetKind`, `PropertyType.relation` (tier-only).
+
+- **User relations retired at decode.** A tier-safe `droppingUserRelations()` filter strips any stored `PropertyType.relation` definition that isn't a reserved `_tier1/2/3` ID — so tier customizations (custom reverse-name / icon) survive.
+- **`RelationTarget` collapses to `.contextTier`-only.** All user-facing target cases (`page_type`, `item_type`, `agenda_tasks`, `agenda_events`, `page_collection`, `item_collection`) removed. Decode is tolerant (`try?`) — legacy sidecars with unknown target shapes load without error; the def is filtered by the decode filter.
+- **`relations`→`context_links` table rename.** Indexes renamed `idx_relations_*`→`idx_context_links_*`. All surviving `Relation*` symbols renamed `Context*`: `RelationChip`→`ContextChip`, `RelationValueEditor`→`ContextValueEditor`, `RelationPicker`→`ContextPicker`, `RelationDisplayResolver`→`ContextDisplayResolver`, `BuiltInRelationProperties`→`BuiltInContextLinkProperties`; query paths `incomingRelations`→`incomingContextLinks`, `reconcileRelations`→`reconcileContextLinks`, `entitiesByTarget`→`entitiesByContextTarget`.
+- **`Project.linked_relations`→`project_links` (ProjectLink).** Dual-key tolerant decode: accepts both `project_links` (new) and legacy `linked_relations` on read; always writes `project_links`.
+- **Orphaned `$rel` values cleared during migration walk.** Leftover `$rel` member values in properties blocks are schema-invisible (the property panel iterates the schema, not the member dict), unindexed, and round-trip-safe; cleared opportunistically inside the migration's existing member-walk for any Type the migration rewrites.
+- **Legacy Collection→Type migration deleted.** `applyRelationTransforms` was dead-after-filter (the decode filter strips user relation defs before the migration scan runs); deleted along with the consent-gate UI it fed.
+- **v0.4.0:** a separate connection-model layer (per-shape tables, weight-at-query, contexts-as-cores "spiderweb") is planned but not yet built.
+
+Registry decision #16 in `Paradigm-Decisions.md`. Plan → `Planning/Contextv2.md`.
+
 #### ItemsV2 — floating Item Window + per-Type templates (2026-06-03)
 
 The Item Window became a native, draggable, chromeless floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)`), hosted by the reusable `PreviewWindow` primitive — replacing the deleted `.sheet`-hosted `ItemWindow.swift`. One config-driven `ItemWindowRenderer` draws every window from its resolved `template_config` (layout-as-data via the `LayoutArchetype` enum + `AnyLayout`; promoted-vs-overflow partition is disjoint), edited in a WYSIWYG "Templates" settings pane (mockup frame, `editing: true`) — archetype, pinned promoted properties, per-property display, image-filtered cover. Type default → Collection override. Description cap corrected to 250 with a per-Type `description_cap` override. Deferred: `@item` body grammar, Page open-in-preview UI, the non-standard archetypes (selectable-but-muted stubs).

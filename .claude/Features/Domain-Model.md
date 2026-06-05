@@ -34,7 +34,7 @@ Three tiers — Spaces (1), Topics (2), Projects (3). Per-tier labels are user-c
 
 **Rules:**
 - Topics multi-parent across Spaces; Projects single-parent at file (folder location = parent Topic)
-- Projects carry additional `linked_relations` to other Topics/Spaces as a **typed multi-valued relation property** (NOT body wikilinks)
+- Projects carry additional `project_links` to other Topics/Spaces as a **typed multi-valued context-link property** (NOT body wikilinks)
 - No same-tier file-structural links (Topic ↛ Topic; Space ↛ Space)
 - Tier-skip allowed: a Project can parent directly to a Space
 - All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; can embed anything)
@@ -69,7 +69,7 @@ Detail → `Contexts.md`.
 **Rules:**
 - Page Type schema applies to all Pages inside (including Pages in Page Collections — Collections inherit the parent Type's schema)
 - Item Type schema applies to all Items inside (Item Collections inherit the parent Type's schema)
-- Page Collections and Item Collections are **not** storage-only. They **inherit only the parent Type's property schema** (collection-local schema overrides remain a post-v1 Prospect), but **own** their saved `views` — and the groups, visibility, and sorts configured inside them — persisted in their per-kind sidecar (`_pagecollection.json` / `_itemcollection.json`). Item Collections (Sets) additionally persist `pinned_properties` (the Item Window's pinned-chip set). Titles are the folder name (filename = title). Each Collection/Set also carries an optional `icon` in its sidecar (source of truth), mirrored into a SQLite column so the relation picker can query it (shipped 2026-05-30). Canonical detail → `PageTypes.md` / `Items.md` / `Properties.md`
+- Page Collections and Item Collections are **not** storage-only. They **inherit only the parent Type's property schema** (collection-local schema overrides remain a post-v1 Prospect), but **own** their saved `views` — and the groups, visibility, and sorts configured inside them — persisted in their per-kind sidecar (`_pagecollection.json` / `_itemcollection.json`). Item Collections (Sets) additionally persist `pinned_properties` (the Item Window's pinned-chip set). Titles are the folder name (filename = title). Each Collection/Set also carries an optional `icon` in its sidecar (source of truth), mirrored into a SQLite column so the context picker can query it (shipped 2026-05-30). Canonical detail → `PageTypes.md` / `Items.md` / `Properties.md`
 - Move between Page Types (or between Item Types) strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections), no strip — schema is shared
 - Agenda Tasks and Agenda Events are separate kinds with separate schemas — the unified `AgendaItem` is gone
 
@@ -109,7 +109,7 @@ tier3: [<project-id>, ...]
 
 Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three.
 
-**Tier values ARE relations.** Spaces / Topics / Projects (`tier1` / `tier2` / `tier3`) are pre-configured Relation properties — `relation_target: { kind: "context_tier", tier: N }` — merged onto every Type's schema via `BuiltInRelationProperties`. They edit inline through the normal property-editing row (`PropertyEditorRow`) like any Relation property, and their values render as the target Context's icon + title in plain styled colored text. In Table views the three tiers appear as default-visible columns at the rightmost content positions (after all user-property columns, before Last Edited Time); each is individually hideable. They stay one-way — no reverse property, since Contexts carry no `properties[]` schema; reverse lookups resolve through the index (`IndexQuery.incomingRelations`).
+**Tier values ARE relations.** Spaces / Topics / Projects (`tier1` / `tier2` / `tier3`) are pre-configured context-link properties — `relation_target: { kind: "context_tier", tier: N }` — merged onto every Type's schema via `BuiltInContextLinkProperties`. They edit inline through the normal property-editing row (`PropertyEditorRow`), and their values render as the target Context's icon + title in plain styled colored text. In Table views the three tiers appear as default-visible columns at the rightmost content positions (after all user-property columns, before Last Edited Time); each is individually hideable. They stay one-way — no reverse property, since Contexts carry no `properties[]` schema; reverse lookups resolve through the index (`IndexQuery.incomingContextLinks`).
 
 ---
 
@@ -135,7 +135,7 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 | Item → Context (tier N) | `tierN: [<id>, ...]` in `.md` frontmatter | Categorical assignment |
 | Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
 | Agenda Event → Context (tier N) | `tierN: [<id>, ...]` in `.event.json` | Categorical assignment |
-| Context → Context | `parents` (file-structural) + `linked_relations` (property) | Hierarchy + cross-cutting relations |
+| Context → Context | `parents` (file-structural) + `project_links` (property, Projects only) | Hierarchy + cross-cutting relations |
 | Page → Page Type / Page Collection | Implicit by file location | Membership |
 | Item → Item Type / Item Collection | Implicit by file location | Membership |
 | Anything → Anything | Wikilinks in composed-page body / Markdown body | Free reference |
@@ -170,4 +170,4 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id, ordering, `icon`, and their own `views` (Sets also persist `pinned_properties`); only the property **schema** inherits from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. **10 property types in v1.** **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types or Item Types. **Page Type, Item Type, Page Collection, and Item Collection-scoped relations are mandatory dual** — paired reverse property auto-created on target. Cross-side relations supported (Item ↔ Page). Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog + scope/dual semantics → `// Features//Properties.md`.
+Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_itemtype.json` on an Item Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections + Item Collections carry their own per-kind sidecars (`_pagecollection.json` / `_itemcollection.json`) for id, ordering, `icon`, and their own `views` (Sets also persist `pinned_properties`); only the property **schema** inherits from the parent Type. Same property catalog applies across Pages, Items, Agenda Tasks, and Agenda Events. **10 property types in v1.** **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types or Item Types. The three context-tier relations (`tier1` / `tier2` / `tier3`) are the only relation-type connections — no user-creatable Relation properties. Schema editing centralizes in the per-Type Settings sheet (Page Type Settings sheet on the Pages side; Item Type Settings sheet on the Items side). Full catalog → `// Features//Properties.md`.

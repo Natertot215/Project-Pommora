@@ -39,13 +39,13 @@ The block catalog (shared with Contexts; `ContextBlock` is an empty placeholder 
 - Widgets:
   - `embedded-collection-view` — a saved Type/Collection view, rendered inline
   - `embedded-context-view` — auto-collected linked content from a Context
-  - `linked-pages` — entities linked to a specified Context, resolved via `IndexQuery.incomingRelations(targetID:)`
+  - `linked-pages` — entities linked to a specified Context, resolved via `IndexQuery.incomingContextLinks(targetID:)`
   - `link-list` — manually curated links
   - `mini-calendar` — small Agenda view (ships v0.7.0)
 
 Every widget is a **live, fully-editable view of its source**, never a read-only snapshot; edits flow to source files via atomic write (inline-editing principle → [[Domain-Model]]).
 
-**Value rendering inside widgets** mirrors the rest of the app: relation property values (including the tier relations Spaces / Topics / Projects) render as the target entity's **icon + title in plain styled colored text** — never chips/pills — resolved live from the target; body wikilinks render as inline styled colored text. Both resolve by ID, so renaming a target updates the rendered label without rewriting the source.
+**Value rendering inside widgets** mirrors the rest of the app: tier relation values (Spaces / Topics / Projects) render as the target entity's **icon + title in plain styled colored text** — never chips/pills — resolved live from the target; body wikilinks render as inline styled colored text. Both resolve by ID, so renaming a target updates the rendered label without rewriting the source.
 
 ---
 

@@ -57,7 +57,7 @@ Filename = title. Renaming in the UI renames the file.
 
 - File at `.nexus/topics/<TopicFolder>/<Title>.project.json` — file location IS the file-structural parent
 - `parents` — single-valued (the parent Topic, encoded by folder location)
-- `linked_relations` — **typed multi-valued relation property** on the Project. Holds IDs of additional Topics or Spaces the Project relates to. **Not body wikilinks** — editable in the property panel like any other relation, queryable via the index, surfaced in graph view
+- `project_links` — **typed multi-valued context-link property** on the Project. Holds IDs of additional Topics, Spaces, or Projects the Project relates to. **Not body wikilinks** — editable in the property panel like any context-link, queryable via the index, surfaced in graph view. On-disk key `project_links`; legacy `linked_relations` key is decode-tolerated (dual-key decode).
 - Tier-skip allowed: a Project CAN parent directly to a Space if it has no file-structural Topic parent (handled by treating it as a Topic in v1 — the "standalone project" case is not a distinct user-facing concept)
 - Sidebar render: leaf row inside parent Topic's disclosure
 - Clicking opens the Project's composed-blocks page
@@ -67,9 +67,9 @@ Filename = title. Renaming in the UI renames the file.
 #### Connection rules
 
 - **Tier-parent rule** — every value in `parents` must resolve to a Context with `level < this.tier`. Cycles impossible by construction.
-- **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Project's `linked_relations` can target multiple Topics/Spaces.
+- **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Project's `project_links` can target multiple Topics, Spaces, or Projects.
 - **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships happen only as body-content wikilinks inside a Context's composed page.
-- **Tier-skip allowed** — Projects can connect to Spaces directly via `parents` or `linked_relations`.
+- **Tier-skip allowed** — Projects can connect to Spaces directly via `parents` or `project_links`.
 
 ---
 
@@ -83,12 +83,12 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier is a multi-value relation, filled independently. Each renders as its own value-row in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`); each value displays as the target Context's **icon + title in styled colored text** — the relation-value rendering shared across every surface, not a chip or pill. The `context_tier` target is internal-only — it backs the three built-in tier relations and is never offered as a user-selectable target. User-defined relations target a Page Type, Item Type, or an Agenda side; `EditPropertyPane` renders a tier target read-only (it can't be created or re-pointed from the editor).
+Each tier is a multi-value relation, filled independently. Each renders as its own value-row in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`); each value displays as the target Context's **icon + title in styled colored text** — the relation-value rendering shared across every surface, not a chip or pill. The `context_tier` target is internal-only — it backs the three built-in tier relations, which are the sole relation-type connection. No user-creatable relation properties exist; `EditPropertyPane` renders a tier target read-only.
 
 A tier relation is a **dual surface**:
 
 - **Outbound (entity → Context).** The operational entity tags the Context by holding its ID in `tier1` / `tier2` / `tier3`. This is the writable side — the value lives in the entity's frontmatter; the Context carries no `properties[]` schema and no reverse field.
-- **Inbound (Context → entities).** The Context reads back every entity that tags it. Because tier values emit one row each into the SQLite `relations` table (`property_id` = the reserved tier ID), the inbound view is a pure index query — no reverse property to maintain.
+- **Inbound (Context → entities).** The Context reads back every entity that tags it. Because tier values emit one row each into the SQLite `context_links` table (`property_id` = the reserved tier ID), the inbound view is a pure index query — no reverse property to maintain.
 
 ---
 
@@ -96,7 +96,7 @@ A tier relation is a **dual surface**:
 
 A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Items / Agenda Tasks / Agenda Events / lower-tier Contexts).
 
-The dropdown is powered by `IndexQuery.incomingRelations(targetID:)`, which reads the `relations` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. Tier links and user-defined Relation properties land in the same `relations` table, so a single query returns both the tier-tagged entities and any Context-targeting Relation property values. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
+The dropdown is powered by `IndexQuery.incomingContextLinks(targetID:)`, which reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
 
 ---
 

@@ -1,6 +1,6 @@
 ### Items
 
-An Item is a **row-shaped record** stored as a plain `.md` file (YAML frontmatter + body): properties + relations + a capped Markdown-source description that IS the body, opened in an **Item Window** — a native, draggable, dismissible floating panel. Items carry typed relations to any other entity by ID — see [[Properties]] § "Relation target".
+An Item is a **row-shaped record** stored as a plain `.md` file (YAML frontmatter + body): properties + a capped Markdown-source description that IS the body, opened in an **Item Window** — a native, draggable, dismissible floating panel. Items connect to Contexts via the three pre-configured tier relation properties (`tier1` / `tier2` / `tier3`) — see [[Properties]] § "Tier relations".
 
 Items share Pages' one `AtomicYAMLMarkdown` pipeline (one codec for both forms). A reserved, UI-hidden, **non-authoritative** `Class` frontmatter stamp (`item` | `page`) marks the form; the parent Type folder's sidecar (`_itemtype.json` / `_pagetype.json`) is the **kind authority**. A stamp/folder disagreement, or a homeless file, routes to a hidden `.unsorted` inbox (future-UI-surfaced). Items are a distinct *form* of one entity-type, not a separate file format.
 
@@ -48,7 +48,7 @@ Each Item file holds frontmatter (YAML) plus a body:
 
 - `id` — ULID, stable across renames
 - `icon` — optional, same catalog as Pages
-- `properties` — values conforming to the parent Item Type's schema; relation values are tagged arrays (`[{"$rel": "<ULID>"}]`)
+- `properties` — values conforming to the parent Item Type's schema; tier relation values are tagged arrays (`[{"$rel": "<ULID>"}]`)
 - `tier1` / `tier2` / `tier3` — per-tier Context relations, stored at the frontmatter root as bare ID arrays (`[<ULID>, ...]`). Independent per tier.
 - `created_at` / `modified_at` — ISO-8601 timestamps
 - `Class` — the reserved, UI-hidden, non-authoritative kind stamp (`item`); the folder sidecar is the authority.
@@ -74,7 +74,7 @@ If an Item later needs prose, the user creates a Page under a Page Type and link
 
 #### Capabilities
 
-- Hold typed properties (same catalog as Pages → [[Properties]]) and typed relations to any entity by ID, rename-safe
+- Hold typed properties (same catalog as Pages → [[Properties]])
 - Appear in any view defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`. Tier columns in Table views → [[Properties]] § "Built-in tier columns".
 - Relate to Contexts via `tier1` / `tier2` / `tier3`, surfacing on those Contexts via embedded views; be linked-to from a Context's link-list widget, an embedded view, or body wikilinks
 
@@ -94,7 +94,7 @@ Items open in the **Item Window** — a native, draggable, chromeless floating s
 - **Icon** — optional SF Symbol via the native `IconPicker`.
 - **Properties** — the live window renders the template read-only re: pinning/placement and edits property VALUES; the value-editing surface is currently minimal (title + icon + description), with the full property-value-editing UI a follow-up. Property layout is driven by the resolved template, not chosen per-item.
 - **Description** — the Markdown-source body (the Shape-A contract above), MarkdownPM-rendered: capped at **250 source characters** (`ItemValidator.maxDescriptionLength`, with an optional per-Type `description_cap` override), validated on save and rejected over-cap for in-app saves — never silently clamped; external/raw-Obsidian over-cap surfaces a non-blocking warning.
-- **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured Relation properties (`relation_target` `{ kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInRelationProperties`, edited inline like any Relation property. Values render as the target's icon + title in plain styled colored text.
+- **Spaces / Topics / Projects (tier 1 / 2 / 3) relations** — pre-configured context-link properties (`relation_target` `{ kind: "context_tier", tier: N }`) merged onto the schema via `BuiltInContextLinkProperties`, edited inline. Values render as the target's icon + title in plain styled colored text.
 - **Meta footer** — `id`, `created_at`, `modified_at` read-only.
 
 Dismissed via the custom close affordance or Esc. Save commits via `ItemContentManager.updateItem` (drift-guarded). The body is the capped description only — no blocks, no `@Columns`; if the entry needs full prose, it should be a Page.

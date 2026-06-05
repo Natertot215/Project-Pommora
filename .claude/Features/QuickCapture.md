@@ -55,4 +55,4 @@ These are alternatives, not all-or-nothing — a Share Extension and a browser e
 - **Pages capture** — needs the Vault / Collection picker + body editor; revisit after operational-entity capture is proven.
 - **Capture while the app is fully quit** — the in-app menu-bar surface is available whenever the app (including as a login-item agent) is running; a truly headless capture daemon would reintroduce the multi-process problems this design avoids, so it is not planned.
 - **Which web route ships first** (browser extension vs Share Extension) — a UX / scope call for the spec phase.
-- **Relation fields in the capture pane** — relation pickers depend on the index + a resolver; keeping relations behind "show all" (pinned-first) keeps capture fast.
+- **Context-link fields in the capture pane** — context pickers (`ContextPicker`) depend on the index + a resolver; keeping tier-relation fields behind "show all" (pinned-first) keeps capture fast.

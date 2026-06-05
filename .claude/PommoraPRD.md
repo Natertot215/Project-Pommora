@@ -162,7 +162,7 @@ Both Types have no text-editor surface — pure database viewers (table / board 
 
 ##### Contexts (Spaces / Topics / Projects)
 
-Three-tier organization layer; all three are composed-blocks surfaces. Tier-1 Spaces: `.nexus/spaces/<Title>.space.json` (carries `color`, tier-1 only). Tier-2 Topics: `.nexus/topics/<Title>/_topic.json` (multi-parent across Spaces). Tier-3 **Projects**: `.nexus/topics/<TopicFolder>/<Title>.project.json` (single file-structural parent + `linked_relations` typed property). Tier labels user-configurable per-Nexus (Capacities-style singular + plural). Same `blocks` shape as Homepage. Full detail → `// Features//Contexts.md`.
+Three-tier organization layer; all three are composed-blocks surfaces. Tier-1 Spaces: `.nexus/spaces/<Title>.space.json` (carries `color`, tier-1 only). Tier-2 Topics: `.nexus/topics/<Title>/_topic.json` (multi-parent across Spaces). Tier-3 **Projects**: `.nexus/topics/<TopicFolder>/<Title>.project.json` (single file-structural parent + `project_links` typed property — additional Context IDs across tiers; on-disk key `project_links`, legacy `linked_relations` tolerated on read). Tier labels user-configurable per-Nexus (Capacities-style singular + plural). Same `blocks` shape as Homepage. Full detail → `// Features//Contexts.md`.
 
 ##### Agenda
 
@@ -185,7 +185,7 @@ Singleton composed-blocks dashboard at `.nexus/homepage.json`. No `id`/`tier`/`p
 
 ##### SQLite Schema
 
-Eleven data tables plus an internal `meta` table, rebuilt from files on launch or demand. The index stores titles, properties, links, and relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
+Eleven data tables plus an internal `meta` table, rebuilt from files on launch or demand. The index stores titles, properties, links, and context-tier relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_itemtype.json`) and each Agenda kind's per-kind sidecar (`_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
 
 ```sql
 -- Page Type index (one row per <nexus>/<Title>/_pagetype.json at the root)
@@ -272,8 +272,8 @@ CREATE TABLE contexts (
   parent_topic_id TEXT                -- tier-3 Projects: file-structural parent Topic; nullable for tier 1/2
 );
 
--- Relation index — property-typed links (paired relations, tier relations via property_id)
-CREATE TABLE relations (
+-- Context-link index — tier relations only (tier1/2/3 emit one row each via property_id)
+CREATE TABLE context_links (
   id TEXT PRIMARY KEY,
   source_id TEXT NOT NULL,
   source_kind TEXT NOT NULL,          -- 'page' | 'item' | 'agenda_task' | 'agenda_event'
@@ -301,20 +301,20 @@ CREATE INDEX idx_items_item_type_id ON items(item_type_id);
 CREATE INDEX idx_items_item_collection_id ON items(item_collection_id);
 CREATE INDEX idx_page_collections_page_type_id ON page_collections(page_type_id);
 CREATE INDEX idx_item_collections_item_type_id ON item_collections(item_type_id);
-CREATE INDEX idx_relations_source_id ON relations(source_id);
-CREATE INDEX idx_relations_target_id ON relations(target_id);
-CREATE INDEX idx_relations_property_id ON relations(property_id);
+CREATE INDEX idx_context_links_source_id ON context_links(source_id);
+CREATE INDEX idx_context_links_target_id ON context_links(target_id);
+CREATE INDEX idx_context_links_property_id ON context_links(property_id);
 CREATE INDEX idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
 CREATE INDEX idx_contexts_tier ON contexts(tier);
 CREATE INDEX idx_contexts_parent_topic ON contexts(parent_topic_id);
 ```
 
-The internal `meta(key, value)` table holds the global `schema_version`; on mismatch with the code's `currentSchemaVersion`, the whole index file is deleted and rebuilt. Queries use SQLite's JSON1 extension to reach into the `properties` JSON, and join `relations` for tier-relation and paired-relation lookups (each tier value emits one `relations` row, keyed by the reserved tier property ID):
+The internal `meta(key, value)` table holds the global `schema_version`; on mismatch with the code's `currentSchemaVersion`, the whole index file is deleted and rebuilt. Queries use SQLite's JSON1 extension to reach into the `properties` JSON, and join `context_links` for tier-relation lookups (each tier value emits one `context_links` row, keyed by the reserved tier property ID):
 
 ```sql
 -- All Pages in the "Notes" Page Type tagged to a specific Topic
 SELECT p.* FROM pages p
-JOIN relations r ON r.source_id = p.id AND r.source_kind = 'page' AND r.property_id = '_tier2'
+JOIN context_links r ON r.source_id = p.id AND r.source_kind = 'page' AND r.property_id = '_tier2'
 WHERE p.page_type_id = '01H...notes-page-type-id'
   AND r.target_id = '01H...topic-id';
 
@@ -333,10 +333,10 @@ WHERE start_at BETWEEN datetime('now') AND datetime('now', '+7 days');
 - **Scoped per Type**, created via per-Type Settings sheet (Page Type Settings sheet on Pages side; Item Type Settings sheet on Items side — Notion-style). Members must conform; ad-hoc page-local properties out of v1 (Prospect).
 - **V1 catalog (10 types)** — full catalog in `// Features//Properties.md`. No free-form text — filename = title; "text-shaped" values use Select/Multi-select with creatable options. **Status** has 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done) with user-editable options; group labels renamable, 3 structural slots fixed for EventKit compatibility. Status is built-in required on both AgendaTask AND AgendaEvent schemas; NOT auto-seeded on Page Types or Item Types.
 - **Property identity = ID, not name.** Every property in a Type's schema carries a stable ULID `id`; frontmatter / JSON `properties` block keys reference the property ID. `name` is a renameable display label — renames are schema-only (no member-file cascade).
-- **Cross-side relations supported.** Pages-side schemas can target Item Types / Item Collections, and vice versa. Cross-side *promotion* (transforming an Item INTO a Page) remains a post-v1 Prospect — different concept.
+- **Cross-side relations removed.** User-creatable relation properties targeting Page Types, Item Types, Agenda Tasks, or Agenda Events were retired in the Contextv2 refactor (2026-06-04). The only surviving relation-type connection is the context-tier link (`tier1`/`tier2`/`tier3`). Cross-side *promotion* (transforming an Item INTO a Page) remains a post-v1 Prospect — different concept.
 - **File / Attachment** property type — files copy into `<nexus>/.nexus/attachments/<entity-id>/<original-filename>` on attach; property stores nexus-relative paths. Especially load-bearing for Items.
 - **Every property can carry an icon** (SF Symbol via the native `IconPicker`).
-- **Relations are paired by default** — creating a Type-scoped or Collection-scoped Relation atomically creates the reverse on the target. Four container/sub-folder relation scopes: `page_type(id)`, `item_type(id)`, `page_collection(id)`, `item_collection(id)`. Context-tier-scoped relations (`context_tier(N)`) stay one-way (Contexts have no `properties[]` schema).
+- **Context-tier links are one-way and pre-configured** — `tier1`/`tier2`/`tier3` are built-in relation properties (merged via `BuiltInContextLinkProperties`) stored at frontmatter root. There are no user-creatable paired/dual relations; the `DualRelationCoordinator` machinery has been removed.
 - **Inline option creation forbidden.** Select/Multi-select/Status options come only from the schema editor (per-Type Settings → Edit Properties), reachable via right-click "Edit options…" or "Manage options…" link in every value picker.
 - **Move-strip rule (Notion-style):** moving a Page across Page Types or an Item across Item Types strips properties not in the destination schema (no quarantine; confirmation warning lists strips). Implemented v0.3.0 (pulled forward from v0.4.0).
 
@@ -418,7 +418,7 @@ SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus 
 
 Renames are filesystem renames + nothing else — no cross-file rewrite of wikilinks or relation values is needed because both are ID-keyed. The file watcher updates the SQLite `path` field; references in other files continue to resolve via ULID.
 
-**Wikilink resolution:** disk format `[[Title|01HXYZ...]]` — title is the human-readable label, the ULID after the pipe is the unambiguous reference. The displayed title updates automatically at render time via the ULID; the stored reference never changes. Untargeted `[[Title]]` (typed without autocomplete, or pasted from another tool) resolves by current basename match; ambiguous matches are underlined in the editor. Wikilinks render as styled colored inline text (Obsidian-style), not Notion-style chips. Relation properties store target IDs as `{"$rel": "<ULID>"}` and display the target's current title.
+**Wikilink resolution:** disk format is plain `[[Page Name]]` (Obsidian-compatible) — Pommora never writes a piped ULID form to disk. Rename-safe ID resolution comes from a derived `wikilinks: [<id>, ...]` frontmatter mirror, auto-maintained on save (v0.4.0). The displayed title updates automatically at render time; the stored reference never changes. Untargeted `[[Title]]` (typed without autocomplete, or pasted from another tool) resolves by current basename match; ambiguous matches are underlined in the editor. Wikilinks render as styled colored inline text (Obsidian-style), not Notion-style chips. Relation properties store target IDs as `{"$rel": "<ULID>"}` and display the target's current title.
 
 ##### Data, State, File Watching
 
@@ -442,14 +442,14 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 
 **In:**
 
-- **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `linked_relations` as typed multi-valued property.
+- **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `project_links` as typed multi-valued property (additional Context IDs across tiers).
 - **Page Types + Page Collections + Pages** (Pages side) and **Item Types + Item Collections + Items** (Items side) — symmetric container layers. Each Type carries its per-kind sidecar (`_pagetype.json` / `_itemtype.json`); Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` / `_itemcollection.json` carries id + type_id + ordering only). UI labels: Pages get "Vault" + "Collection"; Items get "Type" + "Set" (renameable via Settings).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
 - **Items** — `.md` (YAML frontmatter + body). Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; frontmatter carries `id`, `icon`, `tier1/2/3`, timestamps, properties (keyed by property ID), and a reserved UI-hidden non-authoritative `Class` stamp (`item` | `page`) — the parent Type folder's sidecar is the kind authority. The capped description IS the Markdown body (250 source-char cap, per-Type `description_cap` override; single source of truth, no frontmatter description field). Shares Pages' `AtomicYAMLMarkdown` pipeline. Open in the floating Item Window, not a tab.
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.5.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
 - **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.4.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.
-- Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 11 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + the Templates pane — live for Items, muted for Pages). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
+- Property panel UI driven by Page Type / Item Type / AgendaTask / AgendaEvent schemas; all 10 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; per-Type Settings sheet centralizes schema editing (Edit Properties + the Templates pane — live for Items, muted for Pages). Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
 - Wikilinks (styled colored inline text).
 - Automatic file rename with cross-nexus wikilink rewrite.
 - File watcher keeping SQLite synced.

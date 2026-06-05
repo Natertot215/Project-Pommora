@@ -5,21 +5,13 @@ The operational layer's calendar-anchored side. Splits into two distinct entity 
 - **Agenda Tasks** — EKReminder-aligned: due date (optional), completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` inside the Tasks singleton folder at the nexus root.
 - **Agenda Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` inside the Events singleton folder at the nexus root.
 
-Both share the property catalog used elsewhere (Number / Select / Status / Relation / etc.) and both carry `tier1` / `tier2` / `tier3` Context relations.
+Both share the property catalog used elsewhere (Number / Select / Status / etc.) and both carry `tier1` / `tier2` / `tier3` Context relations.
 
 The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate `EKEntityType` buckets, separate access APIs, separate apps — Calendar.app vs Reminders.app), so the disk layout uses two sibling singleton folders at the nexus root rather than an `Agenda/` wrapper. EventKit sync (v0.5.0) maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
 
 In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
 UX-wise both entities behave identically to [[Items]] — the floating Item Window, tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
-
----
-
-#### Agenda Tasks and Events as relation targets
-
-Both kinds are **first-class relation targets**: a Relation property on any Page Type or Item Type (or the other Agenda kind) can point at them. `PropertyDefinition.RelationTarget` carries `.agendaTasks` / `.agendaEvents` alongside `.pageType` / `.itemType`. The picker resolves candidates via `IndexQuery.entitiesByTarget(.agendaTasks)` / `.agendaEvents`; each value renders as the target's **icon + title in styled colored text**.
-
-Because a Task or Event is a target, it also surfaces its own inbound links: every entity whose Relation property (or tier relation) points at it is found via `IndexQuery.incomingRelations(targetID:)` against the SQLite `relations` table — the same reverse-view query every other target uses.
 
 ---
 
@@ -45,7 +37,7 @@ Both singleton folders are **eagerly created on launch**: `AgendaTaskManager.loa
 
 #### Schema (config sidecar)
 
-`_taskconfig.json` and `_eventconfig.json` each carry `properties: [PropertyDefinition]` — the same property shape as Page Types and Item Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); every other property is user-defined. The three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInRelationProperties` for surfaces that show them.
+`_taskconfig.json` and `_eventconfig.json` each carry `properties: [PropertyDefinition]` — the same property shape as Page Types and Item Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); every other property is user-defined. The three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInContextLinkProperties` for surfaces that show them.
 
 The `_status` Status structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, user-editable options, default seed, the 3-slot rule, the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
 

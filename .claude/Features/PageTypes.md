@@ -83,25 +83,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
       ]
     },
     { "name": "due", "type": "date" },
-    { "name": "priority", "type": "number", "number_format": "integer" },
-    {
-      "name": "sources",
-      "icon": "doc.text.magnifyingglass",
-      "type": "relation",
-      "relation_target": {
-        "kind": "page_type",
-        "page_type_id": "01HMATERIALSPAGETYPE..."
-      },
-      "dual_property": {
-        "synced_property_id": "prop_01HCITEDBY...",
-        "synced_property_defined_on_type_id": "01HMATERIALSPAGETYPE..."
-      }
-    },
-    {
-      "name": "related topics",
-      "type": "relation",
-      "relation_target": { "kind": "context_tier", "tier": 2 }
-    }
+    { "name": "priority", "type": "number", "number_format": "integer" }
   ],
   "schema_version": 2,
   "default_sort": { "property_id": "_modified_at", "direction": "descending" },
@@ -116,26 +98,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 
 Title = folder name. The schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively. Per-property and per-panel visibility hide-lists are a post-v1 deferral (the inspector renders all schema properties today).
 
-**Relation values are always multi-valued.** A relation property holds an array of tagged target objects — `[{"$rel": "<ULID>"}]` — in the member file's frontmatter / JSON, one entry per linked target (a single target is a one-element array). Values render as the target's **icon + title in plain styled colored text** (never chips/pills), resolved live from the target entity.
-
-**Paired relation properties** — the `sources` Relation above (`relation_target.kind: "page_type"` + `dual_property`) is one half of a paired relation. The target Page Type (`01HMATERIALSPAGETYPE...`) carries the reverse `"Cited By"` in its own `_pagetype.json`:
-
-```json
-{
-  "name": "Cited By",
-  "type": "relation",
-  "relation_target": {
-    "kind": "page_type",
-    "page_type_id": "01HTHISPAGETYPE..."
-  },
-  "dual_property": {
-    "synced_property_id": "prop_01HSOURCES...",
-    "synced_property_defined_on_type_id": "01HTHISPAGETYPE..."
-  }
-}
-```
-
-Both properties are created in a single SchemaTransaction two-phase commit. Setting a value on either side mirrors the reverse; renaming or deleting either cascades. See "Dual relations" in [[Properties]] for full lifecycle.
+**Tier relation values are always multi-valued.** The built-in `_tier1` / `_tier2` / `_tier3` properties hold an array of tagged Context IDs — `[{"$rel": "<ULID>"}]` — one entry per linked Context (a single target is a one-element array). Values render as the target's **icon + title in plain styled colored text** (never chips/pills), resolved live from the target entity.
 
 #### Page Type Settings sheet
 
@@ -149,7 +112,7 @@ The schema-editor sheet opens from the **Page Type row right-click → "Vault Se
 
 | Section | Contents |
 |---|---|
-| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, relation target, dual reverse name, status groups, etc.). |
+| **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, tier reverse name + icon, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
 Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings**, which ships at v0.7.0 alongside saved views. A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.
@@ -158,7 +121,7 @@ Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility)
 
 Schema editor. Each row: icon (if set) + name, type badge, per-property menu (Rename / Change Type / Edit Options or Groups / Delete / Move Up-Down).
 
-"+ Add property" opens the type picker → per-type config sub-view. Relation properties are created and edited via the View Settings popover (`EditPropertyPane` `.newRelation` route); selecting Relation in these legacy sheets cancels silently and defers to that path. Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status).
+"+ Add property" opens the type picker → per-type config sub-view. The Relation type is not user-creatable and does not appear in the picker — tier relations are pre-configured built-ins. Per-property config is editable inline within an expandable row (drag-reorder for Select/Multi-select options; 3-group editor for Status).
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
 
@@ -172,7 +135,7 @@ Page Type Settings reads/writes the `properties` and `default_sort` fields of `_
 
 Page Type creation does NOT seed default properties — name + icon only. Users add Status (or anything else) manually via Page Type Settings → Edit Properties → "+ Add property". Status is built-in on AgendaTask and AgendaEvent (where EventKit needs it); on user-created Page Types and Item Types it is opt-in.
 
-Content-level templates (Notion-style pre-fill at creation) are reserved for post-v1. Property type catalog, relation targets, Status groups, dual-relation semantics → [[Properties]].
+Content-level templates (Notion-style pre-fill at creation) are reserved for post-v1. Property type catalog, relation targets, Status groups → [[Properties]].
 
 ---
 
@@ -204,7 +167,7 @@ Filesystem folders inside a Page Type with a minimal sidecar. Pages-only — Pag
 }
 ```
 
-Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the relation picker), `page_order` (user-arranged child Pages), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
+Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the context picker), `page_order` (user-arranged child Pages), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
 
 - Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id/type_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page between Collections in the same Page Type = pure filesystem move, properties unchanged.
 
