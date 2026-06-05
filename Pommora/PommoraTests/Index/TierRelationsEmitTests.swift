@@ -231,6 +231,102 @@ struct TierRelationsEmitTests {
         #expect(try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx) == 1)
     }
 
+    // MARK: - Guard — user-relation property values must NOT emit relations rows
+
+    /// A `.relation([id])` property value on a page must NOT produce any row in
+    /// the `relations` table; only tier values should. This encodes the post-Task-6
+    /// contract: user-relation indexing is removed; the tier paths are the sole
+    /// `relations` emitters.
+    @Test func userRelationPropertyValueEmitsNoRelationsRow() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        // Register a page type with one relation property definition.
+        let relPropID = ULID.generate()
+        let relDef = PropertyDefinition(id: relPropID, name: "Linked", type: .relation)
+        let pt = PageType(
+            id: ULID.generate(), title: "Notes", icon: nil,
+            properties: [relDef], views: [], modifiedAt: Date()
+        )
+        try updater.upsertPageType(pt)
+
+        // Create a page whose `properties` map carries a `.relation` value.
+        let targetID = ULID.generate()
+        let pageID = ULID.generate()
+        let url = URL(fileURLWithPath: "/tmp/\(pageID).md")
+        let frontmatter = PageFrontmatter(
+            id: pageID, icon: nil,
+            tier1: [], tier2: [], tier3: [],
+            properties: [relPropID: .relation([targetID])],
+            createdAt: Date()
+        )
+        let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
+        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+
+        // The user-relation value must NOT appear in relations.
+        let userRelCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM relations WHERE source_id = ? AND property_id = ?",
+                arguments: [pageID, relPropID]
+            ) ?? -1
+        }
+        #expect(userRelCount == 0, "user-relation property values must not emit relations rows")
+
+        // Total relations for this page must also be 0 (no tier values were set).
+        #expect(try relationCount(sourceID: pageID, db: idx) == 0)
+    }
+
+    /// Companion to `userRelationPropertyValueEmitsNoRelationsRow`: when a page
+    /// carries BOTH a `.relation` property value AND a tier value, only the tier
+    /// row lands in `relations`.
+    @Test func userRelationWithTierEmitsOnlyTierRow() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        let relPropID = ULID.generate()
+        let relDef = PropertyDefinition(id: relPropID, name: "Linked", type: .relation)
+        let pt = PageType(
+            id: ULID.generate(), title: "Notes", icon: nil,
+            properties: [relDef], views: [], modifiedAt: Date()
+        )
+        try updater.upsertPageType(pt)
+
+        let userTargetID = ULID.generate()
+        let contextID = ULID.generate()
+        let pageID = ULID.generate()
+        let url = URL(fileURLWithPath: "/tmp/\(pageID).md")
+        let frontmatter = PageFrontmatter(
+            id: pageID, icon: nil,
+            tier1: [contextID], tier2: [], tier3: [],
+            properties: [relPropID: .relation([userTargetID])],
+            createdAt: Date()
+        )
+        let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
+        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+
+        // Exactly one row — the tier1 row — must exist.
+        #expect(try relationCount(sourceID: pageID, db: idx) == 1)
+
+        // That row must be the tier row, not the user-relation row.
+        let tierCount = try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx)
+        #expect(tierCount == 1)
+
+        // The user-relation target must not appear at all.
+        let userRelCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM relations WHERE target_id = ?",
+                arguments: [userTargetID]
+            ) ?? -1
+        }
+        #expect(userRelCount == 0, "user-relation target must not appear in relations after Task 6")
+    }
+
     // MARK: - IndexBuilder (full rebuild) — Page tier1 survives populate
 
     @Test func fullRebuildEmitsTierRelationRow() async throws {

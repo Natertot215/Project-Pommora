@@ -444,31 +444,6 @@ struct IndexUpdater: Sendable {
             sql: "DELETE FROM relations WHERE source_id = ?",
             arguments: [sourceID]
         )
-        for (propertyID, value) in properties {
-            guard case .relation(let targetIDs) = value else { continue }
-            // Resolve the coarse target kind from the property's persisted
-            // `relation_target`. `property_definitions.config` round-trips it via
-            // the shared `indexConfigJSON()` serializer (same shape IndexBuilder
-            // writes), so a lookup-by-id decode yields the same kind a full
-            // rebuild would. Missing row / missing target falls back to "unknown".
-            let target = relationTarget(forPropertyID: propertyID, db: db)
-            let targetKind = RelationTargetKind.string(from: target)
-            for targetID in targetIDs {
-                let relID = ULID.generate()
-                try db.execute(
-                    sql: """
-                        INSERT INTO relations
-                            (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                    arguments: [
-                        relID, sourceID, sourceKind,
-                        targetID, targetKind,
-                        propertyID, nowISO(),
-                    ]
-                )
-            }
-        }
         // Tier relations — emitted after the DELETE above so they aren't wiped.
         let tiers: [(Int, [String], String)] = [
             (1, tier1, ReservedPropertyID.tier1),
@@ -501,37 +476,8 @@ struct IndexUpdater: Sendable {
     /// Serialises type-specific config fields into the `config` JSON blob
     /// stored in `property_definitions.config`. Delegates to the single source
     /// of truth shared with `IndexBuilder` so rows written by either path
-    /// round-trip identically — notably `relation_target`, which
-    /// `reconcileRelations` reads back to derive `relations.target_kind`.
+    /// round-trip identically.
     private func configJSON(for def: PropertyDefinition) -> String {
         def.indexConfigJSON()
-    }
-
-    /// Decodes a relation property's `relationTarget` from its persisted
-    /// `property_definitions.config` blob (`relation_target` key — the shape the
-    /// shared `indexConfigJSON()` serializer writes). Used by
-    /// `reconcileRelations` to derive `relations.target_kind` on incremental
-    /// writes. Returns `nil` if the row is absent or carries no relation target
-    /// (→ caller falls back to `RelationTargetKind` "unknown").
-    private func relationTarget(
-        forPropertyID propertyID: String,
-        db: Database
-    ) -> PropertyDefinition.RelationTarget? {
-        struct TargetOnly: Decodable {
-            var relationTarget: PropertyDefinition.RelationTarget?
-            enum CodingKeys: String, CodingKey {
-                case relationTarget = "relation_target"
-            }
-        }
-        guard
-            let configJSON = try? String.fetchOne(
-                db,
-                sql: "SELECT config FROM property_definitions WHERE id = ?",
-                arguments: [propertyID]
-            ),
-            let data = configJSON.data(using: .utf8),
-            let decoded = try? JSONDecoder().decode(TargetOnly.self, from: data)
-        else { return nil }
-        return decoded.relationTarget
     }
 }

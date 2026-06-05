@@ -381,34 +381,6 @@ struct IndexUpdaterTests {
         #expect(row?["item_type_id"] as String? == it.id)
     }
 
-    @Test func upsertItemWithRelationPropertyIndexesRelationRow() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
-        let updater = IndexUpdater(idx)
-
-        let it = makeItemType()
-        try updater.upsertItemType(it)
-
-        let targetID = ULID.generate()
-        let propID = ReservedPropertyID.mintUserPropertyID()
-        let now = Date()
-        let item = Item(
-            id: ULID.generate(), title: "Widget", icon: nil, description: "",
-            tier1: [], tier2: [], tier3: [],
-            properties: [propID: .relation([targetID])],
-            createdAt: now, modifiedAt: now
-        )
-        try updater.upsertItem(item, itemTypeID: it.id, itemCollectionID: nil)
-
-        let relCount = try countRows(in: "relations", db: idx)
-        #expect(relCount == 1)
-        let rel = try firstRow(in: "relations", db: idx)
-        #expect(rel?["source_id"] as String? == item.id)
-        #expect(rel?["target_id"] as String? == targetID)
-        #expect(rel?["property_id"] as String? == propID)
-    }
-
     // MARK: - Page upsert with tier-relation extraction
 
     @Test func upsertPageWithTierFieldsIndexesTierRelationRows() async throws {

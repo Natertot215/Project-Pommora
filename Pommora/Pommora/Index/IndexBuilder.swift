@@ -160,7 +160,6 @@ final class IndexBuilder {
             insertAgendaTasks(db, snapshot: snapshot)
             insertAgendaEvents(db, snapshot: snapshot)
             insertContexts(db, snapshot: snapshot)
-            insertRelations(db, snapshot: snapshot)
             insertTierRelations(db, snapshot: snapshot)
         }
     }
@@ -659,84 +658,6 @@ final class IndexBuilder {
                             """
                     )
                 })
-        }
-    }
-
-    private nonisolated static func insertRelations(_ db: Database, snapshot: NexusSnapshot) {
-        // Pages
-        for pt in snapshot.pageTypes {
-            let schema = pt.properties
-            for coll in pt.collections {
-                for page in coll.pages {
-                    insertRelationRows(
-                        db, properties: page.properties, schema: schema,
-                        sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
-                }
-            }
-            for page in pt.directPages {
-                insertRelationRows(
-                    db, properties: page.properties, schema: schema,
-                    sourceID: page.id, sourceKind: "page", modifiedAt: page.modifiedAt)
-            }
-        }
-        // Items
-        for it in snapshot.itemTypes {
-            let schema = it.properties
-            for coll in it.collections {
-                for item in coll.items {
-                    insertRelationRows(
-                        db, properties: item.properties, schema: schema,
-                        sourceID: item.id, sourceKind: "item", modifiedAt: item.modifiedAt)
-                }
-            }
-            for item in it.directItems {
-                insertRelationRows(
-                    db, properties: item.properties, schema: schema,
-                    sourceID: item.id, sourceKind: "item", modifiedAt: item.modifiedAt)
-            }
-        }
-        // Tasks
-        let taskSchema = snapshot.taskSchema?.properties ?? []
-        for task in snapshot.tasks {
-            insertRelationRows(
-                db, properties: task.properties, schema: taskSchema,
-                sourceID: task.id, sourceKind: "agenda_task", modifiedAt: task.modifiedAt)
-        }
-        // Events
-        let eventSchema = snapshot.eventSchema?.properties ?? []
-        for event in snapshot.events {
-            insertRelationRows(
-                db, properties: event.properties, schema: eventSchema,
-                sourceID: event.id, sourceKind: "agenda_event", modifiedAt: event.modifiedAt)
-        }
-    }
-
-    private nonisolated static func insertRelationRows(
-        _ db: Database,
-        properties: [String: PropertyValue],
-        schema: [PropertyDefinition],
-        sourceID: String,
-        sourceKind: String,
-        modifiedAt: Date
-    ) {
-        let schemaByID = Dictionary(uniqueKeysWithValues: schema.map { ($0.id, $0) })
-        for (propID, value) in properties {
-            guard case .relation(let targetIDs) = value else { continue }
-            let def = schemaByID[propID]
-            let targetKind = RelationTargetKind.string(from: def?.relationTarget)
-            for targetID in targetIDs {
-                let relationID = UUID().uuidString
-                attemptInsert(
-                    "relation \(sourceKind) \(sourceID) → \(targetID)",
-                    {
-                        try db.execute(
-                            literal: """
-                                INSERT INTO relations (id, source_id, source_kind, target_id, target_kind, property_id, modified_at)
-                                VALUES (\(relationID), \(sourceID), \(sourceKind), \(targetID), \(targetKind), \(propID), \(iso8601(modifiedAt)))
-                                """
-                        )
-                    })
-            }
         }
     }
 
