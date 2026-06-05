@@ -8,11 +8,11 @@ import Testing
 @Suite("PropertyTypePickerTests")
 struct PropertyTypePickerTests {
 
-    // MARK: - Test 1: userCreatable enumerates exactly 9 cases
+    // MARK: - Test 1: userCreatable enumerates exactly 8 cases
 
-    @Test("PropertyType.userCreatable enumerates exactly 9 cases")
-    func userCreatableCountIs9() {
-        #expect(PropertyType.userCreatable.count == 9)
+    @Test("PropertyType.userCreatable enumerates exactly 8 cases")
+    func userCreatableCountIs8() {
+        #expect(PropertyType.userCreatable.count == 8)
     }
 
     // MARK: - Test 2: auto-managed + retired types are NOT in userCreatable
@@ -25,13 +25,13 @@ struct PropertyTypePickerTests {
         #expect(PropertyType.userCreatable.first(where: { $0 == .date }) == nil)
     }
 
-    // MARK: - Test 3: the 9 expected cases are all present
+    // MARK: - Test 3: the 8 expected cases are all present
 
-    @Test("PropertyType.userCreatable contains all 9 expected property types")
+    @Test("PropertyType.userCreatable contains all 8 expected property types")
     func expectedCasesPresent() {
         let expected: Set<PropertyType> = [
             .number, .checkbox, .datetime,
-            .select, .multiSelect, .status, .url, .relation, .file,
+            .select, .multiSelect, .status, .url, .file,
         ]
         let actual = Set(PropertyType.userCreatable)
         #expect(actual == expected)
