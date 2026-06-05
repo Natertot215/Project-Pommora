@@ -45,6 +45,17 @@ extension ItemContentManager {
         )
     }
 
+    /// Nexus-wide per-kind uniqueness (Connections invariant). Index-backed so it
+    /// sees every type, loaded or not. Container-scoped `enforceTitleUniqueness`
+    /// still runs for the in-memory sibling fast-path; this is the authority.
+    private func enforceNexusWideTitleUniqueness(_ title: String, excludingID: String?) async throws {
+        guard let updater = indexUpdater else { return }  // index optional in some test harnesses
+        let query = IndexQuery(updater.index)
+        if try await query.titleExists(title, kind: .item, excludingID: excludingID) {
+            throw ItemCRUDError.duplicateTitle
+        }
+    }
+
     // MARK: - Save-time schema validation (Phase 6)
     //
     // Single call shape for `ItemValidator.validate` across all six CRUD entry
@@ -83,6 +94,7 @@ extension ItemContentManager {
             let trimmed = name.trimmingCharacters(in: .whitespaces)
             let existing = itemsByCollection[collection.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing)
+            try await enforceNexusWideTitleUniqueness(trimmed, excludingID: nil)
 
             let now = Date()
             let item = Item(
@@ -127,6 +139,7 @@ extension ItemContentManager {
             let trimmed = newName.trimmingCharacters(in: .whitespaces)
             let existing = itemsByCollection[collection.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing, excluding: item)
+            try await enforceNexusWideTitleUniqueness(trimmed, excludingID: item.id)
 
             let oldURL = NexusPaths.itemFileURL(forTitle: item.title, in: collection.folderURL)
             let newURL = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
@@ -182,6 +195,7 @@ extension ItemContentManager {
             let trimmed = item.title.trimmingCharacters(in: .whitespaces)
             let existing = itemsByCollection[collection.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing, excluding: item)
+            try await enforceNexusWideTitleUniqueness(trimmed, excludingID: item.id)
 
             var updated = item
             updated.modifiedAt = Date()
@@ -246,6 +260,7 @@ extension ItemContentManager {
             let trimmed = name.trimmingCharacters(in: .whitespaces)
             let existing = itemsByTypeRoot[itemType.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing)
+            try await enforceNexusWideTitleUniqueness(trimmed, excludingID: nil)
 
             let now = Date()
             let item = Item(
@@ -288,6 +303,7 @@ extension ItemContentManager {
             let trimmed = newName.trimmingCharacters(in: .whitespaces)
             let existing = itemsByTypeRoot[itemType.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing, excluding: item)
+            try await enforceNexusWideTitleUniqueness(trimmed, excludingID: item.id)
 
             let folder = folderURL(for: itemType)
             let oldURL = NexusPaths.itemFileURL(forTitle: item.title, in: folder)
@@ -341,6 +357,7 @@ extension ItemContentManager {
             let trimmed = item.title.trimmingCharacters(in: .whitespaces)
             let existing = itemsByTypeRoot[itemType.id] ?? []
             try enforceTitleUniqueness(trimmed, among: existing, excluding: item)
+            try await enforceNexusWideTitleUniqueness(trimmed, excludingID: item.id)
 
             var updated = item
             updated.modifiedAt = Date()

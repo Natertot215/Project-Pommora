@@ -35,6 +35,17 @@ extension PageContentManager {
         )
     }
 
+    /// Nexus-wide per-kind uniqueness (Connections invariant). Index-backed so it
+    /// sees every vault, loaded or not. Container-scoped `enforceTitleUniqueness`
+    /// still runs for the in-memory sibling fast-path; this is the authority.
+    private func enforceNexusWideTitleUniqueness(_ title: String, excludingID: String?) async throws {
+        guard let updater = indexUpdater else { return }  // index optional in some test harnesses
+        let query = IndexQuery(updater.index)
+        if try await query.titleExists(title, kind: .page, excludingID: excludingID) {
+            throw PageCRUDError.duplicateTitle
+        }
+    }
+
     /// Defense-in-depth for the create write path: a freshly-created Page mints
     /// a new id, so any file already at its target URL is owned by a *different*
     /// entity. Refuse the write rather than clobber it — even if a caller ever
@@ -62,6 +73,7 @@ extension PageContentManager {
                 context: contextProvider()
             )
             try enforceTitleUniqueness(name, among: existing)
+            try await enforceNexusWideTitleUniqueness(name, excludingID: nil)
 
             let now = Date()
             let frontmatter = PageFrontmatter(
@@ -112,6 +124,7 @@ extension PageContentManager {
                 context: contextProvider()
             )
             try enforceTitleUniqueness(newName, among: existing, excluding: page)
+            try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: collection.folderURL)
             // No metadata save here — rename is single-step atomic via
@@ -233,6 +246,7 @@ extension PageContentManager {
                 context: contextProvider()
             )
             try enforceTitleUniqueness(name, among: existing)
+            try await enforceNexusWideTitleUniqueness(name, excludingID: nil)
 
             let now = Date()
             let frontmatter = PageFrontmatter(
@@ -283,6 +297,7 @@ extension PageContentManager {
                 context: contextProvider()
             )
             try enforceTitleUniqueness(newName, among: existing, excluding: page)
+            try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: folderURL(for: vault))
             // No metadata save here — single-step atomic via FileManager.moveItem.
