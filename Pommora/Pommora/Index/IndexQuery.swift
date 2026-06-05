@@ -290,6 +290,66 @@ struct IndexQuery: Sendable {
         }
     }
 
+    // MARK: - Connections
+
+    /// Outgoing edges authored in `sourceID`'s body.
+    func outgoingConnections(sourceID: String) async throws -> [ConnectionEdge] {
+        try await index.dbQueue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT id, source_id, source_kind, target_id, target_kind, target_title, multiplicity, resolved
+                FROM connections WHERE source_id = ?
+                """, arguments: [sourceID]).map { Self.connectionEdge(from: $0) }
+        }
+    }
+
+    /// Inbound edges (backlinks) targeting `targetID` — the same rows queried in
+    /// reverse. Powers the future connections panel; reads straight from the index.
+    func incomingConnections(targetID: String) async throws -> [ConnectionEdge] {
+        try await index.dbQueue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT id, source_id, source_kind, target_id, target_kind, target_title, multiplicity, resolved
+                FROM connections WHERE target_id = ?
+                """, arguments: [targetID]).map { Self.connectionEdge(from: $0) }
+        }
+    }
+
+    /// Nexus-wide per-kind title existence — the uniqueness check (excludes the
+    /// entity being renamed). `kind` is `.page` or `.item`.
+    func titleExists(_ title: String, kind: EntityKind, excludingID: String? = nil) async throws -> Bool {
+        let table = kind == .page ? "pages" : "items"
+        let needle = ConnectionTitle.normalize(title)
+        return try await index.dbQueue.read { db in
+            let ids = try String.fetchAll(
+                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])
+            return ids.contains { $0 != excludingID }
+        }
+    }
+
+    /// Entities of `kind` whose title prefix-matches `query` (case-insensitive) —
+    /// autocomplete + the dup-tolerant "choose either" picker. Returns EVERY match
+    /// (two same-titled adopted entities both surface).
+    func titleCandidates(matching query: String, kind: EntityKind, limit: Int = 20) async throws -> [EntityRef] {
+        let table = kind == .page ? "pages" : "items"
+        let prefix = ConnectionTitle.normalize(query)
+        return try await index.dbQueue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT id, title, icon FROM \(table) WHERE title LIKE ? ORDER BY title LIMIT ?
+                """, arguments: [prefix + "%", limit]).map {
+                EntityRef(id: $0["id"], kind: kind, title: $0["title"], icon: $0["icon"])
+            }
+        }
+    }
+
+    nonisolated private static func connectionEdge(from row: Row) -> ConnectionEdge {
+        ConnectionEdge(
+            id: row["id"], sourceID: row["source_id"],
+            sourceKind: EntityKind(rawValue: row["source_kind"]) ?? .page,
+            targetID: row["target_id"],
+            targetKind: EntityKind(rawValue: row["target_kind"]) ?? .page,
+            targetTitle: row["target_title"], multiplicity: row["multiplicity"],
+            resolved: (row["resolved"] as Int) == 1)
+    }
+
     // MARK: - Broken links
 
     /// Returns context_links whose target_id no longer exists in the corresponding entity table.
@@ -657,4 +717,23 @@ struct BrokenLinkReport: Sendable {
     let targetID: String
     let targetKind: EntityKind
     let propertyID: String
+}
+
+struct ConnectionEdge: Sendable, Equatable {
+    let id: String
+    let sourceID: String
+    let sourceKind: EntityKind
+    let targetID: String?
+    let targetKind: EntityKind
+    let targetTitle: String
+    let multiplicity: Int
+    let resolved: Bool
+    nonisolated init(
+        id: String, sourceID: String, sourceKind: EntityKind, targetID: String?,
+        targetKind: EntityKind, targetTitle: String, multiplicity: Int, resolved: Bool
+    ) {
+        self.id = id; self.sourceID = sourceID; self.sourceKind = sourceKind
+        self.targetID = targetID; self.targetKind = targetKind; self.targetTitle = targetTitle
+        self.multiplicity = multiplicity; self.resolved = resolved
+    }
 }
