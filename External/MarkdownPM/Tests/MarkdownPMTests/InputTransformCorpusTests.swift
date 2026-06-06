@@ -176,4 +176,28 @@ struct InputTransformCorpusTests {
     // guard for the rewired behavior. All other transforms above (em-/en-dash,
     // arrows, bracket-skip, `enDashSkipsWikilink`) are delegate-independent and
     // stay pinned here unchanged.
+
+    // MARK: - Item-link `{{ }}` auto-pair (Connections E5)
+
+    @Test("Typing `{` after `{` auto-pairs to {{}} with the caret between the braces")
+    func itemLinkAutoPair() {
+        let tv = makeHost("{", caret: 1)
+        let handled = MarkdownInputHandler.handleCharacterPairAutoPair(
+            textView: tv,
+            affectedCharRange: NSRange(location: 1, length: 0),
+            replacementString: "{")
+        #expect(handled == true)
+        #expect(tv.string == "{{}}")
+        #expect(tv.selectedRange().location == 2)
+    }
+
+    @Test("Typing `{` not preceded by `{` does not auto-pair")
+    func itemLinkAutoPairRequiresPrecedingBrace() {
+        let tv = makeHost("a", caret: 1)
+        let handled = MarkdownInputHandler.handleCharacterPairAutoPair(
+            textView: tv,
+            affectedCharRange: NSRange(location: 1, length: 0),
+            replacementString: "{")
+        #expect(handled == false)
+    }
 }
