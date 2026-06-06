@@ -34,14 +34,14 @@ struct ItemChip: View {
         }
         .font(.body)
         .padding(.horizontal, 5)
-        .padding(.vertical, 1.5)
+        .padding(.vertical, 2)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.tertiary.opacity(0.80))
+                .fill(.quaternary)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(.secondary, lineWidth: 0.5)
+                .strokeBorder(.tertiary, lineWidth: 0.75)
         )
     }
 }

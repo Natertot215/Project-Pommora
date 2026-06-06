@@ -1184,10 +1184,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
             // Pill: fill + hairline stroke.
             let path = NSBezierPath(roundedRect: pillRect, xRadius: 6, yRadius: 6)
-            NSColor.tertiarySystemFill.withAlphaComponent(0.80).setFill()
+            NSColor.quaternarySystemFill.setFill()
             path.fill()
-            NSColor.secondaryLabelColor.setStroke()
-            path.lineWidth = 0.5
+            NSColor.tertiaryLabelColor.setStroke()
+            path.lineWidth = 0.75
             path.stroke()
 
             // Icon at the left inset, vertically centered. Layout offsets use
