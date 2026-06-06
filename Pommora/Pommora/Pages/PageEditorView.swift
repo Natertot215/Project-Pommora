@@ -88,6 +88,28 @@ struct PageEditorView: View {
     /// visible (the inline icon when set, else the "Add Icon" affordance).
     @State private var iconPickerOpen = false
 
+    // MARK: - `[[` / `{{` autocomplete (E5-D)
+
+    /// Pushed into the editor to commit a chosen candidate: the engine replaces
+    /// the active token with the finished link, restores the caret past it, then
+    /// clears this binding.
+    @State private var pendingInlineReplacement: InlineReplacementRequest?
+    /// The inline token the caret is currently inside (kind + range/placeholder),
+    /// captured on every valid trigger. `onSelect` reads its `.selection` to build
+    /// the replacement request; `nil` when no autocomplete-eligible token is active.
+    @State private var activeInlineSelection: InlineSelectionState?
+    /// Live candidate list for the popup — mapped from the index `titleCandidates`
+    /// query keyed off the in-bracket placeholder.
+    @State private var autocompleteCandidates: [AutoCompleteCandidate] = []
+    /// Caret rect in the body NSTextView's view coordinates (from
+    /// `viewRect(forCharacterRange:)`). Anchors the popup just below the caret.
+    @State private var caretRect: CGRect = .zero
+    /// Whether the popup is currently shown.
+    @State private var autocompleteVisible = false
+    /// Monotonic token discarding stale async query results: each trigger bumps it,
+    /// and a completed query only applies if its captured token still matches.
+    @State private var autocompleteQueryToken = 0
+
     /// Top padding of the body editor's text container, sized to leave room
     /// for the title overlay + a 14pt equidistant gap below the divider.
     /// Natural title height: `padding(.top, 24)` + 28pt bold TextField line
@@ -232,6 +254,7 @@ struct PageEditorView: View {
             // overlay can track it via `.offset`.
             MarkdownPMEditor(
                 text: $viewModel.body,
+                pendingInlineReplacement: $pendingInlineReplacement,
                 foldedHeadings: $viewModel.foldedHeadings,
                 configuration: pommoraEditorConfiguration,
                 fontName: "SF Pro Text",
@@ -263,6 +286,17 @@ struct PageEditorView: View {
                         AppGlobals.presentItemAction?(item)
                     }
                 },
+                onCaretRectChange: { rect in
+                    // Caret rect arrives in the body NSTextView's view coords (from
+                    // `viewRect(forCharacterRange:)`). The editor fills the ZStack, so
+                    // this maps to the editor's coordinate space — the popup anchors off
+                    // it. Refreshes on scroll too (the package re-emits via
+                    // `refreshActiveLinkCaretRect`), so the popup follows `[[ ]]`/`{{ }}`.
+                    caretRect = rect
+                },
+                onInlineSelectionChange: { state in
+                    handleInlineSelectionChange(state)
+                },
                 onScrollOffsetChange: { newOffset in
                     if abs(scrollOffset - newOffset) > 0.5 {
                         scrollOffset = newOffset
@@ -270,6 +304,25 @@ struct PageEditorView: View {
                 }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Caret-anchored autocomplete popup. Origin = bracket x, just below the
+            // caret line (`caretRect.maxY`). Anchored in the editor's own coordinate
+            // space via `.topLeading` overlay + `.offset`.
+            // TODO(visual): caret-anchor refinement — the body editor's 90pt top
+            // safe-area inset + scroll offset can shift the NSTextView→SwiftUI mapping
+            // by a few points; Nathan to visually tune the y-origin. The popup already
+            // lands on the correct line, near the typed brackets (not a fixed corner).
+            .overlay(alignment: .topLeading) {
+                if autocompleteVisible {
+                    AutoCompleteWindow(
+                        candidates: autocompleteCandidates,
+                        query: activeInlineSelection?.selection.placeholder ?? "",
+                        onSelect: { candidate in commitAutocomplete(candidate) },
+                        onCancel: { dismissAutocomplete() }
+                    )
+                    .fixedSize()
+                    .offset(x: caretRect.minX, y: caretRect.maxY)
+                }
+            }
 
             // Title + divider overlay. Sits on top of the body editor's
             // reserved safe-area zone at rest. Tracks the body editor's
@@ -551,5 +604,59 @@ struct PageEditorView: View {
             viewModel.pendingError = error
             titleDraft = oldTitle
         }
+    }
+
+    // MARK: - `[[` / `{{` autocomplete (E5-D)
+
+    /// Reacts to the editor's inline-selection changes: gates on the Nathan-locked
+    /// trigger (a `[[ ]]`/`{{ }}` token with a non-empty typed placeholder), then
+    /// launches a stale-guarded index query and shows the popup when there are
+    /// candidates. Anything else dismisses the popup.
+    private func handleInlineSelectionChange(_ state: InlineSelectionState?) {
+        guard AutoCompleteWiring.shouldShowAutocomplete(for: state), let state else {
+            dismissAutocomplete()
+            return
+        }
+        activeInlineSelection = state
+        let placeholder = state.selection.placeholder
+        let entityKind = AutoCompleteWiring.queryKind(for: state.kind)
+
+        // Bump the token; only results from THIS query (matching token + still the
+        // current placeholder) are applied — a faster keystroke supersedes a slower
+        // in-flight query.
+        autocompleteQueryToken += 1
+        let token = autocompleteQueryToken
+        Task { @MainActor in
+            guard let index = contentManager.indexUpdater?.index else { return }
+            let refs = (try? await IndexQuery(index).titleCandidates(matching: placeholder, kind: entityKind)) ?? []
+            // Stale-guard: discard if a newer trigger has fired or the placeholder
+            // moved on since this query launched.
+            guard token == autocompleteQueryToken,
+                  activeInlineSelection?.selection.placeholder == placeholder
+            else { return }
+            let candidates = AutoCompleteWiring.candidates(from: refs)
+            autocompleteCandidates = candidates
+            autocompleteVisible = !candidates.isEmpty
+        }
+    }
+
+    /// Commits a chosen candidate: builds the title-only storage fragment (LD-28),
+    /// pushes it into the editor (which replaces the token + restores the caret),
+    /// then dismisses the popup.
+    private func commitAutocomplete(_ candidate: AutoCompleteCandidate) {
+        guard let state = activeInlineSelection else { return }
+        pendingInlineReplacement = InlineReplacementRequest(
+            documentId: viewModel.page.id,
+            selection: state.selection,
+            storageFragment: AutoCompleteWiring.fragment(kind: state.kind, title: candidate.title),
+            isImageEmbedMode: false
+        )
+        dismissAutocomplete()
+    }
+
+    private func dismissAutocomplete() {
+        autocompleteVisible = false
+        autocompleteCandidates = []
+        activeInlineSelection = nil
     }
 }

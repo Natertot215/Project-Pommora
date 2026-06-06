@@ -422,7 +422,7 @@ extension NativeTextViewCoordinator {
 
     /// Recompute the preview anchor for the active inline token (used when scrolling).
     func refreshActiveLinkCaretRect() {
-        guard isWikiLinkActive || isImageEmbedActive, let tv = textView else { return }
+        guard isWikiLinkActive || isItemLinkActive || isImageEmbedActive, let tv = textView else { return }
         guard let rect = inlinePreviewRect(in: tv) else { return }
         DispatchQueue.main.async { [weak self] in
             self?.onCaretRectChange?(rect)

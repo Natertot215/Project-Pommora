@@ -175,6 +175,7 @@ extension NativeTextViewCoordinator {
         {
             isImageEmbedActive = false
             isWikiLinkActive = false
+            isItemLinkActive = false
             onInlineSelectionChange?(nil)
             return
         }
@@ -321,6 +322,7 @@ extension NativeTextViewCoordinator {
 
         DispatchQueue.main.async {
             self.isWikiLinkActive = inlineSelectionState?.kind == .wikiLink
+            self.isItemLinkActive = inlineSelectionState?.kind == .itemLink
             self.isImageEmbedActive = isInsideImageEmbed
             self.onInlineSelectionChange?(inlineSelectionState)
         }
@@ -434,6 +436,7 @@ extension NativeTextViewCoordinator {
         if let storage = textView.textStorage, charIndex < storage.length,
             let itemTitle = storage.attribute(.itemLinkTitle, at: charIndex, effectiveRange: nil) as? String {
             self.isWikiLinkActive = false
+            self.isItemLinkActive = false
             DispatchQueue.main.async {
                 self.onItemLinkClick?(itemTitle)
             }
@@ -444,6 +447,7 @@ extension NativeTextViewCoordinator {
         }
         // Direkt deaktivieren, bevor der Navigation-Callback läuft.
         self.isWikiLinkActive = false
+        self.isItemLinkActive = false
         DispatchQueue.main.async {
             self.onLinkClick?(target)
         }

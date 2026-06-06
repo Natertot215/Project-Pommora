@@ -204,6 +204,10 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     }
 
     var isImageEmbedActive: Bool = false
+    /// Mirrors `isWikiLinkActive` for `{{ }}` item-links: true while the caret is
+    /// inside an item-link token. Lets `refreshActiveLinkCaretRect` keep the caret
+    /// anchor following on scroll for item-links exactly as it does for wiki-links.
+    var isItemLinkActive: Bool = false
 
     // Inline selection geometry, image-embed activation, and inline-token
     // detection live in `NativeTextViewCoordinator+InlineSelection.swift`.
