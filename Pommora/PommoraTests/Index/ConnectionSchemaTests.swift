@@ -16,5 +16,8 @@ import Testing
         }
     }
 
-    @Test func schemaVersionIsEight() { #expect(PommoraIndex.currentSchemaVersion == 8) }
+    // Tripwire: forces a deliberate update whenever the index schema version
+    // bumps. v9 (2026-06-06) = lenient launch-scan repopulate (frontmatter-less
+    // adopted Pages enter the index at launch).
+    @Test func schemaVersionIsNine() { #expect(PommoraIndex.currentSchemaVersion == 9) }
 }

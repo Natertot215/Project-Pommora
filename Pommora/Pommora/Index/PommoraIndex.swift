@@ -66,7 +66,16 @@ final class PommoraIndex: @unchecked Sendable {
     // pages/items. Net-new derived data; bumping 7 → 8 forces one rebuild so
     // existing DBs gain the table and IndexBuilder backfills connections from
     // on-disk bodies. No user data at risk (regeneratable index).
-    static let currentSchemaVersion: Int = 8
+    //
+    // v9 (2026-06-06): launch index scan switched from strict PageFile.load to
+    // lenient PageFile.loadLenient (IndexBuilder.collectPagesInFolder), so adopted
+    // `.md` Pages lacking Pommora frontmatter are indexed + title-resolvable from
+    // launch instead of only after an incidental CRUD write opened them. Existing
+    // v8 DBs were built by the strict scan and are MISSING every frontmatter-less
+    // Page, so [[ ]]/{{ }} links to them render unresolved. Bumping 8 → 9 forces
+    // one delete+rebuild so those Pages enter the index. No user data at risk
+    // (regeneratable index).
+    static let currentSchemaVersion: Int = 9
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
