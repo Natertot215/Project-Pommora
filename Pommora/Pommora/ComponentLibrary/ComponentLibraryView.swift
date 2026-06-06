@@ -317,6 +317,14 @@ private struct ChipsGallery: View {
                 }
 
                 GallerySection(
+                    title: "Auto-Complete Window",
+                    summary:
+                        "The candidate popup for [[ page / {{ item autocomplete. Liquid-Glass panel (.regularMaterial + hairline border, radius 12) listing icon + title rows in body font. Matching is PREFIX: the leading query.count characters render in label-primary, the rest in label-secondary. One row is selected (subtle .quaternary fill); ↑/↓ move it, Enter selects, Esc cancels (focusable for E5-D). Height grows with the candidate count, capped at 4 visible rows — beyond 4 it scrolls."
+                ) {
+                    AutoCompleteWindowShowcase()
+                }
+
+                GallerySection(
                     title: "Chip Dropdown",
                     summary:
                         "The pill itself opens the dropdown — no surrounding trigger frame. Multi-select renders selected pills inline in the trigger area, in the dropdown's option order (drag-reorder to change). Liquid Glass panel, always-on."
@@ -865,6 +873,87 @@ private struct ItemChipShowcase: View {
         }
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 8).fill(surface))
+    }
+}
+
+// MARK: - AutoCompleteWindow Showcase
+
+/// Showcases the autocomplete candidate popup with a sample query of "Pro" so the
+/// prefix highlight (matched leading characters in primary, remainder in secondary),
+/// the Liquid-Glass surface, the selection highlight, and the 4-row cap + scroll are
+/// all visible at once. `onSelect` / `onCancel` write a small "last action" readout.
+private struct AutoCompleteWindowShowcase: View {
+    private let fewCandidates: [AutoCompleteCandidate] = [
+        .init(id: "atlas", icon: "doc.text", title: "Project Atlas"),
+        .init(id: "protocol", icon: "doc.text", title: "Protocol Notes"),
+        .init(id: "prototype", icon: "square.dashed", title: "Prototype"),
+    ]
+
+    private let manyCandidates: [AutoCompleteCandidate] = [
+        .init(id: "atlas", icon: "doc.text", title: "Project Atlas"),
+        .init(id: "protocol", icon: "doc.text", title: "Protocol Notes"),
+        .init(id: "prototype", icon: "square.dashed", title: "Prototype"),
+        .init(id: "proposal", icon: "doc.richtext", title: "Proposal"),
+        .init(id: "profile", icon: "person.crop.circle", title: "Profile"),
+        .init(id: "progress", icon: "chart.bar", title: "Progress Report"),
+        .init(id: "process", icon: "gearshape", title: "Process Map"),
+    ]
+
+    @State private var lastAction: String = "—"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            section(title: #"Short list — query "Pro", 3 candidates fit (no scroll)"#) {
+                AutoCompleteWindow(
+                    candidates: fewCandidates,
+                    query: "Pro",
+                    onSelect: { lastAction = "selected \($0.title)" },
+                    onCancel: { lastAction = "cancelled" }
+                )
+            }
+
+            section(title: #"Long list — query "Pro", 7 candidates → capped at 4 rows + scroll"#) {
+                AutoCompleteWindow(
+                    candidates: manyCandidates,
+                    query: "Pro",
+                    onSelect: { lastAction = "selected \($0.title)" },
+                    onCancel: { lastAction = "cancelled" }
+                )
+            }
+
+            Text("Last action: \(lastAction)")
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal)
+
+            CodeBlock(
+                title: "Usage",
+                code: """
+                    // Pure presentation over a candidate list + callbacks.
+                    // E5-D maps the index's EntityRef → AutoCompleteCandidate
+                    // and presents this anchored at the live [[ / {{ token.
+                    AutoCompleteWindow(
+                        candidates: candidates,   // [AutoCompleteCandidate]
+                        query: "Pro",             // length → prefix-highlight span
+                        onSelect: { picked in ... },
+                        onCancel: { ... }
+                    )
+
+                    // Prefix match: leading query.count chars in .primary,
+                    // the remainder in .secondary. Height caps at 4 rows;
+                    // ↑/↓ move selection, Enter selects, Esc cancels.
+                    """
+            )
+            .padding(.horizontal)
+        }
+    }
+
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.headline)
+            content()
+        }
+        .padding(.horizontal)
     }
 }
 
