@@ -311,7 +311,7 @@ private struct ChipsGallery: View {
                 GallerySection(
                     title: "Item Chip",
                     summary:
-                        "Inline rendering of a resolved {{Item}} connection — the linked Item's icon + title in a radius-6 rounded rectangle with a Tertiary fill (0.80) + a Secondary hairline stroke, body font. Padding is tighter than ContextChip on BOTH axes so the chip sits within the line box when drawn inline at a {{ }} token in the page editor (which draws this same visual in CoreGraphics)."
+                        "Inline rendering of a resolved {{Item}} connection — the linked Item's icon + title in a radius-6 rounded rectangle with a Quaternary fill + a Tertiary 0.75pt stroke, body font. Padding is tighter than ContextChip on BOTH axes so the chip sits within the line box when drawn inline at a {{ }} token in the page editor (which draws this same visual in CoreGraphics)."
                 ) {
                     ItemChipShowcase()
                 }
@@ -793,7 +793,7 @@ private struct ContextChipShowcase: View {
 // MARK: - ItemChip Showcase
 
 /// Showcases the inline item-link chip: the linked Item's icon + title in a
-/// radius-6 rounded rectangle with a Tertiary fill (0.80) + a Secondary hairline
+/// radius-6 rounded rectangle with a Quaternary fill + a Tertiary 0.75pt
 /// stroke, body font. Padding is tighter than ContextChip on both axes so the
 /// chip sits within the line box when drawn inline at a `{{ }}` token in the page
 /// editor (the editor draws this same visual in CoreGraphics).
@@ -808,7 +808,7 @@ private struct ItemChipShowcase: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            section(title: "Default — Item icon + title, Tertiary fill (0.80), Secondary stroke, radius 6") {
+            section(title: "Default — Item icon + title, Quaternary fill, Tertiary 0.75 stroke, radius 6") {
                 FlowingHStack {
                     ForEach(samples, id: \.title) { s in
                         ItemChip(icon: s.icon, title: s.title)

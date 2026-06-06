@@ -12,7 +12,7 @@ import AppKit
 enum ItemChipMetrics {
     static let horizontalPadding: CGFloat = 5
     static let iconTitleGap: CGFloat = 3
-    static let verticalPadding: CGFloat = 2
+    static let verticalPadding: CGFloat = 2.5
 
     /// SF Symbol icons render ~em-square; reserve a square box at the font size.
     static func iconWidth(font: NSFont) -> CGFloat { font.pointSize }
