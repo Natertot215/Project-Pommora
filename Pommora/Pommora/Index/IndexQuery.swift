@@ -359,9 +359,14 @@ struct IndexQuery: Sendable {
         let table = kind == .page ? "pages" : "items"
         let prefix = ConnectionTitle.normalize(query)
         return try await index.dbQueue.read { db in
+            // Ranking (locked): exact title first → shortest title → A–Z. The exact
+            // match keeps the prefix WHERE; the second `?` binds the normalized full
+            // query for a case-insensitive equality test (1 = exact, sorted DESC to top).
             try Row.fetchAll(db, sql: """
-                SELECT id, title, icon FROM \(table) WHERE title LIKE ? ORDER BY title LIMIT ?
-                """, arguments: [prefix + "%", limit]).map {
+                SELECT id, title, icon FROM \(table) WHERE title LIKE ?
+                ORDER BY (title = ? COLLATE NOCASE) DESC, LENGTH(title) ASC, title COLLATE NOCASE ASC
+                LIMIT ?
+                """, arguments: [prefix + "%", prefix, limit]).map {
                 EntityRef(id: $0["id"], kind: kind, title: $0["title"], icon: $0["icon"])
             }
         }
