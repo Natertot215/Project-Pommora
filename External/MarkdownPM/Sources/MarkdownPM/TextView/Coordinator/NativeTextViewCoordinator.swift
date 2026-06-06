@@ -58,6 +58,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var layoutBridge: LayoutBridge?
     var layoutDelegate: MarkdownLayoutManagerDelegate?
     var onLinkClick: ((String) -> Void)?
+    var onItemLinkClick: ((String) -> Void)?
     var onCaretRectChange: ((CGRect) -> Void)?
     var onInlineSelectionChange: ((InlineSelectionState?) -> Void)?
     var onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)?

@@ -421,6 +421,17 @@ extension NativeTextViewCoordinator {
     }
 
     public func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        // A resolved `{{Item}}` carries `.itemLinkTitle` on its content range —
+        // route those to the Item Window. `[[ ]]` links carry no such attribute and
+        // fall through to the page-navigation path below.
+        if let storage = textView.textStorage, charIndex < storage.length,
+            let itemTitle = storage.attribute(.itemLinkTitle, at: charIndex, effectiveRange: nil) as? String {
+            self.isWikiLinkActive = false
+            DispatchQueue.main.async {
+                self.onItemLinkClick?(itemTitle)
+            }
+            return true
+        }
         guard let target = WikiLinkService.resolveIdentifier(link: link, textView: textView, at: charIndex) else {
             return false
         }

@@ -65,6 +65,11 @@ public struct MarkdownPMEditor: NSViewRepresentable {
     /// resolved opaque identifier (or the display name when no resolver
     /// was supplied).
     public var onLinkClick: ((String) -> Void)?
+    /// Fires when the user clicks a resolved `{{Item}}` link. The argument is the
+    /// item's display title; the embedder resolves it to an `Item` and opens its
+    /// floating Item Window. Discriminated from `onLinkClick` by the `.itemLinkTitle`
+    /// attribute the item-link styler stamps on the clicked range.
+    public var onItemLinkClick: ((String) -> Void)?
     /// Fires whenever the caret rect inside an active wiki-link changes,
     /// so embedders can position a follow-the-caret UI.
     public var onCaretRectChange: ((CGRect) -> Void)?
@@ -94,6 +99,7 @@ public struct MarkdownPMEditor: NSViewRepresentable {
         isEditable: Bool = true,
         onPasteImage: ((NSPasteboard) -> String?)? = nil,
         onLinkClick: ((String) -> Void)? = nil,
+        onItemLinkClick: ((String) -> Void)? = nil,
         onCaretRectChange: ((CGRect) -> Void)? = nil,
         onInlineSelectionChange: ((InlineSelectionState?) -> Void)? = nil,
         onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)? = nil,
@@ -110,6 +116,7 @@ public struct MarkdownPMEditor: NSViewRepresentable {
         self.isEditable = isEditable
         self.onPasteImage = onPasteImage
         self.onLinkClick = onLinkClick
+        self.onItemLinkClick = onItemLinkClick
         self.onCaretRectChange = onCaretRectChange
         self.onInlineSelectionChange = onInlineSelectionChange
         self.onCodeBlockSelectionChange = onCodeBlockSelectionChange
@@ -407,6 +414,7 @@ public struct MarkdownPMEditor: NSViewRepresentable {
         )
         coordinator.documentId = documentId
         coordinator.configuration = configuration
+        coordinator.onItemLinkClick = onItemLinkClick
         coordinator.onCodeBlockSelectionChange = onCodeBlockSelectionChange
         return coordinator
     }
