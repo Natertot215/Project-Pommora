@@ -1,0 +1,19 @@
+import Foundation
+
+/// Resolves a clicked `[[Title]]` to a navigable page selection. Reuses the index
+/// (resolveUniqueTitle + entityContainer) and D1's ConnectionFileLocator, then loads
+/// the page fresh from disk — so a link to a page in an unloaded vault still opens.
+/// Returns nil for a phantom / ambiguous-duplicate / unreadable target (caller no-ops).
+enum WikiLinkPageOpener {
+    @MainActor
+    static func pageSelection(forTitle title: String, index: PommoraIndex, nexusRootURL: URL) async -> SidebarSelection? {
+        let query = IndexQuery(index)
+        guard let id = query.resolveUniqueTitle(title, kind: .page) else { return nil }
+        guard
+            let container = try? await query.entityContainer(id: id, kind: .page),
+            let url = ConnectionFileLocator.locate(id: id, kind: .page, container: container, nexusRoot: nexusRootURL),
+            let pf = try? PageFile.load(from: url)
+        else { return nil }
+        return .page(PageMeta(id: id, title: pf.title, url: url, frontmatter: pf.frontmatter))
+    }
+}

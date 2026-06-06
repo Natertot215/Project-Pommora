@@ -32,6 +32,9 @@ struct PageEditorView: View {
     @Binding var selection: SidebarSelection
 
     @Environment(PageContentManager.self) private var contentManager
+    /// Routes a clicked `[[ ]]` page link into the main detail pane (E2). Same
+    /// router NavDropdown + Back/Forward use; injected by `NexusEnvironment`.
+    @Environment(MainWindowRouter.self) private var mainWindowRouter
     /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
     @Environment(SettingsManager.self) private var settingsManager
     /// Stable title-keyed connection resolvers injected by `NexusEnvironment`.
@@ -234,6 +237,20 @@ struct PageEditorView: View {
                 fontName: "SF Pro Text",
                 fontSize: 15,
                 documentId: viewModel.page.id,
+                onLinkClick: { title in
+                    // The hook is sync + passes the link's display TITLE (Pommora
+                    // stores links title-only, LD-28). Resolution is async, so
+                    // hop a Task: resolve the title → page selection via the index,
+                    // then route it into the main detail pane. nil = phantom /
+                    // ambiguous / unreadable target → no-op.
+                    Task { @MainActor in
+                        guard let index = contentManager.indexUpdater?.index else { return }
+                        guard let selection = await WikiLinkPageOpener.pageSelection(
+                            forTitle: title, index: index, nexusRootURL: contentManager.nexus.rootURL)
+                        else { return }
+                        mainWindowRouter.requestOpen(to: selection)
+                    }
+                },
                 onScrollOffsetChange: { newOffset in
                     if abs(scrollOffset - newOffset) > 0.5 {
                         scrollOffset = newOffset
