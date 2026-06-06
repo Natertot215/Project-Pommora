@@ -39,10 +39,14 @@ public struct WikiLinkResolution: Sendable, Equatable {
     public let id: String
     /// Whether the linked target currently exists/is reachable.
     public let exists: Bool
+    /// The linked entity's icon (SF Symbol name), for inline chip rendering.
+    /// `nil` when the embedder doesn't carry an icon for this link.
+    public let icon: String?
 
-    public init(id: String, exists: Bool) {
+    public init(id: String, exists: Bool, icon: String? = nil) {
         self.id = id
         self.exists = exists
+        self.icon = icon
     }
 }
 

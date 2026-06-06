@@ -327,6 +327,19 @@ struct IndexQuery: Sendable {
         return ids.count == 1 ? ids[0] : nil
     }
 
+    /// SYNC unique-entity resolution (id + icon) for the editor styler. nil for 0/many matches.
+    nonisolated func resolveUniqueEntity(_ title: String, kind: EntityKind) -> (id: String, icon: String?)? {
+        let table = kind == .page ? "pages" : "items"
+        let needle = ConnectionTitle.normalize(title)
+        let rows =
+            (try? index.dbQueue.read { db in
+                try Row.fetchAll(
+                    db, sql: "SELECT id, icon FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])
+            }) ?? []
+        guard rows.count == 1, let row = rows.first else { return nil }
+        return (id: row["id"], icon: row["icon"])
+    }
+
     /// Nexus-wide per-kind title existence — the uniqueness check (excludes the
     /// entity being renamed). `kind` is `.page` or `.item`.
     func titleExists(_ title: String, kind: EntityKind, excludingID: String? = nil) async throws -> Bool {

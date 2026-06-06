@@ -18,6 +18,8 @@ extension NSAttributedString.Key {
     nonisolated static let latexBounds = NSAttributedString.Key("LatexImageBounds")
     nonisolated static let latexIsBlock = NSAttributedString.Key("LatexIsBlock")
     nonisolated static let latexBlockOffsetY = NSAttributedString.Key("LatexBlockOffsetY")
+    nonisolated static let itemChipIcon = NSAttributedString.Key("ItemChipIcon")  // String: SF Symbol name
+    nonisolated static let itemChipBounds = NSAttributedString.Key("ItemChipBounds")  // NSValue(rect:): chip size, set by the styler
     // Historical note: do NOT add a custom NSAttributedString.Key here for any
     // paragraph-level construct (HR, blockquote, etc.). AppKit's attribute
     // inheritance leaks custom flags onto newly-typed chars in ways
@@ -752,6 +754,12 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                     }
                 }
             }
+            // Extend bounds for inline item chips so the pill (which can be
+            // taller than the source-text line) isn't clipped. Mirrors the
+            // block-image loop — union each chip rect into the surface.
+            for rect in itemChipRects(at: .zero) {
+                bounds = bounds.union(rect)
+            }
             return bounds
         }
     }
@@ -784,6 +792,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
 
             // 7. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
+
+            // 7b. Inline item chips (pill drawn over the now-invisible source
+            //     text of a resolved {{ }} connection — INERT until the styler
+            //     sets `.itemChipIcon`/`.itemChipBounds`, F1b-2).
+            drawItemChips(at: point, in: context)
 
             // 8. Foldable-headings chevron: only when this fragment
             //    is a heading AND the mouse is currently hovering it. Hover
@@ -1116,6 +1129,108 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                 symbol.draw(in: iconRect)
             }
         }
+    }
+
+    // MARK: - Inline Item Chips
+
+    /// The body font used to size + vertically center chips. Mirrors the
+    /// task-checkbox / bullet-glyph font lookup.
+    private var itemChipFont: NSFont {
+        (textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
+            ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    }
+
+    /// Pill rect for a chip of `size` at `attrRange`, vertically centered on its
+    /// line. Shared by `drawItemChips` and `itemChipRects` so draw + bounds stay
+    /// in sync (mirrors `blockImageDrawRect`).
+    private func itemChipRect(forSize size: CGSize, attrRange: NSRange, point: CGPoint) -> CGRect? {
+        guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return nil }
+        let font = itemChipFont
+        let y = (pos.baselineY + (font.descender - font.ascender) / 2) - size.height / 2
+        return CGRect(x: pos.x, y: y, width: size.width, height: size.height)
+    }
+
+    /// Draws a pill (icon + title) for every `.itemChipIcon` run carrying a
+    /// `.itemChipBounds` size. INERT until the styler sets those attributes
+    /// (F1b-2) — `enumerateAttribute` finds nothing today.
+    private func drawItemChips(at point: CGPoint, in context: CGContext) {
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
+
+        let scale =
+            textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor ?? 2.0
+        func alignToPixel(_ value: CGFloat) -> CGFloat {
+            (value * scale).rounded(.toNearestOrAwayFromZero) / scale
+        }
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.current = nsContext
+
+        ts.enumerateAttribute(.itemChipIcon, in: range, options: []) { [weak self] value, attrRange, _ in
+            guard let self, let icon = value as? String else { return }
+            let title = ts.attribute(.itemLinkTitle, at: attrRange.location, effectiveRange: nil) as? String ?? ""
+            guard let size = (ts.attribute(.itemChipBounds, at: attrRange.location, effectiveRange: nil) as? NSValue)?
+                .rectValue.size
+            else { return }
+            guard let rawRect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) else { return }
+
+            let font = self.itemChipFont
+            let pillRect = CGRect(
+                x: alignToPixel(rawRect.origin.x), y: alignToPixel(rawRect.origin.y),
+                width: rawRect.width, height: rawRect.height)
+            guard !pillRect.isEmpty, !pillRect.isNull else { return }
+
+            // Pill: fill + hairline stroke.
+            let path = NSBezierPath(roundedRect: pillRect, xRadius: 6, yRadius: 6)
+            NSColor.tertiarySystemFill.withAlphaComponent(0.80).setFill()
+            path.fill()
+            NSColor.secondaryLabelColor.setStroke()
+            path.lineWidth = 0.5
+            path.stroke()
+
+            // Icon at the left inset, vertically centered.
+            let hPad: CGFloat = 5
+            let gap: CGFloat = 3
+            var cursorX = pillRect.minX + hPad
+            if let baseSymbol = NSImage(systemSymbolName: icon, accessibilityDescription: nil) {
+                let sizeConfig = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
+                let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: NSColor.labelColor)
+                let symbol = baseSymbol.withSymbolConfiguration(sizeConfig.applying(colorConfig)) ?? baseSymbol
+                let iconSize = symbol.size
+                let iconRect = CGRect(
+                    x: alignToPixel(cursorX),
+                    y: alignToPixel(pillRect.midY - iconSize.height / 2),
+                    width: iconSize.width, height: iconSize.height)
+                symbol.draw(in: iconRect)
+                cursorX += iconSize.width + gap
+            }
+
+            // Title to the right of the icon, vertically centered.
+            let titleAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
+            let titleString = NSAttributedString(string: title, attributes: titleAttrs)
+            let titleSize = titleString.size()
+            titleString.draw(
+                at: CGPoint(x: alignToPixel(cursorX), y: alignToPixel(pillRect.midY - titleSize.height / 2)))
+        }
+    }
+
+    /// Rects of all item chips in this fragment, relative to `point`. Used by
+    /// `renderingSurfaceBounds` (with `.zero`) so taller pills aren't clipped.
+    private func itemChipRects(at point: CGPoint) -> [CGRect] {
+        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return [] }
+        var rects: [CGRect] = []
+        ts.enumerateAttribute(.itemChipIcon, in: range, options: []) { [weak self] value, attrRange, _ in
+            guard let self, value is String else { return }
+            guard let size = (ts.attribute(.itemChipBounds, at: attrRange.location, effectiveRange: nil) as? NSValue)?
+                .rectValue.size
+            else { return }
+            if let rect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) {
+                rects.append(rect)
+            }
+        }
+        return rects
     }
 }
 

@@ -11,8 +11,8 @@ struct PommoraConnectionResolver: WikiLinkResolver {
     let kind: EntityKind
 
     func resolve(displayName: String, range: NSRange) -> WikiLinkResolution? {
-        guard let id = IndexQuery(index).resolveUniqueTitle(displayName, kind: kind) else { return nil }
-        return WikiLinkResolution(id: id, exists: true)
+        guard let entity = IndexQuery(index).resolveUniqueEntity(displayName, kind: kind) else { return nil }
+        return WikiLinkResolution(id: entity.id, exists: true, icon: entity.icon)
     }
 }
 
