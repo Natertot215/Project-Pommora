@@ -65,19 +65,14 @@ extension MarkdownPMStyler {
                 if nodeExists {
                     contentAttributes[.link] = linkID ?? nodeName
                 } else {
-                    contentAttributes[.foregroundColor] = NSColor.secondaryLabelColor
+                    contentAttributes[.foregroundColor] = ctx.configuration.theme.disabledText
                 }
             }
             if !contentAttributes.isEmpty {
                 attrs.append((token.contentRange, contentAttributes))
             }
-            // Unresolved (phantom) links expose their raw `[[ ]]` syntax in
-            // secondary label color — clearly a fixable link, not a styled one.
-            // Resolved / active links keep the muted markers.
-            let markerColor: NSColor =
-                (!isActive && !nodeExists) ? NSColor.secondaryLabelColor : ctx.configuration.theme.mutedText
             for markerRange in token.markerRanges {
-                attrs.append((markerRange, [.foregroundColor: markerColor]))
+                attrs.append((markerRange, [.foregroundColor: ctx.configuration.theme.mutedText]))
             }
         }
         return attrs
@@ -164,19 +159,14 @@ extension MarkdownPMStyler {
                     contentAttributes[.link] = nodeName
                     contentAttributes[.itemLinkTitle] = nodeName
                 } else {
-                    contentAttributes[.foregroundColor] = NSColor.secondaryLabelColor
+                    contentAttributes[.foregroundColor] = ctx.configuration.theme.disabledText
                 }
             }
             if !contentAttributes.isEmpty {
                 attrs.append((token.contentRange, contentAttributes))
             }
-            // Unresolved `{{ }}` exposes its raw syntax in secondary label color
-            // (a fixable phantom); resolved chips collapse the markers above,
-            // active markers stay muted.
-            let markerColor: NSColor =
-                (!isActive && !nodeExists) ? NSColor.secondaryLabelColor : ctx.configuration.theme.mutedText
             for markerRange in token.markerRanges {
-                attrs.append((markerRange, [.foregroundColor: markerColor]))
+                attrs.append((markerRange, [.foregroundColor: ctx.configuration.theme.mutedText]))
             }
         }
         return attrs
