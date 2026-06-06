@@ -167,6 +167,37 @@ struct IndexBuilderTests {
         #expect(withTypeCount == 2)
     }
 
+    @Test func populateIndexesFrontmatterlessAdoptedPage() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let pageTypeManager = PageTypeManager(nexus: nexus)
+        await pageTypeManager.loadAll()
+        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
+        let pt = pageTypeManager.types.first!
+        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
+        let coll = pageTypeManager.pageCollections(in: pt).first!
+
+        // A plain Markdown file with NO Pommora frontmatter — the exact shape of a
+        // mirror doc dropped into a Nexus folder via Finder. Strict PageFile.load
+        // rejects it; the launch scan must use the lenient loader so it still indexes.
+        let adoptedURL = NexusPaths.pageFileURL(forTitle: "Adopted Doc", in: coll.folderURL)
+        try "Just a plain body, no frontmatter.\n".write(to: adoptedURL, atomically: true, encoding: .utf8)
+
+        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
+        try await IndexBuilder.populate(index: idx, from: nexus)
+
+        // Indexed purely from the launch scan — never opened, never CRUD-written.
+        let count = try await idx.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages WHERE title = 'Adopted Doc'") ?? -1
+        }
+        #expect(count == 1, "Frontmatter-less adopted Page was dropped by the launch scan (strict-loader regression)")
+
+        // And the wiki-link title resolver finds it — the user-visible payoff.
+        let resolved = IndexQuery(idx).resolveUniqueEntity("Adopted Doc", kind: .page)
+        #expect(resolved != nil, "Adopted Page is in the index but the title resolver can't find it")
+    }
+
     @Test func populateIndexesItemsIntoType() async throws {
         let (nexus, idx) = try await setup()
         defer { TempNexus.cleanup(nexus) }

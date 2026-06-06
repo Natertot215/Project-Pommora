@@ -200,7 +200,7 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: collURL),
                     let coll = try? PageCollection.load(from: collURL)
                 else { continue }
-                let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id)
+                let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id, nexusRoot: root)
                 collections.append(
                     PageCollectionSnapshot(
                         id: coll.id,
@@ -212,7 +212,7 @@ final class IndexBuilder {
                     ))
             }
 
-            let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil)
+            let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil, nexusRoot: root)
 
             result.append(
                 PageTypeSnapshot(
@@ -232,11 +232,22 @@ final class IndexBuilder {
     private static func collectPagesInFolder(
         _ folderURL: URL,
         pageTypeID: String,
-        collectionID: String?
+        collectionID: String?,
+        nexusRoot: URL
     ) -> [PageSnapshot] {
-        let urls = (try? Filesystem.children(of: folderURL) { $0.pathExtension == "md" }) ?? []
+        let urls =
+            (try? Filesystem.children(of: folderURL) { url in
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
+            }) ?? []
         return urls.compactMap { url -> PageSnapshot? in
-            guard let pf = try? PageFile.load(from: url) else { return nil }
+            // Lenient load mirrors the UI discovery contract
+            // (PageContentManager.loadAll → PageFile.loadLenient) AND the sibling
+            // item scan (collectItemsInFolder → Item.loadLenient): an adopted `.md`
+            // Page without Pommora frontmatter MUST index at launch, or wiki-link
+            // resolution can't find it by title until an unrelated CRUD write
+            // incidentally upserts it. The strict `PageFile.load` silently dropped
+            // every frontmatter-less page from the launch scan.
+            guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot) else { return nil }
             let fm = pf.frontmatter
             return PageSnapshot(
                 id: fm.id,
