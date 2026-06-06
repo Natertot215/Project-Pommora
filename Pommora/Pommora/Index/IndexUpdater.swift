@@ -7,8 +7,14 @@ import os
 /// on the owning manager; the filesystem is canonical and the index can be
 /// rebuilt via `IndexBuilder` (Phase E.4).
 ///
-/// All upserts use `INSERT OR REPLACE INTO ...` so concurrent manager writes
-/// are idempotent. Relation reconciliation does a full DELETE then re-insert
+/// Upserts are idempotent so concurrent manager writes are safe. Leaf rows
+/// (pages / items / agenda / contexts / property_definitions) use
+/// `INSERT OR REPLACE`. The four cascade-PARENT tables (page_types / item_types /
+/// page_collections / item_collections) use `INSERT ... ON CONFLICT(id) DO UPDATE`
+/// instead: `INSERT OR REPLACE` DELETEs the existing row first, which fires the
+/// child FKs' `ON DELETE CASCADE` / `ON DELETE SET NULL` and would wipe (or NULL)
+/// every child page/item on a re-sync. `ON CONFLICT DO UPDATE` updates in place,
+/// so no cascade fires. Relation reconciliation does a full DELETE then re-insert
 /// for the source entity — correct because the source entity is always written
 /// atomically before the index call.
 struct IndexUpdater: Sendable {
@@ -54,9 +60,12 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT OR REPLACE INTO page_types
+                    INSERT INTO page_types
                         (id, title, icon, modified_at, schema_version)
                     VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        title = excluded.title, icon = excluded.icon,
+                        modified_at = excluded.modified_at, schema_version = excluded.schema_version
                     """,
                 arguments: [pt.id, pt.title, pt.icon, iso(pt.modifiedAt), pt.schemaVersion]
             )
@@ -78,9 +87,13 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT OR REPLACE INTO page_collections
+                    INSERT INTO page_collections
                         (id, page_type_id, title, icon, modified_at, schema_version)
                     VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        page_type_id = excluded.page_type_id, title = excluded.title,
+                        icon = excluded.icon, modified_at = excluded.modified_at,
+                        schema_version = excluded.schema_version
                     """,
                 arguments: [pc.id, pc.typeID, pc.title, pc.icon, iso(pc.modifiedAt), 1]
             )
@@ -167,9 +180,12 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT OR REPLACE INTO item_types
+                    INSERT INTO item_types
                         (id, title, icon, modified_at, schema_version)
                     VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        title = excluded.title, icon = excluded.icon,
+                        modified_at = excluded.modified_at, schema_version = excluded.schema_version
                     """,
                 arguments: [it.id, it.title, it.icon, iso(it.modifiedAt), it.schemaVersion]
             )
@@ -191,9 +207,13 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT OR REPLACE INTO item_collections
+                    INSERT INTO item_collections
                         (id, item_type_id, title, icon, modified_at, schema_version)
                     VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        item_type_id = excluded.item_type_id, title = excluded.title,
+                        icon = excluded.icon, modified_at = excluded.modified_at,
+                        schema_version = excluded.schema_version
                     """,
                 arguments: [ic.id, ic.typeID, ic.title, ic.icon, iso(ic.modifiedAt), 1]
             )
