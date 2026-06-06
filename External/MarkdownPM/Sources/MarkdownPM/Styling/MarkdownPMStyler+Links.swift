@@ -82,9 +82,16 @@ extension MarkdownPMStyler {
 
     /// Title-only parallel of `styleWikiLinks` for `{{Title}}` item links. No
     /// stored id (no `wikiLinkIDProvider`) — resolution is by title via
-    /// `ctx.services.itemLinks`. Resolved → renders as a colored `.link` (a
-    /// placeholder for a future item-pill) and is stamped with `.itemLinkTitle`
-    /// so E4's click handler can route to the Item Window instead of page-nav.
+    /// `ctx.services.itemLinks`.
+    ///
+    /// RESOLVED + INACTIVE → renders as an inline pill via the kern-trick
+    /// (mirrors `styleInlineLatex`): the source `{{Title}}` text is collapsed to
+    /// zero visible width and the first content char reserves exactly the chip's
+    /// width, carrying `.itemChipIcon`/`.itemChipBounds`/`.itemLinkTitle` so the
+    /// fragment's `drawItemChips` draws the pill over it. `.link` stays set so
+    /// E4's click handler still routes to the Item Window.
+    /// ACTIVE (caret in token) → raw `{{Title}}` stays visible/editable: markers
+    /// muted, content plain (E3 behavior — no chip, no kern).
     /// UNRESOLVED → muted `disabledText` (SAME as `[[ ]]` — intentionally NOT
     /// plain body color).
     static func styleItemLinks(_ ctx: StylingContext) -> [StyledRange] {
@@ -93,15 +100,60 @@ extension MarkdownPMStyler {
             if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) { continue }
             attrs.append((token.range, [NSAttributedString.Key.spellingState: 0]))
             let nodeName = ctx.nsText.substring(with: token.contentRange)
-            var contentAttributes: [NSAttributedString.Key: Any] = [:]
             let isActive = ctx.isActive(tokenIndex: index)
-            // Resolve the item title via the embedder-supplied item resolver.
-            let nodeExists: Bool = {
-                if let resolution = ctx.services.itemLinks.resolve(displayName: nodeName, range: token.contentRange) {
-                    return resolution.exists
+            // Resolve the item title via the embedder-supplied item resolver —
+            // ONCE; the result carries both `exists` and `icon`.
+            let resolution = ctx.services.itemLinks.resolve(displayName: nodeName, range: token.contentRange)
+            let nodeExists = resolution?.exists ?? false
+
+            // RESOLVED + INACTIVE: hide the raw source and reserve the pill's
+            // width via the kern-trick. Guard a non-empty title (empty `{{}}` →
+            // skip the chip, leave the source as-is).
+            if !isActive, nodeExists, token.contentRange.length > 0 {
+                let title = nodeName
+                let icon = resolution?.icon ?? "square.dashed"
+                let chipSize = ItemChipMetrics.size(title: title, font: ctx.baseFont)
+                let contentLength = token.contentRange.length
+
+                // FIRST content char: stamp the chip attributes + pad its
+                // advance to the FULL chip width (reserving the layout space).
+                let firstCharRange = NSRange(location: token.contentRange.location, length: 1)
+                let firstChar = ctx.nsText.substring(with: firstCharRange)
+                attrs.append((firstCharRange, [
+                    .itemChipIcon: icon,
+                    .itemChipBounds: NSValue(rect: CGRect(origin: .zero, size: chipSize)),
+                    .itemLinkTitle: title,
+                    .link: title,
+                    .foregroundColor: NSColor.clear,
+                    .kern: chipSize.width - HeadingHelpers.textWidth(firstChar, font: ctx.baseFont)
+                ]))
+
+                // REST of content: collapse to zero width.
+                if contentLength > 1 {
+                    let restRange = NSRange(location: token.contentRange.location + 1, length: contentLength - 1)
+                    let restText = ctx.nsText.substring(with: restRange)
+                    attrs.append((restRange, [
+                        .foregroundColor: NSColor.clear,
+                        .kern: -HeadingHelpers.textWidth(restText, font: ctx.baseFont)
+                    ]))
                 }
-                return false
-            }()
+
+                // Markers `{{` / `}}`: collapse to zero width.
+                let openMarker = token.markerRanges[0]
+                attrs.append((openMarker, [
+                    .foregroundColor: NSColor.clear,
+                    .kern: -HeadingHelpers.textWidth("{{", font: ctx.baseFont)
+                ]))
+                let closeMarker = token.markerRanges[1]
+                attrs.append((closeMarker, [
+                    .foregroundColor: NSColor.clear,
+                    .kern: -HeadingHelpers.textWidth("}}", font: ctx.baseFont)
+                ]))
+                continue
+            }
+
+            // ACTIVE / UNRESOLVED / empty-title fallback: E3 behavior.
+            var contentAttributes: [NSAttributedString.Key: Any] = [:]
             if !isActive {
                 if nodeExists {
                     contentAttributes[.link] = nodeName

@@ -1190,22 +1190,25 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             path.lineWidth = 0.5
             path.stroke()
 
-            // Icon at the left inset, vertically centered.
-            let hPad: CGFloat = 5
-            let gap: CGFloat = 3
-            var cursorX = pillRect.minX + hPad
+            // Icon at the left inset, vertically centered. Layout offsets use
+            // the SAME constants the styler reserves width with
+            // (`ItemChipMetrics`) so the drawn pill matches the kern-trick.
+            let iconBoxWidth = ItemChipMetrics.iconWidth(font: font)
+            var cursorX = pillRect.minX + ItemChipMetrics.horizontalPadding
             if let baseSymbol = NSImage(systemSymbolName: icon, accessibilityDescription: nil) {
                 let sizeConfig = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
                 let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: NSColor.labelColor)
                 let symbol = baseSymbol.withSymbolConfiguration(sizeConfig.applying(colorConfig)) ?? baseSymbol
                 let iconSize = symbol.size
+                // Center the glyph within the reserved square icon box so the
+                // title always starts at the same x regardless of glyph width.
                 let iconRect = CGRect(
-                    x: alignToPixel(cursorX),
+                    x: alignToPixel(cursorX + (iconBoxWidth - iconSize.width) / 2),
                     y: alignToPixel(pillRect.midY - iconSize.height / 2),
                     width: iconSize.width, height: iconSize.height)
                 symbol.draw(in: iconRect)
-                cursorX += iconSize.width + gap
             }
+            cursorX += iconBoxWidth + ItemChipMetrics.iconTitleGap
 
             // Title to the right of the icon, vertically centered.
             let titleAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
