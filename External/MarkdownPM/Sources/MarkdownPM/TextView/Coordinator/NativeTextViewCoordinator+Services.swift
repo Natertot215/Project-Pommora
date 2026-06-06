@@ -503,6 +503,16 @@ extension NativeTextViewCoordinator {
             return .wikiLink(token: token)
         }
 
+        for token in parsed.itemLinkTokens {
+            // Only match when the caret sits between the inner edges of `{{…}}` —
+            // `{{`/`}}` markers are 2 chars, identical to the wikiLink path above.
+            let start = token.range.location + 2
+            let end = NSMaxRange(token.range) - 2
+            guard selectionLocation >= start && selectionLocation <= end else { continue }
+            guard !MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: codeTokens) else { break }
+            return .itemLink(token: token)
+        }
+
         return nil
     }
 

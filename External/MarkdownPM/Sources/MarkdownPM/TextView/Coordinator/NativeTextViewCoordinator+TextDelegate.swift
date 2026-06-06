@@ -296,9 +296,16 @@ extension NativeTextViewCoordinator {
                 tv.viewRect(forCharacterRange: displayRange, using: layoutBridge)
                 ?? tv.viewRect(forCharacterRange: tv.selectedRange(), using: layoutBridge)
 
-            let shouldShowInlinePreview =
-                inlineContext.selectionKind == .wikiLink
-                || (inlineContext.selectionKind == .imageEmbed && imageEmbedShowsInlinePreview)
+            let shouldShowInlinePreview: Bool
+            switch inlineContext.selectionKind {
+            case .wikiLink, .itemLink:
+                // `{{ }}` fires the selection-change + caret-rect the same way
+                // `[[ ]]` does — a later task hooks this to show the `{{`
+                // autocomplete window. `.itemLink` is title-only (no storage id).
+                shouldShowInlinePreview = true
+            case .imageEmbed:
+                shouldShowInlinePreview = imageEmbedShowsInlinePreview
+            }
             if shouldShowInlinePreview, let previewRect {
                 let selection = WikiLinkSelection(
                     displayRange: displayRange,

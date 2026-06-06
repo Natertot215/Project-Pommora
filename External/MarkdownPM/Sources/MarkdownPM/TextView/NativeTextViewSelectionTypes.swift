@@ -34,6 +34,8 @@ public enum InlineSelectionKind: Sendable {
     case wikiLink
     /// A `![[Name]]` embedded-image reference.
     case imageEmbed
+    /// A `{{Title}}` item-link.
+    case itemLink
 }
 
 /// Snapshot of the inline token the caret is inside, delivered through

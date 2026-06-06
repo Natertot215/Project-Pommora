@@ -149,6 +149,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         let blockLatexTokens: [MarkdownToken]
         let wikiLinkTokens: [MarkdownToken]
         let imageEmbedTokens: [MarkdownToken]
+        let itemLinkTokens: [MarkdownToken]
         /// The Apple swift-markdown AST for the SAME `text` the regex
         /// tokens were parsed from. Parsed exactly once inside
         /// `parsedDocument(for:)` so the supplemental styler and the
@@ -181,10 +182,11 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     enum InlineTokenContext {
         case wikiLink(token: MarkdownToken)
         case imageEmbed(token: MarkdownToken)
+        case itemLink(token: MarkdownToken)
 
         var token: MarkdownToken {
             switch self {
-            case .wikiLink(let token), .imageEmbed(let token):
+            case .wikiLink(let token), .imageEmbed(let token), .itemLink(let token):
                 return token
             }
         }
@@ -195,6 +197,8 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
                 return .wikiLink
             case .imageEmbed:
                 return .imageEmbed
+            case .itemLink:
+                return .itemLink
             }
         }
     }
