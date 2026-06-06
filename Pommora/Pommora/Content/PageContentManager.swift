@@ -43,6 +43,11 @@ final class PageContentManager {
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     var indexUpdater: IndexUpdater?
 
+    /// Injected by NexusEnvironment. Nil in test harnesses that don't wire
+    /// navigation; rename refreshes their denormalized title caches when present.
+    var pinnedManager: PinnedManager?
+    var recentsManager: RecentsManager?
+
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
 

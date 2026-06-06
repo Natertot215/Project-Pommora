@@ -162,6 +162,13 @@ final class NexusEnvironment {
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
+        // Connections D2: rename refreshes the denormalized title cached in the
+        // Pinned + Recents stores so pins/recents don't show a stale name.
+        contentMgr.pinnedManager = pinnedMgr
+        contentMgr.recentsManager = recentsMgr
+        itemContentMgr.pinnedManager = pinnedMgr
+        itemContentMgr.recentsManager = recentsMgr
+
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr

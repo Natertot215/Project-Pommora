@@ -94,6 +94,15 @@ final class RecentsManager {
         Task { try? await save() }
     }
 
+    /// Refresh the denormalized title for a (kind, id) entry after a rename. Matches
+    /// by (kind, id) — NOT title — and replaces in place so recency order is preserved.
+    /// `EntityStateRef.kind` is a String; callers pass "page"/"item".
+    func updateTitle(for kind: String, id: String, to newTitle: String) {
+        guard let idx = entries.firstIndex(where: { $0.kind == kind && $0.id == id }) else { return }
+        entries[idx] = EntityStateRef(kind: entries[idx].kind, id: entries[idx].id, title: newTitle)
+        Task { try? await save() }
+    }
+
     @discardableResult
     func stepBack() -> EntityStateRef? {
         guard canStepBack else { return nil }

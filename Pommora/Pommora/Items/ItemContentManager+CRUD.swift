@@ -208,6 +208,9 @@ extension ItemContentManager {
                 )
             }
             itemsByCollection[collection.id] = arr
+
+            pinnedManager?.updateTitle(for: "item", id: item.id, to: trimmed)
+            recentsManager?.updateTitle(for: "item", id: item.id, to: trimmed)
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -396,6 +399,9 @@ extension ItemContentManager {
                 )
             }
             itemsByTypeRoot[itemType.id] = arr
+
+            pinnedManager?.updateTitle(for: "item", id: item.id, to: trimmed)
+            recentsManager?.updateTitle(for: "item", id: item.id, to: trimmed)
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error

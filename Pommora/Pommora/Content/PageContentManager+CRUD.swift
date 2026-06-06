@@ -178,6 +178,9 @@ extension PageContentManager {
                 )
             }
             pagesByCollection[collection.id] = arr
+
+            pinnedManager?.updateTitle(for: "page", id: page.id, to: newName)
+            recentsManager?.updateTitle(for: "page", id: page.id, to: newName)
         } catch {
             self.pendingError = error
             throw error
@@ -375,6 +378,9 @@ extension PageContentManager {
                 )
             }
             pagesByTypeRoot[vault.id] = arr
+
+            pinnedManager?.updateTitle(for: "page", id: page.id, to: newName)
+            recentsManager?.updateTitle(for: "page", id: page.id, to: newName)
         } catch {
             self.pendingError = error
             throw error
