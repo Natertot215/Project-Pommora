@@ -230,7 +230,11 @@ public struct MarkdownPMBus: Sendable {
 /// dependencies exclusively from this container; embedders inject the
 /// implementations they want.
 public struct MarkdownPMServices: Sendable {
+    /// Resolves `[[ ]]` wiki-links (page-syntax connections).
     public var wikiLinks: any WikiLinkResolver
+    /// Resolves `{{ }}` item-links (item-syntax connections). Parallel to
+    /// `wikiLinks`; the embedder injects a kind-`.item` resolver here.
+    public var itemLinks: any WikiLinkResolver
     public var images: any EmbeddedImageProvider
     public var syntaxHighlighter: any SyntaxHighlighter
     public var latex: any LatexRenderer
@@ -238,12 +242,14 @@ public struct MarkdownPMServices: Sendable {
 
     public init(
         wikiLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
+        itemLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
         images: any EmbeddedImageProvider = NoOpEmbeddedImageProvider(),
         syntaxHighlighter: any SyntaxHighlighter = PlainTextSyntaxHighlighter(),
         latex: any LatexRenderer = NoOpLatexRenderer(),
         bus: MarkdownPMBus = .default
     ) {
         self.wikiLinks = wikiLinks
+        self.itemLinks = itemLinks
         self.images = images
         self.syntaxHighlighter = syntaxHighlighter
         self.latex = latex

@@ -21,6 +21,7 @@
 //  inject that crashes if forgotten.
 //
 
+import MarkdownPM
 import SwiftUI
 
 /// Owns + wires every per-Nexus manager and the shared relation resolver for
@@ -61,6 +62,14 @@ final class NexusEnvironment {
     /// Its index closure captures `nexusManager` and reads `.currentIndex`
     /// lazily, so it tracks index swaps within this Nexus.
     let contextResolver: ContextDisplayResolver
+
+    /// Stable title-keyed connection resolvers for the live editor styler.
+    /// Built ONCE here over the current index (NoOp when the index is absent /
+    /// degraded), so the `MarkdownPMEditor`'s `NSViewRepresentable` references
+    /// the same instance across renders — no per-keystroke re-instantiation.
+    /// `pageConnectionResolver` drives `[[ ]]`, `itemConnectionResolver` `{{ }}`.
+    let pageConnectionResolver: any WikiLinkResolver
+    let itemConnectionResolver: any WikiLinkResolver
 
     /// Constructs and wires every manager (see the class doc above). The NexusContext
     /// snapshot closures built inline below are **one-shot**: they capture manager arrays
@@ -147,6 +156,16 @@ final class NexusEnvironment {
         // tracks index swaps within this Nexus.
         let contextRes = ContextDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
 
+        // Stable title-keyed connection resolvers over THIS Nexus's index. Built
+        // once (NoOp when the index is absent / degraded) so the editor's
+        // NSViewRepresentable references a stable instance across renders.
+        let pageConnRes: any WikiLinkResolver =
+            nexusManager.currentIndex.map { PommoraConnectionResolver(index: $0, kind: .page) }
+            ?? NoOpWikiLinkResolver()
+        let itemConnRes: any WikiLinkResolver =
+            nexusManager.currentIndex.map { PommoraConnectionResolver(index: $0, kind: .item) }
+            ?? NoOpWikiLinkResolver()
+
         // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
         // (Space + Topic added so Contexts sync to the `contexts` index table).
         // IndexUpdater is Sendable — a single value can be shared across all of them.
@@ -185,6 +204,8 @@ final class NexusEnvironment {
         self.settingsManager = settingsMgr
         self.mainWindowRouter = router
         self.contextResolver = contextRes
+        self.pageConnectionResolver = pageConnRes
+        self.itemConnectionResolver = itemConnRes
 
         // Publish manager refs so standalone WindowGroup scenes can reach
         // them without restructuring the ContentView dependency graph.
@@ -251,5 +272,9 @@ extension View {
             .environment(env.mainWindowRouter)
             .environment(env.settingsManager)
             .environment(env.contextResolver)
+            // Protocol existentials ride through keyPath-based environment values
+            // (the `@Entry` entries in ConnectionResolver.swift), not `.environment(object)`.
+            .environment(\.pageConnectionResolver, env.pageConnectionResolver)
+            .environment(\.itemConnectionResolver, env.itemConnectionResolver)
     }
 }

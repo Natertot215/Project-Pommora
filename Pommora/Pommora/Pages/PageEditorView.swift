@@ -34,6 +34,12 @@ struct PageEditorView: View {
     @Environment(PageContentManager.self) private var contentManager
     /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
     @Environment(SettingsManager.self) private var settingsManager
+    /// Stable title-keyed connection resolvers injected by `NexusEnvironment`.
+    /// Drive live `[[ ]]` / `{{ }}` styling; the editor config is rebuilt from
+    /// these (the resolver INSTANCES stay stable, so the NSViewRepresentable
+    /// doesn't churn per keystroke).
+    @Environment(\.pageConnectionResolver) private var pageConnectionResolver
+    @Environment(\.itemConnectionResolver) private var itemConnectionResolver
 
     /// In-flight title text. Synced with `viewModel.page.title` on every
     /// page-id change (the `.onChange(initial: true)` below) — but the host
@@ -224,7 +230,7 @@ struct PageEditorView: View {
             MarkdownPMEditor(
                 text: $viewModel.body,
                 foldedHeadings: $viewModel.foldedHeadings,
-                configuration: Self.pommoraEditorConfiguration,
+                configuration: pommoraEditorConfiguration,
                 fontName: "SF Pro Text",
                 fontSize: 15,
                 documentId: viewModel.page.id,
@@ -362,8 +368,19 @@ struct PageEditorView: View {
     /// above the scroll overscroll region. Trailing whitespace below the
     /// final body line is acceptable and matches the visual treatment most
     /// long-form editors use.
-    private static let pommoraEditorConfiguration: MarkdownPMConfiguration =
-        MarkdownEditorConfig.pommora(verticalInset: titleAreaHeight)
+    ///
+    /// Instance-level (not `static`) so it can wire the per-Nexus injected
+    /// connection resolvers into the config's services. Rebuilding the config
+    /// VALUE per render is cheap and safe — it references the STABLE injected
+    /// resolver instances, so the `MarkdownPMEditor` NSViewRepresentable sees
+    /// the same resolver identity across keystrokes and doesn't churn.
+    private var pommoraEditorConfiguration: MarkdownPMConfiguration {
+        MarkdownEditorConfig.pommora(
+            verticalInset: Self.titleAreaHeight,
+            pageResolver: pageConnectionResolver,
+            itemResolver: itemConnectionResolver
+        )
+    }
 
     /// Move focus from the title TextField to the body NSTextView. Walks
     /// the key window's view tree to find the first NSTextView (which is

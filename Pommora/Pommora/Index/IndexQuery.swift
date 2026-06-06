@@ -6,7 +6,7 @@ import GRDB
 struct IndexQuery: Sendable {
     let index: PommoraIndex
 
-    init(_ index: PommoraIndex) { self.index = index }
+    nonisolated init(_ index: PommoraIndex) { self.index = index }
 
     // MARK: - Target queries
 
@@ -311,6 +311,20 @@ struct IndexQuery: Sendable {
                 FROM connections WHERE target_id = ?
                 """, arguments: [targetID]).map { Self.connectionEdge(from: $0) }
         }
+    }
+
+    /// SYNCHRONOUS unique-title resolution for the editor styler (WikiLinkResolver.resolve
+    /// is sync, off the async query path). Returns the unique entity id, or nil when the
+    /// title resolves to 0 (phantom) or >1 (ambiguous dup) — both render unresolved.
+    nonisolated func resolveUniqueTitle(_ title: String, kind: EntityKind) -> String? {
+        let table = kind == .page ? "pages" : "items"
+        let needle = ConnectionTitle.normalize(title)
+        let ids =
+            (try? index.dbQueue.read { db in
+                try String.fetchAll(
+                    db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])
+            }) ?? []
+        return ids.count == 1 ? ids[0] : nil
     }
 
     /// Nexus-wide per-kind title existence — the uniqueness check (excludes the

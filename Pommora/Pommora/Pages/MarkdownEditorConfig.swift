@@ -22,9 +22,20 @@ enum MarkdownEditorConfig {
     /// text inset. `verticalInset` reserves the top (and symmetrically the
     /// bottom) of the text container; pass `0` for surfaces without a scrolling
     /// title overlay.
-    static func pommora(verticalInset: CGFloat) -> MarkdownPMConfiguration {
+    ///
+    /// `pageResolver` / `itemResolver` drive live `[[ ]]` / `{{ }}` connection
+    /// styling. They default to NoOp so display-only surfaces (the Item Window)
+    /// compile unchanged and stay inert; the Page editor passes the stable
+    /// title-keyed resolvers injected by `NexusEnvironment`.
+    static func pommora(
+        verticalInset: CGFloat,
+        pageResolver: any WikiLinkResolver = NoOpWikiLinkResolver(),
+        itemResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
+    ) -> MarkdownPMConfiguration {
         var config = MarkdownPMConfiguration.default
         config.textInsets = TextInsets(horizontal: horizontalInset, vertical: verticalInset)
+        config.services.wikiLinks = pageResolver
+        config.services.itemLinks = itemResolver
         return config
     }
 }
