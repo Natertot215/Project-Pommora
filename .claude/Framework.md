@@ -91,11 +91,11 @@ The accidental Items-vs-Pages serialization fork collapses: Items become plain `
 ##### v0.3.x — Item Window redesign + PreviewWindow primitive (near-term, timing TBD)
 Polish on the already-shipped Item Window: reshape it around the Property Panel + inspector toggle + pinned chips per Nathan's WIP sketch. Eventually a `WindowGroup(for: ItemRef.self)` standalone window once the cross-feature PreviewWindow primitive ships. AgendaTask + AgendaEvent reuse the same UX pattern. (Per-Page Property Pulldown + Property Panel Figma polish is the parallel fast-follow on the Pages surface.)
 
-##### v0.4.0 — Symbols + Trash + Wikilinks
+##### v0.4.0 — Symbols + Trash + Connections
 - **Standardized Symbols.** In-app Symbol Settings surface over the `Guidelines/Symbols.md` registry — user-remappable Application ↔ SF Symbol assignments, replacing hardcoded glyphs with a configurable table.
 - **Archive / Trash.** In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash; cascade-delete reporting with exact counts (Page Type → N Collections + M Pages). External-edit detection extended to all entity kinds.
-- **Wikilinks.** Body-text `[[Title]]` with autocomplete + click routing + rename cascade. Derived `wikilinks: [<id>, ...]` frontmatter mirror auto-maintained on save. Routing — Page / Context → detail pane; Item → ItemWindow popover. Indexed via the v0.3.0 SQLite layer.
-- **(infra)** FSEventStream **file watcher** — external changes update SQLite + sidebar live, per-file reconcile on touch, lost-update protection on mtime drift; **FTS5 tables wired** (schema only — the `⌘K` search UI ships v0.6.0); broken-link warning surface for wikilinks.
+- **Connections.** Body-text `[[Title]]` (Pages) + `{{Title}}` (Items) with autocomplete + click routing + rename cascade. Resolved by globally-unique title; no frontmatter mirror (body + the SQLite index are the only stores). Routing — Page → detail pane; Item → Item Window (floating panel). Indexed via the v0.3.0 SQLite layer. Spec → `Features/Connections.md`.
+- **(infra)** FSEventStream **file watcher** — external changes update SQLite + sidebar live, per-file reconcile on touch, lost-update protection on mtime drift; **FTS5 tables wired** (schema only — the `⌘K` search UI ships v0.6.0); broken-link warning surface for connections.
 
 ##### v0.5.0 — EventKit + Agenda UIX + Calendar
 EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*` APIs; opt-in via Settings; bidirectional mirroring). Agenda Task / Agenda Event Windows (popover with inspector toggle + Property Panel + pinned chips — reusing the Item Window pattern). Calendar view over Agenda; the Saved-section Calendar fills in with the EventKit mirror.

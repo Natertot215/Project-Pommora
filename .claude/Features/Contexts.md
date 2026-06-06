@@ -68,7 +68,7 @@ Filename = title. Renaming in the UI renames the file.
 
 - **Tier-parent rule** — every value in `parents` must resolve to a Context with `level < this.tier`. Cycles impossible by construction.
 - **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Project's `project_links` can target multiple Topics, Spaces, or Projects.
-- **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships happen only as body-content wikilinks inside a Context's composed page.
+- **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships are expressed through a Context's composed-page block content; inline `[[ ]]` / `{{ }}` connections inside Context blocks are post-v1 (→ [[Connections]]).
 - **Tier-skip allowed** — Projects can connect to Spaces directly via `parents` or `project_links`.
 
 ---

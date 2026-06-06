@@ -240,7 +240,7 @@ CREATE TABLE items (
   item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
   item_collection_id TEXT REFERENCES item_collections(id) ON DELETE SET NULL, -- nullable
   title TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',                                       -- PROJECTION of the .md body (250 source-char cap, per-Type description_cap override)
+  description TEXT NOT NULL DEFAULT '',                                       -- PROJECTION of the .md body (500 source-char cap, per-Type description_cap override)
   properties TEXT NOT NULL DEFAULT '{}',                                     -- JSON
   modified_at TEXT NOT NULL
 );
@@ -404,7 +404,7 @@ Shipped at v0.2.7.1. Full spec → `// Features//NavDropdown.md`.
 
 ##### Item Window
 
-Items open in a native, draggable, chromeless floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)`, hosted by the reusable `PreviewWindow` primitive) — not in tabs, not in the inspector. One config-driven `ItemWindowRenderer` draws it from the resolved per-Type `template_config`: title (editable filename) + icon + promoted/overflow property surfaces + the body description (250 source-char cap, per-Type `description_cap` override) + tier1/2/3 relations + read-only meta footer (`id`/`created_at`/`modified_at`). Save commits via `ItemContentManager.updateItem`. Full spec → `// Features//Items.md`.
+Items open in a native, draggable, chromeless floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)`, hosted by the reusable `PreviewWindow` primitive) — not in tabs, not in the inspector. One config-driven `ItemWindowRenderer` draws it from the resolved per-Type `template_config`: title (editable filename) + icon + promoted/overflow property surfaces + the body description (500 source-char cap, per-Type `description_cap` override) + tier1/2/3 relations + read-only meta footer (`id`/`created_at`/`modified_at`). Save commits via `ItemContentManager.updateItem`. Full spec → `// Features//Items.md`.
 
 ##### First-Launch Experience
 
@@ -414,11 +414,11 @@ After the user picks a nexus location, Pommora opens with empty sidebars plus a 
 
 SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into v0.4.0 Settings UI). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`.
 
-##### File Renames and Wikilink Resolution
+##### File Renames and Connection Resolution
 
-Renames are filesystem renames + nothing else — no cross-file rewrite of wikilinks or relation values is needed because both are ID-keyed. The file watcher updates the SQLite `path` field; references in other files continue to resolve via ULID.
+Renames are filesystem renames for the file itself. **Relation** values (`tier1/2/3`, `$rel`) are ID-keyed — a rename needs no rewrite, since references resolve via ULID. **Connections** (body `[[ ]]` / `{{ }}`) are title-keyed in v1, so a rename **cascades**: every referencing body is rewritten to the new title (atomic — see [[Connections]]). ULID-keyed connection resolution is a *potential* post-v1 method for once duplicate titles are allowed, not the v1 mechanism. The file watcher updates the SQLite `path` field on external moves.
 
-**Wikilink resolution:** disk format is plain `[[Page Name]]` (Obsidian-compatible) — Pommora never writes a piped ULID form to disk. Rename-safe ID resolution comes from a derived `wikilinks: [<id>, ...]` frontmatter mirror, auto-maintained on save (v0.4.0). The displayed title updates automatically at render time; the stored reference never changes. Untargeted `[[Title]]` (typed without autocomplete, or pasted from another tool) resolves by current basename match; ambiguous matches are underlined in the editor. Wikilinks render as styled colored inline text (Obsidian-style), not Notion-style chips. Relation properties store target IDs as `{"$rel": "<ULID>"}` and display the target's current title.
+**Connection resolution:** disk format is plain `[[Title]]` (Pages — Obsidian-compatible) / `{{Title}}` (Items — Pommora-only); Pommora never writes a piped ULID form. v1 resolves **by globally-unique title** — no in-body id and no frontmatter mirror — with rename-safety from cascade. Canonical spec → [[Connections]]. Relation properties store target IDs as `{"$rel": "<ULID>"}` and display the target's current title.
 
 ##### Data, State, File Watching
 
@@ -445,7 +445,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `project_links` as typed multi-valued property (additional Context IDs across tiers).
 - **Page Types + Page Collections + Pages** (Pages side) and **Item Types + Item Collections + Items** (Items side) — symmetric container layers. Each Type carries its per-kind sidecar (`_pagetype.json` / `_itemtype.json`); Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` / `_itemcollection.json` carries id + type_id + ordering only). UI labels: Pages get "Vault" + "Collection"; Items get "Type" + "Set" (renameable via Settings).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + vendored `swift-markdown-engine` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
-- **Items** — `.md` (YAML frontmatter + body). Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; frontmatter carries `id`, `icon`, `tier1/2/3`, timestamps, properties (keyed by property ID), and a reserved UI-hidden non-authoritative `Class` stamp (`item` | `page`) — the parent Type folder's sidecar is the kind authority. The capped description IS the Markdown body (250 source-char cap, per-Type `description_cap` override; single source of truth, no frontmatter description field). Shares Pages' `AtomicYAMLMarkdown` pipeline. Open in the floating Item Window, not a tab.
+- **Items** — `.md` (YAML frontmatter + body). Filename = display title (renameable; not the identity); each Item carries a stable ULID `id`. Conform to parent Item Type's schema; frontmatter carries `id`, `icon`, `tier1/2/3`, timestamps, properties (keyed by property ID), and a reserved UI-hidden non-authoritative `Class` stamp (`item` | `page`) — the parent Type folder's sidecar is the kind authority. The capped description IS the Markdown body (500 source-char cap, per-Type `description_cap` override; single source of truth, no frontmatter description field). Shares Pages' `AtomicYAMLMarkdown` pipeline. Open in the floating Item Window, not a tab.
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.5.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
 - **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.4.0; storage + label-read plumbing + Cmd+, stub scene ship at v0.3.0.

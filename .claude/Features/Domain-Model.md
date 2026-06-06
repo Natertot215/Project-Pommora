@@ -122,7 +122,7 @@ Every entity carries two independent identifiers:
 
 **Duplicate titles are rejected within the same container** — creating, renaming, or moving any entity (Page, Item, Agenda Task/Event, or a Context/container) to a title a sibling already holds (case-insensitive) is refused, not auto-renamed. Identity is the ULID, not the title; the rejection guards only the on-disk filename slot, since `filename = title` and a folder can't hold two files with the same name. The same title in *different* containers is fine, and recasing an entity's own title is allowed. (Truly independent duplicate titles would need a separate title field — see [[Prospects]].)
 
-Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks".
+Full mechanic for connections (page `[[ ]]` + item `{{ }}`) → [[Connections]].
 
 ---
 
@@ -130,7 +130,7 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 
 | Link | Stored as | Purpose |
 |---|---|---|
-| Page → Page (wikilink) | plain `[[Page Name]]` in body (id-resolution via a derived `wikilinks` frontmatter mirror, v0.4.0 — see [[Wiki-Link]]) | Inline reference |
+| Page → Page (`[[ ]]` connection) | plain `[[Title]]` in body; resolved by globally-unique title, indexed in SQLite — see [[Connections]] | Inline reference |
 | Page → Context (tier N) | `tierN: [<id>, ...]` in frontmatter | Categorical assignment |
 | Item → Context (tier N) | `tierN: [<id>, ...]` in `.md` frontmatter | Categorical assignment |
 | Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
@@ -138,9 +138,9 @@ Full mechanic for wikilinks under the ID-keyed model → [[Pages]] § "Wikilinks
 | Context → Context | `parents` (file-structural) + `project_links` (property, Projects only) | Hierarchy + cross-cutting relations |
 | Page → Page Type / Page Collection | Implicit by file location | Membership |
 | Item → Item Type / Item Collection | Implicit by file location | Membership |
-| Anything → Anything | Wikilinks in composed-page body / Markdown body | Free reference |
+| Page / Item → Page (`[[ ]]`) or Item (`{{ }}`) | connections in Markdown body | Free reference |
 
-Relations are stored by ID (rename-safe); body wikilinks are plain `[[Title]]` on disk — id-keyed rename-safety arrives with the v0.4.0 wikilink system (a derived `wikilinks` frontmatter mirror), see [[Wiki-Link]].
+Relations are stored by ID (rename-safe); body connections are plain `[[Title]]` / `{{Title}}` on disk, resolved by globally-unique title with rename-safety via cascade — see [[Connections]].
 
 ---
 

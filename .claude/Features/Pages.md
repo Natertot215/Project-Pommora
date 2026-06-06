@@ -95,10 +95,10 @@ Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a
 
 #### Wikilinks
 
-Canonical spec → [[Wiki-Link]]; the on-disk form is ratified by blessed decision D1 (`// Planning//2026-06-02-MarkdownPM-Decisions.md`). The wikilink system itself lands as a separate post-rebuild session (roadmap → v0.4.0).
+Canonical spec → [[Connections]]; the on-disk form is ratified by blessed decision D1 (`// Planning//2026-06-02-MarkdownPM-Decisions.md`). The connection system itself lands as a separate post-rebuild session (roadmap → v0.4.0).
 
-- **Disk format: plain `[[Page Name]]`** (Obsidian-compatible) — Pommora never writes a piped `[[Title|<id>]]` form to disk. Rename-safe ID resolution comes from a derived `wikilinks: [<id>, ...]` frontmatter mirror, auto-maintained on save (v0.4.0) — not an inline pipe.
-- **Untargeted `[[Page Name]]`** (typed outside autocomplete, or pasted from another tool) resolves by current basename match. If multiple Pages share that name, the editor underlines it as ambiguous and the picker prompts for disambiguation at insertion.
+- **Disk format: plain `[[Page Name]]`** (Obsidian-compatible) — Pommora never writes a piped `[[Title|<id>]]` form to disk, and there is no frontmatter mirror. Rename-safety comes from cascade: every referencing body is rewritten when the target is renamed.
+- **Resolution is by globally-unique title** — every Page title is unique nexus-wide, so a bare `[[Page Name]]` resolves to exactly one Page. A name matching nothing renders as inert literal text until that Page exists.
 - Wikilinks render as styled colored inline text (Obsidian-style hyperlink), not as Notion-style chips/pills.
 
 **Wikilinks vs context-link properties.** These are two distinct linking mechanisms, in two different places:
