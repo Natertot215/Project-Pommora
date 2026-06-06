@@ -78,6 +78,48 @@ extension MarkdownPMStyler {
         return attrs
     }
 
+    // MARK: Item Links {{Title}}
+
+    /// Title-only parallel of `styleWikiLinks` for `{{Title}}` item links. No
+    /// stored id (no `wikiLinkIDProvider`) — resolution is by title via
+    /// `ctx.services.itemLinks`. Resolved → renders as a colored `.link` (a
+    /// placeholder for a future item-pill) and is stamped with `.itemLinkTitle`
+    /// so E4's click handler can route to the Item Window instead of page-nav.
+    /// UNRESOLVED → muted `disabledText` (SAME as `[[ ]]` — intentionally NOT
+    /// plain body color).
+    static func styleItemLinks(_ ctx: StylingContext) -> [StyledRange] {
+        var attrs: [StyledRange] = []
+        for (index, token) in ctx.tokens.enumerated() where token.kind == .itemLink {
+            if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) { continue }
+            attrs.append((token.range, [NSAttributedString.Key.spellingState: 0]))
+            let nodeName = ctx.nsText.substring(with: token.contentRange)
+            var contentAttributes: [NSAttributedString.Key: Any] = [:]
+            let isActive = ctx.isActive(tokenIndex: index)
+            // Resolve the item title via the embedder-supplied item resolver.
+            let nodeExists: Bool = {
+                if let resolution = ctx.services.itemLinks.resolve(displayName: nodeName, range: token.contentRange) {
+                    return resolution.exists
+                }
+                return false
+            }()
+            if !isActive {
+                if nodeExists {
+                    contentAttributes[.link] = nodeName
+                    contentAttributes[.itemLinkTitle] = nodeName
+                } else {
+                    contentAttributes[.foregroundColor] = ctx.configuration.theme.disabledText
+                }
+            }
+            if !contentAttributes.isEmpty {
+                attrs.append((token.contentRange, contentAttributes))
+            }
+            for markerRange in token.markerRanges {
+                attrs.append((markerRange, [.foregroundColor: ctx.configuration.theme.mutedText]))
+            }
+        }
+        return attrs
+    }
+
     // MARK: Markdown Links [Text](URL)
 
     static func styleMarkdownLinks(_ ctx: StylingContext) -> [StyledRange] {

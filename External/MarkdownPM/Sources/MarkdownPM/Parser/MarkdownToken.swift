@@ -12,6 +12,7 @@ import Foundation
 
 extension NSAttributedString.Key {
     public nonisolated static let wikiLinkID = NSAttributedString.Key("NodeLinkID")
+    public nonisolated static let itemLinkTitle = NSAttributedString.Key("ItemLinkTitle")
     public nonisolated static let taskCheckbox = NSAttributedString.Key("TaskCheckbox")
 }
 
@@ -21,6 +22,7 @@ enum MarkdownTokenKind {
     case bold
     case link
     case wikiLink
+    case itemLink
     case heading
     case codeBlock
     case inlineCode

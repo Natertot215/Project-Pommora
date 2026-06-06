@@ -253,6 +253,7 @@ enum MarkdownPMStyler {
         result += styleEmphasis(ctx)
         result += styleAutoLinks(ctx)
         result += styleWikiLinks(ctx, wikiLinkIDProvider: wikiLinkIDProvider)
+        result += styleItemLinks(ctx)
         result += styleImageEmbeds(ctx)
         result += styleMarkdownLinks(ctx)
         result += styleCodeBlocks(ctx)
@@ -483,7 +484,7 @@ extension MarkdownPMStyler {
         // suppression guard in `styleEmphasis`: skip any emphasis-kind token
         // whose range intersects a wikiLink/imageEmbed range.
         let literalTargetTokens = ctx.tokens.filter {
-            $0.kind == .wikiLink || $0.kind == .imageEmbed
+            $0.kind == .wikiLink || $0.kind == .imageEmbed || $0.kind == .itemLink
         }
         for (i, token) in ctx.tokens.enumerated() where !ctx.isActive(tokenIndex: i) {
             if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex
