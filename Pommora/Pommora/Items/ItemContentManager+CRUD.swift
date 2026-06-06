@@ -167,9 +167,35 @@ extension ItemContentManager {
             }
 
             if let updater = indexUpdater {
+                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
+                let touched: [ConnectionCascade.Touched]
+                do {
+                    touched = try await cascade.run(
+                        targetID: item.id, oldTitle: item.title, newTitle: trimmed, targetSyntax: .item)
+                } catch let cascadeError {
+                    do {
+                        try Filesystem.renameFile(from: newURL, to: oldURL)  // revert — NOT try?
+                        throw cascadeError
+                    } catch {
+                        throw ItemCRUDError.cascadeFailed(message: "\(cascadeError)")
+                    }
+                }
+                for t in touched {
+                    do {
+                        try updater.reconcileConnections(
+                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
+                    } catch { self.pendingError = error }
+                }
+            }
+
+            if let updater = indexUpdater {
                 do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: collection.id) } catch {
                     self.pendingError = error
                 }
+                do {
+                    try updater.activateConnections(
+                        targetID: item.id, targetKind: "item", targetTitle: trimmed)
+                } catch { self.pendingError = error }
             }
 
             var arr = existing
@@ -329,9 +355,35 @@ extension ItemContentManager {
             }
 
             if let updater = indexUpdater {
+                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
+                let touched: [ConnectionCascade.Touched]
+                do {
+                    touched = try await cascade.run(
+                        targetID: item.id, oldTitle: item.title, newTitle: trimmed, targetSyntax: .item)
+                } catch let cascadeError {
+                    do {
+                        try Filesystem.renameFile(from: newURL, to: oldURL)  // revert — NOT try?
+                        throw cascadeError
+                    } catch {
+                        throw ItemCRUDError.cascadeFailed(message: "\(cascadeError)")
+                    }
+                }
+                for t in touched {
+                    do {
+                        try updater.reconcileConnections(
+                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
+                    } catch { self.pendingError = error }
+                }
+            }
+
+            if let updater = indexUpdater {
                 do { try updater.upsertItem(updated, itemTypeID: itemType.id, itemCollectionID: nil) } catch {
                     self.pendingError = error
                 }
+                do {
+                    try updater.activateConnections(
+                        targetID: item.id, targetKind: "item", targetTitle: trimmed)
+                } catch { self.pendingError = error }
             }
 
             var arr = existing
@@ -788,38 +840,7 @@ extension ItemContentManager {
     /// deeper non-Collection sub-folder (whose files roll up to the Type root with
     /// `item_collection_id == nil`).
     private func locateItemFile(id: String, container: EntityContainer) -> URL? {
-        let folder: URL
-        if let collectionTitle = container.collectionTitle {
-            folder = NexusPaths.itemCollectionFolderURL(
-                in: nexus.rootURL,
-                typeFolderName: container.typeTitle,
-                collectionFolderName: collectionTitle
-            )
-        } else {
-            folder = NexusPaths.itemTypeFolderURL(
-                in: nexus.rootURL, typeFolderName: container.typeTitle
-            )
-        }
-        // Fast path: the canonical title-derived `.md` file.
-        let candidate = NexusPaths.itemFileURL(forTitle: container.entityTitle, in: folder)
-        if Filesystem.fileExists(at: candidate),
-            let loaded = try? Item.load(from: candidate),
-            loaded.id == id
-        {
-            return candidate
-        }
-        // Fall back to a descendant walk matching by id (handles nested Type-root
-        // Items + any title/filename divergence).
-        let matches =
-            (try? Filesystem.descendantFiles(of: folder) { url in
-                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-            }) ?? []
-        for url in matches {
-            if let loaded = try? Item.load(from: url), loaded.id == id {
-                return url
-            }
-        }
-        return nil
+        ConnectionFileLocator.locate(id: id, kind: .item, container: container, nexusRoot: nexus.rootURL)
     }
 
     /// Refreshes the in-memory `Item` for `updated` in whichever cache bucket
@@ -852,12 +873,15 @@ enum ItemCRUDError: Error, LocalizedError, Equatable {
     case emptyTitle
     case invalidTitleCharacters
     case duplicateTitle
+    case cascadeFailed(message: String)
 
     var errorDescription: String? {
         switch self {
         case .emptyTitle: return "Name can't be empty."
         case .invalidTitleCharacters: return "Name can't contain / \\ :"
         case .duplicateTitle: return "An Item with that name already exists."
+        case .cascadeFailed(let message):
+            return "Rename cascade failed and the file could not be reverted: \(message)"
         }
     }
 }

@@ -132,6 +132,28 @@ extension PageContentManager {
             // apply the RenameAtomicityError rollback pattern.
             try Filesystem.renameFile(from: page.url, to: newURL)
 
+            if let updater = indexUpdater {
+                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
+                let touched: [ConnectionCascade.Touched]
+                do {
+                    touched = try await cascade.run(
+                        targetID: page.id, oldTitle: page.title, newTitle: newName, targetSyntax: .page)
+                } catch let cascadeError {
+                    do {
+                        try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?
+                        throw cascadeError
+                    } catch {
+                        throw PageCRUDError.cascadeFailed(message: "\(cascadeError)")
+                    }
+                }
+                for t in touched {
+                    do {
+                        try updater.reconcileConnections(
+                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
+                    } catch { self.pendingError = error }
+                }
+            }
+
             var updated = page
             updated.title = newName
             updated.url = newURL
@@ -140,6 +162,10 @@ extension PageContentManager {
                 do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
                     self.pendingError = error
                 }
+                do {
+                    try updater.activateConnections(
+                        targetID: page.id, targetKind: "page", targetTitle: newName)
+                } catch { self.pendingError = error }
             }
 
             var arr = existing
@@ -303,6 +329,28 @@ extension PageContentManager {
             // No metadata save here — single-step atomic via FileManager.moveItem.
             try Filesystem.renameFile(from: page.url, to: newURL)
 
+            if let updater = indexUpdater {
+                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
+                let touched: [ConnectionCascade.Touched]
+                do {
+                    touched = try await cascade.run(
+                        targetID: page.id, oldTitle: page.title, newTitle: newName, targetSyntax: .page)
+                } catch let cascadeError {
+                    do {
+                        try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?
+                        throw cascadeError
+                    } catch {
+                        throw PageCRUDError.cascadeFailed(message: "\(cascadeError)")
+                    }
+                }
+                for t in touched {
+                    do {
+                        try updater.reconcileConnections(
+                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
+                    } catch { self.pendingError = error }
+                }
+            }
+
             var updated = page
             updated.title = newName
             updated.url = newURL
@@ -311,6 +359,10 @@ extension PageContentManager {
                 do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: nil) } catch {
                     self.pendingError = error
                 }
+                do {
+                    try updater.activateConnections(
+                        targetID: page.id, targetKind: "page", targetTitle: newName)
+                } catch { self.pendingError = error }
             }
 
             var arr = existing
@@ -796,37 +848,7 @@ extension PageContentManager {
     /// physically live in a deeper non-Collection sub-folder (whose files roll up
     /// to the Type root with `page_collection_id == nil`).
     private func locatePageFile(id: String, container: EntityContainer) -> URL? {
-        let folder: URL
-        if let collectionTitle = container.collectionTitle {
-            folder = NexusPaths.pageCollectionFolderURL(
-                in: nexus.rootURL,
-                typeFolderName: container.typeTitle,
-                collectionFolderName: collectionTitle
-            )
-        } else {
-            folder = NexusPaths.pageTypeFolderURL(
-                in: nexus.rootURL, typeFolderName: container.typeTitle
-            )
-        }
-        let candidate = NexusPaths.pageFileURL(forTitle: container.entityTitle, in: folder)
-        if Filesystem.fileExists(at: candidate),
-            let fm = try? PageFile.load(from: candidate).frontmatter,
-            fm.id == id
-        {
-            return candidate
-        }
-        // Fall back to a descendant walk matching by id (handles nested Type-root
-        // Pages + any title/filename divergence).
-        let matches =
-            (try? Filesystem.descendantFiles(of: folder) { url in
-                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-            }) ?? []
-        for url in matches {
-            if let fm = try? PageFile.load(from: url).frontmatter, fm.id == id {
-                return url
-            }
-        }
-        return nil
+        ConnectionFileLocator.locate(id: id, kind: .page, container: container, nexusRoot: nexus.rootURL)
     }
 
     /// Refreshes the in-memory `PageMeta` for `updated` in whichever cache bucket
@@ -859,10 +881,13 @@ extension PageContentManager {
 /// collision only.
 enum PageCRUDError: Error, LocalizedError, Equatable {
     case duplicateTitle
+    case cascadeFailed(message: String)
 
     var errorDescription: String? {
         switch self {
         case .duplicateTitle: return "A Page with that name already exists."
+        case .cascadeFailed(let message):
+            return "Rename cascade failed and the file could not be reverted: \(message)"
         }
     }
 }
