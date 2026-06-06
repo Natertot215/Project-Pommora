@@ -447,10 +447,21 @@ extension MarkdownPMStyler {
 
     static func styleIncompleteLinkBrackets(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
+        // `[[Name]]` / `{{Title}}` are already styled by their dedicated link
+        // passes — the greedy `\[...\]` regex would otherwise match the inner
+        // `[[Name]` of a completed wikilink and stamp the systemBlue
+        // incompleteLink color over the title (last-writer-wins overwriting
+        // the muted/link color). Skip any match intersecting those token
+        // ranges — same intersection guard `shrinkInactiveMarkers` uses for
+        // literal-target tokens.
+        let resolvedLinkTokens = ctx.tokens.filter { $0.kind == .wikiLink || $0.kind == .itemLink }
         for regex in MarkdownPMStyler.incompleteLinkRegexes {
             for match in regex.matches(in: ctx.text, options: [], range: ctx.fullRange) {
                 let matchRange = match.range
                 if MarkdownDetection.isInsideCodeBlock(range: matchRange, codeTokens: ctx.codeTokens) { continue }
+                if resolvedLinkTokens.contains(where: { NSIntersectionRange($0.range, matchRange).length > 0 }) {
+                    continue
+                }
                 let substring = ctx.nsText.substring(with: matchRange)
                 for (i, char) in substring.enumerated() {
                     let location = matchRange.location + i
