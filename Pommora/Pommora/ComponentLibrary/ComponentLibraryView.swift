@@ -309,6 +309,14 @@ private struct ChipsGallery: View {
                 }
 
                 GallerySection(
+                    title: "Item Chip",
+                    summary:
+                        "Inline rendering of a resolved {{Item}} connection — the linked Item's icon + title in a radius-6 rounded rectangle with a Tertiary fill (0.80) + a Secondary hairline stroke, body font. Padding is tighter than ContextChip on BOTH axes so the chip sits within the line box when drawn inline at a {{ }} token in the page editor (which draws this same visual in CoreGraphics)."
+                ) {
+                    ItemChipShowcase()
+                }
+
+                GallerySection(
                     title: "Chip Dropdown",
                     summary:
                         "The pill itself opens the dropdown — no surrounding trigger frame. Multi-select renders selected pills inline in the trigger area, in the dropdown's option order (drag-reorder to change). Liquid Glass panel, always-on."
@@ -773,6 +781,84 @@ private struct ContextChipShowcase: View {
     private func surfaceCell(_ surface: Color, _ label: String) -> some View {
         VStack(spacing: 8) {
             ContextChip(icon: "square.dashed", title: "Relation")
+            Text(label)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 8).fill(surface))
+    }
+}
+
+// MARK: - ItemChip Showcase
+
+/// Showcases the inline item-link chip: the linked Item's icon + title in a
+/// radius-6 rounded rectangle with a Tertiary fill (0.80) + a Secondary hairline
+/// stroke, body font. Padding is tighter than ContextChip on both axes so the
+/// chip sits within the line box when drawn inline at a `{{ }}` token in the page
+/// editor (the editor draws this same visual in CoreGraphics).
+private struct ItemChipShowcase: View {
+    private let samples: [(icon: String, title: String)] = [
+        ("square.dashed", "Item Chip"),
+        ("doc.text", "Meeting Notes"),
+        ("checklist", "Sprint Tasks"),
+        ("person.crop.circle", "Sam Rivera"),
+        ("book", "Research Log"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            section(title: "Default — Item icon + title, Tertiary fill (0.80), Secondary stroke, radius 6") {
+                FlowingHStack {
+                    ForEach(samples, id: \.title) { s in
+                        ItemChip(icon: s.icon, title: s.title)
+                    }
+                }
+            }
+
+            section(title: "Inline — sits within the line box (compact vertical leaves room for line breaks)") {
+                HStack(spacing: 0) {
+                    Text("As captured in ")
+                    ItemChip(icon: "doc.text", title: "Meeting Notes")
+                    Text(", the next step is owned by the team.")
+                }
+                .font(.body)
+            }
+
+            section(title: "Against surfaces — the stroke keeps it legible on any background") {
+                HStack(spacing: 16) {
+                    surfaceCell(Color(.windowBackgroundColor), "window")
+                    surfaceCell(Color(.controlBackgroundColor), "control")
+                    surfaceCell(Color(.textBackgroundColor), "text")
+                }
+            }
+
+            CodeBlock(
+                title: "Usage",
+                code: """
+                    // Component-Library primitive for a resolved {{Item}} link.
+                    // icon + title resolve from the LINKED Item (via the index).
+                    // The page editor draws this same visual in CoreGraphics at
+                    // the {{ }} token (inline render); this primitive also serves
+                    // future non-inline item surfaces (dropdown / panel).
+                    ItemChip(icon: "doc.text", title: "Meeting Notes")
+                    """
+            )
+            .padding(.horizontal)
+        }
+    }
+
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.headline)
+            content()
+        }
+        .padding(.horizontal)
+    }
+
+    private func surfaceCell(_ surface: Color, _ label: String) -> some View {
+        VStack(spacing: 8) {
+            ItemChip(icon: "square.dashed", title: "Item Chip")
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.tertiary)
