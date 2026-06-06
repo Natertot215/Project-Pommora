@@ -268,6 +268,9 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         if let name = previous.findClearHighlights {
             center.removeObserver(self, name: name, object: nil)
         }
+        if let name = previous.connectionsChanged {
+            center.removeObserver(self, name: name, object: nil)
+        }
 
         let bus = configuration.services.bus
 
@@ -300,6 +303,9 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         }
         if let name = bus.findClearHighlights {
             center.addObserver(self, selector: #selector(handleFindClearHighlights(_:)), name: name, object: nil)
+        }
+        if let name = bus.connectionsChanged {
+            center.addObserver(self, selector: #selector(handleConnectionsChanged(_:)), name: name, object: nil)
         }
     }
 

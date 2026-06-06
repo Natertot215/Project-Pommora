@@ -96,6 +96,8 @@ extension PageContentManager {
                     self.pendingError = error
                 }
             }
+            // A new title now exists — restyle open editors so any phantom [[name]] lights up.
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             arr.append(meta)
@@ -167,6 +169,8 @@ extension PageContentManager {
                         targetID: page.id, targetKind: "page", targetTitle: newName)
                 } catch { self.pendingError = error }
             }
+            // The title changed — restyle open editors (old [[ ]] cascaded, new title resolves).
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
@@ -197,6 +201,8 @@ extension PageContentManager {
                     self.pendingError = error
                 }
             }
+            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
+            ConnectionsBus.postChanged(from: self)
             var arr = pagesByCollection[collection.id] ?? []
             arr.removeAll { $0.id == page.id }
             pagesByCollection[collection.id] = arr
@@ -298,6 +304,8 @@ extension PageContentManager {
                     self.pendingError = error
                 }
             }
+            // A new title now exists — restyle open editors so any phantom [[name]] lights up.
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             arr.append(meta)
@@ -367,6 +375,8 @@ extension PageContentManager {
                         targetID: page.id, targetKind: "page", targetTitle: newName)
                 } catch { self.pendingError = error }
             }
+            // The title changed — restyle open editors (old [[ ]] cascaded, new title resolves).
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
@@ -397,6 +407,8 @@ extension PageContentManager {
                     self.pendingError = error
                 }
             }
+            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
+            ConnectionsBus.postChanged(from: self)
             var arr = pagesByTypeRoot[vault.id] ?? []
             arr.removeAll { $0.id == page.id }
             pagesByTypeRoot[vault.id] = arr

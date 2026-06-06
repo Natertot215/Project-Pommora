@@ -131,6 +131,18 @@ extension NativeTextViewCoordinator {
         let fullRange = NSRange(location: 0, length: (tv.string as NSString).length)
         restyleTextView(tv, paragraphCandidates: [fullRange])
     }
+
+    /// The host signalled that the set of resolvable connection titles changed
+    /// elsewhere (an entity was created / renamed / deleted in another surface).
+    /// Restyle the whole document so every `[[ ]]`/`{{ }}` re-queries its resolver
+    /// — a phantom whose target just appeared resolves live. Mirrors the proven
+    /// `handleAppearanceChange` full-document restyle; no `object` filter because
+    /// the change is global (any surface), not this text view's own.
+    @objc func handleConnectionsChanged(_ notification: Notification) {
+        guard let tv = textView else { return }
+        let fullRange = NSRange(location: 0, length: (tv.string as NSString).length)
+        restyleTextView(tv, paragraphCandidates: [fullRange])
+    }
 }
 
 // MARK: - Autocorrect / spell-check / quote substitution policy

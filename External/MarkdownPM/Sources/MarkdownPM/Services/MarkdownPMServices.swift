@@ -204,6 +204,12 @@ public struct MarkdownPMBus: Sendable {
     public var findScrollToRange: Notification.Name?
     /// Posted by the host UI to clear all in-document find highlights.
     public var findClearHighlights: Notification.Name?
+    /// Posted by the host UI when the set of resolvable links changed elsewhere
+    /// (an entity was created / renamed / deleted in another surface). The engine
+    /// re-styles the whole document so every `[[ ]]`/`{{ }}` re-queries its
+    /// resolver — a phantom whose target just appeared lights up live, without
+    /// the user editing this document. No `userInfo` needed (full restyle).
+    public var connectionsChanged: Notification.Name?
 
     public init(
         applyBoldRequest: Notification.Name? = nil,
@@ -212,7 +218,8 @@ public struct MarkdownPMBus: Sendable {
         selectionBoldDidChange: Notification.Name? = nil,
         selectionItalicDidChange: Notification.Name? = nil,
         findScrollToRange: Notification.Name? = nil,
-        findClearHighlights: Notification.Name? = nil
+        findClearHighlights: Notification.Name? = nil,
+        connectionsChanged: Notification.Name? = nil
     ) {
         self.applyBoldRequest = applyBoldRequest
         self.applyItalicRequest = applyItalicRequest
@@ -221,6 +228,7 @@ public struct MarkdownPMBus: Sendable {
         self.selectionItalicDidChange = selectionItalicDidChange
         self.findScrollToRange = findScrollToRange
         self.findClearHighlights = findClearHighlights
+        self.connectionsChanged = connectionsChanged
     }
 
     public static let `default` = MarkdownPMBus()

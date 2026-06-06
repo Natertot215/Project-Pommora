@@ -36,6 +36,11 @@ enum MarkdownEditorConfig {
         config.textInsets = TextInsets(horizontal: horizontalInset, vertical: verticalInset)
         config.services.wikiLinks = pageResolver
         config.services.itemLinks = itemResolver
+        // Live cross-surface refresh: when an entity is created / renamed / deleted
+        // in another window, the CRUD managers post `ConnectionsBus.changed`; the
+        // editor coordinator observes this bus slot and restyles, so a phantom
+        // `[[ ]]`/`{{ }}` lights up without the user editing this document.
+        config.services.bus.connectionsChanged = ConnectionsBus.changed
         return config
     }
 }

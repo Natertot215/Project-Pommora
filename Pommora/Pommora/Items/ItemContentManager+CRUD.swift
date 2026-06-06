@@ -116,6 +116,8 @@ extension ItemContentManager {
                     self.pendingError = error
                 }
             }
+            // A new title now exists — restyle open editors so any phantom {{name}} lights up.
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             arr.append(item)
@@ -197,6 +199,8 @@ extension ItemContentManager {
                         targetID: item.id, targetKind: "item", targetTitle: trimmed)
                 } catch { self.pendingError = error }
             }
+            // The title changed — restyle open editors (old {{ }} cascaded, new title resolves).
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
@@ -267,6 +271,8 @@ extension ItemContentManager {
                     self.pendingError = error
                 }
             }
+            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
+            ConnectionsBus.postChanged(from: self)
             var arr = itemsByCollection[collection.id] ?? []
             arr.removeAll { $0.id == item.id }
             itemsByCollection[collection.id] = arr
@@ -311,6 +317,8 @@ extension ItemContentManager {
                     self.pendingError = error
                 }
             }
+            // A new title now exists — restyle open editors so any phantom {{name}} lights up.
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             arr.append(item)
@@ -388,6 +396,8 @@ extension ItemContentManager {
                         targetID: item.id, targetKind: "item", targetTitle: trimmed)
                 } catch { self.pendingError = error }
             }
+            // The title changed — restyle open editors (old {{ }} cascaded, new title resolves).
+            ConnectionsBus.postChanged(from: self)
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == item.id }) {
@@ -495,6 +505,8 @@ extension ItemContentManager {
                     self.pendingError = error
                 }
             }
+            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
+            ConnectionsBus.postChanged(from: self)
             var arr = itemsByTypeRoot[itemType.id] ?? []
             arr.removeAll { $0.id == item.id }
             itemsByTypeRoot[itemType.id] = arr
