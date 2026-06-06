@@ -15,9 +15,9 @@ enum ItemValidator {
     /// Item Window's counter + over-limit colorization reference this constant
     /// rather than a hardcoded literal. A Type may override per-template via
     /// `ItemTemplateConfig.descriptionCap`; resolve with `effectiveCap(for:)`.
-    static let maxDescriptionLength = 250
+    static let maxDescriptionLength = 500
 
-    /// Effective per-Item cap: the Type template override, else the 250 default (LD-7).
+    /// Effective per-Item cap: the Type template override, else the 500 default (LD-7).
     static func effectiveCap(for itemType: ItemType) -> Int {
         itemType.templateConfig?.descriptionCap ?? maxDescriptionLength
     }
