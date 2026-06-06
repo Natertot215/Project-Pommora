@@ -34,7 +34,7 @@ struct ItemChip: View {
         }
         .font(.body)
         .padding(.horizontal, 5)
-        .padding(.vertical, 2.5)
+        .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(.quaternary)

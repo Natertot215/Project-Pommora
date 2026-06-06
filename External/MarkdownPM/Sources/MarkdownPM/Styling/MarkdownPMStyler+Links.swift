@@ -65,7 +65,7 @@ extension MarkdownPMStyler {
                 if nodeExists {
                     contentAttributes[.link] = linkID ?? nodeName
                 } else {
-                    contentAttributes[.foregroundColor] = ctx.configuration.theme.disabledText
+                    contentAttributes[.foregroundColor] = NSColor.secondaryLabelColor
                 }
             }
             if !contentAttributes.isEmpty {
@@ -159,7 +159,7 @@ extension MarkdownPMStyler {
                     contentAttributes[.link] = nodeName
                     contentAttributes[.itemLinkTitle] = nodeName
                 } else {
-                    contentAttributes[.foregroundColor] = ctx.configuration.theme.disabledText
+                    contentAttributes[.foregroundColor] = NSColor.secondaryLabelColor
                 }
             }
             if !contentAttributes.isEmpty {
