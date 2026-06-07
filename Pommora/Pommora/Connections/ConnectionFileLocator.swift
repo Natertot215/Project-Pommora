@@ -21,18 +21,24 @@ enum ConnectionFileLocator {
         let candidate: URL = kind == .page
             ? NexusPaths.pageFileURL(forTitle: container.entityTitle, in: folder)
             : NexusPaths.itemFileURL(forTitle: container.entityTitle, in: folder)
-        if Filesystem.fileExists(at: candidate), idMatches(candidate, id: id, kind: kind) { return candidate }
+        if Filesystem.fileExists(at: candidate), idMatches(candidate, id: id, kind: kind, nexusRoot: nexusRoot) { return candidate }
         let matches = (try? Filesystem.descendantFiles(of: folder) { url in
             url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
         }) ?? []
-        return matches.first { idMatches($0, id: id, kind: kind) }
+        return matches.first { idMatches($0, id: id, kind: kind, nexusRoot: nexusRoot) }
     }
 
-    private static func idMatches(_ url: URL, id: String, kind: EntityKind) -> Bool {
+    /// Check whether a `.md` file's stored (or synthesized) ID matches `id`.
+    /// Uses lenient loading for pages so adopted files without full Pommora
+    /// frontmatter are matched via their path-stable synthesized ID.
+    private static func idMatches(_ url: URL, id: String, kind: EntityKind, nexusRoot: URL) -> Bool {
         switch kind {
-        case .page: return (try? PageFile.load(from: url).frontmatter.id) == id
-        case .item: return (try? Item.load(from: url).id) == id
-        default: return false
+        case .page:
+            return (try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot).frontmatter.id) == id
+        case .item:
+            return (try? Item.load(from: url).id) == id
+        default:
+            return false
         }
     }
 }

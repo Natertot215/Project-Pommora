@@ -14,7 +14,7 @@ enum WikiLinkPageOpener {
         guard
             let container = try? await query.entityContainer(id: id, kind: .page),
             let url = ConnectionFileLocator.locate(id: id, kind: .page, container: container, nexusRoot: nexusRootURL),
-            let pf = try? PageFile.load(from: url)
+            let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRootURL)
         else { return nil }
         return .page(PageMeta(id: id, title: pf.title, url: url, frontmatter: pf.frontmatter))
     }

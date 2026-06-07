@@ -108,4 +108,66 @@ struct ConnectionResolverTests {
         // Page-only title is invisible to the item resolver.
         #expect(itemResolver.resolve(displayName: "Gamma", range: NSRange(location: 0, length: 0)) == nil)
     }
+
+    // MARK: - resolvePageByIDOrTitle
+
+    /// A direct page ID returns that same ID immediately — fast path.
+    @Test func resolveByDirectID() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let id = ULID.generate()
+        try insertPage(id: id, title: "Bravo", index: idx)
+
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id, kind: .page) == id)
+    }
+
+    /// A display title (original case) falls through to title-match.
+    @Test func resolveByDisplayTitle() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let id = ULID.generate()
+        try insertPage(id: id, title: "Project Notes", index: idx)
+
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("Project Notes", kind: .page) == id)
+    }
+
+    /// Title matching is case-insensitive (wikilinks are typed free-form).
+    @Test func resolveByTitleCaseInsensitive() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let id = ULID.generate()
+        try insertPage(id: id, title: "Meeting Notes", index: idx)
+
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("meeting notes", kind: .page) == id)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("MEETING NOTES", kind: .page) == id)
+    }
+
+    /// An unknown string that matches neither an ID nor a title returns nil.
+    @Test func resolveUnknownReturnsNil() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("phantom-id-000", kind: .page) == nil)
+    }
+
+    /// Two pages sharing a title are ambiguous: title path returns nil.
+    /// (Direct-ID path is unambiguous and still works for either.)
+    @Test func resolveAmbiguousTitleReturnsNil() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let id1 = ULID.generate()
+        let id2 = ULID.generate()
+        try insertPage(id: id1, title: "Dup", index: idx)
+        try insertPage(id: id2, title: "Dup", index: idx)
+
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("Dup", kind: .page) == nil)
+        // Direct ID bypasses the ambiguity guard.
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id1, kind: .page) == id1)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id2, kind: .page) == id2)
+    }
 }

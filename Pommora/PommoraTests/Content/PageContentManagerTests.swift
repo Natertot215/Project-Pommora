@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import GRDB
 
 @testable import Pommora
 
@@ -82,6 +83,116 @@ struct PageContentManagerTests {
         #expect(manager.pages(in: coll).count == 1)
     }
 
+    // MARK: - resolveParent (index-based path)
+
+    /// resolveParent uses the index to find the vault even when the page has
+    /// never been loaded into the manager's in-memory arrays.
+    @Test("resolveParent resolves vault via index when page not in memory")
+    func resolveParentViaIndex() async throws {
+        let (nexus, vault, _, manager) = try await setup()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Open a fresh index, seed it with the vault type + an unloaded page.
+        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
+        let pageID = ULID.generate()
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let vaultID = vault.id
+        let vaultTitle = vault.title
+        try await index.dbQueue.write { db in
+            try db.execute(
+                sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
+                arguments: [vaultID, vaultTitle, ts])
+            try db.execute(
+                sql: "INSERT INTO pages (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                arguments: [pageID, vaultID, "Unloaded", ts])
+        }
+        manager.indexUpdater = IndexUpdater(index)
+
+        // Build a PageTypeManager so resolveParent can match the vault ID.
+        let vaultManager = PageTypeManager(nexus: nexus)
+        await vaultManager.loadAll()
+
+        // Confirm the page is NOT in the manager's in-memory arrays.
+        #expect(manager.pages(in: vault).isEmpty)
+
+        let pageURL = NexusPaths.pageFileURL(
+            forTitle: "Unloaded",
+            in: NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus))
+        let fm = PageFrontmatter(
+            id: pageID, icon: nil, tier1: [], tier2: [], tier3: [],
+            properties: [:], createdAt: Date())
+        let page = PageMeta(id: pageID, title: "Unloaded", url: pageURL, frontmatter: fm)
+
+        let result = manager.resolveParent(for: page, pageTypeManager: vaultManager)
+        #expect(result?.vault.id == vault.id)
+        #expect(result?.collection == nil)
+    }
+
+    /// resolveParent resolves vault + collection via index.
+    @Test("resolveParent resolves vault and collection via index")
+    func resolveParentWithCollectionViaIndex() async throws {
+        let (nexus, vault, coll, manager) = try await setup()
+        defer { TempNexus.cleanup(nexus) }
+
+        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
+        let pageID = ULID.generate()
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let vaultID = vault.id
+        let vaultTitle = vault.title
+        let collID = coll.id
+        let collTitle = coll.title
+        try await index.dbQueue.write { db in
+            try db.execute(
+                sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
+                arguments: [vaultID, vaultTitle, ts])
+            try db.execute(
+                sql: "INSERT OR IGNORE INTO page_collections (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                arguments: [collID, vaultID, collTitle, ts])
+            try db.execute(
+                sql: "INSERT INTO pages (id, page_type_id, page_collection_id, title, modified_at) VALUES (?, ?, ?, ?, ?)",
+                arguments: [pageID, vaultID, collID, "InColl", ts])
+        }
+        manager.indexUpdater = IndexUpdater(index)
+
+        let vaultManager = PageTypeManager(nexus: nexus)
+        await vaultManager.loadAll()
+        #expect(manager.pages(in: coll).isEmpty)
+
+        let fm = PageFrontmatter(
+            id: pageID, icon: nil, tier1: [], tier2: [], tier3: [],
+            properties: [:], createdAt: Date())
+        let page = PageMeta(
+            id: pageID, title: "InColl",
+            url: NexusPaths.pageFileURL(forTitle: "InColl", in: coll.folderURL),
+            frontmatter: fm)
+
+        let result = manager.resolveParent(for: page, pageTypeManager: vaultManager)
+        #expect(result?.vault.id == vault.id)
+        #expect(result?.collection?.id == coll.id)
+    }
+
+    /// URL-based fallback fires when no index is wired (indexUpdater == nil).
+    @Test("resolveParent falls back to URL matching when no index")
+    func resolveParentURLFallback() async throws {
+        let (nexus, vault, _, manager) = try await setup()
+        defer { TempNexus.cleanup(nexus) }
+        // manager.indexUpdater is nil — no index available.
+
+        let vaultManager = PageTypeManager(nexus: nexus)
+        await vaultManager.loadAll()
+
+        let pageURL = NexusPaths.pageFileURL(
+            forTitle: "AnyPage",
+            in: NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus))
+        let fm = PageFrontmatter(
+            id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [],
+            properties: [:], createdAt: Date())
+        let page = PageMeta(id: ULID.generate(), title: "AnyPage", url: pageURL, frontmatter: fm)
+
+        let result = manager.resolveParent(for: page, pageTypeManager: vaultManager)
+        #expect(result?.vault.id == vault.id)
+    }
+
     private func setup() async throws -> (Nexus, PageType, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
         let vault = PageType(
@@ -100,6 +211,7 @@ struct PageContentManagerTests {
             folderURL: collFolder,
             modifiedAt: Date()
         )
+        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         return (nexus, vault, coll, manager)

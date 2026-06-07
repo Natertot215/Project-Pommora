@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import Observation
 import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPages
 
@@ -69,44 +70,58 @@ final class PageContentManager {
     // MARK: - Resolvers
 
     /// Find the PageType (and optionally PageCollection) that a `PageMeta` lives in.
-    /// Returns `nil` if the Page isn't in any loaded Page Type. Used by the editor
-    /// (inspector + rename + saver construction) when only PageMeta is in hand.
-    /// Brute-force O(N+M) walker; SQLite-backed lookup arrives with v0.4.0.
+    /// Works regardless of whether the vault's pages have been loaded into the sidebar.
+    ///
+    /// Primary path: index lookup by page ID → type/collection IDs → in-memory objects.
+    /// Fallback (no index): URL prefix matching against vault/collection folder paths.
     func resolveParent(
         for page: PageMeta, pageTypeManager: PageTypeManager
     )
         -> (vault: PageType, collection: PageCollection?)?
     {
-        // Fast path: page is already loaded in memory (sidebar expanded its vault).
-        for pageType in pageTypeManager.types {
-            if pages(in: pageType).contains(where: { $0.id == page.id }) {
-                return (pageType, nil)
-            }
-            for collection in pageTypeManager.pageCollections(in: pageType) {
-                if pages(in: collection).contains(where: { $0.id == page.id }) {
-                    return (pageType, collection)
-                }
-            }
+        if let index = indexUpdater?.index,
+           let result = resolveParentFromIndex(
+               pageID: page.id, pageTypeManager: pageTypeManager, index: index)
+        {
+            return result
         }
-        // Fallback: page not in memory (vault never expanded in sidebar).
-        // Derive the vault/collection from the page's on-disk URL by matching
-        // against vault folder paths — all PageTypes are loaded at launch even
-        // when their pages haven't been streamed into the sidebar yet.
-        return resolveParentByURL(page, pageTypeManager: pageTypeManager)
+        return resolveParentByURL(page.url, pageTypeManager: pageTypeManager)
     }
 
-    private func resolveParentByURL(
-        _ page: PageMeta, pageTypeManager: PageTypeManager
+    /// Index-based parent resolution: queries page_type_id / page_collection_id
+    /// directly, then matches them to the in-memory PageType and PageCollection.
+    private func resolveParentFromIndex(
+        pageID: String, pageTypeManager: PageTypeManager, index: PommoraIndex
     ) -> (vault: PageType, collection: PageCollection?)? {
-        let pageURL = page.url.standardizedFileURL
+        guard let row = try? index.dbQueue.read({ db in
+            try Row.fetchOne(
+                db, sql: "SELECT page_type_id, page_collection_id FROM pages WHERE id = ?",
+                arguments: [pageID])
+        }) else { return nil }
+        let typeID: String = row["page_type_id"]
+        let collectionID: String? = row["page_collection_id"]
+        guard let vault = pageTypeManager.types.first(where: { $0.id == typeID })
+        else { return nil }
+        if let collID = collectionID,
+           let coll = pageTypeManager.pageCollections(in: vault).first(where: { $0.id == collID })
+        {
+            return (vault, coll)
+        }
+        return (vault, nil)
+    }
+
+    /// URL-based fallback when no index is available. All PageTypes are loaded at
+    /// launch so folder-path prefix matching is always complete.
+    private func resolveParentByURL(
+        _ pageURL: URL, pageTypeManager: PageTypeManager
+    ) -> (vault: PageType, collection: PageCollection?)? {
+        let canonical = pageURL.standardizedFileURL.path
         for pageType in pageTypeManager.types {
-            let vaultFolder = folderURL(for: pageType).standardizedFileURL
-            guard pageURL.path.hasPrefix(vaultFolder.path + "/") else { continue }
+            let vaultPath = folderURL(for: pageType).standardizedFileURL.path + "/"
+            guard canonical.hasPrefix(vaultPath) else { continue }
             for collection in pageTypeManager.pageCollections(in: pageType) {
-                let collFolder = collection.folderURL.standardizedFileURL
-                if pageURL.path.hasPrefix(collFolder.path + "/") {
-                    return (pageType, collection)
-                }
+                let collPath = collection.folderURL.standardizedFileURL.path + "/"
+                if canonical.hasPrefix(collPath) { return (pageType, collection) }
             }
             return (pageType, nil)
         }
