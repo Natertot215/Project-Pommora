@@ -200,7 +200,7 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: collURL),
                     let coll = try? PageCollection.load(from: collURL)
                 else { continue }
-                let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id, nexusRoot: root)
+                let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id, nexusRoot: root, filter: filter)
                 collections.append(
                     PageCollectionSnapshot(
                         id: coll.id,
@@ -212,7 +212,7 @@ final class IndexBuilder {
                     ))
             }
 
-            let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil, nexusRoot: root)
+            let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil, nexusRoot: root, filter: filter)
 
             result.append(
                 PageTypeSnapshot(
@@ -233,12 +233,17 @@ final class IndexBuilder {
         _ folderURL: URL,
         pageTypeID: String,
         collectionID: String?,
-        nexusRoot: URL
+        nexusRoot: URL,
+        filter: FolderFilter
     ) -> [PageSnapshot] {
+        // User folder-exclusion veto applied at the FILE level — mirrors loadAll's
+        // `descendantFiles(folderFilter:)` so a `.nexus/settings.json` excluded_folders
+        // entry (a folder, OR a loose file path like "Pommora/CLAUDE.md") keeps that
+        // content out of the index exactly as it's kept out of the sidebar.
         let urls =
             (try? Filesystem.children(of: folderURL) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-            }) ?? []
+            })?.filter { !filter.isExcluded($0) } ?? []
         return urls.compactMap { url -> PageSnapshot? in
             // Lenient load mirrors the UI discovery contract
             // (PageContentManager.loadAll → PageFile.loadLenient) AND the sibling
@@ -284,7 +289,7 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: collURL),
                     let coll = try? ItemCollection.load(from: collURL)
                 else { continue }
-                let items = collectItemsInFolder(sub, itemTypeID: itemType.id, collectionID: coll.id)
+                let items = collectItemsInFolder(sub, itemTypeID: itemType.id, collectionID: coll.id, filter: filter)
                 collections.append(
                     ItemCollectionSnapshot(
                         id: coll.id,
@@ -296,7 +301,7 @@ final class IndexBuilder {
                     ))
             }
 
-            let directItems = collectItemsInFolder(folder, itemTypeID: itemType.id, collectionID: nil)
+            let directItems = collectItemsInFolder(folder, itemTypeID: itemType.id, collectionID: nil, filter: filter)
 
             result.append(
                 ItemTypeSnapshot(
@@ -316,14 +321,16 @@ final class IndexBuilder {
     private static func collectItemsInFolder(
         _ folderURL: URL,
         itemTypeID: String,
-        collectionID: String?
+        collectionID: String?,
+        filter: FolderFilter
     ) -> [ItemSnapshot] {
         // Items are `.md`-only (legacy `.json` is converted at launch by
-        // ItemFormatMigration before any index population).
+        // ItemFormatMigration before any index population). User folder-exclusion
+        // veto applied at the FILE level — parity with collectPagesInFolder + loadAll.
         let urls =
             (try? Filesystem.children(of: folderURL) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-            }) ?? []
+            })?.filter { !filter.isExcluded($0) } ?? []
         // De-dup by id so an external-Finder duplicate-id pair yields one row.
         return Item.dedupedByID(
             urls,

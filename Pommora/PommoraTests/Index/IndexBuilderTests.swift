@@ -198,6 +198,44 @@ struct IndexBuilderTests {
         #expect(resolved != nil, "Adopted Page is in the index but the title resolver can't find it")
     }
 
+    @Test func populateHonorsFolderExclusionForLooseFiles() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let pageTypeManager = PageTypeManager(nexus: nexus)
+        await pageTypeManager.loadAll()
+        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
+        let pt = pageTypeManager.types.first!
+        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
+        let coll = pageTypeManager.pageCollections(in: pt).first!
+
+        // One real page to keep + one loose meta file to exclude by path — mirrors
+        // CLAUDE.md sitting beside real specs in a vault root.
+        let keepURL = NexusPaths.pageFileURL(forTitle: "Keep Me", in: coll.folderURL)
+        let dropURL = NexusPaths.pageFileURL(forTitle: "CLAUDE", in: coll.folderURL)
+        try "kept\n".write(to: keepURL, atomically: true, encoding: .utf8)
+        try "meta — exclude me\n".write(to: dropURL, atomically: true, encoding: .utf8)
+
+        // Exclude the loose file by its nexus-relative path (excluded_folders accepts
+        // a file path; FolderFilter.isExcluded matches it segment-wise).
+        let rootPath = nexus.rootURL.standardizedFileURL.path
+        let relDrop = String(dropURL.standardizedFileURL.path.dropFirst(rootPath.count + 1))
+        let filter = FolderFilter(nexusRoot: nexus.rootURL, excludedFolders: [relDrop])
+
+        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
+        try await IndexBuilder.populate(index: idx, from: nexus, filter: filter)
+
+        let keepCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages WHERE title = 'Keep Me'") ?? -1
+        }
+        #expect(keepCount == 1, "Non-excluded page must still index")
+
+        let dropCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages WHERE title = 'CLAUDE'") ?? -1
+        }
+        #expect(dropCount == 0, "Excluded loose file leaked into the index — file-level folder-exclusion not honored")
+    }
+
     @Test func populateIndexesItemsIntoType() async throws {
         let (nexus, idx) = try await setup()
         defer { TempNexus.cleanup(nexus) }

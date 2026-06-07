@@ -17,7 +17,7 @@ import Testing
     }
 
     // Tripwire: forces a deliberate update whenever the index schema version
-    // bumps. v9 (2026-06-06) = lenient launch-scan repopulate (frontmatter-less
-    // adopted Pages enter the index at launch).
-    @Test func schemaVersionIsNine() { #expect(PommoraIndex.currentSchemaVersion == 9) }
+    // bumps. v10 (2026-06-06) = launch scan honors folder-exclusion at the file
+    // level (excluded_folders governs the index, matching the sidebar).
+    @Test func schemaVersionIsTen() { #expect(PommoraIndex.currentSchemaVersion == 10) }
 }

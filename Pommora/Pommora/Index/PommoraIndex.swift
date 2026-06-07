@@ -75,7 +75,14 @@ final class PommoraIndex: @unchecked Sendable {
     // Page, so [[ ]]/{{ }} links to them render unresolved. Bumping 8 → 9 forces
     // one delete+rebuild so those Pages enter the index. No user data at risk
     // (regeneratable index).
-    static let currentSchemaVersion: Int = 9
+    //
+    // v10 (2026-06-06): launch scan now honors the user folder-exclusion veto at
+    // the FILE level (IndexBuilder.collectPagesInFolder / collectItemsInFolder apply
+    // FolderFilter.isExcluded, matching loadAll's descendantFiles). The lenient v9
+    // scan had pulled excluded content (e.g. loose meta files like CLAUDE.md) into
+    // the index because it ignored excluded_folders for files. Bumping 9 → 10 forces
+    // one delete+rebuild so excluded content is dropped. No user data at risk.
+    static let currentSchemaVersion: Int = 10
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
