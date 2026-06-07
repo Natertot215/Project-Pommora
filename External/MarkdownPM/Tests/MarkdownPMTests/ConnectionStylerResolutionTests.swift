@@ -95,11 +95,12 @@ struct ConnectionStylerResolutionTests {
         #expect(attrs[.link] == nil)
     }
 
-    @Test("Resolved {{Beta}} renders an item highlight (.itemLinkTitle + .itemChipBounds)")
+    @Test("Resolved {{Beta}} renders an item highlight (.itemLinkTitle + .itemChipBounds + .itemChipIcon)")
     func resolvedItemLinkHasChip() {
         let attrs = finalAttributes(body: body, knownNames: known, at: 22) // `B`
         #expect(attrs[.itemLinkTitle] as? String == "Beta")
         #expect(attrs[.itemChipBounds] != nil)
+        #expect(attrs[.itemChipIcon] as? String == "star.fill") // StubResolver returns "star.fill"
     }
 
     @Test("Unresolved {{Casper}} is muted secondaryLabelColor, no highlight attrs")

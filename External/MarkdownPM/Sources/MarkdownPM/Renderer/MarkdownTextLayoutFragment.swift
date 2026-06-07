@@ -1169,6 +1169,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         ts.enumerateAttribute(.itemChipBounds, in: range, options: []) { [weak self] value, attrRange, _ in
             guard let self else { return }
             let title = ts.attribute(.itemLinkTitle, at: attrRange.location, effectiveRange: nil) as? String ?? ""
+            let icon = ts.attribute(.itemChipIcon, at: attrRange.location, effectiveRange: nil) as? String ?? ""
             guard let size = (value as? NSValue)?.rectValue.size else { return }
             guard let rawRect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) else { return }
 
@@ -1186,12 +1187,29 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             path.lineWidth = 0.5
             path.stroke()
 
-            // Title, padded from the left edge, vertically centered.
+            // Icon, vertically centered in the highlight.
+            let iconBoxWidth = ItemChipMetrics.iconWidth(font: font)
+            var titleOffsetX = ItemChipMetrics.horizontalPadding
+            if !icon.isEmpty,
+               let baseSymbol = NSImage(systemSymbolName: icon, accessibilityDescription: nil) {
+                let sizeConfig = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
+                let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: NSColor.labelColor)
+                let symbol = baseSymbol.withSymbolConfiguration(sizeConfig.applying(colorConfig)) ?? baseSymbol
+                let iconSize = symbol.size
+                let iconRect = CGRect(
+                    x: alignToPixel(highlightRect.minX + ItemChipMetrics.horizontalPadding + (iconBoxWidth - iconSize.width) / 2),
+                    y: alignToPixel(highlightRect.midY - iconSize.height / 2),
+                    width: iconSize.width, height: iconSize.height)
+                symbol.draw(in: iconRect)
+                titleOffsetX += iconBoxWidth + ItemChipMetrics.iconTitleGap
+            }
+
+            // Title, to the right of the icon, vertically centered.
             let titleAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
             let titleString = NSAttributedString(string: title, attributes: titleAttrs)
             let titleSize = titleString.size()
             titleString.draw(at: CGPoint(
-                x: alignToPixel(highlightRect.minX + ItemChipMetrics.horizontalPadding),
+                x: alignToPixel(highlightRect.minX + titleOffsetX),
                 y: alignToPixel(highlightRect.midY - titleSize.height / 2)))
         }
     }

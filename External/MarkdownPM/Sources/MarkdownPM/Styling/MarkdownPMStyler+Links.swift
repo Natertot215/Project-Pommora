@@ -119,6 +119,7 @@ extension MarkdownPMStyler {
             // skip the chip, leave the source as-is).
             if !isActive, nodeExists, token.contentRange.length > 0 {
                 let title = nodeName
+                let icon = resolution?.icon ?? "square.dashed"
                 let chipSize = ItemChipMetrics.size(title: title, font: ctx.baseFont)
                 let contentLength = token.contentRange.length
 
@@ -128,6 +129,7 @@ extension MarkdownPMStyler {
                 attrs.append((firstCharRange, [
                     .itemChipBounds: NSValue(rect: CGRect(origin: .zero, size: chipSize)),
                     .itemLinkTitle: title,
+                    .itemChipIcon: icon,
                     .link: title,
                     .foregroundColor: NSColor.clear,
                     .kern: chipSize.width - HeadingHelpers.textWidth(firstChar, font: ctx.baseFont)

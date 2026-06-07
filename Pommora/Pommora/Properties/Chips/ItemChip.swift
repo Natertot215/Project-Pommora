@@ -15,20 +15,25 @@ import SwiftUI
 /// Stays at `Properties/Chips/`, beside `ContextChip`. Do NOT move.
 struct ItemChip: View {
     let title: String
+    let icon: String
 
     var body: some View {
-        Text(title)
-            .foregroundStyle(.primary)
-            .lineLimit(1)
-            .font(.body)
-            .padding(.horizontal, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(.quaternary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .strokeBorder(.tertiary, lineWidth: 0.5)
-                    )
-            )
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .imageScale(.small)
+            Text(title)
+                .lineLimit(1)
+        }
+        .foregroundStyle(.primary)
+        .font(.body)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(.quaternary)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .strokeBorder(.tertiary, lineWidth: 0.5)
+                )
+        )
     }
 }

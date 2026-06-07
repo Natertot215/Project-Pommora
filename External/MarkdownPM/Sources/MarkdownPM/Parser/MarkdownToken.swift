@@ -13,6 +13,7 @@ import Foundation
 extension NSAttributedString.Key {
     public nonisolated static let wikiLinkID = NSAttributedString.Key("NodeLinkID")
     public nonisolated static let itemLinkTitle = NSAttributedString.Key("ItemLinkTitle")
+    public nonisolated static let itemChipIcon = NSAttributedString.Key("ItemChipIcon")
     public nonisolated static let taskCheckbox = NSAttributedString.Key("TaskCheckbox")
 }
 

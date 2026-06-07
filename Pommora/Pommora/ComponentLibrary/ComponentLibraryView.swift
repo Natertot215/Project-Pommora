@@ -819,7 +819,7 @@ private struct ItemChipShowcase: View {
             section(title: "Default — title, Quaternary fill, Tertiary 0.5 stroke, radius 3") {
                 FlowingHStack {
                     ForEach(samples, id: \.self) { title in
-                        ItemChip(title: title)
+                        ItemChip(title: title, icon: "square.grid.2x2")
                     }
                 }
             }
@@ -827,7 +827,7 @@ private struct ItemChipShowcase: View {
             section(title: "Inline — highlight follows line height, reads as marked text not a button") {
                 HStack(spacing: 0) {
                     Text("As captured in ")
-                    ItemChip(title: "Meeting Notes")
+                    ItemChip(title: "Meeting Notes", icon: "square.grid.2x2")
                     Text(", the next step is owned by the team.")
                 }
                 .font(.body)
@@ -848,7 +848,7 @@ private struct ItemChipShowcase: View {
                     // title resolves from the LINKED Item (via the index).
                     // The page editor draws this same visual in CoreGraphics at
                     // the {{ }} token (inline render).
-                    ItemChip(title: "Meeting Notes")
+                    ItemChip(title: "Meeting Notes", icon: "square.grid.2x2")
                     """
             )
             .padding(.horizontal)
@@ -865,7 +865,7 @@ private struct ItemChipShowcase: View {
 
     private func surfaceCell(_ surface: Color, _ label: String) -> some View {
         VStack(spacing: 8) {
-            ItemChip(title: "Item Chip")
+            ItemChip(title: "Item Chip", icon: "square.grid.2x2")
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.tertiary)

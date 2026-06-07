@@ -237,6 +237,12 @@ extension NativeTextViewCoordinator {
             // textDidChange performs the pending restyle for this edit cycle.
         } else if tokensChanged {
             restyleTextView(tv, paragraphCandidates: paragraphCandidates, tokens: tokens)
+            // When a wiki/item-link token transitions active→inactive the `{{`/`[[`
+            // and `}}`/`]]` markers collapse to 0 visual width via the kern trick.
+            // A caret that landed on a marker character appears visually inside the
+            // chip/link. Nudge it to the nearest token boundary so the cursor sits
+            // clearly outside the rendered chip.
+            nudgeCaretOutOfCollapsedMarkers(tv, tokens: tokens, caretLoc: selRange.location)
         }
 
         // Auto-select content when clicking (mouse) into a rendered (previously inactive) latex or image embed
@@ -429,7 +435,50 @@ extension NativeTextViewCoordinator {
         if commandSelector == #selector(NSResponder.insertBacktab(_:)) {
             return handleBacktab(textView)
         }
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            return handleEnterInInlineLink(textView)
+        }
         return false
+    }
+
+    /// Enter pressed while caret is inside `[[ ]]` or `{{ }}`: move the caret
+    /// to just after the closing marker and consume the event (no newline). If
+    /// the caret is NOT inside an inline link, returns false so NSTextView
+    /// inserts a normal newline.
+    private func handleEnterInInlineLink(_ textView: NSTextView) -> Bool {
+        let selLoc = textView.selectedRange().location
+        let parsed = parsedDocument(for: textView.string)
+        let nsText = textView.string as NSString
+        guard let context = inlineTokenContext(
+            at: selLoc, parsed: parsed, codeTokens: parsed.codeTokens, text: nsText)
+        else { return false }
+        let afterToken = min(NSMaxRange(context.token.range), nsText.length)
+        textView.setSelectedRange(NSRange(location: afterToken, length: 0))
+        return true
+    }
+
+    /// After active→inactive token transition: if the caret landed on an opening
+    /// or closing marker (`{{`/`}}`/`[[`/`]]`), those chars have 0 visual width
+    /// and the cursor appears inside the chip. Nudge to the nearest token edge.
+    private func nudgeCaretOutOfCollapsedMarkers(
+        _ textView: NSTextView, tokens: [MarkdownToken], caretLoc: Int
+    ) {
+        let docLen = (textView.string as NSString).length
+        for token in tokens where token.kind == .wikiLink || token.kind == .itemLink {
+            guard caretLoc > token.range.location,
+                  caretLoc <= NSMaxRange(token.range) else { continue }
+            let innerStart = token.range.location + 2
+            let innerEnd = NSMaxRange(token.range) - 2
+            // Caret is in the token range but NOT in the inner-active content range.
+            guard caretLoc < innerStart || caretLoc > innerEnd else { continue }
+            let target = caretLoc < innerStart
+                ? token.range.location             // before opening marker
+                : min(NSMaxRange(token.range), docLen)  // after closing marker
+            DispatchQueue.main.async { [weak textView] in
+                textView?.setSelectedRange(NSRange(location: target, length: 0))
+            }
+            return
+        }
     }
 
     public func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
