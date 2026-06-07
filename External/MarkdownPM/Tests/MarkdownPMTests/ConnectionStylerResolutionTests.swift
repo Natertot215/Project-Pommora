@@ -29,10 +29,17 @@ struct ConnectionStylerResolutionTests {
     /// location, replaying the renderer's apply loop exactly
     /// (`NativeTextViewCoordinator+Restyling`): `addAttribute(key:value:range:)`
     /// per key in emission order → last-writer-wins per key.
+    ///
+    /// `caretAt` controls which token is ACTIVE (caret-inside): when `nil` the
+    /// caret sits past the last token so every connection renders INACTIVE; when
+    /// a location is supplied the token containing it renders in its ACTIVE (raw,
+    /// editable) form. Both `inspectLocation` and `caretAt` are caller-supplied so
+    /// a single helper covers the caret-outside AND caret-inside matrices.
     private func finalAttributes(
         body: String,
         knownNames: Set<String>,
-        at location: Int
+        at inspectLocation: Int,
+        caretAt: Int? = nil
     ) -> [NSAttributedString.Key: Any] {
         let services = MarkdownPMServices(
             wikiLinks: StubResolver(knownNames: knownNames),
@@ -41,9 +48,10 @@ struct ConnectionStylerResolutionTests {
         let configuration = MarkdownPMConfiguration(services: services)
 
         let tokens = MarkdownTokenizer.parseTokens(in: body)
-        // Caret placed OUTSIDE every token (the trailing position past the last
-        // token's end) so all four connections render in their INACTIVE form.
-        let caret = (body as NSString).length
+        // Default caret OUTSIDE every token (trailing position past the last
+        // token's end) → all connections INACTIVE; an explicit `caretAt` makes
+        // the token containing it ACTIVE (raw editable form).
+        let caret = caretAt ?? (body as NSString).length
         let active = MarkdownDetection.computeActiveTokenIndices(
             selectionRange: NSRange(location: caret, length: 0),
             tokens: tokens,
@@ -65,7 +73,7 @@ struct ConnectionStylerResolutionTests {
                 storage.addAttribute(key, value: value, range: range)
             }
         }
-        return storage.attributes(at: location, effectiveRange: nil)
+        return storage.attributes(at: inspectLocation, effectiveRange: nil)
     }
 
     /// Body indices (UTF-16):
@@ -100,5 +108,30 @@ struct ConnectionStylerResolutionTests {
         #expect(attrs[.foregroundColor] as? NSColor == NSColor.secondaryLabelColor)
         #expect(attrs[.itemLinkTitle] == nil)
         #expect(attrs[.itemChipIcon] == nil)
+    }
+
+    // MARK: - Caret INSIDE a resolved token → raw editable form (E3 behavior)
+
+    /// A resolved `[[Alpha]]` with the caret INSIDE the brackets must NOT emit
+    /// `.link` on its title — the link is suppressed while ACTIVE so the source
+    /// stays plain/editable (the `isActive` gate in `styleWikiLinks`). The
+    /// caret-OUTSIDE companion (`resolvedWikiLinkHasLink`) asserts the inverse.
+    @Test("Caret inside a resolved [[Alpha]] suppresses .link (raw editable)")
+    func activeResolvedWikiLinkHasNoLink() {
+        // Caret at 4 = between `l` and `p` inside `[[Alpha]]` (content 2..<7).
+        let attrs = finalAttributes(body: body, knownNames: known, at: 2, caretAt: 4)
+        #expect(attrs[.link] == nil)
+    }
+
+    /// A resolved `{{Beta}}` with the caret INSIDE must NOT render the chip — no
+    /// `.itemChipIcon` / `.itemLinkTitle`, no clearing kern collapse — so the raw
+    /// `{{Beta}}` stays visible + editable (the `!isActive` chip guard).
+    @Test("Caret inside a resolved {{Beta}} suppresses the chip (raw editable)")
+    func activeResolvedItemLinkHasNoChip() {
+        // Caret at 24 = between `t` and `a` inside `{{Beta}}` (content 22..<26).
+        let attrs = finalAttributes(body: body, knownNames: known, at: 22, caretAt: 24)
+        #expect(attrs[.itemChipIcon] == nil)
+        #expect(attrs[.itemLinkTitle] == nil)
+        #expect(attrs[.link] == nil)
     }
 }

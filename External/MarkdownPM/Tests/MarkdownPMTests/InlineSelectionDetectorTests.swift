@@ -99,6 +99,40 @@ struct InlineSelectionDetectorTests {
         #expect((text as NSString).substring(with: context.token.contentRange) == "Beta")
     }
 
+    @Test("Placeholder for {{Beta}} is the interior 'Beta', not the {{Beta}} token")
+    func itemLinkPlaceholderIsInterior() {
+        let text = "alpha {{Beta}} gamma"
+        let (coordinator, _) = makeCoordinator(text: text)
+        let parsed = coordinator.parsedDocument(for: text)
+        guard
+            let context = coordinator.inlineTokenContext(
+                at: 9, parsed: parsed, codeTokens: parsed.codeTokens, text: text as NSString)
+        else {
+            Issue.record("detector returned nil for a caret inside {{Beta}}")
+            return
+        }
+        // The autocomplete query IS the placeholder — it must be the bare interior
+        // title, never the marker-wrapped token, or titleCandidates(LIKE '{{Beta}}%')
+        // matches nothing and the popup never appears. Regression guard for the
+        // displayRange→contentRange placeholder fix.
+        #expect(coordinator.inlinePlaceholder(for: context.token, in: text as NSString) == "Beta")
+    }
+
+    @Test("Placeholder for [[Page]] is the interior 'Page' (wiki-link parity)")
+    func wikiLinkPlaceholderIsInterior() {
+        let text = "see [[Page]] now"
+        let (coordinator, _) = makeCoordinator(text: text)
+        let parsed = coordinator.parsedDocument(for: text)
+        guard
+            let context = coordinator.inlineTokenContext(
+                at: 7, parsed: parsed, codeTokens: parsed.codeTokens, text: text as NSString)
+        else {
+            Issue.record("detector returned nil for a caret inside [[Page]]")
+            return
+        }
+        #expect(coordinator.inlinePlaceholder(for: context.token, in: text as NSString) == "Page")
+    }
+
     @Test("Caret inside [[Page]] still classifies as .wikiLink (unchanged path)")
     func wikiLinkPathUnchanged() {
         let text = "see [[Page]] now"

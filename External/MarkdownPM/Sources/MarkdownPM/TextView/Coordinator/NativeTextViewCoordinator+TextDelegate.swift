@@ -288,7 +288,10 @@ extension NativeTextViewCoordinator {
         if let inlineContext {
             let openingMarkerLength = inlineContext.selectionKind == .imageEmbed ? 3 : 2
             let displayRange = selectionDisplayRange(for: inlineContext.token, openingMarkerLength: openingMarkerLength)
-            let placeholder = nsString.substring(with: displayRange)
+            // Placeholder is the token INTERIOR (`Beta`), not the marker-wrapped
+            // span (`{{Beta}}`): the embedder seeds autocomplete / rename from the
+            // bare title. `displayRange` stays the caret-anchor + storage range.
+            let placeholder = inlinePlaceholder(for: inlineContext.token, in: nsString)
             let storageRange =
                 inlineContext.selectionKind == .wikiLink
                 ? storageRange(containingDisplayLocation: selLocation) ?? storageRange(forDisplayRange: displayRange)

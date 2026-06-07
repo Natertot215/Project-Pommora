@@ -464,6 +464,18 @@ extension NativeTextViewCoordinator {
             location: leftRange.location, length: rightRange.location + rightRange.length - leftRange.location)
     }
 
+    /// The text the embedder sees *inside* an inline token's brackets — the
+    /// token's interior content (`Beta` for `{{Beta}}`, `Page` for `[[Page]]`),
+    /// NOT the marker-wrapped token. This IS the `WikiLinkSelection.placeholder`
+    /// contract: autocomplete + rename UIs seed from the bare title, so the query
+    /// must be the interior. `selectionDisplayRange` (full marker-to-marker span)
+    /// stays the caret-anchor + storage-mapping range — the two jobs need
+    /// different ranges, and the placeholder must NOT be `{{Beta}}` or
+    /// `titleCandidates(LIKE '{{Beta}}%')` returns nothing and no popup appears.
+    func inlinePlaceholder(for token: MarkdownToken, in text: NSString) -> String {
+        text.substring(with: token.contentRange)
+    }
+
     func imageEmbedToken(
         at selectionLocation: Int,
         parsed: ParsedDocument,
