@@ -84,16 +84,15 @@ extension MarkdownPMStyler {
     /// stored id (no `wikiLinkIDProvider`) — resolution is by title via
     /// `ctx.services.itemLinks`.
     ///
-    /// RESOLVED + INACTIVE → renders as an inline pill via the kern-trick
+    /// RESOLVED + INACTIVE → renders as an inline highlight via the kern-trick
     /// (mirrors `styleInlineLatex`): the source `{{Title}}` text is collapsed to
-    /// zero visible width and the first content char reserves exactly the chip's
-    /// width, carrying `.itemChipIcon`/`.itemChipBounds`/`.itemLinkTitle` so the
-    /// fragment's `drawItemChips` draws the pill over it. `.link` stays set so the
-    /// click handler still routes to the Item Window.
+    /// zero visible width and the first content char reserves the highlight's
+    /// width, carrying `.itemChipBounds`/`.itemLinkTitle` so the fragment's
+    /// `drawItemChips` draws the fill+outline+title over it. `.link` stays set
+    /// so the click handler still routes to the Item Window.
     /// ACTIVE (caret in token) → raw `{{Title}}` stays visible/editable: markers
-    /// muted, content plain (no chip, no kern).
-    /// UNRESOLVED → muted `disabledText` (SAME as `[[ ]]` — intentionally NOT
-    /// plain body color).
+    /// muted, content plain (no highlight, no kern).
+    /// UNRESOLVED → muted secondary label.
     static func styleItemLinks(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
         for (index, token) in ctx.tokens.enumerated() where token.kind == .itemLink {
@@ -111,16 +110,13 @@ extension MarkdownPMStyler {
             // skip the chip, leave the source as-is).
             if !isActive, nodeExists, token.contentRange.length > 0 {
                 let title = nodeName
-                let icon = resolution?.icon ?? "square.dashed"
                 let chipSize = ItemChipMetrics.size(title: title, font: ctx.baseFont)
                 let contentLength = token.contentRange.length
 
-                // FIRST content char: stamp the chip attributes + pad its
-                // advance to the FULL chip width (reserving the layout space).
+                // FIRST content char: reserve the full highlight width via kern.
                 let firstCharRange = NSRange(location: token.contentRange.location, length: 1)
                 let firstChar = ctx.nsText.substring(with: firstCharRange)
                 attrs.append((firstCharRange, [
-                    .itemChipIcon: icon,
                     .itemChipBounds: NSValue(rect: CGRect(origin: .zero, size: chipSize)),
                     .itemLinkTitle: title,
                     .link: title,

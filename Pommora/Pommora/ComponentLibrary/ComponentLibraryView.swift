@@ -800,40 +800,40 @@ private struct ContextChipShowcase: View {
 
 // MARK: - ItemChip Showcase
 
-/// Showcases the inline item-link chip: the linked Item's icon + title in a
-/// radius-6 rounded rectangle with a Quaternary fill + a Tertiary 0.75pt
-/// stroke, body font. Padding is tighter than ContextChip on both axes so the
-/// chip sits within the line box when drawn inline at a `{{ }}` token in the page
-/// editor (the editor draws this same visual in CoreGraphics).
+/// Showcases the inline item-link highlight: title in body font with quaternary
+/// fill + tertiary 0.5pt outline, radius 3, 4pt horizontal padding. Height
+/// follows the text line — no extra vertical padding — so it reads as marked
+/// text. The page editor draws this same visual in CoreGraphics via
+/// `MarkdownTextLayoutFragment.drawItemChips`.
 private struct ItemChipShowcase: View {
-    private let samples: [(icon: String, title: String)] = [
-        ("square.dashed", "Item Chip"),
-        ("doc.text", "Meeting Notes"),
-        ("checklist", "Sprint Tasks"),
-        ("person.crop.circle", "Sam Rivera"),
-        ("book", "Research Log"),
+    private let samples: [String] = [
+        "Item Chip",
+        "Meeting Notes",
+        "Sprint Tasks",
+        "Sam Rivera",
+        "Research Log",
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            section(title: "Default — Item icon + title, Quaternary fill, Tertiary 0.75 stroke, radius 6") {
+            section(title: "Default — title, Quaternary fill, Tertiary 0.5 stroke, radius 3") {
                 FlowingHStack {
-                    ForEach(samples, id: \.title) { s in
-                        ItemChip(icon: s.icon, title: s.title)
+                    ForEach(samples, id: \.self) { title in
+                        ItemChip(title: title)
                     }
                 }
             }
 
-            section(title: "Inline — sits within the line box (compact vertical leaves room for line breaks)") {
+            section(title: "Inline — highlight follows line height, reads as marked text not a button") {
                 HStack(spacing: 0) {
                     Text("As captured in ")
-                    ItemChip(icon: "doc.text", title: "Meeting Notes")
+                    ItemChip(title: "Meeting Notes")
                     Text(", the next step is owned by the team.")
                 }
                 .font(.body)
             }
 
-            section(title: "Against surfaces — the stroke keeps it legible on any background") {
+            section(title: "Against surfaces — fill + outline keep it legible on any background") {
                 HStack(spacing: 16) {
                     surfaceCell(Color(.windowBackgroundColor), "window")
                     surfaceCell(Color(.controlBackgroundColor), "control")
@@ -845,11 +845,10 @@ private struct ItemChipShowcase: View {
                 title: "Usage",
                 code: """
                     // Component-Library primitive for a resolved {{Item}} link.
-                    // icon + title resolve from the LINKED Item (via the index).
+                    // title resolves from the LINKED Item (via the index).
                     // The page editor draws this same visual in CoreGraphics at
-                    // the {{ }} token (inline render); this primitive also serves
-                    // future non-inline item surfaces (dropdown / panel).
-                    ItemChip(icon: "doc.text", title: "Meeting Notes")
+                    // the {{ }} token (inline render).
+                    ItemChip(title: "Meeting Notes")
                     """
             )
             .padding(.horizontal)
@@ -866,7 +865,7 @@ private struct ItemChipShowcase: View {
 
     private func surfaceCell(_ surface: Color, _ label: String) -> some View {
         VStack(spacing: 8) {
-            ItemChip(icon: "square.dashed", title: "Item Chip")
+            ItemChip(title: "Item Chip")
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.tertiary)

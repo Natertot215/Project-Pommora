@@ -18,8 +18,7 @@ extension NSAttributedString.Key {
     nonisolated static let latexBounds = NSAttributedString.Key("LatexImageBounds")
     nonisolated static let latexIsBlock = NSAttributedString.Key("LatexIsBlock")
     nonisolated static let latexBlockOffsetY = NSAttributedString.Key("LatexBlockOffsetY")
-    nonisolated static let itemChipIcon = NSAttributedString.Key("ItemChipIcon")  // String: SF Symbol name
-    nonisolated static let itemChipBounds = NSAttributedString.Key("ItemChipBounds")  // NSValue(rect:): chip size, set by the styler
+    nonisolated static let itemChipBounds = NSAttributedString.Key("ItemChipBounds")  // NSValue(rect:): highlight size, set by the styler
     // Historical note: do NOT add a custom NSAttributedString.Key here for any
     // paragraph-level construct (HR, blockquote, etc.). AppKit's attribute
     // inheritance leaks custom flags onto newly-typed chars in ways
@@ -754,9 +753,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                     }
                 }
             }
-            // Extend bounds for inline item chips so the pill (which can be
-            // taller than the source-text line) isn't clipped. Mirrors the
-            // block-image loop — union each chip rect into the surface.
+            // Extend bounds for inline item highlights. The highlight fits
+            // within the line height, but this union is a safe no-op if so.
             for rect in itemChipRects(at: .zero) {
                 bounds = bounds.union(rect)
             }
@@ -793,9 +791,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             // 7. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
 
-            // 7b. Inline item chips (pill drawn over the now-invisible source
-            //     text of a resolved {{ }} connection — INERT until the styler
-            //     sets `.itemChipIcon`/`.itemChipBounds`, F1b-2).
+            // 7b. Inline item highlights (fill + outline + title drawn over
+            //     the kern-collapsed source text of a resolved {{ }} token).
             drawItemChips(at: point, in: context)
 
             // 8. Foldable-headings chevron: only when this fragment
@@ -1150,9 +1147,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         return CGRect(x: pos.x, y: y, width: size.width, height: size.height)
     }
 
-    /// Draws a pill (icon + title) for every `.itemChipIcon` run carrying a
-    /// `.itemChipBounds` size. INERT until the styler sets those attributes
-    /// (F1b-2) — `enumerateAttribute` finds nothing today.
+    /// Draws an inline highlight (fill + thin outline + title text) for every
+    /// `.itemChipBounds` run set by the styler on a resolved `{{ }}` token.
     private func drawItemChips(at point: CGPoint, in context: CGContext) {
         guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
 
@@ -1168,67 +1164,44 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = nsContext
 
-        ts.enumerateAttribute(.itemChipIcon, in: range, options: []) { [weak self] value, attrRange, _ in
-            guard let self, let icon = value as? String else { return }
+        ts.enumerateAttribute(.itemChipBounds, in: range, options: []) { [weak self] value, attrRange, _ in
+            guard let self else { return }
             let title = ts.attribute(.itemLinkTitle, at: attrRange.location, effectiveRange: nil) as? String ?? ""
-            guard let size = (ts.attribute(.itemChipBounds, at: attrRange.location, effectiveRange: nil) as? NSValue)?
-                .rectValue.size
-            else { return }
+            guard let size = (value as? NSValue)?.rectValue.size else { return }
             guard let rawRect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) else { return }
 
             let font = self.itemChipFont
-            let pillRect = CGRect(
+            let highlightRect = CGRect(
                 x: alignToPixel(rawRect.origin.x), y: alignToPixel(rawRect.origin.y),
                 width: rawRect.width, height: rawRect.height)
-            guard !pillRect.isEmpty, !pillRect.isNull else { return }
+            guard !highlightRect.isEmpty, !highlightRect.isNull else { return }
 
-            // Pill: fill + hairline stroke.
-            let path = NSBezierPath(roundedRect: pillRect, xRadius: 6, yRadius: 6)
+            // Highlight: quaternary fill + tertiary hairline outline.
+            let path = NSBezierPath(roundedRect: highlightRect, xRadius: 3, yRadius: 3)
             NSColor.quaternarySystemFill.setFill()
             path.fill()
             NSColor.tertiaryLabelColor.setStroke()
-            path.lineWidth = 0.75
+            path.lineWidth = 0.5
             path.stroke()
 
-            // Icon at the left inset, vertically centered. Layout offsets use
-            // the SAME constants the styler reserves width with
-            // (`ItemChipMetrics`) so the drawn pill matches the kern-trick.
-            let iconBoxWidth = ItemChipMetrics.iconWidth(font: font)
-            var cursorX = pillRect.minX + ItemChipMetrics.horizontalPadding
-            if let baseSymbol = NSImage(systemSymbolName: icon, accessibilityDescription: nil) {
-                let sizeConfig = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
-                let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: NSColor.labelColor)
-                let symbol = baseSymbol.withSymbolConfiguration(sizeConfig.applying(colorConfig)) ?? baseSymbol
-                let iconSize = symbol.size
-                // Center the glyph within the reserved square icon box so the
-                // title always starts at the same x regardless of glyph width.
-                let iconRect = CGRect(
-                    x: alignToPixel(cursorX + (iconBoxWidth - iconSize.width) / 2),
-                    y: alignToPixel(pillRect.midY - iconSize.height / 2),
-                    width: iconSize.width, height: iconSize.height)
-                symbol.draw(in: iconRect)
-            }
-            cursorX += iconBoxWidth + ItemChipMetrics.iconTitleGap
-
-            // Title to the right of the icon, vertically centered.
+            // Title, padded from the left edge, vertically centered.
             let titleAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
             let titleString = NSAttributedString(string: title, attributes: titleAttrs)
             let titleSize = titleString.size()
-            titleString.draw(
-                at: CGPoint(x: alignToPixel(cursorX), y: alignToPixel(pillRect.midY - titleSize.height / 2)))
+            titleString.draw(at: CGPoint(
+                x: alignToPixel(highlightRect.minX + ItemChipMetrics.horizontalPadding),
+                y: alignToPixel(highlightRect.midY - titleSize.height / 2)))
         }
     }
 
-    /// Rects of all item chips in this fragment, relative to `point`. Used by
-    /// `renderingSurfaceBounds` (with `.zero`) so taller pills aren't clipped.
+    /// Rects of all item highlights in this fragment, relative to `point`.
+    /// Used by `renderingSurfaceBounds` to prevent clipping.
     private func itemChipRects(at point: CGPoint) -> [CGRect] {
         guard let ts = textStorage, let range = nsRange, range.length > 0 else { return [] }
         var rects: [CGRect] = []
-        ts.enumerateAttribute(.itemChipIcon, in: range, options: []) { [weak self] value, attrRange, _ in
-            guard let self, value is String else { return }
-            guard let size = (ts.attribute(.itemChipBounds, at: attrRange.location, effectiveRange: nil) as? NSValue)?
-                .rectValue.size
-            else { return }
+        ts.enumerateAttribute(.itemChipBounds, in: range, options: []) { [weak self] value, attrRange, _ in
+            guard let self else { return }
+            guard let size = (value as? NSValue)?.rectValue.size else { return }
             if let rect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) {
                 rects.append(rect)
             }

@@ -1,47 +1,34 @@
 import SwiftUI
 
-/// **The rendering primitive for resolved `{{Item}}` connections.** Mirrors
-/// `ContextChip`'s `(icon, title)` shape but tuned for INLINE use inside the page
-/// editor's body text, where it sits within denser typography than a property
-/// cell. The page editor rasterizes this view to an `NSImage` and draws it at the
-/// `{{ }}` token via the TextKit 2 layout-fragment overlay path (mirroring the
-/// `.latexImage` inline render); the same primitive serves future non-inline item
-/// surfaces (dropdown / panel).
+/// **The rendering primitive for resolved `{{Item}}` connections.** An inline
+/// text highlight — quaternary fill + thin tertiary outline — that follows the
+/// text line height so it reads as marked text rather than a button placed
+/// in-line. Mirrors the CoreGraphics render in the page editor
+/// (`MarkdownTextLayoutFragment.drawItemChips`).
 ///
-/// **Design (Nathan, 2026-06-05):** Primary-label icon + title in body font,
-/// Tertiary inside fill at 0.80 opacity, Secondary hairline outside stroke,
-/// corner radius 6. Padding is intentionally tighter than `ContextChip` on BOTH
-/// axes — reduced vertical so an inline chip stays within the line box (leaving
-/// room for line breaks) and reduced horizontal (label↔border) for the dense
-/// inline context.
+/// **Design:** Title in body font, no extra vertical padding (height = line
+/// height), 4pt horizontal padding each side, corner radius 3.
 ///
-/// **Data-model contract:** `icon` + `title` resolve from the LINKED Item (via
-/// `IndexQuery` / the item content manager) — never from the source side. This
-/// primitive receives pre-resolved `String` values and stays purely visual.
+/// **Data-model contract:** `title` resolves from the LINKED Item (via
+/// `IndexQuery`). Pre-resolved `String`; purely visual.
 ///
-/// Stays at this path (`Properties/Chips/`), beside `ContextChip`. Do NOT move.
+/// Stays at `Properties/Chips/`, beside `ContextChip`. Do NOT move.
 struct ItemChip: View {
-    let icon: String
     let title: String
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .foregroundStyle(.primary)
-            Text(title)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-        }
-        .font(.body)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.quaternary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(.tertiary, lineWidth: 0.75)
-        )
+        Text(title)
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .font(.body)
+            .padding(.horizontal, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(.quaternary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .strokeBorder(.tertiary, lineWidth: 0.5)
+                    )
+            )
     }
 }

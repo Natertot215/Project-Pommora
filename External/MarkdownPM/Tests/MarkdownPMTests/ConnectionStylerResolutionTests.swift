@@ -95,19 +95,19 @@ struct ConnectionStylerResolutionTests {
         #expect(attrs[.link] == nil)
     }
 
-    @Test("Resolved {{Beta}} renders an item chip (.itemLinkTitle + .itemChipIcon)")
+    @Test("Resolved {{Beta}} renders an item highlight (.itemLinkTitle + .itemChipBounds)")
     func resolvedItemLinkHasChip() {
         let attrs = finalAttributes(body: body, knownNames: known, at: 22) // `B`
         #expect(attrs[.itemLinkTitle] as? String == "Beta")
-        #expect(attrs[.itemChipIcon] as? String == "star.fill")
+        #expect(attrs[.itemChipBounds] != nil)
     }
 
-    @Test("Unresolved {{Casper}} is muted secondaryLabelColor, no chip attrs")
+    @Test("Unresolved {{Casper}} is muted secondaryLabelColor, no highlight attrs")
     func unresolvedItemLinkIsMutedNoChip() {
         let attrs = finalAttributes(body: body, knownNames: known, at: 31) // `C`
         #expect(attrs[.foregroundColor] as? NSColor == NSColor.secondaryLabelColor)
         #expect(attrs[.itemLinkTitle] == nil)
-        #expect(attrs[.itemChipIcon] == nil)
+        #expect(attrs[.itemChipBounds] == nil)
     }
 
     // MARK: - Caret INSIDE a resolved token → raw editable form (E3 behavior)
@@ -123,14 +123,14 @@ struct ConnectionStylerResolutionTests {
         #expect(attrs[.link] == nil)
     }
 
-    /// A resolved `{{Beta}}` with the caret INSIDE must NOT render the chip — no
-    /// `.itemChipIcon` / `.itemLinkTitle`, no clearing kern collapse — so the raw
-    /// `{{Beta}}` stays visible + editable (the `!isActive` chip guard).
-    @Test("Caret inside a resolved {{Beta}} suppresses the chip (raw editable)")
+    /// A resolved `{{Beta}}` with the caret INSIDE must NOT render the highlight —
+    /// no `.itemChipBounds` / `.itemLinkTitle`, no clearing kern collapse — so the
+    /// raw `{{Beta}}` stays visible + editable (the `!isActive` guard).
+    @Test("Caret inside a resolved {{Beta}} suppresses the highlight (raw editable)")
     func activeResolvedItemLinkHasNoChip() {
         // Caret at 24 = between `t` and `a` inside `{{Beta}}` (content 22..<26).
         let attrs = finalAttributes(body: body, knownNames: known, at: 22, caretAt: 24)
-        #expect(attrs[.itemChipIcon] == nil)
+        #expect(attrs[.itemChipBounds] == nil)
         #expect(attrs[.itemLinkTitle] == nil)
         #expect(attrs[.link] == nil)
     }
