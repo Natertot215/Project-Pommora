@@ -63,7 +63,7 @@ What the editor renders and supports today.
 
 **Inline marks** (hybrid tokenizer — emphasis locates on the Apple `swift-markdown` AST, other constructs on regex; caret-aware marker-shrink):
 - Bold (`**` / `__`), italic (`*` / `_`), bold-italic (`***`), inline code (`` ` ``)
-- Wikilinks (`[[Name]]`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Distinct from context-link properties → [[Pages]] § "Wikilinks vs context-link properties".
+- Connections (`[[Name]]` / `{{Name}}`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Distinct from context-link properties → [[Pages]] § "Connections vs context-link properties".
 - Standard Markdown links (`[text](url)`)
 - Image embeds (`![[name]]`) — render hook present; Pommora-side image provider deferred
 

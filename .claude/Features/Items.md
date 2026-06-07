@@ -76,7 +76,7 @@ If an Item later needs prose, the user creates a Page under a Page Type and link
 
 - Hold typed properties (same catalog as Pages → [[Properties]])
 - Appear in any view defined on the parent Item Type **or** on the Item Collection they live in — every storage container has its own `views[]`. Tier columns in Table views → [[Properties]] § "Built-in tier columns".
-- Relate to Contexts via `tier1` / `tier2` / `tier3`, surfacing on those Contexts via embedded views; be linked-to from a Context's link-list widget, an embedded view, or body wikilinks
+- Relate to Contexts via `tier1` / `tier2` / `tier3`, surfacing on those Contexts via embedded views; be linked-to from a Context's link-list widget, an embedded view, or body connections
 
 ---
 

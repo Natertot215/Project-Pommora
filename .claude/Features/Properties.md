@@ -43,7 +43,7 @@ Page Collections and Item Collections do not carry their own property schemas �
 | **Multi-select** | `["<value>", ...]` | `{ "select_options": [...] }` (same shape as Select) | Tag-style multi-pick. Each chip in its option's color. Option order defines sort. Options NOT created by typing. |
 | **Status** | `{"$status": "<option value>"}` (tagged object) | `{ "status_groups": [{ "id", "label", "color", "options" }, ...] }` (3 fixed groups: `upcoming` / `in_progress` / `done`) | Grouped picker popover, 3 sections, single-pick. Pill color resolves option override > group default. Group labels renameable; 3 group slots fixed. Sort = group position first, then option order. Options NOT created by typing. Stored as tagged object (mirrors `$rel` pattern) so external agents can identify status values from any file without consulting the schema; bare-string would shape-collide with Select. |
 | **URL** | `"https://..."` | `{}` | URL input; clickable link with favicon. |
-| **Relation** | `[{"$rel": "01HXYZ..."}, ...]` (always an array; a single value is a 1-element array) | `{ "relation_target": { "kind": "context_tier", "tier": N } }` | Tier-only tolerance; retired from user creation. The only user-visible relation properties are the three built-in tier properties (`_tier1` / `_tier2` / `_tier3`), each targeting a `context_tier`. Stored as tagged JSON objects so external agents can identify cross-entity edges from any file without consulting schema. Each value renders as the target's icon + current title in plain styled colored text (wikilink look). Renames update automatically. |
+| **Relation** | `[{"$rel": "01HXYZ..."}, ...]` (always an array; a single value is a 1-element array) | `{ "relation_target": { "kind": "context_tier", "tier": N } }` | Tier-only tolerance; retired from user creation. The only user-visible relation properties are the three built-in tier properties (`_tier1` / `_tier2` / `_tier3`), each targeting a `context_tier`. Stored as tagged JSON objects so external agents can identify cross-entity edges from any file without consulting schema. Each value renders as the target's icon + current title in plain styled colored text (connection look). Renames update automatically. |
 | **Last Edited Time** | *(not stored — derived from `modified_at`)* | `{}` | Read-only, sortable. Default sort, descending. |
 | **File / Attachment** | `[{ "path": "<nexus-relative>", "original_name", "added_at", "mime_type" }, ...]` (array; multi-file) | `{ "accept": ["pdf", "image/*"]? }` | Drag-drop + click-to-pick + thumbnail strip. Files copy into `<nexus>/.nexus/attachments/<entity-id>/<original-filename>` on attach; property stores nexus-relative paths. |
 
@@ -138,7 +138,7 @@ Cross-property references in the schema use IDs: `default_sort.property_id`, `vi
 
 Every entity (Page, Item, Agenda Task, Agenda Event, Context) carries two independent identifiers:
 
-- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. Used by every cross-reference (wikilinks, relation values, tier1/2/3 links, the SQLite index).
+- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. Used by every cross-reference (connections, relation values, tier1/2/3 links, the SQLite index).
 - **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else.
 
 Title collisions within the same container are rejected (identity is the ULID; the title is the filename slot, unique per folder) — canonical rule → [[Domain-Model]] § "Entity identity vs title".
@@ -258,7 +258,7 @@ For Status, the editor also exposes per-group label TextFields + drag-between-gr
 
 ##### Option `value` immutable; `label` renameable
 
-Each option carries a canonical `value` set at creation (never changes) and a user-facing `label` (renameable). Stored frontmatter / JSON references `value`; renaming a `label` is schema-only. Mirrors the stable-target-with-renameable-display pattern across Pommora (wikilinks: ID → current title; relations: `$rel` → current title; options: `value` → current `label`; properties: ID → current `name`).
+Each option carries a canonical `value` set at creation (never changes) and a user-facing `label` (renameable). Stored frontmatter / JSON references `value`; renaming a `label` is schema-only. Mirrors the stable-target-with-renameable-display pattern across Pommora (connections: title → resolved target; relations: `$rel` → current title; options: `value` → current `label`; properties: ID → current `name`).
 
 ##### Universal void-on-delete
 
@@ -507,7 +507,7 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 
 - **Computed properties** (Formula, Rollup, People), **ad-hoc page-local properties** (no schema entry), and **Collection-local schema overrides** are out of v1.
 - **A 4th Status group (`cancelled`) is never added** — the 3-slot structure is preserved for clean EventKit mapping; `EKEvent.status = .canceled` maps to `done` if/when the sync layer bridges it.
-- **Cross-side *promotion*** (transforming an Item into a Page or vice versa) is a post-v1 Prospect — distinct from cross-side linking via body wikilinks, which remains available.
+- **Cross-side *promotion*** (transforming an Item into a Page or vice versa) is a post-v1 Prospect — distinct from cross-side linking via body connections (`[[Page]]` or `{{Item}}`), which remains available.
 
 ---
 
@@ -518,6 +518,6 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 - [[Items]] — Item Type + Item Collection container layer + Item Window
 - [[Agenda]] — AgendaTask + AgendaEvent split; per-side schemas
 - [[Contexts]] — Spaces / Topics / Projects tier system
-- [[Pages]] — on-disk shape, wikilink mechanics
+- [[Pages]] — on-disk shape, connection mechanics
 - [[Prospects]] — post-v1 deferrals
 - [[Framework]] — version roadmap

@@ -34,7 +34,7 @@ Three tiers — Spaces (1), Topics (2), Projects (3). Per-tier labels are user-c
 
 **Rules:**
 - Topics multi-parent across Spaces; Projects single-parent at file (folder location = parent Topic)
-- Projects carry additional `project_links` to other Topics/Spaces as a **typed multi-valued context-link property** (NOT body wikilinks)
+- Projects carry additional `project_links` to other Topics/Spaces as a **typed multi-valued context-link property** (NOT body connections)
 - No same-tier file-structural links (Topic ↛ Topic; Space ↛ Space)
 - Tier-skip allowed: a Project can parent directly to a Space
 - All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; can embed anything)
@@ -117,7 +117,7 @@ Each tier filled independently. An Agenda Task can link to a Space, a Topic, and
 
 Every entity carries two independent identifiers:
 
-- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (wikilinks, relation values, tier links, the SQLite index).
+- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (connections, relation values, tier links, the SQLite index).
 - **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else. Cross-references are NOT rewritten on rename — they're ID-keyed and resolve to the current title at render time.
 
 **Duplicate titles are rejected within the same container** — creating, renaming, or moving any entity (Page, Item, Agenda Task/Event, or a Context/container) to a title a sibling already holds (case-insensitive) is refused, not auto-renamed. Identity is the ULID, not the title; the rejection guards only the on-disk filename slot, since `filename = title` and a folder can't hold two files with the same name. The same title in *different* containers is fine, and recasing an entity's own title is allowed. (Truly independent duplicate titles would need a separate title field — see [[Prospects]].)

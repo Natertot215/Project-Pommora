@@ -49,7 +49,7 @@ These are Nathan-locked and override library defaults:
 - **Setext H2 (text + `---` underline) is explicitly removed.** `---` always renders as a horizontal rule regardless of what precedes it. This matches Obsidian / Typora. **Do not add "safety guards" for the setext case** — they contradict CLAUDE.md and break Nathan's intended behavior (L5 below).
 - **Filename = title.** No `title` field in frontmatter. Renaming a Page renames the file.
 - **Frontmatter never reaches the editor canvas.** YAML is stripped by `AtomicYAMLMarkdown.load` before reaching the editor. The editor binds ONLY to body. Frontmatter is held in `viewModel.page.frontmatter`, re-serialized from the typed struct on save.
-- **Wikilinks render as styled colored inline text**, not Notion-style chips.
+- **Connections render as styled colored inline text**, not Notion-style chips.
 
 ---
 
@@ -553,7 +553,7 @@ Full per-file table in [`External/MarkdownPM/NOTICE.md`](../External/MarkdownPM/
 
 This is the second instance of the input-time-transform pattern in the engine. The locked shape:
 
-1. **Trigger on the *next* character, not on the marker chars themselves.** Em-dash fires when a non-dash is typed after `--`; en-dash fires when the second space is typed in the ` - ` pattern. Deferring the conversion until the user's intent reveals itself avoids stomping `---` (HR) for em-dash and avoids stomping bullets / wikilinks for en-dash.
+1. **Trigger on the *next* character, not on the marker chars themselves.** Em-dash fires when a non-dash is typed after `--`; en-dash fires when the second space is typed in the ` - ` pattern. Deferring the conversion until the user's intent reveals itself avoids stomping `---` (HR) for em-dash and avoids stomping bullets / connections (`[[` / `{{`) for en-dash.
 2. **Use a single-character lookbehind for collision avoidance.** Em-dash checks `text[N-3] != "-"` (preserves `---` HR / YAML frontmatter / 4+ dash HR). En-dash checks "line has non-whitespace before the `-`" (preserves top-level + nested bullets).
 3. **Inherit per-construct skip guards.** Both gate on `MarkdownDetection.isInsideCodeBlock(location:in:)`; en-dash additionally gates on the new `MarkdownDetection.isInsideWikilink(location:in:)` (line-scoped `[[ / ]]` depth counter) so filenames containing ` - ` aren't rewritten on disk.
 4. **Wrap the write in `MarkdownLists.performEdit`** — sets `isProgrammaticEdit = true` for the duration, calls `shouldChangeText` + `replaceCharacters` + `didChangeText` in sequence, and respects the styler pipeline.
@@ -564,7 +564,7 @@ The `--<non-dash>` → en-dash convention (iA Writer / Ulysses) is a keyboard mn
 
 ###### En→em promotion — closing the path back to em-dash
 
-The auto-formatted `–` is a *typographically correct* substitution for ` - ` ranges, but Pommora can't read the user's mind on whether they actually wanted en-dash or em-dash there. Without a promotion path, the only way back to em-dash is delete-and-retype `--`. The promotion rule fixes that: typing `-` immediately adjacent to a `–` (on EITHER side) replaces the en-dash with `—` and consumes the typed hyphen. Two-sided so users don't have to remember which side of the en-dash they parked the caret. Skips inside code blocks for consistency with the other dash transforms; intentionally does NOT skip inside `[[...]]` wikilink targets (the en-dash-skip-in-wikilinks rule protects the AUTO-FORMAT trigger from accidentally firing while typing filenames; the promotion rule is an explicit user gesture, so the user wants it to fire).
+The auto-formatted `–` is a *typographically correct* substitution for ` - ` ranges, but Pommora can't read the user's mind on whether they actually wanted en-dash or em-dash there. Without a promotion path, the only way back to em-dash is delete-and-retype `--`. The promotion rule fixes that: typing `-` immediately adjacent to a `–` (on EITHER side) replaces the en-dash with `—` and consumes the typed hyphen. Two-sided so users don't have to remember which side of the en-dash they parked the caret. Skips inside code blocks for consistency with the other dash transforms; intentionally does NOT skip inside `[[...]]` connection targets (the en-dash-skip-in-connections rule protects the AUTO-FORMAT trigger from accidentally firing while typing titles; the promotion rule is an explicit user gesture, so the user wants it to fire).
 
 ###### Out of scope (v1)
 
@@ -587,7 +587,7 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 | [`TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift) | Restyle pipeline. Primary + supplemental styler runs, then service. | `rebuildTextStorageAndStyle` line 17 (full rebuild); `restyleTextView` line 94 (scoped); `parsedDocument` line 131 (cached parse) |
 | [`TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+TextDelegate.swift) | Hot delegate path. `textDidChange`, `textViewDidChangeSelection`, `shouldChangeTextIn`. Service hooks fire at the end of each. | `shouldChangeTypingAttributes` line 22; `textDidChange` line 40; `textViewDidChangeSelection` line 166; `shouldChangeTextIn` line 332 |
 | [`Input/MarkdownListHandler.swift`](External/MarkdownPM/Sources/MarkdownPM/Input/MarkdownListHandler.swift) | List continuation, character-pair auto-pair, auto-delete. Canonical input-handler pattern. | `MarkdownLists.performEdit` line 15 (programmatic-edit guard pattern); `detectListContext` line 78 (three-stage detection); `handleInsertion` line 267 |
-| [`Parser/MarkdownTokenizer.swift`](External/MarkdownPM/Sources/MarkdownPM/Parser/MarkdownTokenizer.swift) | Token producer for the primary pass. Emphasis is located on the Apple AST (`appleEmphasisTokens`, in `MarkdownTokenizer+AppleEmphasis.swift`, appended first); code/latex/wikilink boundaries stay regex-located. Produces `[MarkdownToken]`. | (read this when extending inline-mark handling, not for paragraph-level constructs) |
+| [`Parser/MarkdownTokenizer.swift`](External/MarkdownPM/Sources/MarkdownPM/Parser/MarkdownTokenizer.swift) | Token producer for the primary pass. Emphasis is located on the Apple AST (`appleEmphasisTokens`, in `MarkdownTokenizer+AppleEmphasis.swift`, appended first); code/latex/connection (`[[` / `{{`) boundaries stay regex-located. Produces `[MarkdownToken]`. | (read this when extending inline-mark handling, not for paragraph-level constructs) |
 | [`TextView/ContextMenu.swift`](External/MarkdownPM/Sources/MarkdownPM/TextView/ContextMenu.swift) | Right-click menu builder. Extended by Pommora's Format / Heading / Lists / Block submenus. | (read this when adding context-menu actions) |
 
 ##### 10.2 Pommora-side editor wiring
@@ -605,7 +605,7 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 | Doc | What it carries |
 |---|---|
 | [`// Features//PageEditor.md`](.claude/Features/PageEditor.md) | Editor implementation spec. Shipped v0.2.7.0 feature surface + "Tables — to be implemented" deferred-work spec. "Dynamic-syntax pattern" section is the locked architecture statement. |
-| [`// Features//Pages.md`](.claude/Features/Pages.md) | On-disk page format, Markdown features in v1, opening behavior, sidebar visibility, wikilinks. |
+| [`// Features//Pages.md`](.claude/Features/Pages.md) | On-disk page format, Markdown features in v1, opening behavior, sidebar visibility, connections. |
 | [`// Guidelines//Paradigm-Decisions.md`](.claude/Guidelines/Paradigm-Decisions.md) | Confirmation protocol + registry. Editor architecture decision recorded here (superseding the dead WKWebView entry). |
 | `Handoff.md` | Live session state. Most recent lessons (Session 12 HR + Session 13 Lists) preserved in the entry headers. |
 | `History.md` | Locked decision log. Brief — the canonical detail lives in the feature docs. |

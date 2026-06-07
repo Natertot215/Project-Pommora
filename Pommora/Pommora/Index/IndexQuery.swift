@@ -324,7 +324,7 @@ struct IndexQuery: Sendable {
             let ids = (try? String.fetchAll(
                 db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])) ?? []
             return ids.count == 1 ? ids[0] : nil
-        }) ?? nil
+        })
     }
 
     /// SYNC unique-entity resolution (id + icon) for the editor styler. nil for 0/many matches.

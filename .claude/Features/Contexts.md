@@ -57,7 +57,7 @@ Filename = title. Renaming in the UI renames the file.
 
 - File at `.nexus/topics/<TopicFolder>/<Title>.project.json` — file location IS the file-structural parent
 - `parents` — single-valued (the parent Topic, encoded by folder location)
-- `project_links` — **typed multi-valued context-link property** on the Project. Holds IDs of additional Topics, Spaces, or Projects the Project relates to. **Not body wikilinks** — editable in the property panel like any context-link, queryable via the index, surfaced in graph view. On-disk key `project_links`; legacy `linked_relations` key is decode-tolerated (dual-key decode).
+- `project_links` — **typed multi-valued context-link property** on the Project. Holds IDs of additional Topics, Spaces, or Projects the Project relates to. **Not body connections** — editable in the property panel like any context-link, queryable via the index, surfaced in graph view. On-disk key `project_links`; legacy `linked_relations` key is decode-tolerated (dual-key decode).
 - Tier-skip allowed: a Project CAN parent directly to a Space if it has no file-structural Topic parent (handled by treating it as a Topic in v1 — the "standalone project" case is not a distinct user-facing concept)
 - Sidebar render: leaf row inside parent Topic's disclosure
 - Clicking opens the Project's composed-blocks page

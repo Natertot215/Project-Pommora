@@ -178,7 +178,7 @@ No enforced layer separation. Patterns that keep the data layer tractable:
 - **Item entries are individual `.md` files** (frontmatter + capped body), not SQLite-only — agents read them directly, same as Pages.
 - **Foreign frontmatter is preserved by value** on every Page AND Item write path — an external tool's frontmatter keys survive Pommora's saves (mechanism detailed at `AtomicYAMLMarkdown` above).
 - **View specs are data** (filter / sort / group / shown-properties on each storage container's `views[]`).
-- **File renames + wikilink resolution as algorithm.** Wikilinks resolve by ID at render time; renames are pure filesystem renames; no body-scan rewrite needed.
+- **File renames + connection resolution as algorithm.** Connections resolve by title at render time (backed by index-based ID lookup); renames are pure filesystem renames followed by a cascade body-rewrite of all referencing files.
 - **Agent-legibility check per decision** — would an external file-only agent still see this? If no, revisit.
 - **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for module name, app branding, documentation; not allowed in JSON field names (`pommora_*`) or as a Swift type discriminator (`Pommora.X`). Side-prefixed names are canonical when collisions arise (`AgendaTask` not `Pommora.Task`).
 

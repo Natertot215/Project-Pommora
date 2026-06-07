@@ -116,4 +116,4 @@ EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*
 No new features. Polish, performance, bug-fix across everything from v0.0.0 through v0.7.0. Final accent / typography pass. Release-readiness checklist (Sparkle integration if non-MAS, TestFlight if MAS).
 
 #### Post-v1
-No specific phase commitments. Catalog at [[Prospects]] — additional view types, synced blocks (full inline Page-body editing), graph view, collaborative simultaneous editing (out of scope indefinitely), sync (Supabase), mobile/iPad, plugin system, plus the Pages-editor wishlist from [[Pommora Tasks]] (H1→H6 styling, page-nav dropdown, wikilink aliases, page notes/description, page banners).
+No specific phase commitments. Catalog at [[Prospects]] — additional view types, synced blocks (full inline Page-body editing), graph view, collaborative simultaneous editing (out of scope indefinitely), sync (Supabase), mobile/iPad, plugin system, plus the Pages-editor wishlist from [[Pommora Tasks]] (H1→H6 styling, page-nav dropdown, connection aliases, page notes/description, page banners).
