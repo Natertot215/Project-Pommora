@@ -77,6 +77,7 @@ final class PageContentManager {
     )
         -> (vault: PageType, collection: PageCollection?)?
     {
+        // Fast path: page is already loaded in memory (sidebar expanded its vault).
         for pageType in pageTypeManager.types {
             if pages(in: pageType).contains(where: { $0.id == page.id }) {
                 return (pageType, nil)
@@ -86,6 +87,28 @@ final class PageContentManager {
                     return (pageType, collection)
                 }
             }
+        }
+        // Fallback: page not in memory (vault never expanded in sidebar).
+        // Derive the vault/collection from the page's on-disk URL by matching
+        // against vault folder paths — all PageTypes are loaded at launch even
+        // when their pages haven't been streamed into the sidebar yet.
+        return resolveParentByURL(page, pageTypeManager: pageTypeManager)
+    }
+
+    private func resolveParentByURL(
+        _ page: PageMeta, pageTypeManager: PageTypeManager
+    ) -> (vault: PageType, collection: PageCollection?)? {
+        let pageURL = page.url.standardizedFileURL
+        for pageType in pageTypeManager.types {
+            let vaultFolder = folderURL(for: pageType).standardizedFileURL
+            guard pageURL.path.hasPrefix(vaultFolder.path + "/") else { continue }
+            for collection in pageTypeManager.pageCollections(in: pageType) {
+                let collFolder = collection.folderURL.standardizedFileURL
+                if pageURL.path.hasPrefix(collFolder.path + "/") {
+                    return (pageType, collection)
+                }
+            }
+            return (pageType, nil)
         }
         return nil
     }

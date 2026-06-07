@@ -6,9 +6,11 @@ import Foundation
 /// Returns nil for a phantom / ambiguous-duplicate / unreadable target (caller no-ops).
 enum WikiLinkPageOpener {
     @MainActor
-    static func pageSelection(forTitle title: String, index: PommoraIndex, nexusRootURL: URL) async -> SidebarSelection? {
+    static func pageSelection(forTitle titleOrID: String, index: PommoraIndex, nexusRootURL: URL) async -> SidebarSelection? {
         let query = IndexQuery(index)
-        guard let id = query.resolveUniqueTitle(title, kind: .page) else { return nil }
+        // Accept either a display title (typed link) or a stored page ID (from
+        // .wikiLinkID, set when autocomplete was used to pick the target).
+        guard let id = query.resolvePageByIDOrTitle(titleOrID, kind: .page) else { return nil }
         guard
             let container = try? await query.entityContainer(id: id, kind: .page),
             let url = ConnectionFileLocator.locate(id: id, kind: .page, container: container, nexusRoot: nexusRootURL),

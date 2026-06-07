@@ -308,6 +308,25 @@ struct IndexQuery: Sendable {
         return ids.count == 1 ? ids[0] : nil
     }
 
+    /// Resolves a page or item from either a direct entity ID OR a display title —
+    /// whichever the caller has on hand. Returns the canonical ID, or nil if no
+    /// unique match is found. Used by link-click navigation where the caller may
+    /// receive either format depending on whether `.wikiLinkID` was stored.
+    nonisolated func resolvePageByIDOrTitle(_ idOrTitle: String, kind: EntityKind) -> String? {
+        let table = kind == .page ? "pages" : "items"
+        return (try? index.dbQueue.read { db -> String? in
+            // Direct ID match (fastest path — wikiLinkID stored by autocomplete selection).
+            if (try? Row.fetchOne(db, sql: "SELECT 1 FROM \(table) WHERE id = ?", arguments: [idOrTitle])) != nil {
+                return idOrTitle
+            }
+            // Title match fallback (manually typed links carry the display name, not an ID).
+            let needle = ConnectionTitle.normalize(idOrTitle)
+            let ids = (try? String.fetchAll(
+                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])) ?? []
+            return ids.count == 1 ? ids[0] : nil
+        }) ?? nil
+    }
+
     /// SYNC unique-entity resolution (id + icon) for the editor styler. nil for 0/many matches.
     nonisolated func resolveUniqueEntity(_ title: String, kind: EntityKind) -> (id: String, icon: String?)? {
         let table = kind == .page ? "pages" : "items"
