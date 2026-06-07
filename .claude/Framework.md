@@ -68,6 +68,18 @@ Full ship summary → [[History]] § "v0.3.0 Properties — FEATURE-COMPLETE".
 ##### v0.3.2 — View Settings editor rebuild + nav/detail fixes
 Tagged 2026-05-27. The per-property editor rebuilt to the Figma — PaneDivider rail standard, pinned destructive footers, Subheadline / Callout type ramp, plain-`Menu` inline selectors; the popover-family UIX lessons folded into `Guidelines/Design.md` (standalone `UIX-Baseline.md` retired). A Pages-side third tier (Folders) was built and **reverted the same cycle** — it duplicated Collections' role and collided with the planned view-organization system; kept its system-wide stub-and-inline-rename CRUD (`CreateWithInlineEdit` + `DefaultTitleResolver`), the sidebar menu tweaks, and `NexusAdopter.autoTagMissingSidecars`. Nav/detail bug fixes landed alongside.
 
+##### v0.3.5 — Connections (page-level) + Contextv2 + MarkdownPM perf
+Tagged 2026-06-07. 231 commits since v0.3.4.
+
+- **Connections page-level.** `[[Page Title]]` + `{{Item Title}}` syntax, inline render (styled text / kern-trick pill chip with icon), Liquid Glass autocomplete popup, click navigation, atomic rename cascade, nexus-wide per-kind title uniqueness, `connectionsChanged` live-refresh bus, `connections` SQLite table (schema v8+). Item Window floating panel UI deferred to Item UIX. Spec → `Features/Connections.md`.
+- **Contextv2.** User-creatable relation properties retired; `tier1`/`tier2`/`tier3` are now the sole relation connection. `DualRelationCoordinator` deleted (~1.4k LOC). All `Relation*` symbols renamed `Context*`; `relations` → `context_links` table. Substrate (`$rel`, `PropertyValue.relation`, `RelationTarget.contextTier`, `PropertyType.relation`) kept.
+- **MarkdownPM performance.** `constructLineStarts` precomputed; heading/HR/blockquote/bullet reads from token/construct caches; `blockCodeTokens` DRY. Scroll lag eliminated.
+- **Index hardening.** Parent upserts use `ON CONFLICT DO UPDATE`; launch scan lenient + `excluded_folders` at file level; schema 9 → 10.
+- **Page icon.** In-editor page-header icon + "Add Icon" hover affordance; `showPageIcon` toggle (default OFF).
+- **Item description cap** 250 → 500.
+
+Full ship detail → [[History]] § "Connections — page-level complete".
+
 ##### v0.3.4 — Relations made real + manager de-dup + Pages stats footer
 Tagged 2026-05-31; the big consolidation release (**v0.3.3 was skipped** — the relations work folded forward into this tag). Marketing version bumped `0.2.6` → `0.3.4` at release.
 - **Relations unified (since superseded — see Contextv2 below).** `tier1/2/3` and relation properties shared a single pipeline; the `tier_links` table retired (one reverse-lookup path). Relations are always-multi (`[{"$rel": "<ULID>"}]`); a single-pane editor set home side + reverse name + reverse icon. Context-delete cascades the tier reference out of every Page / Item / Agenda entry. Entity `icon` denormalized into the SQLite index. Index resilience hardened (per-row insert, version-stamp-after-populate) + `MemberFileStrip.forEach` tolerates frontmatter-less member files.
@@ -82,19 +94,12 @@ Tagged 2026-05-31; the big consolidation release (**v0.3.3 was skipped** — the
 
 > **Version buckets + priority follow Nathan's own [[Pommora Tasks]] doc** (the working intent ledger); Framework keeps the implementation detail under each. Items Framework tracks that the Tasks doc doesn't name are *folded into their nearest bucket* and marked **(infra)** / **(folded)**. The Sort / Filter / Group panes muted in v0.3.1 + multi-saved-view tabs land with the view system at **v0.7.0**.
 
-##### v0.3.x — Contextv2: Drop Relations → Contexts (SHIPPED 2026-06-04)
-User-creatable relation properties removed; context tiers (`tier1`/`tier2`/`tier3`) are now the only relation-type connection. SQLite table `relations`→`context_links` (`idx_relations_*`→`idx_context_links_*`); all `Relation*` symbols renamed `Context*` (`RelationChip`→`ContextChip`, `RelationValueEditor`→`ContextValueEditor`, `RelationPicker`→`ContextPicker`, `RelationDisplayResolver`→`ContextDisplayResolver`, `BuiltInRelationProperties`→`BuiltInContextLinkProperties`, `incomingRelations`→`incomingContextLinks`). `Project.linked_relations`→`project_links` (dual-key tolerant decode). Orphaned `$rel` member values cleared during the migration walk; legacy Collection→Type migration deleted as dead-after-filter. Substrate kept: `$rel` token, `PropertyValue.relation`, `RelationTarget.contextTier`, `TierRelationCarrying`, `PropertyType.relation` (tier-only). **v0.4.0:** a separate connection-model layer (per-shape tables, weight-at-query, contexts-as-cores) is planned but not yet built. Plan → `Planning/Contextv2.md`; registry decision #16 in `Paradigm-Decisions.md`.
+##### v0.3.x — Item UIX — Item Window (next)
+The Item Window floating panel UI content: property display, icon, inspector toggle, pinned chips per Nathan's sketch. The `WindowGroup(for: ItemRef.self)` scene + click routing (`onItemLinkClick` → `ItemLinkOpener` → `AppGlobals.presentItemAction?`) are already wired from v0.3.5; the window's visible content is the missing piece. Agenda Task + Agenda Event reuse the same pattern.
 
-##### v0.3.x — Items as Markdown (serialization unification) (near-term, timing TBD)
-The accidental Items-vs-Pages serialization fork collapses: Items become plain `.md` (YAML frontmatter + capped Markdown body) on the same `AtomicYAMLMarkdown` pipeline Pages use — the capped description *is* the body (Shape A, one source of truth). Folder sidecar is the kind authority; a non-authoritative `Class` frontmatter stamp marks the form and self-heals (disagreement / homeless file → hidden `.unsorted` inbox). Foreign frontmatter is preserved by value on every Item AND Page write path. A mandatory one-shot launch migration normalizes legacy `.json` Items → `.md`. **This is where save-time `ItemValidator` validation is introduced for the first time** (the "Phase-6 rider" — body-length cap at 1000 source chars, provisional, validated not clamped, across all 6 Item CRUD entry points). Agenda stays JSON (`.task.json` / `.event.json`); sidecars / Projects / Spaces / Settings stay JSON — only Item *content* files changed. SHIPPED 2026-06-02. Plan → `Planning/Superseded/2026-06-01-Items-as-Markdown-Plan.md`.
-
-##### v0.3.x — Item Window redesign + PreviewWindow primitive (near-term, timing TBD)
-Polish on the already-shipped Item Window: reshape it around the Property Panel + inspector toggle + pinned chips per Nathan's WIP sketch. Eventually a `WindowGroup(for: ItemRef.self)` standalone window once the cross-feature PreviewWindow primitive ships. AgendaTask + AgendaEvent reuse the same UX pattern. (Per-Page Property Pulldown + Property Panel Figma polish is the parallel fast-follow on the Pages surface.)
-
-##### v0.4.0 — Symbols + Trash + Connections
+##### v0.4.0 — Symbols + Trash
 - **Standardized Symbols.** In-app Symbol Settings surface over the `Guidelines/Symbols.md` registry — user-remappable Application ↔ SF Symbol assignments, replacing hardcoded glyphs with a configurable table.
 - **Archive / Trash.** In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash; cascade-delete reporting with exact counts (Page Type → N Collections + M Pages). External-edit detection extended to all entity kinds.
-- **Connections.** Body-text `[[Title]]` (Pages) + `{{Title}}` (Items) with autocomplete + click routing + rename cascade. Resolved by globally-unique title; no frontmatter mirror (body + the SQLite index are the only stores). Routing — Page → detail pane; Item → Item Window (floating panel). Indexed via the v0.3.0 SQLite layer. Spec → `Features/Connections.md`.
 - **(infra)** FSEventStream **file watcher** — external changes update SQLite + sidebar live, per-file reconcile on touch, lost-update protection on mtime drift; **FTS5 tables wired** (schema only — the `⌘K` search UI ships v0.6.0); broken-link warning surface for connections.
 
 ##### v0.5.0 — EventKit + Agenda UIX + Calendar

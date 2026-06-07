@@ -2,6 +2,22 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### Connections — page-level complete (2026-06-07, v0.3.5)
+
+`[[Page Title]]` (Pages) + `{{Item Title}}` (Items) connection syntax shipped end-to-end. Bundles all v0.3.x work since v0.3.4 — Contextv2, MarkdownPM performance, index hardening, page icon.
+
+- **Syntax + render.** `[[`/`]]` wiki-link + `{{`/`}}` item-link tokens; `{{}}` auto-pairs. Resolved page links: blue styled colored text (Obsidian-style). Resolved item links: inline pill chip (kern-trick collapsed markers; SF Symbol icon + title; highlight fill). Unresolved: muted `secondaryLabel`. `linkTextAttributes = [:]` on NSTextView decouples click detection from visual styling; chip Y fixed to `baselineY − font.ascender`.
+- **Navigation.** Page links open the main detail pane. Item links route to the Item Window stub (floating panel is the Item UIX next step). `resolvePageByIDOrTitle` (ID-first → title NOCASE); `resolveParentFromIndex` queries `page_type_id`/`page_collection_id` from SQLite — no dependency on sidebar expansion state. Both use `PageFile.loadLenient` for adopted pages.
+- **Autocomplete popup.** `[[` / `{{` entry fires a Liquid Glass popup; `titleCandidates` ranks exact → shortest → A-Z; query uses the token interior. Enter exits the link syntax; caret nudges async to the nearest token boundary if it lands in a collapsed marker.
+- **SQLite index.** `connections` table (schema v8): `source_id`, `target_title` (normalized), `kind` (`page`/`item`), `source_range`. `ConnectionScanner` body-scans on write; `activateConnections`/`deactivateConnections` maintain the table; `connectionsChanged` bus restyles open editors.
+- **Rename cascade.** `WikiLinkCascade` atomically rewrites all referencing bodies on Page/Item rename — one `SchemaTransaction`, one bus notification, one pinned/recents refresh. Nexus-wide per-kind title uniqueness enforced on create/rename.
+- **Index hardening.** Parent upserts changed `INSERT OR REPLACE` → `ON CONFLICT DO UPDATE` (the former cascade-wiped child pages/items); launch scan uses lenient loader + honors `excluded_folders` at file level (schema 9 → 10); ISO-8601 formatter precision unified across `IndexBuilder`.
+- **MarkdownPM performance.** `constructLineStarts` precomputed per `ParsedDocument`; heading/HR/blockquote/bullet state reads from token/construct caches instead of per-restyle re-scan; `blockCodeTokens` DRY. Scroll lag from per-fragment allocation eliminated.
+- **Page icon.** Page-header icon rendered in-editor + "Add Icon" hover affordance; `showPageIcon` per-Nexus toggle (Settings, default OFF).
+- **Item description cap** raised 250 → 500 (per-Type override via `description_cap`).
+
+Deferred: Item Window floating panel UI content (the `WindowGroup` scene + click routing is wired; the window's property display is the Item UIX next step). Feature name is Connections; "WikiLinks" was the planning-era label. Full spec → `Features/Connections.md`; plan → `Planning/06-05-Connections-Plan.md`.
+
 #### Contextv2 — Drop Relations → Contexts (2026-06-04)
 
 User-creatable relation properties removed; context tiers (`tier1`/`tier2`/`tier3`) are now the only relation-type connection in Pommora. The substrate is kept: `$rel` token, `PropertyValue.relation` codec, `RelationTarget.contextTier`, `TierRelationCarrying`, `RelationTargetKind`, `PropertyType.relation` (tier-only).
