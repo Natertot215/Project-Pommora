@@ -466,7 +466,7 @@ extension NativeTextViewCoordinator {
         let docLen = (textView.string as NSString).length
         for token in tokens where token.kind == .wikiLink || token.kind == .itemLink {
             guard caretLoc > token.range.location,
-                  caretLoc <= NSMaxRange(token.range) else { continue }
+                  caretLoc < NSMaxRange(token.range) else { continue }
             let innerStart = token.range.location + 2
             let innerEnd = NSMaxRange(token.range) - 2
             // Caret is in the token range but NOT in the inner-active content range.

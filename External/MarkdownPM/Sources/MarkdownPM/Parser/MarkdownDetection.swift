@@ -409,6 +409,11 @@ public enum MarkdownDetection {
                 continue
             }
             if caretLocation == end {
+                // Wiki/item links use the strict interior gate only — caret at
+                // NSMaxRange means the closing `]]` / `}}` has been passed and the
+                // link is complete. Skip the end-inclusive rule for these tokens so
+                // the chip renders and Enter-to-exit works correctly.
+                guard token.kind != .wikiLink && token.kind != .itemLink else { continue }
                 let lastIndex = end - 1
                 if lastIndex >= start && lastIndex < text.length {
                     let lastChar = text.substring(with: NSRange(location: lastIndex, length: 1))
