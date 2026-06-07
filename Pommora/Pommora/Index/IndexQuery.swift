@@ -92,26 +92,7 @@ struct IndexQuery: Sendable {
     /// `context_links` itself carries no title). Sources whose row is dangling (no
     /// matching entity) fall back to an empty title.
     func incomingContextLinks(targetID: String) async throws -> [EntityRef] {
-        // Inline kind conversion to avoid calling actor-isolated helpers inside the @Sendable closure
-        // (mirrors `brokenLinks`).
-        let kindFromString: @Sendable (String) -> EntityKind = { s in
-            switch s {
-            case "page": return .page
-            case "item": return .item
-            case "agenda_task": return .agendaTask
-            case "agenda_event": return .agendaEvent
-            case "page_type": return .pageType
-            case "item_type": return .itemType
-            case "page_collection": return .pageCollection
-            case "item_collection": return .itemCollection
-            case "space": return .space
-            case "topic": return .topic
-            case "project": return .project
-            default: return .page
-            }
-        }
-
-        return try await index.dbQueue.read { db in
+        try await index.dbQueue.read { db in
             // Maps a source_kind string to the table holding its title row.
             let kindTableMap: [String: String] = [
                 "page": "pages",
@@ -136,7 +117,7 @@ struct IndexQuery: Sendable {
             return try rows.map { row -> EntityRef in
                 let sourceID: String = row["source_id"]
                 let sourceKindStr: String = row["source_kind"]
-                let kind = kindFromString(sourceKindStr)
+                let kind = FilterBuilder.entityKindFromString(sourceKindStr)
                 // Resolve the current title from the source's owning table (one row per source).
                 var title = ""
                 if let table = kindTableMap[sourceKindStr] {
@@ -386,25 +367,7 @@ struct IndexQuery: Sendable {
 
     /// Returns context_links whose target_id no longer exists in the corresponding entity table.
     func brokenLinks() async throws -> [BrokenLinkReport] {
-        // Inline kind conversion to avoid calling actor-isolated helpers inside @Sendable closure.
-        let kindFromString: @Sendable (String) -> EntityKind = { s in
-            switch s {
-            case "page": return .page
-            case "item": return .item
-            case "agenda_task": return .agendaTask
-            case "agenda_event": return .agendaEvent
-            case "page_type": return .pageType
-            case "item_type": return .itemType
-            case "page_collection": return .pageCollection
-            case "item_collection": return .itemCollection
-            case "space": return .space
-            case "topic": return .topic
-            case "project": return .project
-            default: return .page
-            }
-        }
-
-        return try await index.dbQueue.read { db in
+        try await index.dbQueue.read { db in
             let kindTableMap: [String: String] = [
                 "page": "pages",
                 "item": "items",
@@ -416,8 +379,7 @@ struct IndexQuery: Sendable {
                 // `target_kind` is stored coarse ("page"/"item" for any
                 // type/collection target — see RelationTargetKind.string), so real
                 // rows resolve via the keys above. These fine-grained keys stay
-                // snake_case for consistency with this function's `kindFromString`
-                // and `incomingContextLinks`.
+                // snake_case for consistency with `FilterBuilder.entityKindFromString`.
                 "page_type": "page_types",
                 "item_type": "item_types",
                 "page_collection": "page_collections",
@@ -449,9 +411,9 @@ struct IndexQuery: Sendable {
                         BrokenLinkReport(
                             relationID: row["context_link_id"],
                             sourceID: row["source_id"],
-                            sourceKind: kindFromString(skStr),
+                            sourceKind: FilterBuilder.entityKindFromString(skStr),
                             targetID: row["target_id"],
-                            targetKind: kindFromString(tkStr),
+                            targetKind: FilterBuilder.entityKindFromString(tkStr),
                             propertyID: row["property_id"]
                         ))
                 }

@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// A lightweight, index-decoupled candidate for the autocomplete popup. Each
-/// value is the icon + title the row renders. `E5-D` maps the index's `EntityRef`
-/// → `AutoCompleteCandidate`; this keeps the view a pure presentation surface with
-/// no dependency on the index or any resolver.
+/// value is the icon + title the row renders. The editor maps the index's
+/// `EntityRef` → `AutoCompleteCandidate`; this keeps the view a pure presentation
+/// surface with no dependency on the index or any resolver.
 struct AutoCompleteCandidate: Identifiable, Hashable {
     let id: String
     let icon: String  // SF Symbol name
@@ -13,7 +13,7 @@ struct AutoCompleteCandidate: Identifiable, Hashable {
 /// **The candidate popup for `[[` page / `{{` item autocomplete.** As the user
 /// types inside the brackets, this lists matching entities so they can pick one.
 /// A PURE presentation component over a candidate list + callbacks — no index, no
-/// resolver, no editor coupling (the editor wiring lands in `E5-D`).
+/// resolver, no editor coupling.
 ///
 /// **Surface (Nathan, 2026-06-06):** real macOS 26 Liquid Glass via
 /// `.glassEffect(in: .rect(cornerRadius: 12))` — Apple drives the fill + chrome,
@@ -30,8 +30,8 @@ struct AutoCompleteCandidate: Identifiable, Hashable {
 /// label-primary (`.primary`), the remainder in label-secondary (`.secondary`).
 ///
 /// **Selection + keys:** one row is highlighted with a subtle `.quaternary` fill.
-/// Click → `onSelect`. The window is `.focusable()` so once `E5-D` gives it focus:
-/// ↑/↓ move the (clamped) selection, Enter → `onSelect(selected)`, Esc →
+/// Click → `onSelect`. The window is `.focusable()` so once the editor gives it
+/// focus: ↑/↓ move the (clamped) selection, Enter → `onSelect(selected)`, Esc →
 /// `onCancel()`. Selection resets when the candidate list changes.
 ///
 /// **Sizing:** height grows with the candidate count, capped at 4 visible rows;

@@ -32,8 +32,8 @@ struct PageEditorView: View {
     @Binding var selection: SidebarSelection
 
     @Environment(PageContentManager.self) private var contentManager
-    /// Routes a clicked `[[ ]]` page link into the main detail pane (E2). Same
-    /// router NavDropdown + Back/Forward use; injected by `NexusEnvironment`.
+    /// Routes a clicked `[[ ]]` page link into the main detail pane. Same router
+    /// NavDropdown + Back/Forward use; injected by `NexusEnvironment`.
     @Environment(MainWindowRouter.self) private var mainWindowRouter
     /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
     @Environment(SettingsManager.self) private var settingsManager
@@ -88,7 +88,7 @@ struct PageEditorView: View {
     /// visible (the inline icon when set, else the "Add Icon" affordance).
     @State private var iconPickerOpen = false
 
-    // MARK: - `[[` / `{{` autocomplete (E5-D)
+    // MARK: - `[[` / `{{` autocomplete
 
     /// Pushed into the editor to commit a chosen candidate: the engine replaces
     /// the active token with the finished link, restores the caret past it, then
@@ -307,10 +307,9 @@ struct PageEditorView: View {
             // Caret-anchored autocomplete popup. Origin = bracket x, just below the
             // caret line (`caretRect.maxY`). Anchored in the editor's own coordinate
             // space via `.topLeading` overlay + `.offset`.
-            // TODO(visual): caret-anchor refinement — the body editor's 90pt top
-            // safe-area inset + scroll offset can shift the NSTextView→SwiftUI mapping
-            // by a few points; Nathan to visually tune the y-origin. The popup already
-            // lands on the correct line, near the typed brackets (not a fixed corner).
+            // TODO(visual): the 90pt top safe-area inset + scroll offset can shift
+            // the NSTextView→SwiftUI y-mapping by a few points. The popup already
+            // lands on the correct line, near the typed brackets.
             .overlay(alignment: .topLeading) {
                 if autocompleteVisible {
                     AutoCompleteWindow(
@@ -606,7 +605,7 @@ struct PageEditorView: View {
         }
     }
 
-    // MARK: - `[[` / `{{` autocomplete (E5-D)
+    // MARK: - `[[` / `{{` autocomplete
 
     /// Reacts to the editor's inline-selection changes: gates on the Nathan-locked
     /// trigger (a `[[ ]]`/`{{ }}` token with a non-empty typed placeholder), then

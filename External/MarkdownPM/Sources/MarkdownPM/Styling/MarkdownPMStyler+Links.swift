@@ -88,10 +88,10 @@ extension MarkdownPMStyler {
     /// (mirrors `styleInlineLatex`): the source `{{Title}}` text is collapsed to
     /// zero visible width and the first content char reserves exactly the chip's
     /// width, carrying `.itemChipIcon`/`.itemChipBounds`/`.itemLinkTitle` so the
-    /// fragment's `drawItemChips` draws the pill over it. `.link` stays set so
-    /// E4's click handler still routes to the Item Window.
+    /// fragment's `drawItemChips` draws the pill over it. `.link` stays set so the
+    /// click handler still routes to the Item Window.
     /// ACTIVE (caret in token) → raw `{{Title}}` stays visible/editable: markers
-    /// muted, content plain (E3 behavior — no chip, no kern).
+    /// muted, content plain (no chip, no kern).
     /// UNRESOLVED → muted `disabledText` (SAME as `[[ ]]` — intentionally NOT
     /// plain body color).
     static func styleItemLinks(_ ctx: StylingContext) -> [StyledRange] {
@@ -152,7 +152,8 @@ extension MarkdownPMStyler {
                 continue
             }
 
-            // ACTIVE / UNRESOLVED / empty-title fallback: E3 behavior.
+            // ACTIVE / UNRESOLVED / empty-title fallback: raw text, no chip —
+            // markers muted, resolved content linked, unresolved content muted.
             var contentAttributes: [NSAttributedString.Key: Any] = [:]
             if !isActive {
                 if nodeExists {
