@@ -824,17 +824,32 @@ This avoids the `.wikiLinkID` / `.itemLinkTitle` ambiguity on overlapping ranges
 
 ### Task E5: Autocomplete popup (`[[` / `{{`), dup-tolerant
 
+**Resolved design (Nathan, 2026-06-06) — replaces the original "reuse the existing popup" sketch.** Recon CORRECTION: there is NO existing image-embed completion popup to extend (no app-side code sets `pendingInlineReplacement`); the engine's *consumer* side (`InlineReplacementRequest` → `pendingInlineReplacement` → `applyInlineReplacement`, caret restored) IS built and is the commit path. `ChipDropdownPanel` is NOT reused (it's chip-property selection). Build via the `swiftui-expert-skill`.
+
 **Files:**
-- Modify: `PageEditorView` (+ caret-anchored popup), reuse `pendingInlineReplacement`/`InlineReplacementRequest`
-- Test: contract test for candidate listing + insertion
+- Create: `Pommora/Pommora/.../AutoCompleteWindow.swift` — the new Component-Library component (grouped beside `ItemChip`; showcased in `ComponentLibraryView`'s ChipsGallery).
+- Modify: `External/MarkdownPM/.../NativeTextViewSelectionTypes.swift` — add `.itemLink` to `InlineSelectionKind`; `Coordinator/NativeTextViewCoordinator+TextDelegate.swift` — fire `onInlineSelectionChange` for `{{ }}` tokens too; expose a caret/anchor rect (NSTextView `firstRect(forCharacterRange:)`) up through `NativeTextViewWrapper`.
+- Modify: `Pommora/Pommora/Index/IndexQuery.swift` — `titleCandidates` keeps PREFIX match (`LIKE 'prefix%'`), change `ORDER BY title` → exact-match-first, then shortest title, then A–Z.
+- Modify: `Pommora/Pommora/Pages/PageEditorView.swift` — observe `onInlineSelectionChange`, present the window, push the `InlineReplacementRequest` on select.
+- Test: ranking-query test; component contract test; trigger/insert contract test.
 
-A small caret-anchored search-filter popup on `[[`/`{{` listing `titleCandidates(matching:kind:)` (Pages for `[[`, Items for `{{`), nexus-wide. Lists ALL matches so two same-titled adopted entities both surface ("choose either", per Nathan). Selection inserts the title via the existing `InlineReplacementRequest` → `pendingInlineReplacement` path (already used for image-embed completion). A convenience — a bare typed title resolves identically.
+**Behavior (locked):**
+- **Trigger:** the window appears ONLY once a character is typed *inside* an open `[[`/`{{` pair — NOT on pair creation. Anchored inline at the bracket, mid-line, from the caret rect.
+- **Candidates:** `titleCandidates(matching: typedText, kind:)` (Pages for `[[`, Items for `{{`), nexus-wide, **prefix (starts-with)**, case-insensitive. Lists ALL matches (two same-titled adopted entities both surface — "choose either"). Re-queried live as the user types; filters dynamically.
+- **Ranking:** exact title → shortest title → A–Z.
+- **Rows:** the entity **icon + title label**, body font; title in **label-secondary**, the matched leading-prefix span promoted to **label-primary**.
+- **Sizing:** height grows with match count, capped at **4 rows**; scroll enabled for the full list beyond 4.
+- **Surface:** Liquid Glass.
+- **Selection:** click a row OR ↑/↓ + Enter; Esc dismisses. Selecting dismisses the window and inserts the finished **title-only** link (`[[Title]]` / `{{Title}}`, LD-28) via `InlineReplacementRequest` → `pendingInlineReplacement` (replacing the in-progress token).
+- A bare typed title still resolves identically — the window is a convenience.
 
-> AUTO-PAIR: `{{` auto-pairs to `{{|}}` (cursor inside). `MarkdownInputHandler.handleCharacterPairAutoPair` (TextDelegate ~L392) currently has cases for `*`, `_`, `[`, `(`, and `` ` `` — there is NO `{` entry today. This step ADDS a new case: `case "{": closeMarker = "}}"` (it is not modifying an existing entry). The autocomplete popup trigger then gates on the opening pair being present (same pattern as `[[`).
+> AUTO-PAIR (shipped `195ef80`): `{` → `}}` and `[` → `]]` are in `MarkdownInputHandler.handleCharacterPairAutoPair`. The window's trigger gates on a char typed *inside* the pair, not the pair itself.
 
-> INERT IN ITEM WINDOW NOTE (applies to E2 and E4 navigation): `[[Page]]` / `{{Item}}` clicks inside an item body (display-only Item Window) are inert in v1 — `ItemWindowRenderer` passes `NoOpWikiLinkResolver` and no `onLinkClick`/`onItemLinkClick` handler. Deferred with item mechanics.
+> NOT in this task (next session, gated on Item Windows): the item-body **dropdown** (single-click `{{Item}}` preview showing the item's body-text) — Nathan's separate design. Do NOT build it here.
 
-- [ ] Steps: failing test → caret-anchor popup + candidate query + `{{` auto-pair → reuse replacement commit → pass → commit `feat(connections): [[ / {{ autocomplete (dup-tolerant)`.
+> INERT IN ITEM WINDOW NOTE: `[[Page]]`/`{{Item}}` clicks inside an item body (display-only Item Window) stay inert in v1.
+
+- [ ] Sub-tasks (each a green commit, verified): **(A)** engine — `.itemLink` selection kind + `{{ }}` selection-change firing + caret-rect exposure; **(B)** `titleCandidates` ranking (exact→shortest→A–Z) + test; **(C)** `AutoCompleteWindow` component (Liquid Glass, icon+title rows, secondary/primary highlight, dynamic height max-4 + scroll, click + ↑↓/Enter/Esc) via `swiftui-expert-skill` + Component-Library showcase; **(D)** wire into `PageEditorView` (trigger-on-char-inside, anchor at caret, push replacement on select). Final commit msg base: `feat(connections): [[ / {{ autocomplete window (dup-tolerant)`.
 
 ---
 
