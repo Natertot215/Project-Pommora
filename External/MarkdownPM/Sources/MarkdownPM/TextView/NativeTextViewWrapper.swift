@@ -140,6 +140,10 @@ public struct MarkdownPMEditor: NSViewRepresentable {
 
         // Let NSTextView auto-initialize its own TextKit 2 stack via init(frame:).
         let textView = NativeTextView(frame: .zero)
+        // Disable NSTextView's default link visual override so per-character
+        // attributes (foregroundColor, underlineStyle) are respected. Wiki links
+        // and auto-URLs re-apply those attributes explicitly in the styler.
+        textView.linkTextAttributes = [:]
 
         // Configure the auto-created text container.
         guard let textContainer = textView.textContainer,

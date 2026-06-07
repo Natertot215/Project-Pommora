@@ -1143,7 +1143,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     private func itemChipRect(forSize size: CGSize, attrRange: NSRange, point: CGPoint) -> CGRect? {
         guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return nil }
         let font = itemChipFont
-        let y = (pos.baselineY + (font.descender - font.ascender) / 2) - size.height / 2
+        // Chip top at the ascender line; extends down through descenders to cover
+        // the full typographic height (matches size.height = ascender - descender).
+        let y = pos.baselineY - font.ascender
         return CGRect(x: pos.x, y: y, width: size.width, height: size.height)
     }
 

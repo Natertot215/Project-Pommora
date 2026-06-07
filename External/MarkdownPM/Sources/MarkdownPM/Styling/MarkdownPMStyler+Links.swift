@@ -33,7 +33,12 @@ extension MarkdownPMStyler {
             detector.enumerateMatches(in: ctx.text, options: [], range: range) { match, _, _ in
                 guard let match = match, let url = match.url else { return }
                 if MarkdownDetection.isInsideCodeBlock(range: match.range, codeTokens: ctx.codeTokens) { return }
-                attrs.append((match.range, [.link: url]))
+                // Explicit visual styling — linkTextAttributes is cleared on NSTextView.
+                attrs.append((match.range, [
+                    .link: url,
+                    .foregroundColor: ctx.configuration.theme.link,
+                    .underlineStyle: NSUnderlineStyle.single.rawValue
+                ]))
             }
         }
         return attrs
@@ -64,6 +69,10 @@ extension MarkdownPMStyler {
             if !isActive {
                 if nodeExists {
                     contentAttributes[.link] = linkID ?? nodeName
+                    // Explicit visual styling — linkTextAttributes is cleared on the
+                    // NSTextView so these attributes must be set directly here.
+                    contentAttributes[.foregroundColor] = ctx.configuration.theme.link
+                    contentAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
                 } else {
                     contentAttributes[.foregroundColor] = NSColor.secondaryLabelColor
                 }
