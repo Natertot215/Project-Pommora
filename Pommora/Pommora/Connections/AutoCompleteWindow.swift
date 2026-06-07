@@ -15,11 +15,11 @@ struct AutoCompleteCandidate: Identifiable, Hashable {
 /// A PURE presentation component over a candidate list + callbacks — no index, no
 /// resolver, no editor coupling (the editor wiring lands in `E5-D`).
 ///
-/// **Surface (Nathan, 2026-06-06):** the app's Liquid-Glass panel language —
-/// `.regularMaterial` fill + a hairline `.white.opacity(0.10)` 0.5pt border +
-/// rounded-12 corners, clipped. This matches `ChipDropdownPanel` visually but is
-/// its own surface (the `.chipDropdownPanel()` modifier is reserved for chip
-/// property selection).
+/// **Surface (Nathan, 2026-06-06):** real macOS 26 Liquid Glass via
+/// `.glassEffect(in: .rect(cornerRadius: 12))` — Apple drives the fill + chrome,
+/// so there is no manual `.regularMaterial` + hairline border (that read as a flat
+/// panel, not glass). Matches the app's other glass surfaces (ContentView,
+/// NavDropdown, BackForwardButtons).
 ///
 /// **Rows:** each candidate = the entity icon + title in body font, in an `HStack`
 /// with tight inline padding (mirrors `ItemChip` density).
@@ -66,15 +66,13 @@ struct AutoCompleteWindow: View {
         } else {
             list
                 .frame(minWidth: 160, maxWidth: 320)
-                .background(
-                    RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                        .fill(.regularMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                                .strokeBorder(.white.opacity(0.10), lineWidth: 0.5)
-                        )
-                )
                 .clipShape(.rect(cornerRadius: Self.cornerRadius))
+                // Real macOS 26 Liquid Glass: Apple drives the fill + chrome — no
+                // manual `.regularMaterial` + hairline border (that read as a flat
+                // panel, not glass). Matches the app's other glass surfaces
+                // (ContentView, NavDropdown, BackForwardButtons). A single panel is
+                // one glass surface, so no GlassEffectContainer is needed.
+                .glassEffect(in: .rect(cornerRadius: Self.cornerRadius))
                 .focusable()
                 .onKeyPress(.upArrow) {
                     moveSelection(-1)
