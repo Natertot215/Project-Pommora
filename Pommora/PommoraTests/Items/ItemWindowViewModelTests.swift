@@ -131,4 +131,35 @@ struct ItemWindowViewModelTests {
         }
         #expect(seamValue == .null)
     }
+
+    // MARK: - B3: handleTierChange
+    //
+    // Same fire-and-forget seam observation as B2: `handleTierChange` mutates the
+    // tier draft synchronously then fires `Task { try? await onUpdateProperty }`.
+    // The continuation captures BOTH the seam id and value as a tuple so we can
+    // assert the tier routes to its reserved id with a `.relation` payload; the
+    // synchronous draft mutation is asserted inside the continuation body.
+
+    @Test func setTierWritesRelationAndDraft() async {
+        let item = makeItem(icon: nil, description: "")
+        let seam: (String, PropertyValue) = await withCheckedContinuation { continuation in
+            let vm = makeVM(item: item, onUpdateProperty: { id, value in continuation.resume(returning: (id, value)) })
+            vm.handleTierChange(1, ["a"])
+            #expect(vm.draftTier1 == ["a"])
+        }
+        #expect(seam.0 == ReservedPropertyID.tier1)
+        #expect(seam.1 == .relation(["a"]))
+    }
+
+    @Test func clearTierWritesEmptyRelationNotNull() async {
+        let item = makeItem(icon: nil, description: "", tier1: ["a"])
+        let seam: (String, PropertyValue) = await withCheckedContinuation { continuation in
+            let vm = makeVM(item: item, onUpdateProperty: { id, value in continuation.resume(returning: (id, value)) })
+            vm.handleTierChange(1, [])
+            #expect(vm.draftTier1 == [])
+        }
+        #expect(seam.0 == ReservedPropertyID.tier1)
+        #expect(seam.1 == .relation([]))  // empty relation clears the tier — explicitly NOT .null
+        #expect(seam.1 != .null)
+    }
 }

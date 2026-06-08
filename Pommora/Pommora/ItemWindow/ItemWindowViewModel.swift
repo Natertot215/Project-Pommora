@@ -158,4 +158,35 @@ final class ItemWindowViewModel {
         }
         Task { try? await self.onUpdateProperty(id, value) }
     }
+
+    /// Applies a tier (Context-relation) edit: mutate the matching draft array
+    /// synchronously, then fire one live save through the same `onUpdateProperty`
+    /// seam used for ordinary properties.
+    ///
+    /// Tiers are stored as Item root arrays (`tier1` / `tier2` / `tier3`) but
+    /// edited as `.relation` through the property seam — the reserved tier ID
+    /// routes the manager back to the root array. The save ALWAYS sends
+    /// `.relation(newIDs)`, even when empty: an empty relation clears the tier at
+    /// its root; passing `.null` would be a bug (it would be read as key-removal,
+    /// not an empty tier). `tier` is the fixed set 1...3 — a `switch` maps it to
+    /// its draft + reserved ID, and any out-of-range caller is ignored (HARD RULE:
+    /// tight exhaustive control flow). Strong `self` capture mirrors
+    /// `handlePropertyChange`: a one-shot save with no stored Task, so no cycle.
+    func handleTierChange(_ tier: Int, _ newIDs: [String]) {
+        let reservedID: String
+        switch tier {
+        case 1:
+            draftTier1 = newIDs
+            reservedID = ReservedPropertyID.tier1
+        case 2:
+            draftTier2 = newIDs
+            reservedID = ReservedPropertyID.tier2
+        case 3:
+            draftTier3 = newIDs
+            reservedID = ReservedPropertyID.tier3
+        default:
+            return
+        }
+        Task { try? await self.onUpdateProperty(reservedID, .relation(newIDs)) }
+    }
 }
