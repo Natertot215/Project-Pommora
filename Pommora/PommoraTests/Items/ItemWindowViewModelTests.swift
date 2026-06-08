@@ -18,7 +18,8 @@ struct ItemWindowViewModelTests {
             id: ULID.generate(), title: "T", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         ),
-        onUpdateProperty: @escaping (String, PropertyValue) async throws -> Void = { _, _ in }
+        onUpdateProperty: @escaping (String, PropertyValue) async throws -> Void = { _, _ in },
+        onRename: ((String) async throws -> Item)? = nil
     ) -> ItemWindowViewModel {
         ItemWindowViewModel(
             item: item,
@@ -27,7 +28,7 @@ struct ItemWindowViewModelTests {
             onUpdateProperty: onUpdateProperty,
             onUpdateIcon: { _ in },
             onUpdateBody: { _ in },
-            onRename: { _ in item },
+            onRename: onRename ?? { _ in item },
             onDeleteItem: {}
         )
     }
@@ -162,4 +163,73 @@ struct ItemWindowViewModelTests {
         #expect(seam.1 == .relation([]))  // empty relation clears the tier — explicitly NOT .null
         #expect(seam.1 != .null)
     }
+
+    // MARK: - B4: handleTitleCommit
+    //
+    // The method is `async` and awaits the rename seam directly (unlike B2/B3's
+    // fire-and-forget Task), so tests simply `await vm.handleTitleCommit()` — no
+    // continuation. A `RenameSpy` reference type records each rename call so we
+    // can assert call count without mutable-capture concerns.
+
+    @Test func renameRehydratesItemOnSuccess() async {
+        let original = makeItem(icon: nil, description: "")
+        let renamed = Item(
+            id: original.id, title: "Renamed", icon: original.icon,
+            description: original.description, tier1: original.tier1, tier2: original.tier2,
+            tier3: original.tier3, properties: original.properties,
+            createdAt: original.createdAt, modifiedAt: original.modifiedAt
+        )
+        let spy = RenameSpy()
+        let vm = makeVM(
+            item: original,
+            onRename: { name in
+                spy.calls.append(name)
+                return renamed
+            })
+
+        vm.draftTitle = "Renamed"
+        await vm.handleTitleCommit()
+
+        #expect(spy.calls == ["Renamed"])
+        #expect(vm.item.id == original.id)
+        #expect(vm.item.title == "Renamed")
+        #expect(vm.inlineError == nil)
+    }
+
+    @Test func renameCollisionSetsErrorAndReverts() async {
+        let original = makeItem(icon: nil, description: "")
+        let vm = makeVM(item: original, onRename: { _ in throw TitleTaken() })
+
+        vm.draftTitle = "Taken"
+        await vm.handleTitleCommit()
+
+        #expect(vm.inlineError != nil)
+        #expect(vm.draftTitle == original.title)  // reverted to "Sample"
+        #expect(vm.item.title == original.title)  // item unchanged
+    }
+
+    @Test func unchangedTitleIsNoOp() async {
+        let original = makeItem(icon: nil, description: "")
+        let spy = RenameSpy()
+        let vm = makeVM(
+            item: original,
+            onRename: { name in
+                spy.calls.append(name)
+                return original
+            })
+
+        vm.draftTitle = original.title + "   "  // trailing whitespace only
+        await vm.handleTitleCommit()
+
+        #expect(spy.calls.isEmpty)  // guard short-circuited via trimming
+        #expect(vm.inlineError == nil)
+    }
 }
+
+/// Records rename-seam calls for the B4 tests without mutable-capture concerns.
+private final class RenameSpy {
+    var calls: [String] = []
+}
+
+/// Stand-in collision error thrown by the rename seam in the B4 failure test.
+private struct TitleTaken: Error {}

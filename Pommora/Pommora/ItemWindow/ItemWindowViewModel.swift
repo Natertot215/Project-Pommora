@@ -189,4 +189,24 @@ final class ItemWindowViewModel {
         }
         Task { try? await self.onUpdateProperty(reservedID, .relation(newIDs)) }
     }
+
+    /// Commits an inline title edit. Idempotent — fires from Enter, focus-loss,
+    /// AND window-close, so the trimmed-equals-current guard makes every trigger
+    /// after the first a no-op (and a whitespace-only edit a no-op too). On
+    /// success it re-holds the manager-resolved renamed Item (id stays, title
+    /// updates — never a hand-mutated copy, mirroring `PageEditorViewModel`). On
+    /// failure (e.g. a filename collision) it sets `inlineError` and reverts
+    /// `draftTitle` to the last good title.
+    func handleTitleCommit() async {
+        let trimmed = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != item.title else { return }
+        do {
+            let renamed = try await onRename(trimmed)
+            self.item = renamed
+            inlineError = nil
+        } catch {
+            inlineError = error.localizedDescription
+            draftTitle = item.title
+        }
+    }
 }
