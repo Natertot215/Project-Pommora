@@ -48,7 +48,32 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Body
 
+    /// Two-column card scaffold (Phase D0): the main column (header + body) on the
+    /// left, the inspector column on the right, separated by a vertical divider —
+    /// the whole card framed to the fixed Item-Window dimensions. Both columns are
+    /// always shown here; the show/hide toggle arrives with the view-model (D1/D7).
+    /// The footer spans the full card width as a bottom inset.
     var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            mainColumn
+            Divider()
+            inspectorColumn
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                footer
+            }
+            .background(.bar)
+        }
+        .frame(width: PUI.ItemWindow.totalWidth, height: PUI.ItemWindow.height)
+    }
+
+    // MARK: - Main column (header + body)
+
+    /// Left column — the existing scrolling stub (icon + title header, read-only
+    /// body), flexing to fill the space left of the inspector.
+    private var mainColumn: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
                 // Live window — a clean display-only stub: icon + title + body
@@ -59,13 +84,17 @@ struct ItemWindowRenderer: View {
             }
             .padding()
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                Divider()
-                footer
-            }
-            .background(.bar)
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: - Inspector column
+
+    /// Right column — fixed-width inspector. Empty stub for now; D5 fills it with
+    /// the inspector zone content.
+    private var inspectorColumn: some View {
+        Color.clear
+            .frame(width: PUI.ItemWindow.inspectorWidth)
+            .frame(maxHeight: .infinity)
     }
 
     // MARK: - 1. Header (icon + title)

@@ -83,6 +83,19 @@ enum PUI {
         }
     }
 
+    // MARK: - Item Window (floating card dimensions)
+
+    enum ItemWindow {
+        /// Card width when the inspector column is shown (two-column).
+        static let totalWidth: CGFloat = 760
+        /// Card width when the inspector is collapsed (single-column) — used by the toggle task (D7).
+        static let mainWidth: CGFloat = 480
+        /// Fixed width of the right-hand inspector column.
+        static let inspectorWidth: CGFloat = 260
+        /// Card height.
+        static let height: CGFloat = 480
+    }
+
     // MARK: - Icons (Font + frame per role)
 
     enum Icon {
