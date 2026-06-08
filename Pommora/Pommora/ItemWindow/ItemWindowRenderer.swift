@@ -17,6 +17,13 @@ struct ItemWindowRenderer: View {
     /// Mirrors `PageEditorView.viewModel`.
     @Bindable var vm: ItemWindowViewModel
 
+    /// Dismisses the hosting floating window after a delete. Same idiom the
+    /// enclosing `PreviewWindow` scene uses for its close affordance + Esc.
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    /// Drives the footer options menu's destructive-delete confirmation.
+    @State private var showDeleteConfirm = false
+
     // MARK: - Promoted / overflow partition (pure)
 
     /// Splits the full ordered property-id list into the promoted set (main panel,
@@ -164,13 +171,29 @@ struct ItemWindowRenderer: View {
     private var footer: some View {
         DetailFooterBar(crumbs: footerCrumbs) {
             Menu {
-                // Template / view options land here (zone-framework rework).
-                Text("Options")
+                // Delete is the only option for v1; template / view options
+                // land here later (zone-framework rework).
+                Button("Delete", role: .destructive) { showDeleteConfirm = true }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
+        }
+        .confirmationDialog(
+            "Delete Item \"\(vm.item.title)\"?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            // Delete FIRST, then dismiss: the now-deleted Item re-resolves to nil
+            // in the scene's close flush, which safely no-ops (no resurrection).
+            Button("Delete", role: .destructive) {
+                Task {
+                    await vm.confirmDelete()
+                    dismissWindow()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
