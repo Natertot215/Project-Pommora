@@ -137,8 +137,10 @@ struct ItemWindowRenderer: View {
         VStack(alignment: .leading, spacing: 0) {
             // D5a: the three context-tier fields, pinned to the inspector's top.
             tierFields
-            // D5b: property rows + Add-Property land in the gap the Spacer holds
-            // open between the tier fields and the bottom Delete row.
+            // D5b: property rows + the Add-Property control fill the gap between
+            // the tier fields and the bottom Delete row.
+            propertyRows
+            addPropertyControl
             Spacer(minLength: 0)
             HStack {
                 Spacer()
@@ -232,6 +234,98 @@ struct ItemWindowRenderer: View {
         case 2: return Binding(get: { vm.draftTier2 }, set: { vm.handleTierChange(2, $0) })
         case 3: return Binding(get: { vm.draftTier3 }, set: { vm.handleTierChange(3, $0) })
         default: return .constant([])
+        }
+    }
+
+    // MARK: - Property rows + Add-Property (D5b)
+
+    /// The non-pinned, filled-or-surfaced schema properties to render as inspector
+    /// rows, in schema order. Pinned properties are EXCLUDED — their chips live in
+    /// the main column's `PropertyFieldBar`, never here (so a property is in exactly
+    /// one place). Tiers aren't in `itemType.properties`, so they never reach here
+    /// (they're handled by `tierFields` / D5a).
+    ///
+    /// Pure value code OUTSIDE any `@ViewBuilder` body (quirk #12). All membership
+    /// tests are `Set<String>.contains` (the standard-library set lookup, unaffected
+    /// by GRDB's `SQLSpecificExpressible` String overloads — that pollution only
+    /// bites `Array.contains` / `==` on String inside a view body), and `filledIDs`
+    /// is derived via `filter`/`map(\.key)`, never an in-view `==`.
+    private var propertyRowDefinitions: [PropertyDefinition] {
+        let pinnedIDs = Set(
+            TemplateResolver.promotedForField(type: vm.itemType, collection: vm.collection)
+                .map { $0.promotion.id })
+        let filledIDs = Set(
+            vm.draftProperties.filter { ItemWindowViewModel.isFilled($0.value) }.map(\.key))
+        return vm.itemType.properties.filter { def in
+            !pinnedIDs.contains(def.id) && (filledIDs.contains(def.id) || vm.surfaced.contains(def.id))
+        }
+    }
+
+    /// One `InspectorPropertyRow` per filtered definition. Each row reads its current
+    /// draft value and routes edits back through `vm.handlePropertyChange`. The
+    /// `index` (drives the relation picker's candidate query) is `nexusManager`'s
+    /// live index; the relation chips resolve via `contextResolver` — the same env
+    /// reads the tier fields use. Self-collapses (no inset) when there are no rows.
+    @ViewBuilder
+    private var propertyRows: some View {
+        let definitions = propertyRowDefinitions
+        if !definitions.isEmpty {
+            VStack(alignment: .leading, spacing: PUI.Spacing.md) {
+                ForEach(definitions) { definition in
+                    InspectorPropertyRow(
+                        definition: definition,
+                        value: vm.draftProperties[definition.id],
+                        onChange: { vm.handlePropertyChange($0, $1) },
+                        index: nexusManager.currentIndex,
+                        resolver: contextResolver
+                    )
+                }
+            }
+            .padding(.horizontal, PUI.Spacing.xl)
+            .padding(.top, PUI.Spacing.md)
+        }
+    }
+
+    /// The schema properties still addable from the "Add property" menu — those not
+    /// already filled, pinned, reserved, or the virtual last-edited-time. Pure value
+    /// code OUTSIDE the `@ViewBuilder` (quirk #12); reuses `filledIDs`/`pinnedIDs`
+    /// computed the same way as `propertyRowDefinitions`.
+    private var addablePropertyDefinitions: [PropertyDefinition] {
+        let pinnedIDs = Set(
+            TemplateResolver.promotedForField(type: vm.itemType, collection: vm.collection)
+                .map { $0.promotion.id })
+        let filledIDs = Set(
+            vm.draftProperties.filter { ItemWindowViewModel.isFilled($0.value) }.map(\.key))
+        return ItemWindowViewModel.addableProperties(
+            schema: vm.itemType.properties, filled: filledIDs, pinned: pinnedIDs)
+    }
+
+    /// "Add property" affordance below the property rows — a subtle `Menu` listing
+    /// every addable schema property. Picking one surfaces its (empty) inspector row
+    /// via `vm.addProperty(_:)`; no value is written until the user assigns one, so
+    /// there's no seam call on add. Self-collapses when nothing is addable.
+    @ViewBuilder
+    private var addPropertyControl: some View {
+        let addable = addablePropertyDefinitions
+        if !addable.isEmpty {
+            Menu {
+                ForEach(addable) { def in
+                    Button {
+                        vm.addProperty(def.id)
+                    } label: {
+                        Label(def.name, systemImage: def.displayIcon)
+                    }
+                }
+            } label: {
+                Label("Add property", systemImage: "plus")
+                    .font(PUI.Typography.row)
+                    .foregroundStyle(.secondary)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .padding(.horizontal, PUI.Spacing.xl)
+            .padding(.top, PUI.Spacing.md)
         }
     }
 
@@ -451,6 +545,405 @@ private struct TierField: View {
         .overlay(
             RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous)
                 .strokeBorder(.separator, lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Inspector property row (D5b)
+
+/// One non-pinned property row in the Item-Window inspector. Lays the property's
+/// identity out ONCE on the leading edge — `(icon) (name)` — then a `Spacer` and
+/// the editable value/chip right-aligned: `(icon) (name) ────── (value)`. The row
+/// itself is transparent (no fill); the value chips are the only filled element.
+///
+/// **No double-name.** This renders `Text(definition.name)` itself and is NEVER
+/// wrapped in a `LabeledContent(name)` by its caller — so the name appears once
+/// (the bug that `PropertyEditorRow` + `FrontmatterInspector`'s `LabeledContent`
+/// wrapper produced is structurally avoided here).
+///
+/// A plain value-typed sub-view (`String` / `PropertyValue?` / closures / `Int` /
+/// optionals) so no GRDB-`String` overload ambiguity reaches a `@ViewBuilder`
+/// (quirk #12). The chip onPick toggle + id matching live in the value-typed
+/// `InspectorChipField` below, mirroring `PropertyFieldBar`/`PropertyCellEditor`.
+private struct InspectorPropertyRow: View {
+    let definition: PropertyDefinition
+    let value: PropertyValue?
+    let onChange: (String, PropertyValue) -> Void
+    /// Drives a relation field's candidate query (nil shows the picker's own empty state).
+    let index: PommoraIndex?
+    /// Resolves relation IDs to icon + title chips.
+    let resolver: ContextDisplayResolver
+
+    var body: some View {
+        HStack(spacing: PUI.Spacing.md) {
+            Image(systemName: definition.displayIcon)
+                .font(PUI.Icon.leading)
+                .foregroundStyle(.secondary)
+                .frame(width: PUI.Icon.leadingFrame)
+            Text(definition.name)
+                .font(PUI.Typography.row)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: PUI.Spacing.sm)
+            field
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Per-type field (the editable value/chip, trailing)
+
+    @ViewBuilder
+    private var field: some View {
+        switch definition.type {
+        case .select, .multiSelect, .status:
+            InspectorChipField(definition: definition, value: value, onChange: onChange)
+        case .checkbox:
+            checkboxField
+        case .number:
+            numberField
+        case .url:
+            urlField
+        case .date, .datetime:
+            InspectorDateField(definition: definition, value: value, onChange: onChange)
+        case .relation:
+            relationField
+        case .file, .lastEditedTime:
+            // Read-only v1 fallback — file management + the virtual last-edited
+            // timestamp aren't inline-editable here yet (flagged in the report).
+            PropertyCellDisplay(definition: definition, value: value)
+        }
+    }
+
+    // MARK: - Checkbox
+
+    private var checkboxField: some View {
+        Toggle(
+            "",
+            isOn: Binding(
+                get: { if case .checkbox(let b) = value { return b } else { return false } },
+                set: { onChange(definition.id, .checkbox($0)) }
+            )
+        )
+        .labelsHidden()
+    }
+
+    // MARK: - Number (inline-commit on Enter + focus-loss)
+
+    private var numberField: some View {
+        InspectorTextField(
+            placeholder: "",
+            text: numberText,
+            commit: { committed in
+                let trimmed = committed.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty {
+                    onChange(definition.id, .null)
+                } else if let n = Double(trimmed) {
+                    onChange(definition.id, .number(n))
+                }
+            }
+        )
+        .frame(maxWidth: 100)
+    }
+
+    private var numberText: String {
+        if case .number(let n) = value { return n.formatted(.number.grouping(.never)) }
+        return ""
+    }
+
+    // MARK: - URL (inline-commit on Enter + focus-loss)
+
+    private var urlField: some View {
+        InspectorTextField(
+            placeholder: "https://…",
+            text: urlText,
+            commit: { committed in
+                let trimmed = committed.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty {
+                    onChange(definition.id, .null)
+                } else if let url = URL(string: trimmed), url.scheme != nil {
+                    onChange(definition.id, .url(url))
+                }
+            }
+        )
+        .frame(maxWidth: 160)
+    }
+
+    private var urlText: String {
+        if case .url(let u) = value { return u.absoluteString }
+        return ""
+    }
+
+    // MARK: - Relation
+
+    @ViewBuilder
+    private var relationField: some View {
+        ContextValueEditor(
+            ids: Binding(
+                get: { if case .relation(let ids) = value { return ids } else { return [] } },
+                set: { onChange(definition.id, .relation($0)) }
+            ),
+            scope: definition.relationTarget ?? .contextTier(1),
+            index: index,
+            resolver: resolver
+        )
+    }
+}
+
+// MARK: - Inspector inline text field (quirk #12-safe, inline-commit)
+
+/// A right-aligned inline-commit `TextField` for the number / url rows. Commits on
+/// Enter (`onSubmit`) AND focus-loss (`onChange(of:focused)`) — the Design.md
+/// inline-commit rule (never Enter-only). `.fixedSize` keeps the caret/click target
+/// on the text, not the row. A plain value-typed sub-view (only `String` + a
+/// `commit` closure) so the GRDB-`String` overloads can't reach the parent's
+/// `@ViewBuilder` (quirk #12); the local `@State` mirror is seeded from `text` and
+/// kept in sync via `.onChange(of: text)`.
+private struct InspectorTextField: View {
+    let placeholder: String
+    /// The committed value to display (the source of truth lives in the VM draft).
+    let text: String
+    let commit: (String) -> Void
+
+    @State private var draft: String = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(placeholder, text: $draft)
+            .textFieldStyle(.plain)
+            .multilineTextAlignment(.trailing)
+            .font(PUI.Typography.row)
+            .focused($focused)
+            .fixedSize(horizontal: true, vertical: false)
+            .onAppear { draft = text }
+            .onChange(of: text) { _, new in
+                // Re-sync the local mirror when the draft changes underneath us
+                // (e.g. a clear from elsewhere), but never while the user is typing.
+                if !focused { draft = new }
+            }
+            .onSubmit { commit(draft) }
+            .onChange(of: focused) { _, isFocused in
+                if !isFocused { commit(draft) }
+            }
+    }
+}
+
+// MARK: - Inspector chip field (select / multiSelect / status — quirk #12-safe)
+
+/// The trailing chip control for a select / multiSelect / status property row. Shows
+/// the value as `PropertyChip` pill(s) when filled and a subtle "Set <name>"
+/// placeholder when surfaced-but-empty; tapping opens the property's `ChipDropdown`
+/// in a `.popover`. Mirrors `PropertyFieldBar`'s segment exactly, extended to cover
+/// `.status` (options from `statusGroups`, value `.status(_)`).
+///
+/// A plain value-typed sub-view (quirk #12): all id matching uses `first(where:)` /
+/// `firstIndex(of:)`, never `contains` / `==` on String in the body.
+private struct InspectorChipField: View {
+    let definition: PropertyDefinition
+    let value: PropertyValue?
+    let onChange: (String, PropertyValue) -> Void
+
+    @State private var showDropdown = false
+    /// Seeded `.onAppear` from the definition's options; a live `@State` binding so
+    /// the multi-select dropdown can drag-reorder in-session (mirrors PropertyFieldBar).
+    @State private var opts: [PropertyChipOption] = []
+
+    var body: some View {
+        Button {
+            showDropdown = true
+        } label: {
+            label.contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showDropdown, arrowEdge: .bottom) {
+            ChipDropdown(
+                options: $opts,
+                selectionMode: definition.type == .multiSelect ? .multi : .single,
+                selectedIDs: Self.selectedIDs(from: value),
+                onPick: { opt in apply(opt) },
+                size: .compact
+            )
+            .presentationBackground(.clear)
+        }
+        .onAppear { opts = Self.allOptions(of: definition) }
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        if ItemWindowViewModel.isFilled(value) {
+            let chips = Self.filledChips(definition: definition, value: value)
+            HStack(spacing: PUI.Spacing.xs) {
+                ForEach(chips) { chip in
+                    PropertyChip(label: chip.label, color: chip.color, size: .compact)
+                }
+            }
+        } else {
+            // Surfaced-but-empty placeholder — subtle, reads as "tap to set".
+            Text("Set \(definition.name)")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    // MARK: - onPick toggle (mirrors PropertyFieldBar / PropertyCellEditor)
+
+    /// `.single` (select / status) → set the value, dismiss. `.multi` (multiSelect)
+    /// → toggle the id; empty result clears (`.null`), else `.multiSelect(ids)`, and
+    /// the dropdown stays open for further toggles.
+    private func apply(_ opt: PropertyChipOption) {
+        switch definition.type {
+        case .multiSelect:
+            var ids = Self.currentMultiIDs(from: value)
+            if let i = ids.firstIndex(of: opt.id) {
+                ids.remove(at: i)
+            } else {
+                ids.append(opt.id)
+            }
+            onChange(definition.id, ids.isEmpty ? .null : .multiSelect(ids))
+        case .status:
+            onChange(definition.id, .status(opt.id))
+            showDropdown = false
+        default:
+            onChange(definition.id, .select(opt.id))
+            showDropdown = false
+        }
+    }
+
+    // MARK: - Plain value helpers (OUTSIDE the @ViewBuilder — quirk #12-safe)
+
+    /// All options for this property as chip options. Select/multiSelect read
+    /// `selectOptions`; status flattens `statusGroups` (each option inheriting its
+    /// group color when it doesn't override).
+    static func allOptions(of definition: PropertyDefinition) -> [PropertyChipOption] {
+        switch definition.type {
+        case .status:
+            return (definition.statusGroups ?? []).flatMap { group in
+                group.options.map { $0.asChipOption(groupColor: group.color) }
+            }
+        default:
+            return (definition.selectOptions ?? []).map { $0.asChipOption() }
+        }
+    }
+
+    /// The currently-selected ids as a `Set<String>` for the dropdown's `selectedIDs`.
+    static func selectedIDs(from value: PropertyValue?) -> Set<String> {
+        switch value {
+        case .select(let id): return [id]
+        case .status(let id): return [id]
+        case .multiSelect(let ids): return Set(ids)
+        default: return []
+        }
+    }
+
+    /// The current multi-select ids as an ordered array (for the toggle).
+    static func currentMultiIDs(from value: PropertyValue?) -> [String] {
+        if case .multiSelect(let ids) = value { return ids }
+        return []
+    }
+
+    /// The chip option(s) to render for a filled value — resolved against the
+    /// definition's options so each pill shows the current label + color. Uses
+    /// `first(where:)` (never `contains`); a stored id with no matching option is
+    /// dropped (a deleted option can't crash the row).
+    static func filledChips(
+        definition: PropertyDefinition, value: PropertyValue?
+    ) -> [PropertyChipOption] {
+        let all = allOptions(of: definition)
+        switch value {
+        case .select(let id), .status(let id):
+            return all.first(where: { $0.id == id }).map { [$0] } ?? []
+        case .multiSelect(let ids):
+            return ids.compactMap { id in all.first(where: { $0.id == id }) }
+        default:
+            return []
+        }
+    }
+}
+
+// MARK: - Inspector date field (date / datetime — replicates PropertyEditorRow's leaf)
+
+/// The trailing date control for a date / datetime property row. A tappable field
+/// pill showing the formatted value (or "Empty"), opening Pommora's `DateTimePicker`
+/// in a chromeless popover. Replicates `PropertyEditorRow`'s date leaf verbatim
+/// (DRY at the value-mapping layer via `PropertyValue.from(dateSelection:…)` and
+/// `.dateSelection`), recast over the row's value-callback shape rather than a
+/// two-way `Binding` — so the renderer's edits still route through
+/// `vm.handlePropertyChange`. Time inclusion comes from the property's `timeFormat`.
+///
+/// A plain value-typed sub-view (quirk #12). Fully editable.
+private struct InspectorDateField: View {
+    let definition: PropertyDefinition
+    let value: PropertyValue?
+    let onChange: (String, PropertyValue) -> Void
+
+    @State private var open = false
+
+    var body: some View {
+        Button {
+            open = true
+        } label: {
+            Text(displayString)
+                .font(PUI.Typography.row)
+                .foregroundStyle(hasValue ? .primary : .secondary)
+                .padding(.horizontal, PUI.Spacing.md)
+                .padding(.vertical, PUI.Spacing.xs)
+                .fieldBackground()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            DateTimePicker(
+                selection: selectionBinding,
+                isTimeSet: isTimeSetBinding,
+                mode: .single,
+                timeFormat: definition.timeFormat ?? .none
+            )
+            .presentationBackground(.clear)
+        }
+    }
+
+    private var hasValue: Bool { value?.dateSelection != nil }
+
+    /// Formatted via the canonical `DateFormat` / `TimeFormat` renderers. Time is
+    /// appended only when the stored value is `.datetime` (a `.date` means no time set).
+    private var displayString: String {
+        guard let date = value?.dateSelection?.anchorDate else { return "Empty" }
+        let dateStr = (definition.dateFormat ?? .full).string(from: date)
+        guard case .datetime = value,
+            let time = (definition.timeFormat ?? .none).string(from: date)
+        else { return dateStr }
+        return "\(dateStr) \(time)"
+    }
+
+    private var selectionBinding: Binding<DateSelection?> {
+        let timeFormat = definition.timeFormat ?? .none
+        return Binding(
+            get: { value?.dateSelection },
+            set: { newSel in
+                let hasTime: Bool
+                if case .datetime = value { hasTime = true } else { hasTime = false }
+                onChange(
+                    definition.id,
+                    .from(dateSelection: newSel, timeFormat: timeFormat, isTimeSet: hasTime))
+            }
+        )
+    }
+
+    private var isTimeSetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .datetime = value { return true }
+                return false
+            },
+            set: { newIsTimeSet in
+                guard let date = value?.dateSelection?.anchorDate else { return }
+                let tf = definition.timeFormat ?? .none
+                guard tf.showsTime else { return }
+                onChange(
+                    definition.id,
+                    .from(dateSelection: .single(date), timeFormat: tf, isTimeSet: newIsTimeSet))
+            }
         )
     }
 }
