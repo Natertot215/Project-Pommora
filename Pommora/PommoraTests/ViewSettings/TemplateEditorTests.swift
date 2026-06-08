@@ -2,12 +2,8 @@ import Testing
 
 @testable import Pommora
 
-/// T5.3 — the template editor's pure parts: the cover-eligible filter (only
-/// `.file` properties whose `accept` admits an image MIME qualify) and the
-/// display-write helper (setting one promoted property's `display` updates that
-/// entry by id and preserves the others). The embedded `ItemWindowRenderer`
-/// edit-mode surface (pin/unpin + drag-reorder) is build-verified, not
-/// unit-tested — it's exercised by ItemWindowRenderer's own tests.
+/// T5.3 — the template editor's cover-eligible filter: only `.file` properties
+/// whose `accept` admits an image MIME qualify.
 @Suite("Template editor")
 struct TemplateEditorTests {
 
@@ -51,39 +47,5 @@ struct TemplateEditorTests {
             def("a", type: .file, accept: ["image/*"]),
         ]
         #expect(ItemTemplatePane.coverEligible(defs).map(\.id) == ["z", "a"])
-    }
-
-    // MARK: - Display-write helper
-
-    @Test("applyDisplay updates the matching promoted entry by id and preserves others")
-    func applyDisplayUpdatesById() {
-        let promoted = [
-            PromotedProperty(id: "p1", display: .inline),
-            PromotedProperty(id: "p2", display: nil),
-            PromotedProperty(id: "p3", display: .chips),
-        ]
-        let result = ItemTemplatePane.applyDisplay(.banner, to: "p2", in: promoted)
-        #expect(result.map(\.id) == ["p1", "p2", "p3"])  // order preserved
-        #expect(result[0].display == .inline)  // untouched
-        #expect(result[1].display == .banner)  // updated
-        #expect(result[2].display == .chips)  // untouched
-    }
-
-    @Test("applyDisplay can clear an override (nil display) on the target only")
-    func applyDisplayCanClear() {
-        let promoted = [
-            PromotedProperty(id: "p1", display: .banner),
-            PromotedProperty(id: "p2", display: .chips),
-        ]
-        let result = ItemTemplatePane.applyDisplay(nil, to: "p1", in: promoted)
-        #expect(result[0].display == nil)
-        #expect(result[1].display == .chips)
-    }
-
-    @Test("applyDisplay no-ops when the id isn't present")
-    func applyDisplayUnknownId() {
-        let promoted = [PromotedProperty(id: "p1", display: .inline)]
-        let result = ItemTemplatePane.applyDisplay(.banner, to: "missing", in: promoted)
-        #expect(result == promoted)
     }
 }

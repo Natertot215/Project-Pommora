@@ -2,11 +2,11 @@ import Testing
 
 @testable import Pommora
 
-/// T3.5 — the pure reorder helper backing the renderer's edit-mode drag handler.
-/// The `editing`-flag view gating (drag handles + pin checklist only in edit mode;
-/// `promoted_properties` never mutated in the live window) is structural and
-/// build-verified, not unit-tested here.
-@Suite struct ItemWindowEditModeTests {
+/// The pure reorder helper retained on `ItemWindowRenderer` for the zone rework.
+/// `reorderPromoted` reorders the promoted list by ID while preserving each
+/// `PromotedProperty`'s per-property `display`; it stays unit-testable without a
+/// SwiftUI host (no production caller references it yet).
+@Suite struct ItemWindowReorderTests {
     @Test func reorderPreservesDisplayAndOrder() {
         let promoted = [
             PromotedProperty(id: "p1", display: .thumbnail),
