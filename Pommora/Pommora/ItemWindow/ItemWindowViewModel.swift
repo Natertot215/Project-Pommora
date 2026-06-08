@@ -132,4 +132,30 @@ final class ItemWindowViewModel {
             return true
         }
     }
+
+    /// Applies a single property edit: mutate the in-memory draft synchronously,
+    /// then fire one live save through the `onUpdateProperty` seam.
+    ///
+    /// Clearing (`value == .null`) removes the draft key AND surfaces the property
+    /// so its (now-empty) inspector row stays visible — EXCEPT for a pinned
+    /// property, which lives on the chip row and must never appear in the
+    /// inspector, so a pinned-clear removes the draft without surfacing. Any
+    /// non-null value just writes the draft (no surfacing — it's already filled).
+    ///
+    /// The original `value` (including `.null`) is always passed to the seam; the
+    /// manager seam's gate converts a `.null` into on-disk key-removal. The save
+    /// `Task` captures `self` STRONGLY: it's a one-shot save that must complete
+    /// regardless of window lifecycle, and there's no retain cycle since the Task
+    /// isn't stored. Being `@MainActor`, the Task inherits main-actor isolation,
+    /// so reading `self.onUpdateProperty` is main-actor-safe.
+    func handlePropertyChange(_ id: String, _ value: PropertyValue) {
+        switch value {
+        case .null:
+            draftProperties.removeValue(forKey: id)
+            if !pinnedIDs.contains(id) { surfaced.insert(id) }
+        default:
+            draftProperties[id] = value
+        }
+        Task { try? await self.onUpdateProperty(id, value) }
+    }
 }
