@@ -294,7 +294,7 @@ private struct PropertyVisibilityRow: View {
     var body: some View {
         Button(action: onToggle) {
             HStack(spacing: PUI.Row.interSpacing) {
-                Image(systemName: definition.icon ?? definition.type.pickerIcon)
+                Image(systemName: definition.displayIcon)
                     .font(PUI.Icon.leading)
                     .foregroundStyle(isVisible ? .primary : .tertiary)
                     .frame(width: PUI.Icon.leadingFrame)

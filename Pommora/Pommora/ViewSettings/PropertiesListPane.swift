@@ -172,7 +172,7 @@ private struct PropertyRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: PUI.Row.interSpacing) {
-                Image(systemName: definition.icon ?? definition.type.pickerIcon)
+                Image(systemName: definition.displayIcon)
                     .font(PUI.Icon.leading)
                     .foregroundStyle(isReserved ? .tertiary : .primary)
                     .frame(width: PUI.Icon.leadingFrame)

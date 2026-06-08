@@ -26,4 +26,9 @@ struct ItemWindowZoneConfigTests {
         let promoted = [PromotedProperty(id: "s"), PromotedProperty(id: "n")]
         #expect(ItemWindowZoneConfig.pinnedTypes(promoted: promoted, schema: schema) == [.select])
     }
+    @Test func combinedTotalUnderCapAndPoolC() {
+        #expect(!ItemWindowZoneConfig.isAtCap(.select, pinnedTypes: [.select, .multiSelect]))   // 2 of 4 — under
+        #expect(!ItemWindowZoneConfig.isAtCap(.url, pinnedTypes: [.url]))                       // 1 of 2 — under
+        #expect(ItemWindowZoneConfig.isAtCap(.url, pinnedTypes: [.url, .file]))                 // 2 of 2 — at cap (Pool C)
+    }
 }

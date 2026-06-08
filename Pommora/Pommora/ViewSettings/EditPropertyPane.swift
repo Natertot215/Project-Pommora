@@ -153,7 +153,7 @@ struct EditPropertyPane: View {
             Button {
                 iconPickerOpen = true
             } label: {
-                Image(systemName: def.icon ?? def.type.pickerIcon)
+                Image(systemName: def.displayIcon)
                     .font(PUI.Icon.header)
                     .foregroundStyle(.primary)
                     .frame(width: PUI.Icon.headerFrame, height: PUI.Icon.headerFrame)
