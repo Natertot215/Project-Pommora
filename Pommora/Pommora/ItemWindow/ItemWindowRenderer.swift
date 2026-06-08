@@ -22,6 +22,18 @@ struct ItemWindowRenderer: View {
     /// its close button + Esc.
     @Environment(\.dismissWindow) private var dismissWindow
 
+    /// Live index source for the tier fields' `ContextValueEditor` picker
+    /// (`nexusManager.currentIndex`). All three of the env reads below are
+    /// confirmed stored + injected by `injectNexusEnvironment` (quirk #15):
+    /// `nexusManager`, `contextResolver`, `tierConfigManager` — so declaring
+    /// them here can't SIGTRAP a `.task`-bearing render on first open.
+    @Environment(NexusManager.self) private var nexusManager
+    /// Resolves each tier relation ID to its target's icon + title (chips).
+    @Environment(ContextDisplayResolver.self) private var contextResolver
+    /// Per-Nexus tier labels (the field labels resolve through the canonical
+    /// `ItemType.resolvedProperties(tierConfig:)` merge, which reads this).
+    @Environment(TierConfigManager.self) private var tierConfig
+
     /// Drives the inspector column's destructive-delete confirmation dialog.
     @State private var showDeleteConfirm = false
 
@@ -115,14 +127,18 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Inspector column
 
-    /// Right column — fixed-width, full-height inspector. Tier fields + property
-    /// rows + the Add-Property affordance land in the empty top region in a later
-    /// task (D5); for now a `Spacer` pushes the destructive Delete affordance to
-    /// the column's bottom-right. The delete confirmation dialog is anchored here
+    /// Right column — fixed-width, full-height inspector. The three context-tier
+    /// fields pin to the top (D5a, `tierFields`); property rows + the Add-Property
+    /// affordance land in the gap below them in a later task (D5b). A `Spacer`
+    /// holds that gap open and pushes the destructive Delete affordance to the
+    /// column's bottom-right. The delete confirmation dialog is anchored here
     /// (relocated from the old full-width footer's options menu).
     private var inspectorColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // D5: tier fields + property rows + Add-Property land here.
+            // D5a: the three context-tier fields, pinned to the inspector's top.
+            tierFields
+            // D5b: property rows + Add-Property land in the gap the Spacer holds
+            // open between the tier fields and the bottom Delete row.
             Spacer(minLength: 0)
             HStack {
                 Spacer()
@@ -154,6 +170,69 @@ struct ItemWindowRenderer: View {
         Button("Delete", role: .destructive) { showDeleteConfirm = true }
             .buttonStyle(.plain)
             .foregroundStyle(.red)
+    }
+
+    // MARK: - Tier fields (D5a)
+
+    /// The three context-tier fields (Spaces / Topics / Projects) stacked at the
+    /// inspector's top — each a filled field box carrying the tier's icon + label
+    /// plus an inline `ContextValueEditor` for its relation chips. Drives off the
+    /// canonical `ItemType.resolvedProperties(tierConfig:)` merge so the icons +
+    /// labels are the SAME ones the property bar / page inspector resolve (DRY —
+    /// no re-deriving "Spaces"/icon here). The `.contextTier(n)` entries arrive in
+    /// tier order from the merge; each renders one `TierField`. Per-tier `==`/id
+    /// work stays out of this `@ViewBuilder` — `tierProperties` is a plain helper
+    /// and each row is its own value-typed sub-view (quirk #12).
+    private var tierFields: some View {
+        VStack(spacing: PUI.Spacing.md) {
+            ForEach(tierProperties) { entry in
+                TierField(
+                    level: entry.level,
+                    icon: entry.definition.icon ?? "circle",
+                    label: entry.definition.name,
+                    ids: tierBinding(entry.level),
+                    index: nexusManager.currentIndex,
+                    resolver: contextResolver
+                )
+            }
+        }
+        .padding(PUI.Spacing.xl)
+    }
+
+    /// One resolved tier row: its level (1...3) paired with the merged
+    /// `PropertyDefinition` carrying that tier's icon + TierConfig label.
+    private struct TierEntry: Identifiable {
+        let level: Int
+        let definition: PropertyDefinition
+        var id: Int { level }
+    }
+
+    /// The merged tier relation properties (icon + TierConfig label per tier),
+    /// reduced to `(level, definition)` pairs. The canonical merge emits the tiers
+    /// last and in 1→3 order, and `compactMap` preserves that, so no re-sort here.
+    /// Pure value code OUTSIDE the `@ViewBuilder` body, so the `case .contextTier`
+    /// match + `compactMap` are quirk-12 safe. Reads the live `TierConfig` so a
+    /// relabeled tier re-titles. The `.contextTier(n)` level is the single source
+    /// of the row's tier number — never the array position.
+    private var tierProperties: [TierEntry] {
+        vm.itemType.resolvedProperties(tierConfig: tierConfig.config)
+            .compactMap { def in
+                guard case .contextTier(let level) = def.relationTarget else { return nil }
+                return TierEntry(level: level, definition: def)
+            }
+    }
+
+    /// Two-way binding for tier `n`'s draft ID array, routing writes through the
+    /// VM's `handleTierChange` (which mutates the draft + fires the live save).
+    /// Mirrors `FrontmatterInspector.tierBinding`; the fixed 1...3 set maps via a
+    /// `switch`, any other level reads/writes nothing (HARD RULE: exhaustive flow).
+    private func tierBinding(_ tier: Int) -> Binding<[String]> {
+        switch tier {
+        case 1: return Binding(get: { vm.draftTier1 }, set: { vm.handleTierChange(1, $0) })
+        case 2: return Binding(get: { vm.draftTier2 }, set: { vm.handleTierChange(2, $0) })
+        case 3: return Binding(get: { vm.draftTier3 }, set: { vm.handleTierChange(3, $0) })
+        default: return .constant([])
+        }
     }
 
     // MARK: - 1. Header (close · icon · title · inspector toggle)
@@ -318,5 +397,60 @@ struct ItemWindowRenderer: View {
             crumbs.append(FooterCrumb(title: collection.title))
         }
         return crumbs
+    }
+}
+
+// MARK: - Tier field (D5a)
+
+/// One full-width context-tier field box in the Item-Window inspector: the
+/// tier's icon + label on the leading edge, with an inline `ContextValueEditor`
+/// trailing that shows the tier's relation chips (or its own "Add" affordance
+/// when empty). The label always names the tier, so an empty tier still reads as
+/// "Spaces" / "Topics" / "Projects" rather than a bare "Add".
+///
+/// The box fill is the standard control-field background — `PUI.Fill.field`
+/// (`.quinary`) at `PUI.Radius.field`, with a `.separator` hairline — the same
+/// field-background language the Pages property inspector's context fields use
+/// (and that `ContextChip` itself rides). Translucent, so the Item Window's
+/// glass shows through while reading as a distinct menu/control field on top.
+///
+/// A pure value-typed sub-view (only `String` / `Binding<[String]>` / optional
+/// index + resolver) so no GRDB-`String` overload ambiguity reaches a
+/// `@ViewBuilder` here (quirk #12); the picker hosting is `ContextValueEditor`'s.
+private struct TierField: View {
+    /// Tier number (1...3) — drives the picker `scope`; the parent carries it
+    /// explicitly (it's the `.contextTier(n)` level, never the array position).
+    let level: Int
+    let icon: String
+    let label: String
+    @Binding var ids: [String]
+    let index: PommoraIndex?
+    let resolver: ContextDisplayResolver
+
+    var body: some View {
+        HStack(spacing: PUI.Spacing.md) {
+            Image(systemName: icon)
+                .font(PUI.Icon.leading)
+                .foregroundStyle(.secondary)
+                .frame(width: PUI.Icon.leadingFrame)
+            Text(label)
+                .font(PUI.Typography.row)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: PUI.Spacing.sm)
+            ContextValueEditor(
+                ids: $ids,
+                scope: .contextTier(level),
+                index: index,
+                resolver: resolver
+            )
+        }
+        .padding(.horizontal, PUI.Spacing.xl)
+        .padding(.vertical, PUI.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(PUI.Fill.field, in: RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 0.5)
+        )
     }
 }
