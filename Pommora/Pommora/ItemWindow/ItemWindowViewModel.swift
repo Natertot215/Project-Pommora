@@ -152,21 +152,25 @@ final class ItemWindowViewModel {
         }
     }
 
+    /// Fires a one-shot live save through the `onUpdateProperty` seam (shared by
+    /// the property and tier handlers). Captures `self` STRONGLY: a one-shot save
+    /// must complete regardless of window lifecycle, and there's no retain cycle
+    /// (the Task isn't stored). Being `@MainActor`, the Task inherits main-actor
+    /// isolation, so reading `self.onUpdateProperty` is main-actor-safe. `value`
+    /// (including `.null`) passes through verbatim; the manager seam's gate maps
+    /// `.null` to on-disk key-removal.
+    private func fireSave(_ id: String, _ value: PropertyValue) {
+        Task { try? await self.onUpdateProperty(id, value) }
+    }
+
     /// Applies a single property edit: mutate the in-memory draft synchronously,
-    /// then fire one live save through the `onUpdateProperty` seam.
+    /// then fire one live save via `fireSave`.
     ///
     /// Clearing (`value == .null`) removes the draft key AND surfaces the property
     /// so its (now-empty) inspector row stays visible — EXCEPT for a pinned
     /// property, which lives on the chip row and must never appear in the
     /// inspector, so a pinned-clear removes the draft without surfacing. Any
     /// non-null value just writes the draft (no surfacing — it's already filled).
-    ///
-    /// The original `value` (including `.null`) is always passed to the seam; the
-    /// manager seam's gate converts a `.null` into on-disk key-removal. The save
-    /// `Task` captures `self` STRONGLY: it's a one-shot save that must complete
-    /// regardless of window lifecycle, and there's no retain cycle since the Task
-    /// isn't stored. Being `@MainActor`, the Task inherits main-actor isolation,
-    /// so reading `self.onUpdateProperty` is main-actor-safe.
     func handlePropertyChange(_ id: String, _ value: PropertyValue) {
         switch value {
         case .null:
@@ -175,7 +179,7 @@ final class ItemWindowViewModel {
         default:
             draftProperties[id] = value
         }
-        Task { try? await self.onUpdateProperty(id, value) }
+        fireSave(id, value)
     }
 
     /// Applies a tier (Context-relation) edit: mutate the matching draft array
@@ -189,8 +193,7 @@ final class ItemWindowViewModel {
     /// its root; passing `.null` would be a bug (it would be read as key-removal,
     /// not an empty tier). `tier` is the fixed set 1...3 — a `switch` maps it to
     /// its draft + reserved ID, and any out-of-range caller is ignored (HARD RULE:
-    /// tight exhaustive control flow). Strong `self` capture mirrors
-    /// `handlePropertyChange`: a one-shot save with no stored Task, so no cycle.
+    /// tight exhaustive control flow). The live save is fired via `fireSave`.
     func handleTierChange(_ tier: Int, _ newIDs: [String]) {
         let reservedID: String
         switch tier {
@@ -206,7 +209,7 @@ final class ItemWindowViewModel {
         default:
             return
         }
-        Task { try? await self.onUpdateProperty(reservedID, .relation(newIDs)) }
+        fireSave(reservedID, .relation(newIDs))
     }
 
     /// Sets the draft icon and fires a one-shot live save through `onUpdateIcon`;
