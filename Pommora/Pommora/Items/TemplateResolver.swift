@@ -34,4 +34,16 @@ enum TemplateResolver {
             return (promotion, definition)
         }
     }
+
+    /// The chip-eligible subset of `promotedEntries` — promoted properties whose
+    /// type is in `ItemWindowZoneConfig.v1Checkable` (`.select` / `.multiSelect`),
+    /// in the same partition order. Additive over `promotedEntries` (never
+    /// modifies it): the Item Window's segmented property bar + inspector consume
+    /// this to keep only V1-checkable pinned properties.
+    static func promotedForField(
+        type: ItemType, collection: ItemCollection?
+    ) -> [(promotion: PromotedProperty, definition: PropertyDefinition)] {
+        promotedEntries(type: type, collection: collection)
+            .filter { ItemWindowZoneConfig.v1Checkable.contains($0.definition.type) }
+    }
 }
