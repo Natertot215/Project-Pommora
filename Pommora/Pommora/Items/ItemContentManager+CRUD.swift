@@ -63,11 +63,19 @@ extension ItemContentManager {
     // Type and the live tier-lookup context from `contextProvider()`. The
     // `description` is the Item's body (Shape A) — capped at
     // `ItemValidator.maxDescriptionLength` source characters.
-    fileprivate func validate(_ item: Item, type itemType: ItemType) throws {
+    //
+    // `isBodyEdit` gates ONLY the body-cap path: a non-body write (e.g. an icon
+    // change via `updateItemIcon`) must not throw `.descriptionTooLong` on an
+    // Item whose body is ALREADY over-cap — the write never touched the body. We
+    // skip the cap by passing an empty `description` (`"".count <= cap` always
+    // holds), which leaves every OTHER check (title / tier / property schema)
+    // running on the real Item. `ItemValidator.validate`'s public signature is
+    // unchanged — the gate lives entirely in this wrapper.
+    fileprivate func validate(_ item: Item, type itemType: ItemType, isBodyEdit: Bool = true) throws {
         try ItemValidator.validate(
             title: item.title,
             tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
-            description: item.description,
+            description: isBodyEdit ? item.description : "",
             properties: item.properties,
             itemType: itemType,
             context: contextProvider()
@@ -225,7 +233,9 @@ extension ItemContentManager {
         }
     }
 
-    func updateItem(_ item: Item, in collection: ItemCollection, type itemType: ItemType) async throws {
+    func updateItem(
+        _ item: Item, in collection: ItemCollection, type itemType: ItemType, isBodyEdit: Bool = true
+    ) async throws {
         do {
             let trimmed = item.title.trimmingCharacters(in: .whitespaces)
             let existing = itemsByCollection[collection.id] ?? []
@@ -234,7 +244,7 @@ extension ItemContentManager {
 
             var updated = item
             updated.modifiedAt = Date()
-            try validate(updated, type: itemType)
+            try validate(updated, type: itemType, isBodyEdit: isBodyEdit)
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: collection.folderURL)
             try updated.save(to: url)
 
@@ -424,7 +434,9 @@ extension ItemContentManager {
         }
     }
 
-    func updateItem(_ item: Item, inTypeRoot itemType: ItemType) async throws {
+    func updateItem(
+        _ item: Item, inTypeRoot itemType: ItemType, isBodyEdit: Bool = true
+    ) async throws {
         do {
             let trimmed = item.title.trimmingCharacters(in: .whitespaces)
             let existing = itemsByTypeRoot[itemType.id] ?? []
@@ -433,7 +445,7 @@ extension ItemContentManager {
 
             var updated = item
             updated.modifiedAt = Date()
-            try validate(updated, type: itemType)
+            try validate(updated, type: itemType, isBodyEdit: isBodyEdit)
             let url = NexusPaths.itemFileURL(forTitle: trimmed, in: folderURL(for: itemType))
             try updated.save(to: url)
 
@@ -792,15 +804,20 @@ extension ItemContentManager {
     /// through the existing `updateItem` save path (atomic write + `modifiedAt`
     /// bump + index upsert + in-memory sync). Type-root vs in-collection picks
     /// the matching overload.
+    ///
+    /// `isBodyEdit: false` — an icon change never touches the body, so it must
+    /// not re-run the body-cap check; otherwise changing the icon on an Item
+    /// whose body is already over-cap (a drifted / imported file) would throw
+    /// `.descriptionTooLong` on data the write never touched.
     func updateItemIcon(
         _ item: Item, to icon: String?, type itemType: ItemType, collection: ItemCollection?
     ) async throws {
         var updated = item
         updated.icon = icon
         if let collection {
-            try await updateItem(updated, in: collection, type: itemType)
+            try await updateItem(updated, in: collection, type: itemType, isBodyEdit: false)
         } else {
-            try await updateItem(updated, inTypeRoot: itemType)
+            try await updateItem(updated, inTypeRoot: itemType, isBodyEdit: false)
         }
     }
 

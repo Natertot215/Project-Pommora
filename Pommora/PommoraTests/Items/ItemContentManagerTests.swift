@@ -337,6 +337,48 @@ struct ItemContentManagerTests {
         #expect(fresh.items(in: itemType).first?.properties["p"] == nil)
     }
 
+    // MARK: - Icon edit vs body-cap (A3)
+
+    @Test("updateItemIcon on an already-over-cap Item does not throw + persists the icon")
+    func updateItemIconSkipsBodyCapOnOverCapItem() async throws {
+        let (nexus, itemType, manager) = try await setupTypeRoot()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: itemType.title)
+
+        // Create normally (empty body passes createItem), then OVERWRITE the .md
+        // on disk with a body exceeding the effective cap (default 500). Mirrors
+        // the drift-simulation pattern in `renameDriftedItemSucceeds`: a verbatim
+        // `Item.save` envelope write the loader round-trips faithfully.
+        let created = try await manager.createItem(name: "Notes", inTypeRoot: itemType)
+        let url = NexusPaths.itemFileURL(forTitle: "Notes", in: folder)
+        let overCap = Item(
+            id: created.id, title: "Notes", icon: created.icon,
+            description: String(repeating: "x", count: ItemValidator.maxDescriptionLength + 100),
+            tier1: [], tier2: [], tier3: [], properties: [:],
+            createdAt: created.createdAt, modifiedAt: created.modifiedAt)
+        try overCap.save(to: url)
+
+        // Reload so the manager holds the over-cap Item (its in-memory copy is
+        // still the empty-body create otherwise).
+        await manager.loadAll(for: itemType)
+        let reloaded = manager.items(in: itemType).first!
+        #expect(reloaded.description.count == ItemValidator.maxDescriptionLength + 100)
+
+        // An icon edit must NOT re-run the body-cap on the untouched over-cap
+        // body. Before A3 this threw `.descriptionTooLong` (updateItemIcon →
+        // updateItem → validate → cap check).
+        await #expect(throws: Never.self) {
+            try await manager.updateItemIcon(reloaded, to: "star", type: itemType, collection: nil)
+        }
+
+        // The icon persisted; the over-cap body survived verbatim.
+        let fresh = TempNexus.reopen(nexus)
+        await fresh.loadAll(for: itemType)
+        let final = fresh.items(in: itemType).first!
+        #expect(final.icon == "star")
+        #expect(final.description.count == ItemValidator.maxDescriptionLength + 100)
+    }
+
     // MARK: - Setup
 
     /// Bootstraps a temp nexus with an ItemType + ItemCollection materialized
