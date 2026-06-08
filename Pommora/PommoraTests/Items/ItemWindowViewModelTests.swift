@@ -19,6 +19,7 @@ struct ItemWindowViewModelTests {
             properties: [], views: [], modifiedAt: Date()
         ),
         onUpdateProperty: @escaping (String, PropertyValue) async throws -> Void = { _, _ in },
+        onUpdateIcon: ((String?) async throws -> Void)? = nil,
         onRename: ((String) async throws -> Item)? = nil
     ) -> ItemWindowViewModel {
         ItemWindowViewModel(
@@ -26,7 +27,7 @@ struct ItemWindowViewModelTests {
             itemType: type,
             collection: nil,
             onUpdateProperty: onUpdateProperty,
-            onUpdateIcon: { _ in },
+            onUpdateIcon: onUpdateIcon ?? { _ in },
             onUpdateBody: { _ in },
             onRename: onRename ?? { _ in item },
             onDeleteItem: {}
@@ -223,6 +224,18 @@ struct ItemWindowViewModelTests {
 
         #expect(spy.calls.isEmpty)  // guard short-circuited via trimming
         #expect(vm.inlineError == nil)
+    }
+
+    // MARK: - B5
+
+    @Test func iconChangeSetsDraftAndCallsSeam() async {
+        let item = makeItem(icon: nil, description: "")
+        let seamValue: String? = await withCheckedContinuation { continuation in
+            let vm = makeVM(item: item, onUpdateIcon: { icon in continuation.resume(returning: icon) })
+            vm.handleIconChange("star")
+            #expect(vm.draftIcon == "star")
+        }
+        #expect(seamValue == "star")
     }
 }
 

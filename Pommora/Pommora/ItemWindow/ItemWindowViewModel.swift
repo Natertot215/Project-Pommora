@@ -190,6 +190,13 @@ final class ItemWindowViewModel {
         Task { try? await self.onUpdateProperty(reservedID, .relation(newIDs)) }
     }
 
+    /// Sets the draft icon and fires a one-shot live save through `onUpdateIcon`;
+    /// `newIcon == nil` clears the icon. Strong `self` like the other one-shot handlers.
+    func handleIconChange(_ newIcon: String?) {
+        draftIcon = newIcon
+        Task { try? await self.onUpdateIcon(newIcon) }
+    }
+
     /// Commits an inline title edit. Idempotent — fires from Enter, focus-loss,
     /// AND window-close, so the trimmed-equals-current guard makes every trigger
     /// after the first a no-op (and a whitespace-only edit a no-op too). On
