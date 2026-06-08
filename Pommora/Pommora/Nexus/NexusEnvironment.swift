@@ -64,6 +64,12 @@ final class NexusEnvironment {
     let mainWindowRouter: MainWindowRouter
     let settingsManager: SettingsManager
 
+    /// Owns the live floating Item panels (one per open `ItemRef`). Reached via
+    /// `AppGlobals.current?.itemWindowPanelManager` — deliberately NOT injected
+    /// into the SwiftUI environment (it's an AppKit panel registry, not a view
+    /// dependency), so it never participates in the quirk-#15 inject chain.
+    let itemWindowPanelManager: ItemWindowPanelManager
+
     /// Shared context-link/tier display resolver (icon + title from the index).
     /// Its index closure captures `nexusManager` and reads `.currentIndex`
     /// lazily, so it tracks index swaps within this Nexus.
@@ -155,6 +161,7 @@ final class NexusEnvironment {
         let recentsMgr = RecentsManager(nexus: nexus)
         let pinnedMgr = PinnedManager(nexus: nexus)
         let settingsMgr = SettingsManager(nexus: nexus)
+        let itemPanelMgr = ItemWindowPanelManager()
         let router = MainWindowRouter()
 
         // Shared relation/tier display resolver. Captures `nexusManager` (the
@@ -209,6 +216,7 @@ final class NexusEnvironment {
         self.recentsManager = recentsMgr
         self.pinnedManager = pinnedMgr
         self.settingsManager = settingsMgr
+        self.itemWindowPanelManager = itemPanelMgr
         self.mainWindowRouter = router
         self.contextResolver = contextRes
         self.pageConnectionResolver = pageConnRes

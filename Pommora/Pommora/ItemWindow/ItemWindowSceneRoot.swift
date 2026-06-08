@@ -1,43 +1,19 @@
 import SwiftUI
 
-/// T4.3 — scene root for the floating Item Window. Hosted by
-/// `WindowGroup(for: ItemRef.self)` in `PommoraApp`; takes an `ItemRef`, reaches
-/// the live per-Nexus environment via `AppGlobals.current` (a static, NOT an
-/// `@Environment` — so the scene root itself can never SIGTRAP on an un-injected
-/// manager), resolves the ref to its Item + Type + Set, and hosts
-/// `ItemWindowRenderer` directly in a real titled floating window.
+/// Hosts one open Item's SwiftUI content inside a `FloatingItemPanel` (via an
+/// `NSHostingController`) — NOT a `WindowGroup` scene. `ItemWindowPanelManager`
+/// constructs this with the `ItemRef` and the live per-Nexus `NexusEnvironment`
+/// (resolved from `AppGlobals.current` at open time), so this view never reaches
+/// for a per-Nexus manager through `@Environment` outside the
+/// `.injectNexusEnvironment(env)` it applies itself.
 ///
-/// **Quirk #15 safety.** The renderer reads several `@Environment(Manager)`
-/// values (ContextDisplayResolver, TierConfigManager, ItemTypeManager). Those
-/// are satisfied by `.injectNexusEnvironment(env)` applied in
-/// `ItemWindowSceneContent`. Nothing in THIS file reads a per-Nexus manager
-/// through `@Environment` outside that modifier — the env is passed as a plain
-/// value and the managers are read off it directly.
-struct ItemWindowSceneRoot: View {
-    let ref: ItemRef
-
-    var body: some View {
-        if let env = AppGlobals.current {
-            ItemWindowSceneContent(ref: ref, env: env)
-        } else {
-            // Cold-launch restore before any Nexus opened — render a small label
-            // rather than crash. `.restorationBehavior(.disabled)` on the scene
-            // should normally prevent this path entirely.
-            Text("No Nexus open")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding()
-        }
-    }
-}
-
 /// Owns the live `ItemWindowViewModel` for the open Item and injects EVERY
 /// per-Nexus manager (`.injectNexusEnvironment`) so the renderer's `@Environment`
 /// reads are all satisfied (quirk #15). `ItemContentManager` loads its Items
-/// lazily on detail-view appear, so a freshly-opened window may resolve `nil` for
+/// lazily on detail-view appear, so a freshly-opened panel may resolve `nil` for
 /// an Item whose container hasn't been browsed yet — the `.task(id: ref)` triggers
 /// the container load FIRST, then resolves the ref and constructs the VM on the
-/// main actor (never in `View.init` — mirrors `PageEditorHost`).
+/// main actor (never in `View.init`, mirroring `PageEditorHost`).
 ///
 /// **Re-resolve, never value-capture.** Filenames ARE titles, so the manager
 /// seams derive each file URL from `item.title`. The VM's seam closures therefore
@@ -46,7 +22,13 @@ struct ItemWindowSceneRoot: View {
 /// write would target a file that no longer exists. Each closure instead captures
 /// the manager + stable IDs and re-resolves the current Item via `currentItem()`
 /// (the manager's cache is kept current by `renameItem`).
-private struct ItemWindowSceneContent: View {
+///
+/// **Quirk #15 safety.** The renderer reads several `@Environment(Manager)`
+/// values (ContextDisplayResolver, TierConfigManager, ItemTypeManager). Those
+/// are satisfied by `.injectNexusEnvironment(env)` applied below. Nothing here
+/// reads a per-Nexus manager through `@Environment` outside that modifier — the
+/// env is passed as a plain value and the managers are read off it directly.
+struct ItemWindowHost: View {
     let ref: ItemRef
     let env: NexusEnvironment
 
@@ -62,15 +44,11 @@ private struct ItemWindowSceneContent: View {
     var body: some View {
         Group {
             if let vm {
-                ItemWindowRenderer(vm: vm)
+                ItemWindowRenderer(vm: vm, ref: ref)
                     // Fresh subtree (and fresh child @State) per Item — mirrors
                     // PageEditorView's `.id(vm.page.id)`. `.task(id: ref)` only
                     // re-fires when `ref` changes, which is the desired per-item re-init.
                     .id(ref)
-                    // Window identity: the title bar shows the Item's title (the
-                    // user asked for title + icon in the chrome; the icon lands as
-                    // a toolbar item in the renderer rework).
-                    .navigationTitle(vm.item.title)
             } else if resolveFailed {
                 Text("Item no longer available")
                     .foregroundStyle(.secondary)
@@ -82,10 +60,6 @@ private struct ItemWindowSceneContent: View {
                     .padding()
             }
         }
-        // Non-minimizable: this is an auxiliary floating panel tied to Pommora, not
-        // a standalone window. `.windowMinimizeBehavior(.disabled)` (macOS 15+,
-        // WindowInteractionBehavior) configures the enclosing window in every state.
-        .windowMinimizeBehavior(.disabled)
         .injectNexusEnvironment(env)  // quirk #15: satisfies every @Environment the renderer reads.
         // Load the ref's container (so `items(in:)` is populated), THEN resolve +
         // build the VM. Construction lives here — `.task` runs on the main actor,

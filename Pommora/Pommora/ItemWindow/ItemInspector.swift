@@ -13,6 +13,9 @@ import SwiftUI
 /// view can't SIGTRAP on an un-injected manager.
 struct ItemInspector: View {
     @Bindable var vm: ItemWindowViewModel
+    /// Panel identity — threaded from the renderer so Delete can close THIS panel
+    /// via `AppGlobals.current?.itemWindowPanelManager.close(ref)`.
+    let ref: ItemRef
     /// Live index for relation/tier candidate queries (`nexusManager.currentIndex`).
     let index: PommoraIndex?
     /// Resolves relation/tier IDs to icon + title chips.
@@ -21,7 +24,6 @@ struct ItemInspector: View {
     let tierConfig: TierConfig
 
     @State private var showDeleteConfirm = false
-    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         Form {
@@ -36,11 +38,11 @@ struct ItemInspector: View {
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            // Delete FIRST, then dismiss the window (mirrors the old inspector flow).
+            // Delete FIRST, then close THIS panel (mirrors the old inspector flow).
             Button("Delete", role: .destructive) {
-                Task {
+                Task { @MainActor in
                     await vm.confirmDelete()
-                    dismissWindow()
+                    AppGlobals.current?.itemWindowPanelManager.close(ref)
                 }
             }
             Button("Cancel", role: .cancel) {}

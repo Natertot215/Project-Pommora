@@ -9,7 +9,6 @@ struct SidebarDetailView: View {
     /// collection or vault view so the user can tap back to it.
     @State private var pageTrail: PageMeta? = nil
 
-    @Environment(\.openWindow) private var openWindow
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
@@ -126,10 +125,10 @@ struct SidebarDetailView: View {
             }
         }
         .onAppear {
-            // Open the item in its floating Item Window scene
-            // (`WindowGroup(for: ItemRef.self)`). Resolve the Item's owning Type +
-            // parent Set so the ref carries the IDs the scene root resolves against.
-            let openWindow = openWindow
+            // Open the item in a floating `FloatingItemPanel` via
+            // `AppGlobals.current.itemWindowPanelManager`. Resolve the Item's owning
+            // Type + parent Set so the ref carries the IDs the panel host resolves
+            // against.
             let itemTypeManager = itemTypeManager
             let itemContentManager = itemContentManager
             AppGlobals.presentItemAction = { item in
@@ -140,8 +139,8 @@ struct SidebarDetailView: View {
                         itemContentManager: itemContentManager
                     )
                 else { return }
-                openWindow(
-                    value: ItemRef(
+                AppGlobals.current?.itemWindowPanelManager.open(
+                    ItemRef(
                         itemID: item.id,
                         typeID: location.typeID,
                         collectionID: location.collectionID

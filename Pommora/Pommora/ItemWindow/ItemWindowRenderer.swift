@@ -11,11 +11,14 @@ import SwiftUI
 /// unit-tested, and retained for the zone rework even though no production caller
 /// references them yet.
 struct ItemWindowRenderer: View {
-    /// `@Bindable` (not `let`) because the VM is owned by `ItemWindowSceneContent`;
+    /// `@Bindable` (not `let`) because the VM is owned by `ItemWindowHost`;
     /// this view observes + binds to it without taking ownership. The body binds
     /// through `$vm.draftBody` (D3) and the header binds `$vm.draftTitle` (D2).
     /// Mirrors `PageEditorView.viewModel`.
     @Bindable var vm: ItemWindowViewModel
+
+    /// Panel identity — threaded to `ItemInspector` so its Delete can close THIS panel.
+    let ref: ItemRef
 
     /// Live index source for the tier fields' `ContextValueEditor` picker
     /// (`nexusManager.currentIndex`). All three of the env reads below are
@@ -69,63 +72,33 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Body
 
-    /// The Item Window's content for its real titled window: the main column
-    /// (title row + property bar + body + breadcrumb footer) plus a native trailing
+    /// The Item Window's content for its floating panel: the main column
+    /// (header row + property bar + body + breadcrumb footer) plus a native trailing
     /// `.inspector` panel (`ItemInspector` — the grouped Pages-style Tiers +
     /// Properties form) the system slides in/out and resizes. `vm.inspectorShown`
-    /// (default `true`) drives the panel; the window grows by the inspector's width
-    /// when shown. The window toolbar (`itemToolbar`) carries the icon + inspector
-    /// toggle; the title is the scene's `.navigationTitle`.
+    /// (default `true`) drives the panel; the panel grows by the inspector's width
+    /// when shown. The icon + inspector toggle live in the content `header` (a
+    /// `.toolbar` does NOT render in an `NSHostingController`-hosted panel).
     var body: some View {
-        // Native macOS window layout: the main column IS the window content; the
-        // inspector is a real trailing `.inspector` panel (smooth system slide +
-        // resizable edge), not a hand-laid second column. The window's real title
-        // bar drags it and the red traffic light closes it, so the old in-body
-        // close button + `WindowDragGesture` are gone; the icon + inspector toggle
-        // live in the window `.toolbar`. The main column keeps its fixed content
-        // width; the inspector adds its own width when shown (the window animates).
+        // Panel layout: the main column IS the panel content; the inspector is a
+        // real trailing `.inspector` panel (smooth system slide + resizable edge),
+        // not a hand-laid second column. The panel's title bar is hidden and its
+        // content extends under it (`.fullSizeContentView`), so the `header` reads
+        // as the chrome with the standard close button at the top-left; the icon +
+        // inspector toggle live in that header. The main column keeps its fixed
+        // content width; the inspector adds its own width when shown.
         mainColumn
             .frame(width: PUI.ItemWindow.mainWidth)
             .inspector(isPresented: $vm.inspectorShown) {
                 ItemInspector(
                     vm: vm,
+                    ref: ref,
                     index: nexusManager.currentIndex,
                     resolver: contextResolver,
                     tierConfig: tierConfig.config
                 )
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
             }
-            .toolbar { itemToolbar }
-    }
-
-    /// Window toolbar (unified title bar): the Item's icon on the leading edge
-    /// (tap → icon picker) and the inspector toggle on the trailing edge (the same
-    /// `sidebar.trailing` symbol ContentView uses). The title is the window's
-    /// `.navigationTitle` (set by the scene), so the chrome reads icon + title +
-    /// toggle — the "title + icon in the chrome" the design calls for.
-    @ToolbarContentBuilder
-    private var itemToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button {
-                showIconPicker = true
-            } label: {
-                Image(systemName: vm.draftIcon ?? vm.itemType.icon ?? "list.bullet.rectangle")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Change icon")
-            .iconPickerPopover(
-                isPresented: $showIconPicker,
-                symbol: Binding(get: { vm.draftIcon }, set: { vm.handleIconChange($0) })
-            )
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                vm.inspectorShown.toggle()
-            } label: {
-                Image(systemName: "sidebar.trailing")
-            }
-            .accessibilityLabel("Toggle inspector")
-        }
     }
 
     // MARK: - Main column (header + body + footer)
@@ -192,17 +165,35 @@ struct ItemWindowRenderer: View {
             .padding(.horizontal, PUI.Spacing.xl)
     }
 
-    // MARK: - 1. Title row (editable inline title — icon + toggle live in the toolbar)
+    // MARK: - 1. Header row (icon + editable title + inspector toggle)
 
-    /// The Item's editable title, rendered as the main column's leading H1. The
-    /// icon, the inspector toggle, and the close affordance all moved OUT of the
-    /// body: the icon + toggle are window `.toolbar` items (`itemToolbar`) and the
-    /// red traffic light closes the window. So this row is just the title field +
-    /// an inline rename error. Commits on Enter (`onSubmit`) and focus-loss
-    /// (`onChange`); the scene's `.onDisappear` is the dismissal safety net (all
-    /// idempotent — `handleTitleCommit` guards trimmed-equals-current).
+    /// The Item's header — the panel's chrome. The icon (leading) opens the picker
+    /// and the inspector toggle (trailing) flank the editable title field; these
+    /// moved here from a window `.toolbar`, which does NOT render in an
+    /// `NSHostingController`-hosted panel. The panel hides its own title bar and the
+    /// content extends under it (`.fullSizeContentView`), so the standard close
+    /// button sits at the top-left and the leading inset clears it. The title
+    /// commits on Enter (`onSubmit`) and focus-loss (`onChange`); the host's
+    /// `.onDisappear` is the dismissal safety net (all idempotent —
+    /// `handleTitleCommit` guards trimmed-equals-current).
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
+            // Icon — opens the picker. (The panel's standard close button sits to
+            // its left; final flush/sizing polish lands in the design pass.)
+            Button {
+                showIconPicker = true
+            } label: {
+                Image(systemName: vm.draftIcon ?? vm.itemType.icon ?? "list.bullet.rectangle")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Change icon")
+            .iconPickerPopover(
+                isPresented: $showIconPicker,
+                symbol: Binding(get: { vm.draftIcon }, set: { vm.handleIconChange($0) })
+            )
+
             TextField("Title", text: $vm.draftTitle)
                 .textFieldStyle(.plain)
                 .font(.title2.weight(.semibold))
@@ -212,17 +203,24 @@ struct ItemWindowRenderer: View {
                     if !focused { Task { await vm.handleTitleCommit() } }
                 }
 
-            // Inline error — surfaces a rename failure (e.g. filename collision).
             if let error = vm.inlineError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
+                Text(error).font(.caption).foregroundStyle(.red).lineLimit(1)
             }
 
             Spacer(minLength: 0)
+
+            Button {
+                vm.inspectorShown.toggle()
+            } label: {
+                Image(systemName: "sidebar.trailing")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Toggle inspector")
         }
-        .padding(.horizontal, PUI.Spacing.md)
+        // Leading inset clears the panel's standard close button at the top-left.
+        .padding(.leading, 56)
+        .padding(.trailing, PUI.Spacing.md)
         .padding(.vertical, PUI.Spacing.sm)
     }
 
