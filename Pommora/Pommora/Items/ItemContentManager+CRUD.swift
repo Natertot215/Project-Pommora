@@ -134,9 +134,10 @@ extension ItemContentManager {
         }
     }
 
+    @discardableResult
     func renameItem(
         _ item: Item, to newName: String, in collection: ItemCollection, type itemType: ItemType
-    ) async throws {
+    ) async throws -> Item {
         do {
             let trimmed = newName.trimmingCharacters(in: .whitespaces)
             let existing = itemsByCollection[collection.id] ?? []
@@ -215,6 +216,7 @@ extension ItemContentManager {
 
             pinnedManager?.updateTitle(for: "item", id: item.id, to: trimmed)
             recentsManager?.updateTitle(for: "item", id: item.id, to: trimmed)
+            return updated
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -335,7 +337,8 @@ extension ItemContentManager {
         }
     }
 
-    func renameItem(_ item: Item, to newName: String, inTypeRoot itemType: ItemType) async throws {
+    @discardableResult
+    func renameItem(_ item: Item, to newName: String, inTypeRoot itemType: ItemType) async throws -> Item {
         do {
             let trimmed = newName.trimmingCharacters(in: .whitespaces)
             let existing = itemsByTypeRoot[itemType.id] ?? []
@@ -412,6 +415,7 @@ extension ItemContentManager {
 
             pinnedManager?.updateTitle(for: "item", id: item.id, to: trimmed)
             recentsManager?.updateTitle(for: "item", id: item.id, to: trimmed)
+            return updated
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
