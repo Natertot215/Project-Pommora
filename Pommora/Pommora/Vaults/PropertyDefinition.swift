@@ -71,6 +71,13 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         self.timeFormat = timeFormat
     }
 
+    // MARK: - Display
+
+    /// Single icon source: the per-property custom SF Symbol if set, else the
+    /// type's picker icon. Call sites must use this instead of inlining
+    /// `icon ?? type.pickerIcon` (DRY — one source of truth).
+    var displayIcon: String { icon ?? type.pickerIcon }
+
     // MARK: - Nested types
 
     struct SelectOption: Codable, Equatable, Hashable, Identifiable, Sendable {

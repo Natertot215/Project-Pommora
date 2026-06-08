@@ -159,6 +159,18 @@ import Testing
         #expect(decoded.statusGroups?.count == 3)
     }
 
+    // MARK: - displayIcon (Phase A.10)
+
+    @Test func displayIconReturnsCustomIconWhenSet() {
+        let def = PropertyDefinition(id: "prop_01HICON", name: "My Select", type: .select, icon: "star.fill")
+        #expect(def.displayIcon == "star.fill")
+    }
+
+    @Test func displayIconFallsBackToPickerIconWhenNil() {
+        let def = PropertyDefinition(id: "prop_01HNOICON", name: "My Select", type: .select)
+        #expect(def.displayIcon == PropertyType.select.pickerIcon)
+    }
+
     // MARK: - allows_multiple legacy tolerance (Relations Redesign)
 
     @Test func decoderToleratesLegacyAllowsMultipleField() throws {
