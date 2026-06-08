@@ -6,34 +6,34 @@
 >
 > *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess, you LOOK, you ASK. You open the file and LOOK AT THE CODE before you assert anything. You ASK ME when unsure.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it."* ASK ME when you're unsure! Honesty is key; confidence must be earned through evidence.
 
-#### Session Summary (2026-06-07 — ItemsV2 **Phase A SHIPPED** via subagent-driven execution)
+#### Session Summary (2026-06-08 — ItemsV2 **Phases B + C SHIPPED**; paused for Figma before D/E)
 
-> **Resume prompt (next session):** *"Phase A (foundations) of the interactive Item Window is DONE + committed on branch `itemsv2-interactive-window` (`14760b0..0def549`, full target **1283/1283 green**, code-review clean). **Start Phase B (`ItemWindowViewModel`, B1–B9)** — pure `@Observable @MainActor` logic + TDD, no design needed. The loop that worked: a subagent authors each task (Opus 4.8; Sonnet for trivial), authoring ONLY (no build, no commit); the orchestrator HARD-VERIFIES via a background `builder` agent (real NON-ZERO test count — quirk #1), reads the actual diff, grounds against source, THEN green-commits; builds always go through the background `builder` so xcodebuild never grabs focus (quirk #13). Keep task-verification chatter to 1–3 sentences. Phases D/E are DESIGN-GATED — **Nathan has background Figma work to share first** (D2 header, D4 segmented property bar, D5 inspector row, E1 pane muted-states). Agents lie; the build and the diff don't."*
+> **Resume prompt (next session):** *"Phases B (the `ItemWindowViewModel`) and C (renderer teardown) are DONE + committed on `itemsv2-interactive-window` — B: `22ed49c..2355f1e` + review/`fireSave` `48015ae` (full target **1302** green); C: `560d855` (C1) + `0c821c6` (C2) (full target **1290** green). **Next is Phases D/E — DESIGN-GATED on Nathan's Figma** (D2 header, D4 segmented property bar, D5 inspector row, E1 templates pane). Get the Figma first; build each gated task's non-visual scaffolding before the visual ask. READ `Planning/06-07-ItemsV2-Plan-V3.md` — its top EXECUTION UPDATE block carries the corrections that MUST flow into D/E/F: the `-only-testing` selector is the TYPE name (`<Name>Tests`) NOT the `@Suite("string")` (string label runs 0 tests); D1/D2 set `PreviewWindow(showsDefaultHeader: false)` + supply the card's own header in `content`; E1 RE-IMPLEMENTS the captured legacy-pin-collapse (its source was deleted in C1). Same loop: subagent authors → background `builder` hard-verifies (NON-ZERO count) → green-commit. Agents lie; the build and the diff don't."*
 
-**Where it started.** Opened with Spec-V5 + Plan-V3 review-certified (planning-only, on `main`). Nathan folded pre-execution corrections (segmented property bar, gate-EACH-visual, inline-commit model, inspector `(icon)(title)—(field)` row, `displayIcon` DRY, a standing post-functional UIX-review phase), a 3-agent delta-review was run + folded, then he said **"Execute."**
+**Where it started.** Resumed on `itemsv2-interactive-window` at `0cc1ed1` (Phase A shipped). Directive: execute Phase B (B1–B9) via the verified subagent loop; mid-session Nathan added "do a full Phase-B code review with A's discipline, then begin C." Also committed (per his instruction) the 3 parallel-session `.claude/Planning` deletions + de-indexed the README (`7f29b8b`).
 
-**Key moments.** Executed Plan-V3 **Phase A (A0–A10) subagent-driven** on a fresh branch: 11 green commits + 1 cleanup commit. Each task: implementer authors → orchestrator verifies via background `builder` (non-zero count) + diff + source → green-commit. **Every task passed first-try; full target 1283/1283.** Post-Phase-A code-review pass came back **clean (no blockers/majors)**; 3 minors fixed (cap-engine test coverage, `displayIcon` DRY fold ×3, legacy-layout already covered). Phase A confirmed every downstream anchor against real source — **no B–F task needs rewriting**.
+**Key moments.** Built the entire `ItemWindowViewModel` B1→B9 (hydration; property/tier/icon/title/body/delete handlers; Add-Property; VM↔manager↔disk↔index round-trip) — each task authored by a fresh subagent, hard-verified via a background builder (non-zero count), green-committed. The builds (not the agents) caught two real defects: a B4 default-arg-references-sibling-param compile error, and a B9 failure proving the integration test must seed the parent Type into a fresh index (quirk #14) — not a product bug. The full-target run then caught 2 debounce tests that passed in isolation but raced under parallel main-actor load → de-flaked (poll-until-condition + deterministic flush). Post-Phase-B review came back clean; folded one DRY consolidation (`fireSave`). Phase C: C1 collapsed the renderer to its live stub and retired the entire archetype/mockup/display path (−946 lines) atomically; C2 made `PreviewWindow`'s built-in header optional via a non-breaking `showsDefaultHeader` (deviation from the plan's "default headerless" to avoid a close/drag regression while D2 is gated).
 
-**Nathan's voice.** Mid-execution he tightened the loop: *"DONT give task verification reports with extensive review — it wastes tokens, 1–3 sentences MAX"* and *"Each agent's completion claim must be INDEPENDENTLY verified… DO NOT assume what an agent [says] is true unless EVIDENCE backs it up."* He flagged **background Figma work that must be shared** before the design-gated visual phases.
+**Nathan's voice.** Standing rules held all session: terse 1–3-sentence task reports, every agent claim independently EVIDENCE-verified, type-name test selectors with confirmed non-zero counts, never bundle/revert unattributed working-tree changes. He has Figma to hand over before the visual phases.
 
-**Where it left off.** Branch `itemsv2-interactive-window` at `0def549`. Working tree carries 3 `.claude/Planning/*` deletions from Nathan's PARALLEL session (his reorg) — left UNTOUCHED per quirk #10. `main` unchanged. Next: Phase B tomorrow.
+**Where it left off.** Branch `itemsv2-interactive-window` at `0c821c6`, full target **1290** green, working tree clean. Paused for Nathan's Figma before Phases D/E.
 
 #### Lessons Learned
 
-- **The subagent-authored / orchestrator-hard-verified loop works** — Phase A's 11 tasks each passed first-try because no "done" was trusted: every claim was checked against a real background build (non-zero count), the actual diff, and source. Cross-checking even caught a false implementer claim (one agent insisted `PromotedProperty(id:)` "won't compile" — it does; an earlier task had already proven it) — code was fine, reasoning wasn't.
-- **The "mid-session Planning deletions" were NOT an anomaly — they're Nathan's parallel-session reorg** (quirk #10). Never restore/bundle unattributed working-tree changes; surface them. (Supersedes the prior session's "unidentified deleter" framing — no root-cause needed.)
-- **Stale SourceKit squiggles fire on nearly every Swift edit** (quirk #3) — "Cannot find type X" / "No such module" / "does not conform to Equatable" for same-module types. Trust the background `builder`, never IDE diagnostics.
-- **Builds via the background `builder` agent only** (quirk #13) so xcodebuild never grabs focus; implementer subagents author, they do not build or commit.
+- **`-only-testing:PommoraTests/<X>` matches the `@Suite`/struct TYPE name, NOT the `@Suite("string")` display label** — the string label silently runs 0 tests (xcresult-confirmed). Always use the type name + visually confirm a non-zero executed count. **→ candidate CLAUDE.md quirk refinement (sharpens #1).**
+- **Flaky-timing tests hide in isolation.** Two debounce tests passed via `-only-testing:<suite>` but failed under the full parallel target (main-actor contention starved the timer past a fixed sleep). Verify timing-sensitive logic against the FULL target; prefer poll-until-condition or a deterministic direct flush over fixed-margin sleeps.
+- **Layer-confusion check paid off (quirk #17).** B9's "index empty" was a missing test-seed (the parent-Type FK that `loadAll` supplies in the real app), not a product bug. Confirm the layer before "fixing" — and grep-verify every symbol before a large deletion (C1).
+- **The subagent-authored / orchestrator-hard-verified loop keeps catching real defects** the agents' own "DONE" missed (B4 compile error, B9 seed gap) — the build and the diff are the truth.
 
 #### Next Session
 
-1. **Phase B — `ItemWindowViewModel` (B1–B9).** Pure `@Observable @MainActor` logic + TDD; no design input. Same loop: subagent authors → background-builder verify (non-zero count) → diff/source check → green-commit. All anchors confirmed in Phase A.
-2. **Before Phases D/E (visuals) — get Nathan's Figma.** D2 header / D4 segmented property bar / D5 inspector row / E1 pane muted-states are design-gated and Nathan has background Figma to share. Build each gated task's non-visual scaffolding first so a gate never stalls the plan; batch the visual asks into one design checkpoint.
-3. **Branch `itemsv2-interactive-window`** — merges to `main` after Phase F (or whenever Nathan wants). Phase C (renderer cleanup) sits between B and the visual phases.
+1. **Get Nathan's Figma, THEN Phases D/E (DESIGN-GATED).** D2 header / D4 segmented property bar / D5 inspector row / E1 templates pane. Build each gated task's non-visual scaffolding first; batch the visual asks into one design checkpoint. Carry the Plan-V3 EXECUTION-UPDATE corrections (type-name selector; `showsDefaultHeader: false` in D1/D2; E1 re-implements the captured collapse).
+2. **Phase F** — full-target green → post-functional UIX review (standing gate, runs no matter how clean) → docs (`Features/Items.md` + Paradigm #15 amend + History) → prose-level doc-sweep.
+3. **Branch `itemsv2-interactive-window`** merges to `main` after Phase F (or whenever Nathan wants). C sits done between B and the visual phases.
 
 #### Pending Focuses
 
-- **[carried] Item Window — Phase A SHIPPED; Phases B–F remain.** Spec `Planning/06-07-ItemsV2-Spec-V5.md`, plan `Planning/06-07-ItemsV2-Plan-V3.md` (execution status in its banner). B is next; D/E need Figma.
+- **[carried] Item Window — Phases A–C SHIPPED; Phases D–F remain.** Spec `Planning/06-07-ItemsV2-Spec-V5.md`, plan `Planning/06-07-ItemsV2-Plan-V3.md` (execution status + corrections in its top banner). D/E are design-gated on Nathan's Figma.
 - **[carried from 06-07]** `markerRanges[0]/[1]` subscripts in `styleItemLinks` (no bounds guard). Can't crash today (tokenizer always emits 2). Add `guard token.markerRanges.count >= 2` if the tokenizer is refactored.
 - **[carried from 06-03]** Push `folder-exclusion` → origin — still no upstream, ~30+ commits ahead. (carried 3×+ — confirm still wanted.)
 - **[carried from 06-03]** Delete the merged `markdownpm-rehome` branch.
@@ -42,15 +42,14 @@
 
 #### Fix Log
 
-1. **`.claude/Planning` working-tree deletions = Nathan's parallel-session reorg, NOT a bug** (clarified this session, quirk #10). 3 tracked Planning docs show as deleted in the working tree; left untouched, never bundled into commits. Supersedes the prior "unidentified deleter" entry — no root-cause needed.
-2. **Column reorder broken** — drag-reordering table columns; folds into v0.7.0 view-system work.
-3. **"Modified" not hideable** in the visibility settings.
-4. **Inline-edit lag** — property value inline edit has a noticeable update buffer.
-5. **Column layout not persisted** across sessions (+ property columns don't show icons); folds into v0.7.0.
-6. **`AgendaEventManagerError._status` doc-vs-guard mismatch** — decide separately.
-7. **Backspace on a checkbox / list item** should auto-delete the syntax — confirmed UNIMPLEMENTED; a feature-add.
-8. **Agenda description-cap doc mismatch** — specs claim a 1000-char cap but validators enforce none; decide the intended cap or drop the doc claim.
-9. **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
+1. **Column reorder broken** — drag-reordering table columns; folds into v0.7.0 view-system work.
+2. **"Modified" not hideable** in the visibility settings.
+3. **Inline-edit lag** — property value inline edit has a noticeable update buffer.
+4. **Column layout not persisted** across sessions (+ property columns don't show icons); folds into v0.7.0.
+5. **`AgendaEventManagerError._status` doc-vs-guard mismatch** — decide separately.
+6. **Backspace on a checkbox / list item** should auto-delete the syntax — confirmed UNIMPLEMENTED; a feature-add.
+7. **Agenda description-cap doc mismatch** — specs claim a 1000-char cap but validators enforce none; decide the intended cap or drop the doc claim.
+8. **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
 
 #### Maintained via `/handoff`
 
@@ -58,8 +57,8 @@ Spec: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix L
 
 #### Document pointers
 
-- **ItemsV2 interactive Item Window (Phase A BUILT 2026-06-07; B–F pending) →** spec `Planning/06-07-ItemsV2-Spec-V5.md`; plan `Planning/06-07-ItemsV2-Plan-V3.md` (banner carries execution status); review discipline `Guidelines/Review-Discipline.md`. Built on branch `itemsv2-interactive-window` (`14760b0..0def549`). Paradigm #15 amend deferred to Plan-V3 Task F3 (docs).
-- **ItemsV2 (SHIPPED 2026-06-03, archetype model — being replaced) →** as-built `Planning/06-03-ItemsV2-Implemented.md`; superseded by the interactive rework above.
+- **ItemsV2 interactive Item Window (Phases A–C BUILT 2026-06-07/08; D–F pending) →** spec `Planning/06-07-ItemsV2-Spec-V5.md`; plan `Planning/06-07-ItemsV2-Plan-V3.md` (top banner carries execution status + the Phase-C corrections); review discipline `Guidelines/Review-Discipline.md`. Built on branch `itemsv2-interactive-window` (`14760b0..0c821c6`). Paradigm #15 amend deferred to Plan-V3 Task F3 (docs).
+- **ItemsV2 (SHIPPED 2026-06-03, archetype model — RETIRED) →** as-built `Planning/06-03-ItemsV2-Implemented.md`; the archetype/mockup/display path it described was torn out in Phase C1.
 - **Connections (PAGE-LEVEL COMPLETE 2026-06-07) →** spec `Features/Connections.md`; plan `Planning/06-05-Connections-Plan.md`. Item chip click path (`onItemLinkClick` → `ItemLinkOpener.loadItem` → `AppGlobals.presentItemAction`) is the entry to the Item Window.
 - Roadmap → `Framework.md` · decisions + ship log → `History.md` · PRD → `PommoraPRD.md`
 - Per-entity specs → `Features/*.md` · CRUD → `Guidelines/CRUD-Patterns.md` · paradigm registry → `Guidelines/Paradigm-Decisions.md` · review discipline → `Guidelines/Review-Discipline.md`
