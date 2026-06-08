@@ -8,14 +8,20 @@ struct PropertyEditorRow: View {
     /// `relationDisplay` renders the current value as icon+title chips.
     var index: PommoraIndex? = nil
     var relationDisplay: ContextDisplayResolver? = nil
+    /// When `false`, the row omits its own leading name label — for hosts that
+    /// already supply the name (e.g. a `LabeledContent(name) { … }` wrapper), so the
+    /// name isn't rendered twice. Defaults `true` so existing call sites are unchanged.
+    var showsName: Bool = true
 
     @State private var dateEditorOpen = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(definition.name)
-                .frame(width: 100, alignment: .leading)
-                .foregroundStyle(.secondary)
+            if showsName {
+                Text(definition.name)
+                    .frame(width: 100, alignment: .leading)
+                    .foregroundStyle(.secondary)
+            }
             editor
             Spacer()
         }
