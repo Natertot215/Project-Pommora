@@ -1,0 +1,135 @@
+import Foundation
+import Observation
+
+/// View model for an interactive Item Window. Holds editable drafts of every
+/// Item field plus a session-only `surfaced` set, and routes each field through
+/// injected manager seams (rename / icon / body / property / delete) so the VM
+/// stays free of any direct store dependency. Pure logic, fully unit-tested.
+///
+/// This file is the SKELETON only — stored state, init hydration, and the
+/// `isFilled` predicate. The seam closures are stored now but the behavior
+/// handlers that call them (and the body-debounce that uses `bodyTask`) land in
+/// later tasks. Mirrors `PageEditorViewModel`'s idiom: `@MainActor @Observable`,
+/// `item` re-held after a rename, seams as private/stored properties, a single
+/// debounce constant.
+@MainActor
+@Observable
+final class ItemWindowViewModel {
+    /// The Item being edited. `var` because a successful rename in a later task
+    /// re-holds it with the freshly-resolved Item from the manager (title + url
+    /// change; id stays). Mutation should ONLY happen with a manager-resolved
+    /// Item — never a hand-mutated copy (mirrors `PageEditorViewModel.page`).
+    var item: Item
+
+    /// Editable title. Hydrated from `item.title`; a later rename task commits it.
+    var draftTitle: String
+    /// Editable icon (SF Symbol name). `String?` mirrors `Item.icon`.
+    var draftIcon: String?
+    /// Editable body — the Item's capped Markdown description (`Item.description`).
+    var draftBody: String
+    /// Editable property values, keyed by `PropertyDefinition.id`.
+    var draftProperties: [String: PropertyValue]
+    /// Editable tier-1 Context relations (target ULIDs).
+    var draftTier1: [String]
+    /// Editable tier-2 Context relations (target ULIDs).
+    var draftTier2: [String]
+    /// Editable tier-3 Context relations (target ULIDs).
+    var draftTier3: [String]
+
+    /// Session-only set of property IDs the user has explicitly surfaced in this
+    /// window (additive over the always-shown pinned set). Not persisted.
+    var surfaced: Set<String> = []
+
+    /// Property IDs pinned by the effective template (chip-eligible promoted
+    /// properties). Computed once in `init`; immutable for the window's life.
+    let pinnedIDs: Set<String>
+
+    /// Surfaces a recoverable field-edit failure inline in the window. `String?`
+    /// because the UI shows a message, not a typed error.
+    var inlineError: String?
+    /// Whether the body draft is over the Item description cap.
+    var isOverCap = false
+    /// Whether the side inspector pane is shown.
+    var inspectorShown = true
+
+    /// The Item's Type (schema source). Immutable for the window's life.
+    let itemType: ItemType
+    /// The Item's Collection, if it lives inside one. Immutable.
+    let collection: ItemCollection?
+
+    // MARK: - Manager seams (injected; later tasks call these)
+
+    /// Persists a single property value change. `(propertyID, value)`.
+    let onUpdateProperty: (String, PropertyValue) async throws -> Void
+    /// Persists an icon change (nil clears the icon).
+    let onUpdateIcon: (String?) async throws -> Void
+    /// Persists a body (description) change.
+    let onUpdateBody: (String) async throws -> Void
+    /// Renames the Item's file; returns the freshly-resolved renamed Item.
+    let onRename: (String) async throws -> Item
+    /// Deletes the Item.
+    let onDeleteItem: () async throws -> Void
+
+    /// In-flight debounced body save. Declared now; a later body-debounce task
+    /// owns its lifecycle (mirrors `PageEditorViewModel.saveTask`).
+    private var bodyTask: Task<Void, Never>?
+
+    /// Debounce window between a body edit and the disk write. Rapid edits within
+    /// this window coalesce into one save (mirrors `PageEditorViewModel.debounce`).
+    static let debounce: Duration = .milliseconds(300)
+
+    init(
+        item: Item,
+        itemType: ItemType,
+        collection: ItemCollection?,
+        onUpdateProperty: @escaping (String, PropertyValue) async throws -> Void,
+        onUpdateIcon: @escaping (String?) async throws -> Void,
+        onUpdateBody: @escaping (String) async throws -> Void,
+        onRename: @escaping (String) async throws -> Item,
+        onDeleteItem: @escaping () async throws -> Void
+    ) {
+        self.item = item
+        self.itemType = itemType
+        self.collection = collection
+        self.onUpdateProperty = onUpdateProperty
+        self.onUpdateIcon = onUpdateIcon
+        self.onUpdateBody = onUpdateBody
+        self.onRename = onRename
+        self.onDeleteItem = onDeleteItem
+
+        // Hydrate every draft from the source Item.
+        self.draftTitle = item.title
+        self.draftIcon = item.icon
+        self.draftBody = item.description
+        self.draftProperties = item.properties
+        self.draftTier1 = item.tier1
+        self.draftTier2 = item.tier2
+        self.draftTier3 = item.tier3
+
+        // Pinned set = the chip-eligible promoted properties of the effective
+        // template (Collection override → Type default), by id.
+        self.pinnedIDs = Set(
+            TemplateResolver.promotedForField(type: itemType, collection: collection)
+                .map { $0.promotion.id }
+        )
+    }
+
+    /// Whether a property value counts as "filled" (i.e. has user content). The
+    /// falsy cases are the ways a value can exist yet carry nothing to show:
+    /// - `nil` / `.null`     — no value at all.
+    /// - `.multiSelect([])`  — a multi-select with no chosen options.
+    /// - `.relation([])`     — a relation with no linked targets.
+    /// - `.select("")`       — a single-select whose chosen option is the empty string.
+    /// - `.status("")`       — a status whose chosen option is the empty string.
+    /// Every other case (including `.number(0)`, `.checkbox(false)`, dates, urls,
+    /// files, and `.lastEditedTime`) is filled. Tight exhaustive `switch` (HARD
+    /// RULE): enumerate the falsy cases, `default` is filled.
+    static func isFilled(_ v: PropertyValue?) -> Bool {
+        switch v {
+        case nil, .null, .multiSelect([]), .relation([]), .select(""), .status(""):
+            return false
+        default:
+            return true
+        }
+    }
+}
