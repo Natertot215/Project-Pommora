@@ -1,19 +1,19 @@
 import MarkdownPM
 import SwiftUI
 
-/// The single live Item-Window renderer. It currently draws a clean display-only
-/// stub — the Item's icon + title (`header`), a read-only body (`stubBody`), and a
+/// The single live Item-Window renderer. It draws the Item's icon + title
+/// (`header`), an editable body with a character-cap counter (`bodyZone`), and a
 /// breadcrumb footer — reading every field off the bound `ItemWindowViewModel`.
-/// Display stays read-only here (D1 is plumbing only); editable title / icon / body
-/// land in D2/D3, which will bind `$vm.draftTitle` / `$vm.draftBody` directly.
+/// The body is editable (D3): edits route through `vm.handleBodyChange(_:)`. The
+/// header title is still display-only; editable title / icon land in D2.
 ///
 /// The reorder/partition helpers below (`partition`, `reorderPromoted`) are pure,
 /// unit-tested, and retained for the zone rework even though no production caller
 /// references them yet.
 struct ItemWindowRenderer: View {
     /// `@Bindable` (not `let`) because the VM is owned by `ItemWindowSceneContent`;
-    /// this view observes + binds to it without taking ownership. D2/D3 will bind
-    /// `$vm.draftTitle` / `$vm.draftBody`; D1's reads are still display-only.
+    /// this view observes + binds to it without taking ownership. The body now
+    /// binds through `$vm.draftBody` (D3); D2 will add the editable `$vm.draftTitle`.
     /// Mirrors `PageEditorView.viewModel`.
     @Bindable var vm: ItemWindowViewModel
 
@@ -75,16 +75,13 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Main column (header + body)
 
-    /// Left column — the existing scrolling stub (icon + title header, read-only
-    /// body), flexing to fill the space left of the inspector.
+    /// Left column — scrolling icon + title header above the editable body zone,
+    /// flexing to fill the space left of the inspector.
     private var mainColumn: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
-                // Live window — a clean display-only stub: icon + title + body
-                // + footer, nothing else. The zone framework builds onto this
-                // bedrock.
                 header
-                stubBody
+                bodyZone
             }
             .padding()
         }
@@ -117,22 +114,49 @@ struct ItemWindowRenderer: View {
         }
     }
 
-    // MARK: - Live-window body stub
+    // MARK: - Body zone (editable description + cap counter)
 
-    /// The live window's display-only body: the Item's description rendered with
-    /// the read-only MarkdownPM editor (`isEditable: false` — no caret, no commit
-    /// path). This is the stub bedrock the zone framework replaces; the editable
-    /// editor + cap counter + save machinery were retired with the display stub.
-    private var stubBody: some View {
-        MarkdownPMEditor(
-            text: .constant(vm.item.description),
-            configuration: MarkdownEditorConfig.pommora(verticalInset: 0),
-            fontName: "SF Pro Text",
-            fontSize: 15,
-            documentId: vm.item.id,
-            isEditable: false
-        )
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+    /// The Item's editable description: the MarkdownPM editor in editable mode
+    /// (`isEditable: true`) above a character-cap counter. Every edit routes
+    /// through `vm.handleBodyChange(_:)`, which updates `draftBody` and arms the
+    /// VM's debounced save (mirroring `PageEditorView`, whose `text: $viewModel.body`
+    /// binding lets `PageEditorViewModel.body`'s `didSet` schedule the save —
+    /// `draftBody` has no `didSet`, so the binding's setter is the explicit route).
+    /// Setting `draftBody` to the same value is a no-op, so there's no feedback loop.
+    ///
+    /// The counter reads the live draft length against the effective cap and turns
+    /// red once `vm.isOverCap` (set when a flushed save exceeds the cap). The cap is
+    /// a non-blocking WARN only — an over-cap body never blocks the editor (LD-7).
+    private var bodyZone: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
+            MarkdownPMEditor(
+                text: Binding(
+                    get: { vm.draftBody },
+                    set: { vm.handleBodyChange($0) }
+                ),
+                configuration: MarkdownEditorConfig.pommora(verticalInset: 0),
+                fontName: "SF Pro Text",
+                fontSize: 15,
+                documentId: vm.item.id,
+                isEditable: true
+            )
+            .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 200, alignment: .leading)
+
+            HStack {
+                Spacer()
+                Text("\(vm.draftBody.count) / \(bodyCap)")
+                    .font(.caption)
+                    .foregroundStyle(vm.isOverCap ? .red : .secondary)
+            }
+        }
+    }
+
+    /// Effective description cap for the counter — the resolved template's override
+    /// (Collection → Type) or the default. One source of truth: `ItemValidator`
+    /// over the `TemplateResolver`-resolved template, matching `vm.flushBodyNow()`.
+    private var bodyCap: Int {
+        ItemValidator.effectiveCap(
+            template: TemplateResolver.effective(type: vm.itemType, collection: vm.collection))
     }
 
     // MARK: - Footer (breadcrumb + options control)
