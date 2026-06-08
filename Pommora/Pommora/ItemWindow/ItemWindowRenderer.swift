@@ -12,17 +12,26 @@ import SwiftUI
 /// references them yet.
 struct ItemWindowRenderer: View {
     /// `@Bindable` (not `let`) because the VM is owned by `ItemWindowSceneContent`;
-    /// this view observes + binds to it without taking ownership. The body now
-    /// binds through `$vm.draftBody` (D3); D2 will add the editable `$vm.draftTitle`.
+    /// this view observes + binds to it without taking ownership. The body binds
+    /// through `$vm.draftBody` (D3) and the header binds `$vm.draftTitle` (D2).
     /// Mirrors `PageEditorView.viewModel`.
     @Bindable var vm: ItemWindowViewModel
 
-    /// Dismisses the hosting floating window after a delete. Same idiom the
-    /// enclosing `PreviewWindow` scene uses for its close affordance + Esc.
+    /// Dismisses the hosting floating window after a delete or via the header's
+    /// close affordance. Same idiom the enclosing `PreviewWindow` scene uses for
+    /// its close button + Esc.
     @Environment(\.dismissWindow) private var dismissWindow
 
     /// Drives the inspector column's destructive-delete confirmation dialog.
     @State private var showDeleteConfirm = false
+
+    /// Focus for the inline title field. Drives focus-loss commit (D2): on
+    /// `true → false` we flush `handleTitleCommit()`, matching the page editor's
+    /// inline-title-commit idiom.
+    @FocusState private var titleFocused: Bool
+
+    /// Presents the header's icon picker popover (D2), anchored to the icon button.
+    @State private var showIconPicker = false
 
     // MARK: - Promoted / overflow partition (pure)
 
@@ -138,19 +147,93 @@ struct ItemWindowRenderer: View {
             .foregroundStyle(.red)
     }
 
-    // MARK: - 1. Header (icon + title)
+    // MARK: - 1. Header (close · icon · title · inspector toggle)
 
-    /// Display-only header: the Item's icon (falling back to the Type's) + its
-    /// title. The live window is a display stub, so nothing edits here.
+    /// Interactive header bar (D2): `[✕ close] [icon] [Title field] … [inspector
+    /// toggle]`. The Item Window is liquid glass, so the title field is fill-less
+    /// (transparent — the glass shows through); no per-control glass effect.
+    ///
+    /// **Drag vs. clicks.** The whole bar moves the window, but `WindowDragGesture()`
+    /// on the HStack itself would swallow the title field's click-to-focus and the
+    /// buttons' taps. Instead the drag rides a dedicated `.background` drag layer
+    /// (a hit-testable `Color.clear`) sitting *behind* the controls. SwiftUI
+    /// hit-tests front-to-back, so a click on the title field / close / icon /
+    /// toggle lands on that control first and never reaches the layer behind it;
+    /// only a press on the empty header region falls through to the drag layer and
+    /// moves the window. This mirrors `PreviewWindow`'s draggable header without
+    /// stealing the interactive controls' input.
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
-            Image(systemName: vm.item.icon ?? vm.itemType.icon ?? "list.bullet.rectangle")
-                .font(.system(size: 22))
-                .foregroundStyle(.secondary)
-            Text(vm.item.title)
+            // 1. Close — copies PreviewWindow's plain `xmark` (no capsule chrome).
+            Button {
+                dismissWindow()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close")
+
+            // 2. Icon — Item icon (falling back to the Type's); tap opens the picker.
+            Button {
+                showIconPicker = true
+            } label: {
+                Image(systemName: vm.draftIcon ?? vm.itemType.icon ?? "list.bullet.rectangle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Change icon")
+            .iconPickerPopover(
+                isPresented: $showIconPicker,
+                symbol: Binding(get: { vm.draftIcon }, set: { vm.handleIconChange($0) })
+            )
+
+            // 3. Title — inline-commit field, fill-less on the glass. Commits on
+            // Enter (`onSubmit`) and focus-loss (`onChange`); the scene's
+            // `.onDisappear` is the dismissal safety net. All idempotent
+            // (`handleTitleCommit` guards trimmed-equals-current). `.fixedSize`
+            // keeps the click/caret target on the text, not the whole bar.
+            TextField("Title", text: $vm.draftTitle)
+                .textFieldStyle(.plain)
                 .font(.title2.weight(.semibold))
-                .lineLimit(2)
+                .focused($titleFocused)
+                .onSubmit { Task { await vm.handleTitleCommit() } }
+                .onChange(of: titleFocused) { _, focused in
+                    if !focused { Task { await vm.handleTitleCommit() } }
+                }
+                .fixedSize(horizontal: true, vertical: false)
+
+            // 4. Inline error — surfaces a rename failure (e.g. filename collision).
+            if let error = vm.inlineError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(1)
+            }
+
             Spacer(minLength: 0)
+
+            // 6. Inspector toggle — same symbol Pommora uses in ContentView.
+            Button {
+                vm.inspectorShown.toggle()
+            } label: {
+                Image(systemName: "sidebar.trailing")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Toggle inspector")
+        }
+        .padding(.horizontal, PUI.Spacing.md)
+        .padding(.vertical, PUI.Spacing.sm)
+        // Drag layer BEHIND the controls — only empty-region presses reach it.
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
         }
     }
 
