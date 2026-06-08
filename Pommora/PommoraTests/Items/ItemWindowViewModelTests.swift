@@ -330,6 +330,74 @@ struct ItemWindowViewModelTests {
         )
         #expect(out.map(\.id) == ["a"])
     }
+
+    // MARK: - B9: VM↔manager↔disk↔index round-trip
+    //
+    // The UIX↔Data proof: driving the REAL VM handlers persists THROUGH the real
+    // `ItemContentManager` to disk AND mirrors tier links into the index — going
+    // *through* the VM seam, not around it. The VM's save Task holds `self`
+    // strongly, so the local `vm` survives until the seam runs; `boundVM`'s seam
+    // resumes the continuation after the manager write, so each fire-and-forget
+    // save can be awaited without sleeps. `created`'s title stays "I", so
+    // `updateItemProperty` (which reloads by title) round-trips it across ops.
+
+    @Test func roundTripVMToManagerToDiskToIndex() async throws {
+        let (nexus, itemType, manager) = try await TempNexus.itemTypeRoot(named: "T")
+        let created = try await manager.createItem(name: "I", inTypeRoot: itemType)
+
+        // Wire the live index so tier writes mirror into context_links. Seed the
+        // parent Type row first: a fresh index is empty, and item upserts FK to
+        // `item_types` — in the real app `loadAll` has already synced the Type
+        // (quirk #14), so the window's edits index fine; a test index must seed it
+        // (else upsertItem skips on the FK and context_links never populates).
+        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
+        manager.indexUpdater = IndexUpdater(index)
+        try manager.indexUpdater?.upsertItemType(itemType)
+
+        // A VM bound to the REAL manager seam; `resume` lets the fire-and-forget
+        // save be awaited via a continuation.
+        func boundVM(resume: @escaping () -> Void) -> ItemWindowViewModel {
+            ItemWindowViewModel(
+                item: created, itemType: itemType, collection: nil,
+                onUpdateProperty: { id, value in
+                    try? await manager.updateItemProperty(
+                        created, propertyID: id, newValue: value, type: itemType, collection: nil)
+                    resume()
+                },
+                onUpdateIcon: { _ in }, onUpdateBody: { _ in },
+                onRename: { _ in created }, onDeleteItem: {})
+        }
+
+        // 1) Property set → reopen + assert disk.
+        await withCheckedContinuation { cont in
+            let vm = boundVM(resume: { cont.resume() })
+            vm.handlePropertyChange("p", .select("x"))
+        }
+        let m1 = TempNexus.reopen(nexus)
+        await m1.loadAll(for: itemType)
+        #expect(m1.items(in: itemType).first?.properties["p"] == .select("x"))
+
+        // 2) Tier set → assert disk AND index (upsertItem mirrors tier1 → context_links).
+        let contextID = ULID.generate()
+        await withCheckedContinuation { cont in
+            let vm = boundVM(resume: { cont.resume() })
+            vm.handleTierChange(1, [contextID])
+        }
+        let m2 = TempNexus.reopen(nexus)
+        await m2.loadAll(for: itemType)
+        #expect(m2.items(in: itemType).first?.tier1 == [contextID])
+        let incoming = try await IndexQuery(index).incomingContextLinks(targetID: contextID)
+        #expect(incoming.contains { $0.id == created.id })
+
+        // 3) Clear → reopen + assert the key is ABSENT (not stored as `.null`).
+        await withCheckedContinuation { cont in
+            let vm = boundVM(resume: { cont.resume() })
+            vm.handlePropertyChange("p", .null)
+        }
+        let m3 = TempNexus.reopen(nexus)
+        await m3.loadAll(for: itemType)
+        #expect(m3.items(in: itemType).first?.properties["p"] == nil)
+    }
 }
 
 /// Records delete-seam calls for the B7 tests (reference type — no mutable-capture concerns).
