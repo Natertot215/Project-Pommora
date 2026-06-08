@@ -97,6 +97,15 @@ struct ItemWindowRenderer: View {
         VStack(spacing: 0) {
             header
             Divider()
+            // Pinned-property segmented bar (D4). Self-collapses (renders nothing,
+            // no inset) when no chip properties are pinned; owns its own inset so
+            // the empty case adds no gap between the header divider and the body.
+            PropertyFieldBar(
+                itemType: vm.itemType,
+                collection: vm.collection,
+                values: vm.draftProperties,
+                onChange: { vm.handlePropertyChange($0, $1) }
+            )
             bodyZone
             Divider()
             footer
