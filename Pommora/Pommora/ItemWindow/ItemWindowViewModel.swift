@@ -233,6 +233,12 @@ final class ItemWindowViewModel {
         try? await onUpdateBody(draftBody)
     }
 
+    /// Deletes the Item via the delete seam. Async (awaited directly, like the
+    /// title commit) — the view wraps it in a Task and dismisses on completion.
+    func confirmDelete() async {
+        try? await onDeleteItem()
+    }
+
     /// Commits an inline title edit. Idempotent — fires from Enter, focus-loss,
     /// AND window-close, so the trimmed-equals-current guard makes every trigger
     /// after the first a no-op (and a whitespace-only edit a no-op too). On

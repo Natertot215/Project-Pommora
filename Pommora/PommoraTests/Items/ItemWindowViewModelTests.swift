@@ -21,7 +21,8 @@ struct ItemWindowViewModelTests {
         onUpdateProperty: @escaping (String, PropertyValue) async throws -> Void = { _, _ in },
         onUpdateIcon: ((String?) async throws -> Void)? = nil,
         onUpdateBody: ((String) async throws -> Void)? = nil,
-        onRename: ((String) async throws -> Item)? = nil
+        onRename: ((String) async throws -> Item)? = nil,
+        onDeleteItem: (() async throws -> Void)? = nil
     ) -> ItemWindowViewModel {
         ItemWindowViewModel(
             item: item,
@@ -31,7 +32,7 @@ struct ItemWindowViewModelTests {
             onUpdateIcon: onUpdateIcon ?? { _ in },
             onUpdateBody: onUpdateBody ?? { _ in },
             onRename: onRename ?? { _ in item },
-            onDeleteItem: {}
+            onDeleteItem: onDeleteItem ?? {}
         )
     }
 
@@ -293,6 +294,21 @@ struct ItemWindowViewModelTests {
         try? await Task.sleep(for: ItemWindowViewModel.debounce + .milliseconds(200))
         #expect(recorder.bodies == ["hello"])  // no double-write from the cancelled timer
     }
+
+    // MARK: - B7
+
+    @Test func confirmDeleteCallsSeam() async {
+        let item = makeItem(icon: nil, description: "")
+        let spy = DeleteSpy()
+        let vm = makeVM(item: item, onDeleteItem: { spy.count += 1 })
+        await vm.confirmDelete()
+        #expect(spy.count == 1)
+    }
+}
+
+/// Records delete-seam calls for the B7 tests (reference type — no mutable-capture concerns).
+private final class DeleteSpy {
+    var count = 0
 }
 
 /// Records rename-seam calls for the B4 tests without mutable-capture concerns.
