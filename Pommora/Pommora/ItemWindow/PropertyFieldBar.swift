@@ -1,12 +1,15 @@
 import SwiftUI
 
 /// The Item Window's pinned-property "Property Field" bar — a horizontal row that
-/// reads like a native macOS **segmented control**: ONE rounded `quaternaryFill`
-/// container, each segment separated from its neighbour by a thin vertical bar.
-/// Each segment is one pinned select/multiSelect property; it shows the property's
-/// **title when empty** and a **value chip when filled**, and tapping a segment
-/// opens that property's chip dropdown (the same `ChipDropdown` the cell editor
-/// uses). No per-segment icon. v1 surfaces select + multiSelect only (Pool A).
+/// reads like a native macOS **segmented control**: ONE rounded
+/// `quaternarySystemFill` track (the SAME fill the body text-box uses, so bar +
+/// body read as one material) that spans the FULL content rail, its content-sized
+/// cells filling that fixed width separated by thin vertical dividers (see
+/// `SegmentedTrackLayout`). Each cell is one pinned select/multiSelect property; it
+/// shows the property's **title when empty** and a **value chip when filled**, and
+/// tapping a cell opens that property's chip dropdown (the same `ChipDropdown` the
+/// cell editor uses). No per-segment icon. v1 surfaces select + multiSelect only
+/// (Pool A).
 ///
 /// A real `NSSegmentedControl` can't host per-segment popovers or chip content, so
 /// this replicates the native segmented *look* in SwiftUI while keeping the
@@ -30,14 +33,37 @@ struct PropertyFieldBar: View {
     /// Routes a single segment's edit back to the VM (`vm.handlePropertyChange`).
     let onChange: (String, PropertyValue) -> Void
 
+    /// Native `NSSegmentedControl` track height — every segment + divider sits
+    /// inside this fixed band so the bar reads as the system control, not a tall
+    /// custom field. (28pt is AppKit's standard segmented-control height.)
+    private static let trackHeight: CGFloat = 28
+
     var body: some View {
         let entries = Self.segments(itemType: itemType, collection: collection)
         // Empty bar collapses — no rounded container when nothing is pinned.
         if !entries.isEmpty {
-            HStack(spacing: 0) {
+            // Content-sized, variable-width cells that FILL a fixed full-width track,
+            // separated by thin vertical dividers — Apple's
+            // `NSSegmentedControl.apportionsSegmentWidthsByContent` look, but stretched
+            // to a fixed frame. `SegmentedTrackLayout` measures each cell's content
+            // width and distributes the track's full width proportionally, so a longer
+            // chip yields a wider cell while the cells together consume the entire rail
+            // (no trailing gap). The dividers are placed at their native hairline width
+            // in the gaps. Subviews arrive interleaved `[cell, divider, cell, …]`; the
+            // layout tells them apart by index parity (even = cell, odd = divider).
+            SegmentedTrackLayout(trackHeight: Self.trackHeight) {
                 ForEach(Array(entries.enumerated()), id: \.element.definition.id) { index, entry in
                     if index > 0 {
-                        Divider()
+                        // Vertical inter-segment hairline. An explicit 1pt-wide
+                        // `Rectangle` (not a bare `Divider`, whose axis is ambiguous
+                        // inside a custom `Layout` and renders as a horizontal rule)
+                        // guarantees a full-height vertical separator: the layout reads
+                        // its 1pt ideal width as the divider's fixed slot, and the
+                        // `.separator`-colored fill at `trackHeight - Spacing.md` height
+                        // (inset top/bottom) reads like the native control's hairline.
+                        Rectangle()
+                            .fill(Color(.separatorColor))
+                            .frame(width: 1, height: Self.trackHeight - PUI.Spacing.md)
                     }
                     PropertyFieldSegment(
                         definition: entry.definition,
@@ -46,18 +72,28 @@ struct PropertyFieldBar: View {
                     )
                 }
             }
+            // Fixed 28pt track. NO `.fixedSize` — the bar spans the FULL rail width
+            // (`maxWidth: .infinity`), not the summed cell widths; the layout fills
+            // that width with its content-sized cells.
             .frame(maxWidth: .infinity)
-            // ONE rounded segmented container on quaternaryFill (the window
-            // behind is glass; this fill reads as a native segmented track).
+            .frame(height: Self.trackHeight)
+            // ONE rounded track filled with `quaternarySystemFill` — the SAME fill the
+            // body text-box uses (`bodyZone`) so the bar and the body read as one
+            // material — plus a hairline stroke. The window behind is glass; this sits
+            // on top as the native segmented-control track.
             .background(
                 Color(.quaternarySystemFill),
                 in: RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
             )
-            // Inset to match the body card's rail. Lives INSIDE the populated
-            // branch so the collapsed (no-segment) case adds no gap between the
-            // header divider and the body.
+            .overlay(
+                RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
+                    .strokeBorder(.separator, lineWidth: 0.5)
+            )
+            // Rail inset only — the full-width track aligns to the body card's rail
+            // (matches the body + separators). Inset lives INSIDE the populated branch
+            // so the collapsed case adds no header/body gap; the top/bottom symmetry
+            // (equal gap above + below) is owned by the renderer's `mainColumn`.
             .padding(.horizontal, PUI.Spacing.xl)
-            .padding(.top, PUI.Spacing.xl)
         }
     }
 
@@ -108,6 +144,86 @@ struct PropertyFieldBar: View {
     }
 }
 
+// MARK: - Segmented track layout (content-sized cells that FILL a fixed width)
+
+/// The bar's layout engine: content-sized segment cells that together FILL a fixed
+/// full-width track, separated by fixed-width hairline dividers — Apple's
+/// `NSSegmentedControl.apportionsSegmentWidthsByContent` behavior, but stretched so
+/// the cells consume the *entire* proposed width (no trailing gap) instead of hugging.
+///
+/// **Mechanism.** `sizeThatFits` claims the full proposed width (so the bar spans the
+/// rail, not its content) at a fixed `trackHeight`. `placeSubviews` measures each
+/// cell's *ideal* (content) width, subtracts the dividers' fixed widths, then hands
+/// the remaining width to the cells **proportionally to their content widths** — a
+/// cell whose content is twice as wide gets twice the slice. Each cell is then placed
+/// filling its slice; each divider keeps its native hairline width. The cells are the
+/// variable-width parts; the track width is fixed.
+///
+/// **Interleaving.** The `@ViewBuilder` emits `[cell, divider, cell, divider, …]`, so
+/// subviews alternate cell / divider. The layout distinguishes them purely by index
+/// parity — even index = a segment cell (flexes), odd index = a divider (fixed) — so
+/// no view-identity inspection is needed (and nothing here touches `String`/`==`,
+/// quirk #12-safe by construction).
+private struct SegmentedTrackLayout: Layout {
+    let trackHeight: CGFloat
+
+    /// Full proposed width × fixed track height. Claiming `proposal.width` (rather than
+    /// the summed cell widths) is what makes the bar fill the rail. Falls back to the
+    /// content sum only when the parent proposes an unspecified/`nil` width.
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let contentWidth = subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).width }
+        return CGSize(width: proposal.width ?? contentWidth, height: trackHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void
+    ) {
+        guard !subviews.isEmpty else { return }
+
+        // Split subviews into flexing cells (even indices) and fixed dividers (odd).
+        // `idealWidths[i]` is each subview's content width; dividers keep theirs, cells
+        // share the leftover proportionally to theirs.
+        let idealWidths = subviews.map { $0.sizeThatFits(.unspecified).width }
+        var dividerWidth: CGFloat = 0
+        var cellIdealTotal: CGFloat = 0
+        for (i, width) in idealWidths.enumerated() {
+            if i.isMultiple(of: 2) {
+                cellIdealTotal += width  // a cell
+            } else {
+                dividerWidth += width  // a divider
+            }
+        }
+
+        // Width the cells share = full track minus the (fixed) dividers, never < 0.
+        let availableForCells = max(0, bounds.width - dividerWidth)
+
+        var x = bounds.minX
+        for (i, subview) in subviews.enumerated() {
+            let placedWidth: CGFloat
+            if i.isMultiple(of: 2) {
+                // Cell — proportional slice of the leftover (equal split if all cells
+                // somehow report zero ideal width, so a degenerate case still fills).
+                let share = cellIdealTotal > 0 ? idealWidths[i] / cellIdealTotal : 1 / cellCount(subviews.count)
+                placedWidth = availableForCells * share
+            } else {
+                // Divider — its own fixed hairline width.
+                placedWidth = idealWidths[i]
+            }
+            subview.place(
+                at: CGPoint(x: x, y: bounds.midY),
+                anchor: .leading,
+                proposal: ProposedViewSize(width: placedWidth, height: trackHeight)
+            )
+            x += placedWidth
+        }
+    }
+
+    /// Count of cells given the interleaved `[cell, divider, …]` ordering: cells sit at
+    /// even indices, so there are `ceil(total / 2)` of them. Used only for the
+    /// all-zero-ideal degenerate fallback (equal split).
+    private func cellCount(_ total: Int) -> CGFloat { CGFloat((total + 1) / 2) }
+}
+
 // MARK: - Segment (plain value props — isolated from GRDB String overloads, quirk #12)
 
 /// One segment of the Property Field bar. A tappable button that shows the
@@ -129,10 +245,17 @@ private struct PropertyFieldSegment: View {
         Button {
             showDropdown = true
         } label: {
+            // The cell's CONTENT width (label + horizontal gutter) is its ideal size,
+            // which `SegmentedTrackLayout` measures (`sizeThatFits(.unspecified)`) to
+            // proportion the slices — a longer chip yields a wider cell. `maxWidth:
+            // .infinity` does NOT inflate that ideal (an unspecified proposal resolves
+            // to the content width); it only lets the cell EXPAND to fill the wider
+            // slice the layout then places it into, so the whole slice is tappable and
+            // the dividers sit flush at the slice boundaries. `maxHeight: .infinity`
+            // centers the label within the fixed 28pt track.
             label
-                .frame(maxWidth: .infinity)
                 .padding(.horizontal, PUI.Spacing.md)
-                .padding(.vertical, PUI.Spacing.sm)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

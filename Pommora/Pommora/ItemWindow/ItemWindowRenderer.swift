@@ -94,35 +94,76 @@ struct ItemWindowRenderer: View {
                 inspectorColumn
             }
         }
-        .frame(width: PUI.ItemWindow.totalWidth, height: PUI.ItemWindow.height)
+        // Fixed WIDTH only — the card sizes its HEIGHT to the main column's content
+        // (header · top-sep · 6 · bar · 6 · body(310) · 6 · bottom-sep · footer), so
+        // there's no dead empty gap below the body. The inspector column carries a
+        // `Spacer(minLength: 0)`, so the `.top`-aligned HStack stretches it to this
+        // content height and its Delete stays pinned bottom-right.
+        .frame(width: PUI.ItemWindow.totalWidth)
     }
 
     // MARK: - Main column (header + body + footer)
 
-    /// Left column — a fixed-top / flexing-middle / fixed-bottom stack: the icon +
-    /// title header pinned up top, the editable body zone flexing to fill the
-    /// space between, and the breadcrumb footer pinned to the bottom. No outer
-    /// `ScrollView` — the body editor scrolls internally, so the column's chrome
-    /// (header, footer) stays put. The property bar lands between the header
-    /// `Divider()` and `bodyZone` in a later task (D-property-bar).
+    /// Left column — an intrinsic-height content stack the card sizes itself to:
+    /// header · top-separator · (6) · property bar (28) · (6) · body (310) · (6) ·
+    /// bottom-separator · footer. No flexing middle and no trailing filler — the
+    /// 6pt gaps are explicit, so there's no dead space below the body. No outer
+    /// `ScrollView`; the body editor scrolls internally, so the chrome (header,
+    /// footer) stays put. The bar renders only when chip properties are pinned,
+    /// and owns its symmetric 6pt gaps (top-sep → bar == bar → body); the empty
+    /// case substitutes one 6pt gap so the body never butts the header separator.
     private var mainColumn: some View {
         VStack(spacing: 0) {
             header
-            Divider()
-            // Pinned-property segmented bar (D4). Self-collapses (renders nothing,
-            // no inset) when no chip properties are pinned; owns its own inset so
-            // the empty case adds no gap between the header divider and the body.
-            PropertyFieldBar(
-                itemType: vm.itemType,
-                collection: vm.collection,
-                values: vm.draftProperties,
-                onChange: { vm.handlePropertyChange($0, $1) }
-            )
+            // Top separator — inset to the body card's rail (matches the bar +
+            // text-box horizontal extent) rather than spanning the full column.
+            insetDivider
+            // Pinned-property segmented bar (D4). Only rendered (with its symmetric
+            // vertical gap) when chip properties are pinned — gated so the empty
+            // case adds NO gap between the header divider and the body. When shown,
+            // the renderer owns the symmetric gap (header-divider → bar == bar →
+            // text-box), so the gap above the bar equals the gap below it.
+            if hasPinnedFieldProperties {
+                PropertyFieldBar(
+                    itemType: vm.itemType,
+                    collection: vm.collection,
+                    values: vm.draftProperties,
+                    onChange: { vm.handlePropertyChange($0, $1) }
+                )
+                // Symmetric 6pt gaps: top-sep → bar == bar → body (both `sm`).
+                .padding(.top, PUI.Spacing.sm)
+                .padding(.bottom, PUI.Spacing.sm)
+            } else {
+                // No bar → the single 6pt gap the body needs below the header
+                // separator (so the body doesn't butt against the divider).
+                Spacer().frame(height: PUI.Spacing.sm)
+            }
             bodyZone
-            Divider()
+            // Fixed 6pt gap body → bottom separator (was a flexing `Spacer` that
+            // left a dead gap under a fixed-height card; the card now sizes to
+            // content, so this is an explicit 6pt symmetric gap, not a filler).
+            Spacer().frame(height: PUI.Spacing.sm)
+            // Bottom separator — same rail inset as the top one.
+            insetDivider
             footer
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// Whether the property-field bar has any pinned chip property to show — the
+    /// same per-pool slice the bar itself computes (`PropertyFieldBar.segments`),
+    /// so the gate never diverges from the bar's own self-collapse. Pure value code
+    /// OUTSIDE the `@ViewBuilder` body (quirk #12 — `isEmpty`, no in-view `==`).
+    private var hasPinnedFieldProperties: Bool {
+        !PropertyFieldBar.segments(itemType: vm.itemType, collection: vm.collection).isEmpty
+    }
+
+    /// A horizontal separator inset to the body card's rail (the same horizontal
+    /// extent the property bar + text-box align to), so the top + bottom
+    /// separators read as bracketing the content column rather than the window.
+    private var insetDivider: some View {
+        Divider()
+            .padding(.horizontal, PUI.Spacing.xl)
     }
 
     // MARK: - Inspector column
@@ -176,19 +217,28 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Tier fields (D5a)
 
-    /// The three context-tier fields (Spaces / Topics / Projects) stacked at the
-    /// inspector's top — each a filled field box carrying the tier's icon + label
-    /// plus an inline `ContextValueEditor` for its relation chips. Drives off the
+    /// The three context-tier fields (Spaces / Topics / Projects) presented as ONE
+    /// unified container with hairline separators between rows — the grouped,
+    /// separated look the Pages property inspector (`FrontmatterInspector`'s
+    /// `Form`/`.grouped` Tiers section) uses, rebuilt for this hand-laid glass
+    /// column: a single rounded `quinary` surface + `.separator` hairline overlay,
+    /// rows divided by inset `Divider()`s — NOT three separate boxes. Drives off the
     /// canonical `ItemType.resolvedProperties(tierConfig:)` merge so the icons +
     /// labels are the SAME ones the property bar / page inspector resolve (DRY —
     /// no re-deriving "Spaces"/icon here). The `.contextTier(n)` entries arrive in
-    /// tier order from the merge; each renders one `TierField`. Per-tier `==`/id
-    /// work stays out of this `@ViewBuilder` — `tierProperties` is a plain helper
-    /// and each row is its own value-typed sub-view (quirk #12).
+    /// tier order from the merge; each renders one `TierRow`. Per-tier `==`/id work
+    /// stays out of this `@ViewBuilder` — `tierProperties` is a plain helper and
+    /// each row is its own value-typed sub-view (quirk #12).
     private var tierFields: some View {
-        VStack(spacing: PUI.Spacing.md) {
-            ForEach(tierProperties) { entry in
-                TierField(
+        VStack(spacing: 0) {
+            ForEach(Array(tierProperties.enumerated()), id: \.element.id) { index, entry in
+                if index > 0 {
+                    // Inset hairline between rows (leading-inset to clear the icon
+                    // gutter, matching grouped-list separator inset).
+                    Divider()
+                        .padding(.leading, PUI.Spacing.xl)
+                }
+                TierRow(
                     level: entry.level,
                     icon: entry.definition.icon ?? "circle",
                     label: entry.definition.name,
@@ -198,6 +248,13 @@ struct ItemWindowRenderer: View {
                 )
             }
         }
+        // ONE container fill + hairline for the whole tier group (the unified
+        // grouped-inspector surface), not per-row chrome.
+        .background(PUI.Fill.field, in: RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 0.5)
+        )
         .padding(PUI.Spacing.xl)
     }
 
@@ -433,9 +490,14 @@ struct ItemWindowRenderer: View {
     /// red once `vm.isOverCap` (set when a flushed save exceeds the cap). The cap is
     /// a non-blocking WARN only — an over-cap body never blocks the editor (LD-7).
     ///
-    /// The body is the dominant region: the editor frame flexes to fill the main
-    /// column (no min/max height clamp), and the whole zone sits on a translucent
-    /// `quaternarySystemFill` rounded surface with the counter pinned bottom-right.
+    /// **Fixed-size input box (not a flexing region):** the card is clamped to a
+    /// fixed `bodyHeight` (310pt) and spans the column's content rail (full width
+    /// inset by the `xl` rail padding — the SAME extent the property bar +
+    /// separators align to), so it does NOT grow to fill the column. The editor
+    /// scrolls internally past the fixed height; the counter pins bottom-right
+    /// inside the `quaternarySystemFill` rounded surface. The `mainColumn` sizes the
+    /// card to this content (6pt gap to the bottom separator), so there's no dead
+    /// gap below the body.
     private var bodyZone: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             MarkdownPMEditor(
@@ -459,13 +521,22 @@ struct ItemWindowRenderer: View {
             }
         }
         .padding(PUI.Spacing.xl)
+        // Fixed height — a defined input box, not a flexing fill. The editor
+        // scrolls internally once content exceeds this.
+        .frame(height: Self.bodyHeight)
         .background(
             Color(.quaternarySystemFill),
             in: RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
         )
-        .padding(PUI.Spacing.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // Rail inset only — width follows the column's content rail (matches the
+        // bar + separators), NOT an unbounded stretch beyond it.
+        .padding(.horizontal, PUI.Spacing.xl)
     }
+
+    /// Fixed height of the body input box. Sized so the editor reads as a defined
+    /// multi-line description field rather than the column-dominating region it used
+    /// to be — the card sizes to fit this exact content (no dead gap below it).
+    private static let bodyHeight: CGFloat = 310
 
     /// Effective description cap for the counter — the resolved template's override
     /// (Collection → Type) or the default. One source of truth: `ItemValidator`
@@ -494,24 +565,23 @@ struct ItemWindowRenderer: View {
     }
 }
 
-// MARK: - Tier field (D5a)
+// MARK: - Tier row (D5a)
 
-/// One full-width context-tier field box in the Item-Window inspector: the
-/// tier's icon + label on the leading edge, with an inline `ContextValueEditor`
-/// trailing that shows the tier's relation chips (or its own "Add" affordance
-/// when empty). The label always names the tier, so an empty tier still reads as
-/// "Spaces" / "Topics" / "Projects" rather than a bare "Add".
+/// One context-tier row inside the inspector's unified tier panel: the tier's
+/// icon + label on the leading edge, with an inline `ContextValueEditor` trailing
+/// that shows the tier's relation chips (or its own "Add" affordance when empty).
+/// The label always names the tier, so an empty tier still reads as "Spaces" /
+/// "Topics" / "Projects" rather than a bare "Add".
 ///
-/// The box fill is the standard control-field background — `PUI.Fill.field`
-/// (`.quinary`) at `PUI.Radius.field`, with a `.separator` hairline — the same
-/// field-background language the Pages property inspector's context fields use
-/// (and that `ContextChip` itself rides). Translucent, so the Item Window's
-/// glass shows through while reading as a distinct menu/control field on top.
+/// **Chrome-less row.** Unlike the old standalone `TierField`, this row carries NO
+/// fill or border — the enclosing `tierFields` container owns the single grouped
+/// surface + hairline + inter-row dividers (the `FrontmatterInspector` grouped
+/// look). The row is fixed at the native 28pt row height.
 ///
 /// A pure value-typed sub-view (only `String` / `Binding<[String]>` / optional
 /// index + resolver) so no GRDB-`String` overload ambiguity reaches a
 /// `@ViewBuilder` here (quirk #12); the picker hosting is `ContextValueEditor`'s.
-private struct TierField: View {
+private struct TierRow: View {
     /// Tier number (1...3) — drives the picker `scope`; the parent carries it
     /// explicitly (it's the `.contextTier(n)` level, never the array position).
     let level: Int
@@ -520,6 +590,9 @@ private struct TierField: View {
     @Binding var ids: [String]
     let index: PommoraIndex?
     let resolver: ContextDisplayResolver
+
+    /// Native grouped-list row height — every tier row sits in this fixed band.
+    private static let rowHeight: CGFloat = 28
 
     var body: some View {
         HStack(spacing: PUI.Spacing.md) {
@@ -539,13 +612,8 @@ private struct TierField: View {
             )
         }
         .padding(.horizontal, PUI.Spacing.xl)
-        .padding(.vertical, PUI.Spacing.md)
+        .frame(height: Self.rowHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(PUI.Fill.field, in: RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous)
-                .strokeBorder(.separator, lineWidth: 0.5)
-        )
     }
 }
 
