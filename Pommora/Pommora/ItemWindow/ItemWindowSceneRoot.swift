@@ -5,7 +5,7 @@ import SwiftUI
 /// the live per-Nexus environment via `AppGlobals.current` (a static, NOT an
 /// `@Environment` — so the scene root itself can never SIGTRAP on an un-injected
 /// manager), resolves the ref to its Item + Type + Set, and hosts
-/// `ItemWindowRenderer` wrapped in `PreviewWindow` chrome.
+/// `ItemWindowRenderer` directly in a real titled floating window.
 ///
 /// **Quirk #15 safety.** The renderer reads several `@Environment(Manager)`
 /// values (ContextDisplayResolver, TierConfigManager, ItemTypeManager). Those
@@ -20,14 +20,13 @@ struct ItemWindowSceneRoot: View {
         if let env = AppGlobals.current {
             ItemWindowSceneContent(ref: ref, env: env)
         } else {
-            // Cold-launch restore before any Nexus opened — render a small card
+            // Cold-launch restore before any Nexus opened — render a small label
             // rather than crash. `.restorationBehavior(.disabled)` on the scene
             // should normally prevent this path entirely.
-            PreviewWindow {
-                Text("No Nexus open")
-                    .foregroundStyle(.secondary)
-                    .padding()
-            }
+            Text("No Nexus open")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
         }
     }
 }
@@ -63,26 +62,30 @@ private struct ItemWindowSceneContent: View {
     var body: some View {
         Group {
             if let vm {
-                PreviewWindow(showsDefaultHeader: false) {
-                    ItemWindowRenderer(vm: vm)
-                }
-                // Fresh subtree (and fresh child @State) per Item — mirrors
-                // PageEditorView's `.id(vm.page.id)`. `.task(id: ref)` only
-                // re-fires when `ref` changes, which is the desired per-item re-init.
-                .id(ref)
+                ItemWindowRenderer(vm: vm)
+                    // Fresh subtree (and fresh child @State) per Item — mirrors
+                    // PageEditorView's `.id(vm.page.id)`. `.task(id: ref)` only
+                    // re-fires when `ref` changes, which is the desired per-item re-init.
+                    .id(ref)
+                    // Window identity: the title bar shows the Item's title (the
+                    // user asked for title + icon in the chrome; the icon lands as
+                    // a toolbar item in the renderer rework).
+                    .navigationTitle(vm.item.title)
             } else if resolveFailed {
-                PreviewWindow {
-                    Text("Item no longer available")
-                        .foregroundStyle(.secondary)
-                        .padding()
-                }
+                Text("Item no longer available")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
             } else {
-                PreviewWindow {
-                    ProgressView()
-                        .padding()
-                }
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
             }
         }
+        // Non-minimizable: this is an auxiliary floating panel tied to Pommora, not
+        // a standalone window. `.windowMinimizeBehavior(.disabled)` (macOS 15+,
+        // WindowInteractionBehavior) configures the enclosing window in every state.
+        .windowMinimizeBehavior(.disabled)
         .injectNexusEnvironment(env)  // quirk #15: satisfies every @Environment the renderer reads.
         // Load the ref's container (so `items(in:)` is populated), THEN resolve +
         // build the VM. Construction lives here — `.task` runs on the main actor,

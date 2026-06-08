@@ -51,8 +51,11 @@ struct PommoraApp: App {
 
         // T4.3 — floating Item Window scene. Value-typed `WindowGroup(for:)`
         // keyed on `ItemRef`; `ItemWindowSceneRoot` resolves the ref against the
-        // live Nexus env (`AppGlobals.current`) and hosts `ItemWindowRenderer`
-        // inside `PreviewWindow` chrome. `.injectNexusEnvironment` (inside the
+        // live Nexus env (`AppGlobals.current`) and hosts `ItemWindowRenderer` as
+        // a REAL titled floating window (system title bar + traffic lights via
+        // `.windowToolbarStyle(.unified)`; the navigation title shows the Item).
+        // The window is made non-minimizable via `.windowMinimizeBehavior(.disabled)`
+        // applied in `ItemWindowSceneRoot`. `.injectNexusEnvironment` (inside the
         // root) satisfies every `@Environment(Manager)` the renderer reads
         // (quirk #15). `.restorationBehavior(.disabled)` stops macOS restoring
         // Item windows at cold launch before the Nexus env exists (crash /
@@ -63,7 +66,7 @@ struct PommoraApp: App {
                 ItemWindowSceneRoot(ref: ref)
             }
         }
-        .windowStyle(.plain)
+        .windowToolbarStyle(.unified)
         .windowLevel(.floating)
         .windowResizability(.contentSize)
         .restorationBehavior(.disabled)
