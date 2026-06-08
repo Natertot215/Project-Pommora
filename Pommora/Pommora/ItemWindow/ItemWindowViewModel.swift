@@ -133,6 +133,25 @@ final class ItemWindowViewModel {
         }
     }
 
+    /// Surfaces a schema property's inspector row so the user can then assign it a
+    /// value. Writes NOTHING — the row appears empty until the user picks a value
+    /// (which goes through handlePropertyChange). So no seam call here.
+    func addProperty(_ id: String) {
+        surfaced.insert(id)
+    }
+
+    /// Schema properties eligible for the "Add Property" menu: drop those already
+    /// filled, pinned (they live on the chip row), reserved (id / tiers / status /
+    /// type / timestamps), and the virtual last-edited-time.
+    static func addableProperties(
+        schema: [PropertyDefinition], filled: Set<String>, pinned: Set<String>
+    ) -> [PropertyDefinition] {
+        schema.filter { d in
+            !filled.contains(d.id) && !pinned.contains(d.id)
+                && !ReservedPropertyID.all.contains(d.id) && d.type != .lastEditedTime
+        }
+    }
+
     /// Applies a single property edit: mutate the in-memory draft synchronously,
     /// then fire one live save through the `onUpdateProperty` seam.
     ///

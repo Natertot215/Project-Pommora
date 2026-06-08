@@ -304,6 +304,32 @@ struct ItemWindowViewModelTests {
         await vm.confirmDelete()
         #expect(spy.count == 1)
     }
+
+    // MARK: - B8
+
+    @Test func addPropertySurfacesWithoutSeamCall() {
+        let item = makeItem(icon: nil, description: "")
+        let vm = makeVM(
+            item: item,
+            onUpdateProperty: { _, _ in Issue.record("addProperty must not call the property seam") }
+        )
+        vm.addProperty("newProp")
+        #expect(vm.surfaced.contains("newProp"))
+    }
+
+    @Test func addablePropertiesExcludesFilledPinnedReservedAndLastEdited() {
+        let schema = [
+            PropertyDefinition(id: "a", name: "A", type: .select),  // survivor
+            PropertyDefinition(id: "b", name: "B", type: .number),  // filled → excluded
+            PropertyDefinition(id: "p", name: "P", type: .select),  // pinned → excluded
+            PropertyDefinition(id: ReservedPropertyID.tier1, name: "T1", type: .select),  // reserved id → excluded
+            PropertyDefinition(id: "le", name: "LE", type: .lastEditedTime),  // virtual → excluded
+        ]
+        let out = ItemWindowViewModel.addableProperties(
+            schema: schema, filled: ["b"], pinned: ["p"]
+        )
+        #expect(out.map(\.id) == ["a"])
+    }
 }
 
 /// Records delete-seam calls for the B7 tests (reference type — no mutable-capture concerns).
