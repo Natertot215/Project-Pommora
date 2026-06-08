@@ -29,8 +29,12 @@ struct PreviewWindow<Content: View>: View {
             if showsDefaultHeader { header }
             content()
         }
-        .background(
-            .regularMaterial,
+        // Native macOS 26 Liquid Glass — the whole window reads as a system
+        // glass panel, matching `AutoCompleteWindow`'s single-surface treatment.
+        // A single glass surface needs NO `GlassEffectContainer` (that's only for
+        // grouping/morphing multiple glass elements that must share a sampling
+        // region). Replaces the old opaque `.regularMaterial` card.
+        .glassEffect(
             in: RoundedRectangle(cornerRadius: PUI.Radius.large, style: .continuous)
         )
         .clipShape(RoundedRectangle(cornerRadius: PUI.Radius.large, style: .continuous))

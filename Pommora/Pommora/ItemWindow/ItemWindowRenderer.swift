@@ -21,7 +21,7 @@ struct ItemWindowRenderer: View {
     /// enclosing `PreviewWindow` scene uses for its close affordance + Esc.
     @Environment(\.dismissWindow) private var dismissWindow
 
-    /// Drives the footer options menu's destructive-delete confirmation.
+    /// Drives the inspector column's destructive-delete confirmation dialog.
     @State private var showDeleteConfirm = false
 
     // MARK: - Promoted / overflow partition (pure)
@@ -56,12 +56,15 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Body
 
-    /// Two-column card scaffold: the main column (header + body) on the left, the
-    /// inspector column on the right, separated by a vertical divider — the whole
-    /// card framed to the fixed Item-Window dimensions. The inspector is gated on
-    /// `vm.inspectorShown` (defaults `true`, so the default render is both columns);
-    /// D7 will add the conditional collapsed width when it's hidden. The footer
-    /// spans the full card width as a bottom inset.
+    /// Two-column card scaffold: the main column (header + body + breadcrumb
+    /// footer) on the left, the inspector column on the right, separated by a
+    /// full-height vertical divider — the whole card framed to the fixed
+    /// Item-Window dimensions. Each column owns its own bottom region: the
+    /// breadcrumb footer pins to the bottom of the MAIN column; the Delete
+    /// affordance pins to the bottom-right of the INSPECTOR column. There is NO
+    /// full-width footer spanning both columns. The inspector is gated on
+    /// `vm.inspectorShown` (defaults `true`, so the default render is both
+    /// columns); D7 will add the conditional collapsed width when it's hidden.
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             mainColumn
@@ -70,39 +73,69 @@ struct ItemWindowRenderer: View {
                 inspectorColumn
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                Divider()
-                footer
-            }
-            .background(.bar)
-        }
         .frame(width: PUI.ItemWindow.totalWidth, height: PUI.ItemWindow.height)
     }
 
-    // MARK: - Main column (header + body)
+    // MARK: - Main column (header + body + footer)
 
-    /// Left column — scrolling icon + title header above the editable body zone,
-    /// flexing to fill the space left of the inspector.
+    /// Left column — a fixed-top / flexing-middle / fixed-bottom stack: the icon +
+    /// title header pinned up top, the editable body zone flexing to fill the
+    /// space between, and the breadcrumb footer pinned to the bottom. No outer
+    /// `ScrollView` — the body editor scrolls internally, so the column's chrome
+    /// (header, footer) stays put. The property bar lands between the header
+    /// `Divider()` and `bodyZone` in a later task (D-property-bar).
     private var mainColumn: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
-                header
-                bodyZone
-            }
-            .padding()
+        VStack(spacing: 0) {
+            header
+            Divider()
+            bodyZone
+            Divider()
+            footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     // MARK: - Inspector column
 
-    /// Right column — fixed-width inspector. Empty stub for now; D5 fills it with
-    /// the inspector zone content.
+    /// Right column — fixed-width, full-height inspector. Tier fields + property
+    /// rows + the Add-Property affordance land in the empty top region in a later
+    /// task (D5); for now a `Spacer` pushes the destructive Delete affordance to
+    /// the column's bottom-right. The delete confirmation dialog is anchored here
+    /// (relocated from the old full-width footer's options menu).
     private var inspectorColumn: some View {
-        Color.clear
-            .frame(width: PUI.ItemWindow.inspectorWidth)
-            .frame(maxHeight: .infinity)
+        VStack(alignment: .leading, spacing: 0) {
+            // D5: tier fields + property rows + Add-Property land here.
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                deleteButton
+            }
+            .padding(PUI.Spacing.xl)
+        }
+        .frame(width: PUI.ItemWindow.inspectorWidth, alignment: .topLeading)
+        .confirmationDialog(
+            "Delete Item \"\(vm.item.title)\"?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            // Delete FIRST, then dismiss: the now-deleted Item re-resolves to nil
+            // in the scene's close flush, which safely no-ops (no resurrection).
+            Button("Delete", role: .destructive) {
+                Task {
+                    await vm.confirmDelete()
+                    dismissWindow()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    /// Bare red "Delete" text (no button chrome) pinned to the inspector's
+    /// bottom-right; taps arm the relocated confirmation dialog above.
+    private var deleteButton: some View {
+        Button("Delete", role: .destructive) { showDeleteConfirm = true }
+            .buttonStyle(.plain)
+            .foregroundStyle(.red)
     }
 
     // MARK: - 1. Header (icon + title)
@@ -134,6 +167,10 @@ struct ItemWindowRenderer: View {
     /// The counter reads the live draft length against the effective cap and turns
     /// red once `vm.isOverCap` (set when a flushed save exceeds the cap). The cap is
     /// a non-blocking WARN only — an over-cap body never blocks the editor (LD-7).
+    ///
+    /// The body is the dominant region: the editor frame flexes to fill the main
+    /// column (no min/max height clamp), and the whole zone sits on a translucent
+    /// `quaternarySystemFill` rounded surface with the counter pinned bottom-right.
     private var bodyZone: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             MarkdownPMEditor(
@@ -147,7 +184,7 @@ struct ItemWindowRenderer: View {
                 documentId: vm.item.id,
                 isEditable: true
             )
-            .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 200, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             HStack {
                 Spacer()
@@ -156,6 +193,13 @@ struct ItemWindowRenderer: View {
                     .foregroundStyle(vm.isOverCap ? .red : .secondary)
             }
         }
+        .padding(PUI.Spacing.xl)
+        .background(
+            Color(.quaternarySystemFill),
+            in: RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
+        )
+        .padding(PUI.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     /// Effective description cap for the counter — the resolved template's override
@@ -166,35 +210,14 @@ struct ItemWindowRenderer: View {
             template: TemplateResolver.effective(type: vm.itemType, collection: vm.collection))
     }
 
-    // MARK: - Footer (breadcrumb + options control)
+    // MARK: - Footer (breadcrumb only)
 
+    /// Breadcrumb path pinned to the bottom of the main column. No options menu,
+    /// no Delete (that moved to the inspector column), and no opaque `.background`
+    /// — the footer sits directly on the window glass; the `Divider()` above it in
+    /// `mainColumn` is the only separator.
     private var footer: some View {
-        DetailFooterBar(crumbs: footerCrumbs) {
-            Menu {
-                // Delete is the only option for v1; template / view options
-                // land here later (zone-framework rework).
-                Button("Delete", role: .destructive) { showDeleteConfirm = true }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-        }
-        .confirmationDialog(
-            "Delete Item \"\(vm.item.title)\"?",
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            // Delete FIRST, then dismiss: the now-deleted Item re-resolves to nil
-            // in the scene's close flush, which safely no-ops (no resurrection).
-            Button("Delete", role: .destructive) {
-                Task {
-                    await vm.confirmDelete()
-                    dismissWindow()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
+        DetailFooterBar(crumbs: footerCrumbs) { EmptyView() }
     }
 
     private var footerCrumbs: [FooterCrumb] {
