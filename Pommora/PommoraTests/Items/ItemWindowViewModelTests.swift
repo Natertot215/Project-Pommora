@@ -50,6 +50,17 @@ struct ItemWindowViewModelTests {
         )
     }
 
+    /// Polls `condition` on the MainActor (up to ~3s, every 10ms), returning as soon
+    /// as it holds. Robust against main-actor contention under the full parallel test
+    /// target, where a fixed `debounce + margin` sleep can lose the race for a
+    /// main-actor slot and read the value before the debounced timer fires.
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<300 {
+            if condition() { return }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     @Test func hydratesDraftsFromItem() {
         let item = makeItem(
             icon: "star", description: "the body",
@@ -258,7 +269,9 @@ struct ItemWindowViewModelTests {
         vm.handleBodyChange("a")
         vm.handleBodyChange("ab")
         vm.handleBodyChange("abc")
-        try? await Task.sleep(for: ItemWindowViewModel.debounce + .milliseconds(200))
+        // Each new edit cancels the prior debounce task synchronously, so only the
+        // final timer fires. Poll for that single write (robust under main-actor load).
+        await waitUntil { !recorder.bodies.isEmpty }
 
         #expect(recorder.bodies == ["abc"])  // rapid edits coalesced into one write
     }
@@ -275,7 +288,8 @@ struct ItemWindowViewModelTests {
         let vm = makeVM(item: item, type: type, onUpdateBody: { body in recorder.bodies.append(body) })
 
         vm.handleBodyChange("123456")  // 6 chars > cap of 5
-        try? await Task.sleep(for: ItemWindowViewModel.debounce + .milliseconds(200))
+        // Flush deterministically — same cap gate the debounce path runs, no timer race.
+        await vm.flushBodyNow()
 
         #expect(vm.isOverCap == true)
         #expect(recorder.bodies.isEmpty)  // over-cap skips the write
