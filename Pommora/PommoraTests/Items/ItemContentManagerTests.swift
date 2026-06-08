@@ -319,6 +319,24 @@ struct ItemContentManagerTests {
         #expect(manager.items(in: itemType).isEmpty)
     }
 
+    // MARK: - Single-property value writes
+
+    @Test("updateItemProperty with .null removes the key (does not persist a literal null)")
+    func nullValueRemovesKeyNotPersistsNull() async throws {
+        let (nexus, itemType, manager) = try await TempNexus.itemTypeRoot(named: "T")
+        defer { TempNexus.cleanup(nexus) }
+
+        let created = try await manager.createItem(name: "I", inTypeRoot: itemType)
+        try await manager.updateItemProperty(
+            created, propertyID: "p", newValue: .select("x"), type: itemType, collection: nil)
+        try await manager.updateItemProperty(
+            created, propertyID: "p", newValue: .null, type: itemType, collection: nil)
+
+        let fresh = TempNexus.reopen(nexus)
+        await fresh.loadAll(for: itemType)
+        #expect(fresh.items(in: itemType).first?.properties["p"] == nil)
+    }
+
     // MARK: - Setup
 
     /// Bootstraps a temp nexus with an ItemType + ItemCollection materialized

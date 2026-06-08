@@ -728,6 +728,14 @@ extension ItemContentManager {
         collection: ItemCollection?
     ) async throws {
         do {
+            // `.null` is a clear-intent sentinel (cell editors emit it on "clear"),
+            // never a value to persist — collapse it to `nil` so the removeValue path
+            // runs (writing a literal YAML `null` instead is a bug). `.relation([])`
+            // is NOT `.null` and stays on its own omit-the-key path below.
+            let newValue: PropertyValue? = {
+                if case .null = newValue { nil } else { newValue }
+            }()
+
             let folder = collection?.folderURL ?? folderURL(for: itemType)
             let url = NexusPaths.itemFileURL(forTitle: item.title, in: folder)
 
