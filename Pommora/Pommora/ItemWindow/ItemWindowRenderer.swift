@@ -3,18 +3,19 @@ import SwiftUI
 
 /// The single live Item-Window renderer. It currently draws a clean display-only
 /// stub — the Item's icon + title (`header`), a read-only body (`stubBody`), and a
-/// breadcrumb footer — nothing else. This stub is the bedrock the interactive
-/// zones will be built onto; the renderer reads the resolved `Item` +
-/// `ItemTemplateConfig` + Type schema and performs NO CRUD on the live path.
+/// breadcrumb footer — reading every field off the bound `ItemWindowViewModel`.
+/// Display stays read-only here (D1 is plumbing only); editable title / icon / body
+/// land in D2/D3, which will bind `$vm.draftTitle` / `$vm.draftBody` directly.
 ///
 /// The reorder/partition helpers below (`partition`, `reorderPromoted`) are pure,
 /// unit-tested, and retained for the zone rework even though no production caller
 /// references them yet.
 struct ItemWindowRenderer: View {
-    let item: Item
-    let template: ItemTemplateConfig
-    let itemType: ItemType
-    let collection: ItemCollection?
+    /// `@Bindable` (not `let`) because the VM is owned by `ItemWindowSceneContent`;
+    /// this view observes + binds to it without taking ownership. D2/D3 will bind
+    /// `$vm.draftTitle` / `$vm.draftBody`; D1's reads are still display-only.
+    /// Mirrors `PageEditorView.viewModel`.
+    @Bindable var vm: ItemWindowViewModel
 
     // MARK: - Promoted / overflow partition (pure)
 
@@ -48,16 +49,19 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Body
 
-    /// Two-column card scaffold (Phase D0): the main column (header + body) on the
-    /// left, the inspector column on the right, separated by a vertical divider —
-    /// the whole card framed to the fixed Item-Window dimensions. Both columns are
-    /// always shown here; the show/hide toggle arrives with the view-model (D1/D7).
-    /// The footer spans the full card width as a bottom inset.
+    /// Two-column card scaffold: the main column (header + body) on the left, the
+    /// inspector column on the right, separated by a vertical divider — the whole
+    /// card framed to the fixed Item-Window dimensions. The inspector is gated on
+    /// `vm.inspectorShown` (defaults `true`, so the default render is both columns);
+    /// D7 will add the conditional collapsed width when it's hidden. The footer
+    /// spans the full card width as a bottom inset.
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             mainColumn
-            Divider()
-            inspectorColumn
+            if vm.inspectorShown {
+                Divider()
+                inspectorColumn
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
@@ -103,10 +107,10 @@ struct ItemWindowRenderer: View {
     /// title. The live window is a display stub, so nothing edits here.
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
-            Image(systemName: item.icon ?? itemType.icon ?? "list.bullet.rectangle")
+            Image(systemName: vm.item.icon ?? vm.itemType.icon ?? "list.bullet.rectangle")
                 .font(.system(size: 22))
                 .foregroundStyle(.secondary)
-            Text(item.title)
+            Text(vm.item.title)
                 .font(.title2.weight(.semibold))
                 .lineLimit(2)
             Spacer(minLength: 0)
@@ -121,11 +125,11 @@ struct ItemWindowRenderer: View {
     /// editor + cap counter + save machinery were retired with the display stub.
     private var stubBody: some View {
         MarkdownPMEditor(
-            text: .constant(item.description),
+            text: .constant(vm.item.description),
             configuration: MarkdownEditorConfig.pommora(verticalInset: 0),
             fontName: "SF Pro Text",
             fontSize: 15,
-            documentId: item.id,
+            documentId: vm.item.id,
             isEditable: false
         )
         .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
@@ -147,8 +151,8 @@ struct ItemWindowRenderer: View {
     }
 
     private var footerCrumbs: [FooterCrumb] {
-        var crumbs = [FooterCrumb(title: itemType.title)]
-        if let collection {
+        var crumbs = [FooterCrumb(title: vm.itemType.title)]
+        if let collection = vm.collection {
             crumbs.append(FooterCrumb(title: collection.title))
         }
         return crumbs
