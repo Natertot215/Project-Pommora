@@ -77,29 +77,57 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Body
 
-    /// Two-column card scaffold: the main column (header + body + breadcrumb
-    /// footer) on the left, the inspector column on the right, separated by a
-    /// full-height vertical divider — the whole card framed to the fixed
-    /// Item-Window dimensions. Each column owns its own bottom region: the
-    /// breadcrumb footer pins to the bottom of the MAIN column; the Delete
-    /// affordance pins to the bottom-right of the INSPECTOR column. There is NO
-    /// full-width footer spanning both columns. The inspector is gated on
-    /// `vm.inspectorShown` (defaults `true`, so the default render is both
-    /// columns); D7 will add the conditional collapsed width when it's hidden.
+    /// The Item Window's content for its real titled window: the main column
+    /// (title row + property bar + body + breadcrumb footer) plus a native trailing
+    /// `.inspector` panel (`inspectorColumn`) the system slides in/out and resizes.
+    /// `vm.inspectorShown` (default `true`) drives the panel; the window grows by
+    /// the inspector's width when shown. The window toolbar (`itemToolbar`) carries
+    /// the icon + inspector toggle; the title is the scene's `.navigationTitle`.
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            mainColumn
-            if vm.inspectorShown {
-                Divider()
+        // Native macOS window layout: the main column IS the window content; the
+        // inspector is a real trailing `.inspector` panel (smooth system slide +
+        // resizable edge), not a hand-laid second column. The window's real title
+        // bar drags it and the red traffic light closes it, so the old in-body
+        // close button + `WindowDragGesture` are gone; the icon + inspector toggle
+        // live in the window `.toolbar`. The main column keeps its fixed content
+        // width; the inspector adds its own width when shown (the window animates).
+        mainColumn
+            .frame(width: PUI.ItemWindow.mainWidth)
+            .inspector(isPresented: $vm.inspectorShown) {
                 inspectorColumn
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
             }
+            .toolbar { itemToolbar }
+    }
+
+    /// Window toolbar (unified title bar): the Item's icon on the leading edge
+    /// (tap → icon picker) and the inspector toggle on the trailing edge (the same
+    /// `sidebar.trailing` symbol ContentView uses). The title is the window's
+    /// `.navigationTitle` (set by the scene), so the chrome reads icon + title +
+    /// toggle — the "title + icon in the chrome" the design calls for.
+    @ToolbarContentBuilder
+    private var itemToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button {
+                showIconPicker = true
+            } label: {
+                Image(systemName: vm.draftIcon ?? vm.itemType.icon ?? "list.bullet.rectangle")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Change icon")
+            .iconPickerPopover(
+                isPresented: $showIconPicker,
+                symbol: Binding(get: { vm.draftIcon }, set: { vm.handleIconChange($0) })
+            )
         }
-        // Fixed WIDTH only — the card sizes its HEIGHT to the main column's content
-        // (header · top-sep · 6 · bar · 6 · body(310) · 6 · bottom-sep · footer), so
-        // there's no dead empty gap below the body. The inspector column carries a
-        // `Spacer(minLength: 0)`, so the `.top`-aligned HStack stretches it to this
-        // content height and its Delete stays pinned bottom-right.
-        .frame(width: PUI.ItemWindow.totalWidth)
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                vm.inspectorShown.toggle()
+            } label: {
+                Image(systemName: "sidebar.trailing")
+            }
+            .accessibilityLabel("Toggle inspector")
+        }
     }
 
     // MARK: - Main column (header + body + footer)
@@ -189,7 +217,9 @@ struct ItemWindowRenderer: View {
             }
             .padding(PUI.Spacing.xl)
         }
-        .frame(width: PUI.ItemWindow.inspectorWidth, alignment: .topLeading)
+        // Width is governed by `.inspectorColumnWidth` on the native `.inspector`
+        // (set in `body`); the column just fills whatever the panel allots.
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .confirmationDialog(
             "Delete Item \"\(vm.item.title)\"?",
             isPresented: $showDeleteConfirm,
@@ -386,56 +416,17 @@ struct ItemWindowRenderer: View {
         }
     }
 
-    // MARK: - 1. Header (close · icon · title · inspector toggle)
+    // MARK: - 1. Title row (editable inline title — icon + toggle live in the toolbar)
 
-    /// Interactive header bar (D2): `[✕ close] [icon] [Title field] … [inspector
-    /// toggle]`. The Item Window is liquid glass, so the title field is fill-less
-    /// (transparent — the glass shows through); no per-control glass effect.
-    ///
-    /// **Drag vs. clicks.** The whole bar moves the window, but `WindowDragGesture()`
-    /// on the HStack itself would swallow the title field's click-to-focus and the
-    /// buttons' taps. Instead the drag rides a dedicated `.background` drag layer
-    /// (a hit-testable `Color.clear`) sitting *behind* the controls. SwiftUI
-    /// hit-tests front-to-back, so a click on the title field / close / icon /
-    /// toggle lands on that control first and never reaches the layer behind it;
-    /// only a press on the empty header region falls through to the drag layer and
-    /// moves the window. This mirrors `PreviewWindow`'s draggable header without
-    /// stealing the interactive controls' input.
+    /// The Item's editable title, rendered as the main column's leading H1. The
+    /// icon, the inspector toggle, and the close affordance all moved OUT of the
+    /// body: the icon + toggle are window `.toolbar` items (`itemToolbar`) and the
+    /// red traffic light closes the window. So this row is just the title field +
+    /// an inline rename error. Commits on Enter (`onSubmit`) and focus-loss
+    /// (`onChange`); the scene's `.onDisappear` is the dismissal safety net (all
+    /// idempotent — `handleTitleCommit` guards trimmed-equals-current).
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
-            // 1. Close — copies PreviewWindow's plain `xmark` (no capsule chrome).
-            Button {
-                dismissWindow()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
-
-            // 2. Icon — Item icon (falling back to the Type's); tap opens the picker.
-            Button {
-                showIconPicker = true
-            } label: {
-                Image(systemName: vm.draftIcon ?? vm.itemType.icon ?? "list.bullet.rectangle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Change icon")
-            .iconPickerPopover(
-                isPresented: $showIconPicker,
-                symbol: Binding(get: { vm.draftIcon }, set: { vm.handleIconChange($0) })
-            )
-
-            // 3. Title — inline-commit field, fill-less on the glass. Commits on
-            // Enter (`onSubmit`) and focus-loss (`onChange`); the scene's
-            // `.onDisappear` is the dismissal safety net. All idempotent
-            // (`handleTitleCommit` guards trimmed-equals-current). `.fixedSize`
-            // keeps the click/caret target on the text, not the whole bar.
             TextField("Title", text: $vm.draftTitle)
                 .textFieldStyle(.plain)
                 .font(.title2.weight(.semibold))
@@ -444,9 +435,8 @@ struct ItemWindowRenderer: View {
                 .onChange(of: titleFocused) { _, focused in
                     if !focused { Task { await vm.handleTitleCommit() } }
                 }
-                .fixedSize(horizontal: true, vertical: false)
 
-            // 4. Inline error — surfaces a rename failure (e.g. filename collision).
+            // Inline error — surfaces a rename failure (e.g. filename collision).
             if let error = vm.inlineError {
                 Text(error)
                     .font(.caption)
@@ -455,25 +445,9 @@ struct ItemWindowRenderer: View {
             }
 
             Spacer(minLength: 0)
-
-            // 6. Inspector toggle — same symbol Pommora uses in ContentView.
-            Button {
-                vm.inspectorShown.toggle()
-            } label: {
-                Image(systemName: "sidebar.trailing")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Toggle inspector")
         }
         .padding(.horizontal, PUI.Spacing.md)
         .padding(.vertical, PUI.Spacing.sm)
-        // Drag layer BEHIND the controls — only empty-region presses reach it.
-        .background {
-            Color.clear
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
-        }
     }
 
     // MARK: - Body zone (editable description + cap counter)
