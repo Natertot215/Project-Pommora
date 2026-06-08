@@ -42,6 +42,12 @@ import SwiftUI
 /// would be dead weight.
 @MainActor
 final class NexusEnvironment {
+    /// The app-level Nexus session manager (stable `@Observable`). Stored so the
+    /// Item Window scene can read the LIVE index (`nexusManager.currentIndex`) at
+    /// render time; injected via `injectNexusEnvironment` so `@Environment(NexusManager.self)`
+    /// resolves without SIGTRAP (quirk #15).
+    let nexusManager: NexusManager
+
     let spaceManager: SpaceManager
     let topicManager: TopicManager
     let vaultManager: PageTypeManager
@@ -188,6 +194,7 @@ final class NexusEnvironment {
         itemContentMgr.pinnedManager = pinnedMgr
         itemContentMgr.recentsManager = recentsMgr
 
+        self.nexusManager = nexusManager
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
@@ -256,6 +263,7 @@ extension View {
     /// `NexusEnvironment` + one `.environment(...)` line below.
     func injectNexusEnvironment(_ env: NexusEnvironment) -> some View {
         self
+            .environment(env.nexusManager)
             .environment(env.spaceManager)
             .environment(env.topicManager)
             .environment(env.vaultManager)
