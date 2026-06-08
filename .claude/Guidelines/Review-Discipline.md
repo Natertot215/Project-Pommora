@@ -12,4 +12,5 @@ The review → revise loop is **standard, not optional**. Every spec and plan ru
 - Phrase status honestly: "written, pending review" vs "review-certified" — never "bulletproof" pre-review.
 - Fold each round's findings and re-version (V1 → V2 …) per convention; the loop runs until a round comes back genuinely clean, then ratify.
 - Ground every `file:line` claim against real code before relying on it; a doc claim is a hypothesis until the code proves it.
+- **Post-functional UIX review is mandatory.** After a feature functionally works and is verified, a UIX review of the *actual working UI* always runs before closeout — no matter how clean the build. Functional-green ≠ done.
 - **The discipline is the deliverable.**
