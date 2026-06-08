@@ -216,7 +216,6 @@ struct TypeSettingsSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     TypeSettingsPropertiesSection(vm: vm)
-                    TypeSettingsTemplatesPlaceholder()
                 }
                 .padding(16)
             }
@@ -536,19 +535,3 @@ private struct TypeSettingsNewPropertyConfig: View {
 // `Pommora/Properties/Editor/` (Task 8). Both this sheet and VaultSettingsSheet
 // now share the same definitions; future View Settings popover panes reuse
 // them too.
-
-// MARK: - TypeSettingsTemplatesPlaceholder
-
-private struct TypeSettingsTemplatesPlaceholder: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Templates")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-            Text("Templates — reserved post-v1")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-        }
-    }
-}
