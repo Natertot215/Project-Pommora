@@ -49,6 +49,31 @@ enum LayoutArchetype: Codable, Hashable, Sendable {
     var usesInspector: Bool { self == .bannerTwoColumn }
 }
 
+/// Whether inspector/segment property rows show the property title (`standard`)
+/// or render value-only (`compact`). Tolerant decode so a future mode adds
+/// without breaking older files. V1 ships `.standard`; `.compact` is
+/// present-but-disabled. Optional on `ItemTemplateConfig`: absent ⇒ nil and the
+/// key is never written, so callers default at read time (`?? .standard`).
+enum PropertyLayoutMode: Codable, Equatable, Hashable, Sendable {
+    case standard, compact, unknown(String)
+    init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "standard": self = .standard
+        case "compact": self = .compact
+        default: self = .unknown(raw)
+        }
+    }
+    func encode(to encoder: any Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .standard: try c.encode("standard")
+        case .compact: try c.encode("compact")
+        case .unknown(let r): try c.encode(r)
+        }
+    }
+}
+
 /// How a promoted property renders on the main panel (LD-4). Tolerant decode so
 /// new options add without breaking older files. The archetype sets a default;
 /// a non-nil `PromotedProperty.display` overrides it.

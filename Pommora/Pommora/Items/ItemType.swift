@@ -106,24 +106,30 @@ struct ItemType: Codable, Equatable, Identifiable, Hashable, Sendable {
 
 /// Per-Item-Type template config: the layout archetype, the promoted-property
 /// display recipe (which properties surface on the Item Window panel + how),
-/// the cover property, and the description cap/seed. All fields optional, so a
-/// nil/empty config round-trips cleanly and older free-string `layout` values
-/// still decode (LayoutArchetype tolerates any string).
+/// the cover property, the description cap/seed, and the property-row layout
+/// mode (title vs value-only). All fields optional, so a nil/empty config
+/// round-trips cleanly and older free-string `layout` values still decode
+/// (LayoutArchetype tolerates any string). `propertyLayout` is additive:
+/// absent ⇒ nil ⇒ key omitted on write, so callers default at read time
+/// (`?? .standard`) and existing on-disk configs stay byte-stable.
 struct ItemTemplateConfig: Codable, Equatable, Hashable, Sendable {
     var layout: LayoutArchetype?
     var promotedProperties: [PromotedProperty]?
     var coverPropertyID: String?
     var descriptionCap: Int?
+    var propertyLayout: PropertyLayoutMode?
     var defaultDescription: String?
 
     init(
         layout: LayoutArchetype? = nil, promotedProperties: [PromotedProperty]? = nil,
-        coverPropertyID: String? = nil, descriptionCap: Int? = nil, defaultDescription: String? = nil
+        coverPropertyID: String? = nil, descriptionCap: Int? = nil,
+        propertyLayout: PropertyLayoutMode? = nil, defaultDescription: String? = nil
     ) {
         self.layout = layout
         self.promotedProperties = promotedProperties
         self.coverPropertyID = coverPropertyID
         self.descriptionCap = descriptionCap
+        self.propertyLayout = propertyLayout
         self.defaultDescription = defaultDescription
     }
 
@@ -132,6 +138,7 @@ struct ItemTemplateConfig: Codable, Equatable, Hashable, Sendable {
         case promotedProperties = "promoted_properties"
         case coverPropertyID = "cover_property_id"
         case descriptionCap = "description_cap"
+        case propertyLayout = "property_layout"
         case defaultDescription = "default_description"
     }
 }
