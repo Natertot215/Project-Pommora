@@ -16,12 +16,17 @@ import SwiftUI
 /// `xmark` button (leading) and the draggable header region carrying a
 /// `WindowDragGesture` (the whole bar moves the hosting window).
 struct PreviewWindow<Content: View>: View {
+    /// When `false`, the built-in close+drag header is omitted so the consumer can
+    /// supply its own header inside `content` (the interactive Item card does this
+    /// in a later phase). Defaults to `true`, so existing consumers are unchanged.
+    /// Esc-to-close lives in `body`, so it survives regardless of this flag.
+    var showsDefaultHeader: Bool = true
     @ViewBuilder var content: () -> Content
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            if showsDefaultHeader { header }
             content()
         }
         .background(
