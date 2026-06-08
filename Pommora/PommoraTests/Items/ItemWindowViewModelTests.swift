@@ -20,6 +20,7 @@ struct ItemWindowViewModelTests {
         ),
         onUpdateProperty: @escaping (String, PropertyValue) async throws -> Void = { _, _ in },
         onUpdateIcon: ((String?) async throws -> Void)? = nil,
+        onUpdateBody: ((String) async throws -> Void)? = nil,
         onRename: ((String) async throws -> Item)? = nil
     ) -> ItemWindowViewModel {
         ItemWindowViewModel(
@@ -28,7 +29,7 @@ struct ItemWindowViewModelTests {
             collection: nil,
             onUpdateProperty: onUpdateProperty,
             onUpdateIcon: onUpdateIcon ?? { _ in },
-            onUpdateBody: { _ in },
+            onUpdateBody: onUpdateBody ?? { _ in },
             onRename: onRename ?? { _ in item },
             onDeleteItem: {}
         )
@@ -237,11 +238,72 @@ struct ItemWindowViewModelTests {
         }
         #expect(seamValue == "star")
     }
+
+    // MARK: - B6: body debounce + cap gate + flush
+    //
+    // Unlike the one-shot handlers, the body save is debounced via `bodyTask`
+    // (`[weak self]`), so each test holds the VM in a `let vm` for its whole
+    // duration — a dropped reference would deallocate the in-flight timer. Waits
+    // derive from the real `ItemWindowViewModel.debounce` plus a margin so they
+    // track the constant rather than hardcoding 300ms. `BodyRecorder` (reference
+    // type) collects every body the seam receives without mutable-capture concerns.
+
+    @Test func bodyDebounceCoalescesRapidEdits() async {
+        // No templateConfig → cap defaults high, so none of these edits is over-cap.
+        let item = makeItem(icon: nil, description: "")
+        let recorder = BodyRecorder()
+        let vm = makeVM(item: item, onUpdateBody: { body in recorder.bodies.append(body) })
+
+        vm.handleBodyChange("a")
+        vm.handleBodyChange("ab")
+        vm.handleBodyChange("abc")
+        try? await Task.sleep(for: ItemWindowViewModel.debounce + .milliseconds(200))
+
+        #expect(recorder.bodies == ["abc"])  // rapid edits coalesced into one write
+    }
+
+    @Test func bodyOverCapSetsFlagAndSkipsSave() async {
+        let type = ItemType(
+            id: ULID.generate(), title: "T", icon: nil,
+            properties: [], views: [],
+            templateConfig: ItemTemplateConfig(descriptionCap: 5),
+            modifiedAt: Date()
+        )
+        let item = makeItem(icon: nil, description: "")
+        let recorder = BodyRecorder()
+        let vm = makeVM(item: item, type: type, onUpdateBody: { body in recorder.bodies.append(body) })
+
+        vm.handleBodyChange("123456")  // 6 chars > cap of 5
+        try? await Task.sleep(for: ItemWindowViewModel.debounce + .milliseconds(200))
+
+        #expect(vm.isOverCap == true)
+        #expect(recorder.bodies.isEmpty)  // over-cap skips the write
+    }
+
+    @Test func flushBodyNowWritesImmediatelyAndCancelsPending() async {
+        let item = makeItem(icon: nil, description: "")
+        let recorder = BodyRecorder()
+        let vm = makeVM(item: item, onUpdateBody: { body in recorder.bodies.append(body) })
+
+        vm.handleBodyChange("hello")
+        await vm.flushBodyNow()
+        #expect(recorder.bodies == ["hello"])  // written immediately, not after the debounce
+
+        // The debounce timer armed by handleBodyChange was cancelled by flushBodyNow.
+        try? await Task.sleep(for: ItemWindowViewModel.debounce + .milliseconds(200))
+        #expect(recorder.bodies == ["hello"])  // no double-write from the cancelled timer
+    }
 }
 
 /// Records rename-seam calls for the B4 tests without mutable-capture concerns.
 private final class RenameSpy {
     var calls: [String] = []
+}
+
+/// Records each body the save seam receives in the B6 tests (reference type —
+/// no mutable-capture concerns).
+private final class BodyRecorder {
+    var bodies: [String] = []
 }
 
 /// Stand-in collision error thrown by the rename seam in the B4 failure test.

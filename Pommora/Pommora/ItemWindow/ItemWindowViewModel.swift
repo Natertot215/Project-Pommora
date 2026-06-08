@@ -197,6 +197,42 @@ final class ItemWindowViewModel {
         Task { try? await self.onUpdateIcon(newIcon) }
     }
 
+    /// Records a body edit and (re)arms the debounced save.
+    func handleBodyChange(_ newBody: String) {
+        draftBody = newBody
+        scheduleBodySave()
+    }
+
+    /// Cancels any pending body save and arms a fresh one `debounce` from now.
+    /// Rapid edits coalesce into one write. [weak self] — cancellable/repeated,
+    /// mirroring PageEditorViewModel.scheduleSave (NOT the one-shot handlers' strong self).
+    private func scheduleBodySave() {
+        bodyTask?.cancel()
+        bodyTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.debounce)
+            guard !Task.isCancelled else { return }
+            await self?.flushBodyNow()
+        }
+    }
+
+    /// Writes the body draft immediately (the debounce safety net: window-close /
+    /// Enter call this directly). Cancels the pending debounce task FIRST so a
+    /// timer already mid-sleep can't double-write. Over the effective description
+    /// cap, it sets `isOverCap` and skips the write; under cap it clears the flag
+    /// and saves. The cap is resolved from the EFFECTIVE template (Collection
+    /// override → Type), so a Set with its own descriptionCap colors correctly.
+    func flushBodyNow() async {
+        bodyTask?.cancel()
+        let cap = ItemValidator.effectiveCap(
+            template: TemplateResolver.effective(type: itemType, collection: collection))
+        if draftBody.count > cap {
+            isOverCap = true
+            return
+        }
+        isOverCap = false
+        try? await onUpdateBody(draftBody)
+    }
+
     /// Commits an inline title edit. Idempotent — fires from Enter, focus-loss,
     /// AND window-close, so the trimmed-equals-current guard makes every trigger
     /// after the first a no-op (and a whitespace-only edit a no-op too). On
