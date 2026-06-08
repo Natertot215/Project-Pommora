@@ -6,6 +6,13 @@
 > 2. **Templates pane = the existing grouped status/multi-select editor pattern** (§7): groups by property type → schema properties underneath, each with a checkbox; mute at pool-cap.
 > 3. **Build-tree decisions recorded** (§17): components built as properly-scoped **reusable assets**; **not Figma-gated** ("use what you have" + existing Component-Library pieces); **foundations-first**; the `.null` gate is the **shared** manager fix.
 > 4. Every V4 design decision (surface kept, mode-enum deleted, `commitItemEdits` deleted, chrome, footer, inspector, schema, `.null`-at-manager) stands. All `file:line` carried from V4's three verified fleets.
+>
+> **Pre-execution amendments (2026-06-07, Nathan — folded before build):**
+> 5. **Property Field = segmented-style row** — a reusable Component-Library container (`PropertyFieldBar`) where each pinned property is a segment (icon + value) that opens its `ChipDropdown` on tap (§4.2, §9).
+> 6. **§17.2 flips to design-gated** — build from existing components + `Guidelines/Design.md`; STOP and ASK on any step needing net-new visual design. Pre-identified stop: **the D2 header chrome** (Nathan signs off before build) (§17.2).
+> 7. **Inline text-field commit model is standard** (Enter + focus-loss + dismissal; idempotent; field-sized hit-target) per `Design.md` — title + inspector Number/URL fields (§4.1, §4.4, §5).
+> 8. **Inspector row = `(icon) (title) ──── (field)`**, identity shown ONCE — never a type-as-text label, never the `FrontmatterInspector:188`/`PropertyEditorRow:16` double-name. Icon = `definition.icon ?? definition.type.pickerIcon` (shared glyph, `PropertyTypePicker.swift:23`) (§4.4, §9).
+> 9. **Process:** `Design.md` governs visuals; every V1 interaction point is wired + verified at the right layer (quirk #17); each task report → adjust-plan-or-PAUSE; agent claims are independently evidence-verified; implementers run Opus 4.8 (Sonnet for trivial); final task = a prose-level doc-sweep (§11, §17).
 
 ### 1. The shift this spec makes
 
@@ -57,13 +64,14 @@ The existing floating window surface (`PreviewWindow` card visuals: `.regularMat
 
 - **Exit** `✕` — leftmost, left of the icon. Reuses the existing `PreviewWindow` look: `Image(systemName:"xmark").font(.system(size:11,weight:.semibold)).foregroundStyle(.secondary)` + `.buttonStyle(.plain)` (`PreviewWindow.swift:44-54` is the reference). Calls `dismissWindow()`. **Never Liquid Glass.**
 - **Icon** — `.iconPickerPopover(isPresented:symbol:)` (`IconPicker.swift:231`; `symbol: Binding<String?>`).
-- **Title** — filename, inline-edited; saves on **Enter (`.onSubmit`) AND focus-loss** (`FocusState` false-transition). Routes through `renameItem`, never `updateItem`. Collision → inline error below the title; file untouched.
+- **Title** — filename, inline-edited; commits on **Enter + focus-loss + window-dismissal** (`@FocusState` false-transition + `.onChange` + an `.onDisappear` safety net), **idempotent** (guard trimmed ≠ current), hit-target sized to the text (`.fixedSize`) — the standard inline-commit model (`Guidelines/Design.md`). Routes through `renameItem`, never `updateItem`. Collision → inline error below the title; file untouched.
 - **Inspector toggle** `▥` — far right; plain style (not Liquid Glass); collapses/expands the inspector; session state, shown by default.
 - **Drag** — header row carries `.gesture(WindowDragGesture())` (real window → moves it; no offset/clamp).
+- **Design-gated (D2):** the header-chrome arrangement (exit / icon / title / toggle) is signed off by Nathan before build (§17.2).
 
 #### 4.2 Property Field zone (select / multi-select chip-row) + the pooled-cap engine
 
-- Renders the template-pinned select & multi-select properties as a combined horizontal row of full-row cells (title + value). Value editing via **`ChipDropdown`** (`.options` is `@Binding` → each cell holds a local `@State` seeded from `definition.selectOptions?.map { $0.asChipOption() }`; `asChipOption()` at `PropertyChipColorMapping.swift:33`), **not** `MultiSelectChips` (raw-value bug, `PropertyEditorRow.swift:166-167`).
+- Renders the template-pinned select & multi-select properties as a **segmented-style row** — a reusable Component-Library container (`PropertyFieldBar`) where each pinned property is a **segment** (its icon `definition.icon ?? def.type.pickerIcon` + current value); tapping a segment opens its value editor. Value editing via **`ChipDropdown`** (`.options` is `@Binding` → each segment holds a local `@State` seeded from `definition.selectOptions?.map { $0.asChipOption() }`; `asChipOption()` at `PropertyChipColorMapping.swift:33`), **not** `MultiSelectChips` (raw-value bug, `PropertyEditorRow.swift:166-167`). Built from existing pieces + `Design.md`, staged as a CL asset.
 - **Two-level pinning** (Templates pane, §7): the **pooled-cap engine** decides what may pin; within the allowed types the user pins specific properties. A pinned chip **always shows even when empty**.
 - **Pooled conditional-cap engine (V5 — replaces the single `cap: 4`).** Property types group into **pools**, each carrying a capacity **rule**:
 
@@ -87,6 +95,7 @@ The existing floating window surface (`PreviewWindow` card visuals: `.regularMat
 #### 4.4 Inspector zone (right column, collapsible)
 
 - **Three Context slots, pinned at top, ALWAYS shown when the inspector is open** (filled or not, regardless of pin), tier order 1/2/3. Edited via `ContextValueEditor(ids:scope:index:resolver:)` → `ContextPicker`. **Both `index: PommoraIndex?` AND `resolver: ContextDisplayResolver?` are DIRECT parameters** (`ContextValueEditor.swift:17-18`) — the renderer reads `@Environment(ContextDisplayResolver.self)` (injected `NexusEnvironment.swift:274`) and threads it + the index into each tier editor. Labels from `TierConfigManager`. The 3-tier guarantee is `ItemType.resolvedProperties(tierConfig:)` → `BuiltInContextLinkProperties.merge(...)` (`:48-60`) — there is no `BuiltInContextLinkProperties.resolvedProperties(...)`.
+- **Row layout — `(icon) (title) ──── (field)`** (the new `ItemInspectorRow`): for property rows, leading = the property icon (`definition.icon ?? definition.type.pickerIcon`, the shared glyph at `PropertyTypePicker.swift:23`) + the property name; trailing = the value field; identity shown **once**. The 3 tier rows follow the same shape (tier label + `ContextValueEditor`). **Never** a type-as-text label, and **never** the `FrontmatterInspector` double-name (`:188-199` wraps `LabeledContent(prop.name) { PropertyEditorRow }`, and `PropertyEditorRow:16` re-prints the name → it renders twice). Compose `ItemInspectorRow` directly; don't nest it in an outer `LabeledContent(name)`. Number/URL TextFields use the inline-commit model (`Design.md`).
 - **Filled NON-PINNED properties auto-show** as editable full-row rows. **Pinned properties never appear here.** **"Filled" = key present with a value other than `.null`; `multiSelect([])`/empty-string/`relation([])` count as NOT filled.**
 - **Session-surfaced set** (`Set<String>` on the VM): a row shows iff **filled** OR **surfaced**. Add-but-unfilled and cleared-value both surface; nothing persisted for an empty row; discarded on close. **Clearing a PINNED chip does NOT surface** (pinning already keeps it visible; pinned never renders in the inspector).
 - **"Add Property"** — lists schema properties **not filled, not pinned (`promotedForField` IDs), not in `ReservedPropertyID.all`, not `type == .lastEditedTime`**. Selecting surfaces an empty inspector row; value set inline. **Assigns a value only; never edits the schema.**
@@ -110,6 +119,8 @@ Every editor already ships. V1 surfaces select/multi on the chip-row; **all** ty
 | File | `PropertyCellDisplay` | **read-only** V1 |
 | Tier relations (1/2/3) | `ContextValueEditor` → `ContextPicker` | the 3 Context slots |
 | Last Edited Time | read-only | never editable |
+
+All inspector rows use the `(icon) (title) ──── (field)` layout (§4.4); TextField editors (Number / URL) follow the inline-commit model (`Design.md`).
 
 ### 6. Interactivity & save model
 
@@ -150,8 +161,8 @@ The **pooled-cap config is NOT on disk** — it's code-side static data (`ItemWi
 
 ### 9. Component reuse map
 
-- **Reuse as-is:** the window surface (`WindowGroup` scene + `PreviewWindow` visuals + `WindowDragGesture` + `dismissWindow`); `ChipDropdown`, `ContextValueEditor`/`ContextPicker`, `DateTimePicker`, `IconPicker`/`.iconPickerPopover`, `PropertyCellDisplay`, `PUI` tokens, `TemplateResolver`, manager seams (`updateItemProperty`, `updateItemIcon`, `renameItem`, `deleteItem`, `updateItem`).
-- **Build new (as reusable assets — §17):** `ItemWindowViewModel`; the zone-composing renderer (collapsible inspector); the new Item inspector rows (compose `ChipDropdown`/`DateTimePicker`/`ContextValueEditor`/`PropertyCellDisplay` directly — do NOT modify `PropertyEditorRow`); the Add-Property affordance; the grouped-by-type checkbox Templates pane; the `property_layout` control; `PropertyLayoutMode`; **`ItemWindowZoneConfig`** (the pooled-cap engine — shape in §10).
+- **Reuse as-is:** the window surface (`WindowGroup` scene + `PreviewWindow` visuals + `WindowDragGesture` + `dismissWindow`); `ChipDropdown`, `ContextValueEditor`/`ContextPicker`, `DateTimePicker`, `IconPicker`/`.iconPickerPopover`, `PropertyCellDisplay`, `PUI` tokens, `TemplateResolver`, manager seams (`updateItemProperty`, `updateItemIcon`, `renameItem`, `deleteItem`, `updateItem`), and `PropertyType.pickerIcon` (the shared type→glyph map, `PropertyTypePicker.swift:23` — the inspector + segment icon source).
+- **Build new (as reusable assets — §17):** `ItemWindowViewModel`; the zone-composing renderer (collapsible inspector); **`PropertyFieldBar`** (the **segmented-style** Property Field container); **`ItemInspectorRow`** (`(icon)(title)──(field)`, identity once — never the `FrontmatterInspector:188`/`PropertyEditorRow:16` double-name; composes `ChipDropdown`/`DateTimePicker`/`ContextValueEditor`/`PropertyCellDisplay` directly — do NOT modify `PropertyEditorRow`); the Add-Property affordance; the grouped-by-type checkbox Templates pane; the `property_layout` control; `PropertyLayoutMode`; **`ItemWindowZoneConfig`** (the pooled-cap engine — shape in §10).
 - **Restructure:** `ItemWindowRenderer` header (exit-left-of-icon + toggle-right + drag handle on the header row); remove `editing: Bool` (update the file-level doc comment, still two-mode framed). **`PreviewWindow` goes header-less** (delete/parameterize the standalone `xmark` header `:42-63`; keep card frame + Esc).
 - **Keep (pure utilities, reused):** `ItemWindowRenderer.reorderPromoted` (chip-row ordering) + `partition()`. Rename `ItemWindowEditModeTests` → `ItemWindowReorderTests` (its tests cover `reorderPromoted`, which survives — update the stale file comment); keep `ItemWindowPartitionTests` as a regression guardrail.
 - **DELETE:** `commitItemEdits` + `CommitItemEditsTests` (dead + buggy — never called by the live VM; the rename two-step lives in the VM); the archetype picker + embedded mockup in `ItemTemplatePane`; `ItemWindowMode` (never built).
@@ -205,6 +216,8 @@ The **pooled-cap config is NOT on disk** — it's code-side static data (`ItemWi
 - **VM lifecycle / concurrency** — the VM holds `item` by value and the manager derives the write path from `item.title`; on its OWN rename the VM re-holds the returned `Item` synchronously before any further write. A concurrent **external** rename of an already-open item (e.g. from the sidebar) is an accepted v1 edge — the window's next write may target the old path and surface an error (not silent corruption); not guarded in v1.
 - **Drag** — `WindowDragGesture` on the header moves the window anywhere on screen.
 
+**V1 interaction points (all must be wired AND verified at the right layer — quirk #17):** title rename (Enter / blur / close), icon pick, body edit + flush-on-close, each pinned-property **segment** dropdown, each inspector field (per type), the 3 tier pickers, Add-Property (surface → assign), clear-value (key removed; row stays this session), inspector toggle, delete (confirm → window closes), header drag, exit. Each is manually verified to actually function; when a surface looks wrong, **name the confirmed layer (data vs UI)** before fixing.
+
 ### 12. Research-validated pattern (Notion + native macOS)
 
 Notion Layouts pin properties at the top + a right-side panel you "+"-add into; Pommora configures pinning via a **checkbox list** (the realistic in-settings config; Notion's live drag-preview deferred). Native macOS reused: `.windowStyle(.plain)` floating window, `DetailFooterBar`'s typographic path breadcrumb, plain SF-Symbol buttons. Add-Property surfaces **existing** schema properties only; tiers never template-prefilled.
@@ -242,7 +255,8 @@ V5 inherits V4's three-fleet certification (8 agents): compile-grounding verifie
 ### 17. Build-tree decisions (pre-plan interrogation)
 
 - **Reusable assets.** Every new component is built as a properly-scoped reusable asset — zones as configurable slots, atoms (footer, inspector row, chip-row cell, checkbox row) as standalone reusable views — never feature-locked one-offs. Component-Library-explorer staging is optional; reusability is the requirement.
-- **Not Figma-gated.** "Use what you have" — build now from the design specs already given + existing Component-Library pieces. No task waits on a Figma delivery.
+- **Design-gated (§17.2).** Build from existing components + `Guidelines/Design.md` where they cover the step ("use what you have"). When a step requires Nathan's **net-new visual design**, STOP and ASK (may route to Figma). **Pre-identified known stop: the D2 header chrome** — Nathan signs off before build. The segmented property bar, Templates-pane muted states, and inspector row proceed on existing patterns + Design.md (not pre-gated); the standing stop-and-ask rule still fires on any net-new visual that surfaces mid-task. **`Design.md` governs all visuals.**
 - **Foundations-first.** All Figma-independent foundations (manager seams + `.null` gate + `renameItem` + `commitItemEdits` deletion + `property_layout`/`PropertyLayoutMode` + `promotedForField` + `ItemWindowZoneConfig` engine + the ViewModel) are built and unit-tested first; the visual renderer/pane/footer assemble on top. (Live index threading is render-time scene wiring, not a stored foundation — §10.3.) **Exception:** removing `editing: Bool` is architecturally a foundation but is **coupled to the pane rebuild (§10 tasks 7+8) as one atomic commit** — it does not ship standalone (removing it alone leaves `ItemTemplatePane:131` referencing a deleted param).
 - **Shared `.null` fix.** Gated once in `updateItemProperty` (fixes the Item Window + the live table-cell bug); see §6/§15.
-- **Execution model** (subagent-driven vs inline) is decided at the plan-handoff, after the plan is written + reviewed.
+- **Execution model:** **subagent-driven** — a fresh subagent authors each task; implementer agents run **Opus 4.8** (instructed to avoid over-complicating mechanics + leave zero future-agent ambiguity), **Sonnet** for trivial/revisional fixes. The orchestrator **independently evidence-verifies** every completion claim (real build + non-zero tests + diff + source/docs) before each green commit, then re-assesses the plan (adjust or PAUSE+ASK).
+- **Build discipline (folded pre-execution).** `Design.md` governs every visual; all V1 interaction points must be wired AND verified at the correct layer (quirk #17 — confirm data vs UI before blaming either); the final task is a prose-level doc-sweep (§11).
