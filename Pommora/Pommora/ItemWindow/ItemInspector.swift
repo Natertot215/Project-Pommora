@@ -2,19 +2,17 @@ import SwiftUI
 
 /// Live-editable inspector for the Item Window's trailing `.inspector` panel.
 ///
-/// ONE unified flat-hairline menu on the native inspector glass — NOT a grouped
-/// `Form`. Two groups with NO section headers and NO meta: the Context tiers
-/// (Spaces / Topics / Projects) on top, then the schema properties, every row the
-/// SAME shape — `[icon] [label] ··· [value editor]`, padded 6/12 with inset
-/// `Divider()` hairlines between rows (mirrors the Pages `PropertyPanel`). A red
-/// "Delete" text is pinned bottom-right over the scroll (replacing the old "Delete
-/// Item" button). The value editors are reused as-is: `ContextValueEditor` for the
-/// tier rows (it supplies its own "⊕ Add" empty state) and `PropertyEditorRow`
-/// (`showsName: false`) for the property rows.
-///
-/// The shared row shell unifies GEOMETRY, not data: each call site passes its own
-/// editor view (different binding types), so there's one row builder and two
-/// editor kinds.
+/// A native grouped `Form` (`.formStyle(.grouped)`) — the SAME mechanism the Pages
+/// inspector (`FrontmatterInspector`) uses, so the Item inspector inherits macOS's
+/// rounded "menu-background" cards + hairline row separators for free and reads
+/// identically to the Pages side. Two UNLABELED sections (no headers, no meta): the
+/// Context tiers (Spaces / Topics / Projects) on top, then the schema properties.
+/// Each row is `[icon] [label] ··· [value editor]` via `LabeledContent` with a
+/// leading `Label` (the Figma's per-row icon). A red "Delete" text is pinned
+/// bottom-right over the form (inactive grey at rest, red on hover, breadcrumb
+/// `.subheadline` scale). The value editors are reused as-is: `ContextValueEditor`
+/// for the tier rows and `PropertyEditorRow(showsName: false)` for the property rows
+/// (the `LabeledContent` label already carries the name + icon).
 ///
 /// Quirk #15: reads NO `@Environment` managers directly — `index`, `resolver`, and
 /// `tierConfig` are passed in by the renderer, so this view can't SIGTRAP on an
@@ -32,17 +30,34 @@ struct ItemInspector: View {
     let tierConfig: TierConfig
 
     @State private var showDeleteConfirm = false
+    /// Hover state for the Delete affordance — grey (inactive) at rest, red on hover.
+    @State private var deleteHover = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                contextsGroup
-                // A small gap separates the two unlabeled groups (no headers).
-                Spacer().frame(height: PUI.Spacing.sm)
-                propertiesGroup
+        Form {
+            // Contexts group — unlabeled card (the tier rows are self-evidently contexts).
+            Section {
+                ForEach(tierEntries) { entry in
+                    LabeledContent {
+                        ContextValueEditor(
+                            ids: tierBinding(entry.level),
+                            scope: .contextTier(entry.level),
+                            index: index,
+                            resolver: resolver
+                        )
+                    } label: {
+                        Label(entry.label, systemImage: entry.icon)
+                    }
+                }
+            }
+
+            // Properties group — unlabeled card.
+            Section {
+                propertyRows
             }
         }
-        // Red "Delete" pinned bottom-right, fixed over the scrolling content.
+        .formStyle(.grouped)
+        // Red "Delete" pinned bottom-right, fixed over the scrolling form.
         .safeAreaInset(edge: .bottom, spacing: 0) { deleteFooter }
         .confirmationDialog(
             "Delete Item \"\(vm.item.title)\"?",
@@ -60,50 +75,7 @@ struct ItemInspector: View {
         }
     }
 
-    // MARK: - Shared row shell (one shape for both groups)
-
-    /// One inspector row — `[icon] [label] ··· [value editor]`, padded 6/12 to match
-    /// the Pages property panel. The `Spacer` right-aligns the editor; the caller
-    /// supplies it (`ContextValueEditor` for tiers, `PropertyEditorRow(showsName:
-    /// false)` — which omits its own trailing spacer — for properties).
-    @ViewBuilder
-    private func inspectorRow<Editor: View>(
-        icon: String, label: String, @ViewBuilder editor: () -> Editor
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.md) {
-            Image(systemName: icon)
-                .foregroundStyle(.secondary)
-                .frame(width: 18)
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: PUI.Spacing.md)
-            editor()
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 12)
-    }
-
-    /// Inset hairline between rows (matches `PropertyPanel`).
-    private var rowDivider: some View {
-        Divider().padding(.horizontal, 12)
-    }
-
     // MARK: - Contexts group (tiers — Spaces / Topics / Projects)
-
-    @ViewBuilder
-    private var contextsGroup: some View {
-        ForEach(tierEntries) { entry in
-            inspectorRow(icon: entry.icon, label: entry.label) {
-                ContextValueEditor(
-                    ids: tierBinding(entry.level),
-                    scope: .contextTier(entry.level),
-                    index: index,
-                    resolver: resolver
-                )
-            }
-            rowDivider
-        }
-    }
 
     /// One resolved tier: its level (1...3), the TierConfig label, and the merged
     /// icon — all from the canonical `resolvedProperties(tierConfig:)` merge (DRY).
@@ -135,21 +107,18 @@ struct ItemInspector: View {
         }
     }
 
-    // MARK: - Properties group (built identically to the contexts group)
+    // MARK: - Properties group
 
     @ViewBuilder
-    private var propertiesGroup: some View {
+    private var propertyRows: some View {
         if vm.itemType.properties.isEmpty {
             Text("No properties defined in this Type's schema.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
         } else {
             let filled = filledPropertyIDs
             ForEach(propertyRowDefinitions(filled: filled)) { def in
-                inspectorRow(icon: def.displayIcon, label: def.name) {
+                LabeledContent {
                     PropertyEditorRow(
                         definition: def,
                         value: propertyBinding(def.id),
@@ -157,8 +126,9 @@ struct ItemInspector: View {
                         relationDisplay: resolver,
                         showsName: false
                     )
+                } label: {
+                    Label(def.name, systemImage: def.displayIcon)
                 }
-                rowDivider
             }
             addPropertyMenu(filled: filled)
         }
@@ -187,9 +157,9 @@ struct ItemInspector: View {
             schema: vm.itemType.properties, filled: filled, pinned: vm.pinnedIDs)
     }
 
-    /// "Add property" affordance — a subtle menu surfacing each addable property's
-    /// (empty) inspector row via `vm.addProperty`. Self-collapses (and adds no row
-    /// padding) when nothing's addable.
+    /// "Add property" affordance — a subtle footnote/secondary menu surfacing each
+    /// addable property's (empty) row via `vm.addProperty`. Self-collapses when
+    /// nothing's addable.
     @ViewBuilder
     private func addPropertyMenu(filled: Set<String>) -> some View {
         let addable = addableDefinitions(filled: filled)
@@ -204,14 +174,13 @@ struct ItemInspector: View {
                 }
             } label: {
                 Label("Add property", systemImage: "plus")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             .menuStyle(.button)
             .buttonStyle(.plain)
             .menuIndicator(.hidden)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
         }
     }
 
@@ -222,7 +191,7 @@ struct ItemInspector: View {
         )
     }
 
-    // MARK: - Delete (red text, pinned bottom-right)
+    // MARK: - Delete (inactive → red on hover, breadcrumb scale, pinned bottom-right)
 
     private var deleteFooter: some View {
         HStack {
@@ -230,11 +199,18 @@ struct ItemInspector: View {
             Button {
                 showDeleteConfirm = true
             } label: {
-                Text("Delete").foregroundStyle(.red)
+                // `.subheadline` matches the main-window breadcrumb scale; grey at
+                // rest (inactive), red on hover (active) — so a destructive action
+                // never reads as prominent until intended.
+                Text("Delete")
+                    .font(.subheadline)
+                    .foregroundStyle(deleteHover ? Color.red : Color.secondary)
             }
             .buttonStyle(.plain)
+            .onHover { deleteHover = $0 }
+            .animation(.smooth(duration: 0.15), value: deleteHover)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, PUI.Spacing.xl)
+        .padding(.vertical, PUI.Spacing.sm)
     }
 }
