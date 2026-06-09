@@ -199,12 +199,13 @@ struct ItemInspector: View {
             Button {
                 showDeleteConfirm = true
             } label: {
-                // `.subheadline` matches the main-window breadcrumb scale; grey at
-                // rest (inactive), red on hover (active) — so a destructive action
-                // never reads as prominent until intended.
+                // `.subheadline` matches the main-window breadcrumb scale. Muted red
+                // at rest (reads as a disabled-looking destructive affordance), full
+                // red on hover — so Delete never reads as prominent until intended,
+                // but is always recognizably the destructive action (never grey).
                 Text("Delete")
                     .font(.subheadline)
-                    .foregroundStyle(deleteHover ? Color.red : Color.secondary)
+                    .foregroundStyle(deleteHover ? Color.red : Color.red.opacity(0.5))
             }
             .buttonStyle(.plain)
             .onHover { deleteHover = $0 }
