@@ -64,6 +64,9 @@ Slotted v0.6.0 (Settings + Quick Capture + LLM + global search batch).
 #### Pulldown "show empty schema entries" toggle
 **Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (Page Preview, Item Window) are eager in v1 (already show every schema property). A per-Type setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Page Types where the user wants to fill in many properties per Page without opening the picker. Post-v1.
 
+#### Pinned-property zone for the page preview window
+**Description:** A configurable set of properties surfaced in a dedicated zone of the `PagePreview` window — the page-side analog of the Items "promoted properties" row, with a vault-level default schema overridable per-collection. Deliberately dropped from the Items-strip work: a default-open inspector in `PagePreview` gives the same glance-level functionality without a stored schema, an editor UI, or override rules. Revisit only if the open-inspector affordance proves insufficient in practice.
+
 #### Drag-to-reorder schema-level property declarations
 **Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).
 
