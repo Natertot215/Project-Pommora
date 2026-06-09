@@ -1,16 +1,24 @@
 import SwiftUI
 
 /// Live-editable inspector for the Item Window's trailing `.inspector` panel.
-/// Mirrors the Pages inspector (`FrontmatterInspector`): a grouped `Form` with an
-/// "Item" meta section, a "Tiers" section, and a "Properties" section — the native
-/// macOS grouped material (rounded boxes + hairline-separated rows), NOT the old
-/// hand-laid quaternary-fill column. Reuses the SAME row components the Pages
-/// inspector uses — `ContextValueEditor` (tiers) and `PropertyEditorRow` (per-type
-/// property editors) — driven by the live `ItemWindowViewModel`.
+///
+/// ONE unified flat-hairline menu on the native inspector glass — NOT a grouped
+/// `Form`. Two groups with NO section headers and NO meta: the Context tiers
+/// (Spaces / Topics / Projects) on top, then the schema properties, every row the
+/// SAME shape — `[icon] [label] ··· [value editor]`, padded 6/12 with inset
+/// `Divider()` hairlines between rows (mirrors the Pages `PropertyPanel`). A red
+/// "Delete" text is pinned bottom-right over the scroll (replacing the old "Delete
+/// Item" button). The value editors are reused as-is: `ContextValueEditor` for the
+/// tier rows (it supplies its own "⊕ Add" empty state) and `PropertyEditorRow`
+/// (`showsName: false`) for the property rows.
+///
+/// The shared row shell unifies GEOMETRY, not data: each call site passes its own
+/// editor view (different binding types), so there's one row builder and two
+/// editor kinds.
 ///
 /// Quirk #15: reads NO `@Environment` managers directly — `index`, `resolver`, and
-/// `tierConfig` are passed in by the renderer (which already holds them), so this
-/// view can't SIGTRAP on an un-injected manager.
+/// `tierConfig` are passed in by the renderer, so this view can't SIGTRAP on an
+/// un-injected manager.
 struct ItemInspector: View {
     @Bindable var vm: ItemWindowViewModel
     /// Panel identity — threaded from the renderer so Delete can close THIS panel
@@ -26,13 +34,16 @@ struct ItemInspector: View {
     @State private var showDeleteConfirm = false
 
     var body: some View {
-        Form {
-            itemSection
-            tiersSection
-            propertiesSection
-            deleteSection
+        ScrollView {
+            VStack(spacing: 0) {
+                contextsGroup
+                // A small gap separates the two unlabeled groups (no headers).
+                Spacer().frame(height: PUI.Spacing.sm)
+                propertiesGroup
+            }
         }
-        .formStyle(.grouped)
+        // Red "Delete" pinned bottom-right, fixed over the scrolling content.
+        .safeAreaInset(edge: .bottom, spacing: 0) { deleteFooter }
         .confirmationDialog(
             "Delete Item \"\(vm.item.title)\"?",
             isPresented: $showDeleteConfirm,
@@ -49,56 +60,67 @@ struct ItemInspector: View {
         }
     }
 
-    // MARK: - Item meta section (read-only — mirrors the Pages "Page" section)
+    // MARK: - Shared row shell (one shape for both groups)
 
-    private var itemSection: some View {
-        Section("Item") {
-            LabeledContent("ID") {
-                Text(vm.item.id)
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
+    /// One inspector row — `[icon] [label] ··· [value editor]`, padded 6/12 to match
+    /// the Pages property panel. The `Spacer` right-aligns the editor; the caller
+    /// supplies it (`ContextValueEditor` for tiers, `PropertyEditorRow(showsName:
+    /// false)` — which omits its own trailing spacer — for properties).
+    @ViewBuilder
+    private func inspectorRow<Editor: View>(
+        icon: String, label: String, @ViewBuilder editor: () -> Editor
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.md) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: PUI.Spacing.md)
+            editor()
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+    }
+
+    /// Inset hairline between rows (matches `PropertyPanel`).
+    private var rowDivider: some View {
+        Divider().padding(.horizontal, 12)
+    }
+
+    // MARK: - Contexts group (tiers — Spaces / Topics / Projects)
+
+    @ViewBuilder
+    private var contextsGroup: some View {
+        ForEach(tierEntries) { entry in
+            inspectorRow(icon: entry.icon, label: entry.label) {
+                ContextValueEditor(
+                    ids: tierBinding(entry.level),
+                    scope: .contextTier(entry.level),
+                    index: index,
+                    resolver: resolver
+                )
             }
-            LabeledContent("Created", value: createdAtFormatted)
+            rowDivider
         }
     }
 
-    private var createdAtFormatted: String {
-        vm.item.createdAt.formatted(date: .abbreviated, time: .shortened)
-    }
-
-    // MARK: - Tiers section
-
-    private var tiersSection: some View {
-        Section("Tiers") {
-            ForEach(tierEntries) { entry in
-                LabeledContent(entry.label) {
-                    ContextValueEditor(
-                        ids: tierBinding(entry.level),
-                        scope: .contextTier(entry.level),
-                        index: index,
-                        resolver: resolver
-                    )
-                }
-            }
-        }
-    }
-
-    /// One resolved tier: its level (1...3) + the TierConfig label, from the
-    /// canonical `resolvedProperties(tierConfig:)` merge (DRY — the same labels the
-    /// property bar / page inspector resolve). Pure value code OUTSIDE the
-    /// `@ViewBuilder` (quirk #12 — the `case .contextTier` match + `compactMap`).
+    /// One resolved tier: its level (1...3), the TierConfig label, and the merged
+    /// icon — all from the canonical `resolvedProperties(tierConfig:)` merge (DRY).
+    /// Pure value code OUTSIDE the `@ViewBuilder` (quirk #12 — the `case .contextTier`
+    /// match + `compactMap`).
     private var tierEntries: [TierEntry] {
         vm.itemType.resolvedProperties(tierConfig: tierConfig)
             .compactMap { def in
                 guard case .contextTier(let level) = def.relationTarget else { return nil }
-                return TierEntry(level: level, label: def.name)
+                return TierEntry(level: level, label: def.name, icon: def.displayIcon)
             }
     }
 
     private struct TierEntry: Identifiable {
         let level: Int
         let label: String
+        let icon: String
         var id: Int { level }
     }
 
@@ -113,35 +135,37 @@ struct ItemInspector: View {
         }
     }
 
-    // MARK: - Properties section
+    // MARK: - Properties group (built identically to the contexts group)
 
-    private var propertiesSection: some View {
-        Section("Properties") {
-            if vm.itemType.properties.isEmpty {
-                Text("No properties defined in this Type's schema.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(propertyRowDefinitions) { def in
-                    LabeledContent(def.name) {
-                        PropertyEditorRow(
-                            definition: def,
-                            value: propertyBinding(def.id),
-                            index: index,
-                            relationDisplay: resolver,
-                            showsName: false
-                        )
-                    }
+    @ViewBuilder
+    private var propertiesGroup: some View {
+        if vm.itemType.properties.isEmpty {
+            Text("No properties defined in this Type's schema.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+        } else {
+            ForEach(propertyRowDefinitions) { def in
+                inspectorRow(icon: def.displayIcon, label: def.name) {
+                    PropertyEditorRow(
+                        definition: def,
+                        value: propertyBinding(def.id),
+                        index: index,
+                        relationDisplay: resolver,
+                        showsName: false
+                    )
                 }
-                addPropertyMenu
+                rowDivider
             }
+            addPropertyMenu
         }
     }
 
     /// Non-pinned, filled-or-surfaced schema properties (pinned ones live on the
     /// main-column chip bar, never here — exactly one place). Pure value code
-    /// OUTSIDE the `@ViewBuilder` (quirk #12 — `Set<String>.contains` + filter/map,
-    /// never an in-view `==`).
+    /// OUTSIDE the `@ViewBuilder` (quirk #12).
     private var propertyRowDefinitions: [PropertyDefinition] {
         let filledIDs = Set(
             vm.draftProperties.filter { ItemWindowViewModel.isFilled($0.value) }.map(\.key))
@@ -161,7 +185,8 @@ struct ItemInspector: View {
     }
 
     /// "Add property" affordance — a subtle menu surfacing each addable property's
-    /// (empty) inspector row via `vm.addProperty`. Self-collapses when nothing's addable.
+    /// (empty) inspector row via `vm.addProperty`. Self-collapses (and adds no row
+    /// padding) when nothing's addable.
     @ViewBuilder
     private var addPropertyMenu: some View {
         let addable = addableDefinitions
@@ -181,6 +206,9 @@ struct ItemInspector: View {
             .menuStyle(.button)
             .buttonStyle(.plain)
             .menuIndicator(.hidden)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
         }
     }
 
@@ -191,13 +219,19 @@ struct ItemInspector: View {
         )
     }
 
-    // MARK: - Delete
+    // MARK: - Delete (red text, pinned bottom-right)
 
-    private var deleteSection: some View {
-        Section {
-            Button("Delete Item", role: .destructive) {
+    private var deleteFooter: some View {
+        HStack {
+            Spacer()
+            Button {
                 showDeleteConfirm = true
+            } label: {
+                Text("Delete").foregroundStyle(.red)
             }
+            .buttonStyle(.plain)
         }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
     }
 }

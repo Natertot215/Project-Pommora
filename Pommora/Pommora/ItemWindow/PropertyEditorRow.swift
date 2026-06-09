@@ -8,9 +8,11 @@ struct PropertyEditorRow: View {
     /// `relationDisplay` renders the current value as icon+title chips.
     var index: PommoraIndex? = nil
     var relationDisplay: ContextDisplayResolver? = nil
-    /// When `false`, the row omits its own leading name label — for hosts that
-    /// already supply the name (e.g. a `LabeledContent(name) { … }` wrapper), so the
-    /// name isn't rendered twice. Defaults `true` so existing call sites are unchanged.
+    /// When `false`, the row omits BOTH its own leading name label AND its trailing
+    /// spacer — for hosts that supply the name and own the row layout/alignment (the
+    /// Item inspector's unified rows), so the name isn't doubled and the editor isn't
+    /// floated to center by competing spacers. Defaults `true` so other call sites are
+    /// unchanged.
     var showsName: Bool = true
 
     @State private var dateEditorOpen = false
@@ -23,7 +25,10 @@ struct PropertyEditorRow: View {
                     .foregroundStyle(.secondary)
             }
             editor
-            Spacer()
+            // showsName == false → the host row owns trailing alignment; omit our
+            // own spacer so the editor sits flush right instead of being centered by
+            // two competing spacers.
+            if showsName { Spacer() }
         }
     }
 
