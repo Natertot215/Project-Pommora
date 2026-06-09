@@ -16,6 +16,7 @@ struct PropertyEditorRow: View {
     var showsName: Bool = true
 
     @State private var dateEditorOpen = false
+    @State private var statusEditorOpen = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -204,6 +205,12 @@ struct PropertyEditorRow: View {
         }
     }
 
+    /// Collapsed trigger + popover (mirrors `dateEditor` and the table's
+    /// `PropertyCellEditor.statusEditor`): the trigger shows the SELECTED option as a
+    /// compact pill (or an "Empty" placeholder), and tapping opens the `ChipDropdown`
+    /// in a popover. Picking an option APPLIES it and dismisses — the previous code
+    /// rendered `ChipDropdown` (the open panel) inline, so every option showed at once
+    /// and a tap never collapsed.
     private var statusEditor: some View {
         let groups = definition.statusGroups ?? []
         let opts: [PropertyChipOption] = groups.flatMap { g in
@@ -213,13 +220,35 @@ struct PropertyEditorRow: View {
             if case .status(let v) = value { return v }
             return nil
         }()
-        return ChipDropdown(
-            options: .constant(opts),
-            selectionMode: .single,
-            selectedIDs: current.map { Set([$0]) } ?? [],
-            onPick: { value = .status($0.id) },
-            size: .compact
-        )
+        let selected: PropertyChipOption? = current.flatMap { id in opts.first(where: { $0.id == id }) }
+        return Button {
+            statusEditorOpen = true
+        } label: {
+            Group {
+                if let selected {
+                    PropertyChip(label: selected.label, color: selected.color, size: .compact)
+                } else {
+                    Text("Empty")
+                        .font(PUI.Typography.row)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, PUI.Spacing.md)
+                        .padding(.vertical, PUI.Spacing.xs)
+                        .fieldBackground()
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $statusEditorOpen, arrowEdge: .bottom) {
+            ChipDropdown(
+                options: .constant(opts),
+                selectionMode: .single,
+                selectedIDs: selected.map { Set([$0.id]) } ?? [],
+                onPick: { value = .status($0.id); statusEditorOpen = false },
+                size: .compact
+            )
+            .presentationBackground(.clear)
+        }
     }
 
     private var lastEditedTimeEditor: some View {
