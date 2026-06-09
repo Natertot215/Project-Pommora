@@ -34,10 +34,19 @@ final class FloatingItemPanel: NSPanel {
         isFloatingPanel = true
         level = .floating
         becomesKeyOnlyIfNeeded = true
-        hidesOnDeactivate = false
+        // Scope the float to Pommora. `.floating` level keeps the panel above the
+        // main window WHILE Pommora is active (utility-palette behavior, like the
+        // system Fonts/Colors panels) — but `.floating` alone leaks across app
+        // boundaries, so the panel would sit over OTHER apps too. `hidesOnDeactivate`
+        // fixes that: the panel vanishes the moment Pommora is no longer frontmost and
+        // reappears on return. (Orthogonal to `.nonactivatingPanel`, which governs
+        // focus-stealing, not visibility.)
+        hidesOnDeactivate = true
         isMovableByWindowBackground = true
         animationBehavior = .utilityWindow
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // No `.canJoinAllSpaces` — the panel belongs to the Pommora session, not every
+        // desktop. `.fullScreenAuxiliary` lets it appear while the main window is fullscreen.
+        collectionBehavior = [.fullScreenAuxiliary]
         isReleasedWhenClosed = false
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
