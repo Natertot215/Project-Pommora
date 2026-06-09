@@ -804,7 +804,7 @@ private struct ContextChipShowcase: View {
 /// fill + tertiary 0.5pt outline, radius 3, 4pt horizontal padding. Height
 /// follows the text line — no extra vertical padding — so it reads as marked
 /// text. The page editor draws this same visual in CoreGraphics via
-/// `MarkdownTextLayoutFragment.drawItemChips`.
+/// `MarkdownTextLayoutFragment.drawChipLinks`.
 private struct ItemChipShowcase: View {
     private let samples: [String] = [
         "Item Chip",

@@ -18,7 +18,7 @@ extension NSAttributedString.Key {
     nonisolated static let latexBounds = NSAttributedString.Key("LatexImageBounds")
     nonisolated static let latexIsBlock = NSAttributedString.Key("LatexIsBlock")
     nonisolated static let latexBlockOffsetY = NSAttributedString.Key("LatexBlockOffsetY")
-    nonisolated static let itemChipBounds = NSAttributedString.Key("ItemChipBounds")  // NSValue(rect:): highlight size, set by the styler
+    nonisolated static let chipLinkBounds = NSAttributedString.Key("ChipLinkBounds")  // NSValue(rect:): highlight size, set by the styler
     // Historical note: do NOT add a custom NSAttributedString.Key here for any
     // paragraph-level construct (HR, blockquote, etc.). AppKit's attribute
     // inheritance leaks custom flags onto newly-typed chars in ways
@@ -753,9 +753,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                     }
                 }
             }
-            // Extend bounds for inline item highlights. The highlight fits
+            // Extend bounds for inline chip-link highlights. The highlight fits
             // within the line height, but this union is a safe no-op if so.
-            for rect in itemChipRects(at: .zero) {
+            for rect in chipLinkRects(at: .zero) {
                 bounds = bounds.union(rect)
             }
             return bounds
@@ -791,9 +791,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             // 7. Task checkboxes (on top of hidden [ ]/[x] markers)
             drawTaskCheckboxes(at: point, in: context)
 
-            // 7b. Inline item highlights (fill + outline + title drawn over
+            // 7b. Inline chip-link highlights (fill + outline + title drawn over
             //     the kern-collapsed source text of a resolved {{ }} token).
-            drawItemChips(at: point, in: context)
+            drawChipLinks(at: point, in: context)
 
             // 8. Foldable-headings chevron: only when this fragment
             //    is a heading AND the mouse is currently hovering it. Hover
@@ -1128,21 +1128,21 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         }
     }
 
-    // MARK: - Inline Item Chips
+    // MARK: - Inline Chip Links
 
     /// The body font used to size + vertically center chips. Mirrors the
     /// task-checkbox / bullet-glyph font lookup.
-    private var itemChipFont: NSFont {
+    private var chipLinkFont: NSFont {
         (textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
             ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
     }
 
     /// Pill rect for a chip of `size` at `attrRange`, vertically centered on its
-    /// line. Shared by `drawItemChips` and `itemChipRects` so draw + bounds stay
+    /// line. Shared by `drawChipLinks` and `chipLinkRects` so draw + bounds stay
     /// in sync (mirrors `blockImageDrawRect`).
-    private func itemChipRect(forSize size: CGSize, attrRange: NSRange, point: CGPoint) -> CGRect? {
+    private func chipLinkRect(forSize size: CGSize, attrRange: NSRange, point: CGPoint) -> CGRect? {
         guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return nil }
-        let font = itemChipFont
+        let font = chipLinkFont
         // Chip top at the ascender line; extends down through descenders to cover
         // the full typographic height (matches size.height = ascender - descender).
         let y = pos.baselineY - font.ascender
@@ -1150,8 +1150,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     }
 
     /// Draws an inline highlight (fill + thin outline + title text) for every
-    /// `.itemChipBounds` run set by the styler on a resolved `{{ }}` token.
-    private func drawItemChips(at point: CGPoint, in context: CGContext) {
+    /// `.chipLinkBounds` run set by the styler on a resolved `{{ }}` token.
+    private func drawChipLinks(at point: CGPoint, in context: CGContext) {
         guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
 
         let scale =
@@ -1166,14 +1166,14 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = nsContext
 
-        ts.enumerateAttribute(.itemChipBounds, in: range, options: []) { [weak self] value, attrRange, _ in
+        ts.enumerateAttribute(.chipLinkBounds, in: range, options: []) { [weak self] value, attrRange, _ in
             guard let self else { return }
-            let title = ts.attribute(.itemLinkTitle, at: attrRange.location, effectiveRange: nil) as? String ?? ""
-            let icon = ts.attribute(.itemChipIcon, at: attrRange.location, effectiveRange: nil) as? String ?? ""
+            let title = ts.attribute(.chipLinkTitle, at: attrRange.location, effectiveRange: nil) as? String ?? ""
+            let icon = ts.attribute(.chipLinkIcon, at: attrRange.location, effectiveRange: nil) as? String ?? ""
             guard let size = (value as? NSValue)?.rectValue.size else { return }
-            guard let rawRect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) else { return }
+            guard let rawRect = self.chipLinkRect(forSize: size, attrRange: attrRange, point: point) else { return }
 
-            let font = self.itemChipFont
+            let font = self.chipLinkFont
             let highlightRect = CGRect(
                 x: alignToPixel(rawRect.origin.x), y: alignToPixel(rawRect.origin.y),
                 width: rawRect.width, height: rawRect.height)
@@ -1188,8 +1188,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             path.stroke()
 
             // Icon, vertically centered in the highlight.
-            let iconBoxWidth = ItemChipMetrics.iconWidth(font: font)
-            var titleOffsetX = ItemChipMetrics.horizontalPadding
+            let iconBoxWidth = ChipLinkMetrics.iconWidth(font: font)
+            var titleOffsetX = ChipLinkMetrics.horizontalPadding
             if !icon.isEmpty,
                let baseSymbol = NSImage(systemSymbolName: icon, accessibilityDescription: nil) {
                 let sizeConfig = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
@@ -1197,11 +1197,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
                 let symbol = baseSymbol.withSymbolConfiguration(sizeConfig.applying(colorConfig)) ?? baseSymbol
                 let iconSize = symbol.size
                 let iconRect = CGRect(
-                    x: alignToPixel(highlightRect.minX + ItemChipMetrics.horizontalPadding + (iconBoxWidth - iconSize.width) / 2),
+                    x: alignToPixel(highlightRect.minX + ChipLinkMetrics.horizontalPadding + (iconBoxWidth - iconSize.width) / 2),
                     y: alignToPixel(highlightRect.midY - iconSize.height / 2),
                     width: iconSize.width, height: iconSize.height)
                 symbol.draw(in: iconRect)
-                titleOffsetX += iconBoxWidth + ItemChipMetrics.iconTitleGap
+                titleOffsetX += iconBoxWidth + ChipLinkMetrics.iconTitleGap
             }
 
             // Title, to the right of the icon, vertically centered.
@@ -1214,15 +1214,15 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
         }
     }
 
-    /// Rects of all item highlights in this fragment, relative to `point`.
+    /// Rects of all chip-link highlights in this fragment, relative to `point`.
     /// Used by `renderingSurfaceBounds` to prevent clipping.
-    private func itemChipRects(at point: CGPoint) -> [CGRect] {
+    private func chipLinkRects(at point: CGPoint) -> [CGRect] {
         guard let ts = textStorage, let range = nsRange, range.length > 0 else { return [] }
         var rects: [CGRect] = []
-        ts.enumerateAttribute(.itemChipBounds, in: range, options: []) { [weak self] value, attrRange, _ in
+        ts.enumerateAttribute(.chipLinkBounds, in: range, options: []) { [weak self] value, attrRange, _ in
             guard let self else { return }
             guard let size = (value as? NSValue)?.rectValue.size else { return }
-            if let rect = self.itemChipRect(forSize: size, attrRange: attrRange, point: point) {
+            if let rect = self.chipLinkRect(forSize: size, attrRange: attrRange, point: point) {
                 rects.append(rect)
             }
         }

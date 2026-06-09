@@ -5,10 +5,10 @@
 //  Pins the inline-token DETECTOR — `inlineTokenContext(at:parsed:codeTokens:
 //  text:)` — the pure-over-(text, caret, parsed-tokens) classifier the caret-
 //  move path uses to decide which inline token the caret is inside. E5-A adds
-//  the `{{Title}}` item-link arm beside the existing `[[Name]]` wiki-link and
-//  `![[Name]]` image-embed arms; this suite proves the new arm classifies an
-//  item-link AND that the shared mapping (`InlineTokenContext.selectionKind`)
-//  reports `.itemLink`, while leaving the wiki-link arm unchanged.
+//  the `{{Title}}` chip-link arm beside the existing `[[Name]]` wiki-link and
+//  `![[Name]]` image-embed arms; this suite proves the new arm classifies a
+//  chip-link AND that the shared mapping (`InlineTokenContext.selectionKind`)
+//  reports `.chipLink`, while leaving the wiki-link arm unchanged.
 //
 //  Harness: the read-only `parsedDocument(for:)` path on a delegate-less
 //  programmatic NSTextView (mirrors ParseSpineTests) — it does NOT fire the
@@ -60,8 +60,8 @@ struct InlineSelectionDetectorTests {
         )
     }
 
-    @Test("Caret inside {{Beta}} classifies as .itemLink with selectionKind .itemLink")
-    func caretInsideItemLinkClassifies() {
+    @Test("Caret inside {{Beta}} classifies as .chipLink with selectionKind .chipLink")
+    func caretInsideChipLinkClassifies() {
         // "alpha {{Beta}} gamma" — `{{` opens at index 6, interior "Beta" spans 8..12.
         let text = "alpha {{Beta}} gamma"
         // Caret in the middle of "Beta" (index 9, between 'B' and 'e').
@@ -69,17 +69,17 @@ struct InlineSelectionDetectorTests {
             Issue.record("detector returned nil for a caret inside {{Beta}}")
             return
         }
-        guard case .itemLink(let token) = context else {
-            Issue.record("expected .itemLink, got \(context)")
+        guard case .chipLink(let token) = context else {
+            Issue.record("expected .chipLink, got \(context)")
             return
         }
-        #expect(context.selectionKind == .itemLink)
+        #expect(context.selectionKind == .chipLink)
         // The token's content range covers the interior placeholder "Beta".
         #expect((text as NSString).substring(with: token.contentRange) == "Beta")
     }
 
-    @Test("Display range for the {{Beta}} item-link spans the full token (markers + Beta interior)")
-    func itemLinkDisplayRangeSpansFullToken() {
+    @Test("Display range for the {{Beta}} chip-link spans the full token (markers + Beta interior)")
+    func chipLinkDisplayRangeSpansFullToken() {
         let text = "alpha {{Beta}} gamma"
         let (coordinator, _) = makeCoordinator(text: text)
         let parsed = coordinator.parsedDocument(for: text)
@@ -100,7 +100,7 @@ struct InlineSelectionDetectorTests {
     }
 
     @Test("Placeholder for {{Beta}} is the interior 'Beta', not the {{Beta}} token")
-    func itemLinkPlaceholderIsInterior() {
+    func chipLinkPlaceholderIsInterior() {
         let text = "alpha {{Beta}} gamma"
         let (coordinator, _) = makeCoordinator(text: text)
         let parsed = coordinator.parsedDocument(for: text)
@@ -151,12 +151,12 @@ struct InlineSelectionDetectorTests {
     @Test("InlineTokenContext.selectionKind maps each case to its matching InlineSelectionKind")
     func selectionKindMappingIsExhaustive() {
         let token = MarkdownToken(
-            kind: .itemLink,
+            kind: .chipLink,
             range: NSRange(location: 0, length: 8),
             contentRange: NSRange(location: 2, length: 4),
             markerRanges: [NSRange(location: 0, length: 2), NSRange(location: 6, length: 2)]
         )
-        #expect(NativeTextViewCoordinator.InlineTokenContext.itemLink(token: token).selectionKind == .itemLink)
+        #expect(NativeTextViewCoordinator.InlineTokenContext.chipLink(token: token).selectionKind == .chipLink)
         #expect(NativeTextViewCoordinator.InlineTokenContext.wikiLink(token: token).selectionKind == .wikiLink)
         #expect(NativeTextViewCoordinator.InlineTokenContext.imageEmbed(token: token).selectionKind == .imageEmbed)
     }

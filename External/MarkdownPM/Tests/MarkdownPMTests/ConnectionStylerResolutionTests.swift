@@ -5,11 +5,15 @@ import Testing
 @testable import MarkdownPM
 
 /// Pins the resolved-vs-unresolved styling for `[[ ]]` page links and
-/// `{{ }}` item links once a real resolver is wired into
+/// `{{ }}` chip links once a real resolver is wired into
 /// `configuration.services`. The regression marker: an UNRESOLVED `[[Ghost]]`
 /// must render `secondaryLabelColor` (muted) — NOT the systemBlue
 /// incompleteLink color the greedy `styleIncompleteLinkBrackets` pass used to
 /// stamp over the title of EVERY completed wikilink (last-writer-wins).
+///
+/// Chip RENDERING is behind `renderChipLinksAsChips` (default OFF): the
+/// chip-on tests flip the gate to keep the dormant chip pipeline covered;
+/// the gate-off test pins the default plain-link rendering.
 @MainActor
 @Suite("ConnectionStylerResolution")
 struct ConnectionStylerResolutionTests {
@@ -39,13 +43,15 @@ struct ConnectionStylerResolutionTests {
         body: String,
         knownNames: Set<String>,
         at inspectLocation: Int,
-        caretAt: Int? = nil
+        caretAt: Int? = nil,
+        renderChipLinksAsChips: Bool = false
     ) -> [NSAttributedString.Key: Any] {
         let services = MarkdownPMServices(
             wikiLinks: StubResolver(knownNames: knownNames),
-            itemLinks: StubResolver(knownNames: knownNames)
+            chipLinks: StubResolver(knownNames: knownNames)
         )
-        let configuration = MarkdownPMConfiguration(services: services)
+        var configuration = MarkdownPMConfiguration(services: services)
+        configuration.renderChipLinksAsChips = renderChipLinksAsChips
 
         let tokens = MarkdownTokenizer.parseTokens(in: body)
         // Default caret OUTSIDE every token (trailing position past the last
@@ -95,20 +101,40 @@ struct ConnectionStylerResolutionTests {
         #expect(attrs[.link] == nil)
     }
 
-    @Test("Resolved {{Beta}} renders an item highlight (.itemLinkTitle + .itemChipBounds + .itemChipIcon)")
-    func resolvedItemLinkHasChip() {
-        let attrs = finalAttributes(body: body, knownNames: known, at: 22) // `B`
-        #expect(attrs[.itemLinkTitle] as? String == "Beta")
-        #expect(attrs[.itemChipBounds] != nil)
-        #expect(attrs[.itemChipIcon] as? String == "star.fill") // StubResolver returns "star.fill"
+    @Test("Gate ON: resolved {{Beta}} renders a chip highlight (.chipLinkTitle + .chipLinkBounds + .chipLinkIcon)")
+    func resolvedChipLinkHasChipWhenGateOn() {
+        let attrs = finalAttributes(
+            body: body, knownNames: known, at: 22, renderChipLinksAsChips: true) // `B`
+        #expect(attrs[.chipLinkTitle] as? String == "Beta")
+        #expect(attrs[.chipLinkBounds] != nil)
+        #expect(attrs[.chipLinkIcon] as? String == "star.fill") // StubResolver returns "star.fill"
+        #expect(attrs[.link] != nil) // click routing to onChipLinkClick depends on .link
     }
 
-    @Test("Unresolved {{Casper}} is muted secondaryLabelColor, no highlight attrs")
-    func unresolvedItemLinkIsMutedNoChip() {
-        let attrs = finalAttributes(body: body, knownNames: known, at: 31) // `C`
+    @Test("Gate OFF (default): resolved {{Beta}} renders a VISIBLE plain link — .link + .chipLinkTitle + link color + underline, NO chip leakage")
+    func resolvedChipLinkIsPlainLinkWhenGateOff() {
+        let attrs = finalAttributes(body: body, knownNames: known, at: 22) // `B`
+        #expect(attrs[.link] != nil)
+        #expect(attrs[.chipLinkTitle] as? String == "Beta")
+        #expect(attrs[.chipLinkBounds] == nil)
+        #expect(attrs[.chipLinkIcon] == nil)
+        // The visible-link contract: linkTextAttributes is cleared on the
+        // NSTextView, so the styler must stamp the visuals itself — theme link
+        // foreground (NOT clear, NOT nil) + underline, and NO kern (kern is the
+        // chip-pipeline's collapse trick; its presence = chip leakage).
+        #expect(attrs[.kern] == nil)
+        #expect(attrs[.foregroundColor] as? NSColor == MarkdownPMTheme.default.link)
+        #expect(attrs[.foregroundColor] as? NSColor != NSColor.clear)
+        #expect(attrs[.underlineStyle] as? Int == NSUnderlineStyle.single.rawValue)
+    }
+
+    @Test("Unresolved {{Casper}} is muted secondaryLabelColor, no highlight attrs (gate ON)")
+    func unresolvedChipLinkIsMutedNoChip() {
+        let attrs = finalAttributes(
+            body: body, knownNames: known, at: 31, renderChipLinksAsChips: true) // `C`
         #expect(attrs[.foregroundColor] as? NSColor == NSColor.secondaryLabelColor)
-        #expect(attrs[.itemLinkTitle] == nil)
-        #expect(attrs[.itemChipBounds] == nil)
+        #expect(attrs[.chipLinkTitle] == nil)
+        #expect(attrs[.chipLinkBounds] == nil)
     }
 
     // MARK: - Caret INSIDE a resolved token → raw editable form (E3 behavior)
@@ -125,14 +151,16 @@ struct ConnectionStylerResolutionTests {
     }
 
     /// A resolved `{{Beta}}` with the caret INSIDE must NOT render the highlight —
-    /// no `.itemChipBounds` / `.itemLinkTitle`, no clearing kern collapse — so the
-    /// raw `{{Beta}}` stays visible + editable (the `!isActive` guard).
-    @Test("Caret inside a resolved {{Beta}} suppresses the highlight (raw editable)")
-    func activeResolvedItemLinkHasNoChip() {
+    /// no `.chipLinkBounds` / `.chipLinkTitle`, no clearing kern collapse — so the
+    /// raw `{{Beta}}` stays visible + editable (the `!isActive` guard). Gate ON so
+    /// the active-state suppression (not the gate) is what's proven.
+    @Test("Caret inside a resolved {{Beta}} suppresses the highlight (raw editable, gate ON)")
+    func activeResolvedChipLinkHasNoChip() {
         // Caret at 24 = between `t` and `a` inside `{{Beta}}` (content 22..<26).
-        let attrs = finalAttributes(body: body, knownNames: known, at: 22, caretAt: 24)
-        #expect(attrs[.itemChipBounds] == nil)
-        #expect(attrs[.itemLinkTitle] == nil)
+        let attrs = finalAttributes(
+            body: body, knownNames: known, at: 22, caretAt: 24, renderChipLinksAsChips: true)
+        #expect(attrs[.chipLinkBounds] == nil)
+        #expect(attrs[.chipLinkTitle] == nil)
         #expect(attrs[.link] == nil)
     }
 }

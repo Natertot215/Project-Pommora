@@ -253,7 +253,7 @@ enum MarkdownPMStyler {
         result += styleEmphasis(ctx)
         result += styleAutoLinks(ctx)
         result += styleWikiLinks(ctx, wikiLinkIDProvider: wikiLinkIDProvider)
-        result += styleItemLinks(ctx)
+        result += styleChipLinks(ctx)
         result += styleImageEmbeds(ctx)
         result += styleMarkdownLinks(ctx)
         result += styleCodeBlocks(ctx)
@@ -454,7 +454,7 @@ extension MarkdownPMStyler {
         // the muted/link color). Skip any match intersecting those token
         // ranges — same intersection guard `shrinkInactiveMarkers` uses for
         // literal-target tokens.
-        let resolvedLinkTokens = ctx.tokens.filter { $0.kind == .wikiLink || $0.kind == .itemLink }
+        let resolvedLinkTokens = ctx.tokens.filter { $0.kind == .wikiLink || $0.kind == .chipLink }
         for regex in MarkdownPMStyler.incompleteLinkRegexes {
             for match in regex.matches(in: ctx.text, options: [], range: ctx.fullRange) {
                 let matchRange = match.range
@@ -495,7 +495,7 @@ extension MarkdownPMStyler {
         // suppression guard in `styleEmphasis`: skip any emphasis-kind token
         // whose range intersects a wikiLink/imageEmbed range.
         let literalTargetTokens = ctx.tokens.filter {
-            $0.kind == .wikiLink || $0.kind == .imageEmbed || $0.kind == .itemLink
+            $0.kind == .wikiLink || $0.kind == .imageEmbed || $0.kind == .chipLink
         }
         for (i, token) in ctx.tokens.enumerated() where !ctx.isActive(tokenIndex: i) {
             if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex

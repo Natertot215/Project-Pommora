@@ -87,49 +87,53 @@ extension MarkdownPMStyler {
         return attrs
     }
 
-    // MARK: Item Links {{Title}}
+    // MARK: Chip Links {{Title}}
 
-    /// Title-only parallel of `styleWikiLinks` for `{{Title}}` item links. No
+    /// Title-only parallel of `styleWikiLinks` for `{{Title}}` chip links. No
     /// stored id (no `wikiLinkIDProvider`) — resolution is by title via
-    /// `ctx.services.itemLinks`.
+    /// `ctx.services.chipLinks`.
     ///
-    /// RESOLVED + INACTIVE → renders as an inline highlight via the kern-trick
-    /// (mirrors `styleInlineLatex`): the source `{{Title}}` text is collapsed to
-    /// zero visible width and the first content char reserves the highlight's
-    /// width, carrying `.itemChipBounds`/`.itemLinkTitle` so the fragment's
-    /// `drawItemChips` draws the fill+outline+title over it. `.link` stays set
-    /// so the click handler still routes to the Item Window.
+    /// RESOLVED + INACTIVE + `renderChipLinksAsChips` ON → renders as an inline
+    /// highlight via the kern-trick (mirrors `styleInlineLatex`): the source
+    /// `{{Title}}` text is collapsed to zero visible width and the first content
+    /// char reserves the highlight's width, carrying
+    /// `.chipLinkBounds`/`.chipLinkTitle` so the fragment's `drawChipLinks`
+    /// draws the fill+outline+title over it. `.link` stays set so the click
+    /// handler still routes to `onChipLinkClick`.
+    /// RESOLVED + INACTIVE + gate OFF (the default) → plain styled link:
+    /// `.link` + `.chipLinkTitle` + theme link foreground + underline
+    /// (mirrors a resolved wikilink), no chip drawing.
     /// ACTIVE (caret in token) → raw `{{Title}}` stays visible/editable: markers
     /// muted, content plain (no highlight, no kern).
     /// UNRESOLVED → muted secondary label.
-    static func styleItemLinks(_ ctx: StylingContext) -> [StyledRange] {
+    static func styleChipLinks(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
-        for (index, token) in ctx.tokens.enumerated() where token.kind == .itemLink {
+        for (index, token) in ctx.tokens.enumerated() where token.kind == .chipLink {
             if MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: ctx.codeTokens) { continue }
             attrs.append((token.range, [NSAttributedString.Key.spellingState: 0]))
             let nodeName = ctx.nsText.substring(with: token.contentRange)
             let isActive = ctx.isActive(tokenIndex: index)
-            // Resolve the item title via the embedder-supplied item resolver —
+            // Resolve the chip-link title via the embedder-supplied resolver —
             // ONCE; the result carries both `exists` and `icon`.
-            let resolution = ctx.services.itemLinks.resolve(displayName: nodeName, range: token.contentRange)
+            let resolution = ctx.services.chipLinks.resolve(displayName: nodeName, range: token.contentRange)
             let nodeExists = resolution?.exists ?? false
 
-            // RESOLVED + INACTIVE: hide the raw source and reserve the pill's
-            // width via the kern-trick. Guard a non-empty title (empty `{{}}` →
-            // skip the chip, leave the source as-is).
-            if !isActive, nodeExists, token.contentRange.length > 0 {
+            // RESOLVED + INACTIVE (chip rendering gated ON): hide the raw source
+            // and reserve the pill's width via the kern-trick. Guard a non-empty
+            // title (empty `{{}}` → skip the chip, leave the source as-is).
+            if ctx.configuration.renderChipLinksAsChips, !isActive, nodeExists, token.contentRange.length > 0 {
                 let title = nodeName
                 let icon = resolution?.icon ?? "square.dashed"
-                let chipSize = ItemChipMetrics.size(title: title, font: ctx.baseFont)
+                let chipSize = ChipLinkMetrics.size(title: title, font: ctx.baseFont)
                 let contentLength = token.contentRange.length
 
                 // FIRST content char: reserve the full highlight width via kern.
                 let firstCharRange = NSRange(location: token.contentRange.location, length: 1)
                 let firstChar = ctx.nsText.substring(with: firstCharRange)
                 attrs.append((firstCharRange, [
-                    .itemChipBounds: NSValue(rect: CGRect(origin: .zero, size: chipSize)),
-                    .itemLinkTitle: title,
-                    .itemChipIcon: icon,
+                    .chipLinkBounds: NSValue(rect: CGRect(origin: .zero, size: chipSize)),
+                    .chipLinkTitle: title,
+                    .chipLinkIcon: icon,
                     .link: title,
                     .foregroundColor: NSColor.clear,
                     .kern: chipSize.width - HeadingHelpers.textWidth(firstChar, font: ctx.baseFont)
@@ -159,13 +163,18 @@ extension MarkdownPMStyler {
                 continue
             }
 
-            // ACTIVE / UNRESOLVED / empty-title fallback: raw text, no chip —
-            // markers muted, resolved content linked, unresolved content muted.
+            // GATE-OFF / ACTIVE / UNRESOLVED / empty-title fallback: raw text,
+            // no chip — markers muted, resolved content linked, unresolved
+            // content muted.
             var contentAttributes: [NSAttributedString.Key: Any] = [:]
             if !isActive {
                 if nodeExists {
                     contentAttributes[.link] = nodeName
-                    contentAttributes[.itemLinkTitle] = nodeName
+                    contentAttributes[.chipLinkTitle] = nodeName
+                    // Explicit visual styling — linkTextAttributes is cleared on the
+                    // NSTextView so these attributes must be set directly here.
+                    contentAttributes[.foregroundColor] = ctx.configuration.theme.link
+                    contentAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
                 } else {
                     contentAttributes[.foregroundColor] = NSColor.secondaryLabelColor
                 }

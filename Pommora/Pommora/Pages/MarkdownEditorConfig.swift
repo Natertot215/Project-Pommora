@@ -30,12 +30,14 @@ enum MarkdownEditorConfig {
     static func pommora(
         verticalInset: CGFloat,
         pageResolver: any WikiLinkResolver = NoOpWikiLinkResolver(),
-        itemResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
+        itemResolver: any WikiLinkResolver = NoOpWikiLinkResolver(),
+        renderChipLinksAsChips: Bool = false
     ) -> MarkdownPMConfiguration {
         var config = MarkdownPMConfiguration.default
         config.textInsets = TextInsets(horizontal: horizontalInset, vertical: verticalInset)
         config.services.wikiLinks = pageResolver
-        config.services.itemLinks = itemResolver
+        config.services.chipLinks = itemResolver
+        config.renderChipLinksAsChips = renderChipLinksAsChips
         // Live cross-surface refresh: when an entity is created / renamed / deleted
         // in another window, the CRUD managers post `ConnectionsBus.changed`; the
         // editor coordinator observes this bus slot and restyles, so a phantom

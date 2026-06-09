@@ -50,6 +50,11 @@ public struct MarkdownPMConfiguration: Sendable {
     public var safeAreaInsets: SafeAreaInsets
     public var scrollers: ScrollersPolicy
     public var textInsets: TextInsets
+    /// Render a resolved `{{Title}}` chip-link as a drawn inline chip
+    /// (kern-collapsed source + fill/outline/icon/title overlay). When `false`
+    /// (the default) a resolved chip-link renders as a plain styled link —
+    /// the chip pipeline stays dormant.
+    public var renderChipLinksAsChips: Bool
 
     public init(
         theme: MarkdownPMTheme = .default,
@@ -69,7 +74,8 @@ public struct MarkdownPMConfiguration: Sendable {
         dragSelection: DragSelectionPolicy = .default,
         safeAreaInsets: SafeAreaInsets = .default,
         scrollers: ScrollersPolicy = .default,
-        textInsets: TextInsets = .default
+        textInsets: TextInsets = .default,
+        renderChipLinksAsChips: Bool = false
     ) {
         self.theme = theme
         self.services = services
@@ -89,6 +95,7 @@ public struct MarkdownPMConfiguration: Sendable {
         self.safeAreaInsets = safeAreaInsets
         self.scrollers = scrollers
         self.textInsets = textInsets
+        self.renderChipLinksAsChips = renderChipLinksAsChips
     }
 
     public static let `default` = MarkdownPMConfiguration()

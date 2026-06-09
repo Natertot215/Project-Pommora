@@ -18,7 +18,7 @@ private extension MarkdownTokenizer {
     static let wikiLinkRegex = try! NSRegularExpression(
         pattern: "\\[\\[([^\\|\\]\\r\\n]*)\\|?([^\\]\\r\\n]*)\\]\\]"
     )
-    static let itemLinkRegex = try! NSRegularExpression(
+    static let chipLinkRegex = try! NSRegularExpression(
         pattern: "\\{\\{([^\\|\\}\\r\\n]*)\\|?([^\\}\\r\\n]*)\\}\\}"
     )
     static let markdownLinkRegex = try! NSRegularExpression(
@@ -118,14 +118,14 @@ enum MarkdownTokenizer {
                                         markerRanges: [open, close]))
         }
 
-        // Item links {{Title}} — title-only parallel of the wikiLink path. No
+        // Chip links {{Title}} — title-only parallel of the wikiLink path. No
         // image-overlap skip needed ({{ }} can't form an image embed).
-        for match in itemLinkRegex.matches(in: text, options: [], range: fullRange) {
+        for match in chipLinkRegex.matches(in: text, options: [], range: fullRange) {
             let full = match.range(at: 0)
             let content = match.range(at: 1)
             let open = NSRange(location: full.location, length: 2)
             let close = NSRange(location: full.location + full.length - 2, length: 2)
-            tokens.append(MarkdownToken(kind: .itemLink,
+            tokens.append(MarkdownToken(kind: .chipLink,
                                         range: full,
                                         contentRange: content,
                                         markerRanges: [open, close]))

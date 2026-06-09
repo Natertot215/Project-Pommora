@@ -62,7 +62,7 @@ extension MarkdownPMStyler {
         // emphasis token for `_file_` inside `[[my _file_ name]]`; that token is
         // skipped here so the target reads as plain literal text.
         let literalTargetTokens = ctx.tokens.filter {
-            $0.kind == .wikiLink || $0.kind == .imageEmbed || $0.kind == .itemLink
+            $0.kind == .wikiLink || $0.kind == .imageEmbed || $0.kind == .chipLink
         }
 
         for token in ctx.tokens {

@@ -178,7 +178,7 @@ extension NativeTextViewCoordinator {
         let inSpellcheckSuppressedToken: Bool
         if let allTokens = allTokens {
             inSpellcheckSuppressedToken = allTokens.contains { token in
-                (token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .itemLink)
+                (token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .chipLink)
                     && NSLocationInRange(caretLocation, token.range)
             }
         } else {
@@ -215,7 +215,7 @@ extension NativeTextViewCoordinator {
     func isInsideSpellcheckSuppressedToken(location: Int, in text: String) -> Bool {
         let parsed = parsedDocument(for: text)
         return parsed.tokens.contains { token in
-            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .itemLink else {
+            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .chipLink else {
                 return false
             }
             return NSLocationInRange(location, token.range)
@@ -225,7 +225,7 @@ extension NativeTextViewCoordinator {
     func isInsideSpellcheckSuppressedToken(range: NSRange, in text: String) -> Bool {
         let parsed = parsedDocument(for: text)
         return parsed.tokens.contains { token in
-            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .itemLink else {
+            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .chipLink else {
                 return false
             }
             return NSIntersectionRange(token.range, range).length > 0
@@ -422,7 +422,7 @@ extension NativeTextViewCoordinator {
 
     /// Recompute the preview anchor for the active inline token (used when scrolling).
     func refreshActiveLinkCaretRect() {
-        guard isWikiLinkActive || isItemLinkActive || isImageEmbedActive, let tv = textView else { return }
+        guard isWikiLinkActive || isChipLinkActive || isImageEmbedActive, let tv = textView else { return }
         guard let rect = inlinePreviewRect(in: tv) else { return }
         DispatchQueue.main.async { [weak self] in
             self?.onCaretRectChange?(rect)
@@ -515,14 +515,14 @@ extension NativeTextViewCoordinator {
             return .wikiLink(token: token)
         }
 
-        for token in parsed.itemLinkTokens {
+        for token in parsed.chipLinkTokens {
             // Only match when the caret sits between the inner edges of `{{…}}` —
             // `{{`/`}}` markers are 2 chars, identical to the wikiLink path above.
             let start = token.range.location + 2
             let end = NSMaxRange(token.range) - 2
             guard selectionLocation >= start && selectionLocation <= end else { continue }
             guard !MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: codeTokens) else { break }
-            return .itemLink(token: token)
+            return .chipLink(token: token)
         }
 
         return nil

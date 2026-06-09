@@ -12,13 +12,13 @@ enum AutoCompleteWiring {
 
     /// Whether the autocomplete popup should be shown for a given inline-selection
     /// state. **Trigger gate (Nathan-locked):** show ONLY when the caret is inside
-    /// a `[[ ]]` wiki-link or `{{ }}` item-link AND at least one character has been
+    /// a `[[ ]]` wiki-link or `{{ }}` chip-link AND at least one character has been
     /// typed inside the pair (non-empty placeholder). An empty pair (`[[]]` / `{{}}`),
     /// an image embed, or `nil` (caret left the token) all suppress the popup.
     static func shouldShowAutocomplete(for state: InlineSelectionState?) -> Bool {
         guard let state else { return false }
         switch state.kind {
-        case .wikiLink, .itemLink:
+        case .wikiLink, .chipLink:
             return !state.selection.placeholder.isEmpty
         case .imageEmbed:
             return false
@@ -27,20 +27,20 @@ enum AutoCompleteWiring {
 
     /// The storage fragment inserted when a candidate is chosen. Title-only
     /// (LD-28 — no id in the fragment); the engine re-resolves the title on the
-    /// next render. `.wikiLink` → `[[Title]]`, `.itemLink` → `{{Title}}`.
+    /// next render. `.wikiLink` → `[[Title]]`, `.chipLink` → `{{Title}}`.
     /// `.imageEmbed` never reaches autocomplete, so it falls back to a wiki-link
     /// fragment rather than introducing an impossible state.
     static func fragment(kind: InlineSelectionKind, title: String) -> String {
         switch kind {
-        case .itemLink: return "{{\(title)}}"
+        case .chipLink: return "{{\(title)}}"
         case .wikiLink, .imageEmbed: return "[[\(title)]]"
         }
     }
 
     /// The index `EntityKind` to query for a given inline-link kind: a `[[ ]]`
-    /// wiki-link resolves to a Page, a `{{ }}` item-link to an Item.
+    /// wiki-link resolves to a Page, a `{{ }}` chip-link to an Item.
     static func queryKind(for kind: InlineSelectionKind) -> EntityKind {
-        kind == .itemLink ? .item : .page
+        kind == .chipLink ? .item : .page
     }
 
     /// Maps an index `EntityRef` to the presentation-only `AutoCompleteCandidate`,

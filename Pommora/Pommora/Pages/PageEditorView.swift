@@ -274,7 +274,7 @@ struct PageEditorView: View {
                         mainWindowRouter.requestOpen(to: selection)
                     }
                 },
-                onItemLinkClick: { title in
+                onChipLinkClick: { title in
                     // A resolved `{{Item}}` click: resolve the display TITLE to its
                     // Item via the index, then hand it to the existing Item Window
                     // bridge. nil = phantom / ambiguous / unreadable → no-op.

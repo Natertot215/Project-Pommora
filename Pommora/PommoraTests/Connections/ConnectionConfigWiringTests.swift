@@ -7,7 +7,7 @@ import Testing
 
 /// Proves `MarkdownEditorConfig.pommora` puts the LIVE `PommoraConnectionResolver`
 /// instances into the right `services` slots — `.page` → `services.wikiLinks`
-/// (`[[ ]]`), `.item` → `services.itemLinks` (`{{ }}`). This is the plumbing the
+/// (`[[ ]]`), `.item` → `services.chipLinks` (`{{ }}`). This is the plumbing the
 /// in-app editor relies on; no styler/probe needed.
 @Suite("ConnectionConfigWiringTests")
 @MainActor
@@ -64,9 +64,9 @@ struct ConnectionConfigWiringTests {
                 == true)
         #expect(cfg.services.wikiLinks.resolve(displayName: "Ghost", range: NSRange(location: 0, length: 5)) == nil)
 
-        // `services.itemLinks` is the live item resolver: a seeded item resolves.
+        // `services.chipLinks` is the live item resolver: a seeded item resolves.
         #expect(
-            cfg.services.itemLinks.resolve(displayName: "Beta", range: NSRange(location: 0, length: 4))?.exists
+            cfg.services.chipLinks.resolve(displayName: "Beta", range: NSRange(location: 0, length: 4))?.exists
                 == true)
     }
 }

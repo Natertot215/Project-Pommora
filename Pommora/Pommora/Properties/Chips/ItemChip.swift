@@ -4,7 +4,7 @@ import SwiftUI
 /// text highlight — quaternary fill + thin tertiary outline — that follows the
 /// text line height so it reads as marked text rather than a button placed
 /// in-line. Mirrors the CoreGraphics render in the page editor
-/// (`MarkdownTextLayoutFragment.drawItemChips`).
+/// (`MarkdownTextLayoutFragment.drawChipLinks`).
 ///
 /// **Design:** Title in body font, no extra vertical padding (height = line
 /// height), 4pt horizontal padding each side, corner radius 3.

@@ -1,15 +1,15 @@
 //
-//  ItemChipMetrics.swift
+//  ChipLinkMetrics.swift
 //  MarkdownPM
 //
-//  Shared layout constants for the inline `{{Item}}` highlight so the styler's
-//  kern-trick width (MarkdownPMStyler+Links.styleItemLinks) matches exactly
-//  what the fragment draws (MarkdownTextLayoutFragment.drawItemChips).
+//  Shared layout constants for the inline `{{Title}}` highlight so the styler's
+//  kern-trick width (MarkdownPMStyler+Links.styleChipLinks) matches exactly
+//  what the fragment draws (MarkdownTextLayoutFragment.drawChipLinks).
 //
 
 import AppKit
 
-enum ItemChipMetrics {
+enum ChipLinkMetrics {
     /// Horizontal padding on each side of the chip content.
     static let horizontalPadding: CGFloat = 4
     /// Gap between the SF Symbol icon and the title text.

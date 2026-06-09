@@ -244,9 +244,9 @@ public struct MarkdownPMBus: Sendable {
 public struct MarkdownPMServices: Sendable {
     /// Resolves `[[ ]]` wiki-links (page-syntax connections).
     public var wikiLinks: any WikiLinkResolver
-    /// Resolves `{{ }}` item-links (item-syntax connections). Parallel to
-    /// `wikiLinks`; the embedder injects a kind-`.item` resolver here.
-    public var itemLinks: any WikiLinkResolver
+    /// Resolves `{{ }}` chip-links (chip-syntax connections). Parallel to
+    /// `wikiLinks`; the embedder injects its chip-link resolver here.
+    public var chipLinks: any WikiLinkResolver
     public var images: any EmbeddedImageProvider
     public var syntaxHighlighter: any SyntaxHighlighter
     public var latex: any LatexRenderer
@@ -254,14 +254,14 @@ public struct MarkdownPMServices: Sendable {
 
     public init(
         wikiLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
-        itemLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
+        chipLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
         images: any EmbeddedImageProvider = NoOpEmbeddedImageProvider(),
         syntaxHighlighter: any SyntaxHighlighter = PlainTextSyntaxHighlighter(),
         latex: any LatexRenderer = NoOpLatexRenderer(),
         bus: MarkdownPMBus = .default
     ) {
         self.wikiLinks = wikiLinks
-        self.itemLinks = itemLinks
+        self.chipLinks = chipLinks
         self.images = images
         self.syntaxHighlighter = syntaxHighlighter
         self.latex = latex

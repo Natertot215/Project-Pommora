@@ -33,7 +33,7 @@ struct AutoCompleteWiringTests {
     }
 
     @Test func showsForItemLinkWithTypedPlaceholder() {
-        #expect(AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .itemLink, placeholder: "Tas")))
+        #expect(AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .chipLink, placeholder: "Tas")))
     }
 
     @Test func suppressedForEmptyWikiLinkPlaceholder() {
@@ -41,7 +41,7 @@ struct AutoCompleteWiringTests {
     }
 
     @Test func suppressedForEmptyItemLinkPlaceholder() {
-        #expect(!AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .itemLink, placeholder: "")))
+        #expect(!AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .chipLink, placeholder: "")))
     }
 
     @Test func suppressedForImageEmbed() {
@@ -59,7 +59,7 @@ struct AutoCompleteWiringTests {
     }
 
     @Test func itemLinkFragmentIsDoubleCurlyBraces() {
-        #expect(AutoCompleteWiring.fragment(kind: .itemLink, title: "Buy milk") == "{{Buy milk}}")
+        #expect(AutoCompleteWiring.fragment(kind: .chipLink, title: "Buy milk") == "{{Buy milk}}")
     }
 
     // MARK: - Query kind
@@ -69,7 +69,7 @@ struct AutoCompleteWiringTests {
     }
 
     @Test func itemLinkQueriesItems() {
-        #expect(AutoCompleteWiring.queryKind(for: .itemLink) == .item)
+        #expect(AutoCompleteWiring.queryKind(for: .chipLink) == .item)
     }
 
     // MARK: - EntityRef → AutoCompleteCandidate mapping

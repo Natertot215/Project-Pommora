@@ -175,7 +175,7 @@ extension NativeTextViewCoordinator {
         {
             isImageEmbedActive = false
             isWikiLinkActive = false
-            isItemLinkActive = false
+            isChipLinkActive = false
             onInlineSelectionChange?(nil)
             return
         }
@@ -237,7 +237,7 @@ extension NativeTextViewCoordinator {
             // textDidChange performs the pending restyle for this edit cycle.
         } else if tokensChanged {
             restyleTextView(tv, paragraphCandidates: paragraphCandidates, tokens: tokens)
-            // When a wiki/item-link token transitions active→inactive the `{{`/`[[`
+            // When a wiki/chip-link token transitions active→inactive the `{{`/`[[`
             // and `}}`/`]]` markers collapse to 0 visual width via the kern trick.
             // A caret that landed on a marker character appears visually inside the
             // chip/link. Nudge it to the nearest token boundary so the cursor sits
@@ -308,10 +308,10 @@ extension NativeTextViewCoordinator {
 
             let shouldShowInlinePreview: Bool
             switch inlineContext.selectionKind {
-            case .wikiLink, .itemLink:
+            case .wikiLink, .chipLink:
                 // `{{ }}` fires the selection-change + caret-rect the same way
                 // `[[ ]]` does — a later task hooks this to show the `{{`
-                // autocomplete window. `.itemLink` is title-only (no storage id).
+                // autocomplete window. `.chipLink` is title-only (no storage id).
                 shouldShowInlinePreview = true
             case .imageEmbed:
                 shouldShowInlinePreview = imageEmbedShowsInlinePreview
@@ -331,7 +331,7 @@ extension NativeTextViewCoordinator {
 
         DispatchQueue.main.async {
             self.isWikiLinkActive = inlineSelectionState?.kind == .wikiLink
-            self.isItemLinkActive = inlineSelectionState?.kind == .itemLink
+            self.isChipLinkActive = inlineSelectionState?.kind == .chipLink
             self.isImageEmbedActive = isInsideImageEmbed
             self.onInlineSelectionChange?(inlineSelectionState)
         }
@@ -464,7 +464,7 @@ extension NativeTextViewCoordinator {
         _ textView: NSTextView, tokens: [MarkdownToken], caretLoc: Int
     ) {
         let docLen = (textView.string as NSString).length
-        for token in tokens where token.kind == .wikiLink || token.kind == .itemLink {
+        for token in tokens where token.kind == .wikiLink || token.kind == .chipLink {
             guard caretLoc > token.range.location,
                   caretLoc < NSMaxRange(token.range) else { continue }
             let innerStart = token.range.location + 2
@@ -482,15 +482,15 @@ extension NativeTextViewCoordinator {
     }
 
     public func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
-        // A resolved `{{Item}}` carries `.itemLinkTitle` on its content range —
-        // route those to the Item Window. `[[ ]]` links carry no such attribute and
-        // fall through to the page-navigation path below.
+        // A resolved `{{Title}}` carries `.chipLinkTitle` on its content range —
+        // route those to the chip-link click handler. `[[ ]]` links carry no such
+        // attribute and fall through to the page-navigation path below.
         if let storage = textView.textStorage, charIndex < storage.length,
-            let itemTitle = storage.attribute(.itemLinkTitle, at: charIndex, effectiveRange: nil) as? String {
+            let chipTitle = storage.attribute(.chipLinkTitle, at: charIndex, effectiveRange: nil) as? String {
             self.isWikiLinkActive = false
-            self.isItemLinkActive = false
+            self.isChipLinkActive = false
             DispatchQueue.main.async {
-                self.onItemLinkClick?(itemTitle)
+                self.onChipLinkClick?(chipTitle)
             }
             return true
         }
@@ -499,7 +499,7 @@ extension NativeTextViewCoordinator {
         }
         // Direkt deaktivieren, bevor der Navigation-Callback läuft.
         self.isWikiLinkActive = false
-        self.isItemLinkActive = false
+        self.isChipLinkActive = false
         DispatchQueue.main.async {
             self.onLinkClick?(target)
         }

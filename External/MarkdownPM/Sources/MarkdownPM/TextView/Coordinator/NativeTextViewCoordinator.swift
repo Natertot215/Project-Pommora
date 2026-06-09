@@ -58,7 +58,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var layoutBridge: LayoutBridge?
     var layoutDelegate: MarkdownLayoutManagerDelegate?
     var onLinkClick: ((String) -> Void)?
-    var onItemLinkClick: ((String) -> Void)?
+    var onChipLinkClick: ((String) -> Void)?
     var onCaretRectChange: ((CGRect) -> Void)?
     var onInlineSelectionChange: ((InlineSelectionState?) -> Void)?
     var onCodeBlockSelectionChange: (([CodeBlockSelection]) -> Void)?
@@ -149,7 +149,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         let blockLatexTokens: [MarkdownToken]
         let wikiLinkTokens: [MarkdownToken]
         let imageEmbedTokens: [MarkdownToken]
-        let itemLinkTokens: [MarkdownToken]
+        let chipLinkTokens: [MarkdownToken]
         /// The Apple swift-markdown AST for the SAME `text` the regex
         /// tokens were parsed from. Parsed exactly once inside
         /// `parsedDocument(for:)` so the supplemental styler and the
@@ -182,11 +182,11 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     enum InlineTokenContext {
         case wikiLink(token: MarkdownToken)
         case imageEmbed(token: MarkdownToken)
-        case itemLink(token: MarkdownToken)
+        case chipLink(token: MarkdownToken)
 
         var token: MarkdownToken {
             switch self {
-            case .wikiLink(let token), .imageEmbed(let token), .itemLink(let token):
+            case .wikiLink(let token), .imageEmbed(let token), .chipLink(let token):
                 return token
             }
         }
@@ -197,17 +197,17 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
                 return .wikiLink
             case .imageEmbed:
                 return .imageEmbed
-            case .itemLink:
-                return .itemLink
+            case .chipLink:
+                return .chipLink
             }
         }
     }
 
     var isImageEmbedActive: Bool = false
-    /// Mirrors `isWikiLinkActive` for `{{ }}` item-links: true while the caret is
-    /// inside an item-link token. Lets `refreshActiveLinkCaretRect` keep the caret
-    /// anchor following on scroll for item-links exactly as it does for wiki-links.
-    var isItemLinkActive: Bool = false
+    /// Mirrors `isWikiLinkActive` for `{{ }}` chip-links: true while the caret is
+    /// inside a chip-link token. Lets `refreshActiveLinkCaretRect` keep the caret
+    /// anchor following on scroll for chip-links exactly as it does for wiki-links.
+    var isChipLinkActive: Bool = false
 
     // Inline selection geometry, image-embed activation, and inline-token
     // detection live in `NativeTextViewCoordinator+InlineSelection.swift`.
