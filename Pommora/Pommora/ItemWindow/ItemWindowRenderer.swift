@@ -112,35 +112,28 @@ struct ItemWindowRenderer: View {
     /// bottom-separator · footer. The body is the one flexing region; everything
     /// else is fixed, so the body takes the remaining height (no dead gap). No outer
     /// `ScrollView`; the body editor scrolls internally, so the chrome (header,
-    /// footer) stays put. The bar renders only when chip properties are pinned,
-    /// and owns its symmetric 6pt gaps (top-sep → bar == bar → body); the empty
-    /// case substitutes one 6pt gap so the body never butts the header separator.
+    /// footer) stays put. The bar ALWAYS renders (placeholder cells when no chip
+    /// properties are pinned) and owns its symmetric 6pt gaps (top-sep → bar == bar
+    /// → body).
     private var mainColumn: some View {
         VStack(spacing: 0) {
             header
             // Top separator — inset to the body card's rail (matches the bar +
             // text-box horizontal extent) rather than spanning the full column.
             insetDivider
-            // Pinned-property segmented bar (D4). Only rendered (with its symmetric
-            // vertical gap) when chip properties are pinned — gated so the empty
-            // case adds NO gap between the header divider and the body. When shown,
-            // the renderer owns the symmetric gap (header-divider → bar == bar →
-            // text-box), so the gap above the bar equals the gap below it.
-            if hasPinnedFieldProperties {
-                PropertyFieldBar(
-                    itemType: vm.itemType,
-                    collection: vm.collection,
-                    values: vm.draftProperties,
-                    onChange: { vm.handlePropertyChange($0, $1) }
-                )
-                // Symmetric 6pt gaps: top-sep → bar == bar → body (both `sm`).
-                .padding(.top, PUI.Spacing.sm)
-                .padding(.bottom, PUI.Spacing.sm)
-            } else {
-                // No bar → the single 6pt gap the body needs below the header
-                // separator (so the body doesn't butt against the divider).
-                Spacer().frame(height: PUI.Spacing.sm)
-            }
+            // Pinned-property segmented bar (D4). Always rendered (placeholder cells
+            // when nothing is pinned) with its symmetric vertical gap — the renderer
+            // owns the symmetric gap (header-divider → bar == bar → text-box), so the
+            // gap above the bar equals the gap below it.
+            PropertyFieldBar(
+                itemType: vm.itemType,
+                collection: vm.collection,
+                values: vm.draftProperties,
+                onChange: { vm.handlePropertyChange($0, $1) }
+            )
+            // Symmetric 6pt gaps: top-sep → bar == bar → body (both `sm`).
+            .padding(.top, PUI.Spacing.sm)
+            .padding(.bottom, PUI.Spacing.sm)
             bodyZone
             // Fixed 6pt gap between the (now-filling) body and the bottom separator.
             Spacer().frame(height: PUI.Spacing.sm)
@@ -149,14 +142,6 @@ struct ItemWindowRenderer: View {
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    /// Whether the property-field bar has any pinned chip property to show — the
-    /// same per-pool slice the bar itself computes (`PropertyFieldBar.segments`),
-    /// so the gate never diverges from the bar's own self-collapse. Pure value code
-    /// OUTSIDE the `@ViewBuilder` body (quirk #12 — `isEmpty`, no in-view `==`).
-    private var hasPinnedFieldProperties: Bool {
-        !PropertyFieldBar.segments(itemType: vm.itemType, collection: vm.collection).isEmpty
     }
 
     /// A horizontal separator inset to the body card's rail (the same horizontal

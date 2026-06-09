@@ -15,6 +15,10 @@ import SwiftUI
 /// this replicates the native segmented *look* in SwiftUI while keeping the
 /// segment-as-dropdown-button behavior (the "build upon" latitude per Nathan).
 ///
+/// **Always renders** — when no template defines pinned properties the bar shows a
+/// row of inert placeholder "Label" cells (3 plain + 3 grey pill, matching the
+/// Figma) so its look stays visible during the design phase, instead of collapsing.
+///
 /// **Data-driven, not VM-coupled** — it takes the schema (`itemType` + optional
 /// `collection`), a snapshot of the current draft values, and an `onChange`
 /// callback (wired to `vm.handlePropertyChange`). That keeps it a clean,
@@ -40,31 +44,30 @@ struct PropertyFieldBar: View {
 
     var body: some View {
         let entries = Self.segments(itemType: itemType, collection: collection)
-        // Empty bar collapses — no rounded container when nothing is pinned.
-        if !entries.isEmpty {
-            // Content-sized, variable-width cells that FILL a fixed full-width track,
-            // separated by thin vertical dividers — Apple's
-            // `NSSegmentedControl.apportionsSegmentWidthsByContent` look, but stretched
-            // to a fixed frame. `SegmentedTrackLayout` measures each cell's content
-            // width and distributes the track's full width proportionally, so a longer
-            // chip yields a wider cell while the cells together consume the entire rail
-            // (no trailing gap). The dividers are placed at their native hairline width
-            // in the gaps. Subviews arrive interleaved `[cell, divider, cell, …]`; the
-            // layout tells them apart by index parity (even = cell, odd = divider).
-            SegmentedTrackLayout(trackHeight: Self.trackHeight) {
+        // The bar ALWAYS renders the track chrome (it never collapses): real segments
+        // when a template pins chip properties, otherwise inert placeholder cells.
+        // Both branches emit the SAME interleaved `[cell, divider, cell, …]` ordering
+        // (`if index > 0 { dividerHairline }; cell`) that `SegmentedTrackLayout` reads
+        // by index parity (even = cell, odd = divider).
+        SegmentedTrackLayout(trackHeight: Self.trackHeight) {
+            if entries.isEmpty {
+                // Placeholder: 3 plain + 3 pill "Label" cells (design-phase visibility).
+                ForEach(Array(Self.placeholderKinds.enumerated()), id: \.offset) { index, isPill in
+                    if index > 0 { dividerHairline }
+                    placeholderCell(pill: isPill)
+                }
+            } else {
+                // Content-sized, variable-width cells that FILL a fixed full-width track,
+                // separated by thin vertical dividers — Apple's
+                // `NSSegmentedControl.apportionsSegmentWidthsByContent` look, but stretched
+                // to a fixed frame. `SegmentedTrackLayout` measures each cell's content
+                // width and distributes the track's full width proportionally, so a longer
+                // chip yields a wider cell while the cells together consume the entire rail
+                // (no trailing gap). The dividers are placed at their native hairline width
+                // in the gaps. Subviews arrive interleaved `[cell, divider, cell, …]`; the
+                // layout tells them apart by index parity (even = cell, odd = divider).
                 ForEach(Array(entries.enumerated()), id: \.element.definition.id) { index, entry in
-                    if index > 0 {
-                        // Vertical inter-segment hairline. An explicit 1pt-wide
-                        // `Rectangle` (not a bare `Divider`, whose axis is ambiguous
-                        // inside a custom `Layout` and renders as a horizontal rule)
-                        // guarantees a full-height vertical separator: the layout reads
-                        // its 1pt ideal width as the divider's fixed slot, and the
-                        // `.separator`-colored fill at `trackHeight - Spacing.md` height
-                        // (inset top/bottom) reads like the native control's hairline.
-                        Rectangle()
-                            .fill(Color(.separatorColor))
-                            .frame(width: 1, height: Self.trackHeight - PUI.Spacing.md)
-                    }
+                    if index > 0 { dividerHairline }
                     PropertyFieldSegment(
                         definition: entry.definition,
                         value: values[entry.definition.id],
@@ -72,29 +75,64 @@ struct PropertyFieldBar: View {
                     )
                 }
             }
-            // Fixed 28pt track. NO `.fixedSize` — the bar spans the FULL rail width
-            // (`maxWidth: .infinity`), not the summed cell widths; the layout fills
-            // that width with its content-sized cells.
-            .frame(maxWidth: .infinity)
-            .frame(height: Self.trackHeight)
-            // ONE rounded track filled with `quaternarySystemFill` — the SAME fill the
-            // body text-box uses (`bodyZone`) so the bar and the body read as one
-            // material — plus a hairline stroke. The window behind is glass; this sits
-            // on top as the native segmented-control track.
-            .background(
-                Color(.quaternarySystemFill),
-                in: RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
-                    .strokeBorder(.separator, lineWidth: 0.5)
-            )
-            // Rail inset only — the full-width track aligns to the body card's rail
-            // (matches the body + separators). Inset lives INSIDE the populated branch
-            // so the collapsed case adds no header/body gap; the top/bottom symmetry
-            // (equal gap above + below) is owned by the renderer's `mainColumn`.
-            .padding(.horizontal, PUI.Spacing.xl)
         }
+        // Fixed 28pt track. NO `.fixedSize` — the bar spans the FULL rail width
+        // (`maxWidth: .infinity`), not the summed cell widths; the layout fills
+        // that width with its content-sized cells.
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.trackHeight)
+        // ONE rounded track filled with `quaternarySystemFill` — the SAME fill the
+        // body text-box uses (`bodyZone`) so the bar and the body read as one
+        // material — plus a hairline stroke. The window behind is glass; this sits
+        // on top as the native segmented-control track.
+        .background(
+            Color(.quaternarySystemFill),
+            in: RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 0.5)
+        )
+        // Rail inset only — the full-width track aligns to the body card's rail
+        // (matches the body + separators). The top/bottom symmetry (equal gap above
+        // + below) is owned by the renderer's `mainColumn`.
+        .padding(.horizontal, PUI.Spacing.xl)
+    }
+
+    /// Vertical inter-segment hairline (matches the native segmented control). An
+    /// explicit 1pt `Rectangle` (not `Divider`, whose axis is ambiguous inside the
+    /// custom `Layout`).
+    private var dividerHairline: some View {
+        Rectangle()
+            .fill(Color(.separatorColor))
+            .frame(width: 1, height: Self.trackHeight - PUI.Spacing.md)
+    }
+
+    /// Placeholder cell kinds when no template defines pinned properties — 3 plain
+    /// text cells then 3 grey pill cells, matching the Figma. Design-phase only.
+    private static let placeholderKinds: [Bool] = [false, false, false, true, true, true]  // isPill
+
+    /// One inert placeholder cell (no Button / popover) — fills its track slice like
+    /// a real segment. `pill` → a grey capsule; otherwise a plain secondary label.
+    @ViewBuilder
+    private func placeholderCell(pill: Bool) -> some View {
+        Group {
+            if pill {
+                Text("Label")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .frame(minHeight: 16)
+                    .background(Capsule().fill(Color(.systemFill)))
+            } else {
+                Text("Label")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, PUI.Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Per-pool slice (plain value code — OUTSIDE any @ViewBuilder, quirk #12-safe)
