@@ -84,11 +84,11 @@ struct ItemWindowRenderer: View {
         // real trailing `.inspector` panel (smooth system slide + resizable edge),
         // not a hand-laid second column. The panel's title bar is hidden and its
         // content extends under it (`.fullSizeContentView`), so the `header` reads
-        // as the chrome with the standard close button at the top-left; the icon +
-        // inspector toggle live in that header. The main column keeps its fixed
-        // content width; the inspector adds its own width when shown.
+        // as the chrome with a custom ✕ at the top-left; the icon + inspector toggle
+        // live in that header. The hosted root is pinned to the fixed panel size; the
+        // main column flexes within it and the inspector takes its share of the width.
         mainColumn
-            .frame(width: PUI.ItemWindow.mainWidth)
+            .frame(maxWidth: .infinity)
             .inspector(isPresented: $vm.inspectorShown) {
                 ItemInspector(
                     vm: vm,
@@ -97,8 +97,12 @@ struct ItemWindowRenderer: View {
                     resolver: contextResolver,
                     tierConfig: tierConfig.config
                 )
-                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                .inspectorColumnWidth(min: 240, ideal: 300, max: 420)
             }
+            // Pin the hosted root to the fixed panel size (`.preferredContentSize`
+            // is gone): the whole content is exactly width × height; the main column
+            // flexes WITHIN that and the inspector takes its share of the width.
+            .frame(width: PUI.ItemWindow.width, height: PUI.ItemWindow.height)
     }
 
     // MARK: - Main column (header + body + footer)
@@ -167,19 +171,35 @@ struct ItemWindowRenderer: View {
 
     // MARK: - 1. Header row (icon + editable title + inspector toggle)
 
-    /// The Item's header — the panel's chrome. The icon (leading) opens the picker
-    /// and the inspector toggle (trailing) flank the editable title field; these
-    /// moved here from a window `.toolbar`, which does NOT render in an
+    /// The Item's header — the panel's chrome. A custom ✕ (leading) is the only
+    /// close affordance (the native traffic lights are hidden); the icon opens the
+    /// picker and the inspector toggle (trailing) flank the editable title field.
+    /// These moved here from a window `.toolbar`, which does NOT render in an
     /// `NSHostingController`-hosted panel. The panel hides its own title bar and the
-    /// content extends under it (`.fullSizeContentView`), so the standard close
-    /// button sits at the top-left and the leading inset clears it. The title
-    /// commits on Enter (`onSubmit`) and focus-loss (`onChange`); the host's
+    /// content extends under it (`.fullSizeContentView`), so the ✕ sits flush at the
+    /// top-left behind a standard `md` gutter. The title is styled as a standard
+    /// window title (single-line, truncating) so a long title never pushes the
+    /// inspector toggle. The title commits on Enter (`onSubmit`) and focus-loss
+    /// (`onChange`); the host's
     /// `.onDisappear` is the dismissal safety net (all idempotent —
     /// `handleTitleCommit` guards trimmed-equals-current).
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
-            // Icon — opens the picker. (The panel's standard close button sits to
-            // its left; final flush/sizing polish lands in the design pass.)
+            // Custom ✕ — the native traffic lights are hidden; this is the only
+            // close affordance (mirrors `PreviewWindow`'s header button styling).
+            Button {
+                AppGlobals.current?.itemWindowPanelManager.close(ref)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close")
+
+            // Icon — opens the picker. Sits flush after the ✕.
             Button {
                 showIconPicker = true
             } label: {
@@ -196,7 +216,10 @@ struct ItemWindowRenderer: View {
 
             TextField("Title", text: $vm.draftTitle)
                 .textFieldStyle(.plain)
-                .font(.title2.weight(.semibold))
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .focused($titleFocused)
                 .onSubmit { Task { await vm.handleTitleCommit() } }
                 .onChange(of: titleFocused) { _, focused in
@@ -218,8 +241,9 @@ struct ItemWindowRenderer: View {
             .foregroundStyle(.secondary)
             .accessibilityLabel("Toggle inspector")
         }
-        // Leading inset clears the panel's standard close button at the top-left.
-        .padding(.leading, 56)
+        // Native buttons are hidden, so the custom ✕ sits flush — no traffic-light
+        // clearance needed; the leading inset is just the standard `md` gutter.
+        .padding(.leading, PUI.Spacing.md)
         .padding(.trailing, PUI.Spacing.md)
         .padding(.vertical, PUI.Spacing.sm)
     }
