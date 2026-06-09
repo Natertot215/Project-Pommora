@@ -398,7 +398,7 @@ private struct WindowsGallery: View {
                 title: "Item Window",
                 symbol: "macwindow",
                 description:
-                    "Shipped — the Item Window is a native draggable floating scene (PreviewWindow): title + properties + 250-char description, config-driven from the per-Type template; custom close + drag handle in lieu of traffic lights."
+                    "Shipped — the Item Window is a non-activating AppKit NSPanel (FloatingItemPanel): one fixed size, draggable by background, traffic lights hidden with a custom ✕, unified flat-hairline inspector layout, and a 500-char description cap."
             ) { showingItemWindow = false }
         }
         .sheet(isPresented: $showingPagePreview) {

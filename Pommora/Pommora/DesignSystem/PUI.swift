@@ -83,7 +83,7 @@ enum PUI {
         }
     }
 
-    // MARK: - Item Window (floating card dimensions)
+    // MARK: - Item Window (fixed panel dimensions)
 
     enum ItemWindow {
         /// Fixed panel size — the window does not resize; the inspector takes width from the body.

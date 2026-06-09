@@ -1,11 +1,13 @@
 import MarkdownPM
 import SwiftUI
 
-/// The single live Item-Window renderer. It draws the Item's icon + title
-/// (`header`), an editable body with a character-cap counter (`bodyZone`), and a
-/// breadcrumb footer — reading every field off the bound `ItemWindowViewModel`.
-/// The body is editable (D3): edits route through `vm.handleBodyChange(_:)`. The
-/// header title is still display-only; editable title / icon land in D2.
+/// The single live Item-Window renderer. It draws the Item's header (a custom ✕,
+/// an editable icon via picker, and an editable inline title that commits on
+/// focus-loss or Enter), an editable body with a character-cap counter
+/// (`bodyZone`), and a breadcrumb footer — reading every field off the bound
+/// `ItemWindowViewModel`. Edits to the body route through `vm.handleBodyChange(_:)`;
+/// title commits route through `vm.handleTitleCommit()`; icon changes route through
+/// `vm.handleIconChange(_:)`.
 ///
 /// The reorder/partition helpers below (`partition`, `reorderPromoted`) are pure,
 /// unit-tested, and retained for the zone rework even though no production caller
@@ -37,7 +39,7 @@ struct ItemWindowRenderer: View {
     /// inline-title-commit idiom.
     @FocusState private var titleFocused: Bool
 
-    /// Presents the header's icon picker popover (D2), anchored to the icon button.
+    /// Presents the header's icon picker popover, anchored to the icon button.
     @State private var showIconPicker = false
 
     // MARK: - Promoted / overflow partition (pure)
@@ -74,11 +76,12 @@ struct ItemWindowRenderer: View {
 
     /// The Item Window's content for its floating panel: the main column
     /// (header row + property bar + body + breadcrumb footer) plus a native trailing
-    /// `.inspector` panel (`ItemInspector` — the grouped Pages-style Tiers +
-    /// Properties form) the system slides in/out and resizes. `vm.inspectorShown`
-    /// (default `true`) drives the panel; the panel grows by the inspector's width
-    /// when shown. The icon + inspector toggle live in the content `header` (a
-    /// `.toolbar` does NOT render in an `NSHostingController`-hosted panel).
+    /// `.inspector` panel (`ItemInspector` — a unified flat-hairline menu of contexts
+    /// then properties) the system slides in/out. `vm.inspectorShown` (default `true`)
+    /// drives the panel; the panel is a FIXED size and the inspector takes its width
+    /// FROM the body (the body narrows) — the overall panel does not grow. The icon +
+    /// inspector toggle live in the content `header` (a `.toolbar` does NOT render in
+    /// an `NSHostingController`-hosted panel).
     var body: some View {
         // Panel layout: the main column IS the panel content; the inspector is a
         // real trailing `.inspector` panel (smooth system slide + resizable edge),
@@ -199,7 +202,9 @@ struct ItemWindowRenderer: View {
 
             TextField("Title", text: $vm.draftTitle)
                 .textFieldStyle(.plain)
-                .font(.headline)
+                // Larger + lighter than `.headline` (which read bold/compact) to match
+                // the Figma's document-title weight; sized alongside the `.title2` icon.
+                .font(.title2.weight(.medium))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)

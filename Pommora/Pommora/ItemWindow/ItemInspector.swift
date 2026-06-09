@@ -147,7 +147,8 @@ struct ItemInspector: View {
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
         } else {
-            ForEach(propertyRowDefinitions) { def in
+            let filled = filledPropertyIDs
+            ForEach(propertyRowDefinitions(filled: filled)) { def in
                 inspectorRow(icon: def.displayIcon, label: def.name) {
                     PropertyEditorRow(
                         definition: def,
@@ -159,37 +160,39 @@ struct ItemInspector: View {
                 }
                 rowDivider
             }
-            addPropertyMenu
+            addPropertyMenu(filled: filled)
         }
+    }
+
+    /// IDs of draft properties that currently hold a non-empty value.
+    /// Computed once per render pass and passed down to avoid duplicate traversals.
+    private var filledPropertyIDs: Set<String> {
+        Set(vm.draftProperties.filter { ItemWindowViewModel.isFilled($0.value) }.map(\.key))
     }
 
     /// Non-pinned, filled-or-surfaced schema properties (pinned ones live on the
     /// main-column chip bar, never here — exactly one place). Pure value code
     /// OUTSIDE the `@ViewBuilder` (quirk #12).
-    private var propertyRowDefinitions: [PropertyDefinition] {
-        let filledIDs = Set(
-            vm.draftProperties.filter { ItemWindowViewModel.isFilled($0.value) }.map(\.key))
-        return vm.itemType.properties.filter { def in
+    private func propertyRowDefinitions(filled: Set<String>) -> [PropertyDefinition] {
+        vm.itemType.properties.filter { def in
             !vm.pinnedIDs.contains(def.id)
-                && (filledIDs.contains(def.id) || vm.surfaced.contains(def.id))
+                && (filled.contains(def.id) || vm.surfaced.contains(def.id))
         }
     }
 
     /// Schema properties still addable via the "Add property" menu. Pure value code
     /// OUTSIDE the `@ViewBuilder` (quirk #12).
-    private var addableDefinitions: [PropertyDefinition] {
-        let filledIDs = Set(
-            vm.draftProperties.filter { ItemWindowViewModel.isFilled($0.value) }.map(\.key))
-        return ItemWindowViewModel.addableProperties(
-            schema: vm.itemType.properties, filled: filledIDs, pinned: vm.pinnedIDs)
+    private func addableDefinitions(filled: Set<String>) -> [PropertyDefinition] {
+        ItemWindowViewModel.addableProperties(
+            schema: vm.itemType.properties, filled: filled, pinned: vm.pinnedIDs)
     }
 
     /// "Add property" affordance — a subtle menu surfacing each addable property's
     /// (empty) inspector row via `vm.addProperty`. Self-collapses (and adds no row
     /// padding) when nothing's addable.
     @ViewBuilder
-    private var addPropertyMenu: some View {
-        let addable = addableDefinitions
+    private func addPropertyMenu(filled: Set<String>) -> some View {
+        let addable = addableDefinitions(filled: filled)
         if !addable.isEmpty {
             Menu {
                 ForEach(addable) { def in
