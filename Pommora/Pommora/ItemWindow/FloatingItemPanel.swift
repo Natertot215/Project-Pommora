@@ -19,7 +19,12 @@ import SwiftUI
 /// the Item's own header reads as the chrome and supplies a custom ✕ at the top-left.
 final class FloatingItemPanel: NSPanel {
     init(rootView: some View) {
-        let hosting = NSHostingController(rootView: AnyView(rootView))
+        // Zero-dimming: force the hosted content to render in its ACTIVE appearance
+        // even when the panel is non-key, so accents / selection / chips never grey
+        // out when the main window is clicked. This pins ONLY this panel's content
+        // (it makes no claim about key-window status, so the main window is unaffected).
+        let hosting = NSHostingController(
+            rootView: AnyView(rootView.environment(\.controlActiveState, .active)))
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: PUI.ItemWindow.width, height: PUI.ItemWindow.height),
             styleMask: [.titled, .closable, .nonactivatingPanel, .fullSizeContentView],
