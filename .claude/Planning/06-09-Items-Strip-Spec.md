@@ -4,7 +4,7 @@ Strip the Items subsystem from Pommora entirely. Everything operational becomes 
 
 ### Goal
 
-Delete all `Item*` code, mirrored machinery, item index tables, and item rendering coupling; collapse every `item|page` shared seam to page-only. Pages are left as-is (working code is not rewritten). The plan ends with a clean, green, Items-free codebase plus a plain new `PagePreview` window and a vault-level Compact/Window open-in toggle (with an inspector unlock→open affordance). Pinned properties are explicitly out — recorded as a Prospect.
+Delete all `Item*` code, mirrored machinery, item index tables, and item rendering coupling; collapse every `item|page` shared seam to page-only. Pages are left as-is (working code is not rewritten). The plan ends with a clean, green, Items-free codebase plus a new `PagePreview` window (Figma design received 2026-06-09; captured in the plan's P5) and a vault-level Compact/Window open-in toggle. Pinned properties are explicitly out — recorded as a Prospect.
 
 **Guiding principle — no trace.** The end state must read as though Items never existed and Pages were always the only operational entity: no item-named code, no dormant item-named frameworks, no `item` enum cases, no stale `item` comments. Where a capability is retained (e.g. the `{{` chip), it is **renamed to an item-free, page-native form** — kept, not parked under its old item identity. This is stricter than "delete Items"; it governs every classification below.
 
@@ -15,18 +15,18 @@ Delete all `Item*` code, mirrored machinery, item index tables, and item renderi
 - **`Class` stamp:** dropped entirely. `PageFrontmatter` stops writing it; `KindStamp` + the `NexusAdopter` `Class`-stamp self-heal pass delete. Folder sidecar is sole kind authority.
 - **`[[` wikilinks:** kept, **declassed** — one resolution path, page-only (the package never branched on kind; the `kind: .item` resolver is removed app-side).
 - **`{{` chip syntax + `ItemChip`:** the *capability* is retained but **re-homed under item-free naming** (no-trace) — the second link type, its service slot, styler, and chip renderer rename from `item*` to a generic page-native chip-link form, gated OFF by default (links-only). **MarkdownPM IS edited:** the parallel page-vs-item link framework is item-named tech debt and must not survive as-is.
-- **`PagePreview`:** the new surface. A plain `WindowGroup` + `.inspector` hosting existing page content + `FrontmatterInspector`, built **and wired** in this plan. **`PreviewWindow` is eliminated** (its only consumer was the Item Window).
+- **`PagePreview`:** the new surface — a `WindowGroup` + `.inspector` reusing the existing page render + `FrontmatterInspector` **verbatim**, built **and wired** to the **Figma design (received 2026-06-09):** 475×475 Liquid-Glass panel, inline-editable `.title3` title/icon, lock-gated editing, "Open Page"/"Lock-Unlock" via right-click context menu. **`PreviewWindow` is eliminated** (its only consumer was the Item Window).
 - **Open-in (`OpenInMode` = `.compact` | `.window`):** **vault-level only** (on `PageType`), never overridden per-collection. `.window` = today's main detail-pane behavior; `.compact` = opens `PagePreview`. This is the **only** new per-vault setting.
-- **Compact → full:** a Compact page is opened in full from its `PagePreview` inspector — an **"unlock"** button reveals an **"open"** button that opens the page in the main detail pane.
+- **Lock + open model:** `PagePreview` opens **locked (read-only)**; the bottom-right **Lock** toggles editability (unlock → fully editable + live-saving). **"Open Page"** (route to the main detail pane) and **"Lock / Unlock"** are **right-click context-menu** commands on the body + title areas — no open toolbar button. The inspector toggle is independent of the lock.
 - **No pinned-property / Page-Layout config.** There is no `PageLayoutConfig`, no pinned-property schema, no per-collection layout override. A default-open inspector gives the same effect. The pinned-property idea is recorded in `// Features//Prospects.md` and is not built or inherited.
 - **QuickCapture:** retargeted to create a Page (spec-only today — no code exists).
 - **Band 3:** persisted user-creatable sidebar sections ("Add Section"). Lowest priority, built last.
 
 ### Scope
 
-- **In:** the full strip; `[[` declass; `{{`/`ItemChip` park; QuickCapture spec retarget; the vault-level open-in (`Compact`/`Window`) setting + toggle UI; `PagePreview` plain surface built + wired (incl. the inspector unlock→open affordance); eliminate `PreviewWindow`; band-3 sidebar sections; closeout (tests, cleanup, doc-sweep).
+- **In:** the full strip; `[[` declass; `{{`/`ItemChip` park; QuickCapture spec retarget; the vault-level open-in (`Compact`/`Window`) setting + toggle UI; `PagePreview` built + wired to the Figma design (lock-gated edit, context-menu open); eliminate `PreviewWindow`; band-3 sidebar sections; closeout (tests, cleanup, doc-sweep).
 - **Removed (not built, not inherited):** pinned-property schema, its editor, and the in-`PagePreview` zone — recorded as a Prospect (`// Features//Prospects.md`). A default-open inspector covers the use case.
-- **Gated (post-Figma):** `PagePreview`'s final visual chrome. The plain `WindowGroup` + `.inspector` ships now; Figma refines the chrome later.
+- **Figma design received (2026-06-09):** `PagePreview`'s chrome is specified (475×475 Liquid-Glass, inline title/icon, inset header separator with end-affordance, footnote/secondary breadcrumb, `.quaternaryLabel` 3-context menufield + properties menufield, window-dismiss control) and captured in the plan's P5. No longer gated.
 
 ### The strip surface (by domain)
 
@@ -35,7 +35,7 @@ The plan enumerates exact files/symbols/LOC from the agent maps; this is the dom
 #### Core types + shared seams
 
 - DELETE: `Items/` (all), `Content/Item.swift` / `ItemFrontmatter.swift` / `ItemRef.swift`, item validators, `Detail/ItemTypeDetailView` / `ItemCollectionDetailView`, `Sidebar/ItemTypeRow` / `ItemCollectionRow`, `ViewSettings/ItemTemplatePane`, `Nexus/ItemFormatMigration`, `Connections/ItemLinkOpener`, `Content/KindStamp`.
-- SEAM-EDIT (lose item arm): `EntityKind` (`.item/.itemType/.itemCollection`), `Detail/ContentItem` (collapses to a `.page` wrapper → fold to `PageMeta`), `SidebarSelection` / `SelectionTag`, `Pages/AppGlobals` (item bridge + `presentItemAction`), `Nexus/NexusEnvironment` (item managers — **quirk #15:** every `@Environment(ItemTypeManager/ItemContentManager)` declarer must drop in the same commit or views SIGTRAP), `ViewSettings/*` panes (+ the four duplicate `SideKind` enums collapse), `NavDropdown/*`, `Ordering/OrderPersister`, `AtomicIO/NexusPaths`, `Nexus/NexusAdopter` (sidecar kinds + `Class` pass), `Settings/SettingsLabels` (drop `itemType`/`itemCollection`/`items` with `decodeIfPresent` tolerance).
+- SEAM-EDIT (lose item arm): `EntityKind` (`.item/.itemType/.itemCollection`), `Detail/ContentItem` (collapses to a `.page` wrapper → fold to `PageMeta`), `SidebarSelection` / `SelectionTag`, `Pages/AppGlobals` (item bridge + `presentItemAction`), `Nexus/NexusEnvironment` (item managers — **quirk #15:** every `@Environment(ItemTypeManager/ItemContentManager)` declarer must drop in the same commit or views SIGTRAP), `ViewSettings/*` panes (the **five** duplicate `SideKind` enums are **deleted**, not collapsed — single-case after the strip), `NavDropdown/*`, `Ordering/OrderPersister`, `AtomicIO/NexusPaths`, `Nexus/NexusAdopter` (sidecar kinds + `Class` pass), `Settings/SettingsLabels` (drop `itemType`/`itemCollection`/`items` with `decodeIfPresent` tolerance).
 - **The compiler is the discovery gate:** remove the `EntityKind`/`SidebarSelection`/`SelectionTag` cases last — every non-exhaustive `switch` then flags a missed seam.
 
 #### NexusIndex / SQLite
@@ -50,7 +50,7 @@ The plan enumerates exact files/symbols/LOC from the agent maps; this is the dom
 - `[[` declass: drop the app-side `kind: .item` resolver; resolve pages directly (the package never branched on kind).
 - App-side deletions: `Connections/ItemLinkOpener`, `PageEditorView.onItemLinkClick`, `AppGlobals.presentItemAction`, the `item` resolver construction.
 - Connections SEAM-EDIT: `ConnectionScanner`/`ConnectionSyntax`/`ConnectionCascade`/`ConnectionFileLocator`/`AutoCompleteWiring` → page-only. Dangling `{{` targets degrade gracefully (lenient resolver → inert text).
-- `PagePreview` reuses the existing page render path (`MarkdownPMEditor` + `MarkdownEditorConfig.pommora(verticalInset: 0)`, `isEditable: false`, body via `PageFile.loadLenient`).
+- `PagePreview` reuses the existing page render path (`MarkdownPMEditor` + `MarkdownEditorConfig.pommora(verticalInset: 0)`, `isEditable: !isLocked` — opens locked, body via `PageFile.loadLenient`).
 
 #### Sidebar
 
@@ -71,9 +71,9 @@ The plan enumerates exact files/symbols/LOC from the agent maps; this is the dom
 
 #### `PagePreview` surface (plain stub, built + wired)
 
-- A plain `WindowGroup` + `.inspector` hosting the existing page render path: `MarkdownPMEditor` with `MarkdownEditorConfig.pommora(verticalInset: 0, itemResolver: NoOp)`, `isEditable: false`, body via the same `PageFile.loadLenient` path `PageEditorHost` uses; inspector = `FrontmatterInspector`.
+- A `WindowGroup` + `.inspector` hosting the existing page render path: `MarkdownPMEditor` with `MarkdownEditorConfig.pommora(verticalInset: 0)` (the `itemResolver` param is dropped; `services.chipLinks` stays NoOp), `isEditable: !isLocked` (opens locked), body via the same `PageFile.loadLenient` path; inspector = `FrontmatterInspector` reused verbatim (already the complete page-native property editor — `PropertyEditorRow` + `MultiSelectChips` move to `Properties/` so the `ItemWindow/` delete doesn't break it).
 - Wire the open path: branch in `Detail/SidebarDetailView` on the resolved vault's `open_in` — `.window` → existing detail pane, `.compact` → `PagePreview`. Covers connection-driven and selection-driven opens (single DRY seam).
-- **Unlock → open affordance:** in `PagePreview`'s inspector, an "unlock" button reveals an "open" button that dismisses the preview and opens the page in the main detail pane (set `SidebarSelection.page`). Functional now; visual chrome follows Figma.
+- **Lock + open:** opens locked (read-only); the bottom-right Lock toggles editability. **Right-click** the body/title → **"Lock / Unlock"** + **"Open Page"**; "Open Page" routes to the main detail pane via the injected `MainWindowRouter.requestOpen(to: .page)` instance and dismisses the preview.
 - Eliminate `Window/PreviewWindow.swift` (independent of MarkdownPM; safe to remove).
 
 #### Band 3: user sidebar sections (last)
@@ -88,7 +88,7 @@ Clean slate — no file migration. Stop writing `Class`; existing keys sit inert
 
 - **Tests:** delete item-only suites; seam-edit mixed suites to keep page coverage; delete shared item-only support (`Support/TempNexus+Items.swift`) after porting its one page consumer; keep `Support/TempNexus.swift` (115 consumers).
 - **Cleanup:** the `code-simplifier`/`simplify` pass on the changed surface (the `SideKind`/`ContentItem`/ternary collapses are natural DRY wins).
-- **Doc-sweep:** the agent produced a full per-file inventory. `Features/Items.md` deletes; `Domain-Model.md` / `PommoraPRD.md` / `Architecture.md` / `CLAUDE.md` (the 2-layer model, symmetric-code rule, quirk #8 mirror clause) get rewritten to a one-entity model; ItemsV2 plans archive to `Planning/Superseded/`; `History.md` gains a collapse entry.
+- **Doc-sweep:** the agent produced a full per-file inventory. `Features/Items.md` deletes; `Domain-Model.md` / `PommoraPRD.md` / `Architecture.md` / `CLAUDE.md` (the 2-layer model, symmetric-code rule, quirk #8 mirror clause) get rewritten to a one-entity model; the ItemsV2 plans were already deleted in HEAD `caa236b` (git history preserves them — no `Superseded/` relocation); `History.md` gains a collapse entry.
 
 ### Landmines & invariants
 
@@ -112,4 +112,4 @@ Reference order; the plan details tasks. Each ships green.
 
 ### STOP/WAIT gate
 
-The plan terminates after closeout. **Not in this plan:** `PagePreview`'s final Figma chrome (the plain surface ships now). **Pinned properties are not planned** — they're a Prospect; a default-open inspector covers the use case.
+The plan terminates after closeout. The `PagePreview` Figma chrome **is now in-plan** (design received 2026-06-09, captured in P5) — the prior STOP/WAIT on it is lifted. **Pinned properties are not planned** — they're a Prospect; a default-open inspector covers the use case.

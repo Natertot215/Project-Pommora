@@ -13,4 +13,5 @@ The review → revise loop is **standard, not optional**. Every spec and plan ru
 - Fold each round's findings and re-version (V1 → V2 …) per convention; the loop runs until a round comes back genuinely clean, then ratify.
 - Ground every `file:line` claim against real code before relying on it; a doc claim is a hypothesis until the code proves it.
 - **Post-functional UIX review is mandatory.** After a feature functionally works and is verified, a UIX review of the *actual working UI* always runs before closeout — no matter how clean the build. Functional-green ≠ done.
+- **Dispatch reviews as standard agents, NOT the `Workflow` tool — unless Nathan directly asks for a workflow.** The review → revise loop runs through ordinary dispatched agents (Explore for read-only verification, Task/Agent otherwise). Reserve `Workflow` orchestration for when Nathan explicitly requests it.
 - **The discipline is the deliverable.**
