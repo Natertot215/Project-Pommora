@@ -107,10 +107,10 @@ struct ItemWindowRenderer: View {
 
     // MARK: - Main column (header + body + footer)
 
-    /// Left column — an intrinsic-height content stack the card sizes itself to:
-    /// header · top-separator · (6) · property bar (28) · (6) · body (310) · (6) ·
-    /// bottom-separator · footer. No flexing middle and no trailing filler — the
-    /// 6pt gaps are explicit, so there's no dead space below the body. No outer
+    /// Left column — fills the fixed panel height:
+    /// header · top-separator · (6) · property bar (28) · (6) · body (fills) · (6) ·
+    /// bottom-separator · footer. The body is the one flexing region; everything
+    /// else is fixed, so the body takes the remaining height (no dead gap). No outer
     /// `ScrollView`; the body editor scrolls internally, so the chrome (header,
     /// footer) stays put. The bar renders only when chip properties are pinned,
     /// and owns its symmetric 6pt gaps (top-sep → bar == bar → body); the empty
@@ -142,15 +142,13 @@ struct ItemWindowRenderer: View {
                 Spacer().frame(height: PUI.Spacing.sm)
             }
             bodyZone
-            // Fixed 6pt gap body → bottom separator (was a flexing `Spacer` that
-            // left a dead gap under a fixed-height card; the card now sizes to
-            // content, so this is an explicit 6pt symmetric gap, not a filler).
+            // Fixed 6pt gap between the (now-filling) body and the bottom separator.
             Spacer().frame(height: PUI.Spacing.sm)
             // Bottom separator — same rail inset as the top one.
             insetDivider
             footer
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     /// Whether the property-field bar has any pinned chip property to show — the
@@ -262,14 +260,12 @@ struct ItemWindowRenderer: View {
     /// red once `vm.isOverCap` (set when a flushed save exceeds the cap). The cap is
     /// a non-blocking WARN only — an over-cap body never blocks the editor (LD-7).
     ///
-    /// **Fixed-size input box (not a flexing region):** the card is clamped to a
-    /// fixed `bodyHeight` (310pt) and spans the column's content rail (full width
-    /// inset by the `xl` rail padding — the SAME extent the property bar +
-    /// separators align to), so it does NOT grow to fill the column. The editor
-    /// scrolls internally past the fixed height; the counter pins bottom-right
-    /// inside the `quaternarySystemFill` rounded surface. The `mainColumn` sizes the
-    /// card to this content (6pt gap to the bottom separator), so there's no dead
-    /// gap below the body.
+    /// **Fills the fixed panel frame:** the body is the column's flexing region —
+    /// header, bar, separators, and footer are fixed, so the body takes the
+    /// remaining height. It spans the content rail (full width inset by the `xl`
+    /// rail padding — the SAME extent the property bar + separators align to). The
+    /// editor scrolls internally past the visible height; the counter pins
+    /// bottom-right inside the `quaternarySystemFill` rounded surface.
     private var bodyZone: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             MarkdownPMEditor(
@@ -293,9 +289,9 @@ struct ItemWindowRenderer: View {
             }
         }
         .padding(PUI.Spacing.xl)
-        // Fixed height — a defined input box, not a flexing fill. The editor
-        // scrolls internally once content exceeds this.
-        .frame(height: Self.bodyHeight)
+        // Fills the remaining height — the body is the flexing region; the editor
+        // scrolls internally once content exceeds the visible box.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             Color(.quaternarySystemFill),
             in: RoundedRectangle(cornerRadius: PUI.Radius.medium, style: .continuous)
@@ -304,11 +300,6 @@ struct ItemWindowRenderer: View {
         // bar + separators), NOT an unbounded stretch beyond it.
         .padding(.horizontal, PUI.Spacing.xl)
     }
-
-    /// Fixed height of the body input box. Sized so the editor reads as a defined
-    /// multi-line description field rather than the column-dominating region it used
-    /// to be — the card sizes to fit this exact content (no dead gap below it).
-    private static let bodyHeight: CGFloat = 310
 
     /// Effective description cap for the counter — the resolved template's override
     /// (Collection → Type) or the default. One source of truth: `ItemValidator`
