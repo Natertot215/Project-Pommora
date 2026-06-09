@@ -87,8 +87,9 @@ enum PUI {
 
     enum ItemWindow {
         /// Fixed panel size — the window does not resize; the inspector takes width from the body.
-        static let width: CGFloat = 800
-        static let height: CGFloat = 560
+        /// 700×435 is the Figma frame's exact aspect (file `V3wKMilXkoceCL1Q2J9kf4`, node `474-9432`).
+        static let width: CGFloat = 700
+        static let height: CGFloat = 435
     }
 
     // MARK: - Icons (Font + frame per role)

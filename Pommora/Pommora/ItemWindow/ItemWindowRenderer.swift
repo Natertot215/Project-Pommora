@@ -100,7 +100,9 @@ struct ItemWindowRenderer: View {
                     resolver: contextResolver,
                     tierConfig: tierConfig.config
                 )
-                .inspectorColumnWidth(min: 240, ideal: 300, max: 420)
+                // Sized so the body text-box lands ~460 wide (the Figma's 460×313,
+                // ≈1.47:1): 700 − ~220 inspector − the body's rail inset ≈ 456.
+                .inspectorColumnWidth(min: 200, ideal: 220, max: 300)
             }
             // Pin the hosted root to the fixed panel size (`.preferredContentSize`
             // is gone): the whole content is exactly width × height; the main column
@@ -111,13 +113,13 @@ struct ItemWindowRenderer: View {
     // MARK: - Main column (header + body + footer)
 
     /// Left column — fills the fixed panel height:
-    /// header · top-separator · (6) · property bar (28) · (6) · body (fills) · (6) ·
+    /// header · top-separator · (10) · property bar (28) · (10) · body (fills) · (10) ·
     /// bottom-separator · footer. The body is the one flexing region; everything
     /// else is fixed, so the body takes the remaining height (no dead gap). No outer
     /// `ScrollView`; the body editor scrolls internally, so the chrome (header,
     /// footer) stays put. The bar ALWAYS renders (placeholder cells when no chip
-    /// properties are pinned) and owns its symmetric 6pt gaps (top-sep → bar == bar
-    /// → body).
+    /// properties are pinned) and owns its symmetric 10pt gaps (top-sep → bar == bar
+    /// → body == body → bottom-sep), the equal vertical rhythm Nathan set off the Figma.
     private var mainColumn: some View {
         VStack(spacing: 0) {
             header
@@ -134,12 +136,12 @@ struct ItemWindowRenderer: View {
                 values: vm.draftProperties,
                 onChange: { vm.handlePropertyChange($0, $1) }
             )
-            // Symmetric 6pt gaps: top-sep → bar == bar → body (both `sm`).
-            .padding(.top, PUI.Spacing.sm)
-            .padding(.bottom, PUI.Spacing.sm)
+            // Equal 10pt gaps: top-sep → bar == bar → body (both `lg`).
+            .padding(.top, PUI.Spacing.lg)
+            .padding(.bottom, PUI.Spacing.lg)
             bodyZone
-            // Fixed 6pt gap between the (now-filling) body and the bottom separator.
-            Spacer().frame(height: PUI.Spacing.sm)
+            // Equal 10pt gap between the (now-filling) body and the bottom separator.
+            Spacer().frame(height: PUI.Spacing.lg)
             // Bottom separator — same rail inset as the top one.
             insetDivider
             footer
@@ -162,15 +164,16 @@ struct ItemWindowRenderer: View {
     /// picker and the inspector toggle (trailing) flank the editable title field.
     /// These moved here from a window `.toolbar`, which does NOT render in an
     /// `NSHostingController`-hosted panel. The panel hides its own title bar and the
-    /// content extends under it (`.fullSizeContentView`), so the ✕ sits flush at the
-    /// top-left behind a standard `md` gutter. The title is styled as a standard
-    /// window title (single-line, truncating) so a long title never pushes the
-    /// inspector toggle. The title commits on Enter (`onSubmit`) and focus-loss
+    /// content extends under it (`.fullSizeContentView`), so the row is TOP-aligned:
+    /// the ✕ pins to the top-left corner and the inspector toggle to the top-right,
+    /// per the Figma. The title (`.title3`, single-line, truncating) sits between them
+    /// so a long title never pushes the toggle. The title commits on Enter (`onSubmit`)
+    /// and focus-loss
     /// (`onChange`); the host's
     /// `.onDisappear` is the dismissal safety net (all idempotent —
     /// `handleTitleCommit` guards trimmed-equals-current).
     private var header: some View {
-        HStack(spacing: PUI.Spacing.md) {
+        HStack(alignment: .top, spacing: PUI.Spacing.md) {
             // Custom ✕ — the native traffic lights are hidden; this is the only
             // close affordance (mirrors `PreviewWindow`'s header button styling).
             Button {
@@ -190,7 +193,7 @@ struct ItemWindowRenderer: View {
                 showIconPicker = true
             } label: {
                 Image(systemName: vm.draftIcon ?? vm.itemType.icon ?? "list.bullet.rectangle")
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -202,9 +205,8 @@ struct ItemWindowRenderer: View {
 
             TextField("Title", text: $vm.draftTitle)
                 .textFieldStyle(.plain)
-                // Larger + lighter than `.headline` (which read bold/compact) to match
-                // the Figma's document-title weight; sized alongside the `.title2` icon.
-                .font(.title2.weight(.medium))
+                // `.title3` — the Figma's document-title scale; matches the `.title3` icon.
+                .font(.title3)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,7 +223,13 @@ struct ItemWindowRenderer: View {
             Spacer(minLength: 0)
 
             Button {
-                vm.inspectorShown.toggle()
+                // `.inspector` reveal isn't routed through SwiftUI's animation
+                // transaction, so the toggle must be wrapped to animate the slide
+                // (Guidelines/Design.md — "Chrome animation"). Without this the panel
+                // snaps open/closed.
+                withAnimation(.smooth(duration: 0.25)) {
+                    vm.inspectorShown.toggle()
+                }
             } label: {
                 Image(systemName: "sidebar.trailing")
             }
@@ -229,11 +237,12 @@ struct ItemWindowRenderer: View {
             .foregroundStyle(.secondary)
             .accessibilityLabel("Toggle inspector")
         }
-        // Native buttons are hidden, so the custom ✕ sits flush — no traffic-light
-        // clearance needed; the leading inset is just the standard `md` gutter.
-        .padding(.leading, PUI.Spacing.md)
-        .padding(.trailing, PUI.Spacing.md)
-        .padding(.vertical, PUI.Spacing.sm)
+        // Native buttons are hidden; the row top-aligns so the ✕ + toggle sit at the
+        // pane's top corners (a slightly larger top gutter than bottom keeps them snug
+        // to the top edge rather than centered on the title).
+        .padding(.horizontal, PUI.Spacing.md)
+        .padding(.top, PUI.Spacing.md)
+        .padding(.bottom, PUI.Spacing.sm)
     }
 
     // MARK: - Body zone (editable description + cap counter)
