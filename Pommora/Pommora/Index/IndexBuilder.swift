@@ -39,40 +39,6 @@ private struct PageSnapshot: Sendable {
     let tier3: [String]
 }
 
-private struct ItemTypeSnapshot: Sendable {
-    let id: String
-    let title: String
-    let icon: String?
-    let modifiedAt: Date
-    let schemaVersion: Int
-    let properties: [PropertyDefinition]
-    let collections: [ItemCollectionSnapshot]
-    let directItems: [ItemSnapshot]
-}
-
-private struct ItemCollectionSnapshot: Sendable {
-    let id: String
-    let title: String
-    let icon: String?
-    let modifiedAt: Date
-    let schemaVersion: Int
-    let items: [ItemSnapshot]
-}
-
-private struct ItemSnapshot: Sendable {
-    let id: String
-    let title: String
-    let icon: String?
-    let description: String?
-    let properties: [String: PropertyValue]
-    let modifiedAt: Date
-    let itemTypeID: String
-    let collectionID: String?
-    let tier1: [String]
-    let tier2: [String]
-    let tier3: [String]
-}
-
 private struct AgendaTaskSnapshot: Sendable {
     let id: String
     let title: String
@@ -116,7 +82,6 @@ private struct EventSchemaSnapshot: Sendable {
 
 private struct NexusSnapshot: Sendable {
     let pageTypes: [PageTypeSnapshot]
-    let itemTypes: [ItemTypeSnapshot]
     let tasks: [AgendaTaskSnapshot]
     let taskSchema: TaskSchemaSnapshot?
     let events: [AgendaEventSnapshot]
@@ -145,8 +110,8 @@ final class IndexBuilder {
 
     /// Walks `nexus`'s on-disk content and populates `index`'s tables.
     /// Throws on filesystem read failure or DB write failure.
-    /// `filter` prunes excluded user folders from page-type and item-type
-    /// discovery; defaults to `.empty` (no exclusions) so existing callers
+    /// `filter` prunes excluded user folders from page-type discovery;
+    /// defaults to `.empty` (no exclusions) so existing callers
     /// and tests that don't need filtering are unaffected.
     static func populate(index: PommoraIndex, from nexus: Nexus, filter: FolderFilter = .empty) async throws {
         // Phase 1: Walk the filesystem on the @MainActor (domain types are @MainActor-isolated).
@@ -157,7 +122,6 @@ final class IndexBuilder {
         try await index.dbQueue.write { db in
             try clearAllTables(db)
             insertPageTypes(db, snapshot: snapshot)
-            insertItemTypes(db, snapshot: snapshot)
             insertAgendaTasks(db, snapshot: snapshot)
             insertAgendaEvents(db, snapshot: snapshot)
             insertContexts(db, snapshot: snapshot)
@@ -171,7 +135,6 @@ final class IndexBuilder {
     private static func buildSnapshot(from nexus: Nexus, filter: FolderFilter = .empty) -> NexusSnapshot {
         NexusSnapshot(
             pageTypes: collectPageTypes(from: nexus, filter: filter),
-            itemTypes: collectItemTypes(from: nexus, filter: filter),
             tasks: collectTasks(from: nexus),
             taskSchema: collectTaskSchema(from: nexus),
             events: collectEvents(from: nexus),
@@ -268,91 +231,6 @@ final class IndexBuilder {
                 tier3: fm.tier3
             )
         }
-    }
-
-    private static func collectItemTypes(from nexus: Nexus, filter: FolderFilter = .empty) -> [ItemTypeSnapshot] {
-        let root = nexus.rootURL
-        let topLevel = (try? Filesystem.childFolders(of: root, folderFilter: filter)) ?? []
-        var result: [ItemTypeSnapshot] = []
-
-        for folder in topLevel
-        where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
-            let metaURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-            guard Filesystem.fileExists(at: metaURL),
-                let itemType = try? ItemType.load(from: metaURL)
-            else { continue }
-
-            let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
-            var collections: [ItemCollectionSnapshot] = []
-            for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
-                let collURL = sub.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-                guard Filesystem.fileExists(at: collURL),
-                    let coll = try? ItemCollection.load(from: collURL)
-                else { continue }
-                let items = collectItemsInFolder(sub, itemTypeID: itemType.id, collectionID: coll.id, filter: filter)
-                collections.append(
-                    ItemCollectionSnapshot(
-                        id: coll.id,
-                        title: coll.title,
-                        icon: coll.icon,
-                        modifiedAt: coll.modifiedAt,
-                        schemaVersion: coll.schemaVersion,
-                        items: items
-                    ))
-            }
-
-            let directItems = collectItemsInFolder(folder, itemTypeID: itemType.id, collectionID: nil, filter: filter)
-
-            result.append(
-                ItemTypeSnapshot(
-                    id: itemType.id,
-                    title: itemType.title,
-                    icon: itemType.icon,
-                    modifiedAt: itemType.modifiedAt,
-                    schemaVersion: itemType.schemaVersion,
-                    properties: itemType.properties,
-                    collections: collections,
-                    directItems: directItems
-                ))
-        }
-        return result
-    }
-
-    private static func collectItemsInFolder(
-        _ folderURL: URL,
-        itemTypeID: String,
-        collectionID: String?,
-        filter: FolderFilter
-    ) -> [ItemSnapshot] {
-        // Items are `.md`-only (legacy `.json` is converted at launch by
-        // ItemFormatMigration before any index population). User folder-exclusion
-        // veto applied at the FILE level — parity with collectPagesInFolder + loadAll.
-        let urls =
-            (try? Filesystem.children(of: folderURL) { url in
-                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-            })?.filter { !filter.isExcluded($0) } ?? []
-        // De-dup by id so an external-Finder duplicate-id pair yields one row.
-        return Item.dedupedByID(
-            urls,
-            make: { url -> ItemSnapshot? in
-                // Tolerant read so a partial / adopted `.md` Item is still indexed.
-                guard let item = try? Item.loadLenient(from: url) else { return nil }
-                return ItemSnapshot(
-                    id: item.id,
-                    title: item.title,
-                    icon: item.icon,
-                    description: item.description,
-                    properties: item.properties,
-                    modifiedAt: item.modifiedAt,
-                    itemTypeID: itemTypeID,
-                    collectionID: collectionID,
-                    tier1: item.tier1,
-                    tier2: item.tier2,
-                    tier3: item.tier3
-                )
-            },
-            key: \.id
-        )
     }
 
     private static func collectTasks(from nexus: Nexus) -> [AgendaTaskSnapshot] {
@@ -498,18 +376,17 @@ final class IndexBuilder {
     }
 
     private nonisolated static func clearAllTables(_ db: Database) throws {
+        // The item tables (items / item_collections / item_types) survive until the
+        // PagesV2 P7 schema bump but are no longer populated or cleared here.
         try db.execute(sql: "DELETE FROM connections")
         try db.execute(sql: "DELETE FROM context_links")
         try db.execute(sql: "DELETE FROM property_definitions")
         try db.execute(sql: "DELETE FROM pages")
         try db.execute(sql: "DELETE FROM page_collections")
-        try db.execute(sql: "DELETE FROM items")
-        try db.execute(sql: "DELETE FROM item_collections")
         try db.execute(sql: "DELETE FROM agenda_tasks")
         try db.execute(sql: "DELETE FROM agenda_events")
         try db.execute(sql: "DELETE FROM contexts")
         try db.execute(sql: "DELETE FROM page_types")
-        try db.execute(sql: "DELETE FROM item_types")
     }
 
     private nonisolated static func insertPageTypes(_ db: Database, snapshot: NexusSnapshot) {
@@ -565,62 +442,6 @@ final class IndexBuilder {
                     literal: """
                         INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
                         VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
-                        """
-                )
-            })
-    }
-
-    private nonisolated static func insertItemTypes(_ db: Database, snapshot: NexusSnapshot) {
-        for it in snapshot.itemTypes {
-            guard
-                attemptInsert(
-                    "item_type \(it.title) [\(it.id)]",
-                    {
-                        try db.execute(
-                            literal: """
-                                INSERT INTO item_types (id, title, icon, modified_at, schema_version)
-                                VALUES (\(it.id), \(it.title), \(it.icon), \(iso8601(it.modifiedAt)), \(it.schemaVersion))
-                                """
-                        )
-                    })
-            else { continue }
-
-            insertPropertyDefinitions(
-                db, properties: it.properties,
-                owningTypeID: it.id, owningTypeKind: "item_type")
-
-            for coll in it.collections {
-                guard
-                    attemptInsert(
-                        "item_collection \(coll.title) [\(coll.id)]",
-                        {
-                            try db.execute(
-                                literal: """
-                                    INSERT INTO item_collections (id, item_type_id, title, icon, modified_at, schema_version)
-                                    VALUES (\(coll.id), \(it.id), \(coll.title), \(coll.icon), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
-                                    """
-                            )
-                        })
-                else { continue }
-                for item in coll.items {
-                    insertItem(db, item: item)
-                }
-            }
-            for item in it.directItems {
-                insertItem(db, item: item)
-            }
-        }
-    }
-
-    private nonisolated static func insertItem(_ db: Database, item: ItemSnapshot) {
-        let propsJSON = (try? propertiesJSON(item.properties)) ?? "{}"
-        attemptInsert(
-            "item \(item.title) [\(item.id)]",
-            {
-                try db.execute(
-                    literal: """
-                        INSERT INTO items (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
-                        VALUES (\(item.id), \(item.itemTypeID), \(item.collectionID), \(item.title), \(item.icon), \(item.description), \(propsJSON), \(iso8601(item.modifiedAt)))
                         """
                 )
             })
@@ -700,22 +521,6 @@ final class IndexBuilder {
                     modifiedAt: page.modifiedAt)
             }
         }
-        for it in snapshot.itemTypes {
-            for coll in it.collections {
-                for item in coll.items {
-                    insertTierContextLinkRows(
-                        db, sourceID: item.id, sourceKind: "item",
-                        tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
-                        modifiedAt: item.modifiedAt)
-                }
-            }
-            for item in it.directItems {
-                insertTierContextLinkRows(
-                    db, sourceID: item.id, sourceKind: "item",
-                    tier1: item.tier1, tier2: item.tier2, tier3: item.tier3,
-                    modifiedAt: item.modifiedAt)
-            }
-        }
         for task in snapshot.tasks {
             insertTierContextLinkRows(
                 db, sourceID: task.id, sourceKind: "agenda_task",
@@ -765,23 +570,21 @@ final class IndexBuilder {
         }
     }
 
-    /// Cold-start backfill of the `connections` table from Page + Item bodies.
+    /// Cold-start backfill of the `connections` table from Page bodies.
     /// Runs AFTER the entity rows are inserted so single-match title resolution
     /// can see targets. Best-effort: on a freshly-adopted nexus, a target whose
     /// type/collection wasn't indexed yet resolves as phantom and self-heals on the
     /// next CRUD write or loadAll (quirk #14). Each row is resilient via attemptInsert.
     private nonisolated static func insertConnections(_ db: Database, snapshot: NexusSnapshot) {
-        func emit(sourceID: String, sourceKind: String, sourceTitle: String, body: String) {
+        func emit(sourceID: String, sourceTitle: String, body: String) {
             let selfKey = ConnectionTitle.normalize(sourceTitle)
-            let surface = sourceKind == "page" ? "page_body" : "item_body"
             for c in ConnectionScanner.scan(body: body) {
-                if c.syntax.targetKind == sourceKind && c.normalizedTitle == selfKey { continue }
-                let table = c.syntax == .page ? "pages" : "items"
+                if c.normalizedTitle == selfKey { continue }
                 let matches = (try? String.fetchAll(
-                    db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE",
+                    db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE",
                     arguments: [c.normalizedTitle])) ?? []
                 let targetID: String? = matches.count == 1 ? matches[0] : nil
-                attemptInsert("connection \(sourceKind) \(sourceID) → \(c.normalizedTitle)") {
+                attemptInsert("connection page \(sourceID) → \(c.normalizedTitle)") {
                     try db.execute(
                         sql: """
                             INSERT INTO connections
@@ -789,18 +592,14 @@ final class IndexBuilder {
                                  surface, multiplicity, weight, resolved, modified_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.0, ?, ?)
                             """,
-                        arguments: [UUID().uuidString, sourceID, sourceKind, targetID, c.syntax.targetKind,
-                                    c.normalizedTitle, surface, c.multiplicity, targetID != nil ? 1 : 0, iso8601(Date())])
+                        arguments: [UUID().uuidString, sourceID, "page", targetID, c.syntax.targetKind,
+                                    c.normalizedTitle, "page_body", c.multiplicity, targetID != nil ? 1 : 0, iso8601(Date())])
                 }
             }
         }
         for pt in snapshot.pageTypes {
-            for coll in pt.collections { for p in coll.pages { emit(sourceID: p.id, sourceKind: "page", sourceTitle: p.title, body: p.body) } }
-            for p in pt.directPages { emit(sourceID: p.id, sourceKind: "page", sourceTitle: p.title, body: p.body) }
-        }
-        for it in snapshot.itemTypes {
-            for coll in it.collections { for i in coll.items { emit(sourceID: i.id, sourceKind: "item", sourceTitle: i.title, body: i.description ?? "") } }
-            for i in it.directItems { emit(sourceID: i.id, sourceKind: "item", sourceTitle: i.title, body: i.description ?? "") }
+            for coll in pt.collections { for p in coll.pages { emit(sourceID: p.id, sourceTitle: p.title, body: p.body) } }
+            for p in pt.directPages { emit(sourceID: p.id, sourceTitle: p.title, body: p.body) }
         }
     }
 

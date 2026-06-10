@@ -1,25 +1,28 @@
 import Foundation
 
-/// Pure title-rewrite over a body. Replaces every `[[oldTitle]]` / `{{oldTitle}}`
+/// Pure title-rewrite over a body. Replaces every `[[oldTitle]]`
 /// (case-insensitive normalized match; legacy `[[old|id]]` tolerated → id dropped)
-/// with newTitle, touching only the matching syntax. Reuses ConnectionScanner regexes.
+/// with newTitle. `[[ ]]` is the only connection syntax (PagesV2 decision #3);
+/// the `syntax` parameter is vestigial and dies with `ConnectionSyntax` in P2.
+/// Reuses ConnectionScanner's regex.
 enum ConnectionRewriter {
     static func rewrite(body: String, oldTitle: String, newTitle: String, syntax: ConnectionSyntax) -> String {
+        _ = syntax
         let oldKey = ConnectionTitle.normalize(oldTitle)
-        let (open, close) = syntax == .page ? ("[[", "]]") : ("{{", "}}")
-        let regex = syntax == .page ? ConnectionScanner.pageRegex : ConnectionScanner.itemRegex
         let ns = body as NSString
         let result = NSMutableString(string: body)
-        for m in regex.matches(in: body, range: NSRange(location: 0, length: ns.length)).reversed() {
+        for m in ConnectionScanner.pageRegex.matches(in: body, range: NSRange(location: 0, length: ns.length))
+            .reversed()
+        {
             let title = ns.substring(with: m.range(at: 1))
             guard ConnectionTitle.normalize(title) == oldKey else { continue }
-            result.replaceCharacters(in: m.range, with: "\(open)\(newTitle)\(close)")
+            result.replaceCharacters(in: m.range, with: "[[\(newTitle)]]")
         }
         return result as String
     }
 }
 
-/// Rewrites every body that links a renamed target. Atomic via SchemaTransaction;
+/// Rewrites every Page body that links a renamed target. Atomic via SchemaTransaction;
 /// the caller reverts the target's own file-rename if `run` throws. Returns the
 /// touched sources so the caller can reconcile their connection rows.
 struct ConnectionCascade {
@@ -53,11 +56,6 @@ struct ConnectionCascade {
                 newBody = ConnectionRewriter.rewrite(body: pf.body, oldTitle: oldTitle, newTitle: newTitle, syntax: targetSyntax)
                 fileData = try AtomicYAMLMarkdown.encode(frontmatter: pf.frontmatter, body: newBody, preservingFrom: url, modeledKeys: PageFrontmatter.modeledKeys)
                 title = pf.title
-            case .item:
-                let it = try Item.load(from: url)
-                newBody = ConnectionRewriter.rewrite(body: it.description, oldTitle: oldTitle, newTitle: newTitle, syntax: targetSyntax)
-                fileData = try AtomicYAMLMarkdown.encode(frontmatter: it.frontmatter, body: newBody, preservingFrom: url, modeledKeys: ItemFrontmatter.modeledKeys)
-                title = it.title
             default:
                 continue
             }

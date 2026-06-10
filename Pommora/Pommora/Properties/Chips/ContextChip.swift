@@ -9,12 +9,11 @@ import SwiftUI
 /// - `PropertyPanel` (single-entity property panel)
 /// - `PropertiesPulldown` (planned property dropdown — not yet wired)
 /// - `FrontmatterInspector` (page editor inspector)
-/// - `ItemWindow` (item popover)
 /// - `ContextPicker` (value-assignment popover rows)
 /// - `LinkedFromDropdown` (Context-side reverse view — stub in v1; deferred)
 ///
 /// **Data-model contract:** both `icon` and `title` resolve from the LINKED
-/// target entity — the Page / Item / Task / Event / Context the chip references
+/// target entity — the Page / Task / Event / Context the chip references
 /// — NEVER from the source-side relation property's icon/name. Resolution
 /// happens at the consumer (via IndexQuery / the content managers); this
 /// primitive receives pre-resolved `String` values and stays purely visual.

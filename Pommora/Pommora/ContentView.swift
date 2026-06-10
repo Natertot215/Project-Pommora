@@ -104,7 +104,6 @@ struct ContentView: View {
                 ViewSettingsButton(
                     scope: currentViewSettingsScope,
                     pageTypeManager: vaultMgr,
-                    itemTypeManager: itemTypeMgr,
                     tierConfigManager: tierConfigMgr,
                     pageContentManager: contentMgr
                 )

@@ -11,9 +11,9 @@ import SwiftUI
 ///   - Number / Checkbox / Date / DateTime / URL / File / Relation → commit a
 ///     default property of that type AND pop back to the Properties list.
 ///
-/// Commits via PageTypeManager / ItemTypeManager addProperty. Schema lives
-/// on the Type (Collections inherit), so Collection-scope adds route to the
-/// parent Type's manager.
+/// Commits via PageTypeManager addProperty. Schema lives on the Type
+/// (Collections inherit), so Collection-scope adds route to the parent
+/// Type's manager.
 ///
 /// The minted property ID is generated up-front via
 /// `ReservedPropertyID.mintUserPropertyID()` so the route argument carries
@@ -26,7 +26,6 @@ struct PropertyTypePickerPane: View {
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
 
     @State private var selected: PropertyType?
     @State private var commitError: String?
@@ -93,12 +92,8 @@ struct PropertyTypePickerPane: View {
         switch scope {
         case .pageType(let t):
             try await pageTypeManager.addProperty(def, to: t.id)
-        case .itemType(let t):
-            try await itemTypeManager.addProperty(def, to: t.id)
         case .pageCollection(let c):
             try await pageTypeManager.addProperty(def, to: c.typeID)
-        case .itemCollection(let c):
-            try await itemTypeManager.addProperty(def, to: c.typeID)
         default:
             return  // non-storage scopes shouldn't reach this pane
         }

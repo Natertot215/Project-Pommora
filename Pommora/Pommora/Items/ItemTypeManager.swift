@@ -572,14 +572,6 @@ enum ItemTypeManagerError: Error, Equatable {
     case indexOutOfBounds
 }
 
-/// Human-readable text so these errors render as a friendly sentence instead of
-/// the raw bridged enum name ("Pommora.ItemTypeManagerError error N"). Delegates
-/// to `PropertyEditorErrorMessage` (the popover banner's mapper) so the two
-/// surfaces stay in lockstep from a single source of truth.
-extension ItemTypeManagerError: LocalizedError {
-    var errorDescription: String? { PropertyEditorErrorMessage.string(for: self) }
-}
-
 // MARK: - Schema CRUD methods
 
 extension ItemTypeManager {

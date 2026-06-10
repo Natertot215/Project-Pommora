@@ -9,8 +9,8 @@ import Foundation
 /// language.
 ///
 /// Unknown error types fall through to the localised description so we never
-/// render a totally empty string — but the goal is to map every error a
-/// PageType/ItemType manager actually throws so the fallback rarely fires.
+/// render a totally empty string — but the goal is to map every error the
+/// PageType manager actually throws so the fallback rarely fires.
 enum PropertyEditorErrorMessage {
     nonisolated static func string(for error: any Error) -> String {
         if let v = error as? PropertyDefinitionValidator.ValidationError {
@@ -18,9 +18,6 @@ enum PropertyEditorErrorMessage {
         }
         if let p = error as? PageTypeManagerError {
             return string(for: p)
-        }
-        if let i = error as? ItemTypeManagerError {
-            return string(for: i)
         }
         return error.localizedDescription
     }
@@ -46,19 +43,6 @@ enum PropertyEditorErrorMessage {
         switch error {
         case .typeNotFound:
             return "The Vault for this property was just removed."
-        case .propertyNotFound:
-            return "This property was just removed."
-        case .lossyChangeRequiresConfirmation:
-            return "Changing this type drops existing values — confirm first."
-        case .indexOutOfBounds:
-            return "Couldn't move the property to that position."
-        }
-    }
-
-    nonisolated private static func string(for error: ItemTypeManagerError) -> String {
-        switch error {
-        case .typeNotFound:
-            return "The Type for this property was just removed."
         case .propertyNotFound:
             return "This property was just removed."
         case .lossyChangeRequiresConfirmation:

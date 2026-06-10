@@ -22,7 +22,7 @@ struct PageTypeDetailView: View {
 
     @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
-    // Rename alert state (page or item).
+    // Rename alert state.
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
     /// Container-delete confirmation target — set only from a Collection row's
@@ -66,7 +66,7 @@ struct PageTypeDetailView: View {
             }
             Button("Cancel", role: .cancel) { deleteTarget = nil }
         } message: { _ in
-            Text("All Pages and Items inside will be deleted.")
+            Text("All Pages inside will be deleted.")
         }
     }
 
@@ -200,15 +200,11 @@ struct PageTypeDetailView: View {
     }
 
     /// Resolve the PropertyValue for a row + propertyID. Pages carry their
-    /// frontmatter.properties; Collections + Items don't surface property
-    /// values in this PageType view (Items are deferred per Phase 6).
+    /// frontmatter.properties; Collections don't surface property values in
+    /// this PageType view.
     private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
-        switch row.kind {
-        case .page(let pageMeta):
-            return pageMeta.frontmatter.properties[propertyID]
-        case .collection, .item, .itemCollection:
-            return nil
-        }
+        guard case .page(let pageMeta) = row.kind else { return nil }
+        return pageMeta.frontmatter.properties[propertyID]
     }
 
     /// Find the PageCollection (if any) that contains the page with the
@@ -314,53 +310,29 @@ struct PageTypeDetailView: View {
 
     private var rows: [DetailRow] {
         // Page-Type-root Pages appear as top-level rows alongside Collections.
-        //
-        // ParadigmV2 (Task 5.5): Items have moved to ItemContentManager keyed on
-        // ItemType/ItemCollection. PageType-side Items disappear from this surface
-        // until Phase 6 lands the wrapper-folder layout + ItemTypeManager wiring,
-        // at which point an Items-side detail surface ships in parallel.
-        let rootPages = contentManager.pages(in: pageType).map(ContentItem.page)
-        let rootItems: [ContentItem] = []  // TODO Phase 6: surface ItemType-root Items
-        let rootRows: [DetailRow] = (rootPages + rootItems).map { ci in
-            DetailRow(
-                id: ci.id,
-                title: ci.title,
-                kind: contentKind(ci),
-                iconName: ci.iconName,
-                modifiedAt: ci.modifiedAt,
-                children: nil
-            )
-        }
+        let rootRows: [DetailRow] = contentManager.pages(in: pageType).map(Self.pageRow)
         let collectionRows: [DetailRow] = pageTypeManager.pageCollections(in: pageType).map { coll in
-            let pages = contentManager.pages(in: coll).map(ContentItem.page)
-            let items: [ContentItem] = []  // TODO Phase 6: surface ItemCollection Items
-            let kids: [DetailRow] = (pages + items).map { ci in
-                DetailRow(
-                    id: ci.id,
-                    title: ci.title,
-                    kind: contentKind(ci),
-                    iconName: ci.iconName,
-                    modifiedAt: ci.modifiedAt,
-                    children: nil
-                )
-            }
-            return DetailRow(
+            DetailRow(
                 id: "collection-\(coll.id)",
                 title: coll.title,
                 kind: .collection(coll),
                 iconName: "folder",
                 modifiedAt: coll.modifiedAt,
-                children: kids
+                children: contentManager.pages(in: coll).map(Self.pageRow)
             )
         }
         return rootRows + collectionRows
     }
 
-    private func contentKind(_ ci: ContentItem) -> DetailRow.Kind {
-        switch ci {
-        case .page(let p): return .page(p)
-        case .item(let i): return .item(i)
-        }
+    private static func pageRow(_ p: PageMeta) -> DetailRow {
+        DetailRow(
+            id: "page-\(p.id)",
+            title: p.title,
+            kind: .page(p),
+            iconName: p.frontmatter.icon ?? "doc.text",
+            modifiedAt: p.frontmatter.createdAt,
+            children: nil
+        )
     }
 
     // MARK: - Interaction
@@ -369,12 +341,10 @@ struct PageTypeDetailView: View {
         switch row.kind {
         case .collection(let c):
             selection = .collection(c)
-        case .item(let i):
-            AppGlobals.presentItemAction?(i)
         case .page(let p):
             selection = .page(p)
-        case .itemCollection:
-            break  // never appears in PageTypeDetailView context
+        case .item, .itemCollection:
+            break  // dead kinds — removed from DetailRow.Kind in P2
         }
     }
 
@@ -395,20 +365,7 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .item:
-            // Items never appear in PageTypeDetailView context, but the kind is
-            // part of the shared DetailRow enum — keep the existing affordances
-            // without an Edit Icon (no Item-container context on this view).
-            Button("Edit Title") { beginRename(row) }
-            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
-                row.togglePin()
-            }
-            Divider()
-            Button("Delete", role: .destructive) {
-                Task { await delete(row) }
-            }
         case .collection(let coll):
-            // Mirrors ItemTypeDetailView's Set menu for cross-side parity.
             // No Pin: containers aren't pinnable from detail views today.
             Button("Open") { handleDoubleTap(row) }
             Button("Edit Title") { beginRename(row) }
@@ -421,8 +378,8 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 deleteTarget = row
             }
-        case .itemCollection:
-            EmptyView()  // never appears in PageTypeDetailView context
+        case .item, .itemCollection:
+            EmptyView()  // dead kinds — removed from DetailRow.Kind in P2
         }
     }
 
@@ -432,37 +389,15 @@ struct PageTypeDetailView: View {
     // this O(1). Called only on context-menu actions, not in render.
 
     private func parent(for row: DetailRow) -> PageParent? {
-        let id: String
-        switch row.kind {
-        case .page(let p): id = p.id
-        case .item(let i): id = i.id
-        case .collection, .itemCollection: return nil
-        }
+        guard case .page(let p) = row.kind else { return nil }
         // Page-Type-root first.
-        switch row.kind {
-        case .page:
-            if contentManager.pages(in: pageType).contains(where: { $0.id == id }) {
-                return .vaultRoot(pageType)
-            }
-        case .item:
-            // TODO Phase 6: route through ItemContentManager + ItemTypeManager.
-            return nil
-        case .collection, .itemCollection:
-            return nil
+        if contentManager.pages(in: pageType).contains(where: { $0.id == p.id }) {
+            return .vaultRoot(pageType)
         }
         // Then every collection.
-        for coll in pageTypeManager.pageCollections(in: pageType) {
-            switch row.kind {
-            case .page:
-                if contentManager.pages(in: coll).contains(where: { $0.id == id }) {
-                    return .collection(coll, vault: pageType)
-                }
-            case .item:
-                // TODO Phase 6: ItemCollection route.
-                return nil
-            case .collection, .itemCollection:
-                return nil
-            }
+        for coll in pageTypeManager.pageCollections(in: pageType)
+        where contentManager.pages(in: coll).contains(where: { $0.id == p.id }) {
+            return .collection(coll, vault: pageType)
         }
         return nil
     }
@@ -501,13 +436,8 @@ struct PageTypeDetailView: View {
                     case .vaultRoot(let t):
                         try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
-                case .item:
-                    // TODO Phase 6: route through ItemContentManager.renameItem
-                    // (parent lookup for Items returns nil during Phase 5, so
-                    // this branch is currently unreachable).
-                    break
-                case .itemCollection:
-                    break
+                case .item, .itemCollection:
+                    break  // dead kinds — removed from DetailRow.Kind in P2
                 }
             } catch {
                 // pendingError set by manager; toast surfaces.
@@ -545,11 +475,8 @@ struct PageTypeDetailView: View {
                 case .vaultRoot(let t):
                     try await contentManager.deletePage(p, inVaultRoot: t)
                 }
-            case .item:
-                // TODO Phase 6: route through ItemContentManager.deleteItem.
-                break
-            case .itemCollection:
-                break
+            case .item, .itemCollection:
+                break  // dead kinds — removed from DetailRow.Kind in P2
             }
         } catch {
             // pendingError set by manager; toast surfaces.

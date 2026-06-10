@@ -5,15 +5,15 @@ import Testing
 @testable import Pommora
 
 /// Context-delete cascade (Phase 18b): `unlinkTier(contextID:tier:index:)` on the
-/// four content managers. When a Context (Space / Topic / Project) is deleted,
-/// every operational entity that tier-links to it must have that Context's ID
-/// removed from the relevant tier array — on disk, in the in-memory cache, and in
-/// the SQLite index's `relations` rows.
+/// content managers. When a Context (Space / Topic / Project) is deleted, every
+/// operational entity that tier-links to it must have that Context's ID removed
+/// from the relevant tier array — on disk, in the in-memory cache, and in the
+/// SQLite index's `relations` rows.
 ///
 /// High-stakes (mutates user files): every case persists via real CRUD, runs the
 /// cascade, then RELOADS from disk to assert the on-disk truth (never trusting the
 /// in-memory copy alone). Mirrors the temp-nexus + IndexUpdater harness in the
-/// PageContentManager / ItemContentManager CRUD suites.
+/// PageContentManager CRUD suites.
 ///
 /// Suite/struct name matches the filename so `-only-testing:PommoraTests/UnlinkTierTests`
 /// resolves a non-zero executed count (quirk #18).
@@ -82,66 +82,6 @@ struct UnlinkTierTests {
 
         // Reload from disk — proves the Collection URL derivation in `locatePageFile`.
         let reloaded = try PageFile.load(from: page.url).frontmatter
-        #expect(reloaded.tier1.isEmpty)
-        #expect(manager.pendingError == nil)
-        #expect(try await tierRelationCount(index, target: spaceA, propertyID: ReservedPropertyID.tier1) == 0)
-    }
-
-    // MARK: - Item (Type-root, tier2)
-
-    @Test("unlinkTier removes the Context from tier2 of a Type-root Item")
-    func itemTypeRootUnlink() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
-
-        let itemType = try makeItemType(in: nexus, index: index)
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.indexUpdater = IndexUpdater(index)
-
-        let item = try await manager.createItem(name: "Widget", inTypeRoot: itemType)
-        try await manager.updateItemProperty(
-            item, propertyID: ReservedPropertyID.tier2,
-            newValue: .relation([spaceA, spaceB]),
-            type: itemType, collection: nil
-        )
-
-        try await manager.unlinkTier(contextID: spaceA, tier: 2, index: index)
-
-        // Reload from disk via the title-derived Type-root URL.
-        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: itemType.title)
-        let url = NexusPaths.itemFileURL(forTitle: "Widget", in: folder)
-        let reloaded = try Item.load(from: url)
-        #expect(reloaded.tier2 == [spaceB])
-        #expect(manager.pendingError == nil)
-        #expect(try await tierRelationCount(index, target: spaceA, propertyID: ReservedPropertyID.tier2) == 0)
-        #expect(try await tierRelationCount(index, target: spaceB, propertyID: ReservedPropertyID.tier2) == 1)
-    }
-
-    // MARK: - Item (Collection-nested, tier1)
-
-    @Test("unlinkTier removes the Context from a Collection-nested Item")
-    func itemCollectionNestedUnlink() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
-
-        let itemType = try makeItemType(in: nexus, index: index)
-        let coll = try makeItemCollection(in: nexus, itemType: itemType, index: index)
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.indexUpdater = IndexUpdater(index)
-
-        let item = try await manager.createItem(name: "Gadget", in: coll, type: itemType)
-        try await manager.updateItemProperty(
-            item, propertyID: ReservedPropertyID.tier1,
-            newValue: .relation([spaceA]),
-            type: itemType, collection: coll
-        )
-
-        try await manager.unlinkTier(contextID: spaceA, tier: 1, index: index)
-
-        let url = NexusPaths.itemFileURL(forTitle: "Gadget", in: coll.folderURL)
-        let reloaded = try Item.load(from: url)
         #expect(reloaded.tier1.isEmpty)
         #expect(manager.pendingError == nil)
         #expect(try await tierRelationCount(index, target: spaceA, propertyID: ReservedPropertyID.tier1) == 0)
@@ -257,31 +197,6 @@ struct UnlinkTierTests {
         )
         try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         try IndexUpdater(index).upsertPageCollection(coll)
-        return coll
-    }
-
-    private func makeItemType(in nexus: Nexus, index: PommoraIndex) throws -> ItemType {
-        let itemType = ItemType(
-            id: ULID.generate(), title: "T", icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
-        try IndexUpdater(index).upsertItemType(itemType)
-        return itemType
-    }
-
-    private func makeItemCollection(in nexus: Nexus, itemType: ItemType, index: PommoraIndex) throws -> ItemCollection {
-        let folder = NexusPaths.itemCollectionFolderURL(
-            in: nexus.rootURL, typeFolderName: itemType.title, collectionFolderName: "C"
-        )
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let coll = ItemCollection(
-            id: ULID.generate(), typeID: itemType.id, title: "C", folderURL: folder, modifiedAt: Date()
-        )
-        try coll.save(to: folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
-        try IndexUpdater(index).upsertItemCollection(coll)
         return coll
     }
 

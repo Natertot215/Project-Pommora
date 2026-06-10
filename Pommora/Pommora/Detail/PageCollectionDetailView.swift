@@ -168,12 +168,8 @@ struct PageCollectionDetailView: View {
     }
 
     private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
-        switch row.kind {
-        case .page(let pageMeta):
-            return pageMeta.frontmatter.properties[propertyID]
-        case .collection, .item, .itemCollection:
-            return nil
-        }
+        guard case .page(let pageMeta) = row.kind else { return nil }
+        return pageMeta.frontmatter.properties[propertyID]
     }
 
     /// Row drop handler — persists via manager. `offset` is the insertion index
@@ -190,9 +186,8 @@ struct PageCollectionDetailView: View {
 
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
-        case .item(let i): AppGlobals.presentItemAction?(i)
         case .page(let p): selection = .page(p)
-        case .collection, .itemCollection: break
+        case .collection, .item, .itemCollection: break
         }
     }
 
@@ -244,27 +239,15 @@ struct PageCollectionDetailView: View {
     }
 
     private var rows: [DetailRow] {
-        // ParadigmV2 (Task 5.5): Items live in ItemContentManager keyed on
-        // ItemCollection now. PageCollection-side Items disappear until a
-        // future plan surfaces cross-side embedding (out of scope here).
-        let pages = contentManager.pages(in: collection).map { ContentItem.page($0) }
-        let items: [ContentItem] = []
-        return (pages + items).map { ci in
+        contentManager.pages(in: collection).map { p in
             DetailRow(
-                id: ci.id,
-                title: ci.title,
-                kind: detailKind(ci),
-                iconName: ci.iconName,
-                modifiedAt: ci.modifiedAt,
+                id: "page-\(p.id)",
+                title: p.title,
+                kind: .page(p),
+                iconName: p.frontmatter.icon ?? "doc.text",
+                modifiedAt: p.frontmatter.createdAt,
                 children: nil
             )
-        }
-    }
-
-    private func detailKind(_ ci: ContentItem) -> DetailRow.Kind {
-        switch ci {
-        case .page(let p): return .page(p)
-        case .item(let i): return .item(i)
         }
     }
 
@@ -283,19 +266,8 @@ struct PageCollectionDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .item:
-            // Items don't appear in PageCollectionDetailView (Task 5.5); keep the
-            // existing affordances without an Edit Icon for switch exhaustiveness.
-            Button("Edit Title") { beginRename(row) }
-            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
-                row.togglePin()
-            }
-            Divider()
-            Button("Delete", role: .destructive) {
-                Task { await delete(row) }
-            }
-        case .collection, .itemCollection:
-            EmptyView()
+        case .collection, .item, .itemCollection:
+            EmptyView()  // dead kinds — removed from DetailRow.Kind in P2
         }
     }
 
@@ -321,9 +293,7 @@ struct PageCollectionDetailView: View {
                 switch row.kind {
                 case .page(let p):
                     try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
-                case .item:
-                    break  // Items rename via Item Window
-                case .collection, .itemCollection:
+                case .collection, .item, .itemCollection:
                     break
                 }
             } catch {
@@ -337,9 +307,7 @@ struct PageCollectionDetailView: View {
             switch row.kind {
             case .page(let p):
                 try await contentManager.deletePage(p, in: collection)
-            case .item:
-                break
-            case .collection, .itemCollection:
+            case .collection, .item, .itemCollection:
                 break
             }
         } catch {

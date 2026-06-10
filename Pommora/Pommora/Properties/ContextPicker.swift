@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Scope-aware context-link value picker — a chromeless liquid-glass dropdown styled
 /// like a native macOS menu. Data-driven via `IndexQuery.entitiesByContextTargetGrouped`:
-/// `.pageType` / `.itemType` scopes show Collection/Set rows that pop out a member
-/// panel to the side (macOS-submenu style) with loose pages/items below an inset
+/// `.pageType` scopes show Collection rows that pop out a member panel
+/// to the side (macOS-submenu style) with loose pages below an inset
 /// divider; every other scope (tiers, agenda) renders a flat list (no submenu).
 ///
 /// Relations are always multi-pick: selections accumulate; tapping a selected entity
@@ -196,7 +196,7 @@ private struct ContextCollectionRow: View {
     }
 }
 
-/// A leaf row (Page / Item / Context): icon + title + a trailing accent checkmark
+/// A leaf row (Page / Context): icon + title + a trailing accent checkmark
 /// rendered only on selected rows. An unselected row gives its full width to the
 /// title (no reserved checkbox column); on selection the checkmark materializes at the
 /// trailing edge and the title fills right up to it. The whole row toggles selection.

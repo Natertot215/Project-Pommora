@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The atomic visual primitive used everywhere a property option is rendered.
 /// Pure composition of `Capsule` / `Text` / `Image` — no re-styling of Apple
-/// controls. Used across Item Window, Properties Pulldown, FrontmatterInspector,
+/// controls. Used across Properties Pulldown, FrontmatterInspector,
 /// and future gallery / board / table cell views.
 ///
 /// Mirrors the Figma spec verbatim:
@@ -21,8 +21,8 @@ struct PropertyChip: View {
     let color: PropertyChipColor
     var size: Size = .standard
 
-    /// Context sizing. `.standard` is the Figma spec (panel, dropdown,
-    /// Item Window); `.compact` fits a `Table` row without inflating it.
+    /// Context sizing. `.standard` is the Figma spec (panel, dropdown);
+    /// `.compact` fits a `Table` row without inflating it.
     enum Size: Sendable {
         case standard
         case compact

@@ -12,9 +12,4 @@ struct ManagerErrorMessageTests {
     @Test func pageTypeManagerErrorRendersFriendly() {
         #expect(!PageTypeManagerError.propertyNotFound.localizedDescription.contains("PageTypeManagerError"))
     }
-
-    /// Item-side mirror of the friendly-error assertion.
-    @Test func itemTypeManagerErrorRendersFriendly() {
-        #expect(!ItemTypeManagerError.propertyNotFound.localizedDescription.contains("ItemTypeManagerError"))
-    }
 }

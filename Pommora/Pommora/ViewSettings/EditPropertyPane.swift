@@ -49,7 +49,6 @@ struct EditPropertyPane: View {
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var draftName: String = ""
@@ -229,7 +228,7 @@ struct EditPropertyPane: View {
     /// `OptionEditPopover` (no chevron-push navigation per Nathan's
     /// 2026-05-26 direction).
     private func addSelectOption() async {
-        guard let typeID = parentTypeID(), let side else { return }
+        guard let typeID = parentTypeID() else { return }
         let newValue = "opt_\(ULID.generate())"
         let newOption = PropertyDefinition.SelectOption(
             value: newValue,
@@ -237,15 +236,8 @@ struct EditPropertyPane: View {
             color: nil
         )
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.updateProperty(id: propertyID, in: typeID) { def in
-                    def.selectOptions = (def.selectOptions ?? []) + [newOption]
-                }
-            case .items:
-                try await itemTypeManager.updateProperty(id: propertyID, in: typeID) { def in
-                    def.selectOptions = (def.selectOptions ?? []) + [newOption]
-                }
+            try await pageTypeManager.updateProperty(id: propertyID, in: typeID) { def in
+                def.selectOptions = (def.selectOptions ?? []) + [newOption]
             }
             commitError = nil
         } catch {
@@ -256,7 +248,7 @@ struct EditPropertyPane: View {
     /// Mints a new Status option inside the given group. User double-clicks
     /// the chip to rename + color via the inline `OptionEditPopover`.
     private func addStatusOption(in groupID: PropertyDefinition.StatusGroupID) async {
-        guard let typeID = parentTypeID(), let side else { return }
+        guard let typeID = parentTypeID() else { return }
         let newValue = "opt_\(ULID.generate())"
         let newOption = PropertyDefinition.StatusOption(
             value: newValue,
@@ -265,23 +257,12 @@ struct EditPropertyPane: View {
             groupID: groupID
         )
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.updateProperty(id: propertyID, in: typeID) { def in
-                    var groups = def.statusGroups ?? []
-                    if let i = groups.firstIndex(where: { $0.id == groupID }) {
-                        groups[i].options.append(newOption)
-                    }
-                    def.statusGroups = groups
+            try await pageTypeManager.updateProperty(id: propertyID, in: typeID) { def in
+                var groups = def.statusGroups ?? []
+                if let i = groups.firstIndex(where: { $0.id == groupID }) {
+                    groups[i].options.append(newOption)
                 }
-            case .items:
-                try await itemTypeManager.updateProperty(id: propertyID, in: typeID) { def in
-                    var groups = def.statusGroups ?? []
-                    if let i = groups.firstIndex(where: { $0.id == groupID }) {
-                        groups[i].options.append(newOption)
-                    }
-                    def.statusGroups = groups
-                }
+                def.statusGroups = groups
             }
             commitError = nil
         } catch {
@@ -570,39 +551,15 @@ struct EditPropertyPane: View {
 
     private func currentDefinition() -> PropertyDefinition? {
         guard let typeID = parentTypeID() else { return nil }
-        switch scope {
-        case .pageType, .pageCollection:
-            return pageTypeManager.types
-                .first(where: { $0.id == typeID })?
-                .properties.first(where: { $0.id == propertyID })
-        case .itemType, .itemCollection:
-            return itemTypeManager.types
-                .first(where: { $0.id == typeID })?
-                .properties.first(where: { $0.id == propertyID })
-        default:
-            return nil
-        }
+        return pageTypeManager.types
+            .first(where: { $0.id == typeID })?
+            .properties.first(where: { $0.id == propertyID })
     }
 
     private func parentTypeID() -> String? {
         switch scope {
         case .pageType(let t): return t.id
-        case .itemType(let t): return t.id
         case .pageCollection(let c): return c.typeID
-        case .itemCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
-
-    private enum SideKind {
-        case pages
-        case items
-    }
-
-    private var side: SideKind? {
-        switch scope {
-        case .pageType, .pageCollection: return .pages
-        case .itemType, .itemCollection: return .items
         default: return nil
         }
     }
@@ -692,14 +649,9 @@ struct EditPropertyPane: View {
     // MARK: - Commits
 
     private func applyTransform(_ transform: @escaping (inout PropertyDefinition) -> Void) async {
-        guard let typeID = parentTypeID(), let side else { return }
+        guard let typeID = parentTypeID() else { return }
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.updateProperty(id: propertyID, in: typeID, transform: transform)
-            case .items:
-                try await itemTypeManager.updateProperty(id: propertyID, in: typeID, transform: transform)
-            }
+            try await pageTypeManager.updateProperty(id: propertyID, in: typeID, transform: transform)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -707,18 +659,13 @@ struct EditPropertyPane: View {
     }
 
     private func commitRename() async {
-        guard let typeID = parentTypeID(), let side else { return }
+        guard let typeID = parentTypeID() else { return }
         let trimmed = draftName.trimmingCharacters(in: .whitespaces)
         // Skip empty + no-op renames so Enter / blur / disappear can all fire
         // without double-writing or clobbering with an unchanged value.
         guard !trimmed.isEmpty, trimmed != currentDefinition()?.name else { return }
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.renameProperty(id: propertyID, in: typeID, to: trimmed)
-            case .items:
-                try await itemTypeManager.renameProperty(id: propertyID, in: typeID, to: trimmed)
-            }
+            try await pageTypeManager.renameProperty(id: propertyID, in: typeID, to: trimmed)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -726,7 +673,7 @@ struct EditPropertyPane: View {
     }
 
     private func commitDelete() async {
-        guard let typeID = parentTypeID(), let side else { return }
+        guard let typeID = parentTypeID() else { return }
         // Pop FIRST, then await the disk delete. If we awaited delete first,
         // the manager's `types` array mutates while this pane is still
         // mounted; the body re-renders against `currentDefinition() == nil`
@@ -735,26 +682,16 @@ struct EditPropertyPane: View {
         // disk delete completes off-screen.
         if !path.isEmpty { path.removeLast() }
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.deleteProperty(id: propertyID, in: typeID)
-            case .items:
-                try await itemTypeManager.deleteProperty(id: propertyID, in: typeID)
-            }
+            try await pageTypeManager.deleteProperty(id: propertyID, in: typeID)
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 
     private func commitDuplicate() async {
-        guard let typeID = parentTypeID(), let side else { return }
+        guard let typeID = parentTypeID() else { return }
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.duplicateProperty(id: propertyID, in: typeID)
-            case .items:
-                try await itemTypeManager.duplicateProperty(id: propertyID, in: typeID)
-            }
+            try await pageTypeManager.duplicateProperty(id: propertyID, in: typeID)
             if !path.isEmpty { path.removeLast() }
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)

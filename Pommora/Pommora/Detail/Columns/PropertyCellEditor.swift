@@ -3,9 +3,8 @@ import SwiftUI
 /// Cell wrapper that owns a click-to-edit popover anchor and dispatches to
 /// a type-appropriate editor view. Tap the cell → popover opens anchored
 /// to the cell → user edits the value → outside-click / ESC dismisses + the
-/// passed-in `commit` closure persists the draft via the relevant content
-/// manager (PageContentManager.updatePageProperty / ItemContentManager.
-/// updateItemProperty from Tasks 13+14).
+/// passed-in `commit` closure persists the draft via the content manager
+/// (PageContentManager.updatePageProperty).
 ///
 /// LastEditedTime cells render as plain PropertyCellDisplay with no tap
 /// gesture (read-only by design).
@@ -371,7 +370,7 @@ struct PropertyCellEditor: View {
             Text("File attachments")
                 .font(.headline)
             Text(
-                "Inline file editor ships in v0.3.1.x once AttachmentManager flows to cell editors. Use the Item Window inspector to attach files today."
+                "Inline file editor ships in v0.3.1.x once AttachmentManager flows to cell editors. Use the Page inspector to attach files today."
             )
             .font(.caption)
             .foregroundStyle(.secondary)

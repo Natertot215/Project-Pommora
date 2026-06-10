@@ -11,7 +11,9 @@ struct IndexBuilderTests {
     // MARK: - Fixture setup
 
     /// Builds a small nexus with 1 PageType "Notes" + 1 PageCollection "Inbox"
-    /// + 2 Pages, and 1 ItemType "Tasks" + 2 Items.
+    /// + 2 Pages, and 1 ItemType "Tasks" + 2 Items. The item side exists to
+    /// prove `populate` IGNORES on-disk item entities (PagesV2 — items are no
+    /// longer indexed; their tables survive empty until the P7 schema bump).
     private func setup() async throws -> (Nexus, PommoraIndex) {
         let nexus = try TempNexus.make()
 
@@ -132,23 +134,6 @@ struct IndexBuilderTests {
         #expect(matched == 1)
     }
 
-    @Test func populateIndexesItemTypes() async throws {
-        let (nexus, idx) = try await setup()
-        defer { TempNexus.cleanup(nexus) }
-
-        try await IndexBuilder.populate(index: idx, from: nexus)
-
-        let count = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types") ?? -1
-        }
-        #expect(count == 1)
-
-        let title = try await idx.dbQueue.read { db in
-            try String.fetchOne(db, sql: "SELECT title FROM item_types LIMIT 1")
-        }
-        #expect(title == "Tasks")
-    }
-
     @Test func populateIndexesPagesIntoCollection() async throws {
         let (nexus, idx) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -236,16 +221,23 @@ struct IndexBuilderTests {
         #expect(dropCount == 0, "Excluded loose file leaked into the index — file-level folder-exclusion not honored")
     }
 
-    @Test func populateIndexesItemsIntoType() async throws {
+    @Test func populateIgnoresOnDiskItems() async throws {
         let (nexus, idx) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
         try await IndexBuilder.populate(index: idx, from: nexus)
 
-        let count = try await idx.dbQueue.read { db in
+        // The fixture wrote 1 ItemType + 2 Items to disk; populate must index
+        // NONE of them (PagesV2 — the item tables stay empty until P7 drops them).
+        let itemTypeCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types") ?? -1
+        }
+        #expect(itemTypeCount == 0, "IndexBuilder re-indexed an on-disk ItemType")
+
+        let itemCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM items") ?? -1
         }
-        #expect(count == 2)
+        #expect(itemCount == 0, "IndexBuilder re-indexed on-disk Items")
     }
 
     @Test func populateTwiceIsIdempotent() async throws {
@@ -264,16 +256,6 @@ struct IndexBuilderTests {
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages") ?? -1
         }
         #expect(pageCount == 2, "Duplicate pages rows after second populate")
-
-        let itemTypeCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types") ?? -1
-        }
-        #expect(itemTypeCount == 1, "Duplicate item_types rows after second populate")
-
-        let itemCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM items") ?? -1
-        }
-        #expect(itemCount == 2, "Duplicate items rows after second populate")
     }
 
     @Test func populateContextsSpacesAndTopics() async throws {

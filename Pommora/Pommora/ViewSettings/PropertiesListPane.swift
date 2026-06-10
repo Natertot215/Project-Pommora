@@ -8,9 +8,9 @@ import SwiftUI
 /// Footer "+ New property" button pushes `PropertyTypePickerPane` so the
 /// user picks a type before naming + configuring (Task 10 routing).
 ///
-/// Schema ownership: properties live on PageType / ItemType. For Collection
-/// scopes the pane resolves the parent Type via the manager (PageType /
-/// ItemType manager looked up from @Environment).
+/// Schema ownership: properties live on the PageType. For Collection
+/// scopes the pane resolves the parent Type via the manager (PageTypeManager
+/// looked up from @Environment).
 ///
 /// Chrome routed through shared `PaneHeader` + `PUI` tokens for uniformity
 /// with every other View Settings sub-pane.
@@ -19,7 +19,6 @@ struct PropertiesListPane: View {
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var searchQuery: String = ""
@@ -80,34 +79,14 @@ struct PropertiesListPane: View {
     /// Always extract the stable type ID and re-query the manager.
     private func resolvedProperties() -> [PropertyDefinition] {
         guard let typeID = scopeTypeID() else { return [] }
-        switch scopeSide() {
-        case .pages:
-            return pageTypeManager.types.first(where: { $0.id == typeID })?
-                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
-        case .items:
-            return itemTypeManager.types.first(where: { $0.id == typeID })?
-                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
-        case .none:
-            return []
-        }
+        return pageTypeManager.types.first(where: { $0.id == typeID })?
+            .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
     }
-
-    private enum SideKind { case pages, items }
 
     private func scopeTypeID() -> String? {
         switch scope {
         case .pageType(let t): return t.id
-        case .itemType(let t): return t.id
         case .pageCollection(let c): return c.typeID
-        case .itemCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
-
-    private func scopeSide() -> SideKind? {
-        switch scope {
-        case .pageType, .pageCollection: return .pages
-        case .itemType, .itemCollection: return .items
         default: return nil
         }
     }

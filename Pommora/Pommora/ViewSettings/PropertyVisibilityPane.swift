@@ -15,8 +15,8 @@ import SwiftUI
 /// `views[0]` at v0.3.1 (single-view-per-container; multi-saved-view +
 /// view-tabs land at v0.5.0).
 ///
-/// Container lookup: PageType/ItemType scopes write to the Type's
-/// `views[0]`; Collection scopes write to the Collection's own `views[0]`
+/// Container lookup: PageType scopes write to the Type's `views[0]`;
+/// Collection scopes write to the Collection's own `views[0]`
 /// (locked: each Collection's view is INDEPENDENT of the parent Type's).
 ///
 /// Chrome routed through shared `PaneHeader` + `PUI` tokens.
@@ -25,7 +25,6 @@ struct PropertyVisibilityPane: View {
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var commitError: String?
@@ -122,19 +121,12 @@ struct PropertyVisibilityPane: View {
         let newOrder = PropertyIDReorder.move(currentOrder, moving: droppedID, onto: ontoTargetID)
         guard newOrder != currentOrder else { return false }
 
-        guard let view = currentView(), let cid = containerID(), let side else { return false }
+        guard let view = currentView(), let cid = containerID() else { return false }
         let viewID = view.id
         Task {
             do {
-                switch side {
-                case .pages:
-                    try await pageTypeManager.updateView(viewID, in: cid) { v in
-                        v.visibleProperties = newOrder
-                    }
-                case .items:
-                    try await itemTypeManager.updateView(viewID, in: cid) { v in
-                        v.visibleProperties = newOrder
-                    }
+                try await pageTypeManager.updateView(viewID, in: cid) { v in
+                    v.visibleProperties = newOrder
                 }
                 commitError = nil
             } catch {
@@ -154,27 +146,14 @@ struct PropertyVisibilityPane: View {
 
     private func currentView() -> SavedView? {
         guard let cid = containerID() else { return nil }
-        switch side {
-        case .pages:
-            // Container can be either a PageType or a PageCollection.
-            if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
-                return t.views.first
-            }
-            for cols in pageTypeManager.pageCollectionsByType.values {
-                if let c = cols.first(where: { $0.id == cid }) { return c.views.first }
-            }
-            return nil
-        case .items:
-            if let t = itemTypeManager.types.first(where: { $0.id == cid }) {
-                return t.views.first
-            }
-            for cols in itemTypeManager.itemCollectionsByType.values {
-                if let c = cols.first(where: { $0.id == cid }) { return c.views.first }
-            }
-            return nil
-        case .none:
-            return nil
+        // Container can be either a PageType or a PageCollection.
+        if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
+            return t.views.first
         }
+        for cols in pageTypeManager.pageCollectionsByType.values {
+            if let c = cols.first(where: { $0.id == cid }) { return c.views.first }
+        }
+        return nil
     }
 
     /// Visible-in-pane properties: user-defined + the three tier relations +
@@ -186,17 +165,9 @@ struct PropertyVisibilityPane: View {
     /// so users can hide/show them like any other column.
     private func parentTypeProperties() -> [PropertyDefinition] {
         guard let typeID = parentTypeID() else { return [] }
-        let schema: [PropertyDefinition]
-        switch side {
-        case .pages:
-            schema = pageTypeManager.types.first(where: { $0.id == typeID })?
-                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
-        case .items:
-            schema = itemTypeManager.types.first(where: { $0.id == typeID })?
-                .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
-        case .none:
-            return []
-        }
+        let schema: [PropertyDefinition] =
+            pageTypeManager.types.first(where: { $0.id == typeID })?
+            .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         let surfaced: Set<String> = [
             ReservedPropertyID.modifiedAt,
             ReservedPropertyID.tier1,
@@ -211,9 +182,7 @@ struct PropertyVisibilityPane: View {
     private func containerID() -> String? {
         switch scope {
         case .pageType(let t): return t.id
-        case .itemType(let t): return t.id
         case .pageCollection(let c): return c.id
-        case .itemCollection(let c): return c.id
         default: return nil
         }
     }
@@ -221,18 +190,7 @@ struct PropertyVisibilityPane: View {
     private func parentTypeID() -> String? {
         switch scope {
         case .pageType(let t): return t.id
-        case .itemType(let t): return t.id
         case .pageCollection(let c): return c.typeID
-        case .itemCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
-
-    private enum SideKind { case pages, items }
-    private var side: SideKind? {
-        switch scope {
-        case .pageType, .pageCollection: return .pages
-        case .itemType, .itemCollection: return .items
         default: return nil
         }
     }
@@ -242,19 +200,12 @@ struct PropertyVisibilityPane: View {
     private func toggle(_ propertyID: String, currentlyVisible: Bool) async {
         // _modified_at always visible — locked decision.
         guard propertyID != "_modified_at" else { return }
-        guard let view = currentView(), let cid = containerID(), let side else { return }
+        guard let view = currentView(), let cid = containerID() else { return }
         let viewID = view.id
 
         do {
-            switch side {
-            case .pages:
-                try await pageTypeManager.updateView(viewID, in: cid) { v in
-                    PropertyVisibilityPane.applyToggle(&v, propertyID: propertyID, currentlyVisible: currentlyVisible)
-                }
-            case .items:
-                try await itemTypeManager.updateView(viewID, in: cid) { v in
-                    PropertyVisibilityPane.applyToggle(&v, propertyID: propertyID, currentlyVisible: currentlyVisible)
-                }
+            try await pageTypeManager.updateView(viewID, in: cid) { v in
+                PropertyVisibilityPane.applyToggle(&v, propertyID: propertyID, currentlyVisible: currentlyVisible)
             }
             commitError = nil
         } catch {

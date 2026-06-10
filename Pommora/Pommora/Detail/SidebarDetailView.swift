@@ -105,23 +105,11 @@ struct SidebarDetailView: View {
             case .page(let p):
                 PageEditorHost(page: p, selection: $selection)
 
-            case .itemType(let t):
-                ItemTypeDetailView(
-                    type: t,
-                    selection: $selection,
-                    presentedSheet: $presentedSheet,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID
-                )
-
-            case .itemCollection(let c):
-                ItemCollectionDetailView(
-                    collection: c,
-                    selection: $selection,
-                    presentedSheet: $presentedSheet,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID
-                )
+            case .itemType, .itemCollection:
+                // PagesV2 P1: the item detail views are deleted; these selection
+                // cases are unreachable (ItemsSection is gone) and the enum cases
+                // themselves are removed in P2.
+                emptyState
             }
         }
         .onAppear {

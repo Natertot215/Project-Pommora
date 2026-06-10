@@ -1,7 +1,7 @@
 import Foundation
 import MarkdownPM
 
-/// Pure, view-free logic for the `[[` / `{{` autocomplete wiring (E5-D).
+/// Pure, view-free logic for the `[[` autocomplete wiring (E5-D).
 ///
 /// The actual presentation (`AutoCompleteWindow` placement, caret anchoring)
 /// and the live NSTextView insertion are runtime concerns verified by manual
@@ -12,35 +12,35 @@ enum AutoCompleteWiring {
 
     /// Whether the autocomplete popup should be shown for a given inline-selection
     /// state. **Trigger gate (Nathan-locked):** show ONLY when the caret is inside
-    /// a `[[ ]]` wiki-link or `{{ }}` chip-link AND at least one character has been
-    /// typed inside the pair (non-empty placeholder). An empty pair (`[[]]` / `{{}}`),
-    /// an image embed, or `nil` (caret left the token) all suppress the popup.
+    /// a `[[ ]]` wiki-link AND at least one character has been typed inside the
+    /// pair (non-empty placeholder). An empty pair (`[[]]`), a dormant `{{ }}`
+    /// chip-link, an image embed, or `nil` (caret left the token) all suppress
+    /// the popup.
     static func shouldShowAutocomplete(for state: InlineSelectionState?) -> Bool {
         guard let state else { return false }
         switch state.kind {
-        case .wikiLink, .chipLink:
+        case .wikiLink:
             return !state.selection.placeholder.isEmpty
-        case .imageEmbed:
+        case .chipLink, .imageEmbed:
             return false
         }
     }
 
     /// The storage fragment inserted when a candidate is chosen. Title-only
     /// (LD-28 — no id in the fragment); the engine re-resolves the title on the
-    /// next render. `.wikiLink` → `[[Title]]`, `.chipLink` → `{{Title}}`.
-    /// `.imageEmbed` never reaches autocomplete, so it falls back to a wiki-link
-    /// fragment rather than introducing an impossible state.
+    /// next render. Always a `[[Title]]` wiki-link — `[[` is the only
+    /// connection syntax (PagesV2 decision #3); the dormant `.chipLink` and
+    /// `.imageEmbed` kinds never reach autocomplete.
     static func fragment(kind: InlineSelectionKind, title: String) -> String {
-        switch kind {
-        case .chipLink: return "{{\(title)}}"
-        case .wikiLink, .imageEmbed: return "[[\(title)]]"
-        }
+        _ = kind
+        return "[[\(title)]]"
     }
 
-    /// The index `EntityKind` to query for a given inline-link kind: a `[[ ]]`
-    /// wiki-link resolves to a Page, a `{{ }}` chip-link to an Item.
+    /// The index `EntityKind` to query for an inline-link: always a Page —
+    /// `[[ ]]` is the only connection syntax.
     static func queryKind(for kind: InlineSelectionKind) -> EntityKind {
-        kind == .chipLink ? .item : .page
+        _ = kind
+        return .page
     }
 
     /// Maps an index `EntityRef` to the presentation-only `AutoCompleteCandidate`,

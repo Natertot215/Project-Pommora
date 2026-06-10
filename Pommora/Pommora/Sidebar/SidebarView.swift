@@ -6,7 +6,6 @@ struct SidebarView: View {
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(ItemContentManager.self) private var itemContentManager
     @Environment(AgendaTaskManager.self) private var agendaTaskManager
     @Environment(AgendaEventManager.self) private var agendaEventManager
     @Environment(NexusManager.self) private var nexusManager
@@ -36,13 +35,6 @@ struct SidebarView: View {
                     confirmingDelete: $confirmingDelete
                 )
                 TopicsSection(
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
-                )
-                ItemsSection(
                     selection: $selection,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID,
@@ -131,7 +123,7 @@ struct SidebarView: View {
                 : "This action cannot be undone."
         case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
-        case .deleteCollection: return "All Pages and Items inside will be deleted."
+        case .deleteCollection: return "All Pages inside will be deleted."
         case .deleteItemType(_, let sets):
             return sets > 0
                 ? "Contains \(sets) Set(s). All Items inside will be deleted."
@@ -237,13 +229,12 @@ struct SidebarView: View {
     }
 
     /// Removes a Context's ID from every referencing entity's tier array across all
-    /// four content kinds, BEFORE the Context file is deleted (the unlink queries the
+    /// content kinds, BEFORE the Context file is deleted (the unlink queries the
     /// SQLite `context_links` index, so the refs must still resolve at call time).
     /// Best-effort per manager — one failure must not block the others or the delete.
     private func cascadeUnlinkTier(contextID: String, tier: Int) async {
         guard let index = nexusManager.currentIndex else { return }  // degraded mode: skip cascade
         try? await contentManager.unlinkTier(contextID: contextID, tier: tier, index: index)
-        try? await itemContentManager.unlinkTier(contextID: contextID, tier: tier, index: index)
         try? await agendaTaskManager.unlinkTier(contextID: contextID, tier: tier, index: index)
         try? await agendaEventManager.unlinkTier(contextID: contextID, tier: tier, index: index)
     }
@@ -498,71 +489,6 @@ struct TopicsSection: View {
                     onCreate: { newTopic in
                         editingID = newTopic.id
                         justCreatedID = newTopic.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
-    }
-}
-
-struct ItemsSection: View {
-    @Binding var selection: SidebarSelection
-    @Binding var editingID: String?
-    @Binding var justCreatedID: String?
-    @Binding var presentedSheet: SidebarSheet?
-    @Binding var confirmingDelete: SidebarConfirmation?
-    @Environment(ItemTypeManager.self) private var itemTypeManager
-    @Environment(NexusManager.self) private var nexusManager
-    @Environment(SettingsManager.self) private var settingsManager
-
-    @State private var expanded: Bool = true
-    @State private var isCreating: Bool = false
-
-    var body: some View {
-        Section(isExpanded: $expanded) {
-            ForEach(itemTypeManager.types) { itemType in
-                ItemTypeRow(
-                    itemType: itemType,
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete,
-                    nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
-                    index: nexusManager.currentIndex
-                )
-                .tag(SelectionTag.itemType(itemType.id))
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    itemTypeManager.reorderItemTypes(fromOffsets: source, toOffset: destination)
-                }
-            }
-        } header: {
-            SectionHeader(title: settingsManager.settings.labels.sidebarSections.items) {
-                createItemType()
-            }
-        }
-    }
-
-    private func createItemType() {
-        guard !isCreating else { return }
-        isCreating = true
-        let label = settingsManager.settings.labels.itemType.singular
-        let existing = itemTypeManager.types.map(\.title)
-        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
-        Task {
-            defer { isCreating = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await itemTypeManager.createItemType(name: title, icon: nil)
-                    },
-                    onCreate: { newType in
-                        editingID = newType.id
-                        justCreatedID = newType.id
                     }
                 )
             } catch {

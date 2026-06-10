@@ -1,21 +1,21 @@
 import SwiftUI
 
-/// Root menu rendered inside the View Settings popover for the four storage
-/// scopes (PageType / PageCollection / ItemType / ItemCollection).
+/// Root menu rendered inside the View Settings popover for the storage
+/// scopes (PageType / PageCollection).
 ///
 /// Mirrors Notion's view-settings dropdown shape — header (icon + title,
-/// both inline-editable for all four storage scopes) + a stack of pane
+/// both inline-editable for both storage scopes) + a stack of pane
 /// rows. Two rows are ACTIVE at v0.3.1 (Edit Properties + Property
-/// Visibility); the remaining four (Layout / Filter / Sort / Group) render
-/// muted as placeholder rows pointing at later v0.3.1.x patches.
+/// Visibility); the remaining placeholder rows (Templates / Layout / Filter /
+/// Sort / Group) render muted, pointing at later patches.
 ///
-/// Header inline edits (all four storage scopes — Types and Collections
+/// Header inline edits (both storage scopes — Types and Collections
 /// alike; Collections carry their own icon since #45 and rename via the
 /// atomic folder-move rename methods):
 ///   - Click icon → SymbolPicker popover → commits via updatePageTypeIcon /
-///     updateItemTypeIcon / updatePageCollectionIcon / updateItemCollectionIcon
+///     updatePageCollectionIcon
 ///   - Click title → inline TextField → commits via renamePageType /
-///     renameItemType / renamePageCollection / renameItemCollection on submit
+///     renamePageCollection on submit
 ///
 /// Push behavior lives at the popover level — this view appends routes to
 /// the `path` binding passed from the popover.
@@ -24,7 +24,6 @@ struct StorageMenuRoot: View {
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
 
     @State private var iconPickerOpen: Bool = false
     @State private var isRenaming: Bool = false
@@ -53,16 +52,7 @@ struct StorageMenuRoot: View {
                     title: "Property Visibility",
                     route: .propertyVisibility
                 )
-                // ITEM scopes get the live Templates pane (T5.x); PAGE scopes
-                // keep the muted placeholder. Branch on the scope-derived side
-                // (mirrors PropertyVisibilityPane's `side`) so unmuting an
-                // Item Type/Set doesn't also unmute Pages.
-                switch side {
-                case .items:
-                    activeRow(icon: "doc.on.doc", title: "Templates", route: .itemTemplate)
-                case .pages, .none:
-                    mutedRow(icon: "doc.on.doc", title: "Templates")
-                }
+                mutedRow(icon: "doc.on.doc", title: "Templates")
                 mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
                 mutedRow(icon: "square.stack.3d.down.right", title: "Group")
                 mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
@@ -151,8 +141,6 @@ struct StorageMenuRoot: View {
         switch liveScope {
         case .pageType(let t): return t.title
         case .pageCollection(let c): return c.title
-        case .itemType(let t): return t.title
-        case .itemCollection(let c): return c.title
         default: return "View Settings"
         }
     }
@@ -161,8 +149,6 @@ struct StorageMenuRoot: View {
         switch liveScope {
         case .pageType(let t): return t.icon ?? "folder"
         case .pageCollection(let c): return c.icon ?? "folder"
-        case .itemType(let t): return t.icon ?? "tray"
-        case .itemCollection(let c): return c.icon ?? "tray"
         default: return "slider.horizontal.3"
         }
     }
@@ -180,25 +166,8 @@ struct StorageMenuRoot: View {
         case .pageCollection(let c):
             return .pageCollection(
                 pageTypeManager.pageCollectionsByType[c.typeID]?.first(where: { $0.id == c.id }) ?? c)
-        case .itemType(let t):
-            return .itemType(itemTypeManager.types.first(where: { $0.id == t.id }) ?? t)
-        case .itemCollection(let c):
-            return .itemCollection(
-                itemTypeManager.itemCollectionsByType[c.typeID]?.first(where: { $0.id == c.id }) ?? c)
         default:
             return scope
-        }
-    }
-
-    /// Item-vs-page side derived from the scope (mirrors
-    /// PropertyVisibilityPane's `side`). Drives which scopes get the live
-    /// Templates pane vs. the muted placeholder.
-    private enum SideKind { case pages, items }
-    private var side: SideKind? {
-        switch scope {
-        case .pageType, .pageCollection: return .pages
-        case .itemType, .itemCollection: return .items
-        default: return nil
         }
     }
 
@@ -221,10 +190,6 @@ struct StorageMenuRoot: View {
             try? await pageTypeManager.updatePageTypeIcon(t, to: newIcon)
         case .pageCollection(let c):
             try? await pageTypeManager.updatePageCollectionIcon(c, to: newIcon)
-        case .itemType(let t):
-            try? await itemTypeManager.updateItemTypeIcon(t, to: newIcon)
-        case .itemCollection(let c):
-            try? await itemTypeManager.updateItemCollectionIcon(c, to: newIcon)
         default:
             break
         }
@@ -239,10 +204,6 @@ struct StorageMenuRoot: View {
             try? await pageTypeManager.renamePageType(t, to: trimmed)
         case .pageCollection(let c):
             try? await pageTypeManager.renamePageCollection(c, to: trimmed)
-        case .itemType(let t):
-            try? await itemTypeManager.renameItemType(t, to: trimmed)
-        case .itemCollection(let c):
-            try? await itemTypeManager.renameItemCollection(c, to: trimmed)
         default:
             break
         }

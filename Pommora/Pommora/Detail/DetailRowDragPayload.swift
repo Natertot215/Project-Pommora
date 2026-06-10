@@ -2,10 +2,9 @@ import CoreTransferable
 import Foundation
 import UniformTypeIdentifiers
 
-/// Carried during a Page Collection / Item Set detail-view row drag. Just the dragged row's
+/// Carried during a Page Collection detail-view row drag. Just the dragged row's
 /// ULID — the offset-based drop handler resolves position via `DetailReorderPlanner`
-/// (driving `reorderPages(in:)` / `reorderItems(in:)`), so no source/zone metadata
-/// is needed.
+/// (driving `reorderPages(in:)`), so no source/zone metadata is needed.
 ///
 /// Encoded as `public.json`, a **system-registered** content type. A custom
 /// `UTType(exportedAs:)` would only register if declared in the app's

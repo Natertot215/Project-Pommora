@@ -5,8 +5,8 @@ import SwiftUI
 /// `ContextPicker` in a chromeless popover on tap.
 ///
 /// This is the reusable inline-editing + picker-hosting unit — `PropertyEditorRow`
-/// (relation properties), the Page inspector's tier rows, and any future Item Window
-/// compose it rather than each re-hosting a popover. The picker owns its own fixed
+/// (relation properties) and the Page inspector's tier rows compose it rather
+/// than each re-hosting a popover. The picker owns its own fixed
 /// size (the `9deb818` anti-collapse), so presenting it chromeless
 /// (`.presentationBackground(.clear)`) never collapses. A nil `resolver` falls back
 /// to a count label; a nil `index` still presents the picker (which shows its own

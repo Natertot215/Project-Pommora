@@ -4,9 +4,11 @@ import Testing
 
 @testable import Pommora
 
-/// Pins the PURE wiring logic that drives the `[[` / `{{` autocomplete (E5-D):
+/// Pins the PURE wiring logic that drives the `[[` autocomplete (E5-D):
 /// the trigger gate, the storage-fragment builder, the query-kind mapping, and
-/// the `EntityRef → AutoCompleteCandidate` mapping.
+/// the `EntityRef → AutoCompleteCandidate` mapping. `[[ ]]` is the only
+/// connection syntax (PagesV2 decision #3) — the dormant `.chipLink` kind
+/// must never trigger, and every fragment/query resolves page-side.
 ///
 /// The popup presentation, caret anchoring, and the live NSTextView insertion
 /// are runtime concerns (SwiftUI overlay placement + AppKit text replacement);
@@ -32,15 +34,15 @@ struct AutoCompleteWiringTests {
         #expect(AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .wikiLink, placeholder: "Atl")))
     }
 
-    @Test func showsForItemLinkWithTypedPlaceholder() {
-        #expect(AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .chipLink, placeholder: "Tas")))
+    @Test func suppressedForChipLinkWithTypedPlaceholder() {
+        #expect(!AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .chipLink, placeholder: "Tas")))
     }
 
     @Test func suppressedForEmptyWikiLinkPlaceholder() {
         #expect(!AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .wikiLink, placeholder: "")))
     }
 
-    @Test func suppressedForEmptyItemLinkPlaceholder() {
+    @Test func suppressedForEmptyChipLinkPlaceholder() {
         #expect(!AutoCompleteWiring.shouldShowAutocomplete(for: state(kind: .chipLink, placeholder: "")))
     }
 
@@ -58,8 +60,8 @@ struct AutoCompleteWiringTests {
         #expect(AutoCompleteWiring.fragment(kind: .wikiLink, title: "Project Atlas") == "[[Project Atlas]]")
     }
 
-    @Test func itemLinkFragmentIsDoubleCurlyBraces() {
-        #expect(AutoCompleteWiring.fragment(kind: .chipLink, title: "Buy milk") == "{{Buy milk}}")
+    @Test func fragmentIsWikiLinkRegardlessOfKind() {
+        #expect(AutoCompleteWiring.fragment(kind: .chipLink, title: "Buy milk") == "[[Buy milk]]")
     }
 
     // MARK: - Query kind
@@ -68,8 +70,8 @@ struct AutoCompleteWiringTests {
         #expect(AutoCompleteWiring.queryKind(for: .wikiLink) == .page)
     }
 
-    @Test func itemLinkQueriesItems() {
-        #expect(AutoCompleteWiring.queryKind(for: .chipLink) == .item)
+    @Test func queryKindIsPageRegardlessOfKind() {
+        #expect(AutoCompleteWiring.queryKind(for: .chipLink) == .page)
     }
 
     // MARK: - EntityRef → AutoCompleteCandidate mapping
