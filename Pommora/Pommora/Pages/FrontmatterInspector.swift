@@ -94,6 +94,11 @@ struct FrontmatterInspector: View {
     let index: PommoraIndex?
     let relationDisplay: ContextDisplayResolver?
     let onSave: ((PageFrontmatter) -> Void)?
+    /// Compact typographic scale for narrow mounts (the PagePreview window's
+    /// 210pt pane): rows one step down, action affordances another step
+    /// below, small controls, tighter rows, no section headings. The main
+    /// window's ~320pt inspector stays stock.
+    let compact: Bool
 
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -108,33 +113,67 @@ struct FrontmatterInspector: View {
         vault: PageType,
         index: PommoraIndex? = nil,
         relationDisplay: ContextDisplayResolver? = nil,
-        onSave: ((PageFrontmatter) -> Void)? = nil
+        onSave: ((PageFrontmatter) -> Void)? = nil,
+        compact: Bool = false
     ) {
         self.page = page
         self.vault = vault
         self.index = index
         self.relationDisplay = relationDisplay
         self.onSave = onSave
+        self.compact = compact
     }
 
     var body: some View {
-        // V9.1 dual-domain shape: the Page meta section is GONE (both the
-        // main window's inspector and the PagePreview window mount this same
-        // component); the page ID survives as a small footer under
-        // Properties. This grouped Form is the baseline look for
-        // menu-grouping-like interfaces (Nathan, 2026-06-10).
+        // One component, two mounts: the main window's inspector pane and
+        // the PagePreview window both render THIS Form, so the surfaces
+        // cannot drift. This grouped Form is the baseline look for
+        // menu-grouping-like interfaces.
         Form {
             tiersSection
             propertiesSection
         }
         .formStyle(.grouped)
+        .font(compact ? .subheadline : nil)
+        .controlSize(compact ? .small : .regular)
+        .environment(\.defaultMinListRowHeight, compact ? 24 : 32)
+        // The page ID — pinned to the BOTTOM EDGE of the pane (a frame
+        // footer, not a scroll footer), on both mounts.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack {
+                Text("ID: \(page.frontmatter.id)")
+                    .font(.caption2)
+                    // Explicit label color — the hierarchical `.secondary`
+                    // picks up the inspector pane's vibrancy and reads
+                    // near-primary there.
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                    .textSelection(.enabled)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, PUI.Spacing.xl)
+            .padding(.vertical, PUI.Spacing.sm)
+        }
         .onAppear { initVM() }
     }
+
+    /// Compact row metrics: condensed system insets (not custom padding) so
+    /// the rows densify and the contexts card's first divider lands on the
+    /// title-bar hairline by arithmetic — card top inset + one row height.
+    /// `nil` keeps the stock Form insets in the full-size mount.
+    private var rowInsets: EdgeInsets? {
+        compact ? EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10) : nil
+    }
+
+    /// Inspector action affordances ("+ Add", value editors) sit one
+    /// typography step below the row labels in compact.
+    private var editorFont: Font? { compact ? .caption : nil }
 
     // MARK: - Tiers section (editable via ContextValueEditor; persists through the VM's debounced onSave)
 
     private var tiersSection: some View {
-        Section("Tiers") {
+        Section {
             if let model = vm {
                 tierRow("Spaces", tier: 1, ids: tierBinding(model, 1))
                 tierRow("Topics", tier: 2, ids: tierBinding(model, 2))
@@ -144,13 +183,19 @@ struct FrontmatterInspector: View {
                 LabeledContent("Topics", value: tier2Names)
                 LabeledContent("Projects", value: tier3Names)
             }
+        } header: {
+            // Compact drops the section headings entirely; the full-size
+            // mount keeps them.
+            if !compact { Text("Tiers") }
         }
     }
 
     private func tierRow(_ label: String, tier: Int, ids: Binding<[String]>) -> some View {
         LabeledContent(label) {
             ContextValueEditor(ids: ids, scope: .contextTier(tier), index: index, resolver: relationDisplay)
+                .font(editorFont)
         }
+        .listRowInsets(rowInsets)
     }
 
     private func tierBinding(_ model: FrontmatterInspectorViewModel, _ tier: Int) -> Binding<[String]> {
@@ -176,13 +221,13 @@ struct FrontmatterInspector: View {
                             ),
                             index: index,
                             relationDisplay: relationDisplay,
-                            // LabeledContent already carries the name — the
-                            // editor's internal label doubled it (visible as
-                            // "Status / Status" once the narrow preview pane
-                            // forced a wrap).
+                            // LabeledContent carries the name; the editor's
+                            // internal label would double it.
                             showsName: false
                         )
+                        .font(editorFont)
                     }
+                    .listRowInsets(rowInsets)
                 }
             } else {
                 // VM not yet initialized on first render — show placeholder
@@ -192,44 +237,43 @@ struct FrontmatterInspector: View {
                             .foregroundStyle(.tertiary)
                             .font(.callout)
                     }
+                    .listRowInsets(rowInsets)
                 }
             }
             addPropertyRow
+                .listRowInsets(rowInsets)
         } header: {
-            Text("Properties")
-        } footer: {
-            // The one survivor of the removed Page meta section (V9.1):
-            // the page ID as a small selectable footer on both panels.
-            Text(page.frontmatter.id)
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
+            if !compact { Text("Properties") }
         }
     }
 
-    /// Schema rows resolved LIVE from the manager (not the `vault` snapshot
-    /// passed at init) so a property added through the affordance below —
-    /// or any View Settings schema edit — appears immediately in both the
-    /// main-window inspector and an open PagePreview window.
+    /// Schema rows resolved LIVE from the manager (not the `vault`
+    /// snapshot passed at init) so any schema edit — from the affordance
+    /// below or View Settings — appears immediately in every mount.
     private var liveProperties: [PropertyDefinition] {
         vaultManager.types.first(where: { $0.id == vault.id })?.properties ?? vault.properties
     }
 
-    /// "Add Property" — small secondary label under the property rows
-    /// (Nathan's V9.1 ruling). Opens the established property-type picker;
-    /// commits through the same `PropertyCreation` path as View Settings.
-    /// Option-bearing types (select / multi-select / status) are created
-    /// with their seeded defaults; option configuration stays in View
-    /// Settings, as established.
+    /// "Add Property" — small secondary label under the property rows.
+    /// Opens the established property-type picker; commits through the same
+    /// `PropertyCreation` path as View Settings. Option-bearing types
+    /// (select / multi-select / status) are created with their seeded
+    /// defaults; option configuration stays in View Settings.
     private var addPropertyRow: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
             Button {
                 addPropertyOpen = true
             } label: {
-                Label("Add Property", systemImage: "plus")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .contentShape(Rectangle())
+                // One tight single-label affordance (glyph + text read as ONE
+                // button), one typography step below the rows so it stays
+                // subordinate, never another property.
+                HStack(spacing: 4) {
+                    Image(systemName: "plus")
+                    Text("Add Property")
+                }
+                .font(compact ? .caption : .callout)
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Add a property to this Vault's schema")

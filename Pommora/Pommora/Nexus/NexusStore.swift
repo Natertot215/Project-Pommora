@@ -28,12 +28,12 @@ enum NexusStore {
 
     /// Returns the user's Application Support directory URL, creating it if needed.
     ///
-    /// **Test isolation (the quirk-#16 guard's sibling):** under XCTest this
-    /// diverts to a per-run temp directory. The unit-test host is the REAL
-    /// app sharing the REAL container — without this, any test exercising
-    /// state mutation (e.g. `resetBookmark()`) deletes the live
-    /// `state.json`, silently eating the user's Nexus bookmark on every
-    /// suite run. One central divert isolates every app-state path at once.
+    /// **Test isolation:** under XCTest this diverts to a per-run temp
+    /// directory. The unit-test host is the REAL app sharing the REAL
+    /// container — without this, any test exercising state mutation (e.g.
+    /// `resetBookmark()`) deletes the live `state.json` and the user's
+    /// Nexus bookmark with it. One central divert isolates every app-state
+    /// path at once.
     static func applicationSupportDir() throws -> URL {
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
             let dir = FileManager.default.temporaryDirectory

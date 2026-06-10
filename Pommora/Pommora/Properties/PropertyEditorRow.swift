@@ -14,8 +14,14 @@ struct PropertyEditorRow: View {
     /// spacers. Defaults `true` so other call sites are unchanged.
     var showsName: Bool = true
 
+    /// Callers that set an environment font (the compact inspector) win;
+    /// `PUI.Typography.row` is the stock scale everywhere else.
+    @Environment(\.font) private var inheritedFont
+
     @State private var dateEditorOpen = false
     @State private var statusEditorOpen = false
+
+    private var valueFont: Font { inheritedFont ?? PUI.Typography.row }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -94,7 +100,7 @@ struct PropertyEditorRow: View {
             dateEditorOpen = true
         } label: {
             Text(dateDisplayString)
-                .font(PUI.Typography.row)
+                .font(valueFont)
                 .foregroundStyle(hasDateValue ? .primary : .secondary)
                 .padding(.horizontal, PUI.Spacing.md)
                 .padding(.vertical, PUI.Spacing.xs)
@@ -228,7 +234,7 @@ struct PropertyEditorRow: View {
                     PropertyChip(label: selected.label, color: selected.color, size: .compact)
                 } else {
                     Text("Empty")
-                        .font(PUI.Typography.row)
+                        .font(valueFont)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, PUI.Spacing.md)
                         .padding(.vertical, PUI.Spacing.xs)

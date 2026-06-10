@@ -61,7 +61,7 @@ struct PropertyTypePickerPane: View {
         let definition: PropertyDefinition
         do {
             // Shared mint + seed + commit path (`PropertyCreation`) — also
-            // used by the inspector's Add Property affordance (V9.1).
+            // used by the inspector's Add Property affordance.
             definition = try await PropertyCreation.commitDefault(
                 type, toTypeID: typeID, manager: pageTypeManager)
         } catch {

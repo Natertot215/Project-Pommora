@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// The PagePreview window's chrome control — the Figma `Window/Button`
-/// component: a 36×26 Liquid Glass capsule with a soft drop shadow carrying a
-/// 10pt semibold SF Symbol. The ONE sanctioned glass element on the preview
-/// window's otherwise standard-material chrome (plan decision #11); staged
-/// here as a Component Library asset, never inlined at call sites.
+/// Window-chrome control — the Figma `Window/Button` component: a 36×26
+/// Liquid Glass capsule with a soft drop shadow carrying a 10pt semibold
+/// SF Symbol. The ONE sanctioned glass element on the PagePreview window's
+/// otherwise standard-material chrome; a Component Library asset, never
+/// inlined at call sites.
 struct WindowCapsuleButton: View {
     let symbol: String
     let help: String

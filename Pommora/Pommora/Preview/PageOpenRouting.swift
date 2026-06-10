@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Where a page-tap routes, per the page's vault `open_in` mode (V9).
+/// Where a page-tap routes, per the page's vault `open_in` mode.
 enum PageOpenDestination: Equatable {
     /// `.window` vault (or unset) — render in the main detail pane.
     case detailPane
@@ -67,7 +67,7 @@ enum PageOpenRouter {
     /// Parent-resolving variant for call sites that only hold the page
     /// (sidebar rows, vault-detail rows that mix root and collection pages).
     /// An unresolvable parent (page deleted mid-tap) falls back to the
-    /// detail pane, matching the pre-V8 behavior.
+    /// detail pane.
     @discardableResult
     static func routeOpen(
         _ page: PageMeta,

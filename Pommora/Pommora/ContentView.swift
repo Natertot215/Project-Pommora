@@ -327,12 +327,10 @@ struct ContentView: View {
     private func rebuildEnvironment(for nexus: Nexus?) {
         // Preview windows are per-Nexus state (their PageRefs resolve against
         // the outgoing managers) — close the whole group when switching away
-        // from a live environment. Guarded to non-initial runs AND deferred
-        // out of the current view update: this is called from
+        // from a live environment. MUST stay guarded to non-initial runs and
+        // deferred out of the current view update: this runs from
         // `onChange(initial: true)` during the FIRST render, and mutating
-        // scene state (dismissWindow) mid-update breaks the update cycle —
-        // observed as `.task` never firing, so `loadOnLaunch()` never ran and
-        // launch dead-ended on the loading placeholder.
+        // scene state (dismissWindow) mid-update breaks the update cycle.
         if nexusEnvironment != nil {
             let dismissWindow = dismissWindow
             Task { @MainActor in dismissWindow(id: "page-preview") }

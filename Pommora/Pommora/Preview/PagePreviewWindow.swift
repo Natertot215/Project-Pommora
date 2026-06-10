@@ -4,12 +4,15 @@ import SwiftUI
 
 // MARK: - Metrics
 
-/// Tunable geometry for the PagePreview window (plan decision #9 — the Figma
-/// canvas sizes were drawing conventions, not spec; tune these on sight).
+/// Tunable geometry for the PagePreview window — every value here is a
+/// deliberate design constant; adjust on sight, never inline.
 enum PreviewWindowMetrics {
-    /// Default window size with the inspector OPEN (its default state) —
-    /// body column ≈ defaultSize.width − inspectorWidth.
-    static let defaultSize = CGSize(width: 720, height: 540)
+    /// Default window size with the inspector OPEN (its default state).
+    /// Width = minBodySize.width (420) + inspector (210) + body headroom
+    /// (210) — agreeing with the window's effective width floor so the
+    /// inspector toggle moves the frame by EXACTLY the pane width from the
+    /// very first click (a default below the floor would clamp once).
+    static let defaultSize = CGSize(width: 840, height: 540)
     /// Minimum size of the BODY column (the window's min width grows by the
     /// inspector width while the inspector is presented).
     static let minBodySize = CGSize(width: 420, height: 360)
@@ -17,18 +20,18 @@ enum PreviewWindowMetrics {
     static let inspectorWidth: CGFloat = 210
     /// Horizontal rail shared by the header content, both hairline insets,
     /// and the footer — separator ends align with the capsules' bounds
-    /// (decision #11: uniform-distance dividers).
+    /// (uniform-distance dividers).
     static let railPadding: CGFloat = PUI.Spacing.xl
     /// Header vertical rhythm: padding(top→title) == padding(title→separator).
-    /// Tightened to native title-bar height (capsule 26 + 2×8 ≈ 42pt) so the
-    /// header hairline lands on the inspector Form's first row divider
-    /// (V9.1 alignment ruling).
-    static let headerVPad: CGFloat = PUI.Spacing.md
+    /// Title-bar height = capsule 26 + 2×10 = 46pt — the standard unified-
+    /// toolbar height, which also lands the header hairline on the
+    /// inspector's first context-row divider (10pt card inset + 36pt row).
+    static let headerVPad: CGFloat = PUI.Spacing.lg
     /// Editor type size — reduced from the main editor's 15 so the body
-    /// reads as a PREVIEW of the document, not a 1:1 editor (V9.1).
+    /// reads as a PREVIEW of the document, not a 1:1 editor.
     static let bodyFontSize: CGFloat = 13
     /// Vertical text inset above/below the body so the reduced type
-    /// doesn't sit squished against the hairlines (V9.1).
+    /// doesn't sit squished against the hairlines.
     static let bodyVerticalInset: CGFloat = PUI.Spacing.xl
 }
 
@@ -56,20 +59,21 @@ struct PagePreviewWindowRoot: View {
 
 // MARK: - PagePreviewContent
 
-/// One Page previewed in a real window (V9 — replaces the V8 in-window glass
-/// card). The window is standard in every material respect — `windowBackground`,
-/// system shadow, edge resize, native titlebar-strip drag — restricted by
-/// `PreviewWindowConfigurator` so it never reads as its own app window.
+/// One Page previewed in a real window. The window is standard in every
+/// material respect — `windowBackground`, system shadow, edge resize, native
+/// titlebar-strip drag — restricted by `PreviewWindowConfigurator` so it
+/// never reads as its own app window.
 ///
-/// Chrome per plan decision #11: title bar = ✕ glass capsule · page icon +
-/// inline-editable title (`.title3`) · inspector glass capsule; uniform-inset
-/// hairlines above the body and above the footer; footer = breadcrumb +
-/// lock (+ Open revealed by unlock). Body = the page's `MarkdownPMEditor`,
-/// lock-gated on the same `PageEditorViewModel` save path as the main editor.
+/// Chrome: title bar = ✕ glass capsule · page icon + inline-editable title
+/// (15pt semibold, the native title voice) · inspector glass capsule;
+/// uniform-inset hairlines above the body and above the footer; footer =
+/// breadcrumb + lock (+ Open revealed by unlock). Body = the page's
+/// `MarkdownPMEditor`, lock-gated on the same `PageEditorViewModel` save
+/// path as the main editor.
 ///
 /// "Grow" gestures promote instead of expanding: Ctrl-Cmd-F and a title-bar
-/// double-click route to Open-in-main-pane (decision #4); native fullscreen
-/// and zoom are disabled outright.
+/// double-click route to Open-in-main-pane; native fullscreen and zoom are
+/// disabled outright.
 struct PagePreviewContent: View {
     let ref: PageRef
 
@@ -90,8 +94,8 @@ struct PagePreviewContent: View {
     /// Lock-gated editing: opens locked (read-only); the footer Lock glyph
     /// and the context menu toggle it.
     @State private var isLocked = true
-    /// Inspector pane — defaults OPEN (decision #8); toggling widens/shrinks
-    /// the window so the body column never squeezes.
+    /// Inspector pane — defaults OPEN; toggling widens/shrinks the window
+    /// so the body column never squeezes.
     @State private var inspectorShown = true
     /// Live NSWindow handle surfaced by the configurator — drives the
     /// widen/shrink frame animation.
@@ -118,25 +122,19 @@ struct PagePreviewContent: View {
             minHeight: PreviewWindowMetrics.minBodySize.height
         )
         // The hidden title bar still reserves a top safe-area strip — without
-        // this the header floats ~28pt below the window's top edge (Nathan's
-        // "excess space above the title bar" finding). The header IS the
-        // title bar; it owns the top edge.
+        // this the header floats ~28pt below the window's top edge. The
+        // header IS the title bar; it owns the top edge.
         .ignoresSafeArea(.container, edges: .top)
         .inspector(isPresented: $inspectorShown) {
             inspectorContent
                 .inspectorColumnWidth(PreviewWindowMetrics.inspectorWidth)
                 .interactiveDismissDisabled()
-                // Match the window background — the pane's system material
-                // reads as a different tone than the body (Figma: one
-                // continuous window surface split by a hairline).
-                .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         }
         .background(PreviewWindowConfigurator(window: $window))
         // A preview can never minimize to the Dock, zoom, or become its own
-        // fullscreen Space (decisions #3 + #4).
+        // fullscreen Space.
         .windowMinimizeBehavior(.disabled)
         .windowFullScreenBehavior(.disabled)
-        .windowResizeBehavior(.disabled)
         .windowResizeAnchor(.topLeading)
         // The "make this big" muscle-memory shortcut promotes to the main
         // pane instead of fullscreening.
@@ -158,8 +156,8 @@ struct PagePreviewContent: View {
         }
     }
 
-    /// Uniform-distance divider (decision #11): hairline inset to the rail
-    /// at BOTH ends, identical above the body and above the footer.
+    /// Uniform-distance divider: hairline inset to the rail at BOTH ends,
+    /// identical above the body and above the footer.
     private var hairline: some View {
         Rectangle()
             .fill(Color(NSColor.separatorColor))
@@ -177,10 +175,9 @@ struct PagePreviewContent: View {
                 iconAffordance
                 TextField("Untitled", text: $titleDraft)
                     .textFieldStyle(.plain)
-                    // Native window-title spec — 13pt semibold, the system
-                    // title-bar weight (V9.1: "renders as a standard window
-                    // title"). Still inline-editable.
-                    .font(.system(size: 13, weight: .semibold))
+                    // Native title-bar voice, sized for this window's
+                    // proportions. Still inline-editable.
+                    .font(.system(size: 15, weight: .semibold))
                     .focused($titleFocused)
                     .onSubmit { Task { await commitRename() } }
                     .onChange(of: titleFocused) { wasFocused, isFocused in
@@ -197,8 +194,8 @@ struct PagePreviewContent: View {
             }
         }
         .contentShape(Rectangle())
-        // Title-bar double-click "zoom" → promote (decision #4). Native zoom
-        // is disabled, so this is the only double-click behavior up here.
+        // Title-bar double-click "zoom" → promote. Native zoom is disabled,
+        // so this is the only double-click behavior up here.
         .onTapGesture(count: 2) { openInMainPane() }
     }
 
@@ -208,12 +205,12 @@ struct PagePreviewContent: View {
         Button {
             iconPickerOpen = true
         } label: {
-            // Proxy-icon scale (the small document icon beside a native
-            // window title), not content scale.
+            // Proxy-icon scale — the small document icon beside a native
+            // window title, tracking the 15pt title.
             Image(systemName: currentIcon ?? "doc.text")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(currentIcon == nil ? .tertiary : .primary)
-                .frame(width: 16, height: 16)
+                .frame(width: 18, height: 18)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -258,9 +255,8 @@ struct PagePreviewContent: View {
 
     /// Pommora's shared editor config tuned for the preview surface: the
     /// horizontal text inset is the chrome RAIL — body text sits flush with
-    /// the hairlines' insets, never double-indented (flush ruling) — while a
-    /// small vertical inset keeps the reduced type from squishing against
-    /// the dividers (V9.1).
+    /// the hairlines' insets, never double-indented — while a small vertical
+    /// inset keeps the reduced type from squishing against the dividers.
     private var editorConfiguration: MarkdownPMConfiguration {
         MarkdownEditorConfig.pommora(
             verticalInset: PreviewWindowMetrics.bodyVerticalInset,
@@ -278,8 +274,8 @@ struct PagePreviewContent: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: PUI.Spacing.md)
-            // Unlocking REVEALS the Open affordance; locked → only the lock
-            // shows (the ratified P5 reconciliation, carried into V9).
+            // Unlocking REVEALS the Open affordance; locked → only the
+            // lock shows.
             if !isLocked {
                 Button {
                     openInMainPane()
@@ -321,10 +317,10 @@ struct PagePreviewContent: View {
     @ViewBuilder
     private var inspectorContent: some View {
         if let vm = viewModel, let vault = liveVault {
-            // The REAL pages inspector, mounted as-is (V9.1: "exactly
-            // mimicking the existing pages one" — parity by construction,
-            // not imitation). Same grouped Form, same editors, same
-            // Add Property affordance, same debounced save path.
+            // The REAL pages inspector, mounted as-is — parity with the
+            // main window by construction, not imitation. Same grouped Form,
+            // same editors, same Add Property affordance, same debounced
+            // save path (compact typographic scale).
             FrontmatterInspector(
                 page: vm.page,
                 vault: vault,
@@ -336,17 +332,12 @@ struct PagePreviewContent: View {
                             vm.page, frontmatter: updated, vault: vault, collection: collection)
                         if let refreshed = currentMeta() { vm.page = refreshed }
                     }
-                }
+                },
+                compact: true
             )
             .id(vm.page.id)
-            // Alignment ruling (V9.1): nudge the Form down so the contexts
-            // card's top edge lands exactly on the title-bar hairline ("the
-            // separator lines up perfectly with the first separator on the
-            // inspector contexts" — achieved by moving the inspector
-            // contents, as sanctioned). Preview-scoped; the main window's
-            // inspector keeps the stock Form inset. Value measured on
-            // screen: hairline 42pt, card top with stock inset 30pt.
-            .padding(.top, 12)
+            // No top nudge: the cards sit flush at the Form's stock inset,
+            // uniform with the side edges.
         } else {
             Color.clear
         }
@@ -390,7 +381,14 @@ struct PagePreviewContent: View {
     /// body column keeps its size (decision #8). The frame animates via the
     /// window server; growth extends from the top-leading anchor.
     private func toggleInspector() {
-        inspectorShown.toggle()
+        // The pane mounts/unmounts INSTANTLY (animation suppressed) so the
+        // window's min-width constraint updates atomically — otherwise the
+        // animated collapse keeps the old minimum alive and the frame change
+        // clamps mid-flight, drifting the width on every toggle. The window
+        // frame animation is the only visible motion.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { inspectorShown.toggle() }
         guard let window else { return }
         var frame = window.frame
         frame.size.width += inspectorShown

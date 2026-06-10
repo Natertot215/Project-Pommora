@@ -17,7 +17,13 @@ struct ContextValueEditor: View {
     let index: PommoraIndex?
     var resolver: ContextDisplayResolver? = nil
 
+    /// Callers that set an environment font (the compact inspector) win;
+    /// `.callout` is the stock scale everywhere else.
+    @Environment(\.font) private var inheritedFont
+
     @State private var isPresented = false
+
+    private var triggerFont: Font { inheritedFont ?? .callout }
 
     var body: some View {
         Button {
@@ -42,7 +48,7 @@ struct ContextValueEditor: View {
         if ids.isEmpty {
             Label("Add", systemImage: "plus.circle")
                 .labelStyle(.titleAndIcon)
-                .font(.callout)
+                .font(triggerFont)
                 .foregroundStyle(.secondary)
         } else if let resolver {
             HStack(spacing: 4) {
@@ -50,13 +56,13 @@ struct ContextValueEditor: View {
                     if let resolved = resolver.resolve(id) {
                         ContextChip(icon: resolved.icon, title: resolved.title)
                     } else {
-                        Text("(missing)").font(.callout.italic()).foregroundStyle(.tertiary)
+                        Text("(missing)").font(triggerFont.italic()).foregroundStyle(.tertiary)
                     }
                 }
             }
             .task(id: ids) { await resolver.warm(ids) }
         } else {
-            Text("\(ids.count) linked").font(.callout).foregroundStyle(.secondary)
+            Text("\(ids.count) linked").font(triggerFont).foregroundStyle(.secondary)
         }
     }
 }

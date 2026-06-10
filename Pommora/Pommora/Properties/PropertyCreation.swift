@@ -2,7 +2,7 @@ import Foundation
 
 /// Single source for "create a default property of type X on a Vault schema"
 /// — shared by the View Settings type-picker pane and the inspector's
-/// Add Property affordance (V9.1), so both surfaces mint and seed identically.
+/// Add Property affordance, so both surfaces mint and seed identically.
 @MainActor
 enum PropertyCreation {
     /// Build a minimal-defaults PropertyDefinition for each user-creatable
