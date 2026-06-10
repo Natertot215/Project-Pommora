@@ -21,6 +21,7 @@ struct NexusState: Codable, Equatable, Sendable {
     // alphabetic tail.
     var spaceOrder: [String]?
     var topicOrder: [String]?
+    var projectOrder: [String]?
     var vaultOrder: [String]?
 
     init() {}
@@ -33,6 +34,7 @@ struct NexusState: Codable, Equatable, Sendable {
         case cursor
         case spaceOrder = "space_order"
         case topicOrder = "topic_order"
+        case projectOrder = "project_order"
         case vaultOrder = "vault_order"
     }
 
@@ -47,6 +49,7 @@ struct NexusState: Codable, Equatable, Sendable {
         self.cursor = try c.decodeIfPresent(Int.self, forKey: .cursor) ?? 0
         self.spaceOrder = try c.decodeIfPresent([String].self, forKey: .spaceOrder)
         self.topicOrder = try c.decodeIfPresent([String].self, forKey: .topicOrder)
+        self.projectOrder = try c.decodeIfPresent([String].self, forKey: .projectOrder)
         self.vaultOrder = try c.decodeIfPresent([String].self, forKey: .vaultOrder)
     }
 
@@ -58,6 +61,7 @@ struct NexusState: Codable, Equatable, Sendable {
         try c.encode(cursor, forKey: .cursor)
         try c.encodeIfPresent(spaceOrder, forKey: .spaceOrder)
         try c.encodeIfPresent(topicOrder, forKey: .topicOrder)
+        try c.encodeIfPresent(projectOrder, forKey: .projectOrder)
         try c.encodeIfPresent(vaultOrder, forKey: .vaultOrder)
     }
 }

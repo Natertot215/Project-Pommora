@@ -29,6 +29,10 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("topics", isDirectory: true)
     }
 
+    static func projectsDir(in nexus: Nexus) -> URL {
+        nexusConfigDir(in: nexus).appendingPathComponent("projects", isDirectory: true)
+    }
+
     // MARK: - Single-file paths inside .nexus/
 
     static func tierConfigURL(in nexus: Nexus) -> URL {
@@ -223,6 +227,15 @@ enum NexusPaths {
     ) -> URL {
         topicFolderURL(forTitle: topicTitle, in: nexus)
             .appendingPathComponent("\(title).project.json", isDirectory: false)
+    }
+
+    static func projectFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
+        projectsDir(in: nexus).appendingPathComponent(title, isDirectory: true)
+    }
+
+    static func projectMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
+        projectFolderURL(forTitle: title, in: nexus)
+            .appendingPathComponent("_project.json", isDirectory: false)
     }
 
     // MARK: - PageType / PageCollection / Content paths (flatlayout)

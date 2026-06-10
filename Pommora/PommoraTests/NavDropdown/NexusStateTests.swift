@@ -62,4 +62,22 @@ struct NexusStateTests {
         #expect(json.contains("\"pinned\""))
         #expect(!json.contains("\"favorites\""))
     }
+
+    @Test("projectOrder round-trips as 'project_order' key")
+    func projectOrderRoundTrip() throws {
+        var s = NexusState()
+        s.projectOrder = ["a", "b"]
+        let data = try JSONEncoder().encode(s)
+        let json = String(data: data, encoding: .utf8) ?? ""
+        #expect(json.contains("\"project_order\""))
+        let decoded = try JSONDecoder().decode(NexusState.self, from: data)
+        #expect(decoded.projectOrder == ["a", "b"])
+    }
+
+    @Test("projectOrder decodes as nil when key absent")
+    func projectOrderAbsent() throws {
+        let json = #"{"schemaVersion":1,"recents":[],"pinned":[],"cursor":0}"#
+        let decoded = try JSONDecoder().decode(NexusState.self, from: Data(json.utf8))
+        #expect(decoded.projectOrder == nil)
+    }
 }

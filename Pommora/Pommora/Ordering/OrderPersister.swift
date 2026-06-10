@@ -36,6 +36,12 @@ enum OrderPersister {
         }
     }
 
+    static func setProjectOrder(_ order: [String], in nexus: Nexus) throws {
+        try mutateNexusState(in: nexus) { state in
+            state.projectOrder = order.isEmpty ? nil : order
+        }
+    }
+
     // MARK: - Project order (_topic.json)
 
     static func setProjectOrder(_ order: [String], in topic: Topic, nexus: Nexus) throws {
