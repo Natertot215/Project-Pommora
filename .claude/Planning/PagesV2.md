@@ -20,6 +20,8 @@
 
 **Revision V6 (contract upgrade + CR-9, 2026-06-09).** Contract clause #1 is upgraded from standing permission to standing **obligation** by Nathan's direct instruction: anything flagged fuzzy or uncertain — by the controller, a subagent's report, or a verification result — halts the work until Nathan has answered directly; the controller does not resolve flagged ambiguity on his behalf. First application, **CR-9:** P1's working tree dropped the `ItemTypeManagerError` branch + overload from `PropertyEditorErrorMessage` while the type's `LocalizedError` extension still delegated into that mapper — the fallback recursed (`localizedDescription` ↔ `string(for:)`) until the test host crashed (1258 executed, 902 cascade failures from the one defect; the app build stayed green — type-safe but runtime-recursive, exactly the gap the test gate exists to catch). The V2 wording "removing the branch early is safe" was wrong. Resolved per Nathan's decision: **cut the loop on the error side** — delete the `LocalizedError` extension on `ItemTypeManagerError` in P1 (the enum stays until P3) and pull the item-side `ManagerErrorMessageTests` test forward into P1's lockstep surgery. Verified post-fix: **no user-reachable item-error path survives P1** — nothing constructs the item delete confirmations, and the item panes/windows are orphaned switch arms held only by enum exhaustiveness until P2 — so no item error message of any kind can surface; items no longer exist as a user-facing concept.
 
+**Revision V8 (PagePreview primitive ratified, 2026-06-10).** Nathan answered the three pre-build questions: **(1) multiplicity — multiple previews at once** (re-tapping the same page focuses its existing card); **(2) primitive — an IN-WINDOW draggable glass card**, NOT a separate window/scene: the Figma's "menu" is the visual primitive (Liquid Glass rounded rect), and the behavioral host is a draggable overlay layer inside the main window (a real macOS menu is transient and cannot host an editor; a floating NSPanel was offered and declined). No `WindowGroup`/`openWindow`/`dismissWindow` — an observable preview-stack state + an overlay host render the cards; **(3) edit-conflict — structurally unreachable**: a page currently shown in the main detail pane never opens as a preview (row-tap keeps selection), and "Open Page" promotion always removes the card. P5's Steps 4/5/8/9 rewritten accordingly; Steps 2/3 were already landed by P3's compiler sweep. Also per Nathan: the P5 implementer MUST load `swiftui-expert-skill` before writing SwiftUI.
+
 **Revision V7 (`{{ }}` retirement, 2026-06-09).** Nathan's direction supersedes the retain-dormant half of decision #3: `{{ }}` stops being a special syntax ANYWHERE — it returns to plain text, and the renamed-and-gated dormant framework P0 created is deleted wholesale in a new **Phase P2.5** (16 MarkdownPM files + app-side wiring at audit). The chip **visual design** survives as exactly one dead-code design file staged in the Component Library (per the Component-Library hard rule); re-enabling later means rebuilding from that design + git history + the Figma capture, not flipping a gate. P5 sheds its "re-home chip-link" half (Step 1, the CR-3 `ItemLinkOpener` delete, and the decision-#7 resolver rename move to P2.5) and shrinks to `PagePreview` + open-in + Item-Window deletion; P5's P0 dependency drops.
 
 ---
@@ -230,15 +232,15 @@ var openIn: OpenInMode?
 
 ### Phase P5 — Build `PagePreview` + open-in toggle
 
-**Goal:** delete the Item Window scene + `AppGlobals` bridge + auto-open scaffold, and build the new `PagePreview` surface + open-routing + the open-in toggle. (The `{{ }}`/chip-link work this phase previously carried — editor-config re-home, `ItemLinkOpener` delete, decision-#7 resolver rename — moved to P2.5; V7.)
+**Goal:** build the `PagePreview` in-window draggable glass card (V8 primitive) + open-routing + the open-in toggle. (The `{{ }}`/chip-link work moved to P2.5 (V7); the Item Window scene/`AppGlobals` bridge/auto-open scaffold were already deleted by P3's compiler sweep.)
 
-**Depends on:** P3 (item types gone), P4 (`OpenInMode` relocated).
+**Depends on:** P3 (item types gone), P4 (`OpenInMode` relocated). **Implementer MUST load `swiftui-expert-skill` before writing SwiftUI (Nathan's directive, V8).**
 
-**Files:** `Pages/AppGlobals.swift`, `ContentView.swift`, `PommoraApp.swift`, create `Window/PagePreviewScene.swift`, delete `Window/PreviewWindow.swift`, `Vaults/PageType.swift` (+`PageTypeManager`), `Detail/PageTypeDetailView.swift`, `ViewSettings/StorageMenuRoot.swift`, `Sidebar/` page-row tap site.
+**Files:** create `Preview/PagePreviewCard.swift` + `Preview/PreviewStack.swift` (observable open-cards state) + overlay host wiring in `ContentView.swift`, delete `Window/PreviewWindow.swift`, `Vaults/PageTypeManager.swift` (`setOpenIn`), `ViewSettings/StorageMenuRoot.swift` (footer toggle), `Sidebar/` page-row tap site, `ComponentLibrary/ComponentLibraryView.swift` (Page Preview row rewire).
 
 #### PagePreview — Figma design (received 2026-06-09)
 
-The Figma design is in; the STOP/WAIT gate is lifted for the *spec*, and the build proceeds once the three OPEN items below are answered. **Window shell:** rounded-rect panel, **475×475** collapsed (no-inspector); **Liquid Glass *menu* background** (the menu-glass material, consistent with the inspector's menu-BG hairline-card treatment shipped at `2220121`); resizable. The inspector, when toggled, adds a right pane and widens the window.
+The Figma design is in and the three pre-build questions are answered (V8). **Card shell (V8 primitive):** an in-window draggable rounded-rect glass card, **475×475** collapsed (no-inspector); **Liquid Glass *menu* background** (the menu-glass material, consistent with the inspector's menu-BG hairline-card treatment shipped at `2220121`); resizable via a bottom-right grip. The inspector, when toggled, adds a right pane and widens the card. Cards live on an overlay layer above the detail content inside the main window: draggable by their background (clamped to the window bounds), multiple at once with cascade placement (+24,+24 per open card), tap brings to front, re-opening an already-previewed page focuses its existing card.
 
 **Header band.** Leading: a capsule **window-dismiss (close) control** (closes the preview panel). Then the page **icon** (icon selector) + **Title** at `.title3`, both **inline-editable** (TextField → filename rename, per filename=title; icon via the existing icon selector). Trailing: the **inspector-toggle** capsule (a plain inspector show/hide — it does NOT transform). Vertical rhythm: `padding(top→title)` **equals** `padding(title→separator)`. The header **separator** is a hairline **inset to the capsule buttons' horizontal bounds** — NOT full-bleed; a small gap/affordance sits at each end where the separator stops short of the window edge.
 
@@ -253,24 +255,15 @@ The Figma design is in; the STOP/WAIT gate is lifted for the *spec*, and the bui
 > **✅ P5↔P3 property-editor — RESOLVED (investigated 2026-06-09).** Good news: the page-native property editor **already exists and is ~complete** — `Pages/FrontmatterInspector.swift` (built in the ItemsV2 Phase A work) is a full Form-based editor with a debounced (300ms) save VM, all property types, tier rows, and error resilience. It saves via `FrontmatterInspectorViewModel.flushNow() → onSave → PageContentManager.updatePageFrontmatter → AtomicYAMLMarkdown.write`. **PagePreview reuses `FrontmatterInspector` VERBATIM — there is NO property editor to re-implement.** The only seam is the two generic files `PropertyEditorRow` + `MultiSelectChips`, which `FrontmatterInspector` already depends on at HEAD and which P3 must **move** (not delete) — handled in P3 above (CR-8). The shared pickers `ContextValueEditor`/`ContextPicker`/`ChipDropdown`/`DateTimePicker` already live in `Properties/` (no item coupling, reused as-is). The item-side `ItemInspector`/`ItemWindowViewModel` (pinned-chip + session-surface "Add property" logic) are correctly deleted — Pages render the full schema, no "Add" menu, no chip bar.
 
 - [ ] **Step 1 — MOVED to P2.5 (V7).** The editor-config chip wiring, `onItemLinkClick`/`ItemLinkOpener` deletion (CR-3), and the decision-#7 resolver rename all land in P2.5 with the rest of the `{{` retirement. Nothing chip-related remains for this phase.
-- [ ] **Step 2 — `AppGlobals.swift`:** delete `itemContentManager`/`itemTypeManager` statics (L23/25); the Item Window bridge block (L63–77: `itemWindow`, `presentItemAction`); `publish(...)` item params (L43–55). Coordinate the `publish` signature with `NexusEnvironment.init` in one commit.
-- [ ] **Step 3 — `ContentView.swift`:** delete the `#if DEBUG -autoOpenItemWindow` `.task` block (L223–255); the `env.itemTypeManager/itemContentManager` reads in `primaryActionCapsule` (L94/100/108) + the inspector toolbar `SidebarLookupBundle` (L179).
-- [ ] **Step 4 — `PommoraApp.swift`:** delete `UtilityWindow("Item", id: "item-window")` (L61–74). Add the page-preview scene (quirk #10: single owner; if the parallel session already converted the scene, replace whatever form exists):
-
-```swift
-WindowGroup(id: "page-preview", for: PageRef.self) { $ref in
-    PagePreviewScene(ref: ref).environment(nexusManager)
-}
-.defaultSize(width: 475, height: 475)   // collapsed (no inspector); inspector widens it
-.windowResizability(.contentMinSize)
-```
-
-- [ ] **Step 5 — Create `Window/PagePreviewScene.swift`** to the Figma design above. Build against the **verified live symbols** (the prior placeholder snippet had two fabricated calls — corrected here). The concrete Swift is written once OPEN-1/2/3 are answered; the load-bearing structure:
+- [x] **Steps 2 + 3 — ✓ landed in P3** (AppGlobals statics/bridge/publish params and ContentView's auto-open block + item-manager reads died in the keystone strip + compiler sweep). Verify-by-grep only.
+- [ ] **Step 4 (V8) — Preview state + overlay host.** Create `Preview/PreviewStack.swift`: an `@Observable` open-cards state (ordered array of page refs + per-card position/size/z; `open(_:)` focuses an existing card for the same page id, else appends with cascade placement; `close(_:)`; `bringToFront(_:)`). Inject per the quirk-#15 single-source pattern IF it needs Nexus-scoped lifetime, else own it in `ContentView` — the implementer decides with `swiftui-expert-skill` guidance and records why. In `ContentView`, mount the overlay host ABOVE the detail content (`.overlay`/ZStack top layer): renders one `PagePreviewCard` per open entry. NO `WindowGroup`, NO `openWindow` — there is no separate window or scene.
+- [ ] **Step 5 (V8) — Create `Preview/PagePreviewCard.swift`** to the Figma design above. Build against the **verified live symbols**; the load-bearing structure:
   - **Data load** (`.task(id: ref)`): `ref.resolve(vaultManager:contentManager:)` → `page`/`vault`; body via `PageFile.loadLenient(from: page.url, nexusRoot: contentManager.nexus.rootURL)?.body`. (CR-7 / build-time: verify the real `PageRef.resolve` signature, `PageMeta.id`/`.url`, and `PageFile.loadLenient` before relying on them.)
   - **Editor + lock state:** hold `@State private var isLocked = true` (preview opens locked). `MarkdownPMEditor(text:configuration:.pommora(verticalInset:0), fontName:"SF Pro Text", fontSize:15, documentId:page.id, isEditable: !isLocked)`. When unlocked, the body needs a real `Binding`/save path (not `.constant`) wired to the page-content save the main `PageEditorView` uses. The bottom-right Lock glyph toggles `isLocked`.
   - **Inspector:** `.inspector(isPresented:)` bound to a separate inspector-toggle `@State` (NOT `.constant(true)`, NOT coupled to the lock), hosting **`FrontmatterInspector(page:vault:index:…)` reused verbatim** — it already provides the full property editor (per-type rows via the now-`Properties/`-resident `PropertyEditorRow`, tier rows, debounced save). `index:` = `contentManager.indexUpdater?.index`; `relationDisplay:` from the env `ContextDisplayResolver`. The Figma inspector spec (3-context menufield with the middle row aligned to the header separator, `.quaternaryLabel` fill; separate properties menufield) is a **visual/layout pass over `FrontmatterInspector`'s existing Form sections** — restyle, do not rebuild.
   - **Context menu (`.contextMenu` on the body + title areas):** "Lock / Unlock" toggles `isLocked`; "Open Page" calls the open action below.
-  - **CR-2 (verified) — `MainWindowRouter` is an injected instance, NOT static.** Add `@Environment(MainWindowRouter.self) private var router`; the open action is `router.requestOpen(to: .page(page)); dismissWindow()` (`.page(PageMeta)` is a confirmed real `SidebarSelection` case — `SidebarSelection.swift:13`). Fired from the context-menu **"Open Page"** command — there is no open toolbar button.
+  - **CR-2 (verified) — `MainWindowRouter` is an injected instance, NOT static.** Add `@Environment(MainWindowRouter.self) private var router`; the open action is `router.requestOpen(to: .page(page))` then `previewStack.close(card)` (V8 — promotion always removes the card; `.page(PageMeta)` is a confirmed real `SidebarSelection` case). Fired from the context-menu **"Open Page"** command — there is no open toolbar button.
+  - **Drag + resize plumbing (V8):** card drags by its background (gesture updates the card's stored position, clamped to the host bounds; interaction calls `bringToFront`); a bottom-right grip resizes (min 475×475). Drag must not fight the editor's text selection — the swiftui-expert-skill pass decides the gesture priorities.
   - Apply the quirk-#16 XCTest guard if any launch-time restoration touches permissions.
 - [ ] **Step 6 — Delete `Window/PreviewWindow.swift`** (zero live consumers; `PagePreview` does not reuse it).
 - [ ] **Step 7 — `PageType.open_in` persistence + toggle.** **CR-7 (build-time):** verify `NexusPaths.vaultMetadataURL(forTitle:in:)` exists with that exact signature before writing `setOpenIn` — the path-helper family is confirmed present, but match the real name/shape. Add to `PageTypeManager`:
@@ -303,20 +296,22 @@ Picker("Layout", selection: Binding(
 ```
 
   Vault-scoped (shown for a vault's settings). **Note (verified):** `StorageMenuRoot` exposes `liveScope: ViewSettingsScope`, not a bare `liveVault` — extract the vault via `if case .pageType(let liveVault) = liveScope { … }` (the snippet's `liveVault` is shorthand for that). Labels `"Compact"`/`"Window"` are structural, NOT user-renameable. **No duplicate toggle in `PageTypeDetailView`** (decision #2 — single location).
-- [ ] **Step 8 — Open-routing branch** at the sidebar page-row tap (where `selection = .page(p)` is set):
+- [ ] **Step 8 (V8) — Open-routing branch** at the sidebar page-row tap (where `selection = .page(p)` is set):
 
 ```swift
 switch vault.openIn ?? .window {
-case .window:  selection = .page(p)                                   // in-pane (existing render)
-case .compact: openWindow(id: "page-preview", value: PageRef(/* page:in:vault: */))
+case .window:  selection = .page(p)                          // in-pane (existing render)
+case .compact:
+    guard !selectionShowsPage(p) else { break }              // V8 edit-conflict guard:
+    previewStack.open(p, in: vault)                          // a main-pane page never previews
 }
 ```
 
-  `SidebarDetailView`'s `.page` case stays the `.window` render.
-- [ ] **Step 9 — `ComponentLibraryView.swift`:** delete the "Item Window" `WindowLaunchRow` + `WindowStubSheet` + `showingItemWindow`; rewrite the "Page Preview" row prose + rewire to `openWindow(id: "page-preview")`. **`Properties/Chips/ItemChip.swift` → rename to `ChipLinkView` (page-native), KEEP** (Nathan's call — retain as a staged Component-Library asset, trace-free, unused for now); rename the `ItemChipShowcase` gallery section + entry to the `ChipLinkView` name rather than deleting it.
-- [ ] **Step 10 — Verify + commit.** Builder Agent green. Manual smoke (note for executor): a `.compact` vault page-tap opens `PagePreview` **locked/read-only**; the bottom-right Lock toggles editability and edits live-save; right-click → "Open Page" routes to the detail pane + dismisses; the inspector toggle shows/hides independently; a `.window` vault renders in-pane. `grep` confirms no `"item-window"` literal survives. Commit: `feat(pages): PagePreview window + vault open-in toggle; remove Item Window scene`.
+  `SidebarDetailView`'s `.page` case stays the `.window` render. The guard + promotion-closes-card together make the dual-editor state unreachable (V8 ruling: "this would not be possible").
+- [ ] **Step 9 (V8, shrunk) — `ComponentLibraryView.swift`:** the "Item Window" launcher died in P3 and `ItemChip` already became the `ChipLink` design file in P2.5 — what remains: rewrite the "Page Preview" row prose + rewire it to open a sample preview card via `previewStack`.
+- [ ] **Step 10 — Verify + commit.** Builder Agent green. Manual smoke (note for executor): a `.compact` vault page-tap opens a `PagePreview` card **locked/read-only**; the card drags within the window and a second page opens a second card (cascade); the bottom-right Lock toggles editability and edits live-save; right-click → "Open Page" routes to the detail pane + removes the card; the inspector toggle shows/hides independently; a `.window` vault renders in-pane; tapping a page already shown in the main pane opens NO card. Commit: `feat(pages): PagePreview card + vault open-in toggle`.
 
-**Green gate:** build + test green; open-in routing works both ways; no `item-window` scene id.
+**Green gate:** build + test green; open-in routing works both ways; the edit-conflict guard holds; no window/scene machinery for previews.
 
 ---
 
