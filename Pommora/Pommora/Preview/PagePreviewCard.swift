@@ -65,7 +65,10 @@ struct PagePreviewCard: View {
     /// Lock glyph and the context menu toggle it.
     @State private var isLocked = true
     /// Inspector pane toggle — independent of the lock; widens the card.
-    @State private var inspectorShown = false
+    /// Defaults OPEN (Nathan's ratified model: "the inspector defaults to
+    /// open" is what replaced pinned properties — transcript reconciliation,
+    /// 2026-06-10).
+    @State private var inspectorShown = true
 
     @State private var titleDraft = ""
     @FocusState private var titleFocused: Bool
@@ -141,10 +144,9 @@ struct PagePreviewCard: View {
 
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
-            // Figma V8 leading glyph reads as a rounded square with a small
-            // centered inner square — closest system match is `square.inset.filled`.
-            // Still the close action (NEEDS_CONTEXT: confirm intended glyph).
-            capsuleControl("square.inset.filled", help: "Close Preview") { closeCard() }
+            // Nathan's ruling (2026-06-10): the close capsule uses ✕ — the
+            // frame's square glyph was a placeholder, not the intended symbol.
+            capsuleControl("xmark", help: "Close Preview") { closeCard() }
 
             HStack(spacing: PUI.Spacing.sm) {
                 iconAffordance
@@ -257,6 +259,23 @@ struct PagePreviewCard: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: PUI.Spacing.md)
+            // Transcript reconciliation (2026-06-10): unlocking REVEALS the
+            // Open affordance — "clicking an 'unlock' button reveals an
+            // 'open' button". Locked → only the lock shows (matches the
+            // frame, which depicts the locked state).
+            if !isLocked {
+                Button {
+                    openInMainPane()
+                } label: {
+                    Text("Open")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Open in the main pane")
+                .transition(.opacity)
+            }
             Button {
                 toggleLock()
             } label: {
@@ -270,6 +289,7 @@ struct PagePreviewCard: View {
             .help(isLocked ? "Unlock for editing" : "Lock (read-only)")
             .accessibilityLabel(isLocked ? "Unlock" : "Lock")
         }
+        .animation(.smooth(duration: 0.2), value: isLocked)
     }
 
     /// Non-navigable context path ("Vault › Collection").
