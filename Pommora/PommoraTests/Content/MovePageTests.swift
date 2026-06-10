@@ -243,17 +243,15 @@ struct MovePageTests {
         #expect(manager.pagesByCollection[collB.id]?.count == 1)
     }
 
-    // MARK: - Cross-Type move carries the `Class: page` stamp (Task 7)
+    // MARK: - Cross-Type move strips schema, keeps foreign keys (Task 7 / PagesV2)
 
-    /// Symmetric to the Item-side cross-Type stamp test: a Page→Page move across
-    /// Page Types must re-stamp `Class: page` on the destination `.md` (kind never
-    /// flips on a move), strip the Type-scoped schema property the destination Type
-    /// does not share, and carry any foreign frontmatter key through.
+    /// A Page→Page move across Page Types must strip the Type-scoped schema
+    /// property the destination Type does not share, and carry any foreign
+    /// frontmatter key through.
     ///
-    /// `Class` is a modeled root key (not inside `properties`), so the schema strip
-    /// leaves it untouched and `PageFrontmatter.encode` re-emits it through the
-    /// preserving codec. Goes red if a future change re-stamped kind on a move or
-    /// dropped the unconditional `Class` encode.
+    /// PagesV2: `Class` is RETIRED as a modeled key — an on-disk `Class` entry
+    /// is now plain foreign frontmatter, preserved BY VALUE like any other
+    /// non-modeled key. The raw-text assert below pins that carry-through.
     @Test func moveAcrossTypesCarriesClassStampStripsSchemaKeepsForeign() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -308,14 +306,12 @@ struct MovePageTests {
         #expect(FileManager.default.fileExists(atPath: dstURL.path))
 
         let loadedDst = try PageFile.load(from: dstURL)
-        // `Class: page` survives (kind does not flip on a move).
-        #expect(loadedDst.frontmatter.kind == .page)
-        // Schema property dropped, foreign key + body preserved.
+        // Schema property dropped, foreign keys + body preserved.
         #expect(loadedDst.frontmatter.properties["prop_a"] == nil)
         #expect(loadedDst.body == "the carried body")
         let after = try String(contentsOf: dstURL, encoding: .utf8)
-        // The decoder above defaults a MISSING `Class` to `.page`, so it can't
-        // catch a physically-dropped stamp. Assert the raw on-disk text directly.
+        // The legacy on-disk `Class` key is foreign frontmatter now (PagesV2) —
+        // it must survive the move BY VALUE, exactly like `plugin_color`.
         #expect(after.contains("Class: page"))
         #expect(after.contains("plugin_color"))
     }

@@ -1,22 +1,14 @@
 import Foundation
 
-/// YAML frontmatter for `.md` Page files. Mirrors Item shape minus `description`
-/// (Pages put long-form text in the body) plus `created_at` (Items have it; Pages
-/// gain it for parity per Handoff "Known Spec Gaps").
+/// YAML frontmatter for `.md` Page files (long-form text lives in the body).
 ///
-/// Per L6: `modifiedAt` (`modified_at`) ships at v0.3.0 for parity with Items
-/// and to power the spec's "Last Edited Time" virtual property + the per-Type
-/// default sort. Legacy decode (Pages without the field) yields `nil` —
-/// `PageContentManager.load` backfills from the file's mtime + the next save
-/// writes the now-present field through.
+/// Per L6: `modifiedAt` (`modified_at`) ships at v0.3.0 to power the spec's
+/// "Last Edited Time" virtual property + the per-Type default sort. Legacy
+/// decode (Pages without the field) yields `nil` — `PageContentManager.load`
+/// backfills from the file's mtime + the next save writes the now-present
+/// field through.
 struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var id: String
-    /// Reserved, UI-hidden on-disk stamp (frontmatter key `Class`) marking this
-    /// file as the Page form of the entity. Every typed Page save emits it
-    /// unconditionally; decode is lenient (missing OR unknown value → `.page`).
-    /// Non-authoritative — the folder sidecar is the authority and the launch
-    /// stamp pass self-heals a drifted value.
-    var kind: KindStamp
     var icon: String?
     var tier1: [String]
     var tier2: [String]
@@ -37,7 +29,6 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, icon, tier1, tier2, tier3, properties
-        case kind = "Class"
         case createdAt = "created_at"
         case modifiedAt = "modified_at"
         case foldedHeadings = "folded_headings"
@@ -56,11 +47,9 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         properties: [String: PropertyValue],
         createdAt: Date,
         modifiedAt: Date? = nil,
-        foldedHeadings: [String]? = nil,
-        kind: KindStamp = .page
+        foldedHeadings: [String]? = nil
     ) {
         self.id = id
-        self.kind = kind
         self.icon = icon
         self.tier1 = tier1
         self.tier2 = tier2
@@ -77,9 +66,6 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         // becoming "". Pages without an id were a 2026-05-15 transitional state
         // that's now an error.
         self.id = try c.decode(String.self, forKey: .id)
-        // Lenient `Class` decode (defaults to `.page` on missing/unknown) — see
-        // `KeyedDecodingContainer.decodeKind`.
-        self.kind = try c.decodeKind(forKey: .kind, default: .page)
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.tier1 = try c.decodeIfPresent([String].self, forKey: .tier1) ?? []
         self.tier2 = try c.decodeIfPresent([String].self, forKey: .tier2) ?? []
@@ -93,8 +79,6 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
-        // Unconditional — every typed Page save stamps `Class: page`.
-        try c.encode(kind, forKey: .kind)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(tier1, forKey: .tier1)
         try c.encode(tier2, forKey: .tier2)

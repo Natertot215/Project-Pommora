@@ -3,10 +3,9 @@
 //  PommoraTests
 //
 //  Regression coverage for Task 5 (Phase A — v0.3.1): loadAll on
-//  PageTypeManager + ItemTypeManager mints a default Table view for any
-//  Type or Collection whose `views` array is empty. Mirrors the
-//  LoadAllIndexSyncTests pattern (quirk #15) — same defensive-on-load
-//  contract.
+//  PageTypeManager mints a default Table view for any Type or Collection
+//  whose `views` array is empty. Mirrors the LoadAllIndexSyncTests pattern
+//  (quirk #15) — same defensive-on-load contract.
 //
 
 import Foundation
@@ -134,80 +133,6 @@ struct DefaultViewMigrationTests {
 
         // Persisted, not just in-memory.
         let reloaded = try PageCollection.load(from: collSidecar)
-        #expect(reloaded.views.count == 1)
-    }
-
-    // MARK: - ItemType + ItemCollection
-
-    @Test func itemTypeWithoutViewsGetsDefaultTableView() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        let typeID = ULID.generate()
-        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Books")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let itemType = ItemType(
-            id: typeID,
-            title: "Books",
-            icon: nil,
-            properties: [PropertyDefinition(id: "prop_01HISBN", name: "ISBN", type: .number)],
-            views: [],
-            modifiedAt: Date()
-        )
-        let sidecarURL = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-        try itemType.save(to: sidecarURL)
-
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        let loaded = try #require(manager.types.first)
-        #expect(loaded.views.count == 1)
-        #expect(loaded.views[0].type == .table)
-        #expect(loaded.views[0].visibleProperties == ["prop_01HISBN"])
-
-        let reloaded = try ItemType.load(from: sidecarURL)
-        #expect(reloaded.views.count == 1)
-    }
-
-    @Test func itemCollectionWithoutViewsGetsDefaultTableView() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        let typeID = ULID.generate()
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Films")
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        let itemType = ItemType(
-            id: typeID,
-            title: "Films",
-            icon: nil,
-            properties: [PropertyDefinition(id: "prop_01HDIR", name: "Director", type: .multiSelect)],
-            views: [],
-            modifiedAt: Date()
-        )
-        try itemType.save(to: typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-
-        let collID = ULID.generate()
-        let collFolder = typeFolder.appendingPathComponent("Watchlist", isDirectory: true)
-        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collection = ItemCollection(
-            id: collID,
-            typeID: typeID,
-            title: "Watchlist",
-            folderURL: collFolder,
-            modifiedAt: Date()
-        )
-        let collSidecar = collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-        try collection.save(to: collSidecar)
-
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        let loadedColl = try #require(manager.itemCollectionsByType[typeID]?.first)
-        #expect(loadedColl.views.count == 1)
-        #expect(loadedColl.views[0].type == .table)
-        #expect(loadedColl.views[0].visibleProperties == ["prop_01HDIR"])
-
-        let reloaded = try ItemCollection.load(from: collSidecar)
         #expect(reloaded.views.count == 1)
     }
 

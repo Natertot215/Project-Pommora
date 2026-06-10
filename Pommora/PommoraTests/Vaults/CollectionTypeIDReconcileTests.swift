@@ -4,17 +4,15 @@
 //
 //  RED baseline (failing until the fix lands).
 //
-//  Bug pinned: a PageCollection / ItemCollection lives in a sub-folder inside
-//  its parent Type folder and carries a `type_id` in its sidecar. After a Type
-//  (vault) re-adoption the Type can mint a NEW `id`, while the collection's
-//  stored `type_id` keeps pointing at the OLD (now-vanished) Type id — so
-//  property / schema resolution finds nothing (empty "Edit Properties" pane).
+//  Bug pinned: a PageCollection lives in a sub-folder inside its parent Type
+//  folder and carries a `type_id` in its sidecar. After a Type (vault)
+//  re-adoption the Type can mint a NEW `id`, while the collection's stored
+//  `type_id` keeps pointing at the OLD (now-vanished) Type id — so property /
+//  schema resolution finds nothing (empty "Edit Properties" pane).
 //
-//  Intended fix (NOT yet implemented): PageTypeManager.loadAll() and
-//  ItemTypeManager.loadAll() must reconcile each collection's `type_id` to its
-//  CONTAINING Type's `id` (the folder is authoritative) — both IN MEMORY and by
-//  re-saving the sidecar to disk. These tests assert that reconcile and will
-//  FAIL until loadAll learns to do it.
+//  Fix under test: PageTypeManager.loadAll() must reconcile each collection's
+//  `type_id` to its CONTAINING Type's `id` (the folder is authoritative) —
+//  both IN MEMORY and by re-saving the sidecar to disk.
 //
 
 import Foundation
@@ -125,90 +123,4 @@ struct CollectionTypeIDReconcileTests {
         #expect(reloaded.typeID == vaultID)
     }
 
-    // MARK: - Item side (symmetric)
-
-    /// Items-side mirror: an ItemType folder whose `_itemtype.json` id = V,
-    /// containing an ItemCollection sub-folder whose `_itemcollection.json`
-    /// `type_id` is a DIFFERENT, wrong ULID. After loadAll the ItemCollection's
-    /// `typeID` must become V both in memory and on disk.
-    @Test func itemCollectionTypeIDReconcilesToContainingType() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        let typeID = ULID.generate()
-        let wrongTypeID = ULID.generate()
-        #expect(wrongTypeID != typeID)
-
-        let typeName = "Re-adopted Type"
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: typeName)
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        let itemType = ItemType(
-            id: typeID, title: typeName, icon: nil, properties: [], views: [], modifiedAt: Date()
-        )
-        try itemType.save(to: typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-
-        let collName = "Drifted Set"
-        let collFolder = typeFolder.appendingPathComponent(collName, isDirectory: true)
-        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collMetaURL = collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-        let drifted = ItemCollection(
-            id: ULID.generate(),
-            typeID: wrongTypeID,  // <- points at the vanished old type id
-            title: collName,
-            folderURL: collFolder,
-            modifiedAt: Date()
-        )
-        try drifted.save(to: collMetaURL)
-
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        let loadedType = try #require(manager.types.first(where: { $0.title == typeName }))
-        #expect(loadedType.id == typeID)
-
-        // (a) IN MEMORY.
-        let loadedColl = manager.itemCollections(in: loadedType).first
-        #expect(loadedColl?.typeID == typeID)
-
-        // (b) ON DISK.
-        let reloaded = try ItemCollection.load(from: collMetaURL)
-        #expect(reloaded.typeID == typeID)
-    }
-
-    /// Control / idempotence (Item side): a collection already pointing at V
-    /// stays == V.
-    @Test func itemCollectionAlreadyCorrectStaysCorrect() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        let typeID = ULID.generate()
-        let typeName = "Stable Type"
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: typeName)
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        let itemType = ItemType(
-            id: typeID, title: typeName, icon: nil, properties: [], views: [], modifiedAt: Date()
-        )
-        try itemType.save(to: typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-
-        let collName = "Correct Set"
-        let collFolder = typeFolder.appendingPathComponent(collName, isDirectory: true)
-        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collMetaURL = collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-        let correct = ItemCollection(
-            id: ULID.generate(),
-            typeID: typeID,  // already correct
-            title: collName,
-            folderURL: collFolder,
-            modifiedAt: Date()
-        )
-        try correct.save(to: collMetaURL)
-
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        let loadedType = try #require(manager.types.first(where: { $0.title == typeName }))
-        #expect(manager.itemCollections(in: loadedType).first?.typeID == typeID)
-        let reloaded = try ItemCollection.load(from: collMetaURL)
-        #expect(reloaded.typeID == typeID)
-    }
 }

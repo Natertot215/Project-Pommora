@@ -5,10 +5,6 @@ import GRDB
 @testable import Pommora
 
 /// Pages-side CRUD tests for PageContentManager (PageCollection-scoped).
-///
-/// ParadigmV2 (Task 5.5 + 5.6): ContentManager was split into PageContentManager
-/// (Pages) and ItemContentManager (Items). Item-side tests live in
-/// `PommoraTests/Items/ItemContentManagerTests.swift`.
 @MainActor
 @Suite("PageContentManager")
 struct PageContentManagerTests {

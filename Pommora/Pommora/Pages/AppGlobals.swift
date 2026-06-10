@@ -20,9 +20,7 @@ enum AppGlobals {
     // MARK: - Manager refs (populated by ContentView at construct time)
 
     static var contentManager: PageContentManager?
-    static var itemContentManager: ItemContentManager?
     static var pageTypeManager: PageTypeManager?
-    static var itemTypeManager: ItemTypeManager?
     static var spaceManager: SpaceManager?
     static var topicManager: TopicManager?
     static var recentsManager: RecentsManager?
@@ -30,8 +28,8 @@ enum AppGlobals {
     static var mainWindowRouter: MainWindowRouter?
 
     /// The live per-Nexus environment, for sibling scenes/popovers that aren't
-    /// descendants of the injectNexusEnvironment-modified main scene (Item Window
-    /// scene T4.3, Templates popover T5.1). They inject this via injectNexusEnvironment.
+    /// descendants of the injectNexusEnvironment-modified main scene (Templates
+    /// popover T5.1). They inject this via injectNexusEnvironment.
     static var current: NexusEnvironment?
 
     /// Publishes every cross-scene manager ref in one call. Single source for the
@@ -40,9 +38,7 @@ enum AppGlobals {
     /// Called once per Nexus from `NexusEnvironment.init`.
     static func publish(
         contentManager: PageContentManager,
-        itemContentManager: ItemContentManager,
         pageTypeManager: PageTypeManager,
-        itemTypeManager: ItemTypeManager,
         spaceManager: SpaceManager,
         topicManager: TopicManager,
         recentsManager: RecentsManager,
@@ -50,24 +46,13 @@ enum AppGlobals {
         mainWindowRouter: MainWindowRouter
     ) {
         self.contentManager = contentManager
-        self.itemContentManager = itemContentManager
         self.pageTypeManager = pageTypeManager
-        self.itemTypeManager = itemTypeManager
         self.spaceManager = spaceManager
         self.topicManager = topicManager
         self.recentsManager = recentsManager
         self.pinnedManager = pinnedManager
         self.mainWindowRouter = mainWindowRouter
     }
-
-    // MARK: - Item Window bridge
-
-    /// Registered by `SidebarDetailView` on appear. Calling this closure resolves
-    /// the Item's owning Type + parent Set and calls `openWindow(value: ItemRef)`
-    /// to open it in its floating Item Window scene
-    /// (`WindowGroup(for: ItemRef.self)`). Also consumed by `BackForwardButtons`
-    /// when stepping back/forward lands on an Item.
-    static var presentItemAction: ((Item) -> Void)?
 
     // MARK: - Editor VM registry
 

@@ -32,21 +32,9 @@ private func makePageType(title: String = "Notes") -> PageType {
     )
 }
 
-private func makeItemType(title: String = "Tasks") -> ItemType {
-    ItemType(
-        id: ULID.generate(), title: title, icon: nil,
-        properties: [], views: [], modifiedAt: Date()
-    )
-}
-
 private func makePageCollection(typeID: String, title: String = "Archive") -> PageCollection {
     let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
     return PageCollection(id: ULID.generate(), typeID: typeID, title: title, folderURL: folderURL, modifiedAt: Date())
-}
-
-private func makeItemCollection(typeID: String, title: String = "Backlog") -> ItemCollection {
-    let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
-    return ItemCollection(id: ULID.generate(), typeID: typeID, title: title, folderURL: folderURL, modifiedAt: Date())
 }
 
 private func makeAgendaTask(title: String = "Buy milk") -> AgendaTask {
@@ -77,16 +65,6 @@ private func makeAgendaEvent(title: String = "Team meeting") -> AgendaEvent {
         tier1: [], tier2: [], tier3: [],
         createdAt: now, modifiedAt: now,
         properties: [:]
-    )
-}
-
-private func makeItem(title: String = "Widget") -> Item {
-    let now = Date()
-    return Item(
-        id: ULID.generate(), title: title, icon: nil, description: "",
-        tier1: [], tier2: [], tier3: [],
-        properties: [:],
-        createdAt: now, modifiedAt: now
     )
 }
 
@@ -172,35 +150,6 @@ struct IndexUpdaterTests {
         try updater.deletePageCollection(id: pc.id)
 
         let count = try countRows(in: "page_collections", db: idx)
-        #expect(count == 0)
-    }
-
-    // MARK: - ItemType
-
-    @Test func createItemTypeIndexesARow() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
-        let updater = IndexUpdater(idx)
-
-        let it = makeItemType()
-        try updater.upsertItemType(it)
-
-        let count = try countRows(in: "item_types", db: idx)
-        #expect(count == 1)
-    }
-
-    @Test func deleteItemTypeRemovesRow() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
-        let updater = IndexUpdater(idx)
-
-        let it = makeItemType()
-        try updater.upsertItemType(it)
-        try updater.deleteItemType(id: it.id)
-
-        let count = try countRows(in: "item_types", db: idx)
         #expect(count == 0)
     }
 
@@ -358,27 +307,6 @@ struct IndexUpdaterTests {
 
         let count = try countRows(in: "property_definitions", db: idx)
         #expect(count == 0)
-    }
-
-    // MARK: - Item upsert with relation extraction
-
-    @Test func upsertItemIndexesItemRow() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
-        let updater = IndexUpdater(idx)
-
-        let it = makeItemType()
-        try updater.upsertItemType(it)
-
-        let item = makeItem()
-        try updater.upsertItem(item, itemTypeID: it.id, itemCollectionID: nil)
-
-        let count = try countRows(in: "items", db: idx)
-        #expect(count == 1)
-        let row = try firstRow(in: "items", db: idx)
-        #expect(row?["title"] as String? == "Widget")
-        #expect(row?["item_type_id"] as String? == it.id)
     }
 
     // MARK: - Page upsert with tier-relation extraction

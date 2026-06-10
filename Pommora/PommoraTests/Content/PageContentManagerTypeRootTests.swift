@@ -7,10 +7,9 @@ import Testing
 /// PageCollection sub-folder). Mirrors PageContentManagerTests but uses the
 /// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` accessors.
 ///
-/// ParadigmV2 (Task 5.5 + 5.6): Item-side tests live in
-/// `PommoraTests/Items/ItemContentManagerTests.swift`. The legacy "VaultRoot"
-/// filename mirrors `pagesByTypeRoot` storage; the suite header keeps the
-/// "vault-root" label since the on-disk concept is still "the PageType root."
+/// The legacy "VaultRoot" filename mirrors `pagesByTypeRoot` storage; the
+/// suite header keeps the "vault-root" label since the on-disk concept is
+/// still "the PageType root."
 @MainActor
 @Suite("PageContentManager type-root")
 struct PageContentManagerTypeRootTests {

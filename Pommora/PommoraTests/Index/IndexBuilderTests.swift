@@ -11,9 +11,11 @@ struct IndexBuilderTests {
     // MARK: - Fixture setup
 
     /// Builds a small nexus with 1 PageType "Notes" + 1 PageCollection "Inbox"
-    /// + 2 Pages, and 1 ItemType "Tasks" + 2 Items. The item side exists to
-    /// prove `populate` IGNORES on-disk item entities (PagesV2 — items are no
-    /// longer indexed; their tables survive empty until the P7 schema bump).
+    /// + 2 Pages, and 1 LEGACY item-side folder "Tasks" (raw `_itemtype.json`
+    /// sidecar + 2 member `.md` files, written byte-for-byte — the Item types
+    /// are deleted). The legacy folder exists to prove `populate` IGNORES
+    /// on-disk item entities (PagesV2 — items are no longer indexed; their
+    /// tables survive empty until the P7 schema bump).
     private func setup() async throws -> (Nexus, PommoraIndex) {
         let nexus = try TempNexus.make()
 
@@ -44,30 +46,29 @@ struct IndexBuilderTests {
         try AtomicYAMLMarkdown.write(frontmatter: fm1, body: "", to: page1URL)
         try AtomicYAMLMarkdown.write(frontmatter: fm2, body: "", to: page2URL)
 
-        let itemTypeManager = ItemTypeManager(nexus: nexus)
-        await itemTypeManager.loadAll()
-        try await itemTypeManager.createItemType(name: "Tasks", icon: nil)
-        let it = itemTypeManager.types.first!
-        let itFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Tasks")
-
-        // Write 2 Items directly to disk.
-        let item1 = Item(
-            id: ULID.generate(), title: "Item One", icon: nil,
-            description: "", tier1: [], tier2: [], tier3: [],
-            properties: [:],
-            createdAt: now, modifiedAt: now
-        )
-        let item2 = Item(
-            id: ULID.generate(), title: "Item Two", icon: nil,
-            description: "", tier1: [], tier2: [], tier3: [],
-            properties: [:],
-            createdAt: now, modifiedAt: now
-        )
-        let item1URL = NexusPaths.itemFileURL(forTitle: "Item One", in: itFolder)
-        let item2URL = NexusPaths.itemFileURL(forTitle: "Item Two", in: itFolder)
-        try item1.save(to: item1URL)
-        try item2.save(to: item2URL)
-        _ = it  // suppress unused-variable warning
+        // Lay down a legacy item-side folder by hand: an `_itemtype.json`
+        // sidecar + 2 member `.md` files. No `_pagetype.json` → populate must
+        // skip the whole folder.
+        let itFolder = nexus.rootURL.appendingPathComponent("Tasks", isDirectory: true)
+        try FileManager.default.createDirectory(at: itFolder, withIntermediateDirectories: true)
+        let itemTypeJSON = """
+            {"id":"\(ULID.generate())","modified_at":"2026-06-01T00:00:00Z","properties":[],"views":[]}
+            """
+        try Data(itemTypeJSON.utf8).write(to: itFolder.appendingPathComponent("_itemtype.json"))
+        for title in ["Item One", "Item Two"] {
+            let md = """
+                ---
+                id: \(ULID.generate())
+                Class: item
+                tier1: []
+                tier2: []
+                tier3: []
+                properties: {}
+                created_at: 2026-06-01T00:00:00Z
+                ---
+                """
+            try Data(md.utf8).write(to: itFolder.appendingPathComponent("\(title).md"))
+        }
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         return (nexus, idx)
@@ -227,17 +228,27 @@ struct IndexBuilderTests {
 
         try await IndexBuilder.populate(index: idx, from: nexus)
 
-        // The fixture wrote 1 ItemType + 2 Items to disk; populate must index
-        // NONE of them (PagesV2 — the item tables stay empty until P7 drops them).
+        // The fixture wrote a legacy item folder (sidecar + 2 member files);
+        // populate must index NONE of it (PagesV2 — the item tables stay empty
+        // until P7 drops them).
         let itemTypeCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types") ?? -1
         }
-        #expect(itemTypeCount == 0, "IndexBuilder re-indexed an on-disk ItemType")
+        #expect(itemTypeCount == 0, "IndexBuilder re-indexed an on-disk legacy ItemType sidecar")
 
         let itemCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM items") ?? -1
         }
-        #expect(itemCount == 0, "IndexBuilder re-indexed on-disk Items")
+        #expect(itemCount == 0, "IndexBuilder re-indexed on-disk legacy items")
+
+        // The legacy members must not leak into the pages table either —
+        // a folder without `_pagetype.json` is skipped wholesale.
+        let leakedPages = try await idx.dbQueue.read { db in
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM pages WHERE title IN ('Item One', 'Item Two')"
+            ) ?? -1
+        }
+        #expect(leakedPages == 0, "legacy item member files leaked into the pages table")
     }
 
     @Test func populateTwiceIsIdempotent() async throws {

@@ -6,24 +6,22 @@
 //  four input shapes, and prepares an AdoptionPlan describing the writes /
 //  renames / moves needed to land the on-disk layout in the v0.3.0 flat shape:
 //
-//      <nexus>/<TypeFolder>/_pagetype.json (or _itemtype.json / _taskconfig.json
+//      <nexus>/<TypeFolder>/_pagetype.json (or _taskconfig.json
 //                                            / _eventconfig.json)
 //      <nexus>/<TypeFolder>/<CollectionFolder>/_pagecollection.json
-//                                                (or _itemcollection.json)
 //
 //  Shape classifier (per locked decision #7):
 //    1. Fresh             — no recognized sidecar; content-sniff always picks
-//                           Pages (Item Types require an `_itemtype.json`
-//                           sidecar, caught by the already-flat path above).
+//                           Pages.
 //    2. Legacy v0.2       — folder carries `_vault.json` at root (pre-ParadigmV2
 //                           PageType sidecar). Sub-folders may carry
 //                           `_collection.json`. Renamed in place to per-kind
 //                           sidecars.
-//    3. paradigmV2 wrap   — folder IS named `Pages` / `Items` / `Agenda` AND
-//                           contains children that look like Types (or the
-//                           `Tasks/` / `Events/` singletons inside `Agenda/`).
+//    3. paradigmV2 wrap   — folder IS named `Pages` / `Agenda` AND contains
+//                           children that look like Types (or the `Tasks/` /
+//                           `Events/` singletons inside `Agenda/`).
 //                           Children unwrap to root + sidecars rename per depth.
-//    4. Already flat      — folder carries one of the six per-kind sidecars at
+//    4. Already flat      — folder carries one of the per-kind sidecars at
 //                           the correct depth. No-op.
 //
 //  Per locked decision #8: best-effort + log warnings. Pathological folders
@@ -35,14 +33,12 @@
 
 import Foundation
 
-/// One of the six per-kind sidecar filenames the flat layout recognizes.
+/// One of the per-kind sidecar filenames the flat layout recognizes.
 /// Lives at the top of this file so the shape classifier + apply paths share
 /// a single source of truth.
 enum AdoptedSidecarKind: Sendable, Equatable {
     case pageType
     case pageCollection
-    case itemType
-    case itemCollection
     case taskConfig
     case eventConfig
 
@@ -50,8 +46,6 @@ enum AdoptedSidecarKind: Sendable, Equatable {
         switch self {
         case .pageType: return NexusPaths.pageTypeSidecarFilename
         case .pageCollection: return NexusPaths.pageCollectionSidecarFilename
-        case .itemType: return NexusPaths.itemTypeSidecarFilename
-        case .itemCollection: return NexusPaths.itemCollectionSidecarFilename
         case .taskConfig: return NexusPaths.taskConfigSidecarFilename
         case .eventConfig: return NexusPaths.eventConfigSidecarFilename
         }
@@ -59,8 +53,7 @@ enum AdoptedSidecarKind: Sendable, Equatable {
 }
 
 /// A folder that has no recognized sidecar — adoption will write a fresh
-/// per-kind sidecar in place. Sidecar-less folders always adopt as Page Types
-/// (Item Types require a hand-added `_itemtype.json` sidecar).
+/// per-kind sidecar in place. Sidecar-less folders always adopt as Page Types.
 struct PlannedFreshSidecar: Equatable, Sendable, Identifiable {
     var folderURL: URL
     var kind: AdoptedSidecarKind
@@ -88,9 +81,9 @@ struct PlannedInPlaceRename: Equatable, Sendable, Identifiable {
     }
 }
 
-/// A paradigmV2 wrapper folder (`Pages` / `Items` / `Agenda`) — adoption
-/// unwraps each child to the nexus root, then rewrites the legacy `_schema.json`
-/// sidecars at each level to the appropriate per-kind name.
+/// A paradigmV2 wrapper folder (`Pages` / `Agenda`) — adoption unwraps each
+/// child to the nexus root, then rewrites the legacy `_schema.json` sidecars
+/// at each level to the appropriate per-kind name.
 struct PlannedUnwrap: Equatable, Sendable, Identifiable {
     /// The wrapper folder being dissolved (e.g. `<nexus>/Pages/`).
     var wrapperURL: URL
@@ -105,9 +98,6 @@ struct PlannedUnwrap: Equatable, Sendable, Identifiable {
         /// `<nexus>/Pages/` — children become PageTypes; their sub-folders
         /// become PageCollections.
         case pages
-        /// `<nexus>/Items/` — children become ItemTypes; sub-folders become
-        /// ItemCollections.
-        case items
         /// `<nexus>/Agenda/` — children are the singletons `Tasks/` / `Events/`.
         case agenda
     }
@@ -122,8 +112,8 @@ struct PlannedUnwrap: Equatable, Sendable, Identifiable {
         /// The per-kind sidecar that should sit at the top of the moved folder
         /// post-rename (drives Type-level sidecar rewrite).
         var typeSidecar: AdoptedSidecarKind
-        /// The per-kind sidecar for one-level-deep sub-folders (PageCollection
-        /// / ItemCollection). Nil for Agenda children (Tasks/Events have no
+        /// The per-kind sidecar for one-level-deep sub-folders
+        /// (PageCollection). Nil for Agenda children (Tasks/Events have no
         /// collection layer).
         var collectionSidecar: AdoptedSidecarKind?
 
@@ -131,7 +121,7 @@ struct PlannedUnwrap: Equatable, Sendable, Identifiable {
     }
 }
 
-/// A folder that already carries one of the six per-kind sidecars. Recorded
+/// A folder that already carries one of the per-kind sidecars. Recorded
 /// for summary purposes only — apply skips these. (Legacy-orphan cleanup may
 /// still run as a no-op pass on these folders.)
 struct PlannedAlreadyFlat: Equatable, Sendable, Identifiable {
@@ -240,8 +230,8 @@ struct AdoptionApplyResult: Equatable, Sendable {
 
 /// Folder names always excluded from sub-folder scans (build cruft + embedded
 /// repos). `Pommora` is the vendored app source / embedded repo, `worktrees`
-/// holds git worktrees — neither is user content; both must never be walked,
-/// tagged, or `Class`-stamped.
+/// holds git worktrees — neither is user content; both must never be walked
+/// or tagged.
 private let adoptionExcludedSubFolderNames: Set<String> = [
     "node_modules",
     ".trash",
@@ -267,8 +257,6 @@ private let paradigmV2UnifiedSidecarFilename = "_schema.json"
 private let recognizedFlatSidecarFilenames: Set<String> = [
     NexusPaths.pageTypeSidecarFilename,
     NexusPaths.pageCollectionSidecarFilename,
-    NexusPaths.itemTypeSidecarFilename,
-    NexusPaths.itemCollectionSidecarFilename,
     NexusPaths.taskConfigSidecarFilename,
     NexusPaths.eventConfigSidecarFilename,
 ]
@@ -358,9 +346,9 @@ enum NexusAdopter {
         // actually has wrapper-shaped children (sub-folders carrying one of
         // the pre-flat legacy sidecars: `_schema.json`, `_vault.json`, or
         // `_collection.json`). A user-created folder that happens to be named
-        // "Pages", "Items", or "Agenda" but contains regular `.md` / `.json`
-        // content must NOT trigger the destructive wrapper-unwrap path.
-        if name == "Pages" || name == "Items" || name == "Agenda" {
+        // "Pages" or "Agenda" but contains regular `.md` / `.json` content
+        // must NOT trigger the destructive wrapper-unwrap path.
+        if name == "Pages" || name == "Agenda" {
             if folderHasWrapperShapedChildren(folder) {
                 try classifyWrapperFolder(
                     folder,
@@ -433,12 +421,11 @@ enum NexusAdopter {
         }
 
         // Shape #1 — fresh. No recognized sidecar; content-sniff classifies
-        // as a Page Type (sidecar-less folders are always Pages-side; Item
-        // Types require a hand-added `_itemtype.json` sidecar, caught by the
-        // recognized-sidecar paths above). The four-shape rule absorbs every
-        // non-dotfile non-underscore top-level folder into one of the four
-        // planning lists — `skipped` exists for completeness but isn't
-        // populated under the current rules. Reserved for future shape rules.
+        // as a Page Type (sidecar-less folders always adopt as Page Types).
+        // The four-shape rule absorbs every non-dotfile non-underscore
+        // top-level folder into one of the four planning lists — `skipped`
+        // exists for completeness but isn't populated under the current
+        // rules. Reserved for future shape rules.
         _ = skipped
         freshSidecars.append(
             PlannedFreshSidecar(
@@ -447,7 +434,7 @@ enum NexusAdopter {
         )
     }
 
-    /// Classifies a paradigmV2 wrapper folder (`Pages` / `Items` / `Agenda`).
+    /// Classifies a paradigmV2 wrapper folder (`Pages` / `Agenda`).
     private static func classifyWrapperFolder(
         _ wrapper: URL,
         filter: FolderFilter = .empty,
@@ -458,7 +445,6 @@ enum NexusAdopter {
         let kind: PlannedUnwrap.WrapperKind = {
             switch name {
             case "Pages": return .pages
-            case "Items": return .items
             case "Agenda": return .agenda
             default: return .pages  // unreachable per caller's guard
             }
@@ -474,9 +460,6 @@ enum NexusAdopter {
             case .pages:
                 typeSidecar = .pageType
                 collectionSidecar = .pageCollection
-            case .items:
-                typeSidecar = .itemType
-                collectionSidecar = .itemCollection
             case .agenda:
                 // Tasks/Events sub-folders — name-discriminated since Agenda
                 // is sidecar-asymmetric. Default to Tasks for unknown names
@@ -530,8 +513,8 @@ enum NexusAdopter {
         // (orphan cleanup picks `found.first`). Tier-1 kinds (Types) precede
         // tier-2 kinds (Collections), matching the natural-parent inference rule.
         let allKinds: [AdoptedSidecarKind] = [
-            .pageType, .itemType, .taskConfig, .eventConfig,
-            .pageCollection, .itemCollection,
+            .pageType, .taskConfig, .eventConfig,
+            .pageCollection,
         ]
         for kind in allKinds {
             let url = folder.appendingPathComponent(kind.filename, isDirectory: false)
@@ -543,14 +526,8 @@ enum NexusAdopter {
     }
 
     /// The adopted kind for a sidecar-less fresh folder — always `.pageType`.
-    ///
-    /// Since Items became `.md` (Items-as-Markdown), a `.md` folder is
-    /// ambiguous: it could hold Pages OR Items, and content can only be sniffed
-    /// by file extension, not frontmatter — so it can no longer infer
-    /// Item-Type-ness. Item-Type identity now comes ONLY from the
-    /// `_itemtype.json` sidecar, checked upstream (callers early-return when a
-    /// recognized sidecar exists). A sidecar-less folder therefore always adopts
-    /// as a Page Type — no content walk needed.
+    /// Callers early-return when a recognized sidecar exists, so a sidecar-less
+    /// folder always adopts as a Page Type — no content walk needed.
     private static func contentSniff(_ folder: URL) -> AdoptedSidecarKind {
         .pageType
     }
@@ -637,8 +614,8 @@ enum NexusAdopter {
     /// Silent two-level walk that writes missing per-kind sidecars so
     /// Finder-built structure is first-class on the next launch. The launch
     /// caller runs it UNCONDITIONALLY after `runAdoptionIfNeeded` (whether the
-    /// adoption preview was shown / confirmed / declined) and BEFORE the Item
-    /// format migration.
+    /// adoption preview was shown / confirmed / declined) and BEFORE
+    /// `openIndex`.
     ///
     /// **Idempotent + silent.** No prompts, no UI; failures logged to stderr
     /// and never abort. Skips dotfile-prefixed (`.nexus/`, `.obsidian/`,
@@ -647,11 +624,8 @@ enum NexusAdopter {
     ///
     /// **Depth-aware kind selection:**
     /// - Depth 0 unknown → content-sniff via `contentSniff` → always
-    ///   `_pagetype.json` (sidecar-less folders adopt as Page Types; Item
-    ///   Types require a hand-added `_itemtype.json` sidecar, recognized
-    ///   upstream before `contentSniff` runs).
+    ///   `_pagetype.json` (sidecar-less folders adopt as Page Types).
     /// - Depth 1, parent has `_pagetype.json` → write `_pagecollection.json`.
-    /// - Depth 1, parent has `_itemtype.json` → write `_itemcollection.json`.
     /// - No deeper tier — Types + Collections are the only auto-tagged kinds.
     ///
     /// **Paradigm-shift note:** overrides the previous "non-Pommora folders
@@ -659,312 +633,41 @@ enum NexusAdopter {
     /// root without a dotfile/underscore prefix is now presumed Pommora-tagged
     /// on first launch and silently classified. This is the cost of "build
     /// via Finder" — the user has chosen this Nexus as a Pommora root.
-    ///
-    /// **Returns** whether this pass relocated ANY file to `.unsorted` (a
-    /// `Class`-disagreement, an abnormal-frontmatter file, or a stray Item-shaped
-    /// `.json` in a non-Item-Type folder). The launch caller ORs this into
-    /// `openIndex(forceRebuild:)`: a relocation moves a file by id, so a steady-
-    /// state launch (where the format migration is a no-op) would otherwise leave
-    /// a stale id-keyed index row → a phantom ContextChip + a brokenLinks miss
-    /// until the next launch's rebuild.
-    @discardableResult
     static func autoTagMissingSidecars(
         at nexusRoot: URL, filter: FolderFilter = .empty
-    ) -> Bool {
+    ) {
         let now = Date()
-        var didRelocate = false
         // Depth 0: Nexus root children
         let topLevel = (try? Filesystem.childFolders(of: nexusRoot, folderFilter: filter)) ?? []
         for folder in topLevel where !shouldSkipForAutoTag(folder) {
-            // Sweep stray Item-shaped `.json` content files out of a folder that
-            // is NOT a recognized Item Type BEFORE depth-0 tagging stamps it as a
-            // Page Type. Otherwise the stray would be orphaned: the stamp pass
-            // walks `.md` only, so a `.json` left in a Page-Type folder is never
-            // converted, indexed, or relocated. Route it to `.unsorted` instead.
-            didRelocate =
-                sweepStrayJSONItems(in: folder, nexusRoot: nexusRoot, filter: filter)
-                || didRelocate
-
             tagDepth0IfMissing(folder, now: now)
             // After depth-0 tagging, descend into this folder for depth-1
-            // and depth-2 work (even if we wrote the sidecar just now, we
-            // still want to seed Collections + Folders inside).
+            // work (even if we wrote the sidecar just now, we still want to
+            // seed Collections inside).
             walkDepth1(folder, now: now, filter: filter)
-            // Self-heal co-located legacy/orphan sidecars BEFORE the stamp pass.
-            // A depth-0 stray (e.g. an inert `_pagecollection.json` co-located
-            // with this folder's `_itemtype.json`, from an old wrapper unwrap)
-            // is non-authoritative — `cleanupOrphansAt` keeps the Type sidecar
+            // Self-heal co-located legacy/orphan sidecars. A depth-0 stray
+            // (e.g. an inert `_pagecollection.json` co-located with this
+            // folder's type sidecar, from an old wrapper unwrap) is
+            // non-authoritative — `cleanupOrphansAt` keeps the Type sidecar
             // (`recognizedSidecarsAt.first`) and deletes the rest. IndexBuilder
             // only reads `_pagecollection.json` at depth 1, so a depth-0 stray
             // is inert; legitimate depth-1 collection sidecars are the sole
-            // recognized sidecar in their own folder and are spared. Running
-            // this here leaves a de-orphaned, single-kind folder for the stamp
-            // pass to read.
+            // recognized sidecar in their own folder and are spared.
             cleanupLegacyOrphans(in: folder, fm: FileManager.default, filter: filter)
-            // LAST per-folder step. By now this folder's type sidecar exists
-            // (written above or pre-existing) and any orphan sidecar is gone, so
-            // `recognizedSidecarsAt` sees a settled single-kind set when the
-            // stamp pass reads it. Keep the stamp pass last.
-            didRelocate =
-                stampClassPass(in: folder, nexusRoot: nexusRoot, filter: filter)
-                || didRelocate
-        }
-        return didRelocate
-    }
-
-    // MARK: autoTag — stray Item-`.json` sweep (SHOULD-FIX 4)
-
-    /// Routes a loose, Item-shaped `.json` content file sitting in a folder that
-    /// is NOT a recognized Item Type (no `_itemtype.json`) to `.unsorted` — so a
-    /// Finder-built folder of `.json` Items isn't silently force-tagged as a Page
-    /// Type and orphaned (the stamp pass walks `.md` only). Conservative scope:
-    ///
-    /// - **Skipped folders:** any folder that already carries an `_itemtype.json`
-    ///   (a real Item Type — the format migration owns its `.json` members).
-    /// - **Skipped files:** sidecars (`_…`), and the multi-component-extension
-    ///   `.json` content files that belong to Agenda / Contexts
-    ///   (`*.task.json`, `*.event.json`, `*.project.json`, `*.space.json`,
-    ///   `_topic.json` — the last is already `_`-prefixed). Only a single-`.json`
-    ///   content file is a candidate.
-    /// - **Item-shape probe:** a candidate is relocated only when it decodes via
-    ///   the migration-only legacy-`.json` decoder (a real `id` + timestamps + the
-    ///   modeled shape). A foreign / non-Item `.json` stays put.
-    ///
-    /// Walks the whole subtree of a non-Item-Type top-level folder (`.unsorted` /
-    /// `.`/`_`-prefixed folders are already skipped by `descendantFiles`), so a
-    /// stray nested in a collection-like sub-folder is caught too. Item Types
-    /// carry their `.json` members through the format migration, not here. Returns
-    /// whether anything was relocated.
-    private static func sweepStrayJSONItems(
-        in folder: URL, nexusRoot: URL, filter: FolderFilter = .empty
-    ) -> Bool {
-        // A folder with an `_itemtype.json` is a real Item Type — its `.json`
-        // members are the format migration's job, never relocated here.
-        let itemSidecar = folder.appendingPathComponent(
-            NexusPaths.itemTypeSidecarFilename, isDirectory: false)
-        guard !Filesystem.fileExists(at: itemSidecar) else { return false }
-
-        let candidates =
-            (try? Filesystem.descendantFiles(
-                of: folder, folderFilter: filter
-            ) { isStrayItemJSONCandidate($0) }) ?? []
-        var didRelocate = false
-        for file in candidates where (try? Item.decodeLegacyJSON(from: file)) != nil {
-            relocateToUnsorted(file, nexusRoot: nexusRoot)
-            didRelocate = true
-        }
-        return didRelocate
-    }
-
-    /// True for a single-`.json` content file that is neither a sidecar nor an
-    /// Agenda / Context entity (which use multi-component `.json` extensions).
-    /// `descendantFiles` already skips `_`/`.`-prefixed FOLDERS; this rejects the
-    /// `_`-prefixed sidecar FILES + the reserved double extensions, plus any
-    /// `.json` whose immediate folder is itself a nested Item Type (carries
-    /// `_itemtype.json` — its `.json` members belong to a Type, not a stray).
-    private static func isStrayItemJSONCandidate(_ url: URL) -> Bool {
-        guard url.pathExtension == "json" else { return false }
-        let name = url.lastPathComponent
-        if name.hasPrefix("_") || name.hasPrefix(".") { return false }
-        // Reject `*.task.json` / `*.event.json` / `*.project.json` /
-        // `*.space.json` — Agenda + Context entities, never Items.
-        let reservedDoubleExtensions = ["task", "event", "project", "space"]
-        let secondExtension = url.deletingPathExtension().pathExtension
-        if reservedDoubleExtensions.contains(secondExtension) { return false }
-        // A nested Item-Type sidecar in the file's own folder means these `.json`
-        // are intended Type members (not a stray) — leave them to their Type.
-        let nestedItemSidecar = url.deletingLastPathComponent()
-            .appendingPathComponent(NexusPaths.itemTypeSidecarFilename, isDirectory: false)
-        return !Filesystem.fileExists(at: nestedItemSidecar)
-    }
-
-    // MARK: autoTag — launch `Class`-stamp pass (Landmine 2)
-
-    /// Self-heals the non-authoritative `Class` frontmatter stamp on every
-    /// content file inside a Type folder so the on-disk stamp matches the
-    /// folder's authoritative kind (its `_itemtype.json` / `_pagetype.json`
-    /// sidecar). Runs once per top-level folder at the END of that folder's
-    /// auto-tag iteration — AFTER the sidecar writes and after legacy-orphan
-    /// cleanup, so `recognizedSidecarsAt` reads a settled single-kind set.
-    ///
-    /// **Folder kind** = `recognizedSidecarsAt(folder).first`, mapped to a
-    /// `KindStamp`: `.pageType → .page`, `.itemType → .item`. Folders whose
-    /// authoritative sidecar is neither (Collections, Agenda configs, or no
-    /// sidecar at all — e.g. a Metrics folder that has an `_itemtype.json` but
-    /// no `.md` content) contribute no stamp work via this guard or via having
-    /// no content files.
-    ///
-    /// **Per content file** (`.md`, non-hidden — `descendantFiles` already
-    /// skips dot/underscore-prefixed folders, `node_modules`, and `.unsorted`):
-    /// - `Class` absent → `setStampKey` (value-preserving single key).
-    /// - `Class` present and == folder kind → leave untouched (idempotence).
-    /// - `Class` present and != folder kind → `moveToUnsorted` (disagreement;
-    ///   the file is homeless in this folder).
-    /// - non-mapping frontmatter root → `setStampKey` throws
-    ///   `nonMappingFrontmatter`, caught → `moveToUnsorted` (abnormal file,
-    ///   never clobbered).
-    ///
-    /// One write/move max per file. Idempotent — a second launch re-reads
-    /// stamped files, finds agreement, and makes no further change.
-    /// **Silent** — failures logged to stderr (DEBUG) and never abort.
-    ///
-    /// Returns whether ANY file was relocated to `.unsorted` (so the launch
-    /// caller can force a same-launch index rebuild — a relocated file's stale
-    /// id-keyed row must reconcile away this launch, not next).
-    @discardableResult
-    private static func stampClassPass(
-        in folder: URL, nexusRoot: URL, filter: FolderFilter = .empty
-    ) -> Bool {
-        // Folder kind from the authoritative sidecar. Only Page/Item Types
-        // carry stampable content; everything else is a no-op.
-        guard let firstKind = recognizedSidecarsAt(folder).first else { return false }
-        let folderStamp: KindStamp
-        switch firstKind {
-        case .pageType: folderStamp = .page
-        case .itemType: folderStamp = .item
-        case .pageCollection, .itemCollection, .taskConfig, .eventConfig:
-            return false
-        }
-
-        let contentFiles =
-            (try? Filesystem.descendantFiles(
-                of: folder, folderFilter: filter
-            ) { $0.pathExtension == "md" }) ?? []
-        var didRelocate = false
-        for file in contentFiles {
-            didRelocate =
-                stampOneFile(file, folderStamp: folderStamp, nexusRoot: nexusRoot)
-                || didRelocate
-        }
-        return didRelocate
-    }
-
-    /// Applies the per-file decision table to a single content file. Reads +
-    /// composes the frontmatter ONCE and feeds the same composed state into both
-    /// the `Class` classification and the absent-path stamp write (no second
-    /// read). One write or one move at most; idempotent on agreement. Returns
-    /// whether the file was relocated to `.unsorted`.
-    @discardableResult
-    private static func stampOneFile(
-        _ file: URL, folderStamp: KindStamp, nexusRoot: URL
-    ) -> Bool {
-        // A read/split failure (e.g. malformed envelope) classifies as absent and
-        // falls into the absent path, where the no-token `setStampKey` re-reads
-        // and surfaces the same error — caught + logged below (no write, no
-        // relocate), matching the prior `try?`-swallow behavior.
-        let composed = try? AtomicYAMLMarkdown.readComposedFrontmatter(at: file)
-
-        switch classifyStamp(composed) {
-        case .none:
-            // `Class` absent → stamp the folder's kind, value-preserving. Pass the
-            // already-composed token when we have one so the file isn't re-read.
-            do {
-                if let composed {
-                    try AtomicYAMLMarkdown.setStampKey(
-                        at: file, value: folderStamp.rawValue, composed: composed)
-                } else {
-                    try AtomicYAMLMarkdown.setStampKey(at: file, value: folderStamp.rawValue)
-                }
-            } catch AtomicYAMLMarkdownError.nonMappingFrontmatter {
-                // Frontmatter root is a bare sequence/scalar — never clobber it.
-                return relocateToUnsorted(file, nexusRoot: nexusRoot)
-            } catch {
-                #if DEBUG
-                FileHandle.standardError.write(
-                    Data(
-                        "stampClassPass setStampKey failed at \(file.path): \(error)\n".utf8
-                    ))
-                #endif
-            }
-            return false
-        case .recognized(let present):
-            if present == folderStamp {
-                // Agrees — leave it. No write (idempotence).
-                return false
-            }
-            // Recognized but different kind — homeless here.
-            return relocateToUnsorted(file, nexusRoot: nexusRoot)
-        case .unrecognized:
-            // Present-but-foreign value — a disagreement; route to `.unsorted`.
-            return relocateToUnsorted(file, nexusRoot: nexusRoot)
-        }
-    }
-
-    /// Classifies the `Class` frontmatter value from an already-composed
-    /// frontmatter token, mirroring how `setStampKey` resolves the mapping.
-    /// Returns:
-    /// - `nil` when there is no frontmatter, the frontmatter isn't a mapping, or
-    ///   the mapping carries no `Class` key (the "absent → stamp" path). A
-    ///   `Class:` key whose value is null (`Class:` / `Class: ~`) reads back as a
-    ///   `nil` scalar, so it too takes the absent path and the file is stamped
-    ///   with the folder kind — distinct from `.unrecognized`, a present-but-
-    ///   foreign value (including an empty string `Class: ""`) that routes the
-    ///   file to `.unsorted`;
-    /// - `.recognized(.page/.item)` when `Class` holds that recognized value;
-    /// - `.unrecognized` when `Class` is present but holds a non-empty foreign
-    ///   value — a disagreement that routes the file to `.unsorted`, never
-    ///   silently re-stamped.
-    ///
-    /// A `nil` token (the read/split failed) classifies as `.none` (absent),
-    /// matching the prior `try?`-swallow on the read.
-    ///
-    /// No typed decode — foreign files need not satisfy `PageFrontmatter` /
-    /// `ItemFrontmatter`.
-    private static func classifyStamp(
-        _ composed: AtomicYAMLMarkdown.ComposedFrontmatter?
-    ) -> ClassStampRead? {
-        guard let composed,
-            let value = AtomicYAMLMarkdown.frontmatterScalar(in: composed, forKey: "Class")
-        else {
-            return nil
-        }
-        if let stamp = KindStamp(rawValue: value) { return .recognized(stamp) }
-        // A present-but-unrecognized Class value is a disagreement, not absence.
-        return .unrecognized
-    }
-
-    /// Lenient `Class`-read outcome for a present stamp (the read returns nil when
-    /// `Class` is absent). `.recognized` carries the parsed `KindStamp`;
-    /// `.unrecognized` represents a present-but-foreign value that should route to
-    /// `.unsorted` (never silently re-stamped).
-    private enum ClassStampRead: Equatable {
-        case recognized(KindStamp)
-        case unrecognized
-    }
-
-    /// Defensive `moveToUnsorted` wrapper. The source is always in-nexus here
-    /// (it came from `descendantFiles(of:)` rooted at a folder under
-    /// `nexusRoot`), so `sourceNotInNexus` shouldn't fire — but wrap it in its
-    /// own `do/catch` so a relocation failure never aborts the launch pass.
-    /// Returns `true` only when the file was actually relocated.
-    @discardableResult
-    private static func relocateToUnsorted(_ file: URL, nexusRoot: URL) -> Bool {
-        do {
-            try Filesystem.moveToUnsorted(file, nexusRoot: nexusRoot)
-            return true
-        } catch {
-            #if DEBUG
-            FileHandle.standardError.write(
-                Data(
-                    "stampClassPass moveToUnsorted failed at \(file.path): \(error)\n".utf8
-                ))
-            #endif
-            return false
         }
     }
 
     // MARK: autoTag — depth helpers
 
-    /// Writes `_pagetype.json` or `_itemtype.json` if the folder has no
-    /// recognized sidecar yet. Existing legacy sidecars are NOT touched
-    /// here — the regular adoption path handles those.
+    /// Writes `_pagetype.json` if the folder has no recognized sidecar yet.
+    /// Existing legacy sidecars are NOT touched here — the regular adoption
+    /// path handles those.
     private static func tagDepth0IfMissing(_ folder: URL, now: Date) {
         let existing = recognizedSidecarsAt(folder)
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
-        let kind = contentSniff(folder)  // always .pageType (sidecar-less → Page Type)
         do {
-            try writeAutoTagTypeSidecar(at: folder, kind: kind, title: title, now: now)
+            try writeAutoTagTypeSidecar(at: folder, title: title, now: now)
         } catch {
             #if DEBUG
             FileHandle.standardError.write(
@@ -976,34 +679,28 @@ enum NexusAdopter {
     }
 
     /// Walks the Collections inside `typeFolder` and writes missing
-    /// `_pagecollection.json` / `_itemcollection.json` sidecars (kind
-    /// dictated by parent). Two tiers only — Pages + Items both stop at
-    /// the Collection level.
+    /// `_pagecollection.json` sidecars. Two tiers only — auto-tagging stops
+    /// at the Collection level.
     private static func walkDepth1(_ typeFolder: URL, now: Date, filter: FolderFilter = .empty) {
-        // Re-read parent kind after depth-0 write — the type sidecar should
+        // Re-read parent id after depth-0 write — the type sidecar should
         // now exist (or have existed before this run).
-        guard let parent = loadTypeParent(at: typeFolder) else { return }
+        guard let typeID = loadTypeParentID(at: typeFolder) else { return }
         let children = (try? Filesystem.childFolders(of: typeFolder, folderFilter: filter)) ?? []
         for child in children where !shouldSkipForAutoTag(child) {
-            tagDepth1IfMissing(child, parent: parent, now: now)
+            tagDepth1IfMissing(child, typeID: typeID, now: now)
         }
     }
 
-    /// Writes `_pagecollection.json` or `_itemcollection.json` if the folder
-    /// has no recognized sidecar. Kind is dictated by `parent.kind`.
+    /// Writes `_pagecollection.json` if the folder has no recognized sidecar.
     private static func tagDepth1IfMissing(
-        _ folder: URL, parent: AutoTagTypeParent, now: Date
+        _ folder: URL, typeID: String, now: Date
     ) {
         let existing = recognizedSidecarsAt(folder)
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
-        let kind: AdoptedSidecarKind =
-            parent.kind == .pageType
-            ? .pageCollection : .itemCollection
         do {
             try writeAutoTagCollectionSidecar(
-                at: folder, kind: kind, title: title,
-                typeID: parent.id, now: now
+                at: folder, title: title, typeID: typeID, now: now
             )
         } catch {
             #if DEBUG
@@ -1017,98 +714,51 @@ enum NexusAdopter {
 
     // MARK: autoTag — sidecar writers (silent)
 
-    /// Loaded parent identity used for depth-1 kind selection + FK threading.
-    private struct AutoTagTypeParent: Sendable, Equatable {
-        let id: String
-        let kind: AdoptedSidecarKind  // .pageType or .itemType
-    }
-
-    /// Reads the parent type sidecar (Pages or Items) to extract the id used
-    /// as FK on freshly-tagged child sidecars. Returns nil if neither type
-    /// sidecar exists or decoding fails (silent — failures don't abort).
-    private static func loadTypeParent(at folder: URL) -> AutoTagTypeParent? {
+    /// Reads the parent `_pagetype.json` sidecar to extract the id used as FK
+    /// on freshly-tagged child sidecars. Returns nil if the type sidecar
+    /// doesn't exist or decoding fails (silent — failures don't abort).
+    private static func loadTypeParentID(at folder: URL) -> String? {
         let ptURL = folder.appendingPathComponent(
             NexusPaths.pageTypeSidecarFilename, isDirectory: false
         )
-        if Filesystem.fileExists(at: ptURL),
+        guard Filesystem.fileExists(at: ptURL),
             let pt = try? PageType.load(from: ptURL)
-        {
-            return AutoTagTypeParent(id: pt.id, kind: .pageType)
-        }
-        let itURL = folder.appendingPathComponent(
-            NexusPaths.itemTypeSidecarFilename, isDirectory: false
-        )
-        if Filesystem.fileExists(at: itURL),
-            let it = try? ItemType.load(from: itURL)
-        {
-            return AutoTagTypeParent(id: it.id, kind: .itemType)
-        }
-        return nil
+        else { return nil }
+        return pt.id
     }
 
     private static func writeAutoTagTypeSidecar(
-        at folder: URL, kind: AdoptedSidecarKind, title: String, now: Date
+        at folder: URL, title: String, now: Date
     ) throws {
-        let metaURL = folder.appendingPathComponent(kind.filename, isDirectory: false)
-        switch kind {
-        case .pageType:
-            try Filesystem.writeMetadataIntoExistingFolder(
-                metadataURL: metaURL,
-                metadata: PageType(
-                    id: ULID.generate(), title: title, icon: nil,
-                    properties: [], views: [], modifiedAt: now
-                )
+        let metaURL = folder.appendingPathComponent(
+            NexusPaths.pageTypeSidecarFilename, isDirectory: false)
+        try Filesystem.writeMetadataIntoExistingFolder(
+            metadataURL: metaURL,
+            metadata: PageType(
+                id: ULID.generate(), title: title, icon: nil,
+                properties: [], views: [], modifiedAt: now
             )
-        case .itemType:
-            try Filesystem.writeMetadataIntoExistingFolder(
-                metadataURL: metaURL,
-                metadata: ItemType(
-                    id: ULID.generate(), title: title, icon: nil,
-                    properties: [], views: [], modifiedAt: now
-                )
-            )
-        default:
-            // Defensive — depth-0 kind selection only routes Pages/Items
-            // Types. Other kinds at depth 0 require explicit type-creation
-            // flow inside the app.
-            return
-        }
+        )
     }
 
     private static func writeAutoTagCollectionSidecar(
         at folder: URL,
-        kind: AdoptedSidecarKind,
         title: String,
         typeID: String,
         now: Date
     ) throws {
-        let metaURL = folder.appendingPathComponent(kind.filename, isDirectory: false)
-        switch kind {
-        case .pageCollection:
-            try Filesystem.writeMetadataIntoExistingFolder(
-                metadataURL: metaURL,
-                metadata: PageCollection(
-                    id: ULID.generate(),
-                    typeID: typeID,
-                    title: title,
-                    folderURL: folder,
-                    modifiedAt: now
-                )
+        let metaURL = folder.appendingPathComponent(
+            NexusPaths.pageCollectionSidecarFilename, isDirectory: false)
+        try Filesystem.writeMetadataIntoExistingFolder(
+            metadataURL: metaURL,
+            metadata: PageCollection(
+                id: ULID.generate(),
+                typeID: typeID,
+                title: title,
+                folderURL: folder,
+                modifiedAt: now
             )
-        case .itemCollection:
-            try Filesystem.writeMetadataIntoExistingFolder(
-                metadataURL: metaURL,
-                metadata: ItemCollection(
-                    id: ULID.generate(),
-                    typeID: typeID,
-                    title: title,
-                    folderURL: folder,
-                    modifiedAt: now
-                )
-            )
-        default:
-            return
-        }
+        )
     }
 
     /// Auto-tag exclusion rule: skip dotfile-prefixed, underscore-prefixed,
@@ -1143,18 +793,6 @@ enum NexusAdopter {
                     modifiedAt: now
                 )
             )
-        case .itemType:
-            try Filesystem.writeMetadataIntoExistingFolder(
-                metadataURL: metaURL,
-                metadata: ItemType(
-                    id: ULID.generate(),
-                    title: fresh.title,
-                    icon: nil,
-                    properties: [],
-                    views: [],
-                    modifiedAt: now
-                )
-            )
         case .taskConfig:
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaTaskSchema.defaultSeed()
@@ -1163,13 +801,13 @@ enum NexusAdopter {
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
             )
-        case .pageCollection, .itemCollection:
-            // Fresh PageCollection / ItemCollection writes are not initiated by
-            // the LEGACY adopter for top-level folders — those land via
-            // type-creation flow inside the app, or via the silent
-            // `autoTagMissingSidecars` pass below for Finder-built folders.
-            // If we somehow get here through the scan/apply path, no-op.
-            // (Defensive — classifyFolder routes Types only into freshSidecars.)
+        case .pageCollection:
+            // Fresh PageCollection writes are not initiated by the LEGACY
+            // adopter for top-level folders — those land via type-creation
+            // flow inside the app, or via the silent `autoTagMissingSidecars`
+            // pass below for Finder-built folders. If we somehow get here
+            // through the scan/apply path, no-op. (Defensive — classifyFolder
+            // routes Types only into freshSidecars.)
             break
         }
     }
@@ -1292,11 +930,10 @@ enum NexusAdopter {
     ///    runs of the corrected logic write the right one, but the orphan
     ///    persists. Rule: only ONE per-kind sidecar is valid at a folder's
     ///    top level; the rest are orphans. "Which one is authoritative" is
-    ///    decided by `recognizedSidecarsAt`'s order (pageType > itemType >
-    ///    taskConfig > eventConfig > pageCollection > itemCollection), which
-    ///    matches the natural-parent inference (a folder at root carrying
-    ///    both is a Type, not a Collection, because Collections must live
-    ///    inside a Type).
+    ///    decided by `recognizedSidecarsAt`'s order (pageType > taskConfig >
+    ///    eventConfig > pageCollection), which matches the natural-parent
+    ///    inference (a folder at root carrying both is a Type, not a
+    ///    Collection, because Collections must live inside a Type).
     private static func cleanupLegacyOrphans(
         in folder: URL, fm: FileManager, filter: FolderFilter = .empty
     ) {
@@ -1368,8 +1005,8 @@ enum NexusAdopter {
     /// sidecar), or `_collection.json` (pre-ParadigmV2 Collection sidecar).
     ///
     /// This is the structural guard that prevents user-created folders named
-    /// "Pages", "Items", or "Agenda" from being mistakenly treated as
-    /// ParadigmV2 wrappers and having their contents destructively unwrapped.
+    /// "Pages" or "Agenda" from being mistakenly treated as ParadigmV2
+    /// wrappers and having their contents destructively unwrapped.
     /// A real wrapper has children that look like Types or Agenda singletons;
     /// a user folder with ordinary `.md` / `.json` content does not.
     private static func folderHasWrapperShapedChildren(_ folder: URL) -> Bool {

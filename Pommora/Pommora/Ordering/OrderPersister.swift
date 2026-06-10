@@ -2,14 +2,12 @@ import Foundation
 
 /// Writes drag-reorder results to the appropriate sidecar JSON (v0.2.8.0).
 ///
-/// Top-level sidebar order (Spaces / Topics / Page Types / Item Types) lives on
+/// Top-level sidebar order (Spaces / Topics / Page Types) lives on
 /// `<nexus>/.nexus/state.json` — the same file PinnedManager and RecentsManager
 /// own. Per-container child order lives on each container's own per-kind
 /// sidecar:
 ///   - PageType  → `_pagetype.json`
 ///   - PageCollection → `_pagecollection.json`
-///   - ItemType → `_itemtype.json`
-///   - ItemCollection → `_itemcollection.json`
 ///   - Topic → `_topic.json`
 ///
 /// Every write is a read-modify-atomic-write round-trip: the file is
@@ -35,12 +33,6 @@ enum OrderPersister {
     static func setVaultOrder(_ order: [String], in nexus: Nexus) throws {
         try mutateNexusState(in: nexus) { state in
             state.vaultOrder = order.isEmpty ? nil : order
-        }
-    }
-
-    static func setItemTypeOrder(_ order: [String], in nexus: Nexus) throws {
-        try mutateNexusState(in: nexus) { state in
-            state.itemTypeOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -70,28 +62,6 @@ enum OrderPersister {
     static func setPageOrder(_ order: [String], inVault pageType: PageType, nexus: Nexus) throws {
         try mutatePageType(pageType, nexus: nexus) { t in
             t.pageOrder = order.isEmpty ? nil : order
-        }
-    }
-
-    // MARK: - ItemCollection order / Item order (_itemtype.json + _itemcollection.json)
-
-    static func setItemCollectionOrder(
-        _ order: [String], in itemType: ItemType, nexus: Nexus
-    ) throws {
-        try mutateItemType(itemType, nexus: nexus) { t in
-            t.collectionOrder = order.isEmpty ? nil : order
-        }
-    }
-
-    static func setItemOrder(_ order: [String], in collection: ItemCollection) throws {
-        try mutateItemCollection(collection) { c in
-            c.itemOrder = order.isEmpty ? nil : order
-        }
-    }
-
-    static func setItemOrder(_ order: [String], inType itemType: ItemType, nexus: Nexus) throws {
-        try mutateItemType(itemType, nexus: nexus) { t in
-            t.itemOrder = order.isEmpty ? nil : order
         }
     }
 
@@ -127,19 +97,6 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    private static func mutateItemType(
-        _ itemType: ItemType,
-        nexus: Nexus,
-        _ mutate: (inout ItemType) -> Void
-    ) throws {
-        let url = NexusPaths.itemTypeMetadataURL(
-            in: nexus.rootURL, typeFolderName: itemType.title
-        )
-        var updated = try ItemType.load(from: url)
-        mutate(&updated)
-        try updated.save(to: url)
-    }
-
     private static func mutatePageCollection(
         _ collection: PageCollection,
         _ mutate: (inout PageCollection) -> Void
@@ -150,13 +107,4 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    private static func mutateItemCollection(
-        _ collection: ItemCollection,
-        _ mutate: (inout ItemCollection) -> Void
-    ) throws {
-        let url = collection.folderURL.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-        var updated = try ItemCollection.load(from: url)
-        mutate(&updated)
-        try updated.save(to: url)
-    }
 }

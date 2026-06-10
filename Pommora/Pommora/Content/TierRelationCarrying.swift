@@ -2,8 +2,8 @@ import Foundation
 
 /// One source of truth for the relation read/write routing shared by every
 /// entity that carries the three built-in tier relations at its root plus
-/// arbitrary user relations inside `properties`: `Item`, `ItemFrontmatter`,
-/// `PageFrontmatter`, `AgendaTask`, `AgendaEvent`.
+/// arbitrary user relations inside `properties`: `PageFrontmatter`,
+/// `AgendaTask`, `AgendaEvent`.
 ///
 /// The default implementations route the three pre-configured tier properties
 /// (`tier1` / `tier2` / `tier3`) to their dedicated root fields and any other

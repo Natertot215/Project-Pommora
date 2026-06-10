@@ -26,8 +26,8 @@ final class AgendaTaskManager {
         /// Tasks singleton already holds the desired title (case-insensitive).
         /// Two same-titled Tasks resolve to the same `.task.json` path, so the
         /// second write would silently clobber the first — reject instead
-        /// (locked: no auto-rename, no overwrite). Mirrors `PageCRUDError` /
-        /// `ItemCRUDError.duplicateTitle`.
+        /// (locked: no auto-rename, no overwrite). Mirrors
+        /// `PageCRUDError.duplicateTitle`.
         case duplicateTitle
 
         var errorDescription: String? {

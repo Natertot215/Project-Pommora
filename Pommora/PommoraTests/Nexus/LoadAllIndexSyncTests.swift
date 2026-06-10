@@ -6,9 +6,9 @@
 //  executing `INSERT OR REPLACE INTO pages...`" toast that surfaced
 //  when CRUD ran against entities loaded from disk that the index DB
 //  had no record of (adoption / external-folder scenarios). loadAll
-//  on PageTypeManager + ItemTypeManager now defensively upserts every
-//  in-memory parent entity into the index so subsequent CRUD upserts
-//  always find their FK target.
+//  on PageTypeManager now defensively upserts every in-memory parent
+//  entity into the index so subsequent CRUD upserts always find their
+//  FK target.
 //
 
 import Foundation
@@ -135,47 +135,6 @@ struct LoadAllIndexSyncTests {
             frontmatter: PageFrontmatter(id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
         )
         try IndexUpdater(index).upsertPage(pageMeta, pageTypeID: vaultID, pageCollectionID: collID)
-    }
-
-    // MARK: - ItemType / ItemCollection sync
-
-    /// Same scenario for the Items side — ItemTypeManager.loadAll must
-    /// defensively upsert types + collections so item CRUD doesn't
-    /// FK-fail on `item_type_id` / `item_collection_id`.
-    @Test func itemTypeManagerLoadAllSyncsToIndex() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
-
-        // ItemType folder + sidecar on disk.
-        let typeID = ULID.generate()
-        let typeName = "Adopted Type"
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: typeName)
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        let itemType = ItemType(id: typeID, title: typeName, icon: nil, properties: [], views: [], modifiedAt: Date())
-        try itemType.save(to: typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-
-        // ItemCollection sub-folder + sidecar on disk.
-        let collID = ULID.generate()
-        let collName = "Adopted Set"
-        let collFolder = typeFolder.appendingPathComponent(collName, isDirectory: true)
-        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collection = ItemCollection(id: collID, typeID: typeID, title: collName, folderURL: collFolder, modifiedAt: Date())
-        try collection.save(to: collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
-
-        // Wire + load.
-        let manager = ItemTypeManager(nexus: nexus)
-        manager.indexUpdater = IndexUpdater(index)
-        await manager.loadAll()
-
-        // Both rows landed.
-        let counts = try await index.dbQueue.read { db -> (Int, Int) in
-            let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types WHERE id = ?", arguments: [typeID]) ?? -1
-            let c = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_collections WHERE id = ?", arguments: [collID]) ?? -1
-            return (t, c)
-        }
-        #expect(counts.0 == 1)
-        #expect(counts.1 == 1)
     }
 
     // MARK: - Idempotency

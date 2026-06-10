@@ -60,46 +60,6 @@ import Testing
         try AtomicYAMLMarkdown.write(frontmatter: fm, body: "body content\n", to: url)
     }
 
-    @discardableResult
-    private static func makeLegacyItemType(
-        in nexusRoot: URL,
-        title: String,
-        properties: [(name: String, type: PropertyType)]
-    ) throws -> URL {
-        let folder = nexusRoot.appendingPathComponent(title, isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let sidecar = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-        let propsJSON: [[String: Any]] = properties.map {
-            ["id": "", "name": $0.name, "type": $0.type.rawValue]
-        }
-        let dict: [String: Any] = [
-            "id": "01HIT\(UUID().uuidString.prefix(8))",
-            "schema_version": 0,
-            "modified_at": ISO8601DateFormatter().string(from: Date()),
-            "properties": propsJSON,
-            "views": [],
-        ]
-        let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted])
-        try data.write(to: sidecar, options: [.atomic])
-        return folder
-    }
-
-    private static func writeLegacyItem(
-        at url: URL,
-        id: String,
-        properties: [String: PropertyValue],
-        description: String = ""
-    ) throws {
-        let now = Date()
-        let item = Item(
-            id: id, title: "", icon: nil, description: description,
-            tier1: [], tier2: [], tier3: [],
-            properties: properties,
-            createdAt: now, modifiedAt: now
-        )
-        try AtomicJSON.write(item, to: url)
-    }
-
     // MARK: - PageType
 
     @Test func emptyNexusReportsNoOp() throws {
@@ -108,7 +68,6 @@ import Testing
         let report = PropertyIDMigration.runIfNeeded(at: nexus)
         #expect(report.noOp)
         #expect(report.pageTypesScanned == 0)
-        #expect(report.itemTypesScanned == 0)
     }
 
     @Test func migratesNameKeyedPageProperties() throws {
@@ -211,67 +170,6 @@ import Testing
         #expect(report.propertiesMinted == 0)
     }
 
-    // MARK: - ItemType
-
-    @Test func migratesNameKeyedItemProperties() throws {
-        let nexus = try Self.makeTempNexus()
-        defer { try? FileManager.default.removeItem(at: nexus) }
-
-        let folder = try Self.makeLegacyItemType(
-            in: nexus, title: "Bookmarks", properties: [("Stage", .select)])
-        let itemURL = folder.appendingPathComponent("Swift-evolution.json")
-        // Non-empty description: the still-JSON ② migration path must rekey
-        // properties WITHOUT dropping the body (reports-not-throws + body intact).
-        try Self.writeLegacyItem(
-            at: itemURL, id: "01HITEM1", properties: ["Stage": .select("triaged")],
-            description: "legacy item body")
-
-        let report = PropertyIDMigration.runIfNeeded(at: nexus)
-        #expect(report.itemTypesScanned == 1)
-        #expect(report.typesMigrated == 1)
-        #expect(report.propertiesMinted == 1)
-        #expect(report.memberFilesRewritten == 1)
-        #expect(report.failedTypes.isEmpty)
-
-        let it = try ItemType.load(from: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-        #expect(it.schemaVersion == 2)
-        let stageID = it.properties.first!.id
-        #expect(stageID.hasPrefix("prop_"))
-
-        // The Item is still a `.json` file (PropertyIDMigration rekeys in place;
-        // ItemFormatMigration converts it) and its body survives the rekey. Read
-        // via the migration-only decoder — the general `Item.load` is `.md`-only.
-        #expect(FileManager.default.fileExists(atPath: itemURL.path))
-        let item = try Item.decodeLegacyJSON(from: itemURL)
-        #expect(item.properties[stageID] == .select("triaged"))
-        #expect(item.properties["Stage"] == nil)
-        #expect(item.description == "legacy item body")
-    }
-
-    @Test func ignoresSidecarFilesWhenEnumeratingItems() throws {
-        // Sanity: _itemcollection.json sidecars should not be treated as Items.
-        let nexus = try Self.makeTempNexus()
-        defer { try? FileManager.default.removeItem(at: nexus) }
-
-        let typeFolder = try Self.makeLegacyItemType(
-            in: nexus, title: "Books", properties: [("Genre", .select)])
-        let collectionFolder = typeFolder.appendingPathComponent("Fiction", isDirectory: true)
-        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
-        // Write a collection sidecar — must be skipped.
-        let collection = ItemCollection(
-            id: "01HC", typeID: "01HIT", title: "Fiction",
-            folderURL: collectionFolder, modifiedAt: Date())
-        try collection.save(to: collectionFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
-
-        // No actual items — migration should still succeed (schema-only rewrite)
-        // and not blow up trying to decode the sidecar as an Item.
-        let report = PropertyIDMigration.runIfNeeded(at: nexus)
-        #expect(report.itemTypesScanned == 1)
-        #expect(report.typesMigrated == 1)
-        #expect(report.failedTypes.isEmpty)
-        #expect(report.memberFilesRewritten == 0)
-    }
-
     // MARK: - Phase C.5 scan/apply two-phase API
 
     @Test func scanEmptyNexusReturnsEmptyPlan() throws {
@@ -283,7 +181,6 @@ import Testing
         #expect(plan.totalPropertiesToMint == 0)
         #expect(plan.totalMemberFileCandidates == 0)
         #expect(plan.pageTypeMigrations.isEmpty)
-        #expect(plan.itemTypeMigrations.isEmpty)
     }
 
     @Test func scanReportsAccurateCountsBeforeApply() throws {
@@ -300,27 +197,17 @@ import Testing
             at: pageFolder.appendingPathComponent("Page-2.md"),
             id: "01HPAGE2", properties: ["Status": .select("done")])
 
-        let itemFolder = try Self.makeLegacyItemType(
-            in: nexus, title: "Bookmarks", properties: [("Stage", .select)])
-        try Self.writeLegacyItem(
-            at: itemFolder.appendingPathComponent("Book-1.json"),
-            id: "01HBOOK1", properties: ["Stage": .select("queue")])
-
         let plan = PropertyIDMigration.scan(at: nexus)
         #expect(plan.hasAnyMigration)
-        #expect(plan.totalTypes == 2)
-        #expect(plan.totalPropertiesToMint == 3)  // Status + Tags + Stage
-        #expect(plan.totalMemberFileCandidates == 3)  // 2 pages + 1 item
+        #expect(plan.totalTypes == 1)
+        #expect(plan.totalPropertiesToMint == 2)  // Status + Tags
+        #expect(plan.totalMemberFileCandidates == 2)  // 2 pages
 
         // Per-Type accuracy
         #expect(plan.pageTypeMigrations.count == 1)
         #expect(plan.pageTypeMigrations[0].propertiesToMint == 2)
         #expect(plan.pageTypeMigrations[0].memberFileCandidates == 2)
         #expect(plan.pageTypeMigrations[0].typeTitle == "Notes")
-        #expect(plan.itemTypeMigrations.count == 1)
-        #expect(plan.itemTypeMigrations[0].propertiesToMint == 1)
-        #expect(plan.itemTypeMigrations[0].memberFileCandidates == 1)
-        #expect(plan.itemTypeMigrations[0].typeTitle == "Bookmarks")
     }
 
     @Test func scanIsPureNoDiskWrites() throws {
@@ -456,13 +343,6 @@ import Testing
         #expect(pt.schemaVersion == 2)
     }
 
-    @Test func freshItemTypeIsSchemaVersion2() {
-        let it = ItemType(
-            id: "01HI", title: "X", icon: nil,
-            properties: [], views: [], modifiedAt: Date())
-        #expect(it.schemaVersion == 2)
-    }
-
     // MARK: - Orphan user-relation clearing
 
     /// A member under a MIGRATING PageType carrying an orphaned `$rel`-keyed
@@ -520,58 +400,6 @@ import Testing
 
         // Body survives.
         #expect(pf.body.contains("Body survives"), "page body must survive the rewrite")
-    }
-
-    /// Same contract for ItemType members: orphaned `$rel` value cleared,
-    /// tier arrays and body survive.
-    @Test func clearOrphanRelationValuesOnItemMemberDuringMigration() throws {
-        let nexus = try Self.makeTempNexus()
-        defer { try? FileManager.default.removeItem(at: nexus) }
-
-        let folder = try Self.makeLegacyItemType(
-            in: nexus, title: "Tasks",
-            properties: [("Stage", .select)])
-
-        // Write a legacy JSON item (pre-ItemFormatMigration) with an orphan
-        // relation value and a real tier2 root array.
-        let itemURL = folder.appendingPathComponent("Task-1.json")
-        let orphanRelKey = "prop_DEAD_REL"
-        let targetID = "01HDEADTARGET01HDEADTARGET"
-        let topicID = "01HTOPIC01HTOPIC01HTOPIC01H"
-        let now = Date()
-        let item = Item(
-            id: "01HITEM1", title: "Task", icon: nil, description: "item body",
-            tier1: [], tier2: [topicID], tier3: [],
-            properties: [
-                "Stage": .select("todo"),
-                orphanRelKey: .relation([targetID]),
-            ],
-            createdAt: now, modifiedAt: now
-        )
-        try AtomicJSON.write(item, to: itemURL)
-
-        let report = PropertyIDMigration.runIfNeeded(at: nexus)
-        #expect(report.typesMigrated == 1)
-        #expect(report.memberFilesRewritten == 1)
-        #expect(report.failedTypes.isEmpty)
-
-        // Still a .json file at this stage (ItemFormatMigration hasn't run).
-        let reloaded = try Item.decodeLegacyJSON(from: itemURL)
-
-        // Orphan relation key gone.
-        #expect(reloaded.properties[orphanRelKey] == nil, "orphaned $rel key must be cleared")
-
-        // Legit property rekeyed.
-        let it = try ItemType.load(
-            from: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename))
-        let stageID = it.properties.first(where: { $0.name == "Stage" })!.id
-        #expect(reloaded.properties[stageID] == .select("todo"), "legit property survives rekeyed")
-
-        // Root tier array survives.
-        #expect(reloaded.tier2 == [topicID], "root tier2 array must not be touched")
-
-        // Description (body) survives.
-        #expect(reloaded.description == "item body", "item description must survive")
     }
 
 }

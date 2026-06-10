@@ -21,8 +21,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
 
     // Persisted display order for direct children (v0.2.8.0). All nil until the
     // user reorders inside that container; missing entries fall through to
-    // OrderResolver's alphabetic tail. (Post-ParadigmV2 PageTypes hold only
-    // Pages, so there is no `itemOrder` field — Items live under ItemType.)
+    // OrderResolver's alphabetic tail.
     var collectionOrder: [String]?
     var pageOrder: [String]?
     /// Persisted default sort for this Page Type's list view. Nil → callers

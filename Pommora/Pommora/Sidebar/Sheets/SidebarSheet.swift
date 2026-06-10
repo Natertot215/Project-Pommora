@@ -6,10 +6,8 @@ import Foundation
 /// trigger across Pommora now creates the entity immediately with a default
 /// title (via `DefaultTitleResolver`) and flips the matching sidebar row
 /// into inline-rename mode. The retired `New*Sheet.swift` files (and their
-/// `.newSpace` / `.newTopic` / `.newProject` / `.newPageType` /
-/// `.newCollection` / `.newPage` / `.newPageInPageType` / `.newItemType` /
-/// `.newItemCollection` / `.newItem` cases) are gone. Only edit-affordance
-/// sheets remain: `editTopicParents`, `editIcon`, `editColor`.
+/// `.new*` cases) are gone. Only edit-affordance sheets remain:
+/// `editTopicParents`, `editIcon`, `editColor`.
 enum SidebarSheet: Identifiable {
     case editTopicParents(Topic)
     case editIcon(IconTarget)

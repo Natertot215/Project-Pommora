@@ -56,34 +56,4 @@ struct MemberFileStripResilienceTests {
         #expect(FileManager.default.fileExists(atPath: plainURL.path))
     }
 
-    /// The Item side (defensive symmetry with the `.md` path): deleting a property
-    /// strips member `.json` items via `ItemTypeManager.deleteProperty`'s inline
-    /// loop. A corrupt `.json` that can't decode as `Item` must be tolerated.
-    @Test func itemPropertyDeleteToleratesUndecodableMemberJSON() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-        try await manager.createItemType(name: "Books", icon: nil)
-        let books = manager.types.first { $0.title == "Books" }!
-
-        let def = PropertyDefinition(id: "", name: "Pages", type: .number)
-        try await manager.addProperty(def, to: books.id)
-        let propID = manager.types.first { $0.title == "Books" }!
-            .properties.first { $0.type == .number }!.id
-
-        // A non-underscore `.json` in the Item Type folder that is NOT a valid Item
-        // (missing required fields) — the strip loop's `decode(Item.self)` throws.
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Books")
-        let badURL = typeFolder.appendingPathComponent("Corrupt.json")
-        try "{ \"not_an_item\": true }".write(to: badURL, atomically: true, encoding: .utf8)
-
-        try await manager.deleteProperty(id: propID, in: books.id)
-
-        #expect(
-            manager.types.first { $0.title == "Books" }!
-                .properties.contains { $0.id == propID } == false)
-        #expect(FileManager.default.fileExists(atPath: badURL.path))
-    }
 }

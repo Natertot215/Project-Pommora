@@ -43,36 +43,6 @@ struct AttachmentCascadeTests {
         #expect(FileManager.default.fileExists(atPath: trashAttachments.path))
     }
 
-    // MARK: - Item (collection-scoped)
-
-    @Test("deleteItem cascades attachments folder to trash")
-    func deleteItemCascadesAttachments() async throws {
-        let (nexus, itemType, coll, manager) = try await setupItem()
-        defer { TempNexus.cleanup(nexus) }
-
-        // Create an item.
-        let created = try await manager.createItem(name: "MyItem", in: coll, type: itemType)
-
-        // Seed attachments folder.
-        let attachDir = NexusPaths.attachmentsDir(for: created.id, in: nexus.rootURL)
-        try FileManager.default.createDirectory(at: attachDir, withIntermediateDirectories: true)
-        let dummyFile = attachDir.appendingPathComponent("photo.png")
-        try Data([0x89, 0x50]).write(to: dummyFile)
-        #expect(FileManager.default.fileExists(atPath: attachDir.path))
-
-        // Delete the item.
-        try await manager.deleteItem(created, in: coll)
-
-        // Attachments folder gone from original location.
-        #expect(!FileManager.default.fileExists(atPath: attachDir.path))
-
-        // Present in trash.
-        let trashRoot = NexusPaths.trashDir(in: nexus)
-        let trashAttachments = trashRoot
-            .appendingPathComponent(".nexus/attachments/\(created.id)")
-        #expect(FileManager.default.fileExists(atPath: trashAttachments.path))
-    }
-
     // MARK: - AgendaTask
 
     @Test("deleteTask cascades attachments folder to trash")
@@ -183,31 +153,5 @@ struct AttachmentCascadeTests {
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         return (nexus, vault, coll, manager)
-    }
-
-    private func setupItem() async throws -> (Nexus, ItemType, ItemCollection, ItemContentManager) {
-        let nexus = try TempNexus.make()
-        let itemType = ItemType(
-            id: ULID.generate(), title: "T", icon: nil,
-            properties: [], views: [], modifiedAt: Date())
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
-
-        let collFolder = NexusPaths.itemCollectionFolderURL(
-            in: nexus.rootURL, typeFolderName: "T", collectionFolderName: "C"
-        )
-        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = ItemCollection(
-            id: ULID.generate(),
-            typeID: itemType.id,
-            title: "C",
-            folderURL: collFolder,
-            modifiedAt: Date()
-        )
-        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename))
-
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, itemType, coll, manager)
     }
 }

@@ -10,7 +10,6 @@ import Testing
 /// Finder-built structure (Types + Collections) is first-class without any
 /// user-facing prompt. These tests cover:
 ///   - Two-tier round-trip (Type / Collection auto-tagged)
-///   - Items-side stops at two tiers
 ///   - Idempotence (second pass produces identical disk state)
 ///   - Exclusion rules (dotfile + underscore prefixes left alone)
 @MainActor
@@ -59,60 +58,6 @@ struct NexusAdopterAutoTagTests {
                 atPath: collFolder.appendingPathComponent("paper.md").path
             )
         )
-    }
-
-    // MARK: - Items side stops at two tiers
-
-    @Test("Items side auto-tags Set + stops at two tiers when Type sidecar is present")
-    func itemsSideTwoTiersOnly() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        // Hand-built: Books/Reading/Q2/buy-milk.md — with an `_itemtype.json`
-        // sidecar at depth 0. Items-as-Markdown change: Item-Type identity now
-        // comes ONLY from the sidecar — content-sniffing a sidecar-less folder
-        // always yields a Page Type. So to exercise the Items-side two-tier
-        // auto-tag rule we declare the Type explicitly via its sidecar; the
-        // auto-tagger then derives the Set (depth 1) from the parent kind and
-        // stops there (no third tier). Pre-Task-4 the Type was inferred from
-        // `.json` content with no sidecar.
-        let typeFolder = nexus.rootURL.appendingPathComponent("Books", isDirectory: true)
-        let collFolder = typeFolder.appendingPathComponent("Reading", isDirectory: true)
-        let deepFolder = collFolder.appendingPathComponent("Q2", isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: deepFolder, withIntermediateDirectories: true
-        )
-        // Declare the Item Type via its sidecar (the new sole source of
-        // Item-Type identity).
-        try FixtureFiles.writeJSON(
-            #"{"id":"01HABCITEMTYPE","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-        )
-        try FixtureFiles.write(
-            "Buy milk\n", to: deepFolder.appendingPathComponent("buy-milk.md")
-        )
-
-        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
-
-        // ItemType sidecar at depth 0 is preserved (auto-tag never overwrites
-        // an existing recognized sidecar).
-        let itMeta = typeFolder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
-        #expect(FileManager.default.fileExists(atPath: itMeta.path))
-        let it = try ItemType.load(from: itMeta)
-        #expect(it.id == "01HABCITEMTYPE")
-
-        // ItemCollection sidecar at depth 1 — derived from the parent's
-        // declared ItemType kind, NOT from content inference.
-        let icMeta = collFolder.appendingPathComponent(
-            NexusPaths.itemCollectionSidecarFilename
-        )
-        #expect(FileManager.default.fileExists(atPath: icMeta.path))
-
-        // No sidecar inside the depth-2 folder — Items side has no third
-        // tier (and Pages-side third-tier auto-tagging was removed).
-        let depth2ItemColl = deepFolder.appendingPathComponent(
-            NexusPaths.itemCollectionSidecarFilename
-        )
-        #expect(!FileManager.default.fileExists(atPath: depth2ItemColl.path))
     }
 
     // MARK: - Idempotence

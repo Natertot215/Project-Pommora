@@ -22,7 +22,6 @@ struct NexusState: Codable, Equatable, Sendable {
     var spaceOrder: [String]?
     var topicOrder: [String]?
     var vaultOrder: [String]?
-    var itemTypeOrder: [String]?
 
     init() {}
 
@@ -35,7 +34,6 @@ struct NexusState: Codable, Equatable, Sendable {
         case spaceOrder = "space_order"
         case topicOrder = "topic_order"
         case vaultOrder = "vault_order"
-        case itemTypeOrder = "item_type_order"
     }
 
     init(from decoder: any Decoder) throws {
@@ -50,7 +48,6 @@ struct NexusState: Codable, Equatable, Sendable {
         self.spaceOrder = try c.decodeIfPresent([String].self, forKey: .spaceOrder)
         self.topicOrder = try c.decodeIfPresent([String].self, forKey: .topicOrder)
         self.vaultOrder = try c.decodeIfPresent([String].self, forKey: .vaultOrder)
-        self.itemTypeOrder = try c.decodeIfPresent([String].self, forKey: .itemTypeOrder)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -62,6 +59,5 @@ struct NexusState: Codable, Equatable, Sendable {
         try c.encodeIfPresent(spaceOrder, forKey: .spaceOrder)
         try c.encodeIfPresent(topicOrder, forKey: .topicOrder)
         try c.encodeIfPresent(vaultOrder, forKey: .vaultOrder)
-        try c.encodeIfPresent(itemTypeOrder, forKey: .itemTypeOrder)
     }
 }

@@ -41,13 +41,6 @@ struct TierRelationsEmitTests {
         )
     }
 
-    private func makeItemType(title: String = "Tasks") -> ItemType {
-        ItemType(
-            id: ULID.generate(), title: title, icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-    }
-
     private func makeAgendaTask(
         title: String = "Buy milk",
         tier1: [String] = [],
@@ -120,35 +113,37 @@ struct TierRelationsEmitTests {
         #expect(targetKind == RelationTargetKind.string(from: .contextTier(1)))
     }
 
-    // MARK: - IndexUpdater (incremental) — Item across tiers 2 & 3
+    // MARK: - IndexUpdater (incremental) — Page across tiers 2 & 3
 
-    @Test func upsertItemEmitsTier2AndTier3RelationRows() async throws {
+    @Test func upsertPageEmitsTier2AndTier3RelationRows() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try makeIndex(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let it = makeItemType()
-        try updater.upsertItemType(it)
+        let pt = makePageType(title: "Tasks")
+        try updater.upsertPageType(pt)
 
         let topicID = ULID.generate()
         let projectID = ULID.generate()
-        let now = Date()
-        let item = Item(
-            id: ULID.generate(), title: "Widget", icon: nil, description: "",
+        let pageID = ULID.generate()
+        let url = URL(fileURLWithPath: "/tmp/\(pageID).md")
+        let frontmatter = PageFrontmatter(
+            id: pageID, icon: nil,
             tier1: [], tier2: [topicID], tier3: [projectID],
             properties: [:],
-            createdAt: now, modifiedAt: now
+            createdAt: Date()
         )
-        try updater.upsertItem(item, itemTypeID: it.id, itemCollectionID: nil)
+        let meta = PageMeta(id: pageID, title: "Widget", url: url, frontmatter: frontmatter)
+        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
 
         #expect(try tierRelationCount(targetID: topicID, propertyID: ReservedPropertyID.tier2, db: idx) == 1)
         #expect(try tierRelationCount(targetID: projectID, propertyID: ReservedPropertyID.tier3, db: idx) == 1)
 
         let incomingTopic = try await IndexQuery(idx).incomingContextLinks(targetID: topicID)
-        #expect(incomingTopic.contains { $0.id == item.id })
+        #expect(incomingTopic.contains { $0.id == pageID })
         let incomingProject = try await IndexQuery(idx).incomingContextLinks(targetID: projectID)
-        #expect(incomingProject.contains { $0.id == item.id })
+        #expect(incomingProject.contains { $0.id == pageID })
     }
 
     // MARK: - IndexUpdater (incremental) — AgendaTask tier1

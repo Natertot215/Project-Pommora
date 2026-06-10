@@ -1,7 +1,7 @@
 import Foundation
 
 /// One-shot migration that rewrites pre-v0.3.0 name-keyed property values to
-/// ID-keyed values across every PageType + ItemType in a Nexus.
+/// ID-keyed values across every PageType in a Nexus.
 ///
 /// Two-phase API:
 ///   - `scan(at:) -> Plan` — pure: walks the nexus, mints `prop_<ulid>` IDs
@@ -21,11 +21,8 @@ import Foundation
 /// 1. Mints `prop_<ulid>` IDs for every property whose `id` is empty.
 /// 2. Bumps `schemaVersion` to `currentTypeSchemaVersion` (2).
 /// 3. Builds a name → id map covering every property (existing IDs + minted).
-/// 4. Walks every member file under that Type:
-///    - PageType: `.md` files (Pages) in the Type root + every Page
-///      Collection sub-folder.
-///    - ItemType: `.json` files (Items) similarly. Excludes sidecar files
-///      (`_itemcollection.json`).
+/// 4. Walks every member file under that Type: `.md` files (Pages) in the
+///    Type root + every Page Collection sub-folder.
 /// 5. Per member, rekeys the `properties` block from name to id (entries
 ///    whose name isn't in the map are preserved — orphan-property cleanup
 ///    belongs to validation, not migration).
@@ -39,16 +36,16 @@ import Foundation
 /// **Idempotent:** scan returns `Plan.empty` for already-migrated nexuses.
 enum PropertyIDMigration {
 
-    /// Current on-disk **Type-sidecar** schema version (`_pagetype.json` /
-    /// `_itemtype.json`). Distinct from the index-DB
+    /// Current on-disk **Type-sidecar** schema version (`_pagetype.json`).
+    /// Distinct from the index-DB
     /// `PommoraIndex.currentSchemaVersion`. Bumped 1 → 2 for the Relations
     /// redesign: re-encoding a Type sidecar during scan already normalizes
     /// legacy JSON for free (drops a removed `allows_multiple` key, renames
     /// `relation_scope` → `relation_target`, wraps single `$rel` objects into
     /// arrays), so widening the trigger to `< 2` forces a one-time normalizing
     /// re-save of every legacy v1 sidecar. `scan` stamps this; the matching
-    /// `PageType.init` / `ItemType.init` defaults keep freshly-created Types
-    /// current so they never re-migrate.
+    /// `PageType.init` default keeps freshly-created Types current so they
+    /// never re-migrate.
     static let currentTypeSchemaVersion = 2
 
     // MARK: - Plan
@@ -57,50 +54,37 @@ enum PropertyIDMigration {
         var nexusRoot: URL
         /// Page Types that need migration (subset of `pageTypesScanned`).
         var pageTypeMigrations: [TypeMigration]
-        /// Item Types that need migration (subset of `itemTypesScanned`).
-        var itemTypeMigrations: [TypeMigration]
         /// TOTAL Page Type folders enumerated at the nexus root, including
         /// ones that turned out to need no migration. Surfaced into Report
         /// to preserve the legacy `runIfNeeded` semantic.
         var pageTypesScanned: Int
-        /// TOTAL Item Type folders enumerated at the nexus root, including
-        /// ones that turned out to need no migration.
-        var itemTypesScanned: Int
 
         var hasAnyMigration: Bool {
-            !pageTypeMigrations.isEmpty || !itemTypeMigrations.isEmpty
+            !pageTypeMigrations.isEmpty
         }
 
         var totalTypes: Int {
-            pageTypeMigrations.count + itemTypeMigrations.count
+            pageTypeMigrations.count
         }
 
         var totalPropertiesToMint: Int {
             pageTypeMigrations.reduce(0) { $0 + $1.propertiesToMint }
-                + itemTypeMigrations.reduce(0) { $0 + $1.propertiesToMint }
         }
 
         var totalMemberFileCandidates: Int {
             pageTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
-                + itemTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
         }
 
         static func empty(at root: URL) -> Plan {
             Plan(
                 nexusRoot: root,
-                pageTypeMigrations: [], itemTypeMigrations: [],
-                pageTypesScanned: 0, itemTypesScanned: 0
+                pageTypeMigrations: [],
+                pageTypesScanned: 0
             )
         }
     }
 
     struct TypeMigration: Sendable, Equatable {
-        enum Kind: Sendable, Equatable {
-            case pageType
-            case itemType
-        }
-
-        var kind: Kind
         var typeFolderURL: URL
         var typeTitle: String  // folder name; for preview display
         var sidecarURL: URL
@@ -109,9 +93,9 @@ enum PropertyIDMigration {
         /// during scan. Surfaced in preview as "X new property IDs."
         var propertiesToMint: Int
 
-        /// Count of `.md` (PageType) or `.json` (ItemType) files found in the
-        /// Type folder. An upper bound on member-file rewrites — apply may
-        /// skip files whose `properties` keys are already ID-keyed.
+        /// Count of `.md` files found in the Type folder. An upper bound on
+        /// member-file rewrites — apply may skip files whose `properties`
+        /// keys are already ID-keyed.
         var memberFileCandidates: Int
 
         /// Name → ID map for every property in the schema (existing IDs +
@@ -128,7 +112,6 @@ enum PropertyIDMigration {
 
     struct Report: Sendable, Equatable {
         var pageTypesScanned: Int
-        var itemTypesScanned: Int
         var typesMigrated: Int
         var propertiesMinted: Int
         var memberFilesRewritten: Int
@@ -138,7 +121,7 @@ enum PropertyIDMigration {
         var noOp: Bool { !didAnyWork && failedTypes.isEmpty }
 
         static let empty = Report(
-            pageTypesScanned: 0, itemTypesScanned: 0,
+            pageTypesScanned: 0,
             typesMigrated: 0, propertiesMinted: 0,
             memberFilesRewritten: 0, failedTypes: []
         )
@@ -152,29 +135,20 @@ enum PropertyIDMigration {
     // MARK: - Entry points
 
     /// Pure scan — computes a Plan covering every Type that needs migration.
-    /// No disk writes; safe to call repeatedly. The Plan also carries
-    /// `pageTypesScanned` / `itemTypesScanned` totals (including Types that
-    /// didn't need migration) so the post-apply Report preserves the legacy
-    /// "scanned" semantic.
+    /// No disk writes; safe to call repeatedly. The Plan also carries the
+    /// `pageTypesScanned` total (including Types that didn't need migration)
+    /// so the post-apply Report preserves the legacy "scanned" semantic.
     static func scan(at nexusRoot: URL) -> Plan {
         var pageTypeMigrations: [TypeMigration] = []
-        var itemTypeMigrations: [TypeMigration] = []
         var pageTypesScanned = 0
-        var itemTypesScanned = 0
 
         for folder in Filesystem.rootTypeFolders(at: nexusRoot) {
             let pageSidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-            let itemSidecar = folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
 
             if FileManager.default.fileExists(atPath: pageSidecar.path) {
                 pageTypesScanned += 1
                 if let m = scanPageType(at: folder, sidecarURL: pageSidecar) {
                     pageTypeMigrations.append(m)
-                }
-            } else if FileManager.default.fileExists(atPath: itemSidecar.path) {
-                itemTypesScanned += 1
-                if let m = scanItemType(at: folder, sidecarURL: itemSidecar) {
-                    itemTypeMigrations.append(m)
                 }
             }
         }
@@ -182,9 +156,7 @@ enum PropertyIDMigration {
         return Plan(
             nexusRoot: nexusRoot,
             pageTypeMigrations: pageTypeMigrations,
-            itemTypeMigrations: itemTypeMigrations,
-            pageTypesScanned: pageTypesScanned,
-            itemTypesScanned: itemTypesScanned
+            pageTypesScanned: pageTypesScanned
         )
     }
 
@@ -195,13 +167,9 @@ enum PropertyIDMigration {
     static func apply(_ plan: Plan) -> Report {
         var report = Report.empty
         report.pageTypesScanned = plan.pageTypesScanned
-        report.itemTypesScanned = plan.itemTypesScanned
 
         for migration in plan.pageTypeMigrations {
             applyPageType(migration, into: &report)
-        }
-        for migration in plan.itemTypeMigrations {
-            applyItemType(migration, into: &report)
         }
         return report
     }
@@ -228,32 +196,6 @@ enum PropertyIDMigration {
 
         let candidateCount = enumeratePageMembers(in: folder).count
         return TypeMigration(
-            kind: .pageType,
-            typeFolderURL: folder,
-            typeTitle: folder.lastPathComponent,
-            sidecarURL: sidecarURL,
-            propertiesToMint: mintResult.minted,
-            memberFileCandidates: candidateCount,
-            nameToID: mintResult.nameToID,
-            updatedSchemaJSON: encoded
-        )
-    }
-
-    private static func scanItemType(at folder: URL, sidecarURL: URL) -> TypeMigration? {
-        guard let itemType = try? ItemType.load(from: sidecarURL),
-            needsMigration(itemType)
-        else { return nil }
-
-        var mutable = itemType
-        let mintResult = mintMissingIDs(in: &mutable.properties)
-        mutable.schemaVersion = currentTypeSchemaVersion
-        mutable.modifiedAt = Date()
-
-        guard let encoded = try? AtomicJSON.encode(mutable) else { return nil }
-
-        let candidateCount = enumerateItemMembers(in: folder).count
-        return TypeMigration(
-            kind: .itemType,
             typeFolderURL: folder,
             typeTitle: folder.lastPathComponent,
             sidecarURL: sidecarURL,
@@ -307,82 +249,6 @@ enum PropertyIDMigration {
         }
     }
 
-    private static func applyItemType(_ migration: TypeMigration, into report: inout Report) {
-        let txn = SchemaTransaction()
-        txn.stage(payload: migration.updatedSchemaJSON, to: migration.sidecarURL)
-
-        let validPropIDs = Set(migration.nameToID.values)
-        var memberCount = 0
-        for itemURL in enumerateItemMembers(in: migration.typeFolderURL) {
-            do {
-                // Format-agnostic read: `.md` Items decode via the frontmatter
-                // envelope, legacy `.json` Items via the migration-only decoder.
-                // PropertyIDMigration precedes ItemFormatMigration in the launch
-                // sequence, so `.json` members can still exist here and must be
-                // re-keyed in place; ItemFormatMigration then converts them.
-                var item = try decodeItemMember(at: itemURL)
-                let didRekey = rekey(properties: &item.properties, with: migration.nameToID)
-                let didClear = clearOrphanRelationValues(&item.properties, validIDs: validPropIDs)
-                if didRekey || didClear {
-                    item.modifiedAt = Date()
-                    // Re-stage in the member's OWN format so we never write a
-                    // JSON blob into a `.md` file (or vice versa). A `.json`
-                    // member re-encodes as `.json`; a `.md` member re-encodes
-                    // through the preserving envelope so foreign frontmatter +
-                    // body survive. ItemFormatMigration retires the `.json` arm.
-                    let payload = try encodedItemMemberPayload(item, at: itemURL)
-                    txn.stage(payload: payload, to: itemURL)
-                    memberCount += 1
-                }
-            } catch {
-                report.failedTypes.append(
-                    FailedType(
-                        typeFolderURL: itemURL,
-                        message: "item rewrite skipped: \(error)"))
-            }
-        }
-
-        do {
-            try txn.commit()
-            report.typesMigrated += 1
-            report.propertiesMinted += migration.propertiesToMint
-            report.memberFilesRewritten += memberCount
-        } catch {
-            report.failedTypes.append(
-                FailedType(
-                    typeFolderURL: migration.typeFolderURL,
-                    message: "commit failed: \(error)"))
-        }
-    }
-
-    /// Reads an Item member in the on-disk format of its file. A `.md` member
-    /// decodes through the canonical `Item.load`; a legacy `.json` member decodes
-    /// through the migration-only `Item.decodeLegacyJSON`. Symmetric with
-    /// `encodedItemMemberPayload`. Required because the general `Item.load` is
-    /// `.md`-only and PropertyIDMigration can still encounter `.json` members
-    /// (it precedes ItemFormatMigration in the launch sequence).
-    private static func decodeItemMember(at url: URL) throws -> Item {
-        if url.pathExtension == "md" {
-            return try Item.load(from: url)
-        }
-        return try Item.decodeLegacyJSON(from: url)
-    }
-
-    /// Encodes a rewritten Item member in the on-disk format of its existing
-    /// file. A `.json` member round-trips through `AtomicJSON` (its native
-    /// shape); a `.md` member round-trips through the preserving YAML-envelope
-    /// codec (`preservingFrom: url`), so any foreign frontmatter key + the
-    /// Markdown body survive the property rekey. Single source for the
-    /// per-format re-stage in `applyItemType`.
-    private static func encodedItemMemberPayload(_ item: Item, at url: URL) throws -> Data {
-        if url.pathExtension == "md" {
-            return try AtomicYAMLMarkdown.encode(
-                frontmatter: item.frontmatter, body: item.description,
-                preservingFrom: url, modeledKeys: ItemFrontmatter.modeledKeys)
-        }
-        return try AtomicJSON.encode(item)
-    }
-
     // MARK: - Shared helpers
 
     /// True iff at least one property has an empty `id` OR the sidecar predates
@@ -392,11 +258,6 @@ enum PropertyIDMigration {
     private static func needsMigration(_ pt: PageType) -> Bool {
         pt.schemaVersion < currentTypeSchemaVersion
             || pt.properties.contains(where: { $0.id.isEmpty })
-    }
-
-    private static func needsMigration(_ it: ItemType) -> Bool {
-        it.schemaVersion < currentTypeSchemaVersion
-            || it.properties.contains(where: { $0.id.isEmpty })
     }
 
     private struct MintResult {
@@ -471,17 +332,6 @@ enum PropertyIDMigration {
 
     private static func enumeratePageMembers(in typeFolder: URL) -> [URL] {
         enumerateMembers(in: typeFolder, withExtensions: ["md"])
-    }
-
-    /// Item members are format-agnostic: `.md` (canonical) + legacy `.json`,
-    /// excluding per-kind sidecars (`_…`). The rekey pass reads each via
-    /// `Item.load` and re-stages in its own format. `.md` support is required so
-    /// a partially-migrated Type (some Items already `.md`) doesn't error when
-    /// PropertyIDMigration re-runs over it (clobber-② fix).
-    private static func enumerateItemMembers(in typeFolder: URL) -> [URL] {
-        enumerateMembers(in: typeFolder, withExtensions: ["json", "md"]).filter {
-            !$0.lastPathComponent.hasPrefix("_")
-        }
     }
 
     private static func enumerateMembers(

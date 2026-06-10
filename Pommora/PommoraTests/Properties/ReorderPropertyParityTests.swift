@@ -5,8 +5,9 @@ import Testing
 
 // MARK: - ReorderPropertyParity
 //
-// Characterization suite — pins current reorderProperty behaviour on all four managers
-// BEFORE the shared-service extraction. All tests run against unmodified production code.
+// Characterization suite — pins current reorderProperty behaviour on the schema-carrying
+// managers BEFORE the shared-service extraction. All tests run against unmodified
+// production code.
 //
 // Implementation note: `.indexOutOfBounds` is structurally dead code in the current
 // implementation. After the clamp `min(max(toIndex, 0), props.count - 1)`, the subsequent
@@ -78,63 +79,6 @@ struct ReorderPropertyParity {
         try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
 
         await #expect(throws: PageTypeManagerError.propertyNotFound) {
-            try await manager.reorderProperty(id: "prop_nonexistent", in: typeID, toIndex: 0)
-        }
-    }
-
-    // MARK: - ItemTypeManager
-
-    @Test("ItemTypeManager reorderProperty moves middle property to front in-memory and on disk")
-    func itemTypeManagerReorderHappyPath() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        try await manager.createItemType(name: "Tasks", icon: nil)
-        let typeID = manager.types.first!.id
-
-        // Seed three user properties in order A, B, C.
-        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Beta"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
-
-        let props = manager.types.first { $0.id == typeID }!.properties
-        let idA = props[0].id
-        let idB = props[1].id
-        let idC = props[2].id
-
-        // Move B (index 1) → index 0.
-        try await manager.reorderProperty(id: idB, in: typeID, toIndex: 0)
-
-        // (a) In-memory order is [B, A, C].
-        let inMemory = manager.types.first { $0.id == typeID }!.properties
-        #expect(inMemory.map(\.id) == [idB, idA, idC])
-
-        // (b) On-disk order matches — reload via ItemType.load.
-        let metaURL = NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "Tasks")
-        let reloaded = try ItemType.load(from: metaURL)
-        #expect(reloaded.properties.map(\.id) == [idB, idA, idC])
-
-        // (c) No error was surfaced.
-        #expect(manager.pendingError == nil)
-    }
-
-    @Test("ItemTypeManager reorderProperty with unknown property ID throws propertyNotFound")
-    func itemTypeManagerReorderUnknownProperty() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        try await manager.createItemType(name: "Tasks", icon: nil)
-        let typeID = manager.types.first!.id
-
-        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Beta"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
-
-        await #expect(throws: ItemTypeManagerError.propertyNotFound) {
             try await manager.reorderProperty(id: "prop_nonexistent", in: typeID, toIndex: 0)
         }
     }

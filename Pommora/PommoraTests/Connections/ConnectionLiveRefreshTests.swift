@@ -77,38 +77,6 @@ struct ConnectionLiveRefreshTests {
         #expect(counter.count == afterRename + 1)
     }
 
-    // MARK: - Item CRUD posts the signal
-
-    @Test("createItem / renameItem / deleteItem each post ConnectionsBus.changed")
-    func itemCRUDPostsChanged() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
-
-        let itemType = try makeItemType(in: nexus, index: index, title: "T")
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.indexUpdater = IndexUpdater(index)
-
-        // Object-filtered to this manager's posts (see page test).
-        let counter = PostCounter(observing: manager)
-        defer { counter.stop() }
-
-        let before = counter.count
-        let item = try await manager.createItem(name: "Alpha", inTypeRoot: itemType)
-        #expect(counter.count == before + 1)
-
-        let afterCreate = counter.count
-        try await manager.renameItem(item, to: "Beta", inTypeRoot: itemType)
-        #expect(counter.count == afterCreate + 1)
-
-        // delete — the renamed item now lives at title "Beta".
-        var renamed = item
-        renamed.title = "Beta"
-        let afterRename = counter.count
-        try await manager.deleteItem(renamed, inTypeRoot: itemType)
-        #expect(counter.count == afterRename + 1)
-    }
-
     // MARK: - Fixtures (mirror NexusWideUniquenessTests)
 
     private func makeVault(in nexus: Nexus, index: PommoraIndex, title: String) throws -> PageType {
@@ -136,17 +104,6 @@ struct ConnectionLiveRefreshTests {
         return coll
     }
 
-    private func makeItemType(in nexus: Nexus, index: PommoraIndex, title: String) throws -> ItemType {
-        let itemType = ItemType(
-            id: ULID.generate(), title: title, icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: title))
-        try IndexUpdater(index).upsertItemType(itemType)
-        return itemType
-    }
 }
 
 // MARK: - Observer helper

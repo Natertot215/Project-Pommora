@@ -10,10 +10,6 @@ enum NexusPaths {
     static let pageTypeSidecarFilename = "_pagetype.json"
     /// `_pagecollection.json` — PageCollection sub-folder sidecar.
     static let pageCollectionSidecarFilename = "_pagecollection.json"
-    /// `_itemtype.json` — ItemType folder sidecar.
-    static let itemTypeSidecarFilename = "_itemtype.json"
-    /// `_itemcollection.json` — ItemCollection sub-folder sidecar.
-    static let itemCollectionSidecarFilename = "_itemcollection.json"
     /// `_taskconfig.json` — Tasks singleton sidecar (AgendaTask schema).
     static let taskConfigSidecarFilename = "_taskconfig.json"
     /// `_eventconfig.json` — Events singleton sidecar (AgendaEvent schema).
@@ -197,21 +193,6 @@ enum NexusPaths {
         nexus.rootURL.appendingPathComponent(".trash", isDirectory: true)
     }
 
-    // MARK: - Unsorted inbox (hidden relocation target)
-
-    /// Per-nexus unsorted inbox at `<nexus-root>/.unsorted/`. Dot-prefixed so it
-    /// stays hidden in Finder AND is auto-excluded from `Filesystem.descendantFiles`
-    /// (which skips any folder whose name begins with `.`). Files land here when a
-    /// launch stamp pass finds a file whose `Class` disagrees with its folder kind,
-    /// or that has no Type-folder context up the chain. Relocation in is handled by
-    /// `Filesystem.moveToUnsorted`; resolution back out is a future UI surface.
-    ///
-    /// URL-typed (not `Nexus`-typed) to match `Filesystem.moveToUnsorted`'s
-    /// `nexusRoot: URL` signature.
-    static func unsortedDir(in nexus: URL) -> URL {
-        nexus.appendingPathComponent(".unsorted", isDirectory: true)
-    }
-
     // MARK: - Contexts file paths
 
     static func spaceFileURL(forTitle title: String, in nexus: Nexus) -> URL {
@@ -328,50 +309,6 @@ enum NexusPaths {
 
     static func pageFileURL(forTitle title: String, in collectionFolder: URL) -> URL {
         collectionFolder.appendingPathComponent("\(title).md", isDirectory: false)
-    }
-
-    static func itemFileURL(forTitle title: String, in collectionFolder: URL) -> URL {
-        collectionFolder.appendingPathComponent("\(title).md", isDirectory: false)
-    }
-
-    // MARK: - ItemType / ItemCollection paths (flatlayout)
-
-    /// `<nexus>/<typeFolderName>/` — ItemType folder (flatlayout: lives at the
-    /// nexus root, no wrapper segment).
-    static func itemTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
-        nexusRoot.appendingPathComponent(typeFolderName, isDirectory: true)
-    }
-
-    /// `<nexus>/<typeFolderName>/_itemtype.json` — ItemType schema sidecar.
-    static func itemTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
-        itemTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
-            .appendingPathComponent(itemTypeSidecarFilename, isDirectory: false)
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/` — ItemCollection folder
-    /// (still nested inside its parent ItemType folder).
-    static func itemCollectionFolderURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String
-    ) -> URL {
-        itemTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
-            .appendingPathComponent(collectionFolderName, isDirectory: true)
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/_itemcollection.json` —
-    /// ItemCollection schema sidecar.
-    static func itemCollectionMetadataURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String
-    ) -> URL {
-        itemCollectionFolderURL(
-            in: nexusRoot,
-            typeFolderName: typeFolderName,
-            collectionFolderName: collectionFolderName
-        )
-        .appendingPathComponent(itemCollectionSidecarFilename, isDirectory: false)
     }
 
     // MARK: - Filesystem helper

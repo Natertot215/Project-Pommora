@@ -10,7 +10,7 @@ import Testing
 /// — the coordinator (`CreateWithInlineEdit.run`) reads the returned entity
 /// inside `onCreate`.
 ///
-/// Identity check across all 7 entity types: the returned entity must match
+/// Identity check across all entity types: the returned entity must match
 /// the entity recorded in the manager's in-memory state by `.id`. (Title
 /// comparison is incidental; identity is the durable contract.)
 @MainActor
@@ -41,32 +41,6 @@ struct ManagerCreateReturnContractTests {
         #expect(manager.pageCollections(in: pt).contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Tasks")
         #expect(returned.typeID == pt.id)
-    }
-
-    @Test("ItemTypeManager.createItemType returns the new ItemType")
-    func createItemTypeReturns() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-
-        let returned = try await manager.createItemType(name: "Books", icon: nil)
-        #expect(manager.types.contains(where: { $0.id == returned.id }))
-        #expect(returned.title == "Books")
-    }
-
-    @Test("ItemTypeManager.createItemCollection returns the new ItemCollection")
-    func createItemCollectionReturns() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-        let it = try await manager.createItemType(name: "Books", icon: nil)
-
-        let returned = try await manager.createItemCollection(name: "2026", inItemType: it)
-        #expect(manager.itemCollections(in: it).contains(where: { $0.id == returned.id }))
-        #expect(returned.title == "2026")
-        #expect(returned.typeID == it.id)
     }
 
     @Test("SpaceManager.create returns the new Space")

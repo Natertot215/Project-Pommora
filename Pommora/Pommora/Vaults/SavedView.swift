@@ -1,8 +1,8 @@
 // Pommora/Pommora/Vaults/SavedView.swift
 import Foundation
 
-/// A saved view configuration on a PageType / ItemType / PageCollection /
-/// ItemCollection. v0.3.1 ships the Table-only single-saved-view case; the
+/// A saved view configuration on a PageType / PageCollection.
+/// v0.3.1 ships the Table-only single-saved-view case; the
 /// multi-saved-view tabs row + non-Table renderers (board / list / cards /
 /// gallery) land at v0.5.0.
 ///

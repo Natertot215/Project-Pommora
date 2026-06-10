@@ -104,11 +104,6 @@ struct AdoptionPreviewView: View {
                     systemImage: "folder.fill"
                 )
                 summaryStat(
-                    count: itemTypeMigrationCount,
-                    label: labels.itemType.singular,
-                    systemImage: "tablecells"
-                )
-                summaryStat(
                     count: agendaMigrationCount,
                     label: "Agenda",
                     systemImage: "calendar"
@@ -278,16 +273,13 @@ struct AdoptionPreviewView: View {
                 ForEach(Array(migrationPlan.pageTypeMigrations.enumerated()), id: \.offset) { _, m in
                     propertyMigrationRow(m)
                 }
-                ForEach(Array(migrationPlan.itemTypeMigrations.enumerated()), id: \.offset) { _, m in
-                    propertyMigrationRow(m)
-                }
             }
         }
     }
 
     private func propertyMigrationRow(_ m: PropertyIDMigration.TypeMigration) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: m.kind == .pageType ? "folder.fill" : "tablecells")
+            Image(systemName: "folder.fill")
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 1) {
@@ -428,14 +420,6 @@ struct AdoptionPreviewView: View {
         return fresh + renames + unwraps
     }
 
-    private var itemTypeMigrationCount: Int {
-        let fresh = plan.freshSidecars.filter { $0.kind == .itemType }.count
-        let unwraps = plan.unwrapSteps
-            .filter { $0.wrapperKind == .items }
-            .reduce(0) { $0 + $1.moves.count }
-        return fresh + unwraps
-    }
-
     private var agendaMigrationCount: Int {
         let fresh = plan.freshSidecars.filter { $0.kind == .taskConfig || $0.kind == .eventConfig }.count
         let unwraps = plan.unwrapSteps
@@ -454,7 +438,6 @@ struct AdoptionPreviewView: View {
     private func iconForSidecar(_ kind: AdoptedSidecarKind) -> String {
         switch kind {
         case .pageType, .pageCollection: return "folder.fill"
-        case .itemType, .itemCollection: return "tablecells"
         case .taskConfig: return "checkmark.circle"
         case .eventConfig: return "calendar"
         }
@@ -464,8 +447,6 @@ struct AdoptionPreviewView: View {
         switch kind {
         case .pageType: return labels.pageType.singular
         case .pageCollection: return labels.pageCollection.singular
-        case .itemType: return labels.itemType.singular
-        case .itemCollection: return labels.itemCollection.singular
         case .taskConfig: return labels.agendaTask.plural
         case .eventConfig: return labels.agendaEvent.plural
         }

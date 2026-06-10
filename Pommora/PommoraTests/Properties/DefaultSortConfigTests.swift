@@ -37,22 +37,6 @@ struct DefaultSortConfigTests {
             """
     }
 
-    private func itemTypeJSON(withDefaultSort: Bool) -> String {
-        let sortFragment =
-            withDefaultSort
-            ? #","default_sort":{"direction":"ascending","property_id":"prop_xyz"}"#
-            : ""
-        return """
-            {
-              "id": "01HQ000000000000000000BBB",
-              "modified_at": "2026-05-24T00:00:00Z",
-              "properties": [],
-              "schema_version": 1,
-              "views": []\(sortFragment)
-            }
-            """
-    }
-
     private func taskSchemaJSON(withDefaultSort: Bool) -> String {
         let sortFragment =
             withDefaultSort
@@ -141,37 +125,6 @@ struct DefaultSortConfigTests {
         let data = try jsonEncoder().encode(pt)
         var decoded = try jsonDecoder().decode(PageType.self, from: data)
         decoded.title = pt.title
-        #expect(decoded.defaultSort == sort)
-    }
-
-    // MARK: - Test 6: itemTypeAbsentDefaultSortDecodesToNil
-
-    @Test("ItemType without default_sort field decodes to nil defaultSort")
-    func itemTypeAbsentDefaultSortDecodesToNil() throws {
-        let json = itemTypeJSON(withDefaultSort: false)
-        let data = try #require(json.data(using: .utf8))
-        var it = try jsonDecoder().decode(ItemType.self, from: data)
-        it.title = "TestType"
-        #expect(it.defaultSort == nil)
-    }
-
-    // MARK: - Test 7: itemTypePresentDefaultSortRoundTrips
-
-    @Test("ItemType with default_sort field encodes and decodes the field correctly")
-    func itemTypePresentDefaultSortRoundTrips() throws {
-        let sort = DefaultSortConfig(propertyID: "prop_xyz", direction: .ascending)
-        let it = ItemType(
-            id: "01HQ000000000000000000BBB",
-            title: "TestType",
-            icon: nil,
-            properties: [],
-            views: [],
-            modifiedAt: Date(timeIntervalSince1970: 0),
-            defaultSort: sort
-        )
-        let data = try jsonEncoder().encode(it)
-        var decoded = try jsonDecoder().decode(ItemType.self, from: data)
-        decoded.title = it.title
         #expect(decoded.defaultSort == sort)
     }
 

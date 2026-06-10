@@ -35,21 +35,4 @@ struct CollectionIconTests {
 
         #expect(loaded.icon == "star")
     }
-
-    @Test func itemCollectionIconRoundTripsThroughSidecar() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "Books")
-            .appendingPathComponent("Mains", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-
-        let coll = ItemCollection(
-            id: ULID.generate(), typeID: ULID.generate(), title: "Mains",
-            folderURL: folder, modifiedAt: Date(), icon: "fork.knife")
-        try coll.save(to: url)
-        let loaded = try ItemCollection.load(from: url)
-
-        #expect(loaded.icon == "fork.knife")
-    }
 }

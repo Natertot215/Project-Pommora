@@ -5,16 +5,13 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderProperty
 
 /// Per-side dependencies the per-type schema property-mutation methods need.
 ///
-/// `PageTypeManager` and `ItemTypeManager` are "per-type" schema managers: each
-/// holds `types: [Type]` keyed by a `typeID`, and its five property-mutation
+/// `PageTypeManager` is a "per-type" schema manager: it holds
+/// `types: [Type]` keyed by a `typeID`, and its five property-mutation
 /// methods (`addProperty`, `renameProperty`, `deleteProperty`, `reorderProperty`,
-/// `changeType`) are near-identical between the Page and Item sides. After the
-/// `Normalize-ItemType-Lookup` pass removed `ItemTypeManager.typesByID` /
-/// `rebuildTypesByID`, **Item == Page on the commit path** (both just persist the
-/// sidecar and assign `types[i] = updated`; there is NO `rebuildTypesByID` /
-/// `commitInMemory` hook — commit is uniform). `PerTypeSchemaService` lifts the
-/// Page bodies verbatim and routes every per-side bit through this adapter so each
-/// manager keeps a thin delegator.
+/// `changeType`) persist the sidecar and assign `types[i] = updated` (there is
+/// NO `rebuildTypesByID` / `commitInMemory` hook — commit is uniform).
+/// `PerTypeSchemaService` holds the shared bodies and routes every per-side bit
+/// through this adapter so the manager keeps a thin delegator.
 ///
 /// This is the per-type analogue of `SingletonSchemaAdapter`. It differs from the
 /// singleton adapter by:

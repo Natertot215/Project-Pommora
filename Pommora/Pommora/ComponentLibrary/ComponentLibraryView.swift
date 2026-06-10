@@ -159,7 +159,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                 .init(
                     name: "Renameable Row",
                     detail:
-                        "Inline-rename mode for any sidebar row. Used by Space / Project / PageType / Topic / Page / PageCollection / ItemType."
+                        "Inline-rename mode for any sidebar row. Used by Space / Project / PageType / Topic / Page / PageCollection."
                 ),
                 .init(
                     name: "Section Header",
@@ -185,16 +185,8 @@ enum ComponentCategory: String, CaseIterable, Hashable {
         case .sheets:
             return [
                 .init(
-                    name: "New Item Sheet",
-                    detail:
-                        "Name + Icon form for creating Items. Routes to ItemContentManager.createItem(in:type:) or createItem(inTypeRoot:)."
-                ),
-                .init(
                     name: "Vault Settings Sheet",
                     detail: "Pages-side schema editor. Add/edit/delete properties on a PageType."),
-                .init(
-                    name: "Type Settings Sheet",
-                    detail: "Items-side schema editor. Add/edit/delete properties on an ItemType."),
                 .init(
                     name: "Icon Picker",
                     detail:
@@ -364,7 +356,6 @@ private struct ChipsGallery: View {
 /// just placeholders. When the real chrome ships, swap to `openWindow(id:)`
 /// calls against Window scenes registered in `PommoraApp.swift`.
 private struct WindowsGallery: View {
-    @State private var showingItemWindow: Bool = false
     @State private var showingPagePreview: Bool = false
 
     var body: some View {
@@ -374,32 +365,16 @@ private struct WindowsGallery: View {
 
                 VStack(alignment: .leading, spacing: 16) {
                     WindowLaunchRow(
-                        title: "Item Window",
-                        symbol: "macwindow",
-                        summary:
-                            "Draggable floating Item Window — title + properties + 250-char description, config-driven from the per-Type template (archetype + promoted-property recipe). No traffic lights; custom close + drag chrome.",
-                        action: { showingItemWindow = true }
-                    )
-
-                    WindowLaunchRow(
                         title: "Page Preview",
                         symbol: "doc.richtext",
                         summary:
-                            "Standalone-window preview of a Page — full editor surface in its own window. Queued behind the cross-feature PreviewWindow primitive; chrome matches Item Window.",
+                            "Standalone-window preview of a Page — full editor surface in its own window. Queued behind the cross-feature PreviewWindow primitive.",
                         action: { showingPagePreview = true }
                     )
                 }
                 .padding(.horizontal)
             }
             .padding(.vertical, 24)
-        }
-        .sheet(isPresented: $showingItemWindow) {
-            WindowStubSheet(
-                title: "Item Window",
-                symbol: "macwindow",
-                description:
-                    "Shipped — the Item Window is a non-activating AppKit NSPanel (FloatingItemPanel): one fixed size, draggable by background, traffic lights hidden with a custom ✕, unified flat-hairline inspector layout, and a 500-char description cap."
-            ) { showingItemWindow = false }
         }
         .sheet(isPresented: $showingPagePreview) {
             WindowStubSheet(

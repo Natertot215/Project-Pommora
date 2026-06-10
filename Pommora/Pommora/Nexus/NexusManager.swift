@@ -181,13 +181,11 @@ final class NexusManager {
             pendingError = .appSupportFailed(error.localizedDescription)
         }
 
-        // Adoption + auto-tag + format-migration launch sequence (see
-        // `runLaunchMigrations`). Returns whether a same-launch index rebuild is
-        // forced.
-        let forceRebuild = await runLaunchMigrations(at: url)
+        // Adoption + auto-tag launch sequence (see `runLaunchMigrations`).
+        await runLaunchMigrations(at: url)
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus, forceRebuild: forceRebuild)
+        await openIndex(for: nexus)
         currentNexus = nexus
     }
 
@@ -195,8 +193,7 @@ final class NexusManager {
     /// or load (existing `.nexus/`), then always runs the adoption scan so
     /// existing folders without `_schema.json` sidecars (or carrying legacy
     /// `_vault.json` / `_collection.json` files from the pre-ParadigmV2
-    /// layout) can be adopted into the Pages / Items / Agenda wrappers
-    /// (Obsidian-parity).
+    /// layout) can be adopted into the flat layout (Obsidian-parity).
     private func openPicked(at url: URL) async {
         let nexusConfigDir = url.appendingPathComponent(".nexus", isDirectory: true)
         let identityURL = nexusConfigDir.appendingPathComponent("nexus.json", isDirectory: false)
@@ -234,11 +231,10 @@ final class NexusManager {
             }
         }
 
-        // Adoption + auto-tag + format-migration launch sequence (see
-        // `runLaunchMigrations`). Runs BEFORE the bookmark/access setup below,
-        // preserving the established ordering. Returns whether a same-launch
-        // index rebuild is forced.
-        let forceRebuild = await runLaunchMigrations(at: url)
+        // Adoption + auto-tag launch sequence (see `runLaunchMigrations`).
+        // Runs BEFORE the bookmark/access setup below, preserving the
+        // established ordering.
+        await runLaunchMigrations(at: url)
 
         replaceAccessingURL(with: url)
         guard NexusBookmark.startAccessing(url) else {
@@ -263,38 +259,27 @@ final class NexusManager {
         }
 
         let nexus = Nexus(id: identity.id, rootURL: url)
-        await openIndex(for: nexus, forceRebuild: forceRebuild)
+        await openIndex(for: nexus)
         currentNexus = nexus
     }
 
     /// Shared launch sequence run by both `openExisting` and `openPicked` before
     /// opening the index: legacy adoption (consent-gated), then the silent
-    /// auto-tag pass, then the unconditional Item `.json` → `.md` format
-    /// migration. The two later passes run AFTER `runAdoptionIfNeeded` (decision
-    /// #8 — the format migration is NOT behind the consent gate) and BEFORE
-    /// `openIndex`.
+    /// auto-tag pass. The auto-tag pass runs AFTER `runAdoptionIfNeeded` and
+    /// BEFORE `openIndex`.
     ///
     /// - `runAdoptionIfNeeded` — re-opening a pre-feature Nexus is the primary
     ///   case (no `_schema.json` sidecars yet; may carry legacy `_vault.json` /
     ///   `_collection.json`). Idempotent: a fully-adopted Nexus produces an empty
     ///   plan and skips the sheet.
-    /// - `autoTagMissingSidecars` (F.1.j) — silent three-level pass, runs whether
-    ///   the preview was shown / confirmed / declined; writes missing per-kind
-    ///   sidecars so Finder-built structure is first-class. Returns whether it
-    ///   relocated any file to `.unsorted` (stray-json / Class-disagreement).
-    /// - `runFormatMigration` — UNCONDITIONAL (decision #8), AFTER autoTag so a
-    ///   stray `.json` already swept to `.unsorted` isn't re-handled.
-    ///
-    /// **Returns** whether a same-launch index rebuild is forced — a relocation
-    /// OR a conversion/cleanup leaves a stale id-keyed row that must reconcile
-    /// this launch, not next. The caller ORs this into `openIndex(forceRebuild:)`.
-    private func runLaunchMigrations(at url: URL) async -> Bool {
+    /// - `autoTagMissingSidecars` (F.1.j) — silent pass, runs whether the
+    ///   preview was shown / confirmed / declined; writes missing per-kind
+    ///   sidecars so Finder-built structure is first-class.
+    private func runLaunchMigrations(at url: URL) async {
         await runAdoptionIfNeeded(at: url)
         let tempNexus = Nexus(id: "", rootURL: url)
         let filter = FolderFilter.load(for: tempNexus)
-        let relocated = NexusAdopter.autoTagMissingSidecars(at: url, filter: filter)
-        let migratedItems = runFormatMigration(at: url)
-        return migratedItems || relocated
+        NexusAdopter.autoTagMissingSidecars(at: url, filter: filter)
     }
 
     /// Scans the freshly-initialized Nexus root for adoptable folders. If
@@ -304,13 +289,7 @@ final class NexusManager {
     /// already initialized; the sidebar will just be empty.
     ///
     /// **Consent-gated work only.** Legacy folder adoption + the lossy property-
-    /// ID migration sit behind the preview's confirm/decline. The Item `.json` →
-    /// `.md` format migration is NOT gated here — it is a load-bearing, lossless
-    /// (recoverable-to-`.trash`) normalization that the caller runs
-    /// UNCONDITIONALLY after this returns (see `runFormatMigration`). Gating it
-    /// would let a decline of an UNRELATED Page-side preview leave legacy `.json`
-    /// Items unconverted + unindexed + invisible for the session — locked
-    /// decision #8.
+    /// ID migration sit behind the preview's confirm/decline.
     ///
     /// Internal so the launch-path integration test can drive the consent gate
     /// (confirm + decline) directly.
@@ -376,39 +355,7 @@ final class NexusManager {
             // from the function top; the existing `defer` clears it.
             applyMigrationSurfacingFailures(migrationPlan)
         }
-        // else: nothing to adopt + nothing to migrate. The Item format migration
-        // is NOT run here — the caller runs it UNCONDITIONALLY after this returns
-        // (regardless of confirm/decline), then after `autoTagMissingSidecars`.
-    }
-
-    /// Applies the Item `.json` → `.md` format migration and surfaces any
-    /// per-item failures via `pendingError`. Mirrors
-    /// `applyMigrationSurfacingFailures` so both headless migrations report
-    /// failures the same way. Returns whether the migration did any work
-    /// (converted / cleaned-up / collision-relocated) — the caller ORs it into
-    /// `openIndex(forceRebuild:)`, because the index is `.md`-only and a
-    /// freshly-converted (or relocated) Item would otherwise stay un-reconciled
-    /// in the index until the next launch.
-    ///
-    /// **Runs UNCONDITIONALLY** (locked decision #8): the migration is load-
-    /// bearing now that Item reads are `.md`-only — a declined adoption preview
-    /// must NOT skip it, or legacy `.json` Items stay unconverted + invisible.
-    /// Headless + idempotent + interrupt-safe; a fully-migrated Nexus is a no-op.
-    /// Same XCTest-guard coverage as the property-ID migration (the whole launch
-    /// path is downstream of `loadOnLaunch`'s guard). Internal so the launch-path
-    /// integration test can drive it directly.
-    @discardableResult
-    func runFormatMigration(at url: URL) -> Bool {
-        let report = ItemFormatMigration.runIfNeeded(at: url)
-        if !report.failedItems.isEmpty {
-            let preview = report.failedItems.prefix(3)
-                .map { "\($0.itemURL.lastPathComponent): \($0.message)" }
-                .joined(separator: "; ")
-            pendingError = .initFailed(
-                "Item format migration completed with \(report.failedItems.count) failures (\(preview))."
-            )
-        }
-        return report.didAnyWork
+        // else: nothing to adopt + nothing to migrate.
     }
 
     /// Applies a property-ID migration plan and surfaces any per-Type failures
@@ -459,19 +406,11 @@ final class NexusManager {
     /// via `IndexBuilder`. On any failure the index is left nil and a
     /// `.initFailed` error is surfaced — the nexus remains usable without it
     /// (degraded mode). Internal so tests can call directly.
-    ///
-    /// `forceRebuild` repopulates even when the on-disk schema version is current
-    /// (`needsRebuild == false`). The launch sequence sets it when the Item
-    /// `.json` → `.md` format migration converted anything: the index is
-    /// `.md`-only, so a freshly-converted Item that was never indexed must be
-    /// (re)populated on the SAME launch, not deferred to the next one. A full
-    /// repopulate is idempotent (INSERT OR REPLACE keyed by id) and the index
-    /// holds no user data.
-    func openIndex(for nexus: Nexus, forceRebuild: Bool = false) async {
+    func openIndex(for nexus: Nexus) async {
         do {
             let (idx, needsRebuild) = try PommoraIndex.open(at: nexus.rootURL)
             self.currentIndex = idx
-            if needsRebuild || forceRebuild {
+            if needsRebuild {
                 isIndexing = true
                 defer { isIndexing = false }
                 let filter = FolderFilter.load(for: nexus)

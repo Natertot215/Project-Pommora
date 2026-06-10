@@ -42,18 +42,15 @@ import SwiftUI
 /// would be dead weight.
 @MainActor
 final class NexusEnvironment {
-    /// The app-level Nexus session manager (stable `@Observable`). Stored so the
-    /// Item Window scene can read the LIVE index (`nexusManager.currentIndex`) at
-    /// render time; injected via `injectNexusEnvironment` so `@Environment(NexusManager.self)`
-    /// resolves without SIGTRAP (quirk #15).
+    /// The app-level Nexus session manager (stable `@Observable`). Injected via
+    /// `injectNexusEnvironment` so `@Environment(NexusManager.self)` resolves
+    /// without SIGTRAP (quirk #15).
     let nexusManager: NexusManager
 
     let spaceManager: SpaceManager
     let topicManager: TopicManager
     let vaultManager: PageTypeManager
-    let itemTypeManager: ItemTypeManager
     let contentManager: PageContentManager
-    let itemContentManager: ItemContentManager
     let agendaTaskManager: AgendaTaskManager
     let agendaEventManager: AgendaEventManager
     let homepageManager: HomepageManager
@@ -63,12 +60,6 @@ final class NexusEnvironment {
     let pinnedManager: PinnedManager
     let mainWindowRouter: MainWindowRouter
     let settingsManager: SettingsManager
-
-    /// Owns the live floating Item panels (one per open `ItemRef`). Reached via
-    /// `AppGlobals.current?.itemWindowPanelManager` — deliberately NOT injected
-    /// into the SwiftUI environment (it's an AppKit panel registry, not a view
-    /// dependency), so it never participates in the quirk-#15 inject chain.
-    let itemWindowPanelManager: ItemWindowPanelManager
 
     /// Shared context-link/tier display resolver (icon + title from the index).
     /// Its index closure captures `nexusManager` and reads `.currentIndex`
@@ -90,7 +81,6 @@ final class NexusEnvironment {
     init(nexus: Nexus, nexusManager: NexusManager) {
         let spaceMgr = SpaceManager(nexus: nexus)
         let vaultMgr = PageTypeManager(nexus: nexus)
-        let itemTypeMgr = ItemTypeManager(nexus: nexus)
 
         // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
         // The outer closure runs on MainActor (per TopicManager's signature) and
@@ -130,28 +120,6 @@ final class NexusEnvironment {
             )
         }
 
-        // ItemContentManager mirrors PageContentManager's NexusContext snapshot
-        // pattern. Item Type Manager wires in Phase 6 — until then ItemContentManager
-        // exists but has no on-disk data to load (`<nexus>/Items/` is materialized
-        // by NexusAdopter in Phase 6).
-        let itemContentMgr: ItemContentManager = ItemContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
-            let spaces = spaceMgr.spaces
-            let types = vaultMgr.types
-            let topics = topicMgr.topics
-            let projectsByParent = topicMgr.projectsByParent
-            return NexusContext(
-                lookupSpace: { id in spaces.first { $0.id == id } },
-                lookupTopic: { id in topics.first { $0.id == id } },
-                lookupProject: { id in
-                    for arr in projectsByParent.values {
-                        if let p = arr.first(where: { $0.id == id }) { return p }
-                    }
-                    return nil
-                },
-                lookupVault: { id in types.first { $0.id == id } }
-            )
-        }
-
         let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
         let homepageMgr = HomepageManager(nexus: nexus)
@@ -160,7 +128,6 @@ final class NexusEnvironment {
         let recentsMgr = RecentsManager(nexus: nexus)
         let pinnedMgr = PinnedManager(nexus: nexus)
         let settingsMgr = SettingsManager(nexus: nexus)
-        let itemPanelMgr = ItemWindowPanelManager()
         let router = MainWindowRouter()
 
         // Shared relation/tier display resolver. Captures `nexusManager` (the
@@ -175,7 +142,7 @@ final class NexusEnvironment {
             nexusManager.currentIndex.map { PommoraConnectionResolver(index: $0) }
             ?? NoOpWikiLinkResolver()
 
-        // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
+        // Phase E.7.5: wire IndexUpdater into all CRUD managers before publishing
         // (Space + Topic added so Contexts sync to the `contexts` index table).
         // IndexUpdater is Sendable — a single value can be shared across all of them.
         // If currentIndex is nil (degraded mode), updater stays nil and every
@@ -184,9 +151,7 @@ final class NexusEnvironment {
         spaceMgr.indexUpdater = updater
         topicMgr.indexUpdater = updater
         vaultMgr.indexUpdater = updater
-        itemTypeMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater
-        itemContentMgr.indexUpdater = updater
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
@@ -194,16 +159,12 @@ final class NexusEnvironment {
         // Pinned + Recents stores so pins/recents don't show a stale name.
         contentMgr.pinnedManager = pinnedMgr
         contentMgr.recentsManager = recentsMgr
-        itemContentMgr.pinnedManager = pinnedMgr
-        itemContentMgr.recentsManager = recentsMgr
 
         self.nexusManager = nexusManager
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
         self.vaultManager = vaultMgr
-        self.itemTypeManager = itemTypeMgr
         self.contentManager = contentMgr
-        self.itemContentManager = itemContentMgr
         self.agendaTaskManager = agendaTaskMgr
         self.agendaEventManager = agendaEventMgr
         self.homepageManager = homepageMgr
@@ -212,7 +173,6 @@ final class NexusEnvironment {
         self.recentsManager = recentsMgr
         self.pinnedManager = pinnedMgr
         self.settingsManager = settingsMgr
-        self.itemWindowPanelManager = itemPanelMgr
         self.mainWindowRouter = router
         self.contextResolver = contextRes
         self.connectionResolver = connRes
@@ -221,9 +181,7 @@ final class NexusEnvironment {
         // them without restructuring the ContentView dependency graph.
         AppGlobals.publish(
             contentManager: contentMgr,
-            itemContentManager: itemContentMgr,
             pageTypeManager: vaultMgr,
-            itemTypeManager: itemTypeMgr,
             spaceManager: spaceMgr,
             topicManager: topicMgr,
             recentsManager: recentsMgr,
@@ -237,13 +195,11 @@ final class NexusEnvironment {
         let folderFilter = FolderFilter.load(for: nexus)
 
         // Initial load — fire all in parallel.
-        // PageContentManager + ItemContentManager load per-collection lazily on
-        // detail-view appear.
+        // PageContentManager loads per-collection lazily on detail-view appear.
         Task {
             async let _ = spaceMgr.loadAll()
             async let _ = topicMgr.loadAll()
             async let _ = vaultMgr.loadAll(filter: folderFilter)
-            async let _ = itemTypeMgr.loadAll(filter: folderFilter)
             async let _ = agendaTaskMgr.loadAll()
             async let _ = agendaEventMgr.loadAll()
             async let _ = homepageMgr.load()
@@ -270,9 +226,7 @@ extension View {
             .environment(env.spaceManager)
             .environment(env.topicManager)
             .environment(env.vaultManager)
-            .environment(env.itemTypeManager)
             .environment(env.contentManager)
-            .environment(env.itemContentManager)
             .environment(env.agendaTaskManager)
             .environment(env.agendaEventManager)
             .environment(env.homepageManager)

@@ -2,9 +2,8 @@
 //  CollectionIconSetterTests.swift
 //  PommoraTests
 //
-//  F1 (TDD — RED step). Tests that updatePageCollectionIcon / updateItemCollectionIcon
-//  persist the icon to the sidecar on disk and sync the in-memory collection array.
-//  Both tests FAIL until the GREEN step wires the real bodies.
+//  F1. Tests that updatePageCollectionIcon persists the icon to the sidecar
+//  on disk and syncs the in-memory collection array.
 //
 //  Struct name MATCHES the filename so `-only-testing:PommoraTests/CollectionIconSetterTests`
 //  resolves correctly (quirk #17).
@@ -43,32 +42,6 @@ struct CollectionIconSetterTests {
         let sidecarURL = collection.folderURL
             .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let reloaded = try PageCollection.load(from: sidecarURL)
-        #expect(reloaded.icon == "star.fill")
-    }
-
-    @Test func updateItemCollectionIconPersistsToDiskAndMemory() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        // Build an ItemType + ItemCollection via normal CRUD.
-        let manager = ItemTypeManager(nexus: nexus)
-        await manager.loadAll()
-        try await manager.createItemType(name: "Books", icon: nil)
-        let itemType = manager.types.first!
-        try await manager.createItemCollection(name: "Mains", inItemType: itemType)
-        let collection = manager.itemCollections(in: itemType).first!
-
-        // Act — stub is a no-op; real body lands in the GREEN step.
-        try await manager.updateItemCollectionIcon(collection, to: "star.fill")
-
-        // --- In-memory assertion ---
-        let inMemory = manager.itemCollections(in: itemType).first { $0.id == collection.id }
-        #expect(inMemory?.icon == "star.fill")
-
-        // --- On-disk assertion: reload sidecar directly ---
-        let sidecarURL = collection.folderURL
-            .appendingPathComponent(NexusPaths.itemCollectionSidecarFilename)
-        let reloaded = try ItemCollection.load(from: sidecarURL)
         #expect(reloaded.icon == "star.fill")
     }
 }

@@ -39,20 +39,16 @@ struct NexusPathsTests {
     func perKindSidecarFilenames() {
         #expect(NexusPaths.pageTypeSidecarFilename == "_pagetype.json")
         #expect(NexusPaths.pageCollectionSidecarFilename == "_pagecollection.json")
-        #expect(NexusPaths.itemTypeSidecarFilename == "_itemtype.json")
-        #expect(NexusPaths.itemCollectionSidecarFilename == "_itemcollection.json")
         #expect(NexusPaths.taskConfigSidecarFilename == "_taskconfig.json")
         #expect(NexusPaths.eventConfigSidecarFilename == "_eventconfig.json")
-        // All six should be distinct.
+        // All four should be distinct.
         let all: Set<String> = [
             NexusPaths.pageTypeSidecarFilename,
             NexusPaths.pageCollectionSidecarFilename,
-            NexusPaths.itemTypeSidecarFilename,
-            NexusPaths.itemCollectionSidecarFilename,
             NexusPaths.taskConfigSidecarFilename,
             NexusPaths.eventConfigSidecarFilename,
         ]
-        #expect(all.count == 6)
+        #expect(all.count == 4)
     }
 
     // MARK: - Agenda singleton discovery (sidecar-driven)
@@ -263,52 +259,7 @@ struct NexusPathsTests {
         )
     }
 
-    // MARK: - ItemType / ItemCollection (flatlayout: rooted at the nexus root)
-
-    @Test("itemTypeFolderURL sits at the nexus root (no wrapper)")
-    func itemTypeFolderShape() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.itemTypeFolderURL(
-            in: nexus.rootURL, typeFolderName: "Errands"
-        )
-        #expect(folder.lastPathComponent == "Errands")
-        #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
-
-        // metadata URL co-located using the per-kind ItemType sidecar
-        let meta = NexusPaths.itemTypeMetadataURL(
-            in: nexus.rootURL, typeFolderName: "Errands"
-        )
-        #expect(meta.lastPathComponent == NexusPaths.itemTypeSidecarFilename)
-        #expect(meta.deletingLastPathComponent() == folder)
-    }
-
-    @Test("itemCollectionFolderURL nests inside <Type>/<Collection> at root")
-    func itemCollectionFolderShape() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.itemCollectionFolderURL(
-            in: nexus.rootURL,
-            typeFolderName: "Errands",
-            collectionFolderName: "Groceries"
-        )
-        #expect(folder.lastPathComponent == "Groceries")
-        #expect(folder.deletingLastPathComponent().lastPathComponent == "Errands")
-        #expect(
-            folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
-        )
-
-        // metadata sidecar uses the per-kind ItemCollection name
-        let meta = NexusPaths.itemCollectionMetadataURL(
-            in: nexus.rootURL,
-            typeFolderName: "Errands",
-            collectionFolderName: "Groceries"
-        )
-        #expect(meta.lastPathComponent == NexusPaths.itemCollectionSidecarFilename)
-        #expect(meta.deletingLastPathComponent() == folder)
-    }
-
-    @Test("pageFileURL + itemFileURL use the right extensions inside a PageCollection")
+    @Test("pageFileURL uses the .md extension inside a PageCollection")
     func contentFilePaths() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -317,8 +268,6 @@ struct NexusPathsTests {
         )
         let page = NexusPaths.pageFileURL(forTitle: "Notes", in: collection)
         #expect(page.lastPathComponent == "Notes.md")
-        let item = NexusPaths.itemFileURL(forTitle: "Buy groceries", in: collection)
-        #expect(item.lastPathComponent == "Buy groceries.md")
     }
 
     @Test("taskFileURL nests inside the Tasks singleton with .task.json extension")

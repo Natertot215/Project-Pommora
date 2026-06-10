@@ -227,13 +227,12 @@ import Testing
 
     // MARK: - NexusAdopter.autoTagMissingSidecars exclusion
 
-    /// autoTagMissingSidecars must NOT write a sidecar or stamp Class frontmatter
-    /// into a folder that is excluded by the user.
+    /// autoTagMissingSidecars must NOT write a sidecar into (or otherwise touch)
+    /// a folder that is excluded by the user.
     ///
-    /// Without exclusion, autoTag would:
-    ///   1. Write `_pagetype.json` into the bare "Archive" folder (tagDepth0IfMissing).
-    ///   2. Stamp `Class: page` into `loose.md` inside it (stampClassPass).
-    /// With the filter, both of those must be suppressed.
+    /// Without exclusion, autoTag would write `_pagetype.json` into the bare
+    /// "Archive" folder (tagDepth0IfMissing). With the filter, that must be
+    /// suppressed and the loose .md left byte-identical.
     @Test func autoTagDoesNotTouchExcludedFolder() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }

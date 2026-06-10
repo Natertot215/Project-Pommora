@@ -1,7 +1,7 @@
 import Foundation
 
 /// PageCollection — sub-folder inside a PageType with a `_pagecollection.json`
-/// sidecar. Holds Pages only (Items live in ItemCollections under an ItemType).
+/// sidecar. Holds Pages.
 /// Title derives from folder name (filename-as-title rule). On disk:
 /// `<nexus>/<PageType>/<PageCollection>/_pagecollection.json`.
 struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {

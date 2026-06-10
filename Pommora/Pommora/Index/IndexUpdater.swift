@@ -8,12 +8,12 @@ import os
 /// rebuilt via `IndexBuilder` (Phase E.4).
 ///
 /// Upserts are idempotent so concurrent manager writes are safe. Leaf rows
-/// (pages / items / agenda / contexts / property_definitions) use
-/// `INSERT OR REPLACE`. The four cascade-PARENT tables (page_types / item_types /
-/// page_collections / item_collections) use `INSERT ... ON CONFLICT(id) DO UPDATE`
+/// (pages / agenda / contexts / property_definitions) use
+/// `INSERT OR REPLACE`. The cascade-PARENT tables (page_types /
+/// page_collections) use `INSERT ... ON CONFLICT(id) DO UPDATE`
 /// instead: `INSERT OR REPLACE` DELETEs the existing row first, which fires the
 /// child FKs' `ON DELETE CASCADE` / `ON DELETE SET NULL` and would wipe (or NULL)
-/// every child page/item on a re-sync. `ON CONFLICT DO UPDATE` updates in place,
+/// every child page on a re-sync. `ON CONFLICT DO UPDATE` updates in place,
 /// so no cascade fires. Relation reconciliation does a full DELETE then re-insert
 /// for the source entity — correct because the source entity is always written
 /// atomically before the index call.
@@ -169,117 +169,6 @@ struct IndexUpdater: Sendable {
     func deletePage(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM pages WHERE id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
-            try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [id])
-        }
-    }
-
-    // MARK: - ItemType
-
-    func upsertItemType(_ it: ItemType) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: """
-                    INSERT INTO item_types
-                        (id, title, icon, modified_at, schema_version)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        title = excluded.title, icon = excluded.icon,
-                        modified_at = excluded.modified_at, schema_version = excluded.schema_version
-                    """,
-                arguments: [it.id, it.title, it.icon, iso(it.modifiedAt), it.schemaVersion]
-            )
-        }
-    }
-
-    func deleteItemType(id: String) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: "DELETE FROM item_types WHERE id = ?",
-                arguments: [id]
-            )
-        }
-    }
-
-    // MARK: - ItemCollection
-
-    func upsertItemCollection(_ ic: ItemCollection) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: """
-                    INSERT INTO item_collections
-                        (id, item_type_id, title, icon, modified_at, schema_version)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        item_type_id = excluded.item_type_id, title = excluded.title,
-                        icon = excluded.icon, modified_at = excluded.modified_at,
-                        schema_version = excluded.schema_version
-                    """,
-                arguments: [ic.id, ic.typeID, ic.title, ic.icon, iso(ic.modifiedAt), 1]
-            )
-        }
-    }
-
-    func deleteItemCollection(id: String) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: "DELETE FROM item_collections WHERE id = ?",
-                arguments: [id]
-            )
-        }
-    }
-
-    // MARK: - Item
-
-    func upsertItem(_ item: Item, itemTypeID: String, itemCollectionID: String?) throws {
-        let propsJSON = propertiesJSON(item.properties)
-        func write(collectionID: String?) throws {
-            try index.dbQueue.write { db in
-                try db.execute(
-                    sql: """
-                        INSERT OR REPLACE INTO items
-                            (id, item_type_id, item_collection_id, title, icon, description, properties, modified_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                    arguments: [
-                        item.id, itemTypeID, collectionID,
-                        item.title, item.icon, item.description, propsJSON, iso(item.modifiedAt),
-                    ]
-                )
-                try reconcileContextLinks(
-                    db: db,
-                    sourceID: item.id,
-                    sourceKind: "item",
-                    properties: item.properties,
-                    tier1: item.tier1,
-                    tier2: item.tier2,
-                    tier3: item.tier3
-                )
-            }
-        }
-        do {
-            try write(collectionID: itemCollectionID)
-        } catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT {
-            // Mirror of upsertPage: a missing parent must never be fatal. Retry without
-            // the (missing) collection so the item still indexes under its Type; if the
-            // Type itself is missing, skip + log.
-            Self.log.error(
-                "upsertItem FK violation for item \(item.id, privacy: .public): \(String(describing: error), privacy: .public)"
-            )
-            guard itemCollectionID != nil else { return }
-            do {
-                try write(collectionID: nil)
-            } catch {
-                Self.log.error(
-                    "upsertItem skipped item \(item.id, privacy: .public) — parent type unindexed: \(String(describing: error), privacy: .public)"
-                )
-            }
-        }
-    }
-
-    func deleteItem(id: String) throws {
-        try index.dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM items WHERE id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM context_links WHERE source_id = ?", arguments: [id])
             try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [id])
         }
@@ -501,7 +390,7 @@ struct IndexUpdater: Sendable {
     func reconcileConnections(sourceID: String, sourceKind: String, sourceTitle: String, body: String) throws {
         let scanned = ConnectionScanner.scan(body: body)          // off the write closure
         let selfKey = ConnectionTitle.normalize(sourceTitle)
-        let surface = sourceKind == "page" ? "page_body" : "item_body"
+        let surface = "page_body"
         try index.dbQueue.write { db in
             try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [sourceID])
             for c in scanned {
@@ -529,9 +418,8 @@ struct IndexUpdater: Sendable {
     func activateConnections(targetID: String, targetKind: String, targetTitle: String) throws {
         let key = ConnectionTitle.normalize(targetTitle)
         try index.dbQueue.write { db in
-            let table = targetKind == "page" ? "pages" : "items"
             let holders = try String.fetchAll(
-                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [key])
+                db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE", arguments: [key])
             guard holders.count == 1 else { return }
             try db.execute(
                 sql: """
@@ -557,9 +445,8 @@ struct IndexUpdater: Sendable {
     func reactivateIfNowUnique(targetKind: String, title: String) throws {
         let key = ConnectionTitle.normalize(title)
         try index.dbQueue.write { db in
-            let table = targetKind == "page" ? "pages" : "items"
             let ids = try String.fetchAll(
-                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [key])
+                db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE", arguments: [key])
             guard ids.count == 1 else { return }
             try db.execute(
                 sql: """

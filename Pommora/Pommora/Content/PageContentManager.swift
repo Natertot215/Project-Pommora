@@ -17,10 +17,6 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPages
 ///
 /// CRUD methods are split into `PageContentManager+CRUD.swift` for legibility —
 /// this file holds storage + accessors + load paths only.
-///
-/// **ParadigmV2 (Task 5.5):** Items have been moved to a parallel
-/// `ItemContentManager` typed on Item + ItemType + ItemCollection. This type
-/// no longer carries any Item state or methods.
 @MainActor
 @Observable
 final class PageContentManager {

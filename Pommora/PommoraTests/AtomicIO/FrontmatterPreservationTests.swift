@@ -6,11 +6,11 @@ import Yams
 
 /// Task 1 — order-preserving, foreign-key-retaining frontmatter codec.
 ///
-/// Guards the preserving `write` / `encode` overloads + `setStampKey` on
-/// `AtomicYAMLMarkdown`. The OLD codec re-serialized only `CodingKeys`, so any
-/// non-modeled ("foreign", e.g. plugin) frontmatter key was silently dropped on
-/// the next save — these tests pin that it now survives, that cleared modeled
-/// keys actually clear, and that key order is stable across saves.
+/// Guards the preserving `write` / `encode` overloads on `AtomicYAMLMarkdown`.
+/// The OLD codec re-serialized only `CodingKeys`, so any non-modeled
+/// ("foreign", e.g. plugin) frontmatter key was silently dropped on the next
+/// save — these tests pin that it now survives, that cleared modeled keys
+/// actually clear, and that key order is stable across saves.
 @Suite("FrontmatterPreservation")
 struct FrontmatterPreservationTests {
 
@@ -103,48 +103,6 @@ struct FrontmatterPreservationTests {
         #expect(map2[Node("tags")] != nil)
         // `created_at` (existing) precedes `tags` (existing) — original order held.
         #expect(keys2.firstIndex(of: "created_at")! < keys2.firstIndex(of: "tags")!)
-    }
-
-    // MARK: - 2. setStampKey on a frontmatter-less foreign file
-
-    @Test("setStampKey on body-only file adds ONLY Class, keeps body")
-    func setStampKeyOnBodyOnlyFile() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("BodyOnly.md")
-
-        let bodyOnly = "# Just a body\n\nNo frontmatter here.\n"
-        try FixtureFiles.write(bodyOnly, to: url)
-
-        try AtomicYAMLMarkdown.setStampKey(at: url, value: "item")
-
-        let map = try mapping(at: url)
-        // ONLY the Class key — no id / tier / properties injected.
-        #expect(orderedKeys(map) == ["Class"])
-        #expect(map[Node("Class")]?.string == "item")
-
-        // Body preserved verbatim.
-        let (_, body) = try AtomicYAMLMarkdown.split(
-            try String(contentsOf: url, encoding: .utf8))
-        #expect(body == bodyOnly)
-    }
-
-    // MARK: - 3. setStampKey idempotence
-
-    @Test("setStampKey is idempotent across repeated runs")
-    func setStampKeyIdempotent() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("Stamp.md")
-        try FixtureFiles.write("Body.\n", to: url)
-
-        try AtomicYAMLMarkdown.setStampKey(at: url, value: "item")
-        let after1 = try String(contentsOf: url, encoding: .utf8)
-
-        try AtomicYAMLMarkdown.setStampKey(at: url, value: "item")
-        let after2 = try String(contentsOf: url, encoding: .utf8)
-
-        #expect(after1 == after2, "setStampKey drifted on the second run")
     }
 
     // MARK: - 4. Flow-style / comment fixture (value-preserving, accepts reflow)
@@ -293,47 +251,18 @@ struct FrontmatterPreservationTests {
         #expect(map[Node("icon")]?.string == "bolt.fill")
         // Foreign key still present.
         #expect(map[Node("tags")] != nil)
-        // Order unchanged — the original keys keep their positions as a stable
-        // prefix; the modeled `Class` stamp (emitted by every typed Page save since
-        // Task 2) is appended after them and is the ONLY addition. The substitution
-        // of `icon` must not reorder the pre-existing keys.
+        // Order unchanged — the original keys keep their positions, and NO key is
+        // added. The `Class` stamp is retired (PagesV2): a typed Page save must
+        // not inject it. The substitution of `icon` must not reorder anything.
         let keysAfter = orderedKeys(map)
         #expect(
-            Array(keysAfter.prefix(keysBefore.count)) == keysBefore,
-            "original key order drifted on a substitution: \(keysBefore) vs \(keysAfter)")
+            keysAfter == keysBefore,
+            "key set/order drifted on a substitution: \(keysBefore) vs \(keysAfter)")
         #expect(
-            Set(keysAfter).subtracting(keysBefore) == Set(["Class"]),
-            "expected the only added key to be the Class stamp: \(keysAfter)")
+            map[Node("Class")] == nil,
+            "the retired Class stamp must NOT be written by a Page save: \(keysAfter)")
         // Explicitly: `icon` still precedes `tags`.
         #expect(keysAfter.firstIndex(of: "icon")! < keysAfter.firstIndex(of: "tags")!)
-    }
-
-    // MARK: - 8. setStampKey REFUSES a non-mapping frontmatter root (no clobber)
-
-    @Test("setStampKey throws and leaves the file byte-unchanged for non-mapping frontmatter")
-    func setStampKeyRefusesNonMappingFrontmatter() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("SeqFrontmatter.md")
-
-        // Frontmatter root is a bare SEQUENCE — not a key/value mapping.
-        let original = """
-            ---
-            - alpha
-            - beta
-            ---
-            Body that must not be lost.
-            """
-        try FixtureFiles.write(original, to: url)
-        let before = try String(contentsOf: url, encoding: .utf8)
-
-        #expect(throws: AtomicYAMLMarkdownError.self) {
-            try AtomicYAMLMarkdown.setStampKey(at: url, value: "item")
-        }
-
-        // File left byte-identical — nothing destroyed.
-        let after = try String(contentsOf: url, encoding: .utf8)
-        #expect(after == before, "setStampKey clobbered a non-mapping frontmatter file")
     }
 
     // MARK: - VERIFY: envelope shape (one trailing newline on fm, no inner fences)

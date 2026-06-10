@@ -4,10 +4,10 @@ import Testing
 @testable import Pommora
 
 /// Regression coverage for the same-container name-collision data-loss bug:
-/// creating or renaming a Page/Item to a title a sibling already holds in the
+/// creating or renaming a Page to a title a sibling already holds in the
 /// SAME container would silently overwrite the other file's body. Locked
-/// behavior: REJECT (no auto-rename, no overwrite). Pages + Items must behave
-/// identically via the shared `NameCollisionValidator`.
+/// behavior: REJECT (no auto-rename, no overwrite) via the shared
+/// `NameCollisionValidator`.
 ///
 /// Filename = struct name (`NameCollisionTests`) so `-only-testing` actually
 /// runs these (branch quirks #1 / #17).
@@ -191,116 +191,6 @@ struct NameCollisionTests {
         #expect(manager.pages(in: coll).count == 2)
     }
 
-    @Test("renameItem case-only recase (notes → Notes) succeeds + recases file")
-    func itemRenameCaseOnlyRecaseSucceeds() async throws {
-        // FIX 1 regression on the Item side — same self-recase path through
-        // Filesystem.renameFile.
-        let (nexus, itemType, coll, manager) = try await setupItemCollection()
-        defer { TempNexus.cleanup(nexus) }
-
-        let original = try await manager.createItem(name: "notes", in: coll, type: itemType)
-        var withDesc = original
-        withDesc.description = "PRECIOUS"
-        try await manager.updateItem(withDesc, in: coll, type: itemType)
-        let item = manager.items(in: coll).first { $0.title == "notes" }!
-
-        try await manager.renameItem(item, to: "Notes", in: coll, type: itemType)
-
-        let recasedURL = NexusPaths.itemFileURL(forTitle: "Notes", in: coll.folderURL)
-        #expect(FileManager.default.fileExists(atPath: recasedURL.path))
-        let onDiskName = try storedFilename(in: coll.folderURL, matching: "notes.md")
-        #expect(onDiskName == "Notes.md")
-        let reloaded = try Item.load(from: recasedURL)
-        #expect(reloaded.description == "PRECIOUS")
-        #expect(reloaded.id == original.id)
-        #expect(manager.items(in: coll).count == 1)
-        #expect(manager.items(in: coll).first?.title == "Notes")
-    }
-
-    // MARK: - Items: parity via the same shared validator
-
-    @Test("createItem duplicate title in same ItemCollection throws + original survives")
-    func itemCreateDuplicateInCollectionRejected() async throws {
-        let (nexus, itemType, coll, manager) = try await setupItemCollection()
-        defer { TempNexus.cleanup(nexus) }
-
-        let original = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
-        var withDesc = original
-        withDesc.description = "PRECIOUS"
-        try await manager.updateItem(withDesc, in: coll, type: itemType)
-
-        await #expect(throws: ItemCRUDError.duplicateTitle) {
-            _ = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
-        }
-
-        let url = NexusPaths.itemFileURL(forTitle: "Buy milk", in: coll.folderURL)
-        let reloaded = try Item.load(from: url)
-        #expect(reloaded.description == "PRECIOUS")
-        #expect(reloaded.id == original.id)
-        #expect(manager.items(in: coll).count == 1)
-    }
-
-    @Test("renameItem onto an existing sibling's title throws + both files intact")
-    func itemRenameOntoSiblingRejected() async throws {
-        let (nexus, itemType, coll, manager) = try await setupItemCollection()
-        defer { TempNexus.cleanup(nexus) }
-
-        _ = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
-        _ = try await manager.createItem(name: "Buy bread", in: coll, type: itemType)
-        let bread = manager.items(in: coll).first { $0.title == "Buy bread" }!
-
-        await #expect(throws: ItemCRUDError.duplicateTitle) {
-            try await manager.renameItem(bread, to: "Buy milk", in: coll, type: itemType)
-        }
-
-        #expect(
-            FileManager.default.fileExists(
-                atPath: NexusPaths.itemFileURL(forTitle: "Buy milk", in: coll.folderURL).path))
-        #expect(
-            FileManager.default.fileExists(
-                atPath: NexusPaths.itemFileURL(forTitle: "Buy bread", in: coll.folderURL).path))
-        #expect(manager.items(in: coll).count == 2)
-    }
-
-    @Test("createItem collision is case-insensitive (Notes vs NOTES)")
-    func itemCreateCaseInsensitiveRejected() async throws {
-        let (nexus, itemType, manager) = try await setupItemTypeRoot()
-        defer { TempNexus.cleanup(nexus) }
-
-        _ = try await manager.createItem(name: "Notes", inTypeRoot: itemType)
-        await #expect(throws: ItemCRUDError.duplicateTitle) {
-            _ = try await manager.createItem(name: "NOTES", inTypeRoot: itemType)
-        }
-        #expect(manager.items(in: itemType).count == 1)
-    }
-
-    @Test("same Item title in DIFFERENT containers is allowed")
-    func itemSameTitleDifferentContainersAllowed() async throws {
-        let (nexus, itemType, coll, manager) = try await setupItemCollection()
-        defer { TempNexus.cleanup(nexus) }
-
-        _ = try await manager.createItem(name: "Notes", in: coll, type: itemType)
-        _ = try await manager.createItem(name: "Notes", inTypeRoot: itemType)
-
-        #expect(manager.items(in: coll).count == 1)
-        #expect(manager.items(in: itemType).count == 1)
-    }
-
-    @Test("renameItem to its OWN current title does not throw")
-    func itemRenameToOwnTitleAllowed() async throws {
-        let (nexus, itemType, coll, manager) = try await setupItemCollection()
-        defer { TempNexus.cleanup(nexus) }
-
-        _ = try await manager.createItem(name: "Buy milk", in: coll, type: itemType)
-        let item = manager.items(in: coll).first!
-        try await manager.renameItem(item, to: "Buy milk", in: coll, type: itemType)
-
-        #expect(
-            FileManager.default.fileExists(
-                atPath: NexusPaths.itemFileURL(forTitle: "Buy milk", in: coll.folderURL).path))
-        #expect(manager.items(in: coll).count == 1)
-    }
-
     // MARK: - Shared validator: direct unit coverage
 
     @Test("NameCollisionValidator: trimmed + case-insensitive collision detection")
@@ -382,36 +272,4 @@ struct NameCollisionTests {
         return (nexus, vault, manager)
     }
 
-    private func setupItemCollection() async throws
-        -> (Nexus, ItemType, ItemCollection, ItemContentManager)
-    {
-        let nexus = try TempNexus.make()
-        let itemType = ItemType(
-            id: ULID.generate(), title: "T", icon: nil, properties: [], views: [], modifiedAt: Date())
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
-
-        let collFolder = NexusPaths.itemCollectionFolderURL(
-            in: nexus.rootURL, typeFolderName: "T", collectionFolderName: "C")
-        try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = ItemCollection(
-            id: ULID.generate(), typeID: itemType.id, title: "C", folderURL: collFolder,
-            modifiedAt: Date())
-
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, itemType, coll, manager)
-    }
-
-    private func setupItemTypeRoot() async throws -> (Nexus, ItemType, ItemContentManager) {
-        let nexus = try TempNexus.make()
-        let itemType = ItemType(
-            id: ULID.generate(), title: "T", icon: nil, properties: [], views: [], modifiedAt: Date())
-        let typeFolder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: "T")
-        try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: "T"))
-
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, itemType, manager)
-    }
 }

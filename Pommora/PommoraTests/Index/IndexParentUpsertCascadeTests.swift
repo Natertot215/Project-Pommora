@@ -10,13 +10,12 @@ import Testing
 ///
 /// `INSERT OR REPLACE` on an existing primary key DELETEs the existing row
 /// (firing every `ON DELETE CASCADE` / `ON DELETE SET NULL` child FK) then
-/// re-inserts. The four parent tables (`page_types` / `item_types` /
-/// `page_collections` / `item_collections`) are cascade parents of pages/items,
-/// so re-upserting an already-present parent — which `loadAll` does on every
-/// launch as a defensive index sync (quirk #14) — cascade-wiped (or NULLed)
-/// every child page/item. The fix converts the parent upserts to a non-deleting
-/// `INSERT ... ON CONFLICT(id) DO UPDATE`. These tests prove children survive a
-/// re-upsert of their parent.
+/// re-inserts. The parent tables (`page_types` / `page_collections`) are
+/// cascade parents of pages, so re-upserting an already-present parent — which
+/// `loadAll` does on every launch as a defensive index sync (quirk #14) —
+/// cascade-wiped (or NULLed) every child page. The fix converts the parent
+/// upserts to a non-deleting `INSERT ... ON CONFLICT(id) DO UPDATE`. These
+/// tests prove children survive a re-upsert of their parent.
 @Suite("IndexParentUpsertCascade")
 @MainActor
 struct IndexParentUpsertCascadeTests {
@@ -49,10 +48,6 @@ struct IndexParentUpsertCascadeTests {
         PageType(id: ULID.generate(), title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
     }
 
-    private func makeItemType(title: String = "Tasks") -> ItemType {
-        ItemType(id: ULID.generate(), title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
-    }
-
     private func makePageCollection(typeID: String, title: String = "Archive") -> PageCollection {
         let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
         return PageCollection(
@@ -66,15 +61,6 @@ struct IndexParentUpsertCascadeTests {
             id: id, icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date()
         )
         return PageMeta(id: id, title: title, url: url, frontmatter: frontmatter)
-    }
-
-    private func makeItem(title: String) -> Item {
-        let now = Date()
-        return Item(
-            id: ULID.generate(), title: title, icon: nil, description: "",
-            tier1: [], tier2: [], tier3: [], properties: [:],
-            createdAt: now, modifiedAt: now
-        )
     }
 
     // MARK: - Tests
@@ -99,29 +85,6 @@ struct IndexParentUpsertCascadeTests {
         let pagesAfter = try count("pages", in: idx)
         let typesAfter = try count("page_types", in: idx)
         #expect(pagesAfter == 2, "re-upserting the parent page type must not cascade-wipe child pages")
-        #expect(typesAfter == 1, "re-upsert must update in place, not duplicate")
-    }
-
-    @Test func reUpsertItemTypePreservesChildItems() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
-        let updater = IndexUpdater(idx)
-
-        let it = makeItemType()
-        try updater.upsertItemType(it)
-        try updater.upsertItem(makeItem(title: "Item One"), itemTypeID: it.id, itemCollectionID: nil)
-        try updater.upsertItem(makeItem(title: "Item Two"), itemTypeID: it.id, itemCollectionID: nil)
-
-        let itemsBefore = try count("items", in: idx)
-        #expect(itemsBefore == 2)
-
-        // Re-upsert the SAME item type — simulating loadAll's defensive re-sync.
-        try updater.upsertItemType(it)
-
-        let itemsAfter = try count("items", in: idx)
-        let typesAfter = try count("item_types", in: idx)
-        #expect(itemsAfter == 2, "re-upserting the parent item type must not cascade-wipe child items")
         #expect(typesAfter == 1, "re-upsert must update in place, not duplicate")
     }
 

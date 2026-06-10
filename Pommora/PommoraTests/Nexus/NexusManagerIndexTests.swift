@@ -70,41 +70,6 @@ struct NexusManagerIndexTests {
         #expect(ptCount == 1)
     }
 
-    // MARK: - Test 2b: forceRebuildRepopulatesCurrentIndex
-
-    /// `openIndex(forceRebuild: true)` must repopulate even when the on-disk index
-    /// is already at the current schema version (`needsRebuild == false`). This is
-    /// the Task 10b launch-ordering guarantee: after `ItemFormatMigration` converts
-    /// a legacy `.json` Item to `.md`, the index (which reads `.md`-only) is forced
-    /// to rebuild so the converted Item is visible on the SAME launch.
-    @Test func forceRebuildRepopulatesCurrentIndex() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-
-        // Seed a Page Type, then open + stamp a current-version index that does
-        // NOT yet contain a second Type added afterward.
-        let ptManager = PageTypeManager(nexus: nexus)
-        await ptManager.loadAll()
-        try await ptManager.createPageType(name: "Notes", icon: nil)
-
-        let manager = NexusManager()
-        await manager.openIndex(for: nexus)  // fresh DB → needsRebuild → populated + stamped
-        let firstCount = try await #require(manager.currentIndex).dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
-        }
-        #expect(firstCount == 1)
-
-        // A second Type lands on disk AFTER the index was stamped current.
-        try await ptManager.createPageType(name: "Tasks", icon: nil)
-
-        // A plain reopen would NOT rebuild (version is current). forceRebuild does.
-        await manager.openIndex(for: nexus, forceRebuild: true)
-        let secondCount = try await #require(manager.currentIndex).dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
-        }
-        #expect(secondCount == 2)
-    }
-
     // MARK: - Test 3: indexInitFailureLeavesNexusUsable
 
     /// When the nexus root itself is unwritable, `PommoraIndex.open` cannot create

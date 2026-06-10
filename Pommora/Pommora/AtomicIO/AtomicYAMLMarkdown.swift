@@ -19,16 +19,10 @@ import Yams
 /// - If `---\n` opens but no closing `\n---\n` is found, throws `LoadError.malformedEnvelope`.
 enum AtomicYAMLMarkdownError: LocalizedError {
     case utf8EncodingFailed
-    case nonMappingFrontmatter
     var errorDescription: String? {
         switch self {
         case .utf8EncodingFailed:
             return "Failed to encode YAML frontmatter as UTF-8 — file not written."
-        case .nonMappingFrontmatter:
-            return
-                "Cannot stamp a Class onto a file whose frontmatter root is not a "
-                + "key/value mapping (it parses as a sequence or scalar). The file "
-                + "was left unchanged to avoid destroying its existing frontmatter."
         }
     }
 }
@@ -71,56 +65,18 @@ enum AtomicYAMLMarkdown {
 
     /// Reads a file, splits its YAML-frontmatter envelope, and composes the
     /// frontmatter into a raw Yams `Node` — the single source for the
-    /// "read → split → compose" chain that `setStampKey`, `mergedData`, and the
-    /// adopter's `Class`-stamp read all share.
+    /// "read → split → compose" chain behind `mergedData`.
     ///
     /// - The read + envelope split propagate errors via `throws` (a malformed
     ///   envelope surfaces as `LoadError.malformedEnvelope`); callers that prefer
     ///   to treat any read/split failure as "no frontmatter" wrap the call in `try?`.
     /// - The compose step is lenient (`try?`): frontmatter that is empty,
     ///   whitespace-only, or otherwise yields no single YAML root returns
-    ///   `node: nil`, as does frontmatter that Yams fails to parse. Callers branch on
-    ///   the returned `node` (`.mapping` / `.none` / null-scalar / other) so the
-    ///   empty-vs-non-mapping distinction stays available where it matters
-    ///   (notably `setStampKey`'s create-fresh vs. refuse-to-clobber decision).
+    ///   `node: nil`, as does frontmatter that Yams fails to parse. Callers branch
+    ///   on the returned `node` (`.mapping` / `.none` / other).
     static func composedFrontmatter(at url: URL) throws -> (node: Yams.Node?, body: String) {
         let (fm, body) = try split(try String(contentsOf: url, encoding: .utf8))
         return (try? Yams.compose(yaml: fm), body)
-    }
-
-    /// Opaque carrier for the result of one `composedFrontmatter` read so a caller
-    /// can read+split+compose a file ONCE and feed the same composed state into
-    /// both a `frontmatterScalar` classification and a `setStampKey` write —
-    /// without importing Yams or naming a `Node`. Obtained from
-    /// `readComposedFrontmatter(at:)`.
-    struct ComposedFrontmatter {
-        fileprivate let node: Yams.Node?
-        fileprivate let body: String
-    }
-
-    /// Reads + splits + composes a file's frontmatter once, returning the opaque
-    /// `ComposedFrontmatter` token. Same read semantics as `composedFrontmatter`;
-    /// exposed so a caller doing both a scalar read and a stamp write reads disk
-    /// only once.
-    static func readComposedFrontmatter(at url: URL) throws -> ComposedFrontmatter {
-        let (node, body) = try composedFrontmatter(at: url)
-        return ComposedFrontmatter(node: node, body: body)
-    }
-
-    /// Reads a single top-level scalar value out of a file's frontmatter mapping,
-    /// returning `nil` when the file has no frontmatter, the frontmatter root is
-    /// not a key/value mapping, or the mapping carries no such key. Built on
-    /// `composedFrontmatter` so external callers (e.g. the adopter's `Class`
-    /// read) never have to import Yams or name a `Node`.
-    static func frontmatterScalar(at url: URL, forKey key: String) throws -> String? {
-        frontmatterScalar(in: try readComposedFrontmatter(at: url), forKey: key)
-    }
-
-    /// Scalar read against an already-composed frontmatter token (no disk read).
-    /// Same mapping/key semantics as `frontmatterScalar(at:forKey:)`.
-    static func frontmatterScalar(in composed: ComposedFrontmatter, forKey key: String) -> String? {
-        guard case .mapping(let map)? = composed.node else { return nil }
-        return map[Yams.Node(key)]?.string
     }
 
     // MARK: - Preserving overloads (foreign-key retaining, order-stable)
@@ -187,48 +143,6 @@ enum AtomicYAMLMarkdown {
         }
         for (k, v) in typedMap where merged[k] == nil { merged[k] = v }
         return try envelope(try Yams.serialize(node: .mapping(merged)), body)
-    }
-
-    /// YAML-level single-key set that stamps the `Class:` discriminator onto a file
-    /// without touching any other frontmatter. Value-preserving: reads existing
-    /// frontmatter as a mapping, sets only the `Class` key, re-serializes. A
-    /// frontmatter-less file gains ONLY `Class:` (no id / tier / properties
-    /// injected). Idempotent — re-running produces identical output. The literal
-    /// `"Class"` key is independent of any typed `kind` property.
-    static func setStampKey(at url: URL, value: String) throws {
-        try setStampKey(at: url, value: value, composed: readComposedFrontmatter(at: url))
-    }
-
-    /// `setStampKey` against an already-composed frontmatter token — lets a caller
-    /// that already read the file (e.g. for a `Class` classification) stamp it
-    /// WITHOUT re-reading. Writes to `url`; the bytes written are identical to the
-    /// `at:value:` overload's for the same on-disk state.
-    static func setStampKey(at url: URL, value: String, composed: ComposedFrontmatter) throws {
-        // Resolve the mapping to stamp onto:
-        //   • empty / null / unparseable frontmatter → fresh mapping (create path,
-        //     matches the frontmatter-less behavior of just adding `Class:`),
-        //   • frontmatter that parses to a mapping → use it,
-        //   • NON-EMPTY frontmatter that parses to a non-mapping (sequence / scalar)
-        //     → throw and write nothing, so we never clobber existing content.
-        var map: Yams.Node.Mapping
-        switch composed.node {
-        case .mapping(let m):
-            map = m
-        case .none:
-            // Empty or whitespace-only frontmatter → create a fresh mapping.
-            map = .init([])
-        case .some(let node) where node.null != nil:
-            // A frontmatter that composes to `null` (e.g. `~`) is treated like
-            // empty — take the create-fresh path rather than throwing.
-            map = .init([])
-        default:
-            // Non-empty frontmatter that is a sequence or a non-null scalar:
-            // refuse to write so the existing content is never destroyed.
-            throw AtomicYAMLMarkdownError.nonMappingFrontmatter
-        }
-        map[Yams.Node("Class")] = Yams.Node(value)
-        try envelope(try Yams.serialize(node: .mapping(map)), composed.body)
-            .write(to: url, options: [.atomic])
     }
 
     // MARK: - Envelope

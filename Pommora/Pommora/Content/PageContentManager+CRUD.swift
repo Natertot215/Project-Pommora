@@ -5,9 +5,6 @@ import Foundation
 /// for legibility. `@MainActor` is inherited from the type declaration;
 /// `@Observable` storage is fine across extensions.
 ///
-/// **ParadigmV2 (Task 5.5):** Item CRUD has moved to a parallel
-/// `ItemContentManager+CRUD.swift` typed on Item + ItemType + ItemCollection.
-///
 /// Every CRUD method:
 /// - Wraps its body in `do { … } catch { self.pendingError = error; throw error }`
 ///   so the sidebar toast can surface failures.
@@ -22,8 +19,7 @@ extension PageContentManager {
     // + schema checks, but it can't see sibling Pages (it's a pure function with
     // no container view). The same-container collision rule — which prevents a
     // create/rename from silently overwriting another Page's `.md` body — lives
-    // here, delegated to the shared `NameCollisionValidator` so Pages + Items
-    // enforce one identical rule. Mirrors `ItemContentManager.enforceTitleUniqueness`.
+    // here, delegated to the shared `NameCollisionValidator`.
     fileprivate func enforceTitleUniqueness(
         _ desiredTitle: String,
         among siblings: [PageMeta],
@@ -892,8 +888,7 @@ extension PageContentManager {
 }
 
 /// Errors surfaced by `PageContentManager` create/rename when a same-container
-/// name collision would silently overwrite another Page's `.md` body. Mirrors
-/// `ItemCRUDError.duplicateTitle` so Pages + Items reject collisions identically
+/// name collision would silently overwrite another Page's `.md` body
 /// (locked decision — no auto-rename, no overwrite). Title shape (empty /
 /// invalid characters) is owned by `PageValidator`; this covers the sibling
 /// collision only.

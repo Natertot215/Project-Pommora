@@ -2,14 +2,13 @@ import Foundation
 import Testing
 @testable import Pommora
 
-/// Verifies the EC2 `schema_version` forward-compat field on all four
-/// non-Agenda sidecars (PageType, PageCollection, ItemType, ItemCollection).
-/// PageType + ItemType are stamped `2` (Relations-redesign re-migration bump);
-/// PageCollection + ItemCollection stay on `1` (no schema change). Legacy
-/// sidecars still decode missing versions as `0`. AgendaTaskSchema +
-/// AgendaEventSchema were already on `schemaVersion: 1` (camelCase on-disk key,
-/// pre-existing convention) — those are not retested here; their existing tests
-/// already cover round-trip.
+/// Verifies the EC2 `schema_version` forward-compat field on the non-Agenda
+/// sidecars (PageType, PageCollection). PageType is stamped `2`
+/// (Relations-redesign re-migration bump); PageCollection stays on `1` (no
+/// schema change). Legacy sidecars still decode missing versions as `0`.
+/// AgendaTaskSchema + AgendaEventSchema were already on `schemaVersion: 1`
+/// (camelCase on-disk key, pre-existing convention) — those are not retested
+/// here; their existing tests already cover round-trip.
 @Suite("SidecarVersion") struct SidecarVersionTests {
 
     // MARK: - PageType
@@ -70,66 +69,6 @@ import Testing
         decoder.dateDecodingStrategy = .iso8601
         let pc = try decoder.decode(PageCollection.self, from: json)
         #expect(pc.schemaVersion == 0)
-    }
-
-    // MARK: - ItemType
-
-    @Test func itemTypeFreshDefaultsToSchemaVersion2() {
-        let it = ItemType(
-            id: "01HI", title: "X", icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-        #expect(it.schemaVersion == 2)
-    }
-
-    @Test func itemTypeEncodesSchemaVersionKey() throws {
-        let it = ItemType(
-            id: "01HI", title: "X", icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-        let data = try AtomicJSON.encode(it)
-        let s = String(data: data, encoding: .utf8)!
-        #expect(s.contains(#""schema_version" : 2"#))
-    }
-
-    @Test func itemTypeLegacyDecodeDefaultsToZero() throws {
-        let json = #"""
-        {
-          "id": "01HI",
-          "icon": null,
-          "modified_at": "2026-05-24T00:00:00Z",
-          "properties": [],
-          "views": []
-        }
-        """#.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let it = try decoder.decode(ItemType.self, from: json)
-        #expect(it.schemaVersion == 0)
-    }
-
-    // MARK: - ItemCollection
-
-    @Test func itemCollectionFreshDefaultsToSchemaVersion1() {
-        let ic = ItemCollection(
-            id: "01HIC", typeID: "01HI", title: "X",
-            folderURL: URL(fileURLWithPath: "/tmp"), modifiedAt: Date()
-        )
-        #expect(ic.schemaVersion == 1)
-    }
-
-    @Test func itemCollectionLegacyDecodeDefaultsToZero() throws {
-        let json = #"""
-        {
-          "id": "01HIC",
-          "type_id": "01HI",
-          "modified_at": "2026-05-24T00:00:00Z"
-        }
-        """#.data(using: .utf8)!
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let ic = try decoder.decode(ItemCollection.self, from: json)
-        #expect(ic.schemaVersion == 0)
     }
 
     // MARK: - Round-trip preserves version

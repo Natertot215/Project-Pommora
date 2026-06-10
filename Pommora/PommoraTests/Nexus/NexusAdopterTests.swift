@@ -179,27 +179,6 @@ struct NexusAdopterTests {
         #expect(move.collectionSidecar == .pageCollection)
     }
 
-    @Test("scan classifies Items/ folder as wrapper-unwrap when child has _schema.json")
-    func scanItemsWrapper() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let wrapper = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
-        let child = wrapper.appendingPathComponent("Errands", isDirectory: true)
-        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
-        // Child must carry a legacy sidecar so the structural guard recognizes
-        // this as a real wrapper (not a user folder named "Items").
-        try FixtureFiles.writeJSON(
-            #"{"id":"01HVIT","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: child.appendingPathComponent("_schema.json")
-        )
-
-        let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
-        let unwrap = try #require(plan.unwrapSteps.first)
-        #expect(unwrap.wrapperKind == .items)
-        #expect(unwrap.moves.first?.typeSidecar == .itemType)
-        #expect(unwrap.moves.first?.collectionSidecar == .itemCollection)
-    }
-
     @Test("scan classifies Agenda/ Tasks + Events as wrapper-unwrap with per-singleton sidecars")
     func scanAgendaWrapper() throws {
         let nexus = try TempNexus.make()
@@ -258,8 +237,8 @@ struct NexusAdopterTests {
     func scanSilentlyClassifiesDualSidecarsAsFlat() throws {
         // Folders carrying multiple recognized per-kind sidecars are classified
         // as alreadyFlat with the FIRST-FOUND sidecar (per recognizedSidecarsAt
-        // order: pageType > itemType > ...). The non-authoritative sidecar is
-        // cleaned up at apply time via cleanupLegacyOrphans — NOT surfaced as
+        // order: pageType > pageCollection > ...). The non-authoritative sidecar
+        // is cleaned up at apply time via cleanupLegacyOrphans — NOT surfaced as
         // a warning, because this fires routinely on nexuses migrated through
         // early flatlayout-4.2 versions and the cleanup is non-destructive.
         let nexus = try TempNexus.make()
@@ -271,8 +250,8 @@ struct NexusAdopterTests {
             to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         )
         try FixtureFiles.writeJSON(
-            #"{"id":"01HIT","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: folder.appendingPathComponent(NexusPaths.itemTypeSidecarFilename)
+            #"{"id":"01HC","type_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
+            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
