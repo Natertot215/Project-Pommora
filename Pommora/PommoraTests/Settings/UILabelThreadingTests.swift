@@ -30,25 +30,21 @@ struct UILabelThreadingTests {
         #expect(labels.sidebarSections.spaces == defaults.sidebarSections.spaces)
         #expect(labels.sidebarSections.topics == defaults.sidebarSections.topics)
         #expect(labels.sidebarSections.pages  == defaults.sidebarSections.pages)
-        #expect(labels.sidebarSections.items  == defaults.sidebarSections.items)
         #expect(labels.pageType.singular      == defaults.pageType.singular)
         #expect(labels.pageCollection.singular == defaults.pageCollection.singular)
-        #expect(labels.itemType.singular      == defaults.itemType.singular)
-        #expect(labels.itemCollection.singular == defaults.itemCollection.singular)
         #expect(labels.agendaTask.singular    == defaults.agendaTask.singular)
         #expect(labels.agendaEvent.singular   == defaults.agendaEvent.singular)
     }
 
     // MARK: - Test 2: Default sidebar section values are correct strings
 
-    @Test("Default sidebar section labels are Spaces / Topics / Vaults / Items")
+    @Test("Default sidebar section labels are Spaces / Topics / Vaults")
     func defaultSidebarSectionStrings() async throws {
         let m = try await makeSettingsManager()
         let s = m.settings.labels.sidebarSections
         #expect(s.spaces == "Spaces")
         #expect(s.topics == "Topics")
         #expect(s.pages  == "Vaults")
-        #expect(s.items  == "Items")
     }
 
     // MARK: - Test 3: Default page-type label is "Vault"
@@ -109,10 +105,10 @@ struct UILabelThreadingTests {
 
         await m.updateLabel(\.pageType, to: LabelPair(singular: "Note Folder", plural: "Note Folders"))
 
-        // Items-side labels should be unchanged.
-        #expect(m.settings.labels.itemType.singular == "Type")
-        #expect(m.settings.labels.itemCollection.singular == "Set")
-        #expect(m.settings.labels.sidebarSections.items == "Items")
+        // Untouched labels should be unchanged.
+        #expect(m.settings.labels.pageCollection.singular == "Collection")
+        #expect(m.settings.labels.agendaTask.singular == "Task")
+        #expect(m.settings.labels.sidebarSections.pages == "Vaults")
     }
 
     // MARK: - Test 7: agendaTask label defaults to "Task"
@@ -166,6 +162,5 @@ struct UILabelThreadingTests {
         #expect(decoded.labels.sidebarSections.spaces == "Spaces")
         #expect(decoded.labels.sidebarSections.topics == "Topics")
         #expect(decoded.labels.sidebarSections.pages  == "Vaults")
-        #expect(decoded.labels.sidebarSections.items  == "Types")
     }
 }

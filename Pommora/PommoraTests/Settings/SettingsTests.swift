@@ -18,12 +18,6 @@ struct SettingsTests {
         #expect(s.labels.pageCollection.singular == "Collection")
         #expect(s.labels.pageCollection.plural == "Collections")
 
-        // Items-side: generic "Type" + distinctive "Set".
-        #expect(s.labels.itemType.singular == "Type")
-        #expect(s.labels.itemType.plural == "Types")
-        #expect(s.labels.itemCollection.singular == "Set")
-        #expect(s.labels.itemCollection.plural == "Sets")
-
         // Tier-3 + Agenda label pairs.
         #expect(s.labels.project.singular == "Project")
         #expect(s.labels.project.plural == "Projects")
@@ -32,12 +26,9 @@ struct SettingsTests {
         #expect(s.labels.agendaEvent.singular == "Event")
         #expect(s.labels.agendaEvent.plural == "Events")
 
-        // Sidebar sections — only Pages + Items; no Agenda heading per Phase 8.3.
-        // Pages-side defaults to its signature plural "Vaults"; the Items-side
-        // section defaults to "Items" (browse-my-Items framing, 2026-05-25 decision —
-        // distinct from itemType.plural "Types").
+        // Sidebar sections — no Agenda heading per Phase 8.3. Pages-side
+        // defaults to its signature plural "Vaults".
         #expect(s.labels.sidebarSections.pages == "Vaults")
-        #expect(s.labels.sidebarSections.items == "Items")
     }
 
     @Test("Codable round-trip preserves all fields")
@@ -45,7 +36,7 @@ struct SettingsTests {
         var original = Settings.defaultSeed()
         original.accentColor = .purple
         original.labels.pageType = LabelPair(singular: "Library", plural: "Libraries")
-        original.labels.itemCollection = LabelPair(singular: "Bucket", plural: "Buckets")
+        original.labels.agendaTask = LabelPair(singular: "Todo", plural: "Todos")
 
         let data = try AtomicJSON.encode(original)
         let decoded = try JSONDecoder.iso8601().decode(Settings.self, from: data)
@@ -85,7 +76,38 @@ struct SettingsTests {
         #expect(json.contains("\"modified_at\""))
         #expect(json.contains("\"sidebar_sections\""))
         #expect(json.contains("\"page_type\""))
-        #expect(json.contains("\"item_collection\""))
+        #expect(json.contains("\"agenda_task\""))
+    }
+
+    @Test("legacy settings.json with retired item label keys still decodes")
+    func legacyItemKeysDecodeTolerance() throws {
+        // A pre-PagesV2 settings file still carries `item_type` / `item_collection`
+        // label pairs and a `sidebar_sections.items` key. Codable ignores keys
+        // absent from CodingKeys, so the file must decode cleanly — no crash, no
+        // throw — with the page-side labels (including a user rename) preserved.
+        let legacyJSON = """
+        {
+          "version": 1,
+          "defaults_version": 2,
+          "labels": {
+            "sidebar_sections": { "pages": "Shelves", "items": "Items" },
+            "page_type":        {"singular": "Vault", "plural": "Vaults"},
+            "page_collection":  {"singular": "Collection", "plural": "Collections"},
+            "item_type":        {"singular": "Type", "plural": "Types"},
+            "item_collection":  {"singular": "Set", "plural": "Sets"},
+            "project":          {"singular": "Project", "plural": "Projects"},
+            "agenda_task":      {"singular": "Task", "plural": "Tasks"},
+            "agenda_event":     {"singular": "Event", "plural": "Events"}
+          },
+          "modified_at": "2026-01-01T00:00:00Z"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder.iso8601().decode(Settings.self, from: legacyJSON)
+        #expect(decoded.labels.pageType.plural == "Vaults")
+        #expect(decoded.labels.pageCollection.singular == "Collection")
+        // User-customized pages section label survives the retired-key load.
+        #expect(decoded.labels.sidebarSections.pages == "Shelves")
     }
 
     @Test("all SettingsAccentColor cases round-trip")

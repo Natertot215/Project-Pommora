@@ -22,7 +22,7 @@ struct SettingsManagerTests {
         #expect(m.settings.version == 1)
         #expect(m.settings.accentColor == nil)
         #expect(m.settings.labels.pageType.singular == "Vault")
-        #expect(m.settings.labels.itemCollection.singular == "Set")
+        #expect(m.settings.labels.pageCollection.singular == "Collection")
         #expect(m.pendingError == nil)
     }
 
@@ -116,15 +116,15 @@ struct SettingsManagerTests {
         let m = SettingsManager(nexus: nexus)
         await m.loadOrSeed()
 
-        let bucket = LabelPair(singular: "Bucket", plural: "Buckets")
-        await m.updateLabel(\.itemCollection, to: bucket)
+        let todo = LabelPair(singular: "Todo", plural: "Todos")
+        await m.updateLabel(\.agendaTask, to: todo)
 
-        #expect(m.settings.labels.itemCollection == bucket)
+        #expect(m.settings.labels.agendaTask == todo)
         // Pages-side labels stay default.
         #expect(m.settings.labels.pageType.singular == "Vault")
         #expect(m.settings.labels.pageCollection.singular == "Collection")
-        // Items-side type label stays default.
-        #expect(m.settings.labels.itemType.singular == "Type")
+        // Sibling Agenda label stays default.
+        #expect(m.settings.labels.agendaEvent.singular == "Event")
     }
 
     @Test("modifiedAt advances on each mutation")
@@ -158,11 +158,11 @@ struct SettingsManagerTests {
         let first = SettingsManager(nexus: nexus)
         await first.loadOrSeed()
         await first.updateAccentColor(.orange)
-        await first.updateLabel(\.itemType, to: LabelPair(singular: "Kind", plural: "Kinds"))
+        await first.updateLabel(\.pageType, to: LabelPair(singular: "Kind", plural: "Kinds"))
 
         let second = SettingsManager(nexus: nexus)
         await second.loadOrSeed()
         #expect(second.settings.accentColor == .orange)
-        #expect(second.settings.labels.itemType.singular == "Kind")
+        #expect(second.settings.labels.pageType.singular == "Kind")
     }
 }

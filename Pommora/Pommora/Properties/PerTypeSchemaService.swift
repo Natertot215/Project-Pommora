@@ -55,23 +55,23 @@ protocol PerTypeSchemaAdapter: AnyObject {
 
     // MARK: Member files
 
-    /// All member files (`.md` Pages / `.json` Items) belonging to the type
-    /// identified by `typeID`. Throws `errTypeNotFound` when the type is absent.
+    /// All member files (`.md` Pages) belonging to the type identified by
+    /// `typeID`. Throws `errTypeNotFound` when the type is absent.
     func memberFiles(forTypeID typeID: String) throws -> [URL]
 
     /// Strip `propertyID` from every member file of the type identified by
-    /// `typeID`, staging the rewrites into `tx`. The per-side load / strip /
-    /// re-encode lives entirely inside this method (Page preserves the Markdown
-    /// body; Item has no body), wrapped in `MemberFileStrip.forEach` so an
-    /// unreadable member never aborts the mutation. Throws `errTypeNotFound` when
-    /// the type is absent (URL resolution failure), but not for per-member decode
-    /// failures (those are skipped resiliently).
+    /// `typeID`, staging the rewrites into `tx`. The load / strip / re-encode
+    /// lives entirely inside this method (preserving the Markdown body),
+    /// wrapped in `MemberFileStrip.forEach` so an unreadable member never
+    /// aborts the mutation. Throws `errTypeNotFound` when the type is absent
+    /// (URL resolution failure), but not for per-member decode failures
+    /// (those are skipped resiliently).
     func stripPropertyFromMembers(
         _ propertyID: String, forTypeID typeID: String, into tx: SchemaTransaction) throws
 
     // MARK: Index
 
-    var indexOwningTypeKind: String { get }  // "page_type" / "item_type"
+    var indexOwningTypeKind: String { get }  // "page_type"
     var indexUpdater: IndexUpdater? { get }
 
     // MARK: Validation

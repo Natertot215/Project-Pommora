@@ -129,12 +129,9 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         }
 
         if s.defaultsVersion < 2 {
-            // v1→v2: Items sidebar section header renamed from "Types" → "Items"
-            // per Nathan's 2026-05-25 directive. Only overwrite if the user is
-            // still on the old default (preserves any custom rename).
-            if s.labels.sidebarSections.items == "Types" {
-                s.labels.sidebarSections.items = "Items"
-            }
+            // v1→v2 historically rewrote the Items sidebar section default;
+            // the Items subsystem is retired (PagesV2), so this step is now a
+            // bare version bump.
             s.defaultsVersion = 2
         }
 

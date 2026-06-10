@@ -61,8 +61,8 @@ final class AgendaTaskManager {
     // `AgendaTaskValidator` owns title shape + time-field consistency, but it
     // can't see sibling Tasks. The same-container collision rule — which prevents
     // a create/rename from silently overwriting another Task's `.task.json` —
-    // lives here, delegated to the shared `NameCollisionValidator` so Pages,
-    // Items, and Agenda enforce one identical rule. "Same container" = the Tasks
+    // lives here, delegated to the shared `NameCollisionValidator` so Pages
+    // and Agenda enforce one identical rule. "Same container" = the Tasks
     // singleton (a flat folder), so the sibling list is the whole `tasks` array.
     private func enforceTitleUniqueness(_ desiredTitle: String, excluding: AgendaTask? = nil) throws {
         try NameCollisionValidator.validate(
@@ -249,8 +249,8 @@ final class AgendaTaskManager {
     /// removed.
     ///
     /// Mirrors `PageContentManager.unlinkTier` — see that method for the full
-    /// contract. Agenda files live in a flat singleton folder, so (unlike Pages /
-    /// Items) there is no container to resolve: the on-disk URL derives directly
+    /// contract. Agenda files live in a flat singleton folder, so (unlike
+    /// Pages) there is no container to resolve: the on-disk URL derives directly
     /// from the title carried by `incomingContextLinks` (sourced from the
     /// `agenda_tasks` table), with an in-memory fallback for index/disk drift.
     /// Each referencing Task is loaded, mutated through the `setRelationIDs`
