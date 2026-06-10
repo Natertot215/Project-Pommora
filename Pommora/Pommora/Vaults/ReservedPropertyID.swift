@@ -56,4 +56,15 @@ enum ReservedPropertyID {
         default: return nil
         }
     }
+
+    /// Inverse of `tierPropertyID(forTier:)`: maps a reserved tier property ID
+    /// (`_tier1/2/3`) back to its level. Returns `nil` for any non-tier ID.
+    nonisolated static func tierNumber(forID id: String) -> Int? {
+        switch id {
+        case tier1: return 1
+        case tier2: return 2
+        case tier3: return 3
+        default: return nil
+        }
+    }
 }

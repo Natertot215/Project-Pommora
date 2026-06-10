@@ -141,13 +141,17 @@ struct PagePreviewCard: View {
 
     private var header: some View {
         HStack(spacing: PUI.Spacing.md) {
-            capsuleControl("xmark", help: "Close Preview") { closeCard() }
+            // Figma V8 leading glyph reads as a rounded square with a small
+            // centered inner square — closest system match is `square.inset.filled`.
+            // Still the close action (NEEDS_CONTEXT: confirm intended glyph).
+            capsuleControl("square.inset.filled", help: "Close Preview") { closeCard() }
 
             HStack(spacing: PUI.Spacing.sm) {
                 iconAffordance
                 TextField("Untitled", text: $titleDraft)
                     .textFieldStyle(.plain)
-                    .font(.title3.weight(.semibold))
+                    // Figma V8: regular weight, not semibold.
+                    .font(.title3)
                     .focused($titleFocused)
                     .onSubmit { Task { await commitRename() } }
                     .onChange(of: titleFocused) { wasFocused, isFocused in
@@ -280,9 +284,11 @@ struct PagePreviewCard: View {
     @ViewBuilder
     private var inspectorColumn: some View {
         if let vm = viewModel, let vault {
-            // FrontmatterInspector reused verbatim — same debounced-save VM +
-            // per-type property rows as the main window's inspector pane.
-            FrontmatterInspector(
+            // Preview-styled inspector (Figma V8): grouped tier card + plain
+            // property list, no "Page" meta / section headers. Drives the SAME
+            // FrontmatterInspectorViewModel + debounced-save path the main
+            // window's FrontmatterInspector uses.
+            PagePreviewInspector(
                 page: vm.page,
                 vault: vault,
                 index: contentManager.indexUpdater?.index,
