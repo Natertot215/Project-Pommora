@@ -228,8 +228,11 @@ struct PageTypeManagerTests {
         await reloaded.loadAll()
         #expect(reloaded.types.first?.openIn == .compact)
 
-        // Flipping back persists too.
+        // Flipping back persists too — on disk, not just in memory.
         try await manager.setOpenIn(.window, forVault: vault.id)
         #expect(manager.types.first?.openIn == .window)
+        let flipped = PageTypeManager(nexus: nexus)
+        await flipped.loadAll()
+        #expect(flipped.types.first?.openIn == .window)
     }
 }

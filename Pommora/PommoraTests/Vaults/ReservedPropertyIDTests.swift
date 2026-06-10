@@ -59,12 +59,11 @@ import Testing
         #expect(ReservedPropertyID.isReserved(ReservedPropertyID.tier3))
     }
 
-    @Test func tierNumberRoundTripsWithTierPropertyID() {
+    @Test func tierNumberRoundTripsWithTierPropertyID() throws {
         // Inverse-mapping contract relied on by PagePreviewInspector's tier rows.
         for tier in 1...3 {
-            let id = ReservedPropertyID.tierPropertyID(forTier: tier)
-            #expect(id != nil)
-            #expect(ReservedPropertyID.tierNumber(forID: id!) == tier)
+            let id = try #require(ReservedPropertyID.tierPropertyID(forTier: tier))
+            #expect(ReservedPropertyID.tierNumber(forID: id) == tier)
         }
     }
 

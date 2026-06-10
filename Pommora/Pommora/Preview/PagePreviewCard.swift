@@ -356,8 +356,14 @@ struct PagePreviewCard: View {
     /// the card (V8 — the dual-editor state is unreachable).
     private func openInMainPane() {
         guard let vm = viewModel else { return }
-        router.requestOpen(to: .page(vm.page))
-        previewStack.close(card)
+        // Flush the debounced edit BEFORE routing: the main-pane editor reads
+        // the body from disk the moment selection changes, so an unflushed
+        // edit would be invisible there (code-review fix).
+        Task {
+            await vm.flushNow()
+            router.requestOpen(to: .page(vm.page))
+            previewStack.close(card)
+        }
     }
 
     private func closeCard() {
@@ -449,6 +455,12 @@ struct PagePreviewCard: View {
     /// Library launcher), then build the editor VM on the same saver path as
     /// `PageEditorHost`.
     private func load() async {
+        // Defensive: a re-run must not orphan a previously registered VM in
+        // the lifecycle-flush registry (code-review fix).
+        if let old = viewModel {
+            AppGlobals.unregister(old)
+            viewModel = nil
+        }
         if card.ref.resolve(vaultManager: vaultManager, contentManager: contentManager) == nil {
             await loadContainer()
         }

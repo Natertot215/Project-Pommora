@@ -186,6 +186,13 @@ struct PagePreviewInspector: View {
 
     // MARK: - VM lifecycle
 
+    /// Known limitation (code-review, 2026-06-10): drafts seed once from the
+    /// page's frontmatter at first render. If the frontmatter changes OUTSIDE
+    /// this inspector while the card stays open, the drafts don't re-seed and
+    /// the next inspector save re-applies them. The V8 edit-conflict guard
+    /// keeps the dangerous path (same page editable elsewhere) unreachable; a
+    /// reactive re-seed would clobber in-progress inspector edits, so this is
+    /// the deliberate trade.
     private func initVM() {
         if vm == nil {
             vm = FrontmatterInspectorViewModel(page: page, vault: vault, onSave: onSave)

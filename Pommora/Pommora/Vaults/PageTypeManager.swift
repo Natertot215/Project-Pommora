@@ -487,7 +487,9 @@ final class PageTypeManager {
     /// `_pagetype.json` sidecar): `.compact` (PagePreview card) or `.window`
     /// (main detail pane). No SQLite upsert — `open_in` is not indexed.
     func setOpenIn(_ mode: OpenInMode, forVault typeID: String) async throws {
-        guard let i = types.firstIndex(where: { $0.id == typeID }) else { return }
+        guard let i = types.firstIndex(where: { $0.id == typeID }) else {
+            throw PageTypeManagerError.typeNotFound
+        }
         var updated = types[i]
         updated.openIn = mode
         updated.modifiedAt = Date()
