@@ -51,4 +51,26 @@ enum ProjectValidator {
         }
         if conflict { throw ValidationError.duplicateTitle }
     }
+
+    /// Bare title validation for free-standing tier-3 Projects (Contexts
+    /// Decoupling). The legacy parent/containment overload above is deleted
+    /// in Task 1.3 along with its last callers in TopicManager.
+    static func validate(
+        title: String,
+        existing: [Project],
+        excluding: Project? = nil
+    ) throws {
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
+
+        let invalidChars: Set<Character> = ["/", "\\", ":"]
+        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
+            throw ValidationError.invalidTitleCharacters
+        }
+
+        let conflict = existing.contains { p in
+            p.id != excluding?.id && p.title.lowercased() == trimmed.lowercased()
+        }
+        if conflict { throw ValidationError.duplicateTitle }
+    }
 }
