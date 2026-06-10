@@ -119,3 +119,53 @@ final class PreviewStack {
         }
     }
 }
+
+// MARK: - Shared open-routing (every page-tap surface)
+
+extension PreviewStack {
+    /// The ONE open-path for a page-tap: routes per the vault's `open_in`
+    /// mode and performs the destination — `.detailPane` selects into the
+    /// main pane, `.previewCard` opens (or focuses) a card WITHOUT moving
+    /// the selection, `.suppressed` is the V8 edit-conflict guard no-op.
+    /// Shared by the sidebar and the detail-pane tables so the surfaces
+    /// can't drift. Returns the routed destination for call-site chrome
+    /// (the sidebar snaps its List highlight back on non-pane routes).
+    @discardableResult
+    func routeOpen(
+        _ page: PageMeta,
+        vault: PageType,
+        collection: PageCollection?,
+        selection: inout SidebarSelection
+    ) -> PageOpenDestination {
+        let destination = Self.destination(for: vault, page: page, currentSelection: selection)
+        switch destination {
+        case .detailPane:
+            let resolved = SidebarSelection.page(page)
+            if selection != resolved { selection = resolved }
+        case .previewCard:
+            open(page, vault: vault, collection: collection)
+        case .suppressed:
+            break
+        }
+        return destination
+    }
+
+    /// Parent-resolving variant for call sites that only hold the page
+    /// (sidebar rows, vault-detail rows that mix root and collection pages).
+    /// An unresolvable parent (page deleted mid-tap) falls back to the
+    /// detail pane, matching the pre-V8 behavior.
+    @discardableResult
+    func routeOpen(
+        _ page: PageMeta,
+        selection: inout SidebarSelection,
+        content: PageContentManager,
+        vaultManager: PageTypeManager
+    ) -> PageOpenDestination {
+        guard let parent = content.resolveParent(for: page, pageTypeManager: vaultManager) else {
+            let resolved = SidebarSelection.page(page)
+            if selection != resolved { selection = resolved }
+            return .detailPane
+        }
+        return routeOpen(page, vault: parent.vault, collection: parent.collection, selection: &selection)
+    }
+}

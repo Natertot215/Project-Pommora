@@ -188,4 +188,48 @@ struct PreviewStackTests {
             PreviewStack.destination(for: vault, page: tapped, currentSelection: .page(shown))
                 == .previewCard)
     }
+
+    // MARK: - routeOpen (the shared open-path: sidebar + detail-pane tables)
+
+    @Test("routeOpen on a .compact vault opens a card and leaves the selection alone")
+    func routeOpenCompactOpensCard() {
+        let stack = PreviewStack()
+        let vault = makeVault(openIn: .compact)
+        let page = makePage()
+        var selection = SidebarSelection.pageType(vault)
+
+        let routed = stack.routeOpen(page, vault: vault, collection: nil, selection: &selection)
+
+        #expect(routed == .previewCard)
+        #expect(stack.cards.count == 1)
+        #expect(selection == .pageType(vault))
+    }
+
+    @Test("routeOpen on a .window vault selects into the detail pane, no card")
+    func routeOpenWindowSelects() {
+        let stack = PreviewStack()
+        let vault = makeVault(openIn: .window)
+        let page = makePage()
+        var selection = SidebarSelection.none
+
+        let routed = stack.routeOpen(page, vault: vault, collection: nil, selection: &selection)
+
+        #expect(routed == .detailPane)
+        #expect(stack.cards.isEmpty)
+        #expect(selection == .page(page))
+    }
+
+    @Test("routeOpen suppresses when the tapped page already fills the main pane")
+    func routeOpenSuppressedNoOps() {
+        let stack = PreviewStack()
+        let vault = makeVault(openIn: .compact)
+        let page = makePage()
+        var selection = SidebarSelection.page(page)
+
+        let routed = stack.routeOpen(page, vault: vault, collection: nil, selection: &selection)
+
+        #expect(routed == .suppressed)
+        #expect(stack.cards.isEmpty)
+        #expect(selection == .page(page))
+    }
 }

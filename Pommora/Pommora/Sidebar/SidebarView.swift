@@ -84,20 +84,13 @@ struct SidebarView: View {
                 // (selection change), `.compact` opens/focuses a PagePreview
                 // card WITHOUT moving the selection. The edit-conflict guard
                 // (`.suppressed`) keeps a main-pane page from ever previewing.
-                if case .page(let p) = resolved,
-                    let parent = contentManager.resolveParent(for: p, pageTypeManager: vaultManager)
-                {
-                    switch PreviewStack.destination(
-                        for: parent.vault, page: p, currentSelection: selection)
-                    {
-                    case .detailPane:
-                        if selection != resolved { selection = resolved }
-                    case .previewCard:
-                        previewStack.open(p, vault: parent.vault, collection: parent.collection)
+                if case .page(let p) = resolved {
+                    let routed = previewStack.routeOpen(
+                        p, selection: &selection,
+                        content: contentManager, vaultManager: vaultManager)
+                    if routed != .detailPane {
                         // Snap the row highlight back to the still-active
                         // main-pane selection (the List already moved it).
-                        selectedTag = SelectionTag(selection)
-                    case .suppressed:
                         selectedTag = SelectionTag(selection)
                     }
                 } else if selection != resolved {

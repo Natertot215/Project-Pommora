@@ -18,6 +18,7 @@ struct PageCollectionDetailView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
+    @Environment(PreviewStack.self) private var previewStack
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -186,7 +187,10 @@ struct PageCollectionDetailView: View {
 
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
-        case .page(let p): selection = .page(p)
+        case .page(let p):
+            // Open-in routing (V8): this view knows its vault + collection,
+            // so the direct variant skips parent resolution.
+            previewStack.routeOpen(p, vault: vault, collection: collection, selection: &selection)
         case .collection: break
         }
     }

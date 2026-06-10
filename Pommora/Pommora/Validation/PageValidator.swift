@@ -55,17 +55,27 @@ enum PageValidator {
         against type: PropertyType,
         id: String
     ) throws {
-        switch (value, type) {
-        case (.number, .number), (.checkbox, .checkbox),
-            (.date, .date), (.datetime, .datetime),
-            // Unified Date type: date-only + with-time values interchangeable.
-            (.date, .datetime), (.datetime, .date),
-            (.select, .select), (.multiSelect, .multiSelect),
-            (.relation, .relation), (.url, .url),
-            (.null, _):
-            return
-        default:
-            throw ValidationError.propertyTypeMismatch(id: id)
+        // Exhaustive over the VALUE side (values arrive from disk) with no
+        // `default:` arm — a new PropertyValue case fails compilation here
+        // until its valid pairing is declared. (A tuple-switch `default:`
+        // previously hid the missing status/file pairs, bricking every save
+        // of a page that carried a status value.)
+        let matches: Bool
+        switch value {
+        case .number: matches = type == .number
+        case .checkbox: matches = type == .checkbox
+        // Unified Date type: date-only + with-time values interchangeable.
+        case .date, .datetime: matches = type == .date || type == .datetime
+        case .select: matches = type == .select
+        case .multiSelect: matches = type == .multiSelect
+        case .status: matches = type == .status
+        case .relation: matches = type == .relation
+        case .url: matches = type == .url
+        case .file: matches = type == .file
+        // Virtual — never persisted, so never valid as a stored value.
+        case .lastEditedTime: matches = false
+        case .null: matches = true
         }
+        guard matches else { throw ValidationError.propertyTypeMismatch(id: id) }
     }
 }

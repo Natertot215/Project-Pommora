@@ -19,6 +19,7 @@ struct PageTypeDetailView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
+    @Environment(PreviewStack.self) private var previewStack
 
     @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
@@ -342,7 +343,11 @@ struct PageTypeDetailView: View {
         case .collection(let c):
             selection = .collection(c)
         case .page(let p):
-            selection = .page(p)
+            // Open-in routing (V8): rows here mix vault-root and collection
+            // pages, so the parent-resolving variant picks the right ref.
+            previewStack.routeOpen(
+                p, selection: &selection,
+                content: contentManager, vaultManager: pageTypeManager)
         }
     }
 
