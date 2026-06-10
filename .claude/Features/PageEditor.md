@@ -69,7 +69,7 @@ What the editor renders and supports today.
 
 **Block constructs** (engine + Apple-AST supplemental):
 - Headings (`#`–`######`) on the Pommora scale `[2.0, 1.75, 1.5, 1.25, 1.15, 1.0]` (H6 = body size; no heading below body). H5/H6 are omitted from the right-click menu (only H1–H4 are offered). **Foldable** — hover a heading line to reveal a gutter chevron; click toggles a zero-height collapse of the section down to the next equal-or-higher heading (or document end). Fold state persists per-Page in frontmatter (`folded_headings`).
-- Bullet + ordered lists, with portable CommonMark source (`- item`). A `•` glyph renders over the `-` marker; source on disk stays `-` for portability.
+- Bullet + ordered lists, with portable CommonMark source (`- entry`). A `•` glyph renders over the `-` marker; source on disk stays `-` for portability.
 - **Task-list checkboxes** — GFM `- [ ]` / `- [x]`. The fast Pommora shorthand `-[ ]` / `-[x]` (no space after the bullet) is **canonicalized to GFM on input**: typing `-[]` / `-[ ]` / `-[x]` then the space that starts the content rewrites the line to `- [ ] ` / `- [x] ` (caret lands after the trailing space, so typing flows straight on). This keeps the quick shorthand but writes portable, Obsidian-renderable source — matching Enter-continuation. The bare empty `-[]` is a transient marker shown as literal text (not a checkbox) until that space canonicalizes it; `[ ]` / `[x]` with an inner char render as a checkbox immediately. An SF Symbol glyph draws in place of the bracket marker; clicking it toggles the source.
 - Fenced code blocks (` ``` `)
 - Inline + block LaTeX (`$..$` / `$$..$$`) — marker-shrink behavior ships; math rendering deferred.
@@ -79,13 +79,13 @@ What the editor renders and supports today.
 - **Thematic break / HR** (`---` on its own line) — renders as a horizontal line when the caret is off the line; the literal `---` becomes visible for editing when the caret enters it. Pommora rejects the Setext-H2 interpretation of `---`.
 
 **Typing helpers:**
-- List continuation (Enter at end of `- item` auto-fills the next marker, preserving indent + checkbox).
+- List continuation (Enter at the end of a `-` line auto-fills the next marker, preserving indent + checkbox).
 - Block auto-wrap (typing adjacent to `$$..$$` / `![[..]]` keeps the block on its own line).
 - Character-pair auto-pair + auto-delete for `**` / `__` / `[[` / `` ` `` (single `[` only auto-pairs at whitespace / line start so `-[]` flows cleanly).
 - Bracket-skip on Enter (caret between a matched pair jumps past the closer).
 - Dash auto-format (`--` → em-dash, ` - ` → en-dash; en→em promotion) and arrow auto-format (`<-` → `←`, `<->` → `↔`), input-time only — paste preserves the literal text.
 
-**Right-click menu** (engine base + Pommora extensions): standard system items (Cut/Copy/Paste, Spelling, Substitutions, Speech, Look Up, Translate, Writing Tools on 15.1+) plus Format (Bold/Italic/Strikethrough/Inline Code/Link), Heading (H1–H4), Lists (Bullet/Numbered), and Block (Blockquote/Code Block/Table/Horizontal Rule) submenus.
+**Right-click menu** (engine base + Pommora extensions): standard system entries (Cut/Copy/Paste, Spelling, Substitutions, Speech, Look Up, Translate, Writing Tools on 15.1+) plus Format (Bold/Italic/Strikethrough/Inline Code/Link), Heading (H1–H4), Lists (Bullet/Numbered), and Block (Blockquote/Code Block/Table/Horizontal Rule) submenus.
 
 **System integration** (free via NSTextView): Writing Tools (15.1+), Look Up, Translate, spell/grammar/autocorrect with per-token suppression for code/LaTeX, IME, dynamic light/dark colors, drag-to-select. Find-in-document highlighting bus is present; the Pommora-side find palette is deferred.
 

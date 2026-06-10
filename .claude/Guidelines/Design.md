@@ -84,7 +84,7 @@ Surfaces hosted inside `.popover(...)` and toolbar-anchored panels sit inside Ap
 
 Apple's native chrome animations (`NSSplitView` collapse, toolbar reflow, inspector reveal) are gold standard. **Don't replace system chrome with custom equivalents.**
 
-`.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.25))`. Inspector toolbar items belong **inside the `.inspector(...) { content }` closure** to anchor to the inspector's toolbar segment.
+`.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.25))`. Inspector toolbar content belongs **inside the `.inspector(...) { content }` closure** to anchor to the inspector's toolbar segment.
 
 ---
 

@@ -11,9 +11,9 @@ struct EntityStateRef: Codable, Hashable, Sendable {
     let title: String
 
     enum Kind: String {
-        // Persisted state.json entries with retired item kinds (`item`,
-        // `itemType`, `set`) decode as an unknown kind (typedKind == nil)
-        // and are skipped — forward-compatible by design.
+        // Persisted state.json entries with retired kinds decode as an
+        // unknown kind (typedKind == nil) and are skipped — forward-compatible
+        // by design.
         case page, vault, collection, space, topic, project, agenda
     }
 

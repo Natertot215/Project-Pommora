@@ -4,17 +4,17 @@ SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → valid
 
 ---
 
-#### Preview-window prerequisite (locked v0.2.7.1)
+#### Preview prerequisite — one shared primitive (`PagePreview`)
 
-"Open in preview" is a generic affordance (dropdown preview-on-click, future `⌥⌘O`, future Cmd-click-from-anywhere) backed by a **shared primitive** (PreviewWindow), not a per-feature one.
+"Open in preview" is a generic affordance backed by **one shared primitive** — the in-window `PagePreview` card (`PreviewStack` overlay + `PagePreviewCard`; spec → `Features/Pages.md` § "Opening behavior") — not a per-feature one. There is no standalone-window preview scene.
 
-**Rule:** for any entity kind (Page, Page Type, Page Collection, Item Type, Item Collection, Space, Topic, Project, Item, Agenda Task, Agenda Event), PreviewWindow support for that kind ships **before** any "open in preview" UI is wired. CRUD may land independently; the standalone-window affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Practical implication: new entity CRUD lands without standalone-window affordances by default; double-click and Cmd-click-from-sidebar route to the main detail pane until PreviewWindow gains support. Exception: ItemWindow predates this rule, so Item rows route to ItemWindow today; may migrate to PreviewWindow per future spec.
+**Rule:** for any entity kind (Page, Page Type, Page Collection, Space, Topic, Project, Agenda Task, Agenda Event), preview support for that kind ships on the shared `PreviewStack` primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-vault via `open_in`.
 
 ---
 
 #### Manager pattern — per entity, `@MainActor @Observable`
 
-Every new entity (Space, Topic, Project, Page Type, Page Collection, Page, Item Type, Item Collection, Item, Agenda Task, Agenda Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity (not one unified store) — narrows state-driven updates so changing a Topic doesn't re-evaluate the Spaces section. Post-ParadigmV2: `ContentManager` splits into `PageContentManager` (Pages side) + `ItemContentManager` (Items side); `AgendaManager` splits into `AgendaTaskManager` + `AgendaEventManager`.
+Every new entity (Space, Topic, Project, Page Type, Page Collection, Page, Agenda Task, Agenda Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity (not one unified store) — narrows state-driven updates so changing a Topic doesn't re-evaluate the Spaces section.
 
 ```swift
 @MainActor
@@ -42,7 +42,7 @@ Inject the active Nexus at construction; the init does NOT kick its own load —
 
 **`pendingError` scope:** set from `loadAll`/`load` AND from every CRUD method (`create`, `rename`, `update*`, `delete`, reorder) — each catch block assigns `self.pendingError = error` before rethrowing out of `async throws`. A sidebar-level toast (`SidebarToast`) surfaces it transiently, so failed context-menu renames/deletes are no longer silent. Sheet-level forms (NewSpaceSheet etc.) additionally use per-view `@State errorMessage: String?` for inline display at the point of edit.
 
-**Property schema mutation is shared, not per-manager (de-dup 2026-05-31).** The five property-schema methods — `addProperty` / `renameProperty` / `deleteProperty` / `reorderProperty` / `changeType` — are NOT reimplemented in each manager. They live in two shared `@MainActor` services: `PerTypeSchemaService` (PageType / ItemType, keyed by `typeID`) and `SingletonSchemaService` (Agenda Task / Event, single `schema`). Each manager supplies a small per-side adapter (metadata URL, concrete error enum, member-file strip via `MemberFileStrip.forEach`, index `owningTypeKind`) and keeps its exact public signatures + concrete error enum + the `pendingError`-set-then-rethrow wrapper via a one-line delegator. Entity-level CRUD (create/rename/delete the Type or Collection itself) stays per-manager. 
+**Property schema mutation is shared, not per-manager (de-dup 2026-05-31).** The five property-schema methods — `addProperty` / `renameProperty` / `deleteProperty` / `reorderProperty` / `changeType` — are NOT reimplemented in each manager. They live in two shared `@MainActor` services: `PerTypeSchemaService` (PageType, keyed by `typeID`) and `SingletonSchemaService` (Agenda Task / Event, single `schema`). Each manager supplies a small per-side adapter (metadata URL, concrete error enum, member-file strip via `MemberFileStrip.forEach`, index `owningTypeKind`) and keeps its exact public signatures + concrete error enum + the `pendingError`-set-then-rethrow wrapper via a one-line delegator. Entity-level CRUD (create/rename/delete the Type or Collection itself) stays per-manager. 
 
 ---
 
@@ -104,7 +104,7 @@ enum AtomicJSON {
 
 #### YAML frontmatter + body — `AtomicYAMLMarkdown` (preserving merge-on-write)
 
-Yams (`github.com/jpsim/Yams`, MIT) backs the shared `AtomicYAMLMarkdown` codec — the single read/write path for BOTH Pages AND Items (`.md` frontmatter + body). No first-party Apple solution; `apple/swift-markdown` handles body but not frontmatter.
+Yams (`github.com/jpsim/Yams`, MIT) backs the `AtomicYAMLMarkdown` codec — the single read/write path for Pages (`.md` frontmatter + body). No first-party Apple solution; `apple/swift-markdown` handles body but not frontmatter.
 
 **Writes preserve foreign frontmatter by value — never cull.** A typed encode only emits the keys in `CodingKeys`; serializing that alone drops any plugin/foreign key an external tool wrote onto the file. So every full-frontmatter write merges the typed struct's keys back over the existing on-disk frontmatter rather than replacing it:
 
@@ -122,9 +122,8 @@ import Yams
 - `modeledKeys = Set(CodingKeys.allCases.map(\.rawValue))` (`CaseIterable`) — the set the merge treats as Pommora-owned; everything else rides along.
 - `preservingFrom:` is the URL the entity was read from (a rename renames old→new first, then saves to the new URL, so preservation reads the post-rename file).
 - Yams round-trips by value — a foreign file's flow→block style reflows and comments/anchors drop on first re-serialization. Content is safe; exact styling is not.
-- For a single reserved key (the non-authoritative `Class` kind stamp), `AtomicYAMLMarkdown.setStampKey` does a YAML-level single-key set — compose mapping → set only that node → serialize — instead of a typed save (a typed save would synthesize an id + inject modeled keys onto a foreign file).
 
-This applies on every Page AND Item write path — both share the one codec. Agenda (`.task.json` / `.event.json`) and sidecars stay JSON via `AtomicJSON`.
+This applies on every Page write path. Agenda (`.task.json` / `.event.json`) and sidecars stay JSON via `AtomicJSON`.
 
 SPM: `https://github.com/jpsim/Yams.git` (pinned 5.4.0).
 
@@ -164,7 +163,7 @@ func create(name: String, parents: [String]) async throws {
 
 ##### Rename atomicity — rename-first-then-write-metadata, rollback on failure
 
-Renames that touch two filesystem ops (folder/file rename + metadata save) follow one uniform pattern across every `rename*` site: **rename the folder/file first → write metadata → if the metadata write fails, roll the rename back → if the rollback ALSO fails, throw `RenameAtomicityError`** (`AtomicIO/RenameAtomicityError.swift`, a `LocalizedError` carrying both the save error and the revert error). The managers set `pendingError` on the unrecoverable case before rethrowing. Same shape in `SpaceManager.rename`, `TopicManager.renameTopic` + `renameProject` + `moveProject`, `PageTypeManager.renamePageType` + `renamePageCollection`, `ItemTypeManager.renameItemType` + `renameItemCollection`, `PageContentManager.renamePage`, `ItemContentManager.renameItem`, `AgendaTaskManager.renameTask`, `AgendaEventManager.renameEvent`. The remaining gap is the rare double-failure (both rename and rollback fail) — surfaced to the user via `RenameAtomicityError` rather than silently leaving divergent on-disk state.
+Renames that touch two filesystem ops (folder/file rename + metadata save) follow one uniform pattern across every `rename*` site: **rename the folder/file first → write metadata → if the metadata write fails, roll the rename back → if the rollback ALSO fails, throw `RenameAtomicityError`** (`AtomicIO/RenameAtomicityError.swift`, a `LocalizedError` carrying both the save error and the revert error). The managers set `pendingError` on the unrecoverable case before rethrowing. Same shape in `SpaceManager.rename`, `TopicManager.renameTopic` + `renameProject` + `moveProject`, `PageTypeManager.renamePageType` + `renamePageCollection`, `PageContentManager.renamePage`, `AgendaTaskManager.renameTask`, `AgendaEventManager.renameEvent`. The remaining gap is the rare double-failure (both rename and rollback fail) — surfaced to the user via `RenameAtomicityError` rather than silently leaving divergent on-disk state.
 
 ---
 
@@ -212,8 +211,7 @@ final class NexusEnvironment {            // owns + constructs every per-Nexus m
                 lookupSpace: { id in spaces.first { $0.id == id } },
                 lookupTopic: { id in topics.first { $0.id == id } },
                 lookupProject: { id in projects.values.lazy.flatMap { $0 }.first { $0.id == id } },
-                lookupPageType: { id in /* via pageTypeMgr — similar snapshot */ nil },
-                lookupItemType: { id in /* via itemTypeMgr — similar snapshot */ nil }
+                lookupVault: { id in /* via pageTypeMgr — similar snapshot */ nil }
             )
         }
     }
@@ -249,7 +247,7 @@ Button { iconPickerOpen = true } label: {
 
 `iconBinding` is a `Binding<String?>` whose setter commits the pick; nil clears it (the picker's "Remove Icon" row, shown only when an icon is set). The picker writes the binding and dismisses on pick.
 
-**Edit-Icon on existing rows** routes through `IconPickerSheet`, which hosts `IconPicker` and dispatches the chosen symbol to the right manager's `updateXIcon` via the `SidebarSheet.IconTarget` switch (`.space` | `.topic` | `.project` | `.pageType` | `.itemType` | `.pageCollection` | `.itemCollection` | `.page` | `.item`). **Its `@Environment` managers must be reachable wherever it's presented** — a `.sheet` inherits the host's environment, so every NavigationSplitView column that can present it must inject every manager it reads (quirk #15; a `TopicManager` missing from the detail-column chain crashed the detail-table Edit Icon).
+**Edit-Icon on existing rows** routes through `IconPickerSheet`, which hosts `IconPicker` and dispatches the chosen symbol to the right manager's `updateXIcon` via the `SidebarSheet.IconTarget` switch (`.space` | `.topic` | `.project` | `.pageType` | `.pageCollection` | `.page`). **Its `@Environment` managers must be reachable wherever it's presented** — a `.sheet` inherits the host's environment, so every NavigationSplitView column that can present it must inject every manager it reads (quirk #15; a `TopicManager` missing from the detail-column chain crashed the detail-table Edit Icon).
 
 **Create flows** use `IconPickerField` — a button-field that holds the pick in local `@State` until Save, presenting `IconPicker` through the same `.iconPickerPopover`.
 
@@ -270,13 +268,13 @@ Every embedded view (Context page, Homepage) is **a live, fully-editable view of
 
 #### Inline property editing + picker hosting
 
-How a window / panel / detail surface hosts editable relation, status, and tier values. The reusable units (Task 6) let any future surface — including the Item Window rebuild — wire property editing by recipe instead of reinventing it.
+How a window / panel / detail surface hosts editable relation, status, and tier values. The reusable units (Task 6) let any future surface wire property editing by recipe instead of reinventing it.
 
 - **`PropertyEditorRow`** is the per-property editor row. Hosts pass `definition` + a `@Binding value`, plus (for context links) `index: PommoraIndex?` + `relationDisplay: ContextDisplayResolver?` (both defaulted `nil`, so non-relation call sites compile unchanged). It renders the right editor per `PropertyType`: relation → `ContextValueEditor`, status → `ChipDropdown(.single)`.
 - **`ContextValueEditor`** is the inline context-link/tier editor: shows the current value as `ContextChip` icon+title (or an "Add" affordance) and presents the grouped `ContextPicker` in a **chromeless popover** on tap (`.presentationBackground(.clear)`). The picker owns its own **fixed frame**, so the chromeless popover can't collapse — never rely on the popover to size it (the `9deb818` rule). Tiers reuse it directly with `scope: .contextTier(n)`.
 - **Value-commit contract — the host owns persistence.** `ContextValueEditor` writes the new `[ID]` array back through its `@Binding`; the host's setter routes to its manager (`PageContentManager.updatePageFrontmatter` / `updatePageProperty`, or a VM's `handleTierChange` → debounced `onSave`). The editor never knows the manager — binding-in, binding-out.
 - **Env (quirk #16).** The editor needs `index` (picker candidate query) + `ContextDisplayResolver` (current-value chips). Pass them **explicitly as params** when the host is a sheet/popover — sheet env-inheritance is the classic SIGTRAP trap; read via `@Environment` only when the host sits directly in the `.detail` chain that injects them.
-- **Current hosts:** `FrontmatterInspector` (Pages — editable tiers + relation/status properties, persisting via `updatePageFrontmatter`). The placeholder Item Window is a demonstration host only; its rebuild follows this recipe.
+- **Current hosts:** `FrontmatterInspector` (main-pane Pages — editable tiers + relation/status properties, persisting via `updatePageFrontmatter`) and `PagePreviewInspector` (the PagePreview card's inspector pane, saving through the same `FrontmatterInspectorViewModel` path).
 
 ---
 

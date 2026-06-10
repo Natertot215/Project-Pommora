@@ -129,9 +129,8 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         }
 
         if s.defaultsVersion < 2 {
-            // v1→v2 historically rewrote the Items sidebar section default;
-            // the Items subsystem is retired (PagesV2), so this step is now a
-            // bare version bump.
+            // v1→v2 historically rewrote a sidebar section default the PagesV2
+            // collapse later retired, so this step is now a bare version bump.
             s.defaultsVersion = 2
         }
 

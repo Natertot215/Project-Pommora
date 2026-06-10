@@ -49,10 +49,10 @@ final class RecentsManager {
         }
         do {
             let state = try AtomicJSON.decode(NexusState.self, from: url)
-            // Drop entries whose kind is no longer steppable: Contexts (Spaces /
-            // Topics / Projects) and Items/Agenda. Pages + storage containers
-            // (Vault / Collection / Type / Set) are kept — the latter were
-            // excluded before this build, so old state.json files self-heal.
+            // Drop entries whose kind is no longer steppable (anything outside
+            // recordableKinds, including retired kinds that decode as unknown).
+            // Pages + storage containers (Vault / Collection) are kept; old
+            // state.json files self-heal on the next save.
             let filtered = state.recents.filter { ref in
                 guard let kind = ref.typedKind else { return false }
                 return Self.recordableKinds.contains(kind)

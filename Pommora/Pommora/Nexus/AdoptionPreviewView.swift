@@ -9,8 +9,8 @@
 //  disclosure; post-apply per-folder failures flow through NexusManager's
 //  `pendingError` alert (the apply pass runs after the sheet dismisses).
 //
-//  UI vocabulary defaults to the per-side labels from SettingsLabels
-//  (Pages-side: "Vault" / "Collection"; Items-side: "Type" / "Set"). Adoption
+//  UI vocabulary defaults to the labels from SettingsLabels
+//  ("Vault" / "Collection"). Adoption
 //  runs before SettingsManager is constructed for a fresh Nexus, so we read
 //  from `SettingsLabels.defaults()` directly — Phase 7's per-Nexus overrides
 //  apply on subsequent launches once the nexus is open.
@@ -159,7 +159,7 @@ struct AdoptionPreviewView: View {
             sectionHeader(
                 "Unwrap wrappers (\(totalMoves) folder\(totalMoves == 1 ? "" : "s"))",
                 detail:
-                    "Pre-existing wrapper folders (Pages/Items/Agenda) will be dissolved — their children move to the nexus root."
+                    "Pre-existing wrapper folders (Pages/Agenda) will be dissolved — their children move to the nexus root."
             )
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(plan.unwrapSteps) { unwrap in

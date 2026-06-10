@@ -67,7 +67,7 @@ enum Filesystem {
 
     /// Throws `error` when a file already exists at `url`. The one shared shape
     /// of the per-side "don't clobber a different entity's file on create" guard
-    /// (Page / Item / Agenda all route through this). Each side passes its own
+    /// (Page / Agenda all route through this). Each side passes its own
     /// `duplicateTitle` error so its toast wording is preserved (DRY hard rule).
     /// Create-only: a freshly-minted entity owns a new id, so ANY file already at
     /// the target path belongs to a different entity — no canonical-identity
@@ -155,7 +155,7 @@ enum Filesystem {
     /// de-collides via `suffixedWithTimestamp` when an entry already occupies the
     /// proposed destination.
     ///
-    /// Returns the URL the item was moved to.
+    /// Returns the URL the entry was moved to.
     private static func relocate(_ source: URL, into destDir: URL, nexusRoot: URL) throws -> URL {
         let standardizedSource = source.standardizedFileURL
 
@@ -189,7 +189,7 @@ enum Filesystem {
     /// already exists at the same trash path, the new entry is suffixed with
     /// a timestamp (e.g. `Notes.20260518-093215.md`) to avoid collision.
     ///
-    /// Returns the URL the item was moved to (useful for tests + future
+    /// Returns the URL the entry was moved to (useful for tests + future
     /// "Recover deleted" UI).
     @discardableResult
     static func moveToTrash(_ source: URL, in nexus: Nexus) throws -> URL {

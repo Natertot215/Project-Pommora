@@ -46,7 +46,7 @@ extension PageContentManager {
     /// a new id, so any file already at its target URL is owned by a *different*
     /// entity. Refuse the write rather than clobber it — even if a caller ever
     /// skipped `enforceTitleUniqueness` (e.g. a stale in-memory sibling list).
-    /// Delegates to the shared `Filesystem.guardNoFile` (Pages / Items / Agenda
+    /// Delegates to the shared `Filesystem.guardNoFile` (Pages / Agenda
     /// share one shape) but keeps the Page-side `duplicateTitle` wording.
     fileprivate func guardNoOverwrite(at url: URL) throws {
         try Filesystem.guardNoFile(at: url, else: PageCRUDError.duplicateTitle)

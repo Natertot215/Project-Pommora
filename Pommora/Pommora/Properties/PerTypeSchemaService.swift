@@ -35,7 +35,7 @@ protocol PerTypeSchemaAdapter: AnyObject {
 
     /// Build the updated type (with `properties` substituted in and `modifiedAt`
     /// bumped), persist its sidecar atomically, and assign the in-memory
-    /// `types[i] = updated`. Commit is uniform across Page and Item (no
+    /// `types[i] = updated`. Commit is uniform (no
     /// `rebuildTypesByID`). Used by the schema-only paths (`addProperty`,
     /// `renameProperty`, `reorderProperty`, lossless `changeType`). Throws
     /// `errTypeNotFound` when the type is absent.
@@ -219,8 +219,8 @@ enum PerTypeSchemaService {
         try adapter.stageType(properties: properties, forTypeID: typeID, into: tx)
 
         // Stage member-file rewrites: strip the property key from every member
-        // file. The per-side load / strip / re-encode (Page preserves body; Item
-        // has none) lives inside the adapter, wrapped in `MemberFileStrip.forEach`.
+        // file. The load / strip / re-encode (preserving the Page body) lives
+        // inside the adapter, wrapped in `MemberFileStrip.forEach`.
         try adapter.stripPropertyFromMembers(propertyID, forTypeID: typeID, into: tx)
 
         try tx.commit()

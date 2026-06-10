@@ -48,7 +48,7 @@ declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pom
 
 - **Share Extension** — receive shares from Safari/Mail/etc. into Pommora. Add a Share Extension target conforming to `NSExtensionPrincipalClass`. [Apple docs](https://developer.apple.com/documentation/foundation/nsextensionrequesthandling)
 
-- **MenuBarExtra** (macOS 13+) — first-party menu-bar item; `.menuBarExtraStyle(.window)` enables rich popovers. [Apple docs](https://developer.apple.com/documentation/swiftui/menubarextra)
+- **MenuBarExtra** (macOS 13+) — first-party menu-bar utility; `.menuBarExtraStyle(.window)` enables rich popovers. [Apple docs](https://developer.apple.com/documentation/swiftui/menubarextra)
 
 - **NSVisualEffectView via SwiftUI `Material`** — sidebar vibrancy / system materials. [Apple docs](https://developer.apple.com/documentation/swiftui/material)
 

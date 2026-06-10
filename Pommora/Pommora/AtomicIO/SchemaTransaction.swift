@@ -109,7 +109,7 @@ final class SchemaTransaction {
                         try? FileManager.default.moveItem(at: backup, to: target)
                     }
                 }
-                // Also restore the backup we'd just moved aside (before the move-item failure),
+                // Also restore the backup we'd just moved aside (before the move failure),
                 // since `renamed` doesn't include this iteration.
                 if FileManager.default.fileExists(atPath: write.temp.path) {
                     try? FileManager.default.removeItem(at: write.temp)

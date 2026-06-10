@@ -50,7 +50,7 @@ final class PageTypeManager {
         do {
             // flatlayout: PageType folders sit at the Nexus root. Discovery
             // filters folders by presence of `_pagetype.json`; folders carrying
-            // any of the other per-kind sidecars (Items/Agenda/Collection) or
+            // any of the other per-kind sidecars (Agenda/Collection) or
             // no recognized sidecar are skipped. NexusAdopter is the single
             // canonical migration surface — it surfaces unrecognized / legacy
             // folders to the user via the preview sheet on launch. No in-loader

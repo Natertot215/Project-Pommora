@@ -68,14 +68,14 @@ Filename = title. Renaming in the UI renames the file.
 
 - **Tier-parent rule** — every value in `parents` must resolve to a Context with `level < this.tier`. Cycles impossible by construction.
 - **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Project's `project_links` can target multiple Topics, Spaces, or Projects.
-- **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships are expressed through a Context's composed-page block content; inline `[[ ]]` / `{{ }}` connections inside Context blocks are post-v1 (→ [[Connections]]).
+- **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships are expressed through a Context's composed-page block content; inline `[[ ]]` connections inside Context blocks are post-v1 (→ [[Connections]]).
 - **Tier-skip allowed** — Projects can connect to Spaces directly via `parents` or `project_links`.
 
 ---
 
-#### Cross-layer relations (Item / Page / Agenda → Context)
+#### Cross-layer relations (Page / Agenda → Context)
 
-Items, Pages, and Agenda items carry **per-tier multi-relation fields** independently:
+Pages and Agenda entries carry **per-tier multi-relation fields** independently:
 
 ```yaml
 tier1: [<space-id>, ...]
@@ -94,7 +94,7 @@ A tier relation is a **dual surface**:
 
 #### Linked-from
 
-A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Items / Agenda Tasks / Agenda Events / lower-tier Contexts).
+A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Agenda Tasks / Agenda Events / lower-tier Contexts).
 
 The dropdown is powered by `IndexQuery.incomingContextLinks(targetID:)`, which reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
 
@@ -107,7 +107,7 @@ Enforced at every file write:
 1. `parents[i]` resolves to a Context with `level < this.tier`
 2. Project file MUST physically live inside a Topic folder (file location = file-structural parent)
 3. Project `parents` array contains exactly one ID (the folder-derived parent)
-4. Item / Page / Agenda `tierN` values resolve to Contexts with `level == N`
+4. Page / Agenda `tierN` values resolve to Contexts with `level == N`
 5. Filename = title; no separate `title` field
 
 ---

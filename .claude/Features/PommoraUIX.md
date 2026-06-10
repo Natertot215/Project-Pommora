@@ -43,7 +43,7 @@ Shipped: a minimal 2-pane window with 3 stories, opened via Cmd+Shift+D (gated `
 
 #### Build Discipline
 
-- **Debug-only**: every Window scene + every menu item wrapped in `#if DEBUG`. Production builds ship without it. Pommora is pre-v1 / solo-dev so this is conservative — could lift the flag later if we want a public-facing component explorer.
+- **Debug-only**: every Window scene + every menu entry wrapped in `#if DEBUG`. Production builds ship without it. Pommora is pre-v1 / solo-dev so this is conservative — could lift the flag later if we want a public-facing component explorer.
 - **No new tests required**: stories are self-validating (visual). Existing component unit tests cover correctness. Stories serve documentation + iteration, not regression coverage.
 - **No backend / data dependencies**: stories use ephemeral `@State` only. Never touch managers, never write to disk, never depend on a loaded Nexus. The window opens with no Nexus + works fine.
 - **One story per file** (as catalog grows): `Pommora/Pommora/ComponentLibrary/Stories/<Component>Story.swift`. Library `ComponentLibraryView` becomes a thin router over the Story registry.

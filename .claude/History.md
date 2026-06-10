@@ -2,7 +2,21 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### PagesV2 — Items collapse into Pages (2026-06-09/10, through `c7f48c7`, 986 tests green)
+
+The Items operational side is **deleted, not migrated** — Page is now the only operational entity beside Agenda. Detailed retrospective of what Items were → `PommoraPRD.md` § "What Items Were"; registry decision #17 in `Paradigm-Decisions.md`. Plan: `Planning/Superseded/PagesV2.md`.
+
+- **Item* code deleted wholesale** — the Item entity, `ItemType` / `ItemCollection` containers, `ItemTypeManager` / `ItemContentManager`, the Item Window, templates (`template_config`), and the "Type" / "Set" UI label pair (Settings drops the item label fields; legacy `settings.json` with retired keys loads decode-tolerantly).
+- **`Class` frontmatter stamp dropped** — kind comes solely from the parent folder's sidecar; an on-disk `Class` key is preserved foreign frontmatter, never written.
+- **`[[` declassed to the sole connection syntax** — `{{ }}` retired entirely to plain text; the chip *visual* survives as one dormant Component Library design file (`Properties/Chips/ChipLink.swift`), wired to nothing.
+- **`PageType.open_in` (`compact` | `window`; absent = `window`)** — per-vault presentation replaces the separate entity; a segmented footer toggle in the View Settings popover sets it.
+- **`PagePreview` built; the standalone `PreviewWindow` primitive eliminated** — an in-window draggable Liquid Glass card (`PreviewStack` overlay in `ContentView`; 475×475 collapsed, resizable, cascading multi-card, opens locked with the inspector open, context-menu Open Page promotes to the main pane). A main-pane page never previews (edit-conflict guard).
+- **User sidebar sections shipped (band 3)** — `.nexus/sidebar-sections.json`, navigation-only vault grouping, single-membership; empty sections render header-only.
+- **Index schema v10 → v11** — item tables dropped; delete-and-rebuild on open, page-only `connections`. **No data migration anywhere** — the index is regeneratable and `.md` content keeps its shape; legacy `_itemtype.json` folders adopt as sidecar-less Page Types (stale sidecar left inert; test-pinned).
+
 #### Connections — page-level complete (2026-06-07, v0.3.5)
+
+> Partially superseded by the PagesV2 collapse above — the `{{ }}` item syntax and all Item-side behavior in this entry are gone; `[[ ]]` survives as the sole syntax.
 
 `[[Page Title]]` (Pages) + `{{Item Title}}` (Items) connection syntax shipped end-to-end. Bundles all v0.3.x work since v0.3.4 — Contextv2, MarkdownPM performance, index hardening, page icon.
 
@@ -34,6 +48,8 @@ Registry decision #16 in `Paradigm-Decisions.md`. Plan → `Planning/Contextv2.m
 
 #### ItemsV2 — floating Item Window + per-Type templates (2026-06-03)
 
+> Superseded by the PagesV2 collapse above — everything this entry shipped was deleted with the Items side.
+
 The Item Window became a native, draggable, chromeless floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)`), hosted by the reusable `PreviewWindow` primitive — replacing the deleted `.sheet`-hosted `ItemWindow.swift`. One config-driven `ItemWindowRenderer` draws every window from its resolved `template_config` (layout-as-data via the `LayoutArchetype` enum + `AnyLayout`; promoted-vs-overflow partition is disjoint), edited in a WYSIWYG "Templates" settings pane (mockup frame, `editing: true`) — archetype, pinned promoted properties, per-property display, image-filtered cover. Type default → Collection override. Description cap set to 250 at ship (raised to 500 post-ItemsV2) with a per-Type `description_cap` override. Deferred: item body-connection grammar (now `{{ }}` — see `Features/Connections.md`), Page open-in-preview UI, the non-standard archetypes (selectable-but-muted stubs).
 
 Registry decision #15 in `Paradigm-Decisions.md`. Full spec in `Features/Items.md`.
@@ -59,6 +75,8 @@ Full record → `Planning/2026-06-02-MarkdownPM-Plan.md` (Execution Record) + `P
 Full spec → `Features/Properties.md`; design rule → `Guidelines/Design.md`.
 
 #### Items are Markdown — Shape A (2026-06-02)
+
+> Superseded by the PagesV2 collapse above — the Items entity, the `Class` stamp, and the `.json`→`.md` migration machinery are all gone.
 
 Items converted from whole-`.json` to plain `.md` (YAML frontmatter + body) over a 19-commit run, sharing Pages' `AtomicYAMLMarkdown` pipeline. **Shape A:** the capped description IS the markdown body — single source of truth, no frontmatter-description field, no mirror. Items stay a distinct *form* of one entity-type, not a separate codec.
 

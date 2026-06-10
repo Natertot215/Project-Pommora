@@ -11,10 +11,8 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 | Application | Symbol |
 |---|---|
 | Pages | `doc.text` |
+| Page Types (UI label "Vault") | `book` (or per-Type override at `_pagetype.json.icon`) |
 | Page Collections (UI label "Collection") | `folder` |
-| Item Types (UI label "Type") | `tray.full` (or per-Type override at `_itemtype.json.icon`) |
-| Item Collections (UI label "Set") | `square.stack.3d.up` (or per-Collection override) |
-| Items | `tray` (or per-item override) |
 | Spaces | `rectangle.3.group` (or per-space override) |
 | Topics | `folder` (or per-topic override) |
 | Projects | `folder` (or per-project override) |
@@ -34,7 +32,7 @@ This file is also the spec for a future in-app **Symbol Settings** surface — o
 #### Conventions
 
 - **Filled / outlined choice** follows Apple's HIG default for each symbol — outlined for nav, filled for status. Don't toggle unless there's a reason.
-- **User-overridable per entity** — Pages, Items, Page Types, Page Collections, Item Types, Item Collections, Spaces, Topics, Projects, Agenda Tasks, and Agenda Events all carry an optional `icon: String?` field on disk. The defaults above are fallbacks when the field is unset.
+- **User-overridable per entity** — Pages, Page Types, Page Collections, Spaces, Topics, Projects, Agenda Tasks, and Agenda Events all carry an optional `icon: String?` field on disk. The defaults above are fallbacks when the field is unset.
 - **Per-property icons** — every property in a Type's schema can carry an icon (`PropertyDefinition.icon: String?`); chosen via Pommora's native **`IconPicker`** (compact Liquid-Glass picker over the full SF Symbols catalog, with search + Saved/favorites — replaced the `xnth97/SymbolPicker` SPM dep 2026-05-30).
 - **No raw `Image(systemName:)` literals scattered across views** for entity defaults — wrap through a single resolver so this table is the only place to change a default.
 
@@ -49,9 +47,6 @@ struct IconConfig: Codable {
     var page: String            // default "doc.text"
     var pageCollection: String  // default "folder"
     var pageType: String        // default "book"
-    var itemType: String        // default "tray.full"
-    var itemCollection: String  // default "square.stack.3d.up"
-    var item: String            // default "tray"
     var space: String           // default "rectangle.3.group"
     var topic: String           // default "folder"
     var project: String         // default "folder"

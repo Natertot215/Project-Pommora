@@ -36,7 +36,7 @@ final class PommoraIndex: @unchecked Sendable {
     // as v2 — no user data is at risk. (This is the INDEX-DB version; distinct from
     // the per-Type sidecar `schemaVersion` migrated by adoption.)
     //
-    // v4 (2026-05-29): denormalize entity icon into pages/items/contexts/agenda_*
+    // v4 (2026-05-29): denormalize entity icon into the per-entity tables
     // so relation values resolve to icon+title from the index.
     //
     // v5 (2026-05-29): rebuild-resilience fix. The prior flow stamped
@@ -49,8 +49,8 @@ final class PommoraIndex: @unchecked Sendable {
     // stamp until populate succeeds (`markSchemaVersionCurrent()`). Bumping
     // 4 → 5 forces any index left stuck-empty at v4 through one clean rebuild.
     //
-    // v6 (2026-05-30): denormalize per-Collection/Set `icon` into the
-    // page_collections / item_collections tables (#45) so the relation picker's
+    // v6 (2026-05-30): denormalize per-Collection `icon` into the
+    // collection tables (#45) so the relation picker's
     // grouped query returns each container's icon. The sidecar JSON stays the
     // source of truth; this column is the regeneratable fast copy. Bumping
     // 5 → 6 forces one rebuild so existing indexes gain the new column and
@@ -61,9 +61,9 @@ final class PommoraIndex: @unchecked Sendable {
     // change. Bumping 6 → 7 forces one rebuild so existing databases are
     // recreated with the renamed table.
     //
-    // v8 (2026-06-05): add the `connections` table (inline-link edges scanned from
-    // Page/Item bodies — [[ ]]/{{ }}) + idx_connections_* + title indexes on
-    // pages/items. Net-new derived data; bumping 7 → 8 forces one rebuild so
+    // v8 (2026-06-05): add the `connections` table (inline-link edges scanned
+    // from bodies) + idx_connections_* + title indexes.
+    // Net-new derived data; bumping 7 → 8 forces one rebuild so
     // existing DBs gain the table and IndexBuilder backfills connections from
     // on-disk bodies. No user data at risk (regeneratable index).
     //
@@ -72,23 +72,23 @@ final class PommoraIndex: @unchecked Sendable {
     // `.md` Pages lacking Pommora frontmatter are indexed + title-resolvable from
     // launch instead of only after an incidental CRUD write opened them. Existing
     // v8 DBs were built by the strict scan and are MISSING every frontmatter-less
-    // Page, so [[ ]]/{{ }} links to them render unresolved. Bumping 8 → 9 forces
+    // Page, so [[ ]] links to them render unresolved. Bumping 8 → 9 forces
     // one delete+rebuild so those Pages enter the index. No user data at risk
     // (regeneratable index).
     //
     // v10 (2026-06-06): launch scan now honors the user folder-exclusion veto at
-    // the FILE level (IndexBuilder.collectPagesInFolder / collectItemsInFolder apply
+    // the FILE level (IndexBuilder.collectPagesInFolder applies
     // FolderFilter.isExcluded, matching loadAll's descendantFiles). The lenient v9
     // scan had pulled excluded content (e.g. loose meta files like CLAUDE.md) into
     // the index because it ignored excluded_folders for files. Bumping 9 → 10 forces
     // one delete+rebuild so excluded content is dropped. No user data at risk.
     //
-    // v11 (2026-06-09): PagesV2 P7 — drop the item tables (`items` /
-    // `item_collections` / `item_types`) and their indexes from the schema; the
-    // Items subsystem is deleted and connections/context_links are page-only.
+    // v11 (2026-06-09): PagesV2 P7 — the index becomes page-only: the three
+    // legacy second-entity tables (and their indexes) are dropped from the
+    // schema, and connections/context_links are page-only.
     // Bumping 10 → 11 marks every pre-v11 DB stale so `open(at:)` deletes +
     // recreates it page-only on open (no data migration — the index is
-    // regeneratable); any orphaned item rows lingering in connections or
+    // regeneratable); any orphaned legacy rows lingering in connections or
     // context_links vanish with the rebuild.
     static let currentSchemaVersion: Int = 11
 

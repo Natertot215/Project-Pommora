@@ -63,9 +63,9 @@ The single most-violated principle in past sessions. Internalize this before wri
 
 - **Source on disk = source in `textStorage.string`.** No reconstruction layer. `canonicalBody == textStorage.string` at all times. This survives editor swaps.
 - **Display ≠ source.** The same source can render differently in Pommora (card chrome, hidden markers, grid overlays, syntax highlighting) without changing what's on disk. This is the whole point of the dynamic-syntax pattern.
-- **Mutations to source are user-initiated.** Pommora does NOT auto-mutate source on its own. The only Pommora-initiated source mutations happen at moments of explicit user intent: an input-handler reaction to a keystroke (e.g. Enter inserting a new list item) or an edit-commit (e.g. the popover editor's Done button). Background "tidying" of source is forbidden.
+- **Mutations to source are user-initiated.** Pommora does NOT auto-mutate source on its own. The only Pommora-initiated source mutations happen at moments of explicit user intent: an input-handler reaction to a keystroke (e.g. Enter inserting a new list row) or an edit-commit (e.g. the popover editor's Done button). Background "tidying" of source is forbidden.
 - **Frontmatter holds Pommora-side display state** when needed. A future drag-resize-columns feature stores widths in frontmatter, not in source. Render layer reads frontmatter and applies overrides. Source stays portable across tools.
-- **Files canonical (≠ everything is Markdown).** Pages are `.md`; Items are also `.md` (frontmatter + capped body) sharing Pages' `AtomicYAMLMarkdown` codec — kind authority is the parent Type folder's sidecar, not the extension. Agenda (`.task.json` / `.event.json`), sidecars, Contexts / Collections / Homepage stay structured JSON. The principle applies to all of them: the file is the spec; the render is flexible.
+- **Files canonical (≠ everything is Markdown).** Pages are `.md` (frontmatter + body via the `AtomicYAMLMarkdown` codec). Agenda (`.task.json` / `.event.json`), sidecars, Contexts / Collections / Homepage stay structured JSON. The principle applies to all of them: the file is the spec; the render is flexible.
 
 ##### 2.2 What this rules out
 
@@ -323,7 +323,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 ##### 7.1 `Pommora.Collection` qualification — RETIRED post-ParadigmV2
 
-**Retired 2026-05-22.** The `Collection` Swift struct was renamed to `PageCollection` (Pages-side) and the new Items-side struct is `ItemCollection` — both bare-unambiguous, no qualification needed. Historical context: pre-ParadigmV2, `Collection` was both a Pommora type (the Vault sub-folder entity) and a Swift standard-library protocol; field declarations had to use `Pommora.Collection` to avoid shadowing. The ParadigmV2 rename eliminates the collision and the qualification requirement. CLAUDE.md quirk #6 is no longer active.
+**Retired 2026-05-22.** The `Collection` Swift struct was renamed to `PageCollection` — bare-unambiguous, no qualification needed. Historical context: pre-ParadigmV2, `Collection` was both a Pommora type (the Vault sub-folder entity) and a Swift standard-library protocol; field declarations had to use `Pommora.Collection` to avoid shadowing. The ParadigmV2 rename eliminates the collision and the qualification requirement. CLAUDE.md quirk #6 is no longer active.
 
 ##### 7.2 `@MainActor.assumeIsolated` wrappers on fragment overrides
 
@@ -403,7 +403,7 @@ When a feature needs to remember user-chosen display state (column widths, futur
 
 ##### 9.4 Filename = title (CLAUDE.md, locked)
 
-Pages have no `title` field. The filename IS the title. Renaming the title in the UI renames the file on disk. Items, Vaults, Collections, Contexts all follow the same rule (Independent UI titles are a Prospect, not v1).
+Pages have no `title` field. The filename IS the title. Renaming the title in the UI renames the file on disk. Vaults, Collections, Contexts all follow the same rule (Independent UI titles are a Prospect, not v1).
 
 ##### 9.5 Strip-and-revert beats hotfix-on-hotfix (Session 12 + Session 13 reinforced)
 
@@ -430,7 +430,7 @@ Three candidate strategies have been sketched (A / B / C / hybrid) and remain op
 
 ##### 9.7 Bullet glyph substitution SHIPPED (v0.2.7.4 — 2026-05-21)
 
-Source `- item` renders as `• item`; `*`, `+`, legacy `•` render literally (locked: only `-` substitutes). Implementation: always-show overlay in `MarkdownTextLayoutFragment.drawDashBulletGlyph` (no caret-aware reveal — sidesteps the Session 13 failure mode entirely; L14). Pixel-aligned via `window?.backingScaleFactor`. Bullet sized at `baseFont.pointSize * 1.5`. Source on disk stays `-` for portability.
+Source `- entry` renders as `• entry`; `*`, `+`, legacy `•` render literally (locked: only `-` substitutes). Implementation: always-show overlay in `MarkdownTextLayoutFragment.drawDashBulletGlyph` (no caret-aware reveal — sidesteps the Session 13 failure mode entirely; L14). Pixel-aligned via `window?.backingScaleFactor`. Bullet sized at `baseFont.pointSize * 1.5`. Source on disk stays `-` for portability.
 
 ##### 9.8 Checkbox shorthand canonicalizes to GFM on input (2026-05-21; revised 2026-06-01)
 

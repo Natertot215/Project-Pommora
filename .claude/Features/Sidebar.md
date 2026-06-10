@@ -1,6 +1,6 @@
 ### Sidebar
 
-Pommora's leading-edge navigation pane in the three-pane shell. Five top-level groups — a heading-less pinned section at top, then Spaces, Topics, Items, Vaults.
+Pommora's leading-edge navigation pane in the three-pane shell. Four top-level groups — a heading-less pinned section at top, then Spaces, Topics, Vaults — plus user-creatable vault sections after Vaults.
 
 Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelines//CRUD-Patterns.md`.
 
@@ -8,16 +8,16 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 
 #### Layout
 
-Five top-level groups:
+Four top-level groups, plus user sections:
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
 - **Spaces** — flat rows for tier-1 Contexts
 - **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
-- **Items** — chevron-disclosure showing Item Types (UI label "Type"); each Type discloses Item Collections (UI label "Set").
 - **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection").
+- **User sections** — user-created sibling sections after Vaults, each grouping Vaults the user moved into it (§ "User vault sections" below).
 
-Section-header defaults come from `SidebarSectionLabels.defaults()`: `Spaces` / `Topics` / `Items` / `Vaults` (Items-side uses the operational word "Items", not the container-plural "Types"). All renameable via Settings.
+Section-header defaults come from `SidebarSectionLabels.defaults()`: `Spaces` / `Topics` / `Vaults`. All renameable via Settings; user-section labels rename inline.
 
-The Items section sits above Vaults — quicker-capture entities ride higher in the visual hierarchy. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens `CalendarDetailView` (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
+Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens `CalendarDetailView` (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
 
 ```
 [Sidebar]
@@ -36,11 +36,7 @@ The Items section sits above Vaults — quicker-capture entities ride higher in 
       GTD method
       Time-blocking
   ▸ Side Projects  [tagged: blue]
-─ Items ────────────────────────              ← section header (Items-side default)
-  ▾ Bookmarks                              ← Item Type row (UI label: "Type")
-      Tech                                 ← Item Collection row (UI label: "Set")
-  ▸ Books
-─ Vaults ───────────────────────              ← section header (Pages-side default)
+─ Vaults ───────────────────────              ← default section header
   ▾ Assignments                            ← Page Type row (UI label: "Vault")
       📄 README                            ← Page directly in Page Type root
       ▾ Spring 2026                        ← Page Collection row (UI label: "Collection")
@@ -48,6 +44,8 @@ The Items section sits above Vaults — quicker-capture entities ride higher in 
       ▾ Reports
           📄 2026 H1
   ▸ Notes
+─ School ───────────────────────              ← user section (groups Vaults; navigation-only)
+  ▸ Readings
 ```
 
 No always-visible "+ New" buttons — creation is **right-click first**, complemented by **hover-only `+` buttons** on section headings (visible on hover, hidden at rest). The fuller discoverability layer lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
@@ -56,11 +54,10 @@ No always-visible "+ New" buttons — creation is **right-click first**, complem
 
 There are no wrapper folders on disk (see [[Architecture]]); the sidebar groups each root folder by its **per-kind sidecar filename** (the sidecars stay JSON):
 
-- `_pagetype.json` → **Vaults** section
-- `_itemtype.json` → **Items** section
+- `_pagetype.json` → **Vaults** section (or the user section the vault was moved into)
 - `_taskconfig.json` / `_eventconfig.json` (Tasks / Events singletons) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry
 
-The sidecar is the **kind authority** — it, not the content-file extension, decides the section. This matters now that both Pages and Items are `.md`: a Finder-built `.md` folder *without* a sidecar can't be told apart by extension, so it adopts as a Page Type by default; hand-building an Items folder requires dropping in `_itemtype.json`. The section headings are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar trigger the adopter on next launch — but only when there's something to migrate; fresh non-Pommora folders stay invisible to discovery.
+The sidecar is the **kind authority** — it, not the folder name, decides the grouping. The section headings are pure UI groupings with no on-disk counterpart. Folders without a recognized sidecar trigger the adopter on next launch — but only when there's something to migrate; fresh non-Pommora folders stay invisible to discovery.
 
 ---
 
@@ -83,7 +80,7 @@ Stored in `.nexus/saved-config.json`:
 }
 ```
 
-Each item's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
+Each entry's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
 
 - `homepage` opens the Homepage singleton (see [[Homepage]])
 - `calendar` opens `CalendarDetailView` — Tasks list above, Events list below (see [[Agenda]]). Right-click the pin entry → "New Task" / "New Event" for quick capture. EventKit-mirrored entries appear once sync opt-in ships at v0.5.0.
@@ -101,19 +98,24 @@ Chevron-disclosure rows. Each Topic expands to show file-nested Projects (tier-3
 
 Topic rows carry **tagging indicators inherited from parent Space(s)**. Multi-Space Topics show multiple indicators side by side (e.g. blue + green dots for a Topic that belongs to both Personal and Work). Clicking a Topic or Project opens its composed-blocks page.
 
-##### Items (Items-side; default label)
-
-Chevron-disclosure rows. **Each Item Type discloses its Item Collections** as children. The default UI label for Item Type rows is "Type"; for Item Collection rows is **"Set"** (both renameable via Settings).
-
-Items themselves do **NOT** appear as leaves in the sidebar — they live in detail-pane Tables under their Item Type. Sidebar shows the structural / container view; detail pane shows the full data view.
-
-Item Types don't display tagging (operational, not categorical). Clicking an Item Type opens its Items Table; clicking an Item Collection opens a scoped view.
-
-##### Vaults (Pages-side; default label)
+##### Vaults (default label)
 
 Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages show their frontmatter `icon` if set, else the `doc.text` default; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
 
-Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page opens it in the main detail pane via the TextKit-2 editor (shipped v0.2.7.0).
+Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page routes per the vault's `open_in` mode — main detail pane (`window`, the default) or a PagePreview card (`compact`); see [[Pages]] § "Opening behavior".
+
+##### User vault sections (navigation-only grouping)
+
+User-creatable sections that group Vaults below the default Vaults section. Persisted at `.nexus/sidebar-sections.json`, owned by `SidebarSectionsManager` (mirrors the `SavedConfigManager` pattern: `load()` seeds + first-writes, `save()` writes atomically, failures land in `pendingError` for the sidebar toast).
+
+- **Navigation-only** — grouping never moves a vault folder on disk; membership lives solely in the config.
+- **Single-membership** — a vault sits in at most one user section; moving it strips it from every other section in the same config write.
+- **Ungrouped vaults stay in the default Vaults section**; deleting a section ungroups its vaults back to it (no vault data touched).
+- **Empty sections render header-only** — never a placeholder row (quirk #8: a `Section`'s rows stay homogeneous).
+- **Dangling vault IDs** (vault deleted after grouping) stay in the config and skip-render; the config is not self-healed.
+- **Render shape** — each user section is a sibling `Section(isExpanded:) { PageTypeRow… } header:` identical to the default Vaults section, reusing `PageTypeRow` unchanged.
+
+Affordances: **"Add Section"** in the Vaults section-header context menu (stub-and-inline-rename via `CreateWithInlineEdit`); **"Move to Section" / "Remove from Section"** in a vault row's context menu (the menu appears once at least one section exists); **Rename Section / Delete Section** in the user-section header's context menu.
 
 ---
 
@@ -121,20 +123,18 @@ Page Types don't display tagging (operational, not categorical). Clicking a Page
 
 Canonical creation pattern. No always-visible "+ New" buttons; right-click the relevant heading / row / area and a context menu's "New X" options auto-scope to that location's parent. Section headings also expose a hover-only `+` complement — see below.
 
-| Right-click target | Scoped creation options | Other context menu items |
+| Right-click target | Scoped creation options | Other context menu entries |
 |---|---|---|
 | Spaces section area (empty / on heading) | New Space | — |
 | Topics section area | New Topic | — |
-| Items section area (Items-side) | New Item Type | — |
-| Vaults section area (Pages-side) | New Page Type | — |
+| Vaults section heading | New Page Type | **Add Section** (new user section, inline-rename) |
 | Space row | New Space | Rename / Change Color / Change Icon / Delete |
 | Topic row (when disclosed) | New Project *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
 | Project row | — | Rename / Change Icon / Delete |
-| Item Type row | New Set + New Item *(scoped to THIS Item Type)* | **Type Settings…** (opens schema editor) / Rename / Change Icon / Delete |
-| Item Collection row | New Item *(in THIS Set)* | Rename / Delete |
-| Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Vault Settings…** (opens schema editor) / Rename / Change Icon / Delete |
+| Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Vault Settings…** (opens schema editor) / **Move to Section** (+ Remove from Section while grouped) / Rename / Change Icon / Delete |
 | Page Collection row | New Page *(in THIS Collection)* | Rename / Delete |
-| Page row | — | Rename / Delete (Page editor shipped v0.2.7.0) |
+| Page row | — | Rename / Delete |
+| User section header | — | Rename Section / Delete Section (ungroups its vaults) |
 
 Location scoping is load-bearing — right-clicking on a Page Collection produces "New Page" that creates IN that Page Collection. Matches Finder + Notion + Obsidian.
 
@@ -172,7 +172,7 @@ When adjusting sidebar geometry, the mechanism depends on what's being adjusted 
 
 #### Section ordering
 
-User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Items / Vaults** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
+User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Vaults / user sections** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
 
 ---
 

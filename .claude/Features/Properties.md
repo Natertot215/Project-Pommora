@@ -1,6 +1,6 @@
 ### Properties
 
-Pommora's property system. The same property type catalog applies to Pages, Items, Agenda Tasks, and Agenda Events. Schemas live on each Type's per-kind sidecar; values live on each member entity. The on-disk file is canonical; SQLite mirrors it for fast queries.
+Pommora's property system. The same property type catalog applies to Pages, Agenda Tasks, and Agenda Events. Schemas live on each Type's per-kind sidecar; values live on each member entity. The on-disk file is canonical; SQLite mirrors it for fast queries.
 
 This document is the source of truth for **what** Properties are and **how they behave**. Implementation strategy + phasing live in a separate plan document.
 
@@ -11,7 +11,6 @@ This document is the source of truth for **what** Properties are and **how they 
 A **property** is a typed field defined on a Type's schema and populated on individual entities of that Type. Properties live on:
 
 - **Pages** (`.md` files) — frontmatter
-- **Items** (`.md` files) — frontmatter (`properties` mapping)
 - **Agenda Tasks** (`.task.json` files) — `properties` JSON object
 - **Agenda Events** (`.event.json` files) — `properties` JSON object
 
@@ -20,13 +19,12 @@ Each entity belongs to one Type. Every Type carries a schema in its per-kind sid
 | Type | Schema sidecar |
 |---|---|
 | Page Type | `<Type>/_pagetype.json` |
-| Item Type | `<Type>/_itemtype.json` |
 | AgendaTask (singleton) | `<Tasks>/_taskconfig.json` |
 | AgendaEvent (singleton) | `<Events>/_eventconfig.json` |
 
 Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation targets, etc.). Member entities store property VALUES conforming to that schema.
 
-Page Collections and Item Collections do not carry their own property schemas — they inherit from their parent Type. Their sidecars (`_pagecollection.json` / `_itemcollection.json`) carry id, parent-Type linkage, an optional `icon` (mirrored into SQLite for the context picker), and per-view config (`views[]`); `_itemcollection.json` additionally holds the Collection's pinned-property chips.
+Page Collections do not carry their own property schemas — they inherit from their parent Type. Their sidecar (`_pagecollection.json`) carries id, parent-Type linkage, an optional `icon` (mirrored into SQLite for the context picker), and per-view config (`views[]`).
 
 ---
 
@@ -50,7 +48,7 @@ Page Collections and Item Collections do not carry their own property schemas �
 The only pure text field is the **title** (the filename, not a property). Where a Notion-style "text" field would appear, Pommora uses Select or Multi-select with creatable options.
 
 **Not property types:**
-- **Connections** — body-text inline links (`[[ ]]` Pages, `{{ }}` Items), indexed in SQLite with no frontmatter mirror. Not properties, not schema-creatable. Spec → [[Connections]].
+- **Connections** — body-text inline `[[ ]]` links, indexed in SQLite with no frontmatter mirror. Not properties, not schema-creatable. Spec → [[Connections]].
 - **Rollups + Formulas** — out of v1 scope. Pommora's catalog is simpler than Notion's by design.
 
 ---
@@ -60,17 +58,16 @@ The only pure text field is the **title** (the filename, not a property). Where 
 The **target** surface architecture gives properties two homes, split by where the entity opens:
 
 - **Properties dropdown** (`PropertiesPulldown`) — for **Pages, Contexts, and storage views** (the main content pane); a dropdown frees the trailing inspector to host the LLM / CLI interface.
-- **Property panel** (in a pop-out inspector) — for **Page Previews and Agenda items**; the Item Window splits its properties into a template-driven main panel (`promoted_properties`) and a per-archetype overflow surface ([[Items]] § "Item Templates").
+- **Property panel** (in a pop-out inspector) — for **PagePreview cards and Agenda entries**.
 
-This split is **planned — not yet wired**: today Pages surface their properties in the property panel (`FrontmatterInspector`, the window `.inspector`) and the dropdown scaffold is unbuilt. The State column tracks where each surface stands.
+This split is **partially wired**: the PagePreview inspector ships; main-pane Pages still surface their properties in the property panel (`FrontmatterInspector`, the window `.inspector`) and the dropdown scaffold is unbuilt. The State column tracks where each surface stands.
 
 | Surface | Home (target) | State |
 |---|---|---|
 | **Page** (main pane) | Properties dropdown | Planned — currently the property panel in the editor's `.inspector` (`FrontmatterInspector`); migrating to free the inspector for the LLM |
 | **Context / storage view** | Properties dropdown | Planned (same migration) |
-| **Item Window** (floating panel) | Promoted properties on the main panel + the rest in the per-archetype overflow surface (inspector for `banner_two_column`, dropdown otherwise) | Template-driven via `promoted_properties` ([[Items]] § "Item Templates") |
-| **Page Preview** (standalone window) | Property panel in the window inspector | *Pending* — queued behind the PreviewWindow primitive |
-| **Agenda item** | Property panel | — |
+| **PagePreview card** | Property panel in the card's inspector pane | Shipped — the preview-styled `PagePreviewInspector` (defaults open), saving through the same `FrontmatterInspectorViewModel` path as the main-pane panel |
+| **Agenda entry** | Property panel | — |
 
 Property-panel surfaces render **eager**: all schema properties show regardless of fill state (empty ones as void inputs), edited inline through `PropertyEditorRow` — no "+ Add property" picker (every entry is already visible). Adding a NEW property to the schema happens in Vault / Type Settings. Title is excluded everywhere (filename plays that role); auto-managed `id` + `created_at` collapse to a divider-separated bottom section; `modified_at` surfaces as **Last Edited Time** for sortability.
 
@@ -86,7 +83,7 @@ Properties follow an ID-truth model. Every property in a Type's schema carries t
 On-disk shape:
 
 ```yaml
-# Page / Item frontmatter — property values keyed by property ID
+# Page frontmatter — property values keyed by property ID
 id: 01HPAGE...
 created_at: 2026-05-24T...
 modified_at: 2026-05-24T...
@@ -99,7 +96,7 @@ prop_01HSEL...: "in_review"                # display name: "Stage" (Select stays
 prop_01HREL...: [{ $rel: 01HTARGET... }]   # display name: "Project" (Relation — always an array)
 ```
 
-Pages and Items share one frontmatter shape — both are `.md` with a `properties` mapping. Agenda Tasks / Events keep a `properties` JSON object:
+Pages carry property values in `.md` frontmatter. Agenda Tasks / Events keep a `properties` JSON object:
 
 ```json
 // Agenda JSON — properties block keyed by property ID (Tasks / Events stay JSON)
@@ -136,20 +133,20 @@ Cross-property references in the schema use IDs: `default_sort.property_id`, `vi
 
 #### Entity identity vs title
 
-Every entity (Page, Item, Agenda Task, Agenda Event, Context) carries two independent identifiers:
+Every entity (Page, Agenda Task, Agenda Event, Context) carries two independent identifiers:
 
 - **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. Used by every cross-reference (connections, relation values, tier1/2/3 links, the SQLite index).
 - **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else.
 
 Title collisions within the same container are rejected (identity is the ULID; the title is the filename slot, unique per folder) — canonical rule → [[Domain-Model]] § "Entity identity vs title".
 
-Connections resolve by globally-unique title. Disk format: plain `[[Title]]` (Pages — Obsidian-compatible) / `{{Title}}` (Items — Pommora-only); no piped form and no id in the body. Rename-safety comes from cascade — every referencing body is rewritten on rename — not a frontmatter mirror. Full spec → [[Connections]].
+Connections resolve by globally-unique title. Disk format: plain `[[Title]]` (Obsidian-compatible); no piped form and no id in the body. Rename-safety comes from cascade — every referencing body is rewritten on rename — not a frontmatter mirror. Full spec → [[Connections]].
 
 ---
 
 #### Per-tier relations
 
-Operational entities (Pages, Items, Agenda Tasks, Agenda Events) each carry three tier relation properties pointing to Contexts. They store at the frontmatter / JSON root (not under `properties`) as ID arrays:
+Operational entities (Pages, Agenda Tasks, Agenda Events) each carry three tier relation properties pointing to Contexts. They store at the frontmatter / JSON root (not under `properties`) as ID arrays:
 
 ```yaml
 tier1: [<space-id>, ...]   # Spaces (Context tier 1)
@@ -206,7 +203,7 @@ Group position first (`upcoming < in_progress < done` ascending), then option or
 |---|---|---|
 | **AgendaTask** (`_taskconfig.json`) | **Yes** — required, non-deletable. | Default seed includes the 3 groups with one starter option each. EventKit sync (v0.5.0) maps the 3 groups to `EKReminder.isCompleted`: `upcoming` / `in_progress` → `false`; `done` → `true`. |
 | **AgendaEvent** (`_eventconfig.json`) | **Yes** — required, non-deletable. | Same 3 EventKit-aligned groups as AgendaTask. User-set (decoupled from `start_at` / `end_at` date math — the user marks status to track their own engagement with the event). EventKit mapping for events ships at v0.5.0. |
-| **Page Types and Item Types** | **No.** | Not auto-seeded. Users add manually via Vault / Type Settings. When added, the same 3-group structure applies. |
+| **Page Types** | **No.** | Not auto-seeded. Users add manually via Vault Settings. When added, the same 3-group structure applies. |
 
 Reserved property ID `_status` on both AgendaTask and AgendaEvent schemas. Users cannot delete it via the schema editor.
 
@@ -232,7 +229,7 @@ The sole active relation target is `context_tier`. It carries the tier number an
 { "kind": "context_tier", "tier": 3 }   // _tier3 → Projects
 ```
 
-The `context_tier` target is never user-selectable — it is pre-wired to the three built-in tier relations. (`page_collection` / `item_collection` / `page_type` / `item_type` / `agenda_tasks` / `agenda_events` target kinds were removed from user creation; old sidecars carrying them are decode-tolerated but the definition is dropped on load.)
+The `context_tier` target is never user-selectable — it is pre-wired to the three built-in tier relations. (Any other target kind on an old sidecar is a retired user case — decode-tolerated, but the definition is dropped on load.)
 
 Context-tier pickers query the SQLite `context_links` table.
 
@@ -251,7 +248,7 @@ Option creation, renaming, recoloring, deletion, and reorder happen only via the
 Three commit paths:
 
 1. **Vault / Type Settings → Edit Properties → expand property → option list** — canonical. Drag-reorder, "+ Add option", per-option color picker, rename TextField, delete. Batched with the sheet's Save.
-2. **Right-click a property LABEL** (inspector row, panel row, Item Window row) → "Add option…" — small structured popover (Name + Color + Group-for-Status + Save / Cancel) with its own commit boundary.
+2. **Right-click a property LABEL** (inspector row, panel row) → "Add option…" — small structured popover (Name + Color + Group-for-Status + Save / Cancel) with its own commit boundary.
 3. **Right-click a property VALUE** (pill, chip, status indicator) → "Edit options…" — routes to Vault / Type Settings → Edit Properties at that property's row. Value pickers themselves do not accept typed new options; they show a "Manage options…" link routing to the same destination.
 
 For Status, the editor also exposes per-group label TextFields + drag-between-groups across Upcoming / In Progress / Done.
@@ -277,7 +274,7 @@ For Select and Multi-select, schema option order defines sort behavior — drag-
 | Edit layer | Save model | UX |
 |---|---|---|
 | **Schema edits** (Vault / Type level — rename property, change type, add/delete property, edit options) | Save-required | Vault / Type Settings sheet stages edits into a draft; explicit Save commits inside an atomic transaction; Cancel discards. Concurrent-open forbidden — only one Type's Settings sheet open at a time per window. |
-| **Value edits** (entity level — setting a property value on a specific Page or Item) | Live-save | Pickers commit on click; text inputs debounce-save after typing stops. No Save button. Invalid values render with a red border; failed saves silently revert; recovery on next valid keystroke. |
+| **Value edits** (entity level — setting a property value on a specific Page) | Live-save | Pickers commit on click; text inputs debounce-save after typing stops. No Save button. Invalid values render with a red border; failed saves silently revert; recovery on next valid keystroke. |
 
 Schema edits affect every entity of the Type — high blast radius, needs explicit confirmation. Value edits affect one entity — low blast radius, friction-free.
 
@@ -304,31 +301,26 @@ Schema mutations that touch multiple files (type-change with value-drop / delete
 
 #### Moving content between Types
 
-Moving a Page across Page Types (or an Item across Item Types) strips properties not in the destination schema. Confirmation warning lists what will be stripped; user can cancel, add the property to the destination first, or accept. Within the same Type (between Page Collections, or between Item Collections), no strip — schema is shared.
-
-Cross-side promotion (Item → Page, Page → Item) is NOT supported in v1 — post-v1 Prospect. There is no quarantine, orphan archive, or undo-strip.
+Moving a Page across Page Types strips properties not in the destination schema. Confirmation warning lists what will be stripped; user can cancel, add the property to the destination first, or accept. Within the same Type (between Page Collections), no strip — schema is shared. There is no quarantine, orphan archive, or undo-strip.
 
 The "what would be stripped" computation compares the source's property-ID set against the destination Type's property-ID set. Same-name properties with different IDs (semantically different properties that happen to share a display name) are stripped — correct behavior under ID-truth (the user is moving between unrelated property definitions).
 
-**Move-strip is schema-scoped; foreign-key preservation is everything else.** The strip only voids Pommora's own *schema properties* the destination doesn't define. Non-schema frontmatter keys — plugin/foreign keys an external tool wrote onto the `.md` file — are preserved by value on every Page AND Item write path, including a cross-Type move (they ride along via the source URL). The two mechanisms are orthogonal: the schema layer governs what Pommora-owned properties survive a move; foreign-key preservation guarantees Pommora never culls a key it doesn't model. (Yams round-trips by value — flow→block reflow + comment drop on a foreign file's first re-serialization; content is safe, exact styling/comments are not.)
+**Move-strip is schema-scoped; foreign-key preservation is everything else.** The strip only voids Pommora's own *schema properties* the destination doesn't define. Non-schema frontmatter keys — plugin/foreign keys an external tool wrote onto the `.md` file — are preserved by value on every Page write path, including a cross-Type move (they ride along via the source URL). The two mechanisms are orthogonal: the schema layer governs what Pommora-owned properties survive a move; foreign-key preservation guarantees Pommora never culls a key it doesn't model. (Yams round-trips by value — flow→block reflow + comment drop on a foreign file's first re-serialization; content is safe, exact styling/comments are not.)
 
 ---
 
 #### Auto-managed properties
 
-On every Page (frontmatter), Item (frontmatter), Agenda Task (JSON), and Agenda Event (JSON), not user-creatable:
+On every Page (frontmatter), Agenda Task (JSON), and Agenda Event (JSON), not user-creatable:
 
 - `id` — ULID assigned at creation, never changes (stored at frontmatter root, not under `properties`)
 - `created_at`, `modified_at` — ISO-8601 timestamps maintained by Pommora (frontmatter root)
 
-Title is NOT a property surface entry. The filename plays the title role — edited inline at the page title position (Pages) or as the Item Window's title field (Items).
+Title is NOT a property surface entry. The filename plays the title role — edited inline at the page title position.
 
 Auto-managed properties sit at the bottom of every property surface, in a separate section divided by a horizontal divider. The bottom section holds `id` and `created_at` (read-only, collapsed by default). `modified_at` is exposed alongside user-defined properties at the top of the surface as Last Edited Time for sortability — same value, two surfacings.
 
-Items, Agenda Tasks, and Agenda Events also carry a built-in `description` — but **its storage differs by entity** (the description asymmetry):
-
-- **Items** — `description` IS the `.md` body. Single source of truth: no frontmatter `description` field, no mirror. Hard cap **500 markdown-source characters** (`ItemValidator.maxDescriptionLength`, with an optional per-Type `description_cap` override). Capped short so the Item Window stays scroll-free; markdown is honored (Items share Pages' `AtomicYAMLMarkdown` codec) — the cap, not the format, distinguishes an Item from a Page.
-- **Agenda Tasks / Events** — `description` is a plain-text JSON field (Agenda stays JSON), same role. Not markdown.
+Agenda Tasks and Agenda Events also carry a built-in `description` — a plain-text JSON field (Agenda stays JSON). Not markdown.
 
 ##### `modified_at` trigger semantics
 
@@ -354,7 +346,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 1. Every property value's shape matches its schema entry's type (looked up by property ID).
 2. Relation `$rel` ULIDs must resolve to a live entity (warned, not enforced — broken-link semantics).
 3. Select / Multi-select / Status values must reference live option `value`s (cleaned up on schema mutation).
-4. Item `description` (the `.md` body) is at most **500 markdown-source characters** (`ItemValidator.maxDescriptionLength`, with an optional per-Type `description_cap` override; raw `.count`, markup counts). Validated on save by `ItemValidator` and rejected over-cap — never silently clamped. The Agenda `description` is a plain-text JSON field with **no length validation** — no Agenda validator enforces a cap (the description cap is Items-only).
+4. The Agenda `description` has **no length validation** — no Agenda validator enforces a cap.
 
 ---
 
@@ -364,12 +356,12 @@ Properties + view configuration spans four surfaces:
 
 ##### 1. Vault / Type Settings (schema editor)
 
-The schema editor for a Vault / Type. Reached from the Type detail view toolbar gear button, the Type row's right-click menu, or the "+ Property" column header in the detail-pane Table view. UI label per side: "Vault Settings…" on Page Types by default; "Type Settings…" on Item Types by default.
+The schema editor for a Vault / Type. Reached from the Type detail view toolbar gear button, the Type row's right-click menu, or the "+ Property" column header in the detail-pane Table view. UI label: "Vault Settings…" by default.
 
 | Section | Contents |
 |---|---|
 | **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, tier reverse name + icon, status groups, etc.). |
-| **Templates** | Item scopes only (muted for Pages): a WYSIWYG mockup frame editing the Type/Collection `template_config` — archetype, promoted properties (pin/unpin + drag-reorder), per-property display, image-filtered cover. See [[Items]] § "Item Templates". |
+| **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
 
@@ -391,15 +383,15 @@ Per-view configuration via the consolidated `slider.horizontal.3` toolbar button
 - `displayAs: DisplayVariant?` (Status-only) — `.box` / `.select` / `.chip` rendering variant. `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using a hardcoded `square.dashed` placeholder (final per-group icons + Settings config are a Prospect). Other property types ignore this field.
 - `dateFormat: DateFormat?` (Date only) — date-portion display, picker-labelled by format-type name (no "Default" row): `short` ("Short Date" → "March 1st") / `full` ("Full Date" → "Wednesday, March 1st 2026") / `dayMonthYear` ("DD/MM/YYYY" → "01/03/2026") / `monthDayYear` ("MM/DD/YYYY" → "03/01/2026"). Default `.full`. Legacy v0.3.1 values (`monthDayYearLong`, `numericLong`, `iso`, …) migrate on decode.
 - `timeFormat: TimeFormat?` (Date only) — time-portion display ("Display Time"): `none` (date only, default) / `twelveHour` ("3:45 PM") / `twentyFourHour` ("15:45"). `.none` stores a date-only value; `12h`/`24h` store a with-time value.
-- `singular: String?` (on `ItemType`) — Capacities-style singular form for "+ Add <singular>" button labels (e.g. ItemType "Books" with `singular: "Book"` drives "+ Add Book"). nil falls back to title. Per the RC-session decision list (see `History.md`), only Item Types carry this (Pages aren't renameable concepts).
-- `views: [SavedView]` (on `PageType` / `ItemType` / `PageCollection` / `ItemCollection`) — each Collection's view config is independent of its parent Type's.
+- `views: [SavedView]` (on `PageType` / `PageCollection`) — each Collection's view config is independent of its parent Type's.
 
 **Chip primitives** (`Pommora/Properties/Chips/`):
 
-- `ContextChip` — the single rendering primitive for context-link (tier relation) property values across every surface (Table cells, property panel, page-editor inspector, Item Window, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. Resolution happens at the consumer (via `IndexQuery` against the SQLite `context_links` table); the chip receives pre-resolved strings and is purely visual — the file holds only the target's `$rel` ID, and a chip that renders blank or `(missing)` means the index lookup missed (stale/unbuilt row), not that the on-disk value is gone. A dedicated chip visual (boxed, colored) is a future design.
+- `ContextChip` — the single rendering primitive for context-link (tier relation) property values across every surface (Table cells, property panel, page-editor inspector, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. Resolution happens at the consumer (via `IndexQuery` against the SQLite `context_links` table); the chip receives pre-resolved strings and is purely visual — the file holds only the target's `$rel` ID, and a chip that renders blank or `(missing)` means the index lookup missed (stale/unbuilt row), not that the on-disk value is gone. A dedicated chip visual (boxed, colored) is a future design.
 - `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
 - `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
 - `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance.
+- `ChipLink` — **intentionally dormant design asset**: the chip-link visual, wired to nothing in production (showcased in the Component Library explorer only). Context → [[Connections]] § "Scope".
 
 **Option color palette — two enums.** Two distinct color types serve two layers:
 
@@ -414,24 +406,9 @@ Multiple saved views per Vault / Type, Notion-database-views model. Each view ca
 
 View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container today (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title, and the non-Table renderer types (Board / List / Cards / Gallery), all ship together at v0.7.0.
 
-##### 4. Item Inspector → Pinned Properties
-
-Pinning moved into the **template**: promoted properties are pinned/unpinned + drag-reordered in the Templates pane's mockup frame ([[Items]] § "Item Templates"), persisting as `promoted_properties: [{id, display}]` in the Type's `template_config` (or the Collection's, which overrides the Type). The legacy `pinned_properties` array on `_itemcollection.json` is read-tolerated and collapsed into `promoted_properties` by the resolver:
-
-```json
-// _itemcollection.json (template_config overrides the parent Type)
-{
-  "template_config": {
-    "promoted_properties": [{ "id": "prop_01HXY..." }, { "id": "prop_01HAB..." }]
-  }
-}
-```
-
-All Items the Type/Collection governs share the template; promoted properties render on the main panel of the floating Item Window.
-
 ##### Settings scaffold integration
 
-UI label strings throughout the Properties surface (sheet titles, picker headings, add-button labels, section headings) read from the Settings scaffold — not hardcoded. When the user renames "Set" to "Library" in Settings, the Items-side picker title updates everywhere.
+UI label strings throughout the Properties surface (sheet titles, picker headings, add-button labels, section headings) read from the Settings scaffold — not hardcoded. When the user renames "Collection" to "Folder" in Settings, the picker titles update everywhere.
 
 ---
 
@@ -507,7 +484,6 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 
 - **Computed properties** (Formula, Rollup, People), **ad-hoc page-local properties** (no schema entry), and **Collection-local schema overrides** are out of v1.
 - **A 4th Status group (`cancelled`) is never added** — the 3-slot structure is preserved for clean EventKit mapping; `EKEvent.status = .canceled` maps to `done` if/when the sync layer bridges it.
-- **Cross-side *promotion*** (transforming an Item into a Page or vice versa) is a post-v1 Prospect — distinct from cross-side linking via body connections (`[[Page]]` or `{{Item}}`), which remains available.
 
 ---
 
@@ -515,7 +491,6 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 
 - [[Domain-Model]] — 2-layer domain model overview
 - [[PageTypes]] — Page Type + Page Collection container layer
-- [[Items]] — Item Type + Item Collection container layer + Item Window
 - [[Agenda]] — AgendaTask + AgendaEvent split; per-side schemas
 - [[Contexts]] — Spaces / Topics / Projects tier system
 - [[Pages]] — on-disk shape, connection mechanics

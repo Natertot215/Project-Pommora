@@ -1,12 +1,12 @@
 ### Quick Capture
 
-> A lightweight surface for adding **Items, Agenda Tasks, and Agenda Events** to the nexus from outside the main window — a menu-bar pane on the Mac, optionally fed by a browser/web-clip route. This is a concept + architecture doc, not a wiring plan. Roadmap slot lives in `Framework.md` (lands after the Item Window + property-panel work); Pages are deliberately out of scope (below). Brainstormed as a quick idea on 5-31 in the post-compact 0.3.4 session.
+> A lightweight surface for adding **Pages, Agenda Tasks, and Agenda Events** to the nexus from outside the main window — a menu-bar pane on the Mac, optionally fed by a browser/web-clip route. This is a concept + architecture doc, not a wiring plan. Roadmap slot lives in `Framework.md`. Brainstormed as a quick idea on 5-31 in the post-compact 0.3.4 session.
 
 #### What it is
 
 Quick Capture is a small single-pane entry point — think Things 3 / Drafts / a web clipper — that creates an operational entity directly into the nexus without opening the full app. It is **another entry point on the existing data layer, not a new feature stack**: it reuses the same create operations and the same property-assignment UI as the main app.
 
-Three capture kinds at launch: **Item** (scoped to an Item Type, optionally a Set), **Agenda Task**, and **Agenda Event**. Tasks and Events are top-level capture options (no container to pick). **Pages are deferred** — Items / Tasks / Events share one property-assignment flow, whereas a Page needs a distinct "which Vault / Collection" interaction plus a Markdown body editor; bundling it would dilute the fast-capture surface.
+Three capture kinds at launch: **Page** (scoped to a Vault, optionally a Collection), **Agenda Task**, and **Agenda Event**. Tasks and Events are top-level capture options (no container to pick). Capture is title + properties first — the pane is not a body editor; prose continues in the main window.
 
 #### Foundational principle — single-owner nexus access
 
@@ -19,23 +19,22 @@ This keeps the "files are canonical, one process owns the index" model intact an
 
 #### Why the data layer already supports it
 
-- **Create is file-canonical.** Creating an Item writes its `.md` file (YAML frontmatter + capped body); a Task / Event writes its `.task.json` / `.event.json`. Either way the write is atomic and the SQLite index upsert is best-effort and non-fatal — so capture can always succeed at the file level even if the index lags. (→ [[Architecture]].)
+- **Create is file-canonical.** Creating a Page writes its `.md` file (YAML frontmatter + body); a Task / Event writes its `.task.json` / `.event.json`. Either way the write is atomic and the SQLite index upsert is best-effort and non-fatal — so capture can always succeed at the file level even if the index lags. (→ [[Architecture]].)
 - **The property-assignment UI is host-agnostic.** The property panel and per-property editors take a schema + value bindings, not the manager graph — so the same editing surface renders in a compact capture pane. (→ [[Properties]].)
-- **Pinned properties already exist.** `pinned_properties` (on the Item Collection) drives the Item Window's pinned chips today. Quick Capture reuses that exact mechanism (next section) — it is the feature's second consumer, not a new concept.
 
 #### Capture flow
 
-1. **Pick the kind + scope.** Item → choose Item Type (and optionally a Set); Task / Event → top-level, no container.
+1. **Pick the kind + scope.** Page → choose Vault (and optionally a Collection); Task / Event → top-level, no container.
 2. **Fill the entity.** Title + the property fields for that Type.
 3. **Save.** The entity lands in the nexus immediately.
 
-**Pinned-properties-first display.** A Type can carry many properties; showing all of them would bury the fast-capture intent. Quick Capture shows the **pinned properties first** (per the Collection's `pinned_properties`), with a small `…` affordance beneath the list to **"show all"** — revealing the full schema only on demand. This is the same pinning the Item Window uses; Quick Capture being its second consumer is a strong reason to get pinning right during the Item Window work.
+**Compact-schema display.** A Type can carry many properties; showing all of them would bury the fast-capture intent. The pane shows a compact subset first, with a small `…` affordance beneath the list to **"show all"** — revealing the full schema only on demand. What defines the subset is open: the original design leaned on a property-pinning mechanism that no longer exists (→ [[Prospects]] § "Pinned-property zone for the PagePreview card"); declaration order is the fallback.
 
-Title + Icon and description field would be displayed before an Item, Task, or Event designation is given since those are universial across those three anyway; the specific location + properties would be displayed as fill-ins once a selection is made. We could also omit Events + Tasks for an even cleaner UIX flow, with capture as items-only. -- Comment via Nathan himself.
+Title + Icon would be displayed before a Page, Task, or Event designation is given since those are universal across all three; the specific location + properties would be displayed as fill-ins once a selection is made. Capture could also omit Tasks + Events for an even cleaner UIX flow, capturing Pages only. — Direction via Nathan (recorded pre-collapse; vocabulary updated).
 
 #### Web capture (browser / share sheet)
 
-Quick Capture extends naturally to web clipping — capturing a page's **title, URL, description, and any selected text** into a new Item (e.g. a Bookmarks Type) or a Task / Event. The capturer is always a courier (per single-owner access). Candidate routes, to be chosen at spec time:
+Quick Capture extends naturally to web clipping — capturing a page's **title, URL, description, and any selected text** into a new Page (e.g. a Bookmarks Vault) or a Task / Event. The capturer is always a courier (per single-owner access). Candidate routes, to be chosen at spec time:
 
 - **Browser extension (e.g. Chrome) via native messaging** — the established web-clipper pattern (Obsidian Web Clipper, Notion, Raindrop). Most seamless for browser capture; most setup.
 - **System Share Extension** — an Apple-native path: the macOS / Safari Share sheet → "Add to Pommora," reachable from anywhere, no browser-specific toolchain.
@@ -46,13 +45,13 @@ These are alternatives, not all-or-nothing — a Share Extension and a browser e
 #### Apple surfaces in play
 
 - **`MenuBarExtra`** (SwiftUI, macOS 13+) with `.menuBarExtraStyle(.window)` — the popover-style capture pane; coexists with the main window in the same app.
-- **Agent app (`LSUIElement`) + login item (`SMAppService`)** — keeps the capture pane always-available from the menu bar even when the main window is closed, without a Dock icon.
+- **Agent app (`LSUIElement`) + launch-at-login registration (`SMAppService`)** — keeps the capture pane always-available from the menu bar even when the main window is closed, without a Dock icon.
 - **Chrome Native Messaging / Share Extension / App Intents** — the external capture routes; App Intents is a cheap bonus ("Add to Pommora" as a Shortcut / Spotlight action) on the same create operations.
 - **EventKit** (the Agenda work) underlies the Task / Event capture targets.
 
 #### Deferred / open
 
-- **Pages capture** — needs the Vault / Collection picker + body editor; revisit after operational-entity capture is proven.
-- **Capture while the app is fully quit** — the in-app menu-bar surface is available whenever the app (including as a login-item agent) is running; a truly headless capture daemon would reintroduce the multi-process problems this design avoids, so it is not planned.
+- **Body capture** — whether the pane ever grows a body field, or stays title + properties with prose continuing in the main window, is a spec-phase call.
+- **Capture while the app is fully quit** — the in-app menu-bar surface is available whenever the app (including as a launch-at-login agent) is running; a truly headless capture daemon would reintroduce the multi-process problems this design avoids, so it is not planned.
 - **Which web route ships first** (browser extension vs Share Extension) — a UX / scope call for the spec phase.
-- **Context-link fields in the capture pane** — context pickers (`ContextPicker`) depend on the index + a resolver; keeping tier-relation fields behind "show all" (pinned-first) keeps capture fast.
+- **Context-link fields in the capture pane** — context pickers (`ContextPicker`) depend on the index + a resolver; keeping tier-relation fields behind "show all" keeps capture fast.

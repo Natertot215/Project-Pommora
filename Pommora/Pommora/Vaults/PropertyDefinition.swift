@@ -125,7 +125,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
         var color: SelectColor  // default for options that don't override
         var options: [StatusOption]
 
-        /// Default seed when a Status property is first added (Pages/Items) or when
+        /// Default seed when a Status property is first added (Pages) or when
         /// AgendaTaskSchema/AgendaEventSchema bootstraps. Matches Properties.md
         /// § "Status property type" → "Default seed".
         static func defaultSeed() -> [StatusGroup] {
@@ -163,10 +163,10 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     /// Picker constraint for a Relation property. Tier-only post-Relations-redesign.
     ///
     /// On-disk shape is a tagged object: `{"kind": "context_tier", "tier": N}`.
-    /// Retired user cases (page_type / item_type / page_collection / item_collection /
-    /// agenda_tasks / agenda_events) are tolerated on READ via the `try?` wrapping in
-    /// `PropertyDefinition.init(from:)` — they degrade to `nil` and the def is dropped
-    /// by `droppingUserRelations()`. Tier-only tolerance; retired from user creation.
+    /// Any non-`context_tier` kind is a retired user case, tolerated on READ via
+    /// the `try?` wrapping in `PropertyDefinition.init(from:)` — it degrades to
+    /// `nil` and the def is dropped by `droppingUserRelations()`. Tier-only
+    /// tolerance; retired from user creation.
     enum RelationTarget: Codable, Equatable, Hashable, Sendable {
         /// Internal-only: built-in Spaces / Topics / Projects context tiers (tier 1 / 2 / 3).
         /// Tier-only tolerance; retired from user creation.

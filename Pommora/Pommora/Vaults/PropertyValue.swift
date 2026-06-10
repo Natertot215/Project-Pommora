@@ -1,6 +1,6 @@
 import Foundation
 
-/// Type-erased property value used in Item / Page / Agenda `properties` dictionaries.
+/// Type-erased property value used in Page / Agenda `properties` dictionaries.
 /// Custom Codable inspects the JSON shape per-value:
 /// - JSON number → `.number(Double)`
 /// - JSON bool   → `.checkbox(Bool)`

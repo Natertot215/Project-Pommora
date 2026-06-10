@@ -3,13 +3,13 @@ import MarkdownPM
 
 /// Single source of truth for Pommora's `MarkdownPMEditor` configuration.
 ///
-/// Both long-form surfaces — the Page editor body and the Item Window
-/// description — share the same themed base (`MarkdownPMConfiguration.default`
+/// Both long-form surfaces — the Page editor body and the PagePreview card
+/// body — share the same themed base (`MarkdownPMConfiguration.default`
 /// theme + services + style toggles). The ONLY per-surface divergence is the
 /// vertical text inset:
 ///   • Page editor reserves `titleAreaHeight` (90pt) so the scrolling title
 ///     overlay can sit atop the body's reserved zone.
-///   • Item Window has no in-editor title overlay, so it uses `0`.
+///   • PagePreview card has no in-editor title overlay, so it uses `0`.
 ///
 /// Hoisted here (DRY) so neither call site duplicates the config body; each
 /// passes only its vertical inset.
@@ -24,8 +24,8 @@ enum MarkdownEditorConfig {
     /// title overlay.
     ///
     /// `pageResolver` drives live `[[ ]]` connection styling. It defaults to
-    /// NoOp so display-only surfaces (the Item Window) compile unchanged and
-    /// stay inert; the Page editor passes the stable title-keyed resolver
+    /// NoOp so resolver-less surfaces stay inert; both current call sites
+    /// (Page editor + PagePreview card) pass the stable title-keyed resolver
     /// injected by `NexusEnvironment`.
     static func pommora(
         verticalInset: CGFloat,

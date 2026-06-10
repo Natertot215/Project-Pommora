@@ -4,7 +4,7 @@ import Observation
 /// Per-Nexus settings store. Loads `<nexus>/.nexus/settings.json` on first
 /// access; seeds defaults to disk on first launch. Consumed by every UI
 /// label-rendering site (sidebar headers, new-X sheet titles, context menu
-/// items, breadcrumbs, empty-state copy) once Phase 7 Wave 2 wires the
+/// entries, breadcrumbs, empty-state copy) once Phase 7 Wave 2 wires the
 /// readers — Task 7.2 ships the type definition only.
 ///
 /// Self-contained: no NexusContext validator closures (no entity validation

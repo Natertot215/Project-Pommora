@@ -11,7 +11,7 @@ The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate 
 
 In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
 
-UX-wise both entities behave identically to [[Items]] — the floating Item Window, tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
+UX-wise both entities carry the same property mechanics as Pages — tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
 
 ---
 
@@ -27,9 +27,9 @@ UX-wise both entities behave identically to [[Items]] — the floating Item Wind
     Team standup.event.json
 ```
 
-Both folders sit at the nexus root as siblings of Page Types and Item Types — no `Agenda/` wrapper. Discovery is sidecar-driven: the Tasks singleton is whichever root folder carries `_taskconfig.json`; the Events singleton is whichever root folder carries `_eventconfig.json`. Renaming the folder in Finder Just Works. If multiple folders carry the same sidecar (pathological), first-found wins with a warning logged.
+Both folders sit at the nexus root as siblings of Page Types — no `Agenda/` wrapper. Discovery is sidecar-driven: the Tasks singleton is whichever root folder carries `_taskconfig.json`; the Events singleton is whichever root folder carries `_eventconfig.json`. Renaming the folder in Finder Just Works. If multiple folders carry the same sidecar (pathological), first-found wins with a warning logged.
 
-The sidecars carry the `config` suffix (vs the un-suffixed Pages/Items `_pagetype.json` / `_itemtype.json`) so they don't clash with the `.task.json` / `.event.json` entity extensions. Those per-entity extensions let indexes and external agents identify the kind without opening the file.
+The sidecars carry the `config` suffix (vs the un-suffixed `_pagetype.json`) so they don't clash with the `.task.json` / `.event.json` entity extensions. Those per-entity extensions let indexes and external agents identify the kind without opening the file.
 
 Both singleton folders are **eagerly created on launch**: `AgendaTaskManager.loadAll` / `AgendaEventManager.loadAll` ensure the folder exists and seed the sidecar if absent, so a fresh Nexus shows both folders even when empty. Multiple Task / Event types per Nexus remain a post-v1 Prospect.
 
@@ -37,7 +37,7 @@ Both singleton folders are **eagerly created on launch**: `AgendaTaskManager.loa
 
 #### Schema (config sidecar)
 
-`_taskconfig.json` and `_eventconfig.json` each carry `properties: [PropertyDefinition]` — the same property shape as Page Types and Item Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); every other property is user-defined. The three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInContextLinkProperties` for surfaces that show them.
+`_taskconfig.json` and `_eventconfig.json` each carry `properties: [PropertyDefinition]` — the same property shape as Page Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); every other property is user-defined. The three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInContextLinkProperties` for surfaces that show them.
 
 The `_status` Status structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, user-editable options, default seed, the 3-slot rule, the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
 
@@ -90,9 +90,9 @@ External `EKEventStore` changes are observed via async sequences over the `.EKEv
 
 ---
 
-#### UI: Item Window for AgendaTask + AgendaEvent
+#### UI: opening Tasks + Events
 
-Tasks and Events open in the same floating Item Window used for [[Items]] — title + properties + 1000-char description, not a full-frame surface. (Agenda's description stays a JSON field on `.task.json` / `.event.json`; only Item *content* files became `.md` with the body as description.) (Not yet wired; rows in the placeholder Calendar list aren't yet clickable.) Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
+Tasks and Events open in a compact panel surface — title + properties + description, not a full-frame surface (the description stays a JSON field on `.task.json` / `.event.json`). **Not yet wired** — rows in the placeholder Calendar list aren't yet clickable, and the hosting surface is undecided. Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
 
 ---
 

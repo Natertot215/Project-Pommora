@@ -32,7 +32,7 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
 // Pages-side renders the distinctive "Vault" + generic "Collection" pair.
 // agendaTask + agendaEvent labels are kept here for Calendar's eventual UI consumption;
 // they're dormant in v0.3.0 (no sidebar Agenda section per Phase 8.3).
-// Legacy settings.json files may still carry retired Items-side label keys —
+// Legacy settings.json files may still carry retired label keys —
 // Codable ignores unlisted keys, so they decode cleanly and drop on next write.
 
 struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
@@ -64,7 +64,7 @@ struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         // Legacy files lack `spaces` / `topics` — decode with defaults for
         // backward compatibility. Users who customized will re-apply the label.
-        // A retired `items` key may also be present; it's simply not decoded.
+        // A retired section key may also be present; it's simply not decoded.
         spaces = (try? c.decode(String.self, forKey: .spaces)) ?? "Spaces"
         topics = (try? c.decode(String.self, forKey: .topics)) ?? "Topics"
         pages = try c.decode(String.self, forKey: .pages)

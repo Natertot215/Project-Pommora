@@ -1,8 +1,6 @@
 ### Pages
 
-A Page is one Markdown file inside a [[PageTypes|Page Type]]. Pages are the only entity that holds free prose content — Items are also `.md` (sharing the same `AtomicYAMLMarkdown` codec), but an Item's body is a short capped description, not a prose document. A Page **belongs to one Page Type** (the Type whose folder it physically lives in). Pages conform to their Page Type's property schema.
-
-The parallel Items-side entity is the Item — a property-bearing `.md` record whose body is a short capped description (it shares Pages' `AtomicYAMLMarkdown` codec; the body is the description, not free prose). See [[Items]] for details.
+A Page is one Markdown file inside a [[PageTypes|Page Type]] — the only operational entity that holds free prose content. A Page **belongs to one Page Type** (the Type whose folder it physically lives in). Pages conform to their Page Type's property schema.
 
 ---
 
@@ -69,13 +67,19 @@ Currently, a Page's properties surface as the **property panel** in the editor's
 
 #### Opening behavior
 
-**Default — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
+**Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"); `PreviewStack.destination(for:page:currentSelection:)` routes every sidebar page-tap.
 
-**From the NavDropdown — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure (no preview gate, no standalone window). Full mechanics live in `NavDropdown.md`. An open-in-preview affordance is gated behind the cross-feature **PreviewWindow primitive** (`Guidelines/CRUD-Patterns.md → Preview-window prerequisite`): the primitive ships per kind before any "open in preview" UI for that kind is wired.
+**`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
 
-**Standalone-window path: deferred.** There is no standalone-window scene for Pages. Standalone Page previews / multi-instance windows ship later via the PreviewWindow primitive (queued).
+**`compact` — PagePreview card.** The Page opens as an **in-window draggable Liquid Glass card** floating over the detail content (the `PreviewStack` overlay hosted in `ContentView` — no separate window scene). Behavior:
 
-Items use a different model — they open in the **floating Item Window**, a draggable, dismissible window scene built on the shared PreviewWindow primitive (the first consumer of that primitive; Pages reuse it for the deferred preview path above). See [[Items]].
+- **475×475 collapsed** (also the minimum), resizable; multiple cards open at once, cascading +24pt per already-open card; re-opening an already-previewed Page focuses its existing card (one card per Page).
+- **Opens locked** (read-only). The footer lock toggles editing; unlocking reveals an **Open** affordance beside the lock. The header carries a **✕ close capsule** and an inspector-toggle capsule.
+- **Inspector defaults open** — the preview-styled `PagePreviewInspector`, saving through the same `FrontmatterInspectorViewModel` path as the main-pane inspector.
+- **Context menu: Open Page / Lock-Unlock.** Open Page promotes the Page to the main detail pane and removes the card.
+- **Edit conflicts are structurally unreachable** — a Page currently shown in the main detail pane never opens as a preview (the tap is suppressed).
+
+**From the NavDropdown — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure. Full mechanics live in `NavDropdown.md`.
 
 ---
 
@@ -87,9 +91,9 @@ Pages are flat within a Page Collection. No forced sub-page nesting. A Page Coll
 
 #### Sidebar visibility
 
-Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root) or Page Collection. **Items, Agenda Tasks, and Agenda Events do NOT appear in the sidebar** (Items live in detail-pane Tables under their Item Type; Agenda Tasks + Events surface via the Calendar pin entry): the sidebar tree is the structural / Page-shaped view; the detail pane is the full data view that includes Items. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
+Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root) or Page Collection. **Agenda Tasks and Agenda Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
 
-Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Page Type or Page Collection detail view gives Rename / Pin (or Unpin) / Delete. A right-click "Open in New Window" / `⌥⌘O` affordance is queued behind the PreviewWindow primitive — not yet wired. For full sidebar layout + creation affordances → [[Sidebar]].
+Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Page Type or Page Collection detail view gives Rename / Pin (or Unpin) / Delete. For full sidebar layout + creation affordances → [[Sidebar]].
 
 ---
 
