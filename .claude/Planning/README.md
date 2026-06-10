@@ -8,6 +8,7 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Active
 
+- `06-10-Contexts-Decoupling-Spec.md` — ratified spec for the Contexts decoupling: Projects become free-standing tier-3 contexts, context→context relations fully reset, sidebar tier disclosure rows. Implementation plan to follow.
 - `06-05-Connections-Plan.md` — the Connections implementation plan. Page-level work shipped at v0.3.5 (`History.md` § "Connections — page-level complete"); retained at top level pending the post-v0.4.0 connection-model layer it also scopes.
 - `Contextv2.md` — the Drop-Relations→Contexts refactor plan. Shipped 2026-06-04 (registry decision #16); retained at top level pending archival review.
 
