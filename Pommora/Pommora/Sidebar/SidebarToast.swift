@@ -18,12 +18,13 @@ struct SidebarToast: View {
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
+    @Environment(SidebarSectionsManager.self) private var sidebarSectionsManager
 
     @State private var displayedError: (any Error)? = nil
     @State private var displayedSource: ErrorSource? = nil
 
     enum ErrorSource: String, Hashable {
-        case space, topic, vault, content, savedConfig
+        case space, topic, vault, content, savedConfig, sidebarSections
     }
 
     var body: some View {
@@ -67,6 +68,9 @@ struct SidebarToast: View {
         .onChange(of: errorChangeID(savedConfigManager.pendingError)) { _, _ in
             capture(from: savedConfigManager.pendingError, source: .savedConfig)
         }
+        .onChange(of: errorChangeID(sidebarSectionsManager.pendingError)) { _, _ in
+            capture(from: sidebarSectionsManager.pendingError, source: .sidebarSections)
+        }
     }
 
     private func capture(from err: (any Error)?, source: ErrorSource) {
@@ -82,6 +86,7 @@ struct SidebarToast: View {
         case .vault: vaultManager.pendingError = nil
         case .content: contentManager.pendingError = nil
         case .savedConfig: savedConfigManager.pendingError = nil
+        case .sidebarSections: sidebarSectionsManager.pendingError = nil
         case .none: break
         }
         displayedError = nil

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SidebarView: View {
@@ -10,6 +11,7 @@ struct SidebarView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(PreviewStack.self) private var previewStack
+    @Environment(SidebarSectionsManager.self) private var sidebarSectionsManager
 
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -48,6 +50,20 @@ struct SidebarView: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
+                // User vault sections (PagesV2 P9) — each a SIBLING Section
+                // with the IDENTICAL `Section(isExpanded:) { rows } header:`
+                // shape as VaultsSection, reusing PageTypeRow unchanged
+                // (quirk #8: never mix row shapes inside one Section).
+                ForEach(sidebarSectionsManager.config.sections) { userSection in
+                    UserVaultSection(
+                        section: userSection,
+                        selection: $selection,
+                        editingID: $editingID,
+                        justCreatedID: $justCreatedID,
+                        presentedSheet: $presentedSheet,
+                        confirmingDelete: $confirmingDelete
+                    )
+                }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
@@ -500,13 +516,22 @@ struct VaultsSection: View {
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
+    @Environment(SidebarSectionsManager.self) private var sectionsManager
 
     @State private var expanded: Bool = true
     @State private var isCreating: Bool = false
+    @State private var isCreatingSection: Bool = false
+
+    /// The default Vaults section shows only UNGROUPED vaults — those not
+    /// claimed by any user section (PagesV2 P9, single-membership).
+    private var ungroupedTypes: [PageType] {
+        let grouped = sectionsManager.config.groupedVaultIDs
+        return vaultManager.types.filter { !grouped.contains($0.id) }
+    }
 
     var body: some View {
         Section(isExpanded: $expanded) {
-            ForEach(vaultManager.types) { pageType in
+            ForEach(ungroupedTypes) { pageType in
                 PageTypeRow(
                     pageType: pageType,
                     selection: $selection,
@@ -521,14 +546,42 @@ struct VaultsSection: View {
             }
             .onMove { source, destination in
                 withAnimation(.snappy) {
-                    vaultManager.reorderPageTypes(fromOffsets: source, toOffset: destination)
+                    reorderUngrouped(fromOffsets: source, toOffset: destination)
                 }
             }
         } header: {
-            SectionHeader(title: settingsManager.settings.labels.sidebarSections.pages) {
-                createPageType()
+            SectionHeader(
+                title: settingsManager.settings.labels.sidebarSections.pages,
+                onAdd: { createPageType() }
+            ) {
+                Divider()
+                Button("Add Section") { createUserSection() }
+                    .disabled(isCreatingSection)
             }
         }
+    }
+
+    /// Translates drag offsets from the displayed (ungrouped-only) list back
+    /// into `vaultManager.types` offsets before forwarding to the existing
+    /// full-array reorder. When no vault is grouped the mapping is the
+    /// identity, preserving pre-P9 behavior exactly.
+    private func reorderUngrouped(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let displayed = ungroupedTypes
+        let full = vaultManager.types
+        let fullIndices: [Int] = displayed.compactMap { d in
+            full.firstIndex(where: { $0.id == d.id })
+        }
+        guard fullIndices.count == displayed.count else { return }  // stale snapshot — drop
+        let translatedSource = IndexSet(
+            source.compactMap { $0 < fullIndices.count ? fullIndices[$0] : nil })
+        let translatedDestination: Int
+        if destination >= displayed.count {
+            translatedDestination = fullIndices.last.map { $0 + 1 } ?? full.count
+        } else {
+            translatedDestination = fullIndices[destination]
+        }
+        vaultManager.reorderPageTypes(
+            fromOffsets: translatedSource, toOffset: translatedDestination)
     }
 
     private func createPageType() {
@@ -549,6 +602,187 @@ struct VaultsSection: View {
                         justCreatedID = newType.id
                     }
                 )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Stub-and-edit "Add Section" trigger (PagesV2 P9). Creates a uniquely
+    /// labelled empty user section, then flips its header into inline-rename
+    /// mode with the default label pre-selected — the same
+    /// `CreateWithInlineEdit` flow every other "New X" uses.
+    private func createUserSection() {
+        guard !isCreatingSection else { return }
+        isCreatingSection = true
+        let existing = sectionsManager.config.sections.map(\.label)
+        let title = DefaultTitleResolver.resolve(label: "Section", existingTitles: existing)
+        Task {
+            defer { isCreatingSection = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await sectionsManager.createSection(label: title)
+                    },
+                    onCreate: { newSection in
+                        editingID = newSection.id
+                        justCreatedID = newSection.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+}
+
+// MARK: - UserVaultSection (PagesV2 P9)
+
+/// One user-created sidebar section grouping Vaults — a SIBLING `Section`
+/// with the IDENTICAL `Section(isExpanded:) { rows } header:` shape as
+/// `VaultsSection`, reusing `PageTypeRow` unchanged (quirk #8: row shapes
+/// inside a Section must stay homogeneous; selection chrome stays at the
+/// row file level per quirk #9).
+///
+/// Membership is navigation-only: `section.vaultIDs` resolve to live
+/// `PageType`s in section order; dangling IDs (a deleted vault's ID left in
+/// the config) skip-render. An EMPTY section renders its header with zero
+/// rows — zero rows is trivially homogeneous, and the header must stay
+/// visible so a freshly created section can be inline-renamed.
+struct UserVaultSection: View {
+    let section: SidebarSectionsConfig.Section
+    @Binding var selection: SidebarSelection
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
+    @Binding var presentedSheet: SidebarSheet?
+    @Binding var confirmingDelete: SidebarConfirmation?
+    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(NexusManager.self) private var nexusManager
+
+    @State private var expanded: Bool = true
+
+    /// `vaultIDs` resolved to live PageTypes in section order. Dangling IDs
+    /// are skipped (skip-render policy — the config is not self-healed).
+    private var resolvedTypes: [PageType] {
+        let types = vaultManager.types
+        return section.vaultIDs.compactMap { id in
+            types.first(where: { $0.id == id })
+        }
+    }
+
+    var body: some View {
+        Section(isExpanded: $expanded) {
+            ForEach(resolvedTypes) { pageType in
+                PageTypeRow(
+                    pageType: pageType,
+                    selection: $selection,
+                    editingID: $editingID,
+                    justCreatedID: $justCreatedID,
+                    presentedSheet: $presentedSheet,
+                    confirmingDelete: $confirmingDelete,
+                    nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
+                    index: nexusManager.currentIndex
+                )
+                .tag(SelectionTag.pageType(pageType.id))
+            }
+        } header: {
+            UserSectionHeader(
+                section: section,
+                editingID: $editingID,
+                justCreatedID: $justCreatedID
+            )
+        }
+    }
+}
+
+/// Header for a user vault section: secondary-styled label matching
+/// `SectionHeader`'s strip, flipping into an inline-rename `TextField` when
+/// `editingID == section.id` (mirrors the `RenameableRow` commit/cancel/
+/// focus-loss contract, minus the icon slot — headers carry no symbol).
+/// Context menu: Rename Section / Delete Section (delete is navigation-only —
+/// the section's vaults return to the default Vaults section).
+private struct UserSectionHeader: View {
+    let section: SidebarSectionsConfig.Section
+    @Binding var editingID: String?
+    @Binding var justCreatedID: String?
+    @Environment(SidebarSectionsManager.self) private var sectionsManager
+
+    @State private var draft: String = ""
+    @State private var isCommitting: Bool = false
+    @FocusState private var renameFocused: Bool
+
+    var body: some View {
+        if editingID == section.id {
+            TextField("", text: $draft)
+                .textFieldStyle(.plain)
+                .focused($renameFocused)
+                .onSubmit { commit() }
+                .onKeyPress(.escape) {
+                    cancel()
+                    return .handled
+                }
+                .onChange(of: renameFocused) { _, focused in
+                    if !focused && !isCommitting && editingID == section.id {
+                        cancel()
+                    }
+                }
+                .onAppear {
+                    draft = section.label
+                    renameFocused = true
+                    if justCreatedID == section.id {
+                        // Same AppKit responder hop as RenameableRow: select
+                        // the whole default label so the first keystroke
+                        // replaces it.
+                        DispatchQueue.main.async {
+                            NSApp.keyWindow?.firstResponder?.tryToPerform(
+                                #selector(NSText.selectAll(_:)), with: nil
+                            )
+                        }
+                    }
+                }
+        } else {
+            HStack(spacing: 4) {
+                Text(section.label)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button("Rename Section") { editingID = section.id }
+                Button("Delete Section") { deleteSection() }
+            }
+        }
+    }
+
+    private func commit() {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != section.label else {
+            editingID = nil
+            justCreatedID = nil
+            return
+        }
+        isCommitting = true
+        Task {
+            defer { isCommitting = false }
+            do {
+                try await sectionsManager.renameSection(id: section.id, to: trimmed)
+                editingID = nil
+                justCreatedID = nil
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    private func cancel() {
+        editingID = nil
+        justCreatedID = nil
+    }
+
+    private func deleteSection() {
+        Task {
+            do {
+                try await sectionsManager.deleteSection(id: section.id)
             } catch {
                 // pendingError set by manager; toast surfaces.
             }
@@ -648,12 +882,26 @@ struct SelectionChrome: View {
 /// Section header strip used by Spaces / Topics / Vaults: secondary-styled title,
 /// trailing "+" button that fades in on hover (matching the disclosure-chevron's
 /// hover affordance), and a section-wide right-click context menu offering the
-/// same action regardless of hover state.
-private struct SectionHeader: View {
+/// same action regardless of hover state. `extraMenu` is an optional ViewBuilder
+/// slot appended to that context menu (the Vaults header uses it for
+/// "Add Section", PagesV2 P9); it defaults to empty so the other call sites
+/// stay unchanged.
+private struct SectionHeader<ExtraMenu: View>: View {
     let title: String
     let onAdd: () -> Void
+    @ViewBuilder let extraMenu: () -> ExtraMenu
 
     @State private var hovered: Bool = false
+
+    init(
+        title: String,
+        onAdd: @escaping () -> Void,
+        @ViewBuilder extraMenu: @escaping () -> ExtraMenu = { EmptyView() }
+    ) {
+        self.title = title
+        self.onAdd = onAdd
+        self.extraMenu = extraMenu
+    }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -677,6 +925,7 @@ private struct SectionHeader: View {
         .onHover { hovered = $0 }
         .contextMenu {
             Button("New") { onAdd() }
+            extraMenu()
         }
     }
 }

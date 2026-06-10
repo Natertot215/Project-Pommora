@@ -56,6 +56,14 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("settings.json", isDirectory: false)
     }
 
+    /// `<nexus>/.nexus/sidebar-sections.json` — user-creatable sidebar
+    /// sections grouping Vaults (navigation-only; PagesV2 P9). Loaded by
+    /// SidebarSectionsManager; seeded empty on first launch.
+    static func sidebarSectionsURL(in nexus: Nexus) -> URL {
+        nexusConfigDir(in: nexus).appendingPathComponent(
+            "sidebar-sections.json", isDirectory: false)
+    }
+
     // MARK: - Agenda (sidecar-driven singleton discovery)
 
     /// File extension for Agenda Tasks: `<title>.task.json`.

@@ -56,6 +56,7 @@ final class NexusEnvironment {
     let homepageManager: HomepageManager
     let tierConfigManager: TierConfigManager
     let savedConfigManager: SavedConfigManager
+    let sidebarSectionsManager: SidebarSectionsManager
     let recentsManager: RecentsManager
     let pinnedManager: PinnedManager
     let mainWindowRouter: MainWindowRouter
@@ -132,6 +133,7 @@ final class NexusEnvironment {
         let homepageMgr = HomepageManager(nexus: nexus)
         let tierMgr = TierConfigManager(nexus: nexus)
         let savedMgr = SavedConfigManager(nexus: nexus)
+        let sidebarSectionsMgr = SidebarSectionsManager(nexus: nexus)
         let recentsMgr = RecentsManager(nexus: nexus)
         let pinnedMgr = PinnedManager(nexus: nexus)
         let settingsMgr = SettingsManager(nexus: nexus)
@@ -177,6 +179,7 @@ final class NexusEnvironment {
         self.homepageManager = homepageMgr
         self.tierConfigManager = tierMgr
         self.savedConfigManager = savedMgr
+        self.sidebarSectionsManager = sidebarSectionsMgr
         self.recentsManager = recentsMgr
         self.pinnedManager = pinnedMgr
         self.settingsManager = settingsMgr
@@ -212,6 +215,7 @@ final class NexusEnvironment {
             async let _ = homepageMgr.load()
             async let _ = tierMgr.load()
             async let _ = savedMgr.load()
+            async let _ = sidebarSectionsMgr.load()
             async let _ = settingsMgr.loadOrSeed()
             await recentsMgr.load()
             await pinnedMgr.load()
@@ -239,6 +243,7 @@ extension View {
             .environment(env.homepageManager)
             .environment(env.tierConfigManager)
             .environment(env.savedConfigManager)
+            .environment(env.sidebarSectionsManager)
             .environment(env.recentsManager)
             .environment(env.pinnedManager)
             .environment(env.mainWindowRouter)

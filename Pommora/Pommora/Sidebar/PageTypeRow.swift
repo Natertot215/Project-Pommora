@@ -35,6 +35,7 @@ struct PageTypeRow: View {
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
+    @Environment(SidebarSectionsManager.self) private var sectionsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -143,6 +144,22 @@ struct PageTypeRow: View {
                     .disabled(isCreatingCollection)
                 Button("New Page") { createPage() }
                     .disabled(isCreatingPage)
+                // User vault sections (PagesV2 P9, navigation-only). Hidden
+                // until at least one section exists; "Remove from Section"
+                // appears only while this vault is grouped.
+                if !sectionsManager.config.sections.isEmpty {
+                    Divider()
+                    Menu("Move to Section") {
+                        ForEach(sectionsManager.config.sections) { target in
+                            Button(target.label) { moveToSection(target.id) }
+                                .disabled(isInSection(target.id))
+                        }
+                        if currentSectionID != nil {
+                            Divider()
+                            Button("Remove from Section") { removeFromSection() }
+                        }
+                    }
+                }
                 Divider()
                 Button("\(pageTypeLabel) Settings…") {
                     showingVaultSettings = true
@@ -212,6 +229,44 @@ struct PageTypeRow: View {
                         justCreatedID = newCollection.id
                     }
                 )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    // MARK: - User vault sections (PagesV2 P9)
+
+    /// The user section currently holding this vault, if any
+    /// (single-membership — at most one).
+    private var currentSectionID: String? {
+        sectionsManager.section(containing: pageType.id)?.id
+    }
+
+    /// Plain-value helper for the context-menu `disabled` check — kept out of
+    /// the @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
+    private func isInSection(_ sectionID: String) -> Bool {
+        currentSectionID == sectionID
+    }
+
+    /// Single-membership move (one manager mutation: strips the vault from
+    /// every section, appends to the target, one save). Navigation-only —
+    /// the vault folder never moves on disk.
+    private func moveToSection(_ sectionID: String) {
+        Task {
+            do {
+                try await sectionsManager.moveVault(id: pageType.id, toSection: sectionID)
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Returns the vault to the default Vaults section.
+    private func removeFromSection() {
+        Task {
+            do {
+                try await sectionsManager.removeVaultFromSections(id: pageType.id)
             } catch {
                 // pendingError set by manager; toast surfaces.
             }
