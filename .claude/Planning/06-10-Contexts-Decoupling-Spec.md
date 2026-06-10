@@ -54,6 +54,7 @@ Ratified via brainstorming 2026-06-10. Strips the Topic→Project containment an
 - **Children:** `SpaceRow` (visuals unchanged), `TopicRow` flattened (DisclosureGroup, chevron, `ParentSpaceTags`, and "Edit Parents" removed), `ProjectRow` (drops `parentTopic`). Per-tier `.onMove` reorder kept; creation keeps the `CreateWithInlineEdit` stub-and-rename flow.
 - **Deletion:** a single "Delete" confirmation for all three tiers; cascade unlink of the tier's page links retained; the "Delete & Promote Projects" flow deleted. `EditTopicParentsSheet` and its `SidebarSheet` case deleted.
 - `SavedSection`, `VaultsSection`, and user vault sections untouched.
+- **Sidebar search bar removed.** The `SidebarSearchField` is a dead control — its bound query is consumed by nothing. The field, its dead state, and the `safeAreaInset` that spaced it above the first section all go; the sidebar's top edge starts at the pinned rows.
 
 ### Detail Pane
 

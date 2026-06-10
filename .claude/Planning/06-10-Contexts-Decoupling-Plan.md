@@ -744,6 +744,18 @@ struct TierDisclosureRow<Children: View>: View {
 - [ ] **Step 4:** Background-builder verify — tests MUST bootstrap, not just compile (quirk #8 regression class). Green. Run the app once via the builder agent for a launch sanity check if any sidebar test is inconclusive.
 - [ ] **Step 5:** Commit: `feat(sidebar): ContextsSection — three tier disclosure rows replace Spaces/Topics headings`
 
+#### Task 3.2: Remove the dead sidebar search bar
+
+**Files:** Modify `Pommora/Pommora/ContentView.swift` (NOTE: this file is also touched by the in-flight PagePreview session — re-verify anchors against the landed file).
+
+The search field is a dead control, verified: `@State private var searchQuery` (:13) is written by the field and read by NOTHING in the codebase (the only other `searchQuery` is PropertiesListPane's own unrelated local).
+
+- [ ] **Step 1:** Delete the `.safeAreaInset(edge: .top, spacing: 8) { SidebarSearchField(text: $searchQuery).padding(.horizontal, 10) }` modifier on `sidebar` (:132-135) — this is also the inset that spaced the field above the first section; nothing replaces it, the sidebar's top edge starts at the pinned rows.
+- [ ] **Step 2:** Delete `@State private var searchQuery = ""` (:13).
+- [ ] **Step 3:** Delete the entire `private struct SidebarSearchField: NSViewRepresentable` including its `Coordinator` (:382-409).
+- [ ] **Step 4:** `grep -rn "SidebarSearchField\|searchQuery" Pommora/Pommora/ContentView.swift` — zero hits.
+- [ ] **Step 5:** Background-builder verify (tests must bootstrap); green. Commit: `refactor(sidebar): remove dead search bar + its top inset`
+
 ---
 
 ### P4 — Space Folder Layout + Index Schema v12
