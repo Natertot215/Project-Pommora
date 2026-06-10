@@ -72,6 +72,34 @@ struct IndexQueryTests {
         #expect(ids == ["P11", "P12"])
     }
 
+    // MARK: - Filter: inSet
+
+    @Test func filterInSetMatchesAnyValue() async throws {
+        let (dir, idx) = try await setupIndex()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try await idx.dbQueue.write { db in
+            try db.execute(
+                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT7', 'Tickets', '2026-06-10T00:00:00Z')")
+            try db.execute(
+                sql: """
+                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        ('P70', 'PT7', 'A', '{"priority":"high"}',   '2026-06-10T00:00:00Z'),
+                        ('P71', 'PT7', 'B', '{"priority":"medium"}', '2026-06-10T00:00:00Z'),
+                        ('P72', 'PT7', 'C', '{"priority":"low"}',    '2026-06-10T00:00:00Z')
+                    """)
+        }
+
+        let results = try await IndexQuery(idx).filter(
+            [
+                .inSet(propertyID: "priority", values: [.select("high"), .select("low")])
+            ], in: .pageType("PT7"))
+
+        #expect(results.count == 2)
+        let ids = Set(results.map(\.id))
+        #expect(ids == ["P70", "P72"])
+    }
+
     // MARK: - Filter: AND composition
 
     @Test func filterAndComposesAcrossProperties() async throws {

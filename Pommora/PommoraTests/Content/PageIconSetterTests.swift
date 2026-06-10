@@ -1,11 +1,11 @@
 //
-//  PageItemIconSetterTests.swift
+//  PageIconSetterTests.swift
 //  PommoraTests
 //
 //  Tests that updatePageIcon persists the icon to the Page's .md frontmatter
 //  on disk, at the Type root and inside a PageCollection.
 //
-//  Struct name MATCHES the filename so `-only-testing:PommoraTests/PageItemIconSetterTests`
+//  Struct name MATCHES the filename so `-only-testing:PommoraTests/PageIconSetterTests`
 //  resolves correctly (quirk #17).
 //
 //  Setup mirrors PageContentManagerUpdatePageTests: build the Type + Collection
@@ -19,8 +19,8 @@ import Testing
 @testable import Pommora
 
 @MainActor
-@Suite("PageItemIconSetterTests")
-struct PageItemIconSetterTests {
+@Suite("PageIconSetterTests")
+struct PageIconSetterTests {
 
     // MARK: - Test 1: Page at Type root
 
