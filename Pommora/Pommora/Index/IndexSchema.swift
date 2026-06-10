@@ -4,11 +4,8 @@ enum IndexSchema {
     /// Apply all DDL to the given database. Idempotent (uses CREATE TABLE IF NOT EXISTS).
     static func apply(to db: Database) throws {
         try db.execute(sql: pageTypesDDL)
-        try db.execute(sql: itemTypesDDL)
         try db.execute(sql: pageCollectionsDDL)
-        try db.execute(sql: itemCollectionsDDL)
         try db.execute(sql: pagesDDL)
-        try db.execute(sql: itemsDDL)
         try db.execute(sql: agendaTasksDDL)
         try db.execute(sql: agendaEventsDDL)
         try db.execute(sql: contextsDDL)
@@ -30,31 +27,10 @@ enum IndexSchema {
         );
         """
 
-    private static let itemTypesDDL = """
-        CREATE TABLE IF NOT EXISTS item_types (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            icon TEXT,
-            modified_at TEXT NOT NULL,
-            schema_version INTEGER NOT NULL DEFAULT 1
-        );
-        """
-
     private static let pageCollectionsDDL = """
         CREATE TABLE IF NOT EXISTS page_collections (
             id TEXT PRIMARY KEY,
             page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
-            title TEXT NOT NULL,
-            icon TEXT,
-            modified_at TEXT NOT NULL,
-            schema_version INTEGER NOT NULL DEFAULT 1
-        );
-        """
-
-    private static let itemCollectionsDDL = """
-        CREATE TABLE IF NOT EXISTS item_collections (
-            id TEXT PRIMARY KEY,
-            item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
             title TEXT NOT NULL,
             icon TEXT,
             modified_at TEXT NOT NULL,
@@ -69,19 +45,6 @@ enum IndexSchema {
             page_collection_id TEXT REFERENCES page_collections(id) ON DELETE SET NULL,
             title TEXT NOT NULL,
             icon TEXT,
-            properties TEXT NOT NULL DEFAULT '{}',
-            modified_at TEXT NOT NULL
-        );
-        """
-
-    private static let itemsDDL = """
-        CREATE TABLE IF NOT EXISTS items (
-            id TEXT PRIMARY KEY,
-            item_type_id TEXT NOT NULL REFERENCES item_types(id) ON DELETE CASCADE,
-            item_collection_id TEXT REFERENCES item_collections(id) ON DELETE SET NULL,
-            title TEXT NOT NULL,
-            icon TEXT,
-            description TEXT NOT NULL DEFAULT '',
             properties TEXT NOT NULL DEFAULT '{}',
             modified_at TEXT NOT NULL
         );
@@ -136,11 +99,11 @@ enum IndexSchema {
         CREATE TABLE IF NOT EXISTS connections (
             id TEXT PRIMARY KEY,
             source_id TEXT NOT NULL,
-            source_kind TEXT NOT NULL,          -- "page" | "item"
+            source_kind TEXT NOT NULL,          -- always "page" (connections are page-only)
             target_id TEXT,                     -- NULL while phantom (unresolved)
-            target_kind TEXT NOT NULL,          -- "page" (from [[ ]]); "item" legacy ({{ }} retired, PagesV2 V7)
+            target_kind TEXT NOT NULL,          -- always "page" (from [[ ]])
             target_title TEXT NOT NULL,         -- normalized (trimmed+lowercased) — resolution key
-            surface TEXT NOT NULL,              -- "page_body" | "item_body"
+            surface TEXT NOT NULL,              -- always "page_body"
             multiplicity INTEGER NOT NULL DEFAULT 1,
             weight REAL NOT NULL DEFAULT 1.0,
             resolved INTEGER NOT NULL DEFAULT 0,
@@ -166,10 +129,7 @@ enum IndexSchema {
     private static let indexesDDL = """
         CREATE INDEX IF NOT EXISTS idx_pages_page_type_id ON pages(page_type_id);
         CREATE INDEX IF NOT EXISTS idx_pages_page_collection_id ON pages(page_collection_id);
-        CREATE INDEX IF NOT EXISTS idx_items_item_type_id ON items(item_type_id);
-        CREATE INDEX IF NOT EXISTS idx_items_item_collection_id ON items(item_collection_id);
         CREATE INDEX IF NOT EXISTS idx_page_collections_page_type_id ON page_collections(page_type_id);
-        CREATE INDEX IF NOT EXISTS idx_item_collections_item_type_id ON item_collections(item_type_id);
         CREATE INDEX IF NOT EXISTS idx_context_links_source_id ON context_links(source_id);
         CREATE INDEX IF NOT EXISTS idx_context_links_target_id ON context_links(target_id);
         CREATE INDEX IF NOT EXISTS idx_context_links_property_id ON context_links(property_id);
@@ -180,6 +140,5 @@ enum IndexSchema {
         CREATE INDEX IF NOT EXISTS idx_connections_target_id ON connections(target_id);
         CREATE INDEX IF NOT EXISTS idx_connections_target_title ON connections(target_kind, target_title);
         CREATE INDEX IF NOT EXISTS idx_pages_title ON pages(title COLLATE NOCASE);
-        CREATE INDEX IF NOT EXISTS idx_items_title ON items(title COLLATE NOCASE);
         """
 }

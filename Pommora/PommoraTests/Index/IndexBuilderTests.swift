@@ -14,8 +14,8 @@ struct IndexBuilderTests {
     /// + 2 Pages, and 1 LEGACY item-side folder "Tasks" (raw `_itemtype.json`
     /// sidecar + 2 member `.md` files, written byte-for-byte — the Item types
     /// are deleted). The legacy folder exists to prove `populate` IGNORES
-    /// on-disk item entities (PagesV2 — items are no longer indexed; their
-    /// tables survive empty until the P7 schema bump).
+    /// on-disk item entities (PagesV2 — items are no longer indexed; the item
+    /// tables were dropped from the schema at P7 / index v11).
     private func setup() async throws -> (Nexus, PommoraIndex) {
         let nexus = try TempNexus.make()
 
@@ -87,11 +87,6 @@ struct IndexBuilderTests {
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
         }
         #expect(pageTypeCount == 0)
-
-        let itemTypeCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types") ?? -1
-        }
-        #expect(itemTypeCount == 0)
 
         let pageCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages") ?? -1
@@ -228,18 +223,19 @@ struct IndexBuilderTests {
 
         try await IndexBuilder.populate(index: idx, from: nexus)
 
-        // The fixture wrote a legacy item folder (sidecar + 2 member files);
-        // populate must index NONE of it (PagesV2 — the item tables stay empty
-        // until P7 drops them).
-        let itemTypeCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM item_types") ?? -1
+        // PagesV2 P7 (schema v11): the item tables do not EXIST in a fresh
+        // index — populating over a legacy on-disk item folder must not
+        // resurrect them.
+        let itemTableCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: """
+                    SELECT COUNT(*) FROM sqlite_master
+                    WHERE type = 'table' AND name IN ('items', 'item_types', 'item_collections')
+                    """
+            ) ?? -1
         }
-        #expect(itemTypeCount == 0, "IndexBuilder re-indexed an on-disk legacy ItemType sidecar")
-
-        let itemCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM items") ?? -1
-        }
-        #expect(itemCount == 0, "IndexBuilder re-indexed on-disk legacy items")
+        #expect(itemTableCount == 0, "Dropped item tables resurfaced in a fresh v11 index")
 
         // The legacy members must not leak into the pages table either —
         // a folder without `_pagetype.json` is skipped wholesale.

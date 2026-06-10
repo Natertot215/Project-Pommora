@@ -17,7 +17,7 @@ import Testing
     }
 
     // Tripwire: forces a deliberate update whenever the index schema version
-    // bumps. v10 (2026-06-06) = launch scan honors folder-exclusion at the file
-    // level (excluded_folders governs the index, matching the sidebar).
-    @Test func schemaVersionIsTen() { #expect(PommoraIndex.currentSchemaVersion == 10) }
+    // bumps. v11 (2026-06-09) = PagesV2 P7 — item tables dropped from the
+    // schema; pre-v11 DBs delete + recreate page-only on open.
+    @Test func schemaVersionIsEleven() { #expect(PommoraIndex.currentSchemaVersion == 11) }
 }

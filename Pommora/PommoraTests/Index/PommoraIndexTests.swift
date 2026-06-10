@@ -82,8 +82,8 @@ struct PommoraIndexTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let (index, _) = try PommoraIndex.open(at: root)
         let expected: [String] = [
-            "meta", "page_types", "item_types", "page_collections", "item_collections",
-            "pages", "items", "agenda_tasks", "agenda_events", "contexts",
+            "meta", "page_types", "page_collections",
+            "pages", "agenda_tasks", "agenda_events", "contexts",
             "context_links", "property_definitions",
         ]
         let actual = try index.dbQueue.read { db -> Set<String> in
@@ -92,6 +92,11 @@ struct PommoraIndexTests {
         }
         for table in expected {
             #expect(actual.contains(table), "Missing table: \(table)")
+        }
+
+        // PagesV2 P7 (schema v11): the item tables must NOT exist in a fresh index.
+        for dropped in ["items", "item_types", "item_collections"] {
+            #expect(!actual.contains(dropped), "Dropped item table resurfaced: \(dropped)")
         }
     }
 

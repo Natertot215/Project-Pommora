@@ -4,7 +4,7 @@
 //
 //  Task 4a — `IndexQuery.entitiesByContextTargetGrouped`: the grouped data feed for the
 //  relation value picker. Post-Relations-redesign: only `.contextTier` survives;
-//  `.pageType` / `.itemType` grouped paths are retired.
+//  the per-Type grouped paths are retired.
 //
 //  Struct name MATCHES the filename (quirk #18).
 //
@@ -31,7 +31,7 @@ struct EntitiesByTargetGroupedTests {
 
         let grouped = try await IndexQuery(index).entitiesByContextTargetGrouped(.contextTier(1))
 
-        // Non-pageType/itemType scope → flat: no groups; the Space lands in rootEntities.
+        // Context-tier scope → flat: no groups; the Space lands in rootEntities.
         #expect(grouped.groups.isEmpty)
         #expect(grouped.rootEntities.contains { $0.id == spaceID })
     }

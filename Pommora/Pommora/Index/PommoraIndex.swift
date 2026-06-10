@@ -82,7 +82,15 @@ final class PommoraIndex: @unchecked Sendable {
     // scan had pulled excluded content (e.g. loose meta files like CLAUDE.md) into
     // the index because it ignored excluded_folders for files. Bumping 9 → 10 forces
     // one delete+rebuild so excluded content is dropped. No user data at risk.
-    static let currentSchemaVersion: Int = 10
+    //
+    // v11 (2026-06-09): PagesV2 P7 — drop the item tables (`items` /
+    // `item_collections` / `item_types`) and their indexes from the schema; the
+    // Items subsystem is deleted and connections/context_links are page-only.
+    // Bumping 10 → 11 marks every pre-v11 DB stale so `open(at:)` deletes +
+    // recreates it page-only on open (no data migration — the index is
+    // regeneratable); any orphaned item rows lingering in connections or
+    // context_links vanish with the rebuild.
+    static let currentSchemaVersion: Int = 11
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL

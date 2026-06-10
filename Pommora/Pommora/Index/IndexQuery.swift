@@ -47,7 +47,7 @@ struct IndexQuery: Sendable {
     // MARK: - Grouped target query (value picker)
 
     /// Entities flat in `rootEntities` with no groups — the picker renders flat rows.
-    /// Post-Relations-redesign: only `.contextTier` survives; `.pageType` / `.itemType`
+    /// Post-Relations-redesign: only `.contextTier` survives; the per-Type
     /// grouped paths are retired.
     func entitiesByContextTargetGrouped(_ target: PropertyDefinition.RelationTarget) async throws -> GroupedEntities {
         switch target {

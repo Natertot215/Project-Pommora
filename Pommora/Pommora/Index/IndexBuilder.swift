@@ -209,8 +209,7 @@ final class IndexBuilder {
             })?.filter { !filter.isExcluded($0) } ?? []
         return urls.compactMap { url -> PageSnapshot? in
             // Lenient load mirrors the UI discovery contract
-            // (PageContentManager.loadAll → PageFile.loadLenient) AND the sibling
-            // item scan (collectItemsInFolder → Item.loadLenient): an adopted `.md`
+            // (PageContentManager.loadAll → PageFile.loadLenient): an adopted `.md`
             // Page without Pommora frontmatter MUST index at launch, or wiki-link
             // resolution can't find it by title until an unrelated CRUD write
             // incidentally upserts it. The strict `PageFile.load` silently dropped
@@ -376,8 +375,6 @@ final class IndexBuilder {
     }
 
     private nonisolated static func clearAllTables(_ db: Database) throws {
-        // The item tables (items / item_collections / item_types) survive until the
-        // PagesV2 P7 schema bump but are no longer populated or cleared here.
         try db.execute(sql: "DELETE FROM connections")
         try db.execute(sql: "DELETE FROM context_links")
         try db.execute(sql: "DELETE FROM property_definitions")

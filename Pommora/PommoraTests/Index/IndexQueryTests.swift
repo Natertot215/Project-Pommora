@@ -262,7 +262,7 @@ struct IndexQueryTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         try await idx.dbQueue.write { db in
-            // Seed two pages + one item. Then a relation pointing to a non-existent page.
+            // Seed one page. Then a relation pointing to a non-existent page.
             try db.execute(
                 sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_BL', 'BL', '2026-05-24T00:00:00Z')")
             try db.execute(
