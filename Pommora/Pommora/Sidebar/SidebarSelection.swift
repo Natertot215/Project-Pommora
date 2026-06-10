@@ -11,8 +11,6 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case pageType(PageType)
     case collection(PageCollection)
     case page(PageMeta)
-    case itemType(ItemType)
-    case itemCollection(ItemCollection)
 }
 
 extension SidebarSelection {
@@ -29,8 +27,6 @@ extension SidebarSelection {
         case .space(let s): raw = s.icon
         case .topic(let t): raw = t.icon
         case .project(let p): raw = p.icon
-        case .itemType(let t): raw = t.icon
-        case .itemCollection(let c): raw = c.icon
         case .none, .savedKey: raw = nil
         }
         return raw.nonEmpty
@@ -50,7 +46,6 @@ extension SidebarSelection {
 struct SidebarLookupBundle {
     let content: PageContentManager?
     let pageType: PageTypeManager?
-    let itemType: ItemTypeManager?
     let space: SpaceManager?
     let topic: TopicManager?
 }
@@ -112,24 +107,10 @@ extension SidebarSelection {
         return nil
     }
 
-    @MainActor
-    private static func resolveItemType(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
-        guard let itm = lookup.itemType, let t = itm.types.first(where: { $0.id == id }) else { return nil }
-        return .itemType(t)
-    }
-
-    @MainActor
-    private static func resolveItemCollection(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
-        guard let itm = lookup.itemType else { return nil }
-        for itemType in itm.types {
-            if let c = itm.itemCollections(in: itemType).first(where: { $0.id == id }) { return .itemCollection(c) }
-        }
-        return nil
-    }
 
     /// Bridge EntityStateRef → SidebarSelection by resolving via live managers.
     /// Used by NavDropdown's double-click open and BackForwardButtons stepping.
-    /// Returns nil for kinds that aren't main-detail-pane targets (item, agenda)
+    /// Returns nil for kinds that aren't main-detail-pane targets (agenda)
     /// and for entities that no longer exist on disk.
     @MainActor
     init?(stateRef: EntityStateRef, lookup: SidebarLookupBundle) {
@@ -141,9 +122,7 @@ extension SidebarSelection {
         case .topic: resolved = Self.resolveTopic(id: stateRef.id, lookup: lookup)
         case .project: resolved = Self.resolveProject(id: stateRef.id, lookup: lookup)
         case .collection: resolved = Self.resolveCollection(id: stateRef.id, lookup: lookup)
-        case .itemType: resolved = Self.resolveItemType(id: stateRef.id, lookup: lookup)
-        case .set: resolved = Self.resolveItemCollection(id: stateRef.id, lookup: lookup)
-        case .item, .agenda, .none: resolved = nil
+        case .agenda, .none: resolved = nil
         }
         guard let resolved else { return nil }
         self = resolved
@@ -166,8 +145,6 @@ extension SidebarSelection {
         case .pageType(let id): resolved = Self.resolvePageType(id: id, lookup: lookup)
         case .collection(let id): resolved = Self.resolveCollection(id: id, lookup: lookup)
         case .page(let id): resolved = Self.resolvePage(id: id, lookup: lookup)
-        case .itemType(let id): resolved = Self.resolveItemType(id: id, lookup: lookup)
-        case .itemCollection(let id): resolved = Self.resolveItemCollection(id: id, lookup: lookup)
         }
         guard let resolved else { return nil }
         self = resolved
@@ -184,8 +161,6 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case pageType(String)
     case collection(String)
     case page(String)
-    case itemType(String)
-    case itemCollection(String)
 
     func matches(_ selection: SidebarSelection) -> Bool {
         // Derive the tag for `selection` and value-compare. Equivalent to the
@@ -209,8 +184,6 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case .pageType(let t): self = .pageType(t.id)
         case .collection(let c): self = .collection(c.id)
         case .page(let p): self = .page(p.id)
-        case .itemType(let t): self = .itemType(t.id)
-        case .itemCollection(let c): self = .itemCollection(c.id)
         }
     }
 }

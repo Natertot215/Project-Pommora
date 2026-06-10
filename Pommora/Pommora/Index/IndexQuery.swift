@@ -8,6 +8,23 @@ struct IndexQuery: Sendable {
 
     nonisolated init(_ index: PommoraIndex) { self.index = index }
 
+    /// Maps a stored kind string to the table holding its title row. Single
+    /// source shared by `incomingContextLinks` + `brokenLinks`.
+    nonisolated private static let kindTableMap: [String: String] = [
+        "page": "pages",
+        "agenda_task": "agenda_tasks",
+        "agenda_event": "agenda_events",
+        "space": "contexts",
+        "topic": "contexts",
+        "project": "contexts",
+        // `target_kind` is stored coarse ("page" for any type/collection
+        // target — see RelationTargetKind.string), so real rows resolve via
+        // the keys above. These fine-grained keys stay snake_case for
+        // consistency with `FilterBuilder.entityKindFromString`.
+        "page_type": "page_types",
+        "page_collection": "page_collections",
+    ]
+
     // MARK: - Target queries
 
     /// Returns all entities matching a target. Tier-only post-Relations-redesign.
@@ -42,7 +59,7 @@ struct IndexQuery: Sendable {
     // MARK: - Batch ID resolution (context-link/tier display)
 
     /// Batch-resolve context-link/tier target IDs to their current display (icon + title).
-    /// Searches every table a relation value can point at (pages, items, contexts,
+    /// Searches every table a relation value can point at (pages, contexts,
     /// agenda tasks/events). IDs are globally-unique ULIDs, so a hit in one table is
     /// authoritative. Missing IDs are absent from the result (caller renders the
     /// "(missing)" fallback).
@@ -61,9 +78,6 @@ struct IndexQuery: Sendable {
             }
             try collect("SELECT id, title, icon FROM pages WHERE id IN (\(qs))") {
                 EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"])
-            }
-            try collect("SELECT id, title, icon FROM items WHERE id IN (\(qs))") {
-                EntityRef(id: $0["id"], kind: .item, title: $0["title"], icon: $0["icon"])
             }
             try collect("SELECT id, title, icon, tier FROM contexts WHERE id IN (\(qs))") { row in
                 let t = (row["tier"] as Int?) ?? 1
@@ -93,21 +107,6 @@ struct IndexQuery: Sendable {
     /// matching entity) fall back to an empty title.
     func incomingContextLinks(targetID: String) async throws -> [EntityRef] {
         try await index.dbQueue.read { db in
-            // Maps a source_kind string to the table holding its title row.
-            let kindTableMap: [String: String] = [
-                "page": "pages",
-                "item": "items",
-                "agenda_task": "agenda_tasks",
-                "agenda_event": "agenda_events",
-                "space": "contexts",
-                "topic": "contexts",
-                "project": "contexts",
-                "page_type": "page_types",
-                "item_type": "item_types",
-                "page_collection": "page_collections",
-                "item_collection": "item_collections",
-            ]
-
             let rows = try Row.fetchAll(
                 db,
                 sql: "SELECT source_id, source_kind FROM context_links WHERE target_id = ?",
@@ -120,7 +119,7 @@ struct IndexQuery: Sendable {
                 let kind = FilterBuilder.entityKindFromString(sourceKindStr)
                 // Resolve the current title from the source's owning table (one row per source).
                 var title = ""
-                if let table = kindTableMap[sourceKindStr] {
+                if let table = Self.kindTableMap[sourceKindStr] {
                     title =
                         try String.fetchOne(
                             db,
@@ -135,16 +134,16 @@ struct IndexQuery: Sendable {
 
     // MARK: - Container lookup (Context-delete cascade)
 
-    /// Resolves the container (Type + optional Collection) that a Page or Item
+    /// Resolves the container (Type + optional Collection) that a Page
     /// lives in, by joining the entity row to its owning-Type / -Collection rows.
     /// Returns the container **titles** (which derive the on-disk folder URL via
     /// `NexusPaths`) plus the container **IDs** (which the manager re-supplies to
     /// `IndexUpdater.upsert…` after a mutation).
     ///
-    /// Backs `unlinkTier` on `PageContentManager` / `ItemContentManager`: those
-    /// managers receive only an entity id + kind from `incomingContextLinks` (no URL),
-    /// and hold no `PageTypeManager` / `ItemTypeManager` reference, so the index
-    /// is the single source of truth for an entity's container.
+    /// Backs `unlinkTier` on `PageContentManager`: that manager receives only an
+    /// entity id + kind from `incomingContextLinks` (no URL), and holds no
+    /// `PageTypeManager` reference, so the index is the single source of truth
+    /// for an entity's container.
     ///
     /// Returns `nil` for a dangling id, an Agenda kind (Agenda files live in a flat
     /// singleton folder — the manager derives their URL from the title alone), or
@@ -179,35 +178,8 @@ struct IndexQuery: Sendable {
                     collectionID: collectionID, collectionTitle: collectionTitle
                 )
 
-            case .item:
-                guard
-                    let row = try Row.fetchOne(
-                        db,
-                        sql: "SELECT title, item_type_id, item_collection_id FROM items WHERE id = ?",
-                        arguments: [id]
-                    )
-                else { return nil }
-                let typeID: String = row["item_type_id"]
-                let typeTitle = try String.fetchOne(
-                    db, sql: "SELECT title FROM item_types WHERE id = ?", arguments: [typeID]
-                )
-                guard let typeTitle else { return nil }
-                let collectionID: String? = row["item_collection_id"]
-                var collectionTitle: String?
-                if let collectionID {
-                    collectionTitle = try String.fetchOne(
-                        db, sql: "SELECT title FROM item_collections WHERE id = ?",
-                        arguments: [collectionID]
-                    )
-                }
-                return EntityContainer(
-                    entityTitle: row["title"], kind: .item,
-                    typeID: typeID, typeTitle: typeTitle,
-                    collectionID: collectionID, collectionTitle: collectionTitle
-                )
-
-            case .agendaTask, .agendaEvent, .pageType, .itemType,
-                .pageCollection, .itemCollection, .space, .topic, .project:
+            case .agendaTask, .agendaEvent, .pageType,
+                .pageCollection, .space, .topic, .project:
                 return nil
             }
         }
@@ -297,77 +269,72 @@ struct IndexQuery: Sendable {
     /// SYNCHRONOUS unique-title resolution for the editor styler (WikiLinkResolver.resolve
     /// is sync, off the async query path). Returns the unique entity id, or nil when the
     /// title resolves to 0 (phantom) or >1 (ambiguous dup) — both render unresolved.
-    nonisolated func resolveUniqueTitle(_ title: String, kind: EntityKind) -> String? {
-        let table = kind == .page ? "pages" : "items"
+    nonisolated func resolveUniqueTitle(_ title: String) -> String? {
         let needle = ConnectionTitle.normalize(title)
         let ids =
             (try? index.dbQueue.read { db in
                 try String.fetchAll(
-                    db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])
+                    db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE", arguments: [needle])
             }) ?? []
         return ids.count == 1 ? ids[0] : nil
     }
 
-    /// Resolves a page or item from either a direct entity ID OR a display title —
+    /// Resolves a page from either a direct entity ID OR a display title —
     /// whichever the caller has on hand. Returns the canonical ID, or nil if no
     /// unique match is found. Used by link-click navigation where the caller may
     /// receive either format depending on whether `.wikiLinkID` was stored.
-    nonisolated func resolvePageByIDOrTitle(_ idOrTitle: String, kind: EntityKind) -> String? {
-        let table = kind == .page ? "pages" : "items"
-        return (try? index.dbQueue.read { db -> String? in
+    nonisolated func resolvePageByIDOrTitle(_ idOrTitle: String) -> String? {
+        (try? index.dbQueue.read { db -> String? in
             // Direct ID match (fastest path — wikiLinkID stored by autocomplete selection).
-            if (try? Row.fetchOne(db, sql: "SELECT 1 FROM \(table) WHERE id = ?", arguments: [idOrTitle])) != nil {
+            if (try? Row.fetchOne(db, sql: "SELECT 1 FROM pages WHERE id = ?", arguments: [idOrTitle])) != nil {
                 return idOrTitle
             }
             // Title match fallback (manually typed links carry the display name, not an ID).
             let needle = ConnectionTitle.normalize(idOrTitle)
             let ids = (try? String.fetchAll(
-                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])) ?? []
+                db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE", arguments: [needle])) ?? []
             return ids.count == 1 ? ids[0] : nil
         })
     }
 
     /// SYNC unique-entity resolution (id + icon) for the editor styler. nil for 0/many matches.
-    nonisolated func resolveUniqueEntity(_ title: String, kind: EntityKind) -> (id: String, icon: String?)? {
-        let table = kind == .page ? "pages" : "items"
+    nonisolated func resolveUniqueEntity(_ title: String) -> (id: String, icon: String?)? {
         let needle = ConnectionTitle.normalize(title)
         let rows =
             (try? index.dbQueue.read { db in
                 try Row.fetchAll(
-                    db, sql: "SELECT id, icon FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])
+                    db, sql: "SELECT id, icon FROM pages WHERE title = ? COLLATE NOCASE", arguments: [needle])
             }) ?? []
         guard rows.count == 1, let row = rows.first else { return nil }
         return (id: row["id"], icon: row["icon"])
     }
 
-    /// Nexus-wide per-kind title existence — the uniqueness check (excludes the
-    /// entity being renamed). `kind` is `.page` or `.item`.
-    func titleExists(_ title: String, kind: EntityKind, excludingID: String? = nil) async throws -> Bool {
-        let table = kind == .page ? "pages" : "items"
+    /// Nexus-wide page-title existence — the uniqueness check (excludes the
+    /// entity being renamed).
+    func titleExists(_ title: String, excludingID: String? = nil) async throws -> Bool {
         let needle = ConnectionTitle.normalize(title)
         return try await index.dbQueue.read { db in
             let ids = try String.fetchAll(
-                db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [needle])
+                db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE", arguments: [needle])
             return ids.contains { $0 != excludingID }
         }
     }
 
-    /// Entities of `kind` whose title prefix-matches `query` (case-insensitive) —
+    /// Pages whose title prefix-matches `query` (case-insensitive) —
     /// autocomplete + the dup-tolerant "choose either" picker. Returns EVERY match
     /// (two same-titled adopted entities both surface).
-    func titleCandidates(matching query: String, kind: EntityKind, limit: Int = 20) async throws -> [EntityRef] {
-        let table = kind == .page ? "pages" : "items"
+    func titleCandidates(matching query: String, limit: Int = 20) async throws -> [EntityRef] {
         let prefix = ConnectionTitle.normalize(query)
         return try await index.dbQueue.read { db in
             // Ranking (locked): exact title first → shortest title → A–Z. The exact
             // match keeps the prefix WHERE; the second `?` binds the normalized full
             // query for a case-insensitive equality test (1 = exact, sorted DESC to top).
             try Row.fetchAll(db, sql: """
-                SELECT id, title, icon FROM \(table) WHERE title LIKE ?
+                SELECT id, title, icon FROM pages WHERE title LIKE ?
                 ORDER BY (title = ? COLLATE NOCASE) DESC, LENGTH(title) ASC, title COLLATE NOCASE ASC
                 LIMIT ?
                 """, arguments: [prefix + "%", prefix, limit]).map {
-                EntityRef(id: $0["id"], kind: kind, title: $0["title"], icon: $0["icon"])
+                EntityRef(id: $0["id"], kind: .page, title: $0["title"], icon: $0["icon"])
             }
         }
     }
@@ -387,29 +354,11 @@ struct IndexQuery: Sendable {
     /// Returns context_links whose target_id no longer exists in the corresponding entity table.
     func brokenLinks() async throws -> [BrokenLinkReport] {
         try await index.dbQueue.read { db in
-            let kindTableMap: [String: String] = [
-                "page": "pages",
-                "item": "items",
-                "agenda_task": "agenda_tasks",
-                "agenda_event": "agenda_events",
-                "space": "contexts",
-                "topic": "contexts",
-                "project": "contexts",
-                // `target_kind` is stored coarse ("page"/"item" for any
-                // type/collection target — see RelationTargetKind.string), so real
-                // rows resolve via the keys above. These fine-grained keys stay
-                // snake_case for consistency with `FilterBuilder.entityKindFromString`.
-                "page_type": "page_types",
-                "item_type": "item_types",
-                "page_collection": "page_collections",
-                "item_collection": "item_collections",
-            ]
-
             let distinctKinds = try String.fetchAll(db, sql: "SELECT DISTINCT target_kind FROM context_links")
 
             var reports: [BrokenLinkReport] = []
             for kindStr in distinctKinds {
-                guard let joinTable = kindTableMap[kindStr] else { continue }
+                guard let joinTable = Self.kindTableMap[kindStr] else { continue }
                 let sql = """
                     SELECT r.id AS context_link_id,
                            r.source_id,
@@ -494,9 +443,7 @@ private enum FilterBuilder {
     {
         switch target {
         case .pageType(let id): return ("pages", "id", "title", "page_type_id = ?", [id])
-        case .itemType(let id): return ("items", "id", "title", "item_type_id = ?", [id])
         case .pageCollection(let id): return ("pages", "id", "title", "page_collection_id = ?", [id])
-        case .itemCollection(let id): return ("items", "id", "title", "item_collection_id = ?", [id])
         case .agendaTasks: return ("agenda_tasks", "id", "title", "", [])
         case .agendaEvents: return ("agenda_events", "id", "title", "", [])
         case .contextTier(let t): return ("contexts", "id", "title", "tier = ?", [t])
@@ -506,7 +453,6 @@ private enum FilterBuilder {
     nonisolated static func targetEntityKind(_ target: TargetRef) -> EntityKind {
         switch target {
         case .pageType, .pageCollection: return .page
-        case .itemType, .itemCollection: return .item
         case .agendaTasks: return .agendaTask
         case .agendaEvents: return .agendaEvent
         case .contextTier(let t): return t == 1 ? .space : (t == 2 ? .topic : .project)
@@ -608,13 +554,10 @@ private enum FilterBuilder {
     nonisolated static func entityKindToOwningTypeKind(_ kind: EntityKind) -> String {
         switch kind {
         case .pageType: return "page_type"
-        case .itemType: return "item_type"
         case .pageCollection: return "page_collection"
-        case .itemCollection: return "item_collection"
         case .agendaTask: return "agenda_task"
         case .agendaEvent: return "agenda_event"
         case .page: return "page"
-        case .item: return "item"
         case .space: return "space"
         case .topic: return "topic"
         case .project: return "project"
@@ -624,13 +567,10 @@ private enum FilterBuilder {
     nonisolated static func entityKindFromString(_ s: String) -> EntityKind {
         switch s {
         case "page": return .page
-        case "item": return .item
         case "agenda_task": return .agendaTask
         case "agenda_event": return .agendaEvent
         case "page_type": return .pageType
-        case "item_type": return .itemType
         case "page_collection": return .pageCollection
-        case "item_collection": return .itemCollection
         case "space": return .space
         case "topic": return .topic
         case "project": return .project
@@ -656,8 +596,8 @@ enum FilterCriterion: Sendable {
 enum SortDirection: String, Codable, Equatable, Hashable, Sendable { case ascending, descending }
 
 enum EntityKind: String, Codable, Sendable {
-    case page, item, agendaTask, agendaEvent, pageType, itemType,
-        pageCollection, itemCollection, space, topic, project
+    case page, agendaTask, agendaEvent, pageType,
+        pageCollection, space, topic, project
 }
 
 struct EntityRef: Equatable, Hashable, Sendable {
@@ -695,13 +635,13 @@ struct GroupedEntities: Sendable, Equatable {
     }
 }
 
-/// The on-disk container of a Page or Item, resolved from the index by
+/// The on-disk container of a Page, resolved from the index by
 /// `IndexQuery.entityContainer(id:kind:)`. Titles derive the folder URL via
 /// `NexusPaths`; IDs re-supply `IndexUpdater.upsert…` after a mutation.
 /// `collectionTitle`/`collectionID` are `nil` for Type-root entities.
 struct EntityContainer: Equatable, Sendable {
     let entityTitle: String
-    let kind: EntityKind  // `.page` or `.item`
+    let kind: EntityKind  // `.page`
     let typeID: String
     let typeTitle: String
     let collectionID: String?
@@ -710,9 +650,7 @@ struct EntityContainer: Equatable, Sendable {
 
 enum TargetRef: Sendable {
     case pageType(String)
-    case itemType(String)
     case pageCollection(String)
-    case itemCollection(String)
     case agendaTasks
     case agendaEvents
     case contextTier(Int)

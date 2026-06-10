@@ -21,6 +21,6 @@ enum ConnectionScanner {
             guard !key.isEmpty else { continue }
             counts[key, default: 0] += 1
         }
-        return counts.map { ScannedConnection(normalizedTitle: $0.key, syntax: .page, multiplicity: $0.value) }
+        return counts.map { ScannedConnection(normalizedTitle: $0.key, multiplicity: $0.value) }
     }
 }

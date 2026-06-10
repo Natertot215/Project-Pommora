@@ -69,7 +69,7 @@ struct ConnectionCascadeTests {
     func rewriterScopesToSyntaxAndTitle() {
         let body = "see [[Old]] and [[old]] and ![[Old]] and {{Old}}"
         let out = ConnectionRewriter.rewrite(
-            body: body, oldTitle: "Old", newTitle: "New", syntax: .page)
+            body: body, oldTitle: "Old", newTitle: "New")
         // Both case variants of the [[ ]] page link rewrite (normalized match); the
         // image embed ![[Old]] and the dormant chip-link {{Old}} are untouched.
         // Exact-string assertion since ![[Old]] contains the substring "[[Old]]"

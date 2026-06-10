@@ -36,12 +36,6 @@ enum AutoCompleteWiring {
         return "[[\(title)]]"
     }
 
-    /// The index `EntityKind` to query for an inline-link: always a Page —
-    /// `[[ ]]` is the only connection syntax.
-    static func queryKind(for kind: InlineSelectionKind) -> EntityKind {
-        _ = kind
-        return .page
-    }
 
     /// Maps an index `EntityRef` to the presentation-only `AutoCompleteCandidate`,
     /// carrying id + title through and falling back to the kind's default glyph

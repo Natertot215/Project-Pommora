@@ -12,8 +12,6 @@ struct SidebarDetailView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
-    @Environment(ItemContentManager.self) private var itemContentManager
 
     var body: some View {
         Group {
@@ -104,36 +102,6 @@ struct SidebarDetailView: View {
 
             case .page(let p):
                 PageEditorHost(page: p, selection: $selection)
-
-            case .itemType, .itemCollection:
-                // PagesV2 P1: the item detail views are deleted; these selection
-                // cases are unreachable (ItemsSection is gone) and the enum cases
-                // themselves are removed in P2.
-                emptyState
-            }
-        }
-        .onAppear {
-            // Open the item in a floating `FloatingItemPanel` via
-            // `AppGlobals.current.itemWindowPanelManager`. Resolve the Item's owning
-            // Type + parent Set so the ref carries the IDs the panel host resolves
-            // against.
-            let itemTypeManager = itemTypeManager
-            let itemContentManager = itemContentManager
-            AppGlobals.presentItemAction = { item in
-                guard
-                    let location = ItemLocationResolver.locate(
-                        itemID: item.id,
-                        itemTypeManager: itemTypeManager,
-                        itemContentManager: itemContentManager
-                    )
-                else { return }
-                AppGlobals.current?.itemWindowPanelManager.open(
-                    ItemRef(
-                        itemID: item.id,
-                        typeID: location.typeID,
-                        collectionID: location.collectionID
-                    )
-                )
             }
         }
         .onChange(of: selection) { _, newSel in

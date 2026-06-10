@@ -30,21 +30,6 @@ struct ConnectionQueryTests {
         }
     }
 
-    /// Insert an item row (with its required item_type parent).
-    private func insertItem(id: String, title: String, index: PommoraIndex) throws {
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let now = iso.string(from: Date())
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: "INSERT OR IGNORE INTO item_types (id, title, modified_at) VALUES (?, ?, ?)",
-                arguments: ["it-test", "TestSet", now])
-            try db.execute(
-                sql: "INSERT INTO items (id, item_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
-                arguments: [id, "it-test", title, now])
-        }
-    }
-
     // MARK: - Test 1: outgoing/incoming/resolved
 
     @Test func outgoingIncomingAndResolved() async throws {
@@ -99,26 +84,16 @@ struct ConnectionQueryTests {
         try insertPage(id: targetID, title: "Target", index: idx)
 
         // Case-insensitive match returns true
-        let exists = try await query.titleExists("target", kind: .page)
+        let exists = try await query.titleExists("target")
         #expect(exists == true)
 
         // Non-existent title returns false
-        let missing = try await query.titleExists("nope", kind: .page)
+        let missing = try await query.titleExists("nope")
         #expect(missing == false)
 
         // Excluding the only holder returns false
-        let excludedSelf = try await query.titleExists("Target", kind: .page, excludingID: targetID)
+        let excludedSelf = try await query.titleExists("Target", excludingID: targetID)
         #expect(excludedSelf == false)
-
-        // Page and item may share a title (different kind tables)
-        let itemID = ULID.generate()
-        try insertItem(id: itemID, title: "Target", index: idx)
-
-        let pageStillExists = try await query.titleExists("Target", kind: .page)
-        #expect(pageStillExists == true)
-
-        let itemExists = try await query.titleExists("Target", kind: .item)
-        #expect(itemExists == true)
     }
 
     // MARK: - Test 3: titleCandidates
@@ -136,7 +111,7 @@ struct ConnectionQueryTests {
         try insertPage(id: apricotID, title: "Apricot", index: idx)
         try insertPage(id: bananaID, title: "Banana", index: idx)
 
-        let candidates = try await query.titleCandidates(matching: "Ap", kind: .page)
+        let candidates = try await query.titleCandidates(matching: "Ap")
         #expect(candidates.count == 2)
         let ids = Set(candidates.map(\.id))
         #expect(ids == [appleID, apricotID])

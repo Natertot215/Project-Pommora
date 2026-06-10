@@ -11,13 +11,10 @@ struct EntityStateRef: Codable, Hashable, Sendable {
     let title: String
 
     enum Kind: String {
-        case page, vault, collection, space, topic, project, item, agenda
-        // Items-side navigation targets (back/forward for Type + Set views).
-        // `set` mirrors the UI label for ItemCollection; `itemType` disambiguates
-        // from the legacy `item` leaf kind. Older builds decode these as an
-        // unknown kind (typedKind == nil) and skip them — forward-compatible.
-        case itemType
-        case set
+        // Persisted state.json entries with retired item kinds (`item`,
+        // `itemType`, `set`) decode as an unknown kind (typedKind == nil)
+        // and are skipped — forward-compatible by design.
+        case page, vault, collection, space, topic, project, agenda
     }
 
     var typedKind: Kind? { Kind(rawValue: kind) }
@@ -53,8 +50,6 @@ extension EntityStateRef {
         case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
         case .project(let p): self.init(kind: .project, id: p.id, title: p.title)
         case .collection(let c): self.init(kind: .collection, id: c.id, title: c.title)
-        case .itemType(let t): self.init(kind: .itemType, id: t.id, title: t.title)
-        case .itemCollection(let c): self.init(kind: .set, id: c.id, title: c.title)
         }
     }
 }

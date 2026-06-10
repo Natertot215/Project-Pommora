@@ -495,9 +495,9 @@ struct IndexUpdater: Sendable {
 
     // MARK: - Connections (body-scanned inline links)
 
-    /// Re-index every `[[ ]]`/`{{ }}` in `body` for `sourceID`. Delete-then-insert
+    /// Re-index every `[[ ]]` in `body` for `sourceID`. Delete-then-insert
     /// (mirrors reconcileContextLinks). A target resolves only when EXACTLY one
-    /// entity of its kind holds the title (0 / >1 → phantom). Self-links skipped.
+    /// page holds the title (0 / >1 → phantom). Self-links skipped.
     func reconcileConnections(sourceID: String, sourceKind: String, sourceTitle: String, body: String) throws {
         let scanned = ConnectionScanner.scan(body: body)          // off the write closure
         let selfKey = ConnectionTitle.normalize(sourceTitle)
@@ -506,10 +506,9 @@ struct IndexUpdater: Sendable {
             try db.execute(sql: "DELETE FROM connections WHERE source_id = ?", arguments: [sourceID])
             for c in scanned {
                 // Self-connection guard: same kind + same title = the source itself.
-                if c.syntax.targetKind == sourceKind && c.normalizedTitle == selfKey { continue }
-                let table = c.syntax == .page ? "pages" : "items"
+                if sourceKind == "page" && c.normalizedTitle == selfKey { continue }
                 let matches = try String.fetchAll(
-                    db, sql: "SELECT id FROM \(table) WHERE title = ? COLLATE NOCASE", arguments: [c.normalizedTitle])
+                    db, sql: "SELECT id FROM pages WHERE title = ? COLLATE NOCASE", arguments: [c.normalizedTitle])
                 let targetID: String? = matches.count == 1 ? matches[0] : nil
                 try db.execute(
                     sql: """
@@ -518,7 +517,7 @@ struct IndexUpdater: Sendable {
                              surface, multiplicity, weight, resolved, modified_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.0, ?, ?)
                         """,
-                    arguments: [ULID.generate(), sourceID, sourceKind, targetID, c.syntax.targetKind,
+                    arguments: [ULID.generate(), sourceID, sourceKind, targetID, "page",
                                 c.normalizedTitle, surface, c.multiplicity, targetID != nil ? 1 : 0, nowISO()])
             }
         }

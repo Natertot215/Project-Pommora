@@ -41,7 +41,7 @@ extension PageContentManager {
     private func enforceNexusWideTitleUniqueness(_ title: String, excludingID: String?) async throws {
         guard let updater = indexUpdater else { return }  // index optional in some test harnesses
         let query = IndexQuery(updater.index)
-        if try await query.titleExists(title, kind: .page, excludingID: excludingID) {
+        if try await query.titleExists(title, excludingID: excludingID) {
             throw PageCRUDError.duplicateTitle
         }
     }
@@ -139,7 +139,7 @@ extension PageContentManager {
                 let touched: [ConnectionCascade.Touched]
                 do {
                     touched = try await cascade.run(
-                        targetID: page.id, oldTitle: page.title, newTitle: newName, targetSyntax: .page)
+                        targetID: page.id, oldTitle: page.title, newTitle: newName)
                 } catch let cascadeError {
                     do {
                         try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?
@@ -345,7 +345,7 @@ extension PageContentManager {
                 let touched: [ConnectionCascade.Touched]
                 do {
                     touched = try await cascade.run(
-                        targetID: page.id, oldTitle: page.title, newTitle: newName, targetSyntax: .page)
+                        targetID: page.id, oldTitle: page.title, newTitle: newName)
                 } catch let cascadeError {
                     do {
                         try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?

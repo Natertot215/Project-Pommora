@@ -44,35 +44,6 @@ struct IndexQueryTests {
         #expect(ids == ["P1", "P3"])
     }
 
-    // MARK: - Filter: inSet
-
-    @Test func filterInSetMatchesAny() async throws {
-        let (dir, idx) = try await setupIndex()
-        defer { try? FileManager.default.removeItem(at: dir) }
-
-        try await idx.dbQueue.write { db in
-            try db.execute(
-                sql: "INSERT INTO item_types(id, title, modified_at) VALUES ('IT1', 'Tasks', '2026-05-24T00:00:00Z')")
-            try db.execute(
-                sql: """
-                        INSERT INTO items(id, item_type_id, title, properties, modified_at) VALUES
-                        ('I1', 'IT1', 'Alpha',   '{"status":"open"}',        '2026-05-24T00:00:00Z'),
-                        ('I2', 'IT1', 'Beta',    '{"status":"closed"}',      '2026-05-24T00:00:00Z'),
-                        ('I3', 'IT1', 'Gamma',   '{"status":"in_progress"}', '2026-05-24T00:00:00Z'),
-                        ('I4', 'IT1', 'Delta',   '{"status":"archived"}',    '2026-05-24T00:00:00Z')
-                    """)
-        }
-
-        let results = try await IndexQuery(idx).filter(
-            [
-                .inSet(propertyID: "status", values: [.select("open"), .select("in_progress")])
-            ], in: .itemType("IT1"))
-
-        #expect(results.count == 2)
-        let ids = Set(results.map(\.id))
-        #expect(ids == ["I1", "I3"])
-    }
-
     // MARK: - Filter: notInSet
 
     @Test func filterNotInSetExcludesValues() async throws {
@@ -323,12 +294,10 @@ struct IndexQueryTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         try await idx.dbQueue.write { db in
-            // Two pages + one item that all point AT the shared target "TARGET1";
-            // plus a fourth relation pointing elsewhere (must be excluded).
+            // Two pages that point AT the shared target "TARGET1";
+            // plus a third relation pointing elsewhere (must be excluded).
             try db.execute(
                 sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_IR', 'IR', '2026-05-24T00:00:00Z')")
-            try db.execute(
-                sql: "INSERT INTO item_types(id, title, modified_at) VALUES ('IT_IR', 'IR', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
                         INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
@@ -338,31 +307,23 @@ struct IndexQueryTests {
                     """)
             try db.execute(
                 sql: """
-                        INSERT INTO items(id, item_type_id, title, properties, modified_at) VALUES
-                        ('ISRC1', 'IT_IR', 'Source Item One', '{}', '2026-05-24T00:00:00Z')
-                    """)
-            try db.execute(
-                sql: """
                         INSERT INTO context_links(id, source_id, source_kind, target_id, target_kind, property_id, modified_at) VALUES
                         ('REL1', 'PSRC1', 'page', 'TARGET1', 'unknown', 'prop_X', '2026-05-24T00:00:00Z'),
                         ('REL2', 'PSRC2', 'page', 'TARGET1', 'unknown', 'prop_X', '2026-05-24T00:00:00Z'),
-                        ('REL3', 'ISRC1', 'item', 'TARGET1', 'unknown', 'prop_Y', '2026-05-24T00:00:00Z'),
                         ('REL4', 'POTHER', 'page', 'OTHER_TARGET', 'unknown', 'prop_X', '2026-05-24T00:00:00Z')
                     """)
         }
 
         let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: "TARGET1")
 
-        #expect(incoming.count == 3)
+        #expect(incoming.count == 2)
         let ids = Set(incoming.map(\.id))
-        #expect(ids == ["PSRC1", "PSRC2", "ISRC1"])
+        #expect(ids == ["PSRC1", "PSRC2"])
         // POTHER points at a different target — must be excluded.
         #expect(!ids.contains("POTHER"))
         // Titles resolve from the source's owning table (relations carries no title).
         let byID = Dictionary(uniqueKeysWithValues: incoming.map { ($0.id, $0) })
         #expect(byID["PSRC1"]?.kind == .page)
         #expect(byID["PSRC1"]?.title == "Source Page One")
-        #expect(byID["ISRC1"]?.kind == .item)
-        #expect(byID["ISRC1"]?.title == "Source Item One")
     }
 }

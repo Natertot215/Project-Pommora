@@ -5,7 +5,7 @@ import Testing
 @testable import Pommora
 
 /// Pins the PURE wiring logic that drives the `[[` autocomplete (E5-D):
-/// the trigger gate, the storage-fragment builder, the query-kind mapping, and
+/// the trigger gate, the storage-fragment builder, and
 /// the `EntityRef → AutoCompleteCandidate` mapping. `[[ ]]` is the only
 /// connection syntax (PagesV2 decision #3) — the dormant `.chipLink` kind
 /// must never trigger, and every fragment/query resolves page-side.
@@ -64,16 +64,6 @@ struct AutoCompleteWiringTests {
         #expect(AutoCompleteWiring.fragment(kind: .chipLink, title: "Buy milk") == "[[Buy milk]]")
     }
 
-    // MARK: - Query kind
-
-    @Test func wikiLinkQueriesPages() {
-        #expect(AutoCompleteWiring.queryKind(for: .wikiLink) == .page)
-    }
-
-    @Test func queryKindIsPageRegardlessOfKind() {
-        #expect(AutoCompleteWiring.queryKind(for: .chipLink) == .page)
-    }
-
     // MARK: - EntityRef → AutoCompleteCandidate mapping
 
     @Test func mappingCarriesIdIconTitle() {
@@ -86,9 +76,7 @@ struct AutoCompleteWiringTests {
 
     @Test func mappingFallsBackToKindDefaultIconWhenNil() {
         let pageRef = EntityRef(id: "p1", kind: .page, title: "P", icon: nil)
-        let itemRef = EntityRef(id: "i1", kind: .item, title: "I", icon: nil)
         #expect(AutoCompleteWiring.candidate(from: pageRef).icon == ContextDisplayResolver.defaultIcon(for: .page))
-        #expect(AutoCompleteWiring.candidate(from: itemRef).icon == ContextDisplayResolver.defaultIcon(for: .item))
     }
 
     @Test func mapsArrayPreservingOrderAndCount() {

@@ -22,11 +22,8 @@ enum SidebarSheet: Identifiable {
         case topic(Topic)
         case project(Project)
         case pageType(PageType)
-        case itemType(ItemType)
         case pageCollection(PageCollection)
-        case itemCollection(ItemCollection)
         case page(PageMeta, vault: PageType, collection: PageCollection?)
-        case item(Item, type: ItemType, collection: ItemCollection?)
     }
 
     var id: String {
@@ -38,11 +35,8 @@ enum SidebarSheet: Identifiable {
             case .topic(let t): return "editIcon-topic-\(t.id)"
             case .project(let p): return "editIcon-project-\(p.id)"
             case .pageType(let t): return "editIcon-pageType-\(t.id)"
-            case .itemType(let t): return "editIcon-itemType-\(t.id)"
             case .pageCollection(let c): return "editIcon-pageCollection-\(c.id)"
-            case .itemCollection(let c): return "editIcon-itemCollection-\(c.id)"
             case .page(let p, _, _): return "editIcon-page-\(p.id)"
-            case .item(let i, _, _): return "editIcon-item-\(i.id)"
             }
         case .editColor(let s): return "editColor-\(s.id)"
         }

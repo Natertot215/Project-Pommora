@@ -343,8 +343,6 @@ struct PageTypeDetailView: View {
             selection = .collection(c)
         case .page(let p):
             selection = .page(p)
-        case .item, .itemCollection:
-            break  // dead kinds — removed from DetailRow.Kind in P2
         }
     }
 
@@ -378,8 +376,6 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 deleteTarget = row
             }
-        case .item, .itemCollection:
-            EmptyView()  // dead kinds — removed from DetailRow.Kind in P2
         }
     }
 
@@ -436,8 +432,6 @@ struct PageTypeDetailView: View {
                     case .vaultRoot(let t):
                         try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
-                case .item, .itemCollection:
-                    break  // dead kinds — removed from DetailRow.Kind in P2
                 }
             } catch {
                 // pendingError set by manager; toast surfaces.
@@ -475,8 +469,6 @@ struct PageTypeDetailView: View {
                 case .vaultRoot(let t):
                     try await contentManager.deletePage(p, inVaultRoot: t)
                 }
-            case .item, .itemCollection:
-                break  // dead kinds — removed from DetailRow.Kind in P2
             }
         } catch {
             // pendingError set by manager; toast surfaces.

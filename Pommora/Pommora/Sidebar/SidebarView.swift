@@ -4,7 +4,6 @@ struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(AgendaTaskManager.self) private var agendaTaskManager
     @Environment(AgendaEventManager.self) private var agendaEventManager
@@ -55,7 +54,6 @@ struct SidebarView: View {
                 let lookup = SidebarLookupBundle(
                     content: contentManager,
                     pageType: vaultManager,
-                    itemType: itemTypeManager,
                     space: spaceManager,
                     topic: topicManager
                 )
@@ -104,12 +102,6 @@ struct SidebarView: View {
         case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
-        case .deleteItemType(let t, _)?:
-            let typeLabel = settingsManager.settings.labels.itemType.singular
-            return "Delete \(typeLabel) \"\(t.title)\"?"
-        case .deleteItemCollection(let c)?:
-            let setLabel = settingsManager.settings.labels.itemCollection.singular
-            return "Delete \(setLabel) \"\(c.title)\"?"
         case nil: return ""
         }
     }
@@ -124,12 +116,6 @@ struct SidebarView: View {
         case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
         case .deleteCollection: return "All Pages inside will be deleted."
-        case .deleteItemType(_, let sets):
-            return sets > 0
-                ? "Contains \(sets) Set(s). All Items inside will be deleted."
-                : "All Items inside will be deleted."
-        case .deleteItemCollection:
-            return "All Items inside will be deleted."
         }
     }
 
@@ -202,24 +188,6 @@ struct SidebarView: View {
             Button("Delete", role: .destructive) {
                 Task {
                     do { try await vaultManager.deletePageCollection(c) } catch
-                    { /* pendingError set by manager; toast surfaces */  }
-                    confirmingDelete = nil
-                }
-            }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
-        case .deleteItemType(let t, _):
-            Button("Delete", role: .destructive) {
-                Task {
-                    do { try await itemTypeManager.deleteItemType(t) } catch
-                    { /* pendingError set by manager; toast surfaces */  }
-                    confirmingDelete = nil
-                }
-            }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
-        case .deleteItemCollection(let c):
-            Button("Delete", role: .destructive) {
-                Task {
-                    do { try await itemTypeManager.deleteItemCollection(c) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }

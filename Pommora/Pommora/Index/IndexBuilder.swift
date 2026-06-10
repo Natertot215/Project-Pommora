@@ -592,7 +592,7 @@ final class IndexBuilder {
                                  surface, multiplicity, weight, resolved, modified_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.0, ?, ?)
                             """,
-                        arguments: [UUID().uuidString, sourceID, "page", targetID, c.syntax.targetKind,
+                        arguments: [UUID().uuidString, sourceID, "page", targetID, "page",
                                     c.normalizedTitle, "page_body", c.multiplicity, targetID != nil ? 1 : 0, iso8601(Date())])
                 }
             }

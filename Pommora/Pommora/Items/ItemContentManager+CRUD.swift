@@ -51,7 +51,7 @@ extension ItemContentManager {
     private func enforceNexusWideTitleUniqueness(_ title: String, excludingID: String?) async throws {
         guard let updater = indexUpdater else { return }  // index optional in some test harnesses
         let query = IndexQuery(updater.index)
-        if try await query.titleExists(title, kind: .item, excludingID: excludingID) {
+        if try await query.titleExists(title, excludingID: excludingID) {
             throw ItemCRUDError.duplicateTitle
         }
     }
@@ -182,7 +182,7 @@ extension ItemContentManager {
                 let touched: [ConnectionCascade.Touched]
                 do {
                     touched = try await cascade.run(
-                        targetID: item.id, oldTitle: item.title, newTitle: trimmed, targetSyntax: .item)
+                        targetID: item.id, oldTitle: item.title, newTitle: trimmed)
                 } catch let cascadeError {
                     do {
                         try Filesystem.renameFile(from: newURL, to: oldURL)  // revert — NOT try?
@@ -383,7 +383,7 @@ extension ItemContentManager {
                 let touched: [ConnectionCascade.Touched]
                 do {
                     touched = try await cascade.run(
-                        targetID: item.id, oldTitle: item.title, newTitle: trimmed, targetSyntax: .item)
+                        targetID: item.id, oldTitle: item.title, newTitle: trimmed)
                 } catch let cascadeError {
                     do {
                         try Filesystem.renameFile(from: newURL, to: oldURL)  // revert — NOT try?
@@ -801,56 +801,11 @@ extension ItemContentManager {
     /// (the first failure is recorded on `pendingError`) so one bad file never
     /// aborts the cascade.
     func unlinkTier(contextID: String, tier: Int, index: PommoraIndex) async throws {
-        guard let tierPropID = ReservedPropertyID.tierPropertyID(forTier: tier) else { return }
-
-        let refs = try await IndexQuery(index).incomingContextLinks(targetID: contextID)
-        let itemRefs = refs.filter { $0.kind == .item }
-
-        for ref in itemRefs {
-            do {
-                guard
-                    let container = try await IndexQuery(index)
-                        .entityContainer(id: ref.id, kind: .item),
-                    let url = locateItemFile(id: ref.id, container: container)
-                else { continue }
-
-                var item = try Item.load(from: url)
-                let current = item.relationIDs(forPropertyID: tierPropID)
-                guard current.contains(contextID) else { continue }
-
-                item.setRelationIDs(current.filter { $0 != contextID }, forPropertyID: tierPropID)
-                item.modifiedAt = Date()
-                try item.save(to: url)
-
-                refreshItemCache(item, container: container)
-
-                if let updater = indexUpdater {
-                    do {
-                        try updater.upsertItem(
-                            item,
-                            itemTypeID: container.typeID,
-                            itemCollectionID: container.collectionID
-                        )
-                    } catch {
-                        self.pendingError = error
-                    }
-                }
-            } catch {
-                // Continue-on-individual-failure: a single unreadable / unwritable
-                // Item must not block the rest of the cascade.
-                self.pendingError = error
-                continue
-            }
-        }
-    }
-
-    /// Locates an Item's `.md` file from its index container. The folder is built
-    /// from the container titles; the file is found by walking that folder and
-    /// matching `id` — nesting-proof for Type-root Items that physically live in a
-    /// deeper non-Collection sub-folder (whose files roll up to the Type root with
-    /// `item_collection_id == nil`).
-    private func locateItemFile(id: String, container: EntityContainer) -> URL? {
-        ConnectionFileLocator.locate(id: id, kind: .item, container: container, nexusRoot: nexus.rootURL)
+        // PagesV2 P2 seam-edit: `EntityKind.item` is deleted, so the index can no
+        // longer surface Item refs to unlink. No-op until P3 deletes this manager.
+        _ = contextID
+        _ = tier
+        _ = index
     }
 
     /// Refreshes the in-memory `Item` for `updated` in whichever cache bucket

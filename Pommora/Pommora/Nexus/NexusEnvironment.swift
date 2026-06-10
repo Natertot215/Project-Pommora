@@ -169,15 +169,15 @@ final class NexusEnvironment {
         // tracks index swaps within this Nexus.
         let contextRes = ContextDisplayResolver(index: { [nexusManager] in nexusManager.currentIndex })
 
-        // Stable title-keyed connection resolvers over THIS Nexus's index. Built
+        // Stable title-keyed connection resolver over THIS Nexus's index. Built
         // once (NoOp when the index is absent / degraded) so the editor's
         // NSViewRepresentable references a stable instance across renders.
+        // The `{{ }}` chip-link resolver stays NoOp — chipLink is gated off
+        // and retires in P2.5.
         let pageConnRes: any WikiLinkResolver =
-            nexusManager.currentIndex.map { PommoraConnectionResolver(index: $0, kind: .page) }
+            nexusManager.currentIndex.map { PommoraConnectionResolver(index: $0) }
             ?? NoOpWikiLinkResolver()
-        let itemConnRes: any WikiLinkResolver =
-            nexusManager.currentIndex.map { PommoraConnectionResolver(index: $0, kind: .item) }
-            ?? NoOpWikiLinkResolver()
+        let itemConnRes: any WikiLinkResolver = NoOpWikiLinkResolver()
 
         // Phase E.7.5: wire IndexUpdater into all 8 CRUD managers before publishing
         // (Space + Topic added so Contexts sync to the `contexts` index table).

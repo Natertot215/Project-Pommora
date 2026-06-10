@@ -36,19 +36,6 @@ struct ConnectionResolverTests {
         }
     }
 
-    /// Parallel item-side seed (shared item_type parent FK).
-    private func insertItem(id: String, title: String, index: PommoraIndex) throws {
-        let ts = now()
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: "INSERT OR IGNORE INTO item_types (id, title, modified_at) VALUES (?, ?, ?)",
-                arguments: ["it-test", "TestType", ts])
-            try db.execute(
-                sql: "INSERT INTO items (id, item_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
-                arguments: [id, "it-test", title, ts])
-        }
-    }
-
     // MARK: - Tests
 
     /// A page title present exactly once resolves to a live link.
@@ -59,7 +46,7 @@ struct ConnectionResolverTests {
         let id = ULID.generate()
         try insertPage(id: id, title: "Alpha", index: idx)
 
-        let resolver = PommoraConnectionResolver(index: idx, kind: .page)
+        let resolver = PommoraConnectionResolver(index: idx)
         let resolution = resolver.resolve(displayName: "Alpha", range: NSRange(location: 0, length: 0))
         #expect(resolution != nil)
         #expect(resolution?.exists == true)
@@ -72,7 +59,7 @@ struct ConnectionResolverTests {
         defer { TempNexus.cleanup(nexus) }
         let idx = try makeIndex(at: nexus)
 
-        let resolver = PommoraConnectionResolver(index: idx, kind: .page)
+        let resolver = PommoraConnectionResolver(index: idx)
         #expect(resolver.resolve(displayName: "Ghost", range: NSRange(location: 0, length: 0)) == nil)
     }
 
@@ -84,29 +71,8 @@ struct ConnectionResolverTests {
         try insertPage(id: ULID.generate(), title: "Dup", index: idx)
         try insertPage(id: ULID.generate(), title: "Dup", index: idx)
 
-        let resolver = PommoraConnectionResolver(index: idx, kind: .page)
+        let resolver = PommoraConnectionResolver(index: idx)
         #expect(resolver.resolve(displayName: "Dup", range: NSRange(location: 0, length: 0)) == nil)
-    }
-
-    /// Kind isolation: an item title resolves on the `.item` resolver, and a page
-    /// with the same title does NOT make the `.item` resolver resolve.
-    @Test func itemResolverIsKindIsolated() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
-        let itemID = ULID.generate()
-        try insertItem(id: itemID, title: "Beta", index: idx)
-        // A page named "Gamma" must NOT be visible to the item resolver.
-        try insertPage(id: ULID.generate(), title: "Gamma", index: idx)
-
-        let itemResolver = PommoraConnectionResolver(index: idx, kind: .item)
-        let hit = itemResolver.resolve(displayName: "Beta", range: NSRange(location: 0, length: 0))
-        #expect(hit != nil)
-        #expect(hit?.exists == true)
-        #expect(hit?.id == itemID)
-
-        // Page-only title is invisible to the item resolver.
-        #expect(itemResolver.resolve(displayName: "Gamma", range: NSRange(location: 0, length: 0)) == nil)
     }
 
     // MARK: - resolvePageByIDOrTitle
@@ -119,7 +85,7 @@ struct ConnectionResolverTests {
         let id = ULID.generate()
         try insertPage(id: id, title: "Bravo", index: idx)
 
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id, kind: .page) == id)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id) == id)
     }
 
     /// A display title (original case) falls through to title-match.
@@ -130,7 +96,7 @@ struct ConnectionResolverTests {
         let id = ULID.generate()
         try insertPage(id: id, title: "Project Notes", index: idx)
 
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle("Project Notes", kind: .page) == id)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("Project Notes") == id)
     }
 
     /// Title matching is case-insensitive (wikilinks are typed free-form).
@@ -141,8 +107,8 @@ struct ConnectionResolverTests {
         let id = ULID.generate()
         try insertPage(id: id, title: "Meeting Notes", index: idx)
 
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle("meeting notes", kind: .page) == id)
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle("MEETING NOTES", kind: .page) == id)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("meeting notes") == id)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("MEETING NOTES") == id)
     }
 
     /// An unknown string that matches neither an ID nor a title returns nil.
@@ -151,7 +117,7 @@ struct ConnectionResolverTests {
         defer { TempNexus.cleanup(nexus) }
         let idx = try makeIndex(at: nexus)
 
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle("phantom-id-000", kind: .page) == nil)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("phantom-id-000") == nil)
     }
 
     /// Two pages sharing a title are ambiguous: title path returns nil.
@@ -165,9 +131,9 @@ struct ConnectionResolverTests {
         try insertPage(id: id1, title: "Dup", index: idx)
         try insertPage(id: id2, title: "Dup", index: idx)
 
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle("Dup", kind: .page) == nil)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle("Dup") == nil)
         // Direct ID bypasses the ambiguity guard.
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id1, kind: .page) == id1)
-        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id2, kind: .page) == id2)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id1) == id1)
+        #expect(IndexQuery(idx).resolvePageByIDOrTitle(id2) == id2)
     }
 }

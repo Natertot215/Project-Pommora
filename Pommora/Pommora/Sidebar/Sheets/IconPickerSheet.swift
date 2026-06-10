@@ -19,9 +19,7 @@ struct IconPickerSheet: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(PageTypeManager.self) private var vaultManager
-    @Environment(ItemTypeManager.self) private var itemTypeManager
     @Environment(PageContentManager.self) private var pageContentManager
-    @Environment(ItemContentManager.self) private var itemContentManager
 
     /// Nullable binding so the picker exposes its built-in delete-icon button on
     /// macOS — a `nil` value clears the icon back to the entity's default.
@@ -52,11 +50,8 @@ struct IconPickerSheet: View {
         case .topic(let t): return t.icon
         case .project(let p): return p.icon
         case .pageType(let t): return t.icon
-        case .itemType(let t): return t.icon
         case .pageCollection(let c): return c.icon
-        case .itemCollection(let c): return c.icon
         case .page(let p, _, _): return p.frontmatter.icon
-        case .item(let i, _, _): return i.icon
         }
     }
 
@@ -75,20 +70,11 @@ struct IconPickerSheet: View {
         case .pageType(let t):
             do { try await vaultManager.updatePageTypeIcon(t, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
-        case .itemType(let t):
-            do { try await itemTypeManager.updateItemTypeIcon(t, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
         case .pageCollection(let c):
             do { try await vaultManager.updatePageCollectionIcon(c, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
-        case .itemCollection(let c):
-            do { try await itemTypeManager.updateItemCollectionIcon(c, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
         case .page(let p, let vault, let collection):
             do { try await pageContentManager.updatePageIcon(p, to: newIcon, vault: vault, collection: collection) } catch
-            { /* pendingError set by manager; toast surfaces */  }
-        case .item(let i, let type, let collection):
-            do { try await itemContentManager.updateItemIcon(i, to: newIcon, type: type, collection: collection) } catch
             { /* pendingError set by manager; toast surfaces */  }
         }
     }

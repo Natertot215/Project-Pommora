@@ -2,7 +2,7 @@ import Foundation
 
 /// Tags which surface the View Settings popover is currently reflecting.
 ///
-/// The four storage cases carry their concrete entity so the popover body
+/// The storage cases carry their concrete entity so the popover body
 /// can render schema-aware content (Edit Properties pane reads the parent
 /// Type's `properties: [PropertyDefinition]`; Property Visibility pane reads
 /// `views[0].visibleProperties`; etc.). Other cases stay case-only — they
@@ -20,8 +20,6 @@ enum ViewSettingsScope: Equatable, Sendable {
     case none
     case pageType(PageType)
     case pageCollection(PageCollection)
-    case itemType(ItemType)
-    case itemCollection(ItemCollection)
     case page
     case space
     case topic

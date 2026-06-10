@@ -60,11 +60,8 @@ struct EntityRow: View {
         case .space: return "rectangle.3.group"
         case .topic: return "folder"
         case .project: return "folder"
-        case .item: return "tray"
         case .agenda: return "calendar"
         case .collection: return "tray.2"
-        case .itemType: return "tray.full"
-        case .set: return "folder"
         case nil: return "questionmark.circle"
         }
     }
@@ -76,11 +73,8 @@ struct EntityRow: View {
         case .space: return "Space"
         case .topic: return "Topic"
         case .project: return "Project"
-        case .item: return "Item"
         case .agenda: return "Task"
         case .collection: return "Collection"
-        case .itemType: return "Type"
-        case .set: return "Set"
         case nil: return ref.kind
         }
     }

@@ -179,7 +179,7 @@ struct IndexBuilderTests {
         #expect(count == 1, "Frontmatter-less adopted Page was dropped by the launch scan (strict-loader regression)")
 
         // And the wiki-link title resolver finds it — the user-visible payoff.
-        let resolved = IndexQuery(idx).resolveUniqueEntity("Adopted Doc", kind: .page)
+        let resolved = IndexQuery(idx).resolveUniqueEntity("Adopted Doc")
         #expect(resolved != nil, "Adopted Page is in the index but the title resolver can't find it")
     }
 

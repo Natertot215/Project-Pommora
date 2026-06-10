@@ -274,17 +274,8 @@ struct PageEditorView: View {
                         mainWindowRouter.requestOpen(to: selection)
                     }
                 },
-                onChipLinkClick: { title in
-                    // A resolved `{{Item}}` click: resolve the display TITLE to its
-                    // Item via the index, then hand it to the existing Item Window
-                    // bridge. nil = phantom / ambiguous / unreadable → no-op.
-                    Task { @MainActor in
-                        guard let index = contentManager.indexUpdater?.index else { return }
-                        guard let item = await ItemLinkOpener.loadItem(
-                            forTitle: title, index: index, nexusRootURL: contentManager.nexus.rootURL)
-                        else { return }
-                        AppGlobals.presentItemAction?(item)
-                    }
+                onChipLinkClick: { _ in
+                    // `{{ }}` chip-links are gated off (retire in P2.5) — never fires.
                 },
                 onCaretRectChange: { rect in
                     // Caret rect arrives in the body NSTextView's view coords (from
@@ -618,7 +609,6 @@ struct PageEditorView: View {
         }
         activeInlineSelection = state
         let placeholder = state.selection.placeholder
-        let entityKind = AutoCompleteWiring.queryKind(for: state.kind)
 
         // Bump the token; only results from THIS query (matching token + still the
         // current placeholder) are applied — a faster keystroke supersedes a slower
@@ -627,7 +617,7 @@ struct PageEditorView: View {
         let token = autocompleteQueryToken
         Task { @MainActor in
             guard let index = contentManager.indexUpdater?.index else { return }
-            let refs = (try? await IndexQuery(index).titleCandidates(matching: placeholder, kind: entityKind)) ?? []
+            let refs = (try? await IndexQuery(index).titleCandidates(matching: placeholder)) ?? []
             // Stale-guard: discard if a newer trigger has fired or the placeholder
             // moved on since this query launched.
             guard token == autocompleteQueryToken,

@@ -8,8 +8,6 @@ struct DetailRow: Identifiable, Hashable, Sendable {
     enum Kind: Hashable, Sendable {
         case collection(PageCollection)
         case page(PageMeta)
-        case item(Item)
-        case itemCollection(ItemCollection)
     }
 
     let id: String
@@ -23,21 +21,18 @@ struct DetailRow: Identifiable, Hashable, Sendable {
         switch kind {
         case .collection: return "Collection"
         case .page: return "Page"
-        case .item: return "Item"
-        case .itemCollection: return "Set"
         }
     }
 }
 
 extension DetailRow {
-    /// Recents/Pinned wire-record for this row. Leaf content (Page / Item) maps
-    /// to a ref; containers (Collection / Set) return nil — they aren't pinned
-    /// from the detail-pane row menus. Single source for all four detail views.
+    /// Recents/Pinned wire-record for this row. Leaf content (a Page) maps
+    /// to a ref; containers (Collections) return nil — they aren't pinned
+    /// from the detail-pane row menus. Single source for the detail views.
     var stateRef: EntityStateRef? {
         switch kind {
         case .page(let p): return EntityStateRef(kind: .page, id: p.id, title: p.title)
-        case .item(let i): return EntityStateRef(kind: .item, id: i.id, title: i.title)
-        case .collection, .itemCollection: return nil
+        case .collection: return nil
         }
     }
 

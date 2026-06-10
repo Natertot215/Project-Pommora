@@ -138,29 +138,26 @@ struct RecentsManagerTests {
         #expect(m.stepForward() == nil)
     }
 
-    @Test("record accepts pages + storage containers; ignores Contexts and Items")
+    @Test("record accepts pages + storage containers; ignores Contexts and Agenda")
     func recordKindFilter() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let m = RecentsManager(nexus: nexus)
         await m.load()
-        // Contexts and Items (windows) never enter the Back/Forward stack.
+        // Contexts and Agenda never enter the Back/Forward stack.
         m.record(EntityStateRef(kind: .space, id: "S", title: "Space"))
         m.record(EntityStateRef(kind: .topic, id: "T", title: "Topic"))
         m.record(EntityStateRef(kind: .project, id: "PR", title: "Project"))
-        m.record(EntityStateRef(kind: .item, id: "I", title: "Item"))
         m.record(EntityStateRef(kind: .agenda, id: "A", title: "Task"))
         #expect(m.entries.isEmpty)
-        // Pages + all four storage containers do.
+        // Pages + both storage containers do.
         m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
         m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
         m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
-        m.record(EntityStateRef(kind: .itemType, id: "TY", title: "Type"))
-        m.record(EntityStateRef(kind: .set, id: "SE", title: "Set"))
-        #expect(m.entries.count == 5)
+        #expect(m.entries.count == 3)
     }
 
-    @Test("load keeps pages + storage containers; strips Contexts and Items")
+    @Test("load keeps pages + storage containers; strips Contexts and retired item kinds")
     func loadStripsLegacyKinds() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -169,7 +166,9 @@ struct RecentsManagerTests {
             EntityStateRef(kind: .page, id: "keepPage", title: "Page"),
             EntityStateRef(kind: .vault, id: "keepVault", title: "Vault"),
             EntityStateRef(kind: .topic, id: "dropTopic", title: "Topic"),
-            EntityStateRef(kind: .item, id: "dropItem", title: "Item"),
+            // Retired wire kind persisted by an older build — decodes as
+            // unknown (typedKind == nil) and must be stripped on load.
+            EntityStateRef(kind: "item", id: "dropItem", title: "Item"),
         ]
         try FileManager.default.createDirectory(
             at: NexusPaths.nexusConfigDir(in: nexus), withIntermediateDirectories: true)
@@ -202,10 +201,8 @@ struct RecentsManagerTests {
         m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
         m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
         m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
-        m.record(EntityStateRef(kind: .itemType, id: "TY", title: "Type"))
-        m.record(EntityStateRef(kind: .set, id: "SE", title: "Set"))
-        // The Page + all four containers are steppable (present in entries / the Back-Forward stack)…
-        #expect(m.entries.count == 5)
+        // The Page + both containers are steppable (present in entries / the Back-Forward stack)…
+        #expect(m.entries.count == 3)
         // …but only the Page surfaces in the dropdown projection — every container kind is hidden.
         #expect(m.dropdownTop.map(\.id) == ["P"])
     }

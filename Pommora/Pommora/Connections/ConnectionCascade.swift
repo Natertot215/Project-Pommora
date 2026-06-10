@@ -2,12 +2,10 @@ import Foundation
 
 /// Pure title-rewrite over a body. Replaces every `[[oldTitle]]`
 /// (case-insensitive normalized match; legacy `[[old|id]]` tolerated → id dropped)
-/// with newTitle. `[[ ]]` is the only connection syntax (PagesV2 decision #3);
-/// the `syntax` parameter is vestigial and dies with `ConnectionSyntax` in P2.
+/// with newTitle. `[[ ]]` is the only connection syntax (PagesV2 decision #3).
 /// Reuses ConnectionScanner's regex.
 enum ConnectionRewriter {
-    static func rewrite(body: String, oldTitle: String, newTitle: String, syntax: ConnectionSyntax) -> String {
-        _ = syntax
+    static func rewrite(body: String, oldTitle: String, newTitle: String) -> String {
         let oldKey = ConnectionTitle.normalize(oldTitle)
         let ns = body as NSString
         let result = NSMutableString(string: body)
@@ -36,8 +34,7 @@ struct ConnectionCascade {
         let newBody: String
     }
 
-    func run(targetID: String, oldTitle: String, newTitle: String,
-             targetSyntax: ConnectionSyntax) async throws -> [Touched] {
+    func run(targetID: String, oldTitle: String, newTitle: String) async throws -> [Touched] {
         let inbound = try await indexQuery.incomingConnections(targetID: targetID)
         guard !inbound.isEmpty else { return [] }
         let txn = SchemaTransaction()
@@ -53,10 +50,10 @@ struct ConnectionCascade {
             switch edge.sourceKind {
             case .page:
                 let pf = try PageFile.load(from: url)
-                newBody = ConnectionRewriter.rewrite(body: pf.body, oldTitle: oldTitle, newTitle: newTitle, syntax: targetSyntax)
+                newBody = ConnectionRewriter.rewrite(body: pf.body, oldTitle: oldTitle, newTitle: newTitle)
                 fileData = try AtomicYAMLMarkdown.encode(frontmatter: pf.frontmatter, body: newBody, preservingFrom: url, modeledKeys: PageFrontmatter.modeledKeys)
                 title = pf.title
-            default:
+            case .agendaTask, .agendaEvent, .pageType, .pageCollection, .space, .topic, .project:
                 continue
             }
             txn.stage(payload: fileData, to: url)

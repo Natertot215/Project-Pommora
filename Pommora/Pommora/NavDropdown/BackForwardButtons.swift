@@ -79,18 +79,11 @@ struct BackForwardButtons: View {
 
     private func applyStep(_ ref: EntityStateRef?) {
         guard let ref else { return }
-        // Items + Agenda can't appear in the main detail pane — open via
-        // ItemWindow instead. Agenda support arrives at v0.6.0+.
+        // Agenda can't appear in the main detail pane. Support arrives at v0.6.0+.
         switch ref.typedKind {
-        case .item:
-            guard let cm = AppGlobals.contentManager,
-                let item = lookupItem(id: ref.id, contentManager: cm)
-            else { return }
-            AppGlobals.presentItemAction?(item)
-            return
         case .agenda, .none:
             return  // skip — nothing to route
-        case .page, .vault, .space, .topic, .project, .collection, .itemType, .set:
+        case .page, .vault, .space, .topic, .project, .collection:
             break
         }
 
@@ -101,17 +94,4 @@ struct BackForwardButtons: View {
         AppGlobals.mainWindowRouter?.requestStep(to: sel)
     }
 
-    /// O(N) Item lookup across all Item Types + ItemCollections.
-    ///
-    /// ParadigmV2 (Task 5.5): The PageType-keyed lookup is retired alongside
-    /// ContentManager's Item state. Phase 6 wires the ItemTypeManager walker;
-    /// for now this returns `nil` so the back/forward stack falls through to a
-    /// no-op rather than crashing.
-    @MainActor
-    private func lookupItem(id: String, contentManager: PageContentManager) -> Item? {
-        _ = id
-        _ = contentManager
-        // TODO Phase 6: walk ItemTypeManager + ItemContentManager.
-        return nil
-    }
 }

@@ -187,7 +187,7 @@ struct PageCollectionDetailView: View {
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
         case .page(let p): selection = .page(p)
-        case .collection, .item, .itemCollection: break
+        case .collection: break
         }
     }
 
@@ -266,8 +266,8 @@ struct PageCollectionDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
-        case .collection, .item, .itemCollection:
-            EmptyView()  // dead kinds — removed from DetailRow.Kind in P2
+        case .collection:
+            EmptyView()  // containers aren't context-menu targets here
         }
     }
 
@@ -293,7 +293,7 @@ struct PageCollectionDetailView: View {
                 switch row.kind {
                 case .page(let p):
                     try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
-                case .collection, .item, .itemCollection:
+                case .collection:
                     break
                 }
             } catch {
@@ -307,7 +307,7 @@ struct PageCollectionDetailView: View {
             switch row.kind {
             case .page(let p):
                 try await contentManager.deletePage(p, in: collection)
-            case .collection, .item, .itemCollection:
+            case .collection:
                 break
             }
         } catch {

@@ -229,11 +229,9 @@ struct NavDropdownButton: View {
         selection = nil  // reset so the same row can be clicked again
 
         switch ref.typedKind {
-        case .item:
-            openItemWindow(ref)
         case .agenda, .none:
             return
-        case .page, .vault, .space, .topic, .project, .collection, .itemType, .set:
+        case .page, .vault, .space, .topic, .project, .collection:
             if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                 onOpen(sel)
                 return
@@ -264,12 +262,4 @@ struct NavDropdownButton: View {
         }
     }
 
-    private func openItemWindow(_ ref: EntityStateRef) {
-        // ParadigmV2 (Task 5.5): Items moved off PageContentManager onto
-        // ItemContentManager keyed on ItemType + ItemCollection. The Phase 6
-        // rewire ships the ItemTypeManager walker; for now this falls through
-        // so the dropdown entry is a no-op rather than a crash.
-        _ = ref
-        // TODO Phase 6: walk ItemTypeManager + ItemContentManager.
-    }
 }

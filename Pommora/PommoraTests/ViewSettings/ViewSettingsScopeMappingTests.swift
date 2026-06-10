@@ -105,24 +105,4 @@ struct ViewSettingsScopeMappingTests {
         #expect(scope == .page)
     }
 
-    @Test("itemType selection maps to .itemType scope carrying the entity")
-    func itemTypeMapsToItemType() {
-        let t = ItemType(
-            id: "01HIT", title: "Books", icon: nil, properties: [],
-            views: [], modifiedAt: Date()
-        )
-        let scope = ContentView.viewSettingsScope(for: .itemType(t))
-        #expect(scope == .itemType(t))
-    }
-
-    @Test("itemCollection selection maps to .itemCollection scope carrying the entity")
-    func itemCollectionMapsToItemCollection() {
-        let c = ItemCollection(
-            id: "01HIC", typeID: "01HIT", title: "Want to read",
-            folderURL: URL(fileURLWithPath: "/tmp/Want to read"),
-            modifiedAt: Date()
-        )
-        let scope = ContentView.viewSettingsScope(for: .itemCollection(c))
-        #expect(scope == .itemCollection(c))
-    }
 }

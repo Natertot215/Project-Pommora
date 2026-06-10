@@ -45,7 +45,7 @@ struct ConnectionRankingTests {
         try insertPage(id: ULID.generate(), title: "Note", index: index)
         try insertPage(id: ULID.generate(), title: "Meeting", index: index)  // non-matching
 
-        let refs = try await IndexQuery(index).titleCandidates(matching: "Note", kind: .page)
+        let refs = try await IndexQuery(index).titleCandidates(matching: "Note")
         #expect(titles(refs) == ["Note", "Notes", "Note Archive"])
     }
 
@@ -60,7 +60,7 @@ struct ConnectionRankingTests {
         try insertPage(id: ULID.generate(), title: "Note", index: index)
         try insertPage(id: ULID.generate(), title: "Meeting", index: index)  // non-matching
 
-        let refs = try await IndexQuery(index).titleCandidates(matching: "no", kind: .page)
+        let refs = try await IndexQuery(index).titleCandidates(matching: "no")
         #expect(titles(refs) == ["Note", "Notes", "Note Archive"])
     }
 
@@ -75,7 +75,7 @@ struct ConnectionRankingTests {
         try insertPage(id: ULID.generate(), title: "Care", index: index)
         try insertPage(id: ULID.generate(), title: "Car", index: index)
 
-        let refs = try await IndexQuery(index).titleCandidates(matching: "car", kind: .page)
+        let refs = try await IndexQuery(index).titleCandidates(matching: "car")
         #expect(titles(refs) == ["Car", "Care", "Cart"])
     }
 }

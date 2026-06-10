@@ -59,44 +59,6 @@ struct DetailReorderPlannerTests {
         )
     }
 
-    /// Builds a leaf `DetailRow` carrying a minimal `Item`.
-    private func itemRow(id: String, title: String) -> DetailRow {
-        let item = Item(
-            id: id, title: title, icon: nil, description: "",
-            tier1: [], tier2: [], tier3: [],
-            properties: [:],
-            createdAt: Date(timeIntervalSince1970: 0),
-            modifiedAt: Date(timeIntervalSince1970: 0)
-        )
-        return DetailRow(
-            id: id,
-            title: title,
-            kind: .item(item),
-            iconName: "doc",
-            modifiedAt: Date(timeIntervalSince1970: 0),
-            children: nil
-        )
-    }
-
-    /// Builds a leaf `DetailRow` carrying a minimal `ItemCollection`.
-    private func itemCollectionRow(id: String, title: String) -> DetailRow {
-        let set = ItemCollection(
-            id: id,
-            typeID: "itype-1",
-            title: title,
-            folderURL: URL(fileURLWithPath: "/tmp/\(id)"),
-            modifiedAt: Date(timeIntervalSince1970: 0)
-        )
-        return DetailRow(
-            id: id,
-            title: title,
-            kind: .itemCollection(set),
-            iconName: "folder",
-            modifiedAt: Date(timeIntervalSince1970: 0),
-            children: nil
-        )
-    }
-
     /// Applies `plan` to `subset` using `Array.move(fromOffsets:toOffset:)` and
     /// returns the reordered subset — mirrors how the detail view applies the plan.
     private func applyPlan(_ plan: DetailReorderPlan, to subset: [DetailRow]) -> [DetailRow] {
@@ -203,26 +165,6 @@ struct DetailReorderPlannerTests {
         let pageA = pageRow(id: "p-a", title: "Page A")
         let rows = [pageA]
         #expect(DetailReorderPlanner.plan(rows: rows, movingRowID: "ghost", dropOffset: 0) == nil)
-    }
-
-    // MARK: - Case E: in-set child reorder scopes to `kids`
-
-    /// Pins the in-set reorder contract `DetailReorderPlanner` provides to the
-    /// collection/set detail view (the still-live reorder path). The former
-    /// vault/type-level child-drop test was retired when those tables went display-only.
-    @Test func childItemReorderWithinSetScopesToKids() throws {
-        let itemA = itemRow(id: "i-a", title: "Item A")
-        let itemB = itemRow(id: "i-b", title: "Item B")
-        let itemC = itemRow(id: "i-c", title: "Item C")
-        let kids = [itemA, itemB, itemC]
-
-        let plan = try #require(
-            DetailReorderPlanner.plan(rows: kids, movingRowID: "i-c", dropOffset: 0),
-            "plan must be non-nil for a valid in-set move"
-        )
-        #expect(plan.kind == .item)
-        #expect(plan.fromOffsets == IndexSet(integer: 2))
-        #expect(plan.toOffset == 0)
     }
 
 }

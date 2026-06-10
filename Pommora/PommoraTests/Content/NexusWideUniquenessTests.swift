@@ -4,15 +4,12 @@ import Testing
 
 @testable import Pommora
 
-/// Nexus-wide per-kind title uniqueness (Connections invariant). The
+/// Nexus-wide title uniqueness (Connections invariant). The
 /// container-scoped `enforceTitleUniqueness` only sees the in-memory siblings of
-/// one Collection / Vault, so a duplicate title across DIFFERENT vaults (or
-/// types) slips through today. The index-backed `enforceNexusWideTitleUniqueness`
+/// one Collection / Vault, so a duplicate title across DIFFERENT vaults slips
+/// through today. The index-backed `enforceNexusWideTitleUniqueness`
 /// guard added on each `+CRUD` extension closes that gap: an in-app create/rename
-/// to a title that exists ANYWHERE in the nexus (same kind) is rejected.
-///
-/// Pages and Items are SEPARATE kinds — a Page and an Item MAY share a title
-/// (`titleExists(kind:)` scopes to one table).
+/// to a title that exists ANYWHERE in the nexus is rejected.
 ///
 /// Fixture mirrors `ConnectionLiveUpdateTests` / `UnlinkTierTests`: a TempNexus +
 /// PommoraIndex with the parent Types/Collections seeded into the index, and an
@@ -45,54 +42,6 @@ struct NexusWideUniquenessTests {
         }
     }
 
-    // MARK: - Test 2: cross-type Item dup rejected
-
-    @Test("createItem rejects a title already used in a DIFFERENT type")
-    func crossTypeItemDupRejected() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
-
-        let t1 = try makeItemType(in: nexus, index: index, title: "T1")
-        let t2 = try makeItemType(in: nexus, index: index, title: "T2")
-
-        let manager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.indexUpdater = IndexUpdater(index)
-
-        _ = try await manager.createItem(name: "X", inTypeRoot: t1)
-
-        await #expect(throws: ItemCRUDError.duplicateTitle) {
-            _ = try await manager.createItem(name: "X", inTypeRoot: t2)
-        }
-    }
-
-    // MARK: - Test 3: cross-kind shared title allowed
-
-    @Test("a Page and an Item MAY share a title (separate kinds)")
-    func crossKindSharedTitleAllowed() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
-
-        // ONE index + ONE updater shared by BOTH managers over the SAME nexus.
-        let updater = IndexUpdater(index)
-
-        let vault = try makeVault(in: nexus, index: index, title: "V")
-        let itemType = try makeItemType(in: nexus, index: index, title: "T")
-
-        let pageManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        pageManager.indexUpdater = updater
-        let itemManager = ItemContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        itemManager.indexUpdater = updater
-
-        // Page "Shared" must NOT block Item "Shared" — different table.
-        _ = try await pageManager.createPage(name: "Shared", inVaultRoot: vault)
-        _ = try await itemManager.createItem(name: "Shared", inTypeRoot: itemType)
-        // Reaching here without a throw is the assertion; pendingError stays clean.
-        #expect(pageManager.pendingError == nil)
-        #expect(itemManager.pendingError == nil)
-    }
-
     // MARK: - Fixtures (mirror UnlinkTierTests)
 
     private func makeVault(in nexus: Nexus, index: PommoraIndex, title: String) throws -> PageType {
@@ -120,15 +69,4 @@ struct NexusWideUniquenessTests {
         return coll
     }
 
-    private func makeItemType(in nexus: Nexus, index: PommoraIndex, title: String) throws -> ItemType {
-        let itemType = ItemType(
-            id: ULID.generate(), title: title, icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-        let folder = NexusPaths.itemTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try itemType.save(to: NexusPaths.itemTypeMetadataURL(in: nexus.rootURL, typeFolderName: title))
-        try IndexUpdater(index).upsertItemType(itemType)
-        return itemType
-    }
 }

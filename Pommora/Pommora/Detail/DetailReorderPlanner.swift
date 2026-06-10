@@ -9,8 +9,6 @@ struct DetailReorderPlan: Equatable {
     enum Kind: Equatable {
         case page
         case collection
-        case item
-        case itemCollection
     }
 
     /// Which kind of row is being moved.
@@ -61,8 +59,6 @@ extension DetailReorderPlan.Kind {
         switch rowKind {
         case .page: self = .page
         case .collection: self = .collection
-        case .item: self = .item
-        case .itemCollection: self = .itemCollection
         }
     }
 }

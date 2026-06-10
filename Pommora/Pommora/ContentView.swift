@@ -66,10 +66,6 @@ struct ContentView: View {
             return .pageCollection(c)
         case .page:
             return .page
-        case .itemType(let t):
-            return .itemType(t)
-        case .itemCollection(let c):
-            return .itemCollection(c)
         }
     }
 
@@ -90,13 +86,11 @@ struct ContentView: View {
     private var primaryActionCapsule: some View {
         if let env = nexusEnvironment {
             let vaultMgr = env.vaultManager
-            let itemTypeMgr = env.itemTypeManager
             let tierConfigMgr = env.tierConfigManager
             let contentMgr = env.contentManager
             let lookup = SidebarLookupBundle(
                 content: contentMgr,
                 pageType: vaultMgr,
-                itemType: itemTypeMgr,
                 space: env.spaceManager,
                 topic: env.topicManager
             )
@@ -174,7 +168,6 @@ struct ContentView: View {
                                 lookup: SidebarLookupBundle(
                                     content: env.contentManager,
                                     pageType: env.vaultManager,
-                                    itemType: env.itemTypeManager,
                                     space: env.spaceManager,
                                     topic: env.topicManager
                                 ))
