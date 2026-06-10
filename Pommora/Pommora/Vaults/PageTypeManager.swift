@@ -481,6 +481,25 @@ final class PageTypeManager {
         }
     }
 
+    // MARK: - Open-in
+
+    /// Persists the vault-level default for how Pages open (`open_in` on the
+    /// `_pagetype.json` sidecar): `.compact` (PagePreview card) or `.window`
+    /// (main detail pane). No SQLite upsert — `open_in` is not indexed.
+    func setOpenIn(_ mode: OpenInMode, forVault typeID: String) async throws {
+        guard let i = types.firstIndex(where: { $0.id == typeID }) else { return }
+        var updated = types[i]
+        updated.openIn = mode
+        updated.modifiedAt = Date()
+        do {
+            try updated.save(to: NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus))
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+        types[i] = updated
+    }
+
     /// Reads the persisted Page Type sibling order from `.nexus/state.json`. Returns
     /// nil if no state.json exists or no `vault_order` has been recorded — the
     /// resolver falls back to alphabetic in that case.

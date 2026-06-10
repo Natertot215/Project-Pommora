@@ -50,4 +50,73 @@ extension View {
     func onSecondaryClick(perform action: @escaping () -> Void) -> some View {
         overlay(SecondaryClickCatcher(action: action))
     }
+
+    /// Show `items` as an `NSMenu` on a secondary (right) mouse click. See
+    /// `SecondaryClickMenu`.
+    func secondaryClickMenu(_ items: [SecondaryClickMenu.Item]) -> some View {
+        overlay(SecondaryClickMenu(items: items))
+    }
+}
+
+/// Pops an `NSMenu` on a secondary (right) mouse click on the attached view,
+/// forwarding every other event untouched — same right-mouse-only `hitTest`
+/// shim as `SecondaryClickCatcher`, but yielding a menu instead of a closure.
+///
+/// **Why not `.contextMenu`:** an AppKit-backed sibling beneath the overlay
+/// (e.g. the `MarkdownPMEditor`'s `NSTextView`) consumes right-clicks and
+/// shows its own menu before SwiftUI's `.contextMenu` ever sees the event.
+/// This catcher claims only the right-mouse-down, and AppKit's default
+/// dispatch pops the menu returned by `menu(for:)`.
+struct SecondaryClickMenu: NSViewRepresentable {
+    /// One menu entry: a title + the action it fires.
+    struct Item {
+        let title: String
+        let action: () -> Void
+
+        init(title: String, action: @escaping () -> Void) {
+            self.title = title
+            self.action = action
+        }
+    }
+
+    let items: [Item]
+
+    func makeNSView(context: Context) -> NSView {
+        let view = MenuView()
+        view.items = items
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? MenuView)?.items = items
+    }
+
+    final class MenuView: NSView {
+        var items: [SecondaryClickMenu.Item] = []
+
+        /// Built at click time so dynamic titles (e.g. "Lock"/"Unlock")
+        /// reflect the current state.
+        override func menu(for event: NSEvent) -> NSMenu? {
+            let menu = NSMenu()
+            for (index, item) in items.enumerated() {
+                let menuItem = NSMenuItem(
+                    title: item.title, action: #selector(run(_:)), keyEquivalent: "")
+                menuItem.target = self
+                menuItem.tag = index
+                menu.addItem(menuItem)
+            }
+            return menu
+        }
+
+        @objc private func run(_ sender: NSMenuItem) {
+            guard items.indices.contains(sender.tag) else { return }
+            items[sender.tag].action()
+        }
+
+        /// Claim the point ONLY while a right-mouse-down is being dispatched;
+        /// every other event passes straight through to the content beneath.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            NSApp.currentEvent?.type == .rightMouseDown ? self : nil
+        }
+    }
 }

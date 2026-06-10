@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// In-app design system explorer. Pommora's Storybook equivalent — a debug-only
@@ -345,19 +346,13 @@ private struct ChipsGallery: View {
     }
 }
 
-// MARK: - Windows Gallery (stubs — buttons that pop up the actual windows)
+// MARK: - Windows Gallery (live launchers)
 
-/// Test-launcher for Pommora's popup windows. Each row is a button that
-/// opens a stub representation of the target window. As real designs land,
-/// the stub `WindowStubSheet` gets replaced in-place with the real window
-/// chrome (Liquid Glass X + Inspector toggle, two-column body, etc.).
-///
-/// Currently using `.sheet(isPresented:)` for the stub popups since they're
-/// just placeholders. When the real chrome ships, swap to `openWindow(id:)`
-/// calls against Window scenes registered in `PommoraApp.swift`.
+/// Launcher for Pommora's in-window popup surfaces. Each row opens the REAL
+/// component over the main window's content (via `AppGlobals.current`, the
+/// same cross-scene bridge the standalone scenes use) so the shipped chrome
+/// is browsable from the library.
 private struct WindowsGallery: View {
-    @State private var showingPagePreview: Bool = false
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
@@ -368,21 +363,13 @@ private struct WindowsGallery: View {
                         title: "Page Preview",
                         symbol: "doc.richtext",
                         summary:
-                            "Standalone-window preview of a Page — full editor surface in its own window. Queued behind the cross-feature PreviewWindow primitive.",
-                        action: { showingPagePreview = true }
+                            "In-window draggable Liquid Glass card previewing a Page (PagesV2 V8). 475×475 collapsed, resizable via the bottom-right grip; multiple cards cascade +24,+24 and re-opening a page focuses its card. Opens locked (read-only) — the bottom-right Lock unlocks live editing on the main editor's save path; the inspector capsule widens the card with the page's frontmatter; right-click offers Lock/Unlock + Open Page.",
+                        action: { openSamplePreviewCard() }
                     )
                 }
                 .padding(.horizontal)
             }
             .padding(.vertical, 24)
-        }
-        .sheet(isPresented: $showingPagePreview) {
-            WindowStubSheet(
-                title: "Page Preview",
-                symbol: "doc.richtext",
-                description:
-                    "Stub — real Page Preview chrome lands alongside the cross-feature PreviewWindow primitive. Will render the full Page editor in a standalone window with matching chrome."
-            ) { showingPagePreview = false }
         }
     }
 
@@ -391,13 +378,43 @@ private struct WindowsGallery: View {
             Text("Windows")
                 .font(.title.bold())
             Text(
-                "Click a row to launch the window stub. As real designs land, each stub gets replaced in-place with the real window chrome."
+                "Click a row to launch the live component over the main window. Rows need an open Nexus with content to resolve a sample."
             )
             .foregroundStyle(.secondary)
             .font(.callout)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
+    }
+
+    /// Opens a sample `PagePreview` card for the first resolvable Page (vault
+    /// roots first, then collections), then raises the main window so the
+    /// card is visible. No-op when no Nexus is open or no Page exists.
+    private func openSamplePreviewCard() {
+        guard let env = AppGlobals.current else { return }
+        Task { @MainActor in
+            for vault in env.vaultManager.types {
+                await env.contentManager.loadAll(for: vault)
+                if let page = env.contentManager.pages(in: vault).first {
+                    env.previewStack.open(page, vault: vault, collection: nil)
+                    raiseMainWindow()
+                    return
+                }
+                for collection in env.vaultManager.pageCollections(in: vault) {
+                    await env.contentManager.loadAll(for: collection)
+                    if let page = env.contentManager.pages(in: collection).first {
+                        env.previewStack.open(page, vault: vault, collection: collection)
+                        raiseMainWindow()
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    private func raiseMainWindow() {
+        NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })?
+            .makeKeyAndOrderFront(nil)
     }
 }
 
@@ -449,49 +466,6 @@ private struct WindowLaunchRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-    }
-}
-
-/// Stub popup body. Replaced in-place per-window as real designs ship.
-private struct WindowStubSheet: View {
-    let title: String
-    let symbol: String
-    let description: String
-    let onClose: () -> Void
-
-    var body: some View {
-        VStack(spacing: 20) {
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-
-                Spacer()
-            }
-
-            Image(systemName: symbol)
-                .font(.system(size: 44))
-                .foregroundStyle(.tertiary)
-
-            Text(title)
-                .font(.title2.bold())
-
-            Text(description)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
-
-            Text("Design lands in the Windows category as it ships.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(28)
-        .frame(width: 480, height: 360)
     }
 }
 

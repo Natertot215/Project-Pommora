@@ -58,6 +58,38 @@ struct StorageMenuRoot: View {
                 mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
             }
             .padding(.vertical, PUI.Spacing.xs)
+        } footer: {
+            openInFooter
+        }
+    }
+
+    /// Pinned open-in footer (vault-scoped, decision #2): a compact
+    /// `Compact | Window` segmented control below a trailing divider,
+    /// right-aligned. Writes `PageType.open_in` via `setOpenIn`. Labels are
+    /// structural — NOT user-renameable.
+    @ViewBuilder
+    private var openInFooter: some View {
+        if case .pageType(let liveVault) = liveScope {
+            Divider()
+            HStack {
+                Spacer()
+                Picker(
+                    "Layout",
+                    selection: Binding(
+                        get: { liveVault.openIn ?? .window },
+                        set: { mode in
+                            Task { try? await pageTypeManager.setOpenIn(mode, forVault: liveVault.id) }
+                        }
+                    )
+                ) {
+                    Text("Compact").tag(OpenInMode.compact)
+                    Text("Window").tag(OpenInMode.window)
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
+            .padding(.horizontal, PUI.Row.paddingHorizontal)
+            .padding(.vertical, PUI.Row.paddingVertical)
         }
     }
 

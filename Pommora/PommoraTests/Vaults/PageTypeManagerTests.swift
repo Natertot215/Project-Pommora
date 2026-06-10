@@ -203,4 +203,33 @@ struct PageTypeManagerTests {
         #expect(after.first == movedTitle)
         #expect(after.last == before[0].title)
     }
+
+    @Test("setOpenIn writes open_in to the vault sidecar; reload reflects it")
+    func setOpenInPersists() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = PageTypeManager(nexus: nexus)
+        await manager.loadAll()
+        try await manager.createPageType(name: "Planner", icon: nil)
+        let vault = manager.types.first!
+        #expect(vault.openIn == nil)  // absent on fresh sidecars
+
+        try await manager.setOpenIn(.compact, forVault: vault.id)
+        #expect(manager.types.first?.openIn == .compact)
+
+        // The sidecar carries the raw value under the snake_case key.
+        let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
+        let json =
+            try JSONSerialization.jsonObject(with: Data(contentsOf: meta)) as? [String: Any]
+        #expect(json?["open_in"] as? String == "compact")
+
+        // A fresh manager reload reflects the persisted mode.
+        let reloaded = PageTypeManager(nexus: nexus)
+        await reloaded.loadAll()
+        #expect(reloaded.types.first?.openIn == .compact)
+
+        // Flipping back persists too.
+        try await manager.setOpenIn(.window, forVault: vault.id)
+        #expect(manager.types.first?.openIn == .window)
+    }
 }

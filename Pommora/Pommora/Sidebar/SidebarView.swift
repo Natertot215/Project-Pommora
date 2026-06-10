@@ -9,6 +9,7 @@ struct SidebarView: View {
     @Environment(AgendaEventManager.self) private var agendaEventManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(SettingsManager.self) private var settingsManager
+    @Environment(PreviewStack.self) private var previewStack
 
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -57,10 +58,34 @@ struct SidebarView: View {
                     space: spaceManager,
                     topic: topicManager
                 )
-                if let newTag, let resolved = SidebarSelection(tag: newTag, lookup: lookup) {
-                    if selection != resolved { selection = resolved }
-                } else if newTag == nil, selection != .none {
-                    selection = .none
+                guard let newTag else {
+                    if selection != .none { selection = .none }
+                    return
+                }
+                guard let resolved = SidebarSelection(tag: newTag, lookup: lookup) else { return }
+                // Open-in routing (V8): a page tap consults its vault's
+                // `open_in` mode — `.window` renders in the detail pane
+                // (selection change), `.compact` opens/focuses a PagePreview
+                // card WITHOUT moving the selection. The edit-conflict guard
+                // (`.suppressed`) keeps a main-pane page from ever previewing.
+                if case .page(let p) = resolved,
+                    let parent = contentManager.resolveParent(for: p, pageTypeManager: vaultManager)
+                {
+                    switch PreviewStack.destination(
+                        for: parent.vault, page: p, currentSelection: selection)
+                    {
+                    case .detailPane:
+                        if selection != resolved { selection = resolved }
+                    case .previewCard:
+                        previewStack.open(p, vault: parent.vault, collection: parent.collection)
+                        // Snap the row highlight back to the still-active
+                        // main-pane selection (the List already moved it).
+                        selectedTag = SelectionTag(selection)
+                    case .suppressed:
+                        selectedTag = SelectionTag(selection)
+                    }
+                } else if selection != resolved {
+                    selection = resolved
                 }
             }
             .onChange(of: selection) { _, newSelection in

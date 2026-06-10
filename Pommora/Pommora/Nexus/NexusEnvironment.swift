@@ -61,6 +61,13 @@ final class NexusEnvironment {
     let mainWindowRouter: MainWindowRouter
     let settingsManager: SettingsManager
 
+    /// Open `PagePreview` cards (V8 in-window overlay). Owned here — not by
+    /// `ContentView` — because the cards are per-Nexus state (their `PageRef`s
+    /// resolve against THIS Nexus's managers) and the environment rebuild on
+    /// Nexus switch drops stale cards for free; injection rides the single
+    /// `.injectNexusEnvironment(_:)` modifier (quirk #15).
+    let previewStack = PreviewStack()
+
     /// Shared context-link/tier display resolver (icon + title from the index).
     /// Its index closure captures `nexusManager` and reads `.currentIndex`
     /// lazily, so it tracks index swaps within this Nexus.
@@ -237,6 +244,7 @@ extension View {
             .environment(env.mainWindowRouter)
             .environment(env.settingsManager)
             .environment(env.contextResolver)
+            .environment(env.previewStack)
             // Protocol existentials ride through keyPath-based environment values
             // (the `@Entry` entry in ConnectionResolver.swift), not `.environment(object)`.
             .environment(\.connectionResolver, env.connectionResolver)

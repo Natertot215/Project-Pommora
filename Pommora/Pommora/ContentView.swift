@@ -135,6 +135,16 @@ struct ContentView: View {
         } detail: {
             detail
         }
+        // PagePreview overlay layer (V8): in-window draggable glass cards
+        // above the detail content. One card per open PreviewStack entry;
+        // empty regions pass hits through. Mounted at the window level so
+        // cards drag across (and clamp to) the full window bounds.
+        .overlay {
+            if let env = nexusEnvironment {
+                PreviewOverlayHost()
+                    .injectNexusEnvironment(env)
+            }
+        }
         .tint(currentAccent)
         .environment(\.nexusAccent, currentAccent)
         .sheet(
