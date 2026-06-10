@@ -311,7 +311,7 @@ case .compact:
 - [ ] **Step 9 (V8, shrunk) — `ComponentLibraryView.swift`:** the "Item Window" launcher died in P3 and `ItemChip` already became the `ChipLink` design file in P2.5 — what remains: rewrite the "Page Preview" row prose + rewire it to open a sample preview card via `previewStack`.
 - [ ] **Step 10 — Verify + commit.** Builder Agent green. Manual smoke (note for executor): a `.compact` vault page-tap opens a `PagePreview` card **locked/read-only**; the card drags within the window and a second page opens a second card (cascade); the bottom-right Lock toggles editability and edits live-save; right-click → "Open Page" routes to the detail pane + removes the card; the inspector toggle shows/hides independently; a `.window` vault renders in-pane; tapping a page already shown in the main pane opens NO card. Commit: `feat(pages): PagePreview card + vault open-in toggle`.
 
-**Green gate:** build + test green; open-in routing works both ways; the edit-conflict guard holds; no window/scene machinery for previews.
+**Green gate:** build + test green; open-in routing works both ways; the edit-conflict guard holds; no window/scene machinery for previews. **PLUS the visual-parity gate (Nathan's directive, 2026-06-10):** P5 is not complete until the controller launches the app against the `// Test` nexus, opens a real page as a preview card, screenshots it, sends the picture to Nathan, and the card is **visually identical to the Figma design** — the controller iterates rework rounds (screenshot → diff against the Figma capture → fix → re-screenshot) until parity, BEFORE continuing to P6. No mid-plan UIX tweak requests go to Nathan; parity is the controller's job.
 
 ---
 
