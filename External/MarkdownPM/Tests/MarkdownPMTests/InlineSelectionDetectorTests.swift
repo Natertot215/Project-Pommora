@@ -4,11 +4,10 @@
 //
 //  Pins the inline-token DETECTOR — `inlineTokenContext(at:parsed:codeTokens:
 //  text:)` — the pure-over-(text, caret, parsed-tokens) classifier the caret-
-//  move path uses to decide which inline token the caret is inside. E5-A adds
-//  the `{{Title}}` chip-link arm beside the existing `[[Name]]` wiki-link and
-//  `![[Name]]` image-embed arms; this suite proves the new arm classifies a
-//  chip-link AND that the shared mapping (`InlineTokenContext.selectionKind`)
-//  reports `.chipLink`, while leaving the wiki-link arm unchanged.
+//  move path uses to decide which inline token the caret is inside: the
+//  `[[Name]]` wiki-link and `![[Name]]` image-embed arms, plus the shared
+//  mapping (`InlineTokenContext.selectionKind`). `{{ }}` is NOT a syntax
+//  (PagesV2 V7) — a caret inside `{{Beta}}` detects nothing.
 //
 //  Harness: the read-only `parsedDocument(for:)` path on a delegate-less
 //  programmatic NSTextView (mirrors ParseSpineTests) — it does NOT fire the
@@ -60,62 +59,12 @@ struct InlineSelectionDetectorTests {
         )
     }
 
-    @Test("Caret inside {{Beta}} classifies as .chipLink with selectionKind .chipLink")
-    func caretInsideChipLinkClassifies() {
-        // "alpha {{Beta}} gamma" — `{{` opens at index 6, interior "Beta" spans 8..12.
-        let text = "alpha {{Beta}} gamma"
-        // Caret in the middle of "Beta" (index 9, between 'B' and 'e').
-        guard let context = detect(text, caret: 9) else {
-            Issue.record("detector returned nil for a caret inside {{Beta}}")
-            return
+    @Test("Caret inside {{Beta}} detects NOTHING — {{ }} is plain text (PagesV2 V7)")
+    func caretInsideCurlyBracesDetectsNothing() {
+        // "alpha {{Beta}} gamma" — caret in the middle of "Beta" (index 9).
+        if let context = detect("alpha {{Beta}} gamma", caret: 9) {
+            Issue.record("expected nil for plain-text {{Beta}}, got \(context)")
         }
-        guard case .chipLink(let token) = context else {
-            Issue.record("expected .chipLink, got \(context)")
-            return
-        }
-        #expect(context.selectionKind == .chipLink)
-        // The token's content range covers the interior placeholder "Beta".
-        #expect((text as NSString).substring(with: token.contentRange) == "Beta")
-    }
-
-    @Test("Display range for the {{Beta}} chip-link spans the full token (markers + Beta interior)")
-    func chipLinkDisplayRangeSpansFullToken() {
-        let text = "alpha {{Beta}} gamma"
-        let (coordinator, _) = makeCoordinator(text: text)
-        let parsed = coordinator.parsedDocument(for: text)
-        guard
-            let context = coordinator.inlineTokenContext(
-                at: 9, parsed: parsed, codeTokens: parsed.codeTokens, text: text as NSString)
-        else {
-            Issue.record("detector returned nil for a caret inside {{Beta}}")
-            return
-        }
-        // `{{ }}` markers are 2 chars (parallel to `[[ ]]`) → openingMarkerLength 2.
-        // selectionDisplayRange spans marker-to-marker (the same shape it produces
-        // for a `[[ ]]` wiki-link), so it covers the whole `{{Beta}}` token.
-        let displayRange = coordinator.selectionDisplayRange(for: context.token, openingMarkerLength: 2)
-        #expect((text as NSString).substring(with: displayRange) == "{{Beta}}")
-        // The interior placeholder "Beta" lives on the token's contentRange.
-        #expect((text as NSString).substring(with: context.token.contentRange) == "Beta")
-    }
-
-    @Test("Placeholder for {{Beta}} is the interior 'Beta', not the {{Beta}} token")
-    func chipLinkPlaceholderIsInterior() {
-        let text = "alpha {{Beta}} gamma"
-        let (coordinator, _) = makeCoordinator(text: text)
-        let parsed = coordinator.parsedDocument(for: text)
-        guard
-            let context = coordinator.inlineTokenContext(
-                at: 9, parsed: parsed, codeTokens: parsed.codeTokens, text: text as NSString)
-        else {
-            Issue.record("detector returned nil for a caret inside {{Beta}}")
-            return
-        }
-        // The autocomplete query IS the placeholder — it must be the bare interior
-        // title, never the marker-wrapped token, or titleCandidates(LIKE '{{Beta}}%')
-        // matches nothing and the popup never appears. Regression guard for the
-        // displayRange→contentRange placeholder fix.
-        #expect(coordinator.inlinePlaceholder(for: context.token, in: text as NSString) == "Beta")
     }
 
     @Test("Placeholder for [[Page]] is the interior 'Page' (wiki-link parity)")
@@ -133,7 +82,7 @@ struct InlineSelectionDetectorTests {
         #expect(coordinator.inlinePlaceholder(for: context.token, in: text as NSString) == "Page")
     }
 
-    @Test("Caret inside [[Page]] still classifies as .wikiLink (unchanged path)")
+    @Test("Caret inside [[Page]] classifies as .wikiLink")
     func wikiLinkPathUnchanged() {
         let text = "see [[Page]] now"
         // Caret inside "Page" (index 7).
@@ -151,12 +100,11 @@ struct InlineSelectionDetectorTests {
     @Test("InlineTokenContext.selectionKind maps each case to its matching InlineSelectionKind")
     func selectionKindMappingIsExhaustive() {
         let token = MarkdownToken(
-            kind: .chipLink,
+            kind: .wikiLink,
             range: NSRange(location: 0, length: 8),
             contentRange: NSRange(location: 2, length: 4),
             markerRanges: [NSRange(location: 0, length: 2), NSRange(location: 6, length: 2)]
         )
-        #expect(NativeTextViewCoordinator.InlineTokenContext.chipLink(token: token).selectionKind == .chipLink)
         #expect(NativeTextViewCoordinator.InlineTokenContext.wikiLink(token: token).selectionKind == .wikiLink)
         #expect(NativeTextViewCoordinator.InlineTokenContext.imageEmbed(token: token).selectionKind == .imageEmbed)
     }

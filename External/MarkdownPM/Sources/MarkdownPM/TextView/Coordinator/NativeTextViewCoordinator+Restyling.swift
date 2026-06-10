@@ -197,7 +197,6 @@ extension NativeTextViewCoordinator {
         var blockLatexTokens: [MarkdownToken] = []
         var wikiLinkTokens: [MarkdownToken] = []
         var imageEmbedTokens: [MarkdownToken] = []
-        var chipLinkTokens: [MarkdownToken] = []
 
         codeTokens.reserveCapacity(tokens.count / 2)
         latexTokens.reserveCapacity(tokens.count / 4)
@@ -216,8 +215,6 @@ extension NativeTextViewCoordinator {
                 wikiLinkTokens.append(token)
             case .imageEmbed:
                 imageEmbedTokens.append(token)
-            case .chipLink:
-                chipLinkTokens.append(token)
             default:
                 break
             }
@@ -237,7 +234,6 @@ extension NativeTextViewCoordinator {
             blockLatexTokens: blockLatexTokens,
             wikiLinkTokens: wikiLinkTokens,
             imageEmbedTokens: imageEmbedTokens,
-            chipLinkTokens: chipLinkTokens,
             appleDocument: appleDocument,
             lineIndex: lineIndex,
             constructLineStarts: constructLineStarts

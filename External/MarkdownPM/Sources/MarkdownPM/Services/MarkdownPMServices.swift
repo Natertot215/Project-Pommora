@@ -206,9 +206,9 @@ public struct MarkdownPMBus: Sendable {
     public var findClearHighlights: Notification.Name?
     /// Posted by the host UI when the set of resolvable links changed elsewhere
     /// (an entity was created / renamed / deleted in another surface). The engine
-    /// re-styles the whole document so every `[[ ]]`/`{{ }}` re-queries its
-    /// resolver — a phantom whose target just appeared lights up live, without
-    /// the user editing this document. No `userInfo` needed (full restyle).
+    /// re-styles the whole document so every `[[ ]]` re-queries its resolver
+    /// — a phantom whose target just appeared lights up live, without the
+    /// user editing this document. No `userInfo` needed (full restyle).
     public var connectionsChanged: Notification.Name?
 
     public init(
@@ -244,9 +244,6 @@ public struct MarkdownPMBus: Sendable {
 public struct MarkdownPMServices: Sendable {
     /// Resolves `[[ ]]` wiki-links (page-syntax connections).
     public var wikiLinks: any WikiLinkResolver
-    /// Resolves `{{ }}` chip-links (chip-syntax connections). Parallel to
-    /// `wikiLinks`; the embedder injects its chip-link resolver here.
-    public var chipLinks: any WikiLinkResolver
     public var images: any EmbeddedImageProvider
     public var syntaxHighlighter: any SyntaxHighlighter
     public var latex: any LatexRenderer
@@ -254,14 +251,12 @@ public struct MarkdownPMServices: Sendable {
 
     public init(
         wikiLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
-        chipLinks: any WikiLinkResolver = NoOpWikiLinkResolver(),
         images: any EmbeddedImageProvider = NoOpEmbeddedImageProvider(),
         syntaxHighlighter: any SyntaxHighlighter = PlainTextSyntaxHighlighter(),
         latex: any LatexRenderer = NoOpLatexRenderer(),
         bus: MarkdownPMBus = .default
     ) {
         self.wikiLinks = wikiLinks
-        self.chipLinks = chipLinks
         self.images = images
         self.syntaxHighlighter = syntaxHighlighter
         self.latex = latex

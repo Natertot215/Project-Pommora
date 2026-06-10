@@ -71,7 +71,7 @@ struct ConnectionCascadeTests {
         let out = ConnectionRewriter.rewrite(
             body: body, oldTitle: "Old", newTitle: "New")
         // Both case variants of the [[ ]] page link rewrite (normalized match); the
-        // image embed ![[Old]] and the dormant chip-link {{Old}} are untouched.
+        // image embed ![[Old]] and the plain-text {{Old}} are untouched.
         // Exact-string assertion since ![[Old]] contains the substring "[[Old]]"
         // (no `contains`).
         #expect(out == "see [[New]] and [[New]] and ![[Old]] and {{Old}}")

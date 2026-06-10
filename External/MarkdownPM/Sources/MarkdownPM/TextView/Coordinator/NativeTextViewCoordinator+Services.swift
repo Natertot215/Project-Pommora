@@ -134,7 +134,7 @@ extension NativeTextViewCoordinator {
 
     /// The host signalled that the set of resolvable connection titles changed
     /// elsewhere (an entity was created / renamed / deleted in another surface).
-    /// Restyle the whole document so every `[[ ]]`/`{{ }}` re-queries its resolver
+    /// Restyle the whole document so every `[[ ]]` re-queries its resolver
     /// — a phantom whose target just appeared resolves live. Mirrors the proven
     /// `handleAppearanceChange` full-document restyle; no `object` filter because
     /// the change is global (any surface), not this text view's own.
@@ -178,7 +178,7 @@ extension NativeTextViewCoordinator {
         let inSpellcheckSuppressedToken: Bool
         if let allTokens = allTokens {
             inSpellcheckSuppressedToken = allTokens.contains { token in
-                (token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .chipLink)
+                (token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed)
                     && NSLocationInRange(caretLocation, token.range)
             }
         } else {
@@ -215,7 +215,7 @@ extension NativeTextViewCoordinator {
     func isInsideSpellcheckSuppressedToken(location: Int, in text: String) -> Bool {
         let parsed = parsedDocument(for: text)
         return parsed.tokens.contains { token in
-            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .chipLink else {
+            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed else {
                 return false
             }
             return NSLocationInRange(location, token.range)
@@ -225,7 +225,7 @@ extension NativeTextViewCoordinator {
     func isInsideSpellcheckSuppressedToken(range: NSRange, in text: String) -> Bool {
         let parsed = parsedDocument(for: text)
         return parsed.tokens.contains { token in
-            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed || token.kind == .chipLink else {
+            guard token.kind == .wikiLink || token.kind == .link || token.kind == .imageEmbed else {
                 return false
             }
             return NSIntersectionRange(token.range, range).length > 0
@@ -422,7 +422,7 @@ extension NativeTextViewCoordinator {
 
     /// Recompute the preview anchor for the active inline token (used when scrolling).
     func refreshActiveLinkCaretRect() {
-        guard isWikiLinkActive || isChipLinkActive || isImageEmbedActive, let tv = textView else { return }
+        guard isWikiLinkActive || isImageEmbedActive, let tv = textView else { return }
         guard let rect = inlinePreviewRect(in: tv) else { return }
         DispatchQueue.main.async { [weak self] in
             self?.onCaretRectChange?(rect)
@@ -465,13 +465,13 @@ extension NativeTextViewCoordinator {
     }
 
     /// The text the embedder sees *inside* an inline token's brackets — the
-    /// token's interior content (`Beta` for `{{Beta}}`, `Page` for `[[Page]]`),
-    /// NOT the marker-wrapped token. This IS the `WikiLinkSelection.placeholder`
-    /// contract: autocomplete + rename UIs seed from the bare title, so the query
-    /// must be the interior. `selectionDisplayRange` (full marker-to-marker span)
-    /// stays the caret-anchor + storage-mapping range — the two jobs need
-    /// different ranges, and the placeholder must NOT be `{{Beta}}` or
-    /// `titleCandidates(LIKE '{{Beta}}%')` returns nothing and no popup appears.
+    /// token's interior content (`Page` for `[[Page]]`), NOT the marker-wrapped
+    /// token. This IS the `WikiLinkSelection.placeholder` contract: autocomplete
+    /// + rename UIs seed from the bare title, so the query must be the interior.
+    /// `selectionDisplayRange` (full marker-to-marker span) stays the
+    /// caret-anchor + storage-mapping range — the two jobs need different
+    /// ranges, and the placeholder must NOT be `[[Page]]` or
+    /// `titleCandidates(LIKE '[[Page]]%')` returns nothing and no popup appears.
     func inlinePlaceholder(for token: MarkdownToken, in text: NSString) -> String {
         text.substring(with: token.contentRange)
     }
@@ -513,16 +513,6 @@ extension NativeTextViewCoordinator {
             guard selectionLocation >= start && selectionLocation <= end else { continue }
             guard !MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: codeTokens) else { break }
             return .wikiLink(token: token)
-        }
-
-        for token in parsed.chipLinkTokens {
-            // Only match when the caret sits between the inner edges of `{{…}}` —
-            // `{{`/`}}` markers are 2 chars, identical to the wikiLink path above.
-            let start = token.range.location + 2
-            let end = NSMaxRange(token.range) - 2
-            guard selectionLocation >= start && selectionLocation <= end else { continue }
-            guard !MarkdownDetection.isInsideCodeBlock(range: token.range, codeTokens: codeTokens) else { break }
-            return .chipLink(token: token)
         }
 
         return nil

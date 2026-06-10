@@ -5,7 +5,7 @@ import Testing
 
 @testable import Pommora
 
-/// E1 Step 4 — the cross-surface LIVE REFRESH bus. A phantom `[[X]]`/`{{X}}` in an
+/// E1 Step 4 — the cross-surface LIVE REFRESH bus. A phantom `[[X]]` in an
 /// open editor must light up when X is created / renamed / deleted in ANOTHER
 /// surface, without the user typing in the doc holding the link.
 ///

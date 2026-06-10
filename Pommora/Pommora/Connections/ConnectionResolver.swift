@@ -16,10 +16,8 @@ struct PommoraConnectionResolver: WikiLinkResolver {
 }
 
 extension EnvironmentValues {
-    /// The stable `[[ ]]` page-connection resolver injected by `NexusEnvironment`.
+    /// The stable `[[ ]]` connection resolver injected by `NexusEnvironment`.
     /// A protocol existential, so it rides through `@Entry` (not `.environment(object)`)
     /// — defaults to NoOp so previews + any subtree without a live Nexus stay inert.
-    @Entry var pageConnectionResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
-    /// The dormant `{{ }}` chip-link resolver — gated off; retires with chipLink in P2.5.
-    @Entry var itemConnectionResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
+    @Entry var connectionResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
 }

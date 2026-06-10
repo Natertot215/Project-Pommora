@@ -3,7 +3,7 @@ import Foundation
 /// App-owned signal that the set of resolvable connection titles changed —
 /// an entity was created, renamed, or deleted in SOME surface/window. Open Page
 /// editors observe it through the `MarkdownPMBus.connectionsChanged` slot (wired
-/// in `MarkdownEditorConfig.pommora`) and re-style: every `[[ ]]`/`{{ }}` re-runs
+/// in `MarkdownEditorConfig.pommora`) and re-style: every `[[ ]]` re-runs
 /// its resolver, so a phantom whose target just appeared lights up live — without
 /// the user typing in the doc holding the link.
 ///

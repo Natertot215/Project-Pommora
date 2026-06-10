@@ -138,7 +138,7 @@ enum IndexSchema {
             source_id TEXT NOT NULL,
             source_kind TEXT NOT NULL,          -- "page" | "item"
             target_id TEXT,                     -- NULL while phantom (unresolved)
-            target_kind TEXT NOT NULL,          -- "page" (from [[ ]]) | "item" (from {{ }})
+            target_kind TEXT NOT NULL,          -- "page" (from [[ ]]); "item" legacy ({{ }} retired, PagesV2 V7)
             target_title TEXT NOT NULL,         -- normalized (trimmed+lowercased) — resolution key
             surface TEXT NOT NULL,              -- "page_body" | "item_body"
             multiplicity INTEGER NOT NULL DEFAULT 1,

@@ -10,8 +10,8 @@ struct AutoCompleteCandidate: Identifiable, Hashable {
     let title: String
 }
 
-/// **The candidate popup for `[[` page / `{{` item autocomplete.** As the user
-/// types inside the brackets, this lists matching entities so they can pick one.
+/// **The candidate popup for `[[` page autocomplete.** As the user types
+/// inside the brackets, this lists matching entities so they can pick one.
 /// A PURE presentation component over a candidate list + callbacks — no index, no
 /// resolver, no editor coupling.
 ///
@@ -22,7 +22,7 @@ struct AutoCompleteCandidate: Identifiable, Hashable {
 /// NavDropdown, BackForwardButtons).
 ///
 /// **Rows:** each candidate = the entity icon + title in body font, in an `HStack`
-/// with tight inline padding (mirrors `ItemChip` density).
+/// with tight inline padding (chip density, mirroring the Chips primitives).
 ///
 /// **Match highlight:** matching is PREFIX (starts-with, case-insensitive), so the
 /// matched span is always the LEADING `query.count` characters of the title.
@@ -150,7 +150,7 @@ struct AutoCompleteWindow: View {
 }
 
 /// One candidate row: icon + the prefix-highlighted title in body font, with a
-/// subtle `.quaternary` fill when selected. Tight inline padding mirrors `ItemChip`.
+/// subtle `.quaternary` fill when selected. Tight inline padding mirrors the Chips primitives.
 private struct AutoCompleteRow: View {
     let candidate: AutoCompleteCandidate
     let queryLength: Int

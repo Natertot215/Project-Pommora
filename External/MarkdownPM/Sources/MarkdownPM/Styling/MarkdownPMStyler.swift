@@ -253,7 +253,6 @@ enum MarkdownPMStyler {
         result += styleEmphasis(ctx)
         result += styleAutoLinks(ctx)
         result += styleWikiLinks(ctx, wikiLinkIDProvider: wikiLinkIDProvider)
-        result += styleChipLinks(ctx)
         result += styleImageEmbeds(ctx)
         result += styleMarkdownLinks(ctx)
         result += styleCodeBlocks(ctx)
@@ -447,14 +446,13 @@ extension MarkdownPMStyler {
 
     static func styleIncompleteLinkBrackets(_ ctx: StylingContext) -> [StyledRange] {
         var attrs: [StyledRange] = []
-        // `[[Name]]` / `{{Title}}` are already styled by their dedicated link
-        // passes — the greedy `\[...\]` regex would otherwise match the inner
-        // `[[Name]` of a completed wikilink and stamp the systemBlue
-        // incompleteLink color over the title (last-writer-wins overwriting
-        // the muted/link color). Skip any match intersecting those token
-        // ranges — same intersection guard `shrinkInactiveMarkers` uses for
-        // literal-target tokens.
-        let resolvedLinkTokens = ctx.tokens.filter { $0.kind == .wikiLink || $0.kind == .chipLink }
+        // `[[Name]]` is already styled by its dedicated link pass — the greedy
+        // `\[...\]` regex would otherwise match the inner `[[Name]` of a
+        // completed wikilink and stamp the systemBlue incompleteLink color
+        // over the title (last-writer-wins overwriting the muted/link color).
+        // Skip any match intersecting those token ranges — same intersection
+        // guard `shrinkInactiveMarkers` uses for literal-target tokens.
+        let resolvedLinkTokens = ctx.tokens.filter { $0.kind == .wikiLink }
         for regex in MarkdownPMStyler.incompleteLinkRegexes {
             for match in regex.matches(in: ctx.text, options: [], range: ctx.fullRange) {
                 let matchRange = match.range
@@ -495,7 +493,7 @@ extension MarkdownPMStyler {
         // suppression guard in `styleEmphasis`: skip any emphasis-kind token
         // whose range intersects a wikiLink/imageEmbed range.
         let literalTargetTokens = ctx.tokens.filter {
-            $0.kind == .wikiLink || $0.kind == .imageEmbed || $0.kind == .chipLink
+            $0.kind == .wikiLink || $0.kind == .imageEmbed
         }
         for (i, token) in ctx.tokens.enumerated() where !ctx.isActive(tokenIndex: i) {
             if token.kind == .codeBlock || token.kind == .inlineCode || token.kind == .inlineLatex

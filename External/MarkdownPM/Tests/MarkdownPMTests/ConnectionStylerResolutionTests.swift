@@ -4,16 +4,15 @@ import Testing
 
 @testable import MarkdownPM
 
-/// Pins the resolved-vs-unresolved styling for `[[ ]]` page links and
-/// `{{ }}` chip links once a real resolver is wired into
-/// `configuration.services`. The regression marker: an UNRESOLVED `[[Ghost]]`
-/// must render `secondaryLabelColor` (muted) — NOT the systemBlue
-/// incompleteLink color the greedy `styleIncompleteLinkBrackets` pass used to
-/// stamp over the title of EVERY completed wikilink (last-writer-wins).
+/// Pins the resolved-vs-unresolved styling for `[[ ]]` page links once a real
+/// resolver is wired into `configuration.services`. The regression marker: an
+/// UNRESOLVED `[[Ghost]]` must render `secondaryLabelColor` (muted) — NOT the
+/// systemBlue incompleteLink color the greedy `styleIncompleteLinkBrackets`
+/// pass used to stamp over the title of EVERY completed wikilink
+/// (last-writer-wins).
 ///
-/// Chip RENDERING is behind `renderChipLinksAsChips` (default OFF): the
-/// chip-on tests flip the gate to keep the dormant chip pipeline covered;
-/// the gate-off test pins the default plain-link rendering.
+/// Also pins the PagesV2 V7 retirement: `{{Title}}` is NOT a connection
+/// syntax — it tokenizes to nothing and styles as plain body text.
 @MainActor
 @Suite("ConnectionStylerResolution")
 struct ConnectionStylerResolutionTests {
@@ -43,15 +42,12 @@ struct ConnectionStylerResolutionTests {
         body: String,
         knownNames: Set<String>,
         at inspectLocation: Int,
-        caretAt: Int? = nil,
-        renderChipLinksAsChips: Bool = false
+        caretAt: Int? = nil
     ) -> [NSAttributedString.Key: Any] {
         let services = MarkdownPMServices(
-            wikiLinks: StubResolver(knownNames: knownNames),
-            chipLinks: StubResolver(knownNames: knownNames)
+            wikiLinks: StubResolver(knownNames: knownNames)
         )
-        var configuration = MarkdownPMConfiguration(services: services)
-        configuration.renderChipLinksAsChips = renderChipLinksAsChips
+        let configuration = MarkdownPMConfiguration(services: services)
 
         let tokens = MarkdownTokenizer.parseTokens(in: body)
         // Default caret OUTSIDE every token (trailing position past the last
@@ -84,8 +80,8 @@ struct ConnectionStylerResolutionTests {
 
     /// Body indices (UTF-16):
     /// `[[Alpha]]` → `A` at 2; `[[Ghost]]` → `G` at 12;
-    /// `{{Beta}}` → `B` at 22; `{{Casper}}` → `C` at 31.
-    private let body = "[[Alpha]] [[Ghost]] {{Beta}} {{Casper}} "
+    /// `{{Beta}}` → `B` at 22 (plain text since PagesV2 V7).
+    private let body = "[[Alpha]] [[Ghost]] {{Beta}} "
     private let known: Set<String> = ["alpha", "beta"]
 
     @Test("Resolved [[Alpha]] keeps a clickable .link (theme link color)")
@@ -101,40 +97,15 @@ struct ConnectionStylerResolutionTests {
         #expect(attrs[.link] == nil)
     }
 
-    @Test("Gate ON: resolved {{Beta}} renders a chip highlight (.chipLinkTitle + .chipLinkBounds + .chipLinkIcon)")
-    func resolvedChipLinkHasChipWhenGateOn() {
-        let attrs = finalAttributes(
-            body: body, knownNames: known, at: 22, renderChipLinksAsChips: true) // `B`
-        #expect(attrs[.chipLinkTitle] as? String == "Beta")
-        #expect(attrs[.chipLinkBounds] != nil)
-        #expect(attrs[.chipLinkIcon] as? String == "star.fill") // StubResolver returns "star.fill"
-        #expect(attrs[.link] != nil) // click routing to onChipLinkClick depends on .link
-    }
-
-    @Test("Gate OFF (default): resolved {{Beta}} renders a VISIBLE plain link — .link + .chipLinkTitle + link color + underline, NO chip leakage")
-    func resolvedChipLinkIsPlainLinkWhenGateOff() {
+    @Test("{{Beta}} is inert plain text — no .link, no underline, no kern, no color override (PagesV2 V7)")
+    func curlyBracesAreInertPlainText() {
+        // `Beta` IS a resolvable title — irrelevant: `{{ }}` is not a syntax,
+        // so the resolver is never consulted and nothing styles the span.
         let attrs = finalAttributes(body: body, knownNames: known, at: 22) // `B`
-        #expect(attrs[.link] != nil)
-        #expect(attrs[.chipLinkTitle] as? String == "Beta")
-        #expect(attrs[.chipLinkBounds] == nil)
-        #expect(attrs[.chipLinkIcon] == nil)
-        // The visible-link contract: linkTextAttributes is cleared on the
-        // NSTextView, so the styler must stamp the visuals itself — theme link
-        // foreground (NOT clear, NOT nil) + underline, and NO kern (kern is the
-        // chip-pipeline's collapse trick; its presence = chip leakage).
+        #expect(attrs[.link] == nil)
+        #expect(attrs[.underlineStyle] == nil)
         #expect(attrs[.kern] == nil)
-        #expect(attrs[.foregroundColor] as? NSColor == MarkdownPMTheme.default.link)
-        #expect(attrs[.foregroundColor] as? NSColor != NSColor.clear)
-        #expect(attrs[.underlineStyle] as? Int == NSUnderlineStyle.single.rawValue)
-    }
-
-    @Test("Unresolved {{Casper}} is muted secondaryLabelColor, no highlight attrs (gate ON)")
-    func unresolvedChipLinkIsMutedNoChip() {
-        let attrs = finalAttributes(
-            body: body, knownNames: known, at: 31, renderChipLinksAsChips: true) // `C`
-        #expect(attrs[.foregroundColor] as? NSColor == NSColor.secondaryLabelColor)
-        #expect(attrs[.chipLinkTitle] == nil)
-        #expect(attrs[.chipLinkBounds] == nil)
+        #expect(attrs[.foregroundColor] == nil)
     }
 
     // MARK: - Caret INSIDE a resolved token → raw editable form (E3 behavior)
@@ -147,20 +118,6 @@ struct ConnectionStylerResolutionTests {
     func activeResolvedWikiLinkHasNoLink() {
         // Caret at 4 = between `l` and `p` inside `[[Alpha]]` (content 2..<7).
         let attrs = finalAttributes(body: body, knownNames: known, at: 2, caretAt: 4)
-        #expect(attrs[.link] == nil)
-    }
-
-    /// A resolved `{{Beta}}` with the caret INSIDE must NOT render the highlight —
-    /// no `.chipLinkBounds` / `.chipLinkTitle`, no clearing kern collapse — so the
-    /// raw `{{Beta}}` stays visible + editable (the `!isActive` guard). Gate ON so
-    /// the active-state suppression (not the gate) is what's proven.
-    @Test("Caret inside a resolved {{Beta}} suppresses the highlight (raw editable, gate ON)")
-    func activeResolvedChipLinkHasNoChip() {
-        // Caret at 24 = between `t` and `a` inside `{{Beta}}` (content 22..<26).
-        let attrs = finalAttributes(
-            body: body, knownNames: known, at: 22, caretAt: 24, renderChipLinksAsChips: true)
-        #expect(attrs[.chipLinkBounds] == nil)
-        #expect(attrs[.chipLinkTitle] == nil)
         #expect(attrs[.link] == nil)
     }
 }

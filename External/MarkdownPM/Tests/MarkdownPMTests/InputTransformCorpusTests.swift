@@ -177,27 +177,16 @@ struct InputTransformCorpusTests {
     // arrows, bracket-skip, `enDashSkipsWikilink`) are delegate-independent and
     // stay pinned here unchanged.
 
-    // MARK: - Chip-link `{{ }}` auto-pair (Connections E5)
+    // MARK: - `{{ }}` retirement (PagesV2 V7)
 
-    @Test("Typing `{` after `{` auto-pairs to {{}} with the caret between the braces")
-    func chipLinkAutoPair() {
+    @Test("Typing `{` after `{` does NOT double-pair — {{ }} is plain text")
+    func curlyBraceDoesNotChipPair() {
         let tv = makeHost("{", caret: 1)
         let handled = MarkdownInputHandler.handleCharacterPairAutoPair(
             textView: tv,
             affectedCharRange: NSRange(location: 1, length: 0),
             replacementString: "{")
-        #expect(handled == true)
-        #expect(tv.string == "{{}}")
-        #expect(tv.selectedRange().location == 2)
-    }
-
-    @Test("Typing `{` not preceded by `{` does not auto-pair")
-    func chipLinkAutoPairRequiresPrecedingBrace() {
-        let tv = makeHost("a", caret: 1)
-        let handled = MarkdownInputHandler.handleCharacterPairAutoPair(
-            textView: tv,
-            affectedCharRange: NSRange(location: 1, length: 0),
-            replacementString: "{")
         #expect(handled == false)
+        #expect(tv.string == "{")
     }
 }

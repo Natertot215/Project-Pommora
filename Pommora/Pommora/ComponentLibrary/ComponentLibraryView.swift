@@ -309,17 +309,17 @@ private struct ChipsGallery: View {
                 }
 
                 GallerySection(
-                    title: "Item Chip",
+                    title: "Chip Link",
                     summary:
-                        "Inline rendering of a resolved {{Item}} connection — the linked Item's icon + title in a radius-6 rounded rectangle with a Quaternary fill + a Tertiary 0.75pt stroke, body font. Padding is tighter than ContextChip on BOTH axes so the chip sits within the line box when drawn inline at a {{ }} token in the page editor (which draws this same visual in CoreGraphics)."
+                        "Intentionally-dormant design asset (PagesV2 V7) — the inline chip-link highlight: icon + title in a radius-3 rounded rectangle with a Quaternary fill + a Tertiary 0.5pt hairline stroke, body font, height following the text line. Wired to nothing; the design survives here and in Figma, staged for reuse if a chip-style render returns."
                 ) {
-                    ItemChipShowcase()
+                    ChipLinkShowcase()
                 }
 
                 GallerySection(
                     title: "Auto-Complete Window",
                     summary:
-                        "The candidate popup for [[ page / {{ item autocomplete. Liquid-Glass panel (.regularMaterial + hairline border, radius 12) listing icon + title rows in body font. Matching is PREFIX: the leading query.count characters render in label-primary, the rest in label-secondary. One row is selected (subtle .quaternary fill); ↑/↓ move it, Enter selects, Esc cancels (focusable for E5-D). Height grows with the candidate count, capped at 4 visible rows — beyond 4 it scrolls."
+                        "The candidate popup for [[ page autocomplete. Liquid-Glass panel (.regularMaterial + hairline border, radius 12) listing icon + title rows in body font. Matching is PREFIX: the leading query.count characters render in label-primary, the rest in label-secondary. One row is selected (subtle .quaternary fill); ↑/↓ move it, Enter selects, Esc cancels (focusable for E5-D). Height grows with the candidate count, capped at 4 visible rows — beyond 4 it scrolls."
                 ) {
                     AutoCompleteWindowShowcase()
                 }
@@ -798,16 +798,15 @@ private struct ContextChipShowcase: View {
     }
 }
 
-// MARK: - ItemChip Showcase
+// MARK: - ChipLink Showcase
 
-/// Showcases the inline item-link highlight: title in body font with quaternary
-/// fill + tertiary 0.5pt outline, radius 3, 4pt horizontal padding. Height
-/// follows the text line — no extra vertical padding — so it reads as marked
-/// text. The page editor draws this same visual in CoreGraphics via
-/// `MarkdownTextLayoutFragment.drawChipLinks`.
-private struct ItemChipShowcase: View {
+/// Showcases the dormant chip-link design (PagesV2 V7): title in body font with
+/// quaternary fill + tertiary 0.5pt outline, radius 3, 4pt horizontal padding.
+/// Height follows the text line — no extra vertical padding — so it reads as
+/// marked text. Wired to nothing; `ChipLink.swift` is the canonical design file.
+private struct ChipLinkShowcase: View {
     private let samples: [String] = [
-        "Item Chip",
+        "Chip Link",
         "Meeting Notes",
         "Sprint Tasks",
         "Sam Rivera",
@@ -819,7 +818,7 @@ private struct ItemChipShowcase: View {
             section(title: "Default — title, Quaternary fill, Tertiary 0.5 stroke, radius 3") {
                 FlowingHStack {
                     ForEach(samples, id: \.self) { title in
-                        ItemChip(title: title, icon: "square.grid.2x2")
+                        ChipLink(title: title, icon: "square.grid.2x2")
                     }
                 }
             }
@@ -827,7 +826,7 @@ private struct ItemChipShowcase: View {
             section(title: "Inline — highlight follows line height, reads as marked text not a button") {
                 HStack(spacing: 0) {
                     Text("As captured in ")
-                    ItemChip(title: "Meeting Notes", icon: "square.grid.2x2")
+                    ChipLink(title: "Meeting Notes", icon: "square.grid.2x2")
                     Text(", the next step is owned by the team.")
                 }
                 .font(.body)
@@ -844,11 +843,9 @@ private struct ItemChipShowcase: View {
             CodeBlock(
                 title: "Usage",
                 code: """
-                    // Component-Library primitive for a resolved {{Item}} link.
-                    // title resolves from the LINKED Item (via the index).
-                    // The page editor draws this same visual in CoreGraphics at
-                    // the {{ }} token (inline render).
-                    ItemChip(title: "Meeting Notes", icon: "square.grid.2x2")
+                    // Intentionally-dormant Component-Library design asset
+                    // (PagesV2 V7). Pure visual primitive — wired to nothing.
+                    ChipLink(title: "Meeting Notes", icon: "square.grid.2x2")
                     """
             )
             .padding(.horizontal)
@@ -865,7 +862,7 @@ private struct ItemChipShowcase: View {
 
     private func surfaceCell(_ surface: Color, _ label: String) -> some View {
         VStack(spacing: 8) {
-            ItemChip(title: "Item Chip", icon: "square.grid.2x2")
+            ChipLink(title: "Chip Link", icon: "square.grid.2x2")
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.tertiary)
@@ -930,7 +927,7 @@ private struct AutoCompleteWindowShowcase: View {
                 code: """
                     // Pure presentation over a candidate list + callbacks.
                     // E5-D maps the index's EntityRef → AutoCompleteCandidate
-                    // and presents this anchored at the live [[ / {{ token.
+                    // and presents this anchored at the live [[ token.
                     AutoCompleteWindow(
                         candidates: candidates,   // [AutoCompleteCandidate]
                         query: "Pro",             // length → prefix-highlight span

@@ -37,12 +37,11 @@ struct PageEditorView: View {
     @Environment(MainWindowRouter.self) private var mainWindowRouter
     /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
     @Environment(SettingsManager.self) private var settingsManager
-    /// Stable title-keyed connection resolvers injected by `NexusEnvironment`.
-    /// Drive live `[[ ]]` / `{{ }}` styling; the editor config is rebuilt from
-    /// these (the resolver INSTANCES stay stable, so the NSViewRepresentable
-    /// doesn't churn per keystroke).
-    @Environment(\.pageConnectionResolver) private var pageConnectionResolver
-    @Environment(\.itemConnectionResolver) private var itemConnectionResolver
+    /// Stable title-keyed connection resolver injected by `NexusEnvironment`.
+    /// Drives live `[[ ]]` styling; the editor config is rebuilt from it (the
+    /// resolver INSTANCE stays stable, so the NSViewRepresentable doesn't
+    /// churn per keystroke).
+    @Environment(\.connectionResolver) private var connectionResolver
 
     /// In-flight title text. Synced with `viewModel.page.title` on every
     /// page-id change (the `.onChange(initial: true)` below) — but the host
@@ -88,7 +87,7 @@ struct PageEditorView: View {
     /// visible (the inline icon when set, else the "Add Icon" affordance).
     @State private var iconPickerOpen = false
 
-    // MARK: - `[[` / `{{` autocomplete
+    // MARK: - `[[` autocomplete
 
     /// Pushed into the editor to commit a chosen candidate: the engine replaces
     /// the active token with the finished link, restores the caret past it, then
@@ -274,15 +273,12 @@ struct PageEditorView: View {
                         mainWindowRouter.requestOpen(to: selection)
                     }
                 },
-                onChipLinkClick: { _ in
-                    // `{{ }}` chip-links are gated off (retire in P2.5) — never fires.
-                },
                 onCaretRectChange: { rect in
                     // Caret rect arrives in the body NSTextView's view coords (from
                     // `viewRect(forCharacterRange:)`). The editor fills the ZStack, so
                     // this maps to the editor's coordinate space — the popup anchors off
                     // it. Refreshes on scroll too (the package re-emits via
-                    // `refreshActiveLinkCaretRect`), so the popup follows `[[ ]]`/`{{ }}`.
+                    // `refreshActiveLinkCaretRect`), so the popup follows `[[ ]]`.
                     caretRect = rect
                 },
                 onInlineSelectionChange: { state in
@@ -442,15 +438,14 @@ struct PageEditorView: View {
     /// long-form editors use.
     ///
     /// Instance-level (not `static`) so it can wire the per-Nexus injected
-    /// connection resolvers into the config's services. Rebuilding the config
+    /// connection resolver into the config's services. Rebuilding the config
     /// VALUE per render is cheap and safe — it references the STABLE injected
-    /// resolver instances, so the `MarkdownPMEditor` NSViewRepresentable sees
+    /// resolver instance, so the `MarkdownPMEditor` NSViewRepresentable sees
     /// the same resolver identity across keystrokes and doesn't churn.
     private var pommoraEditorConfiguration: MarkdownPMConfiguration {
         MarkdownEditorConfig.pommora(
             verticalInset: Self.titleAreaHeight,
-            pageResolver: pageConnectionResolver,
-            itemResolver: itemConnectionResolver
+            pageResolver: connectionResolver
         )
     }
 
@@ -596,10 +591,10 @@ struct PageEditorView: View {
         }
     }
 
-    // MARK: - `[[` / `{{` autocomplete
+    // MARK: - `[[` autocomplete
 
     /// Reacts to the editor's inline-selection changes: gates on the Nathan-locked
-    /// trigger (a `[[ ]]`/`{{ }}` token with a non-empty typed placeholder), then
+    /// trigger (a `[[ ]]` token with a non-empty typed placeholder), then
     /// launches a stale-guarded index query and shows the popup when there are
     /// candidates. Anything else dismisses the popup.
     private func handleInlineSelectionChange(_ state: InlineSelectionState?) {
@@ -637,7 +632,7 @@ struct PageEditorView: View {
         pendingInlineReplacement = InlineReplacementRequest(
             documentId: viewModel.page.id,
             selection: state.selection,
-            storageFragment: AutoCompleteWiring.fragment(kind: state.kind, title: candidate.title),
+            storageFragment: AutoCompleteWiring.fragment(title: candidate.title),
             isImageEmbedMode: false
         )
         dismissAutocomplete()

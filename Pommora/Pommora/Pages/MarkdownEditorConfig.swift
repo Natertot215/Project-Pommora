@@ -23,25 +23,21 @@ enum MarkdownEditorConfig {
     /// bottom) of the text container; pass `0` for surfaces without a scrolling
     /// title overlay.
     ///
-    /// `pageResolver` / `itemResolver` drive live `[[ ]]` / `{{ }}` connection
-    /// styling. They default to NoOp so display-only surfaces (the Item Window)
-    /// compile unchanged and stay inert; the Page editor passes the stable
-    /// title-keyed resolvers injected by `NexusEnvironment`.
+    /// `pageResolver` drives live `[[ ]]` connection styling. It defaults to
+    /// NoOp so display-only surfaces (the Item Window) compile unchanged and
+    /// stay inert; the Page editor passes the stable title-keyed resolver
+    /// injected by `NexusEnvironment`.
     static func pommora(
         verticalInset: CGFloat,
-        pageResolver: any WikiLinkResolver = NoOpWikiLinkResolver(),
-        itemResolver: any WikiLinkResolver = NoOpWikiLinkResolver(),
-        renderChipLinksAsChips: Bool = false
+        pageResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
     ) -> MarkdownPMConfiguration {
         var config = MarkdownPMConfiguration.default
         config.textInsets = TextInsets(horizontal: horizontalInset, vertical: verticalInset)
         config.services.wikiLinks = pageResolver
-        config.services.chipLinks = itemResolver
-        config.renderChipLinksAsChips = renderChipLinksAsChips
         // Live cross-surface refresh: when an entity is created / renamed / deleted
         // in another window, the CRUD managers post `ConnectionsBus.changed`; the
         // editor coordinator observes this bus slot and restyles, so a phantom
-        // `[[ ]]`/`{{ }}` lights up without the user editing this document.
+        // `[[ ]]` lights up without the user editing this document.
         config.services.bus.connectionsChanged = ConnectionsBus.changed
         return config
     }

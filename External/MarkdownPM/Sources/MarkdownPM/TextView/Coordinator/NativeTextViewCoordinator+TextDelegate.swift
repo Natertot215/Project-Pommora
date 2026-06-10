@@ -175,7 +175,6 @@ extension NativeTextViewCoordinator {
         {
             isImageEmbedActive = false
             isWikiLinkActive = false
-            isChipLinkActive = false
             onInlineSelectionChange?(nil)
             return
         }
@@ -237,11 +236,11 @@ extension NativeTextViewCoordinator {
             // textDidChange performs the pending restyle for this edit cycle.
         } else if tokensChanged {
             restyleTextView(tv, paragraphCandidates: paragraphCandidates, tokens: tokens)
-            // When a wiki/chip-link token transitions active→inactive the `{{`/`[[`
-            // and `}}`/`]]` markers collapse to 0 visual width via the kern trick.
-            // A caret that landed on a marker character appears visually inside the
-            // chip/link. Nudge it to the nearest token boundary so the cursor sits
-            // clearly outside the rendered chip.
+            // When a wiki-link token transitions active→inactive the `[[` and
+            // `]]` markers collapse to 0 visual width via the kern trick. A
+            // caret that landed on a marker character appears visually inside
+            // the link. Nudge it to the nearest token boundary so the cursor
+            // sits clearly outside the rendered link.
             nudgeCaretOutOfCollapsedMarkers(tv, tokens: tokens, caretLoc: selRange.location)
         }
 
@@ -294,8 +293,8 @@ extension NativeTextViewCoordinator {
         if let inlineContext {
             let openingMarkerLength = inlineContext.selectionKind == .imageEmbed ? 3 : 2
             let displayRange = selectionDisplayRange(for: inlineContext.token, openingMarkerLength: openingMarkerLength)
-            // Placeholder is the token INTERIOR (`Beta`), not the marker-wrapped
-            // span (`{{Beta}}`): the embedder seeds autocomplete / rename from the
+            // Placeholder is the token INTERIOR (`Page`), not the marker-wrapped
+            // span (`[[Page]]`): the embedder seeds autocomplete / rename from the
             // bare title. `displayRange` stays the caret-anchor + storage range.
             let placeholder = inlinePlaceholder(for: inlineContext.token, in: nsString)
             let storageRange =
@@ -308,10 +307,7 @@ extension NativeTextViewCoordinator {
 
             let shouldShowInlinePreview: Bool
             switch inlineContext.selectionKind {
-            case .wikiLink, .chipLink:
-                // `{{ }}` fires the selection-change + caret-rect the same way
-                // `[[ ]]` does — a later task hooks this to show the `{{`
-                // autocomplete window. `.chipLink` is title-only (no storage id).
+            case .wikiLink:
                 shouldShowInlinePreview = true
             case .imageEmbed:
                 shouldShowInlinePreview = imageEmbedShowsInlinePreview
@@ -331,7 +327,6 @@ extension NativeTextViewCoordinator {
 
         DispatchQueue.main.async {
             self.isWikiLinkActive = inlineSelectionState?.kind == .wikiLink
-            self.isChipLinkActive = inlineSelectionState?.kind == .chipLink
             self.isImageEmbedActive = isInsideImageEmbed
             self.onInlineSelectionChange?(inlineSelectionState)
         }
@@ -441,9 +436,9 @@ extension NativeTextViewCoordinator {
         return false
     }
 
-    /// Enter pressed while caret is inside `[[ ]]` or `{{ }}`: move the caret
-    /// to just after the closing marker and consume the event (no newline). If
-    /// the caret is NOT inside an inline link, returns false so NSTextView
+    /// Enter pressed while caret is inside `[[ ]]`: move the caret to just
+    /// after the closing marker and consume the event (no newline). If the
+    /// caret is NOT inside an inline link, returns false so NSTextView
     /// inserts a normal newline.
     private func handleEnterInInlineLink(_ textView: NSTextView) -> Bool {
         let selLoc = textView.selectedRange().location
@@ -458,13 +453,13 @@ extension NativeTextViewCoordinator {
     }
 
     /// After active→inactive token transition: if the caret landed on an opening
-    /// or closing marker (`{{`/`}}`/`[[`/`]]`), those chars have 0 visual width
-    /// and the cursor appears inside the chip. Nudge to the nearest token edge.
+    /// or closing marker (`[[`/`]]`), those chars have 0 visual width and the
+    /// cursor appears inside the link. Nudge to the nearest token edge.
     private func nudgeCaretOutOfCollapsedMarkers(
         _ textView: NSTextView, tokens: [MarkdownToken], caretLoc: Int
     ) {
         let docLen = (textView.string as NSString).length
-        for token in tokens where token.kind == .wikiLink || token.kind == .chipLink {
+        for token in tokens where token.kind == .wikiLink {
             guard caretLoc > token.range.location,
                   caretLoc < NSMaxRange(token.range) else { continue }
             let innerStart = token.range.location + 2
@@ -482,24 +477,11 @@ extension NativeTextViewCoordinator {
     }
 
     public func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
-        // A resolved `{{Title}}` carries `.chipLinkTitle` on its content range —
-        // route those to the chip-link click handler. `[[ ]]` links carry no such
-        // attribute and fall through to the page-navigation path below.
-        if let storage = textView.textStorage, charIndex < storage.length,
-            let chipTitle = storage.attribute(.chipLinkTitle, at: charIndex, effectiveRange: nil) as? String {
-            self.isWikiLinkActive = false
-            self.isChipLinkActive = false
-            DispatchQueue.main.async {
-                self.onChipLinkClick?(chipTitle)
-            }
-            return true
-        }
         guard let target = WikiLinkService.resolveIdentifier(link: link, textView: textView, at: charIndex) else {
             return false
         }
         // Direkt deaktivieren, bevor der Navigation-Callback läuft.
         self.isWikiLinkActive = false
-        self.isChipLinkActive = false
         DispatchQueue.main.async {
             self.onLinkClick?(target)
         }

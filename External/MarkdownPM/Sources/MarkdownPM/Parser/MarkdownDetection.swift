@@ -409,11 +409,11 @@ public enum MarkdownDetection {
                 continue
             }
             if caretLocation == end {
-                // Wiki/chip links use the strict interior gate only — caret at
-                // NSMaxRange means the closing `]]` / `}}` has been passed and the
-                // link is complete. Skip the end-inclusive rule for these tokens so
-                // the chip renders and Enter-to-exit works correctly.
-                guard token.kind != .wikiLink && token.kind != .chipLink else { continue }
+                // Wiki links use the strict interior gate only — caret at
+                // NSMaxRange means the closing `]]` has been passed and the
+                // link is complete. Skip the end-inclusive rule for these tokens
+                // so the rendered link and Enter-to-exit work correctly.
+                guard token.kind != .wikiLink else { continue }
                 let lastIndex = end - 1
                 if lastIndex >= start && lastIndex < text.length {
                     let lastChar = text.substring(with: NSRange(location: lastIndex, length: 1))
@@ -495,9 +495,8 @@ public enum MarkdownDetection {
     /// target on the same line. Scoped to the current line — wikilinks don't
     /// span lines in CommonMark/Obsidian-style usage. Used by typing-time
     /// transforms (em-/en-dash auto-format) to skip substitutions inside
-    /// connection link targets (both `[[ ]]` page links and `{{ }}` chip links),
-    /// where users sometimes include literal ` - ` or `--` as title separators
-    /// that must not be rewritten on disk.
+    /// `[[ ]]` page-link targets, where users sometimes include literal ` - `
+    /// or `--` as title separators that must not be rewritten on disk.
     static func isInsideWikilink(location: Int, in text: String) -> Bool {
         let nsText = text as NSString
         guard location > 0 && location <= nsText.length else { return false }
@@ -507,17 +506,14 @@ public enum MarkdownDetection {
         guard scanStart < scanEnd else { return false }
 
         var pageDepth = 0
-        var chipDepth = 0
         var i = scanStart
         while i < scanEnd - 1 {
             let pair = nsText.substring(with: NSRange(location: i, length: 2))
             if pair == "[[" { pageDepth += 1; i += 2 }
             else if pair == "]]" { pageDepth = max(0, pageDepth - 1); i += 2 }
-            else if pair == "{{" { chipDepth += 1; i += 2 }
-            else if pair == "}}" { chipDepth = max(0, chipDepth - 1); i += 2 }
             else { i += 1 }
         }
-        return pageDepth > 0 || chipDepth > 0
+        return pageDepth > 0
     }
 
     // MARK: - LaTeX Detection

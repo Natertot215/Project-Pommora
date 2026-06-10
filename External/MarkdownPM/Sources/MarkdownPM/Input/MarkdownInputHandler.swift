@@ -54,7 +54,6 @@ enum MarkdownInputHandler {
         case "*": closeMarker = "**"
         case "_": closeMarker = "__"
         case "[": closeMarker = "]]"
-        case "{": closeMarker = "}}"
         case "(": closeMarker = "))"
         case "`": closeMarker = "``"
         default: return false
@@ -90,11 +89,10 @@ enum MarkdownInputHandler {
         let nextCharLocation = affectedCharRange.location
         if nextCharLocation < nsText.length {
             let nextChar = nsText.substring(with: NSRange(location: nextCharLocation, length: 1))
-            // For brackets/braces the close char is `]`/`}`; otherwise the typed char.
+            // For brackets the close char is `]`; otherwise the typed char.
             let closeFirstChar: String
             switch typed {
             case "[": closeFirstChar = "]"
-            case "{": closeFirstChar = "}"
             default: closeFirstChar = typed
             }
             if nextChar == closeFirstChar { return false }
