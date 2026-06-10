@@ -9,7 +9,7 @@ import SwiftUI
 /// it. It floats above the main window, is draggable by any empty area, is NOT
 /// minimizable (no `.miniaturizable` mask) and NOT user-resizable (no `.resizable`),
 /// and uses the standard window background (no custom fill). The panel is ONE fixed
-/// size (`PUI.ItemWindow.width × .height`) — the SwiftUI root is pinned to that size
+/// size (700×435) — the SwiftUI root is pinned to that size
 /// and the inspector takes its share of the width from the body, so toggling it does
 /// not grow the panel.
 ///
@@ -26,7 +26,8 @@ final class FloatingItemPanel: NSPanel {
         let hosting = NSHostingController(
             rootView: AnyView(rootView.environment(\.controlActiveState, .active)))
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: PUI.ItemWindow.width, height: PUI.ItemWindow.height),
+            // 700×435 inlined from the retired PUI.ItemWindow; this file dies in P3.
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 435),
             styleMask: [.titled, .closable, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false)

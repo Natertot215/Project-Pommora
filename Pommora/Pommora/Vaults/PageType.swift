@@ -1,8 +1,8 @@
 import Foundation
 
 /// Page Type — folder + `_pagetype.json` sidecar that defines the property
-/// schema shared by every Page inside. The Pages-side schema-bearing container,
-/// parallel to ItemType on the Items side (introduced Phase 5).
+/// schema shared by every Page inside. The schema-bearing container of the
+/// operational layer (introduced Phase 5).
 ///
 /// On disk: `<nexus>/<Title>/_pagetype.json` (folder name = title; no title on disk).
 struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
@@ -29,9 +29,10 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
     /// Phase J wires this to column-header sort persistence.
     var defaultSort: DefaultSortConfig?
-    /// Page-side template config — reserved parity with ItemType (symmetric-code
-    /// HARD RULE). All optional; absent in pre-T1.4 sidecars (decodeIfPresent → nil).
-    var templateConfig: PageTemplateConfig?
+    /// Per-vault default for how Pages open: `.compact` (PagePreview window)
+    /// or `.window` (main detail pane). Absent on legacy sidecars
+    /// (decodeIfPresent → nil); callers default at read time.
+    var openIn: OpenInMode?
 
     enum CodingKeys: String, CodingKey {
         case id, icon, properties, views
@@ -40,7 +41,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         case collectionOrder = "collection_order"
         case pageOrder = "page_order"
         case defaultSort = "default_sort"
-        case templateConfig = "template_config"
+        case openIn = "open_in"
     }
 
     init(
@@ -50,7 +51,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         collectionOrder: [String]? = nil,
         pageOrder: [String]? = nil,
         defaultSort: DefaultSortConfig? = nil,
-        templateConfig: PageTemplateConfig? = nil
+        openIn: OpenInMode? = nil
     ) {
         self.id = id
         self.title = title
@@ -62,7 +63,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.collectionOrder = collectionOrder
         self.pageOrder = pageOrder
         self.defaultSort = defaultSort
-        self.templateConfig = templateConfig
+        self.openIn = openIn
     }
 
     init(from decoder: any Decoder) throws {
@@ -78,7 +79,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
         self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
-        self.templateConfig = try c.decodeIfPresent(PageTemplateConfig.self, forKey: .templateConfig)
+        self.openIn = try c.decodeIfPresent(OpenInMode.self, forKey: .openIn)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -92,7 +93,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
         try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
-        try c.encodeIfPresent(templateConfig, forKey: .templateConfig)
+        try c.encodeIfPresent(openIn, forKey: .openIn)
     }
 }
 
@@ -106,9 +107,9 @@ extension PageType {
     /// Finds the PageType whose `id` matches `id` by walking the Nexus root —
     /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectPageTypes`
     /// use (root child folders, skip `.`/`_` prefixes, require `_pagetype.json`).
-    /// Returns nil if no folder carries a matching sidecar. Used for cross-side
-    /// relation target resolution (ItemTypeManager → PageType target), where the
-    /// target lives outside the calling manager's in-memory `types`.
+    /// Returns nil if no folder carries a matching sidecar. Used for relation
+    /// target resolution where the target lives outside the calling manager's
+    /// in-memory `types`.
     static func find(id: String, in nexus: Nexus) -> PageType? {
         let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []
         for folder in topLevel

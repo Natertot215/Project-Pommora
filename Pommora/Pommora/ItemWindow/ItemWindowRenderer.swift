@@ -107,7 +107,8 @@ struct ItemWindowRenderer: View {
             // Pin the hosted root to the fixed panel size (`.preferredContentSize`
             // is gone): the whole content is exactly width × height; the main column
             // flexes WITHIN that and the inspector takes its share of the width.
-            .frame(width: PUI.ItemWindow.width, height: PUI.ItemWindow.height)
+            // (700×435 inlined from the retired PUI.ItemWindow; this file dies in P3.)
+            .frame(width: 700, height: 435)
     }
 
     // MARK: - Main column (header + body + footer)

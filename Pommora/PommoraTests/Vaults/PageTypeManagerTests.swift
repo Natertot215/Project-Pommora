@@ -121,7 +121,7 @@ struct PageTypeManagerTests {
         #expect(manager.pageCollections(in: pageType).first?.title == "To-dos")
     }
 
-    @Test("renamePageCollection preserves templateConfig + icon (cache + disk)")
+    @Test("renamePageCollection preserves icon (cache + disk)")
     func renamePageCollectionPreservesOverrides() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -132,35 +132,21 @@ struct PageTypeManagerTests {
         try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
         let coll = manager.pageCollections(in: pageType).first!
 
-        // Set an icon via the manager, and a templateConfig directly into the
-        // sidecar (the Page side has no template-update method yet), then reload
-        // so the in-memory collection carries the override.
         try await manager.updatePageCollectionIcon(coll, to: "doc")
         let withIcon = manager.pageCollections(in: pageType).first!
-        var seeded = withIcon
-        seeded.templateConfig = PageTemplateConfig(layout: .gallery)
-        try seeded.save(to: withIcon.folderURL
-            .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        #expect(withIcon.icon == "doc")
 
-        let seededManager = PageTypeManager(nexus: nexus)
-        await seededManager.loadAll()
-        let loaded = seededManager.pageCollections(in: seededManager.types.first!).first!
-        #expect(loaded.templateConfig?.layout == .gallery)
-        #expect(loaded.icon == "doc")
-
-        // Rename must NOT reset templateConfig / icon.
-        try await seededManager.renamePageCollection(loaded, to: "To-dos")
-        let renamed = seededManager.pageCollections(in: seededManager.types.first!).first!
+        // Rename must NOT reset the icon.
+        try await manager.renamePageCollection(withIcon, to: "To-dos")
+        let renamed = manager.pageCollections(in: pageType).first!
         #expect(renamed.title == "To-dos")
-        #expect(renamed.templateConfig?.layout == .gallery)
         #expect(renamed.icon == "doc")
 
-        // ...and survive a reload-from-disk.
+        // ...and it survives a reload-from-disk.
         let reloaded = PageTypeManager(nexus: nexus)
         await reloaded.loadAll()
         let fromDisk = reloaded.pageCollections(in: reloaded.types.first!).first!
         #expect(fromDisk.title == "To-dos")
-        #expect(fromDisk.templateConfig?.layout == .gallery)
         #expect(fromDisk.icon == "doc")
     }
 

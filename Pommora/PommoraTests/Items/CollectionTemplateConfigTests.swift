@@ -4,10 +4,10 @@ import Testing
 @testable import Pommora
 
 /// T1.5 — Collection-level `templateConfig` override layer. ItemCollection gets
-/// an optional `ItemTemplateConfig`; PageCollection gets an optional
-/// `PageTemplateConfig`. Both encode under `template_config`, all-optional →
-/// null-round-trip. The pre-existing `pinned_properties` on ItemCollection must
-/// keep round-tripping (no regression).
+/// an optional `ItemTemplateConfig` encoded under `template_config`, all-optional
+/// → null-round-trip. The pre-existing `pinned_properties` on ItemCollection must
+/// keep round-tripping (no regression). (The page-side counterpart was retired in
+/// PagesV2 P4 — `open_in` lives on PageType now.)
 @Suite("CollectionTemplateConfigTests")
 struct CollectionTemplateConfigTests {
 
@@ -83,37 +83,4 @@ struct CollectionTemplateConfigTests {
         #expect(decoded.templateConfig == nil)
     }
 
-    @Test("PageCollection with templateConfig round-trips equal")
-    func pageCollectionWithConfigRoundTrips() throws {
-        let original = PageCollection(
-            id: "01HCOLL",
-            typeID: "01HVAULT",
-            title: "Tasks",
-            folderURL: folderURL(),
-            modifiedAt: Date(timeIntervalSince1970: 1716480000),
-            templateConfig: PageTemplateConfig(defaultBody: "hello")
-        )
-
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(PageCollection.self, from: data)
-
-        #expect(decoded.templateConfig == PageTemplateConfig(defaultBody: "hello"))
-        #expect(decoded.templateConfig?.defaultBody == "hello")
-    }
-
-    @Test("PageCollection without templateConfig decodes nil")
-    func pageCollectionWithoutConfigDecodesNil() throws {
-        let original = PageCollection(
-            id: "01HCOLL",
-            typeID: "01HVAULT",
-            title: "Tasks",
-            folderURL: folderURL(),
-            modifiedAt: Date(timeIntervalSince1970: 1716480000)
-        )
-
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(PageCollection.self, from: data)
-
-        #expect(decoded.templateConfig == nil)
-    }
 }

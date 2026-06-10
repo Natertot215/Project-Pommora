@@ -21,12 +21,6 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     // OrderResolver's alphabetic tail.
     var pageOrder: [String]?
 
-    /// Per-Collection template override (T1.5). When set, overrides the parent
-    /// PageType's `templateConfig` for new Pages created in this Collection. All
-    /// fields optional → encoded under `template_config`; absent on legacy
-    /// sidecars.
-    var templateConfig: PageTemplateConfig?
-
     /// Per-Collection saved views. Each Collection is INDEPENDENT of its parent
     /// PageType (locked decision): its own `views[0]` config separate from the
     /// PageType's. Empty array on legacy sidecars; Task 5's loadAll default-view
@@ -39,7 +33,6 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
         case pageOrder = "page_order"
-        case templateConfig = "template_config"
         // Pre-ParadigmV2 `_collection.json` used `vault_id`. Auto-migrated
         // sidecars renamed to `_pagecollection.json` still carry the old key
         // until a save() rewrites them; this decode-only fallback bridges
@@ -56,7 +49,6 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         schemaVersion: Int = 1,
         icon: String? = nil,
         pageOrder: [String]? = nil,
-        templateConfig: PageTemplateConfig? = nil,
         views: [SavedView] = []
     ) {
         self.id = id
@@ -67,7 +59,6 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = schemaVersion
         self.icon = icon
         self.pageOrder = pageOrder
-        self.templateConfig = templateConfig
         self.views = views
     }
 
@@ -88,7 +79,6 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
-        self.templateConfig = try c.decodeIfPresent(PageTemplateConfig.self, forKey: .templateConfig)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
 
@@ -100,7 +90,6 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
-        try c.encodeIfPresent(templateConfig, forKey: .templateConfig)
         try c.encode(views, forKey: .views)
     }
 }

@@ -57,6 +57,28 @@ struct PageTypeFileTests {
         #expect(!raw.contains("\"title\""))
     }
 
+    @Test("PageType `open_in` round-trips; absent key decodes to nil")
+    func openInRoundTrip() throws {
+        // Legacy sidecar (no openIn): the key is never written and decodes nil.
+        let legacy = PageType(
+            id: "01H", title: "T", icon: nil, properties: [], views: [],
+            modifiedAt: Date(timeIntervalSince1970: 0))
+        let legacyData = try JSONEncoder().encode(legacy)
+        let legacyJSON = try JSONSerialization.jsonObject(with: legacyData) as? [String: Any]
+        #expect(legacyJSON?["open_in"] == nil)
+        #expect(try JSONDecoder().decode(PageType.self, from: legacyData).openIn == nil)
+
+        // Each mode writes its raw value and round-trips.
+        for (mode, raw) in [(OpenInMode.compact, "compact"), (OpenInMode.window, "window")] {
+            var t = legacy
+            t.openIn = mode
+            let data = try JSONEncoder().encode(t)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            #expect(json?["open_in"] as? String == raw)
+            #expect(try JSONDecoder().decode(PageType.self, from: data).openIn == mode)
+        }
+    }
+
     @Test("empty PageType round-trips with empty properties + views")
     func emptyPageType() throws {
         let nexus = try TempNexus.make()

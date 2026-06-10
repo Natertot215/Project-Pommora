@@ -389,8 +389,8 @@ final class PageTypeManager {
 
             // Copy-mutate so a rename only touches what a rename legitimately
             // changes (title / folderURL / modifiedAt) and preserves every other
-            // field — templateConfig, icon, views, schemaVersion, pageOrder, and
-            // any future field — automatically.
+            // field — icon, views, schemaVersion, pageOrder, and any future
+            // field — automatically.
             let now = Date()
             var updated = collection
             updated.title = newName
