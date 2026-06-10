@@ -32,6 +32,14 @@ enum AppGlobals {
     /// popover T5.1). They inject this via injectNexusEnvironment.
     static var current: NexusEnvironment?
 
+    /// The main Pommora NSWindow. SwiftUI derives window identifiers from the
+    /// scene id PLUS a per-window suffix ("main-AppWindow-1"), so this matches
+    /// by prefix — never by equality (an exact `== "main"` match silently
+    /// fails). One locator for every raise/attach call site (DRY).
+    static var mainWindow: NSWindow? {
+        NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("main") == true }
+    }
+
     /// Publishes every cross-scene manager ref in one call. Single source for the
     /// slot list so `NexusEnvironment.init` doesn't hand-assign each one (DRY);
     /// adding/removing a published manager touches only this signature + body.

@@ -11,9 +11,9 @@ enum BuiltInContextLinkProperties {
     }
 
     private static let descriptors: [TierDescriptor] = [
-        TierDescriptor(id: ReservedPropertyID.tier1, tierNumber: 1, fallbackIcon: "building.2"),
-        TierDescriptor(id: ReservedPropertyID.tier2, tierNumber: 2, fallbackIcon: "tag"),
-        TierDescriptor(id: ReservedPropertyID.tier3, tierNumber: 3, fallbackIcon: "briefcase"),
+        TierDescriptor(id: ReservedPropertyID.tier1, tierNumber: 1, fallbackIcon: "square.grid.2x2"),
+        TierDescriptor(id: ReservedPropertyID.tier2, tierNumber: 2, fallbackIcon: "square.grid.2x2"),
+        TierDescriptor(id: ReservedPropertyID.tier3, tierNumber: 3, fallbackIcon: "square.grid.2x2"),
     ]
 
     /// Returns the schema's user-defined properties followed by the three merged

@@ -55,9 +55,9 @@ import Testing
         let tier1 = result.first { $0.id == ReservedPropertyID.tier1 }
         let tier2 = result.first { $0.id == ReservedPropertyID.tier2 }
         let tier3 = result.first { $0.id == ReservedPropertyID.tier3 }
-        #expect(tier1?.icon == "building.2")
-        #expect(tier2?.icon == "tag")
-        #expect(tier3?.icon == "briefcase")
+        #expect(tier1?.icon == "square.grid.2x2")
+        #expect(tier2?.icon == "square.grid.2x2")
+        #expect(tier3?.icon == "square.grid.2x2")
     }
 
     @Test func mergeIgnoresStructurallyLockedRelationTargetInSidecar() {

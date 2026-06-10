@@ -1,0 +1,88 @@
+import SwiftUI
+
+/// Where a page-tap routes, per the page's vault `open_in` mode (V9).
+enum PageOpenDestination: Equatable {
+    /// `.window` vault (or unset) — render in the main detail pane.
+    case detailPane
+    /// `.compact` vault — open (or focus) the page's PagePreview window.
+    case previewCard
+    /// `.compact` vault but the page is currently shown in the main detail
+    /// pane — the edit-conflict guard: a main-pane page never previews.
+    case suppressed
+}
+
+/// The ONE open-path for a page-tap, shared by the sidebar and the
+/// detail-pane tables so the surfaces can't drift. `.detailPane` selects into
+/// the main pane; `.previewCard` hands a rename-safe `PageRef` to
+/// `openPreview` (call sites pass `{ openWindow(id: "page-preview", value: $0) }`
+/// — a closure, not `OpenWindowAction`, so the routing stays unit-testable);
+/// `.suppressed` is the edit-conflict no-op.
+@MainActor
+enum PageOpenRouter {
+    /// Pure routing per the vault's `open_in` mode, including the
+    /// edit-conflict guard. Static so it's unit-testable without
+    /// bootstrapping the sidebar.
+    static func destination(
+        for vault: PageType,
+        page: PageMeta,
+        currentSelection: SidebarSelection
+    ) -> PageOpenDestination {
+        switch vault.openIn ?? .window {
+        case .window:
+            return .detailPane
+        case .compact:
+            if case .page(let shown) = currentSelection, shown.id == page.id {
+                return .suppressed
+            }
+            return .previewCard
+        }
+    }
+
+    /// Routes AND performs the destination for a tap whose parent containers
+    /// are known (collection-detail tables, the sidebar's resolved rows).
+    @discardableResult
+    static func routeOpen(
+        _ page: PageMeta,
+        vault: PageType,
+        collection: PageCollection?,
+        selection: inout SidebarSelection,
+        openPreview: (PageRef) -> Void
+    ) -> PageOpenDestination {
+        let routed = destination(for: vault, page: page, currentSelection: selection)
+        switch routed {
+        case .detailPane:
+            let resolved = SidebarSelection.page(page)
+            if selection != resolved { selection = resolved }
+        case .previewCard:
+            let ref =
+                collection.map { PageRef(page: page, in: $0, vault: vault) }
+                ?? PageRef(page: page, inVaultRoot: vault)
+            openPreview(ref)
+        case .suppressed:
+            break
+        }
+        return routed
+    }
+
+    /// Parent-resolving variant for call sites that only hold the page
+    /// (sidebar rows, vault-detail rows that mix root and collection pages).
+    /// An unresolvable parent (page deleted mid-tap) falls back to the
+    /// detail pane, matching the pre-V8 behavior.
+    @discardableResult
+    static func routeOpen(
+        _ page: PageMeta,
+        selection: inout SidebarSelection,
+        content: PageContentManager,
+        vaultManager: PageTypeManager,
+        openPreview: (PageRef) -> Void
+    ) -> PageOpenDestination {
+        guard let parent = content.resolveParent(for: page, pageTypeManager: vaultManager) else {
+            let resolved = SidebarSelection.page(page)
+            if selection != resolved { selection = resolved }
+            return .detailPane
+        }
+        return routeOpen(
+            page, vault: parent.vault, collection: parent.collection,
+            selection: &selection, openPreview: openPreview)
+    }
+}

@@ -11,7 +11,14 @@ import Testing
 struct NexusStoreTests {
     @Test func applicationSupportDirReturnsValidURL() throws {
         let url = try NexusStore.applicationSupportDir()
-        #expect(url.path.contains("Application Support"))
+        // Under XCTest the store diverts to a per-run temp dir so tests can
+        // never touch the real container's state (the resetBookmark
+        // bookmark-eater, fixed 2026-06-10). Assert the isolated shape — a
+        // writable directory namespaced to this test-host process.
+        #expect(url.path.contains("pommora-test-appsupport-\(ProcessInfo.processInfo.processIdentifier)"))
+        var isDir: ObjCBool = false
+        #expect(FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir))
+        #expect(isDir.boolValue)
     }
 
     @Test func pommoraAppDirIsBundleIDNamespaced() throws {

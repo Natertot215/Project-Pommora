@@ -18,17 +18,20 @@ enum MarkdownEditorConfig {
     /// the 24pt horizontal content padding so body text aligns under the title.
     static let horizontalInset: CGFloat = 24
 
-    /// Build the Pommora editor configuration with a surface-specific vertical
-    /// text inset. `verticalInset` reserves the top (and symmetrically the
+    /// Build the Pommora editor configuration with surface-specific text
+    /// insets. `verticalInset` reserves the top (and symmetrically the
     /// bottom) of the text container; pass `0` for surfaces without a scrolling
-    /// title overlay.
+    /// title overlay. `horizontalInset` defaults to the shared 24pt; the
+    /// PagePreview window passes its chrome rail instead so body text sits
+    /// flush with the window's hairline insets.
     ///
     /// `pageResolver` drives live `[[ ]]` connection styling. It defaults to
     /// NoOp so resolver-less surfaces stay inert; both current call sites
-    /// (Page editor + PagePreview card) pass the stable title-keyed resolver
+    /// (Page editor + PagePreview window) pass the stable title-keyed resolver
     /// injected by `NexusEnvironment`.
     static func pommora(
         verticalInset: CGFloat,
+        horizontalInset: CGFloat = MarkdownEditorConfig.horizontalInset,
         pageResolver: any WikiLinkResolver = NoOpWikiLinkResolver()
     ) -> MarkdownPMConfiguration {
         var config = MarkdownPMConfiguration.default

@@ -10,7 +10,7 @@ struct SidebarView: View {
     @Environment(AgendaEventManager.self) private var agendaEventManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(SettingsManager.self) private var settingsManager
-    @Environment(PreviewStack.self) private var previewStack
+    @Environment(\.openWindow) private var openWindow
     @Environment(SidebarSectionsManager.self) private var sidebarSectionsManager
 
     @Binding var selection: SidebarSelection
@@ -85,9 +85,10 @@ struct SidebarView: View {
                 // card WITHOUT moving the selection. The edit-conflict guard
                 // (`.suppressed`) keeps a main-pane page from ever previewing.
                 if case .page(let p) = resolved {
-                    let routed = previewStack.routeOpen(
+                    let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
-                        content: contentManager, vaultManager: vaultManager)
+                        content: contentManager, vaultManager: vaultManager,
+                        openPreview: { openWindow(id: "page-preview", value: $0) })
                     if routed != .detailPane {
                         // Snap the row highlight back to the still-active
                         // main-pane selection (the List already moved it).

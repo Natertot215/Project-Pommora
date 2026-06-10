@@ -60,7 +60,7 @@ import Testing
     }
 
     @Test func tierNumberRoundTripsWithTierPropertyID() throws {
-        // Inverse-mapping contract relied on by PagePreviewInspector's tier rows.
+        // Inverse-mapping contract relied on by the shared FrontmatterInspector's tier rows.
         for tier in 1...3 {
             let id = try #require(ReservedPropertyID.tierPropertyID(forTier: tier))
             #expect(ReservedPropertyID.tierNumber(forID: id) == tier)

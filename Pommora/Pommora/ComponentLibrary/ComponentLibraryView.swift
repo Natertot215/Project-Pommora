@@ -353,6 +353,8 @@ private struct ChipsGallery: View {
 /// same cross-scene bridge the standalone scenes use) so the shipped chrome
 /// is browsable from the library.
 private struct WindowsGallery: View {
+    @Environment(\.openWindow) private var openWindow
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
@@ -364,7 +366,7 @@ private struct WindowsGallery: View {
                         symbol: "doc.richtext",
                         summary:
                             "In-window draggable Liquid Glass card previewing a Page (PagesV2 V8). 475×475 collapsed, resizable via the bottom-right grip; multiple cards cascade +24,+24 and re-opening a page focuses its card. Opens locked (read-only) — the bottom-right Lock unlocks live editing on the main editor's save path; the inspector capsule widens the card with the page's frontmatter; right-click offers Lock/Unlock + Open Page.",
-                        action: { openSamplePreviewCard() }
+                        action: { openSamplePreviewWindow() }
                     )
                 }
                 .padding(.horizontal)
@@ -387,34 +389,14 @@ private struct WindowsGallery: View {
         .padding(.horizontal)
     }
 
-    /// Opens a sample `PagePreview` card for the first resolvable Page (vault
-    /// roots first, then collections), then raises the main window so the
-    /// card is visible. No-op when no Nexus is open or no Page exists.
-    private func openSamplePreviewCard() {
+    /// Opens a sample `PagePreview` window for the first resolvable Page
+    /// (vault roots first, then collections). No-op when no Nexus is open or
+    /// no Page exists. The window takes focus itself — no raise needed.
+    private func openSamplePreviewWindow() {
         guard let env = AppGlobals.current else { return }
-        Task { @MainActor in
-            for vault in env.vaultManager.types {
-                await env.contentManager.loadAll(for: vault)
-                if let page = env.contentManager.pages(in: vault).first {
-                    env.previewStack.open(page, vault: vault, collection: nil)
-                    raiseMainWindow()
-                    return
-                }
-                for collection in env.vaultManager.pageCollections(in: vault) {
-                    await env.contentManager.loadAll(for: collection)
-                    if let page = env.contentManager.pages(in: collection).first {
-                        env.previewStack.open(page, vault: vault, collection: collection)
-                        raiseMainWindow()
-                        return
-                    }
-                }
-            }
+        PreviewSampleLauncher.run(env: env) { ref in
+            openWindow(id: "page-preview", value: ref)
         }
-    }
-
-    private func raiseMainWindow() {
-        NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })?
-            .makeKeyAndOrderFront(nil)
     }
 }
 

@@ -8,6 +8,8 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(NexusManager.self) private var nexusManager
+    @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openWindow) private var openWindow
     @State private var searchQuery = ""
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
@@ -135,16 +137,6 @@ struct ContentView: View {
         } detail: {
             detail
         }
-        // PagePreview overlay layer (V8): in-window draggable glass cards
-        // above the detail content. One card per open PreviewStack entry;
-        // empty regions pass hits through. Mounted at the window level so
-        // cards drag across (and clamp to) the full window bounds.
-        .overlay {
-            if let env = nexusEnvironment {
-                PreviewOverlayHost()
-                    .injectNexusEnvironment(env)
-            }
-        }
         .tint(currentAccent)
         .environment(\.nexusAccent, currentAccent)
         .sheet(
@@ -219,6 +211,7 @@ struct ContentView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 960, minHeight: 560)
         .task {
+            LaunchTrace.mark("ContentView.task: fired")
             await nexusManager.loadOnLaunch()
         }
         .onChange(of: nexusManager.currentNexus, initial: true) { _, nexus in
@@ -242,7 +235,7 @@ struct ContentView: View {
                 router.pendingSelection = nil
             }
             // Raise the main NSWindow.
-            NSApp.windows.first(where: { $0.identifier?.rawValue == "main" })?.makeKeyAndOrderFront(nil)
+            AppGlobals.mainWindow?.makeKeyAndOrderFront(nil)
         }
     }
 
@@ -332,11 +325,35 @@ struct ContentView: View {
     /// wiring, AppGlobals publish, and the parallel initial-load `Task` in its
     /// initializer (formerly `constructManagers`). See `NexusEnvironment.swift`.
     private func rebuildEnvironment(for nexus: Nexus?) {
+        // Preview windows are per-Nexus state (their PageRefs resolve against
+        // the outgoing managers) — close the whole group when switching away
+        // from a live environment. Guarded to non-initial runs AND deferred
+        // out of the current view update: this is called from
+        // `onChange(initial: true)` during the FIRST render, and mutating
+        // scene state (dismissWindow) mid-update breaks the update cycle —
+        // observed as `.task` never firing, so `loadOnLaunch()` never ran and
+        // launch dead-ended on the loading placeholder.
+        if nexusEnvironment != nil {
+            let dismissWindow = dismissWindow
+            Task { @MainActor in dismissWindow(id: "page-preview") }
+        }
         guard let nexus else {
             nexusEnvironment = nil
             return
         }
         nexusEnvironment = NexusEnvironment(nexus: nexus, nexusManager: nexusManager)
+        #if DEBUG
+        // Test hook: `-openPreviewSample` auto-opens the first resolvable
+        // page as a preview once managers load (screenshot-driven UI
+        // verification without scripted clicks). Never set by XCTest.
+        if ProcessInfo.processInfo.arguments.contains("-openPreviewSample"),
+            let env = nexusEnvironment
+        {
+            PreviewSampleLauncher.run(env: env) { ref in
+                openWindow(id: "page-preview", value: ref)
+            }
+        }
+        #endif
     }
 }
 

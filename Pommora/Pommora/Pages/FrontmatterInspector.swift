@@ -99,6 +99,9 @@ struct FrontmatterInspector: View {
     @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var vm: FrontmatterInspectorViewModel?
+    @State private var addPropertyOpen = false
+    @State private var addPropertySelection: PropertyType?
+    @State private var addPropertyError: String?
 
     init(
         page: PageMeta,
@@ -115,35 +118,17 @@ struct FrontmatterInspector: View {
     }
 
     var body: some View {
+        // V9.1 dual-domain shape: the Page meta section is GONE (both the
+        // main window's inspector and the PagePreview window mount this same
+        // component); the page ID survives as a small footer under
+        // Properties. This grouped Form is the baseline look for
+        // menu-grouping-like interfaces (Nathan, 2026-06-10).
         Form {
-            pageSection
             tiersSection
             propertiesSection
         }
         .formStyle(.grouped)
         .onAppear { initVM() }
-    }
-
-    // MARK: - Page section (read-only meta)
-
-    private var pageSection: some View {
-        Section("Page") {
-            LabeledContent("Title", value: page.title)
-            LabeledContent("ID") {
-                Text(page.frontmatter.id)
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
-            LabeledContent("Created", value: createdAtFormatted)
-            if let icon = page.frontmatter.icon, !icon.isEmpty {
-                LabeledContent("Icon") {
-                    Label(icon, systemImage: icon)
-                        .labelStyle(.iconOnly)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
     }
 
     // MARK: - Tiers section (editable via ContextValueEditor; persists through the VM's debounced onSave)
@@ -179,13 +164,9 @@ struct FrontmatterInspector: View {
     // MARK: - Properties section (live editors via PropertyEditorRow)
 
     private var propertiesSection: some View {
-        Section("Properties") {
-            if vault.properties.isEmpty {
-                Text("No properties defined in this Vault's schema.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else if let model = vm {
-                ForEach(vault.properties) { prop in
+        Section {
+            if let model = vm {
+                ForEach(liveProperties) { prop in
                     LabeledContent(prop.name) {
                         PropertyEditorRow(
                             definition: prop,
@@ -194,19 +175,84 @@ struct FrontmatterInspector: View {
                                 set: { newVal in model.handlePropertyChange(prop.id, newVal) }
                             ),
                             index: index,
-                            relationDisplay: relationDisplay
+                            relationDisplay: relationDisplay,
+                            // LabeledContent already carries the name — the
+                            // editor's internal label doubled it (visible as
+                            // "Status / Status" once the narrow preview pane
+                            // forced a wrap).
+                            showsName: false
                         )
                     }
                 }
             } else {
                 // VM not yet initialized on first render — show placeholder
-                ForEach(vault.properties) { prop in
+                ForEach(liveProperties) { prop in
                     LabeledContent(prop.name) {
                         Text(valueLabel(for: prop))
                             .foregroundStyle(.tertiary)
                             .font(.callout)
                     }
                 }
+            }
+            addPropertyRow
+        } header: {
+            Text("Properties")
+        } footer: {
+            // The one survivor of the removed Page meta section (V9.1):
+            // the page ID as a small selectable footer on both panels.
+            Text(page.frontmatter.id)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+        }
+    }
+
+    /// Schema rows resolved LIVE from the manager (not the `vault` snapshot
+    /// passed at init) so a property added through the affordance below —
+    /// or any View Settings schema edit — appears immediately in both the
+    /// main-window inspector and an open PagePreview window.
+    private var liveProperties: [PropertyDefinition] {
+        vaultManager.types.first(where: { $0.id == vault.id })?.properties ?? vault.properties
+    }
+
+    /// "Add Property" — small secondary label under the property rows
+    /// (Nathan's V9.1 ruling). Opens the established property-type picker;
+    /// commits through the same `PropertyCreation` path as View Settings.
+    /// Option-bearing types (select / multi-select / status) are created
+    /// with their seeded defaults; option configuration stays in View
+    /// Settings, as established.
+    private var addPropertyRow: some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
+            Button {
+                addPropertyOpen = true
+            } label: {
+                Label("Add Property", systemImage: "plus")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Add a property to this Vault's schema")
+            .popover(isPresented: $addPropertyOpen, arrowEdge: .bottom) {
+                PropertyTypePicker(selected: $addPropertySelection) { type in
+                    addPropertyError = nil
+                    Task {
+                        do {
+                            try await PropertyCreation.commitDefault(
+                                type, toTypeID: vault.id, manager: vaultManager)
+                            addPropertyOpen = false
+                        } catch {
+                            addPropertyError = PropertyEditorErrorMessage.string(for: error)
+                        }
+                    }
+                }
+                .padding(PUI.Spacing.xl)
+                .frame(width: 280)
+            }
+            if let err = addPropertyError {
+                Text(err)
+                    .font(PUI.Typography.caption)
+                    .foregroundStyle(.red)
             }
         }
     }
@@ -217,10 +263,6 @@ struct FrontmatterInspector: View {
         if vm == nil {
             vm = FrontmatterInspectorViewModel(page: page, vault: vault, onSave: onSave)
         }
-    }
-
-    private var createdAtFormatted: String {
-        page.frontmatter.createdAt.formatted(date: .abbreviated, time: .shortened)
     }
 
     private var tier1Names: String {

@@ -78,11 +78,13 @@ final class NexusManager {
         // the user. Unit tests build their own temporary nexuses, so skipping
         // launch-restore here is safe. Real app launches never set this var.
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        LaunchTrace.mark("loadOnLaunch: enter")
 
         let stateURL: URL
         do {
             stateURL = try NexusStore.appStateURL()
         } catch {
+            LaunchTrace.mark("loadOnLaunch: appStateURL FAILED — \(error)")
             pendingError = .appSupportFailed(error.localizedDescription)
             return
         }
@@ -91,14 +93,18 @@ final class NexusManager {
             let state = try? AppState.load(from: stateURL),
             let bookmarkData = state.lastNexusBookmark
         else {
+            LaunchTrace.mark("loadOnLaunch: no state/bookmark → pickNexus")
             await pickNexus()
             return
         }
 
         do {
             let (url, isStale) = try NexusBookmark.resolve(bookmarkData)
+            LaunchTrace.mark("loadOnLaunch: bookmark resolved → \(url.path), stale=\(isStale)")
             try await openExisting(at: url, isStale: isStale, currentState: state, stateURL: stateURL)
+            LaunchTrace.mark("loadOnLaunch: openExisting completed")
         } catch {
+            LaunchTrace.mark("loadOnLaunch: resolve/open FAILED — \(error) → pickNexus")
             pendingError = .resolutionFailed(error.localizedDescription)
             await pickNexus()
         }
@@ -107,6 +113,15 @@ final class NexusManager {
     /// Presents NSOpenPanel and routes through the init-or-load flow on the
     /// picked folder. Cancellation is silent (no error, no state change).
     func pickNexus() async {
+        // At launch `.task` fires before app activation completes; a modal
+        // panel presented in that window ABORTS instantly (reads as a silent
+        // cancel) and the launch dead-ends on the loading placeholder.
+        // Activate, then give activation a bounded beat to land.
+        NSApp.activate()
+        for _ in 0..<40 where !NSApp.isActive {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        LaunchTrace.mark("pickNexus: showing panel (active=\(NSApp.isActive))")
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -117,7 +132,20 @@ final class NexusManager {
         let suggested = homeURL.appendingPathComponent("PommoraNexus", isDirectory: true)
         panel.directoryURL = FileManager.default.fileExists(atPath: suggested.path) ? suggested : homeURL
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        // During scene bring-up the sandbox's remote panel aborts instantly
+        // with a negative response (observed -2) instead of presenting —
+        // distinct from a user cancel (0). Retry with a short backoff until
+        // the panel machinery is ready; user cancels are never retried.
+        var response = panel.runModal()
+        var retries = 0
+        while response.rawValue < 0 && retries < 5 {
+            retries += 1
+            LaunchTrace.mark("pickNexus: runModal aborted (\(response.rawValue)) — retry \(retries)")
+            try? await Task.sleep(for: .milliseconds(400))
+            response = panel.runModal()
+        }
+        LaunchTrace.mark("pickNexus: runModal returned \(response.rawValue)")
+        guard response == .OK, let url = panel.url else { return }
         await openPicked(at: url)
     }
 
