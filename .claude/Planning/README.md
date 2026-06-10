@@ -15,7 +15,8 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Superseded
 
-- `Superseded/PagesV2.md` — the PagesV2 implementation plan (11 phases, P0–P10). **COMPLETE as of `c7f48c7`** (986 tests green): the one-entity collapse — `Item*` deleted, `[[` sole syntax, `PageType.open_in`, the in-window `PagePreview` card, band-3 user sidebar sections, index schema v11, and this doc sweep. Record → `History.md` § "PagesV2"; decision → registry #17.
+- `Superseded/PagePreviewWindow.md` — the V9 real-window PagePreview rebuild (WindowGroup + restriction pass + shared compact inspector). **COMPLETE at v0.4.0** (987 tests green). Record → `History.md` § "v0.4.0".
+- `Superseded/PagesV2.md` — the PagesV2 implementation plan (11 phases, P0–P10). **COMPLETE as of `c7f48c7`** (986 tests green): the one-entity collapse — `Item*` deleted, `[[` sole syntax, `PageType.open_in`, the in-window `PagePreview` card (rebuilt next morning as a real window — see `PagePreviewWindow.md`), band-3 user sidebar sections, index schema v11, and this doc sweep. Record → `History.md` § "PagesV2"; decision → registry #17.
 - `Superseded/06-09-Items-Strip-Spec.md` — the zero-assumption spec that fed `PagesV2.md`.
 - `Superseded/06-09-Items-Pages-Collapse-Evaluation.md` — the 6-agent evaluation behind the collapse decision (ratified 2026-06-09).
 - The three ItemsV2 plan files (`06-07-ItemsV2-Plan-V3.md`, `06-07-ItemsV2-Spec-V5.md`, `06-03-ItemsV2-Implemented.md`) were superseded by PagesV2 and deleted in `caa236b` — git history preserves them.

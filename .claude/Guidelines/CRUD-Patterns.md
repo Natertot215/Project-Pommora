@@ -6,9 +6,9 @@ SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → valid
 
 #### Preview prerequisite — one shared primitive (`PagePreview`)
 
-"Open in preview" is a generic affordance backed by **one shared primitive** — the in-window `PagePreview` card (`PreviewStack` overlay + `PagePreviewCard`; spec → `Features/Pages.md` § "Opening behavior") — not a per-feature one. There is no standalone-window preview scene.
+"Open in preview" is a generic affordance backed by **one shared primitive** — the `PagePreview` window (the `WindowGroup(id: "page-preview")` scene + `PageOpenRouter`; spec → `Features/Pages.md` § "Opening behavior") — not a per-feature one.
 
-**Rule:** for any entity kind (Page, Page Type, Page Collection, Space, Topic, Project, Agenda Task, Agenda Event), preview support for that kind ships on the shared `PreviewStack` primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-vault via `open_in`.
+**Rule:** for any entity kind (Page, Page Type, Page Collection, Space, Topic, Project, Agenda Task, Agenda Event), preview support for that kind ships on the shared `PagePreview` primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing (e.g. the v0.2.7.2 NavDropdown EntityWindowHost, since removed) rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-vault via `open_in`.
 
 ---
 
@@ -274,7 +274,7 @@ How a window / panel / detail surface hosts editable relation, status, and tier 
 - **`ContextValueEditor`** is the inline context-link/tier editor: shows the current value as `ContextChip` icon+title (or an "Add" affordance) and presents the grouped `ContextPicker` in a **chromeless popover** on tap (`.presentationBackground(.clear)`). The picker owns its own **fixed frame**, so the chromeless popover can't collapse — never rely on the popover to size it (the `9deb818` rule). Tiers reuse it directly with `scope: .contextTier(n)`.
 - **Value-commit contract — the host owns persistence.** `ContextValueEditor` writes the new `[ID]` array back through its `@Binding`; the host's setter routes to its manager (`PageContentManager.updatePageFrontmatter` / `updatePageProperty`, or a VM's `handleTierChange` → debounced `onSave`). The editor never knows the manager — binding-in, binding-out.
 - **Env (quirk #16).** The editor needs `index` (picker candidate query) + `ContextDisplayResolver` (current-value chips). Pass them **explicitly as params** when the host is a sheet/popover — sheet env-inheritance is the classic SIGTRAP trap; read via `@Environment` only when the host sits directly in the `.detail` chain that injects them.
-- **Current hosts:** `FrontmatterInspector` (main-pane Pages — editable tiers + relation/status properties, persisting via `updatePageFrontmatter`) and `PagePreviewInspector` (the PagePreview card's inspector pane, saving through the same `FrontmatterInspectorViewModel` path).
+- **Current hosts:** `FrontmatterInspector`, mounted on both surfaces — the main-pane Page editor (full scale) and the PagePreview window (`compact: true`) — editable tiers + relation/status properties, persisting via `updatePageFrontmatter` through the shared `FrontmatterInspectorViewModel` path.
 
 ---
 

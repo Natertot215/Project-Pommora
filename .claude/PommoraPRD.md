@@ -143,7 +143,7 @@ Both directives resolve to inert text + standard Markdown for external tools (No
 
 The operational-layer container: a **Page Type** is a folder at `<nexus>/<Title>/` + `_pagetype.json` sidecar (`id`, `icon`, `properties[]` shared schema, `views[]`, `collection_order`, `page_order`, `default_sort`, optional `open_in`). Title = folder name. **Page Collections** are sub-folders inside a Page Type, sharing the Type's schema (their own `_pagecollection.json` carries `id` + `type_id` + `icon` + ordering + `views[]`). UI label "Vault" / "Collection" by default. Full detail → `// Features//PageTypes.md`.
 
-A Page Type has no text-editor surface — a pure database viewer (table / board / list / cards / gallery). Move-strip applies cross-Type (a Page moved across Page Types loses properties absent from the destination schema). The per-vault `open_in` field (`compact` | `window`; absent = `window`) decides where the vault's Pages open — the in-window PagePreview card or the main detail pane.
+A Page Type has no text-editor surface — a pure database viewer (table / board / list / cards / gallery). Move-strip applies cross-Type (a Page moved across Page Types loses properties absent from the destination schema). The per-vault `open_in` field (`compact` | `window`; absent = `window`) decides where the vault's Pages open — the PagePreview window or the main detail pane.
 
 ##### Contexts (Spaces / Topics / Projects)
 
@@ -158,7 +158,7 @@ Calendar-anchored entries split into two distinct entities:
 
 Schemas live in per-side per-kind sidecars: the Tasks singleton's `_taskconfig.json` (AgendaTask schema) and the Events singleton's `_eventconfig.json` (AgendaEvent schema). Sidecar-driven discovery — first root folder found carrying each sidecar wins; if no folder carries the sidecar on a brand-new nexus, managers eagerly seed `Tasks/` + `Events/` at the root on launch. Swift type names are `AgendaTask` and `AgendaEvent` (prefixed to avoid `_Concurrency.Task` and `Event` stdlib collisions; the "no `Pommora.X` qualification" rule rejects `Pommora.Task`). UI labels remain "Task" / "Event" (renameable via Settings).
 
-EventKit requires `com.apple.security.personal-information.calendars` entitlement + `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` keys + modern `requestFullAccessTo*` APIs (separate permissions per kind). EventKit sync opt-in via Settings (data layer ships v0.3.0; sync ships v0.5.0). Agenda has NO dedicated sidebar section — surfaces via the Calendar pin entry. Full detail → `// Features//Agenda.md`.
+EventKit requires `com.apple.security.personal-information.calendars` entitlement + `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` keys + modern `requestFullAccessTo*` APIs (separate permissions per kind). EventKit sync opt-in via Settings (data layer ships v0.3.0; sync ships v0.6.0). Agenda has NO dedicated sidebar section — surfaces via the Calendar pin entry. Full detail → `// Features//Agenda.md`.
 
 ##### Homepage
 
@@ -315,7 +315,7 @@ WHERE start_at BETWEEN datetime('now') AND datetime('now', '+7 days');
 - **Every property can carry an icon** (SF Symbol via the native `IconPicker`).
 - **Context-tier links are one-way and pre-configured** — `tier1`/`tier2`/`tier3` are built-in relation properties (merged via `BuiltInContextLinkProperties`) stored at frontmatter root. There are no user-creatable paired/dual relations; the `DualRelationCoordinator` machinery has been removed.
 - **Inline option creation forbidden.** Select/Multi-select/Status options come only from the schema editor (Vault Settings → Edit Properties), reachable via right-click "Edit options…" or "Manage options…" link in every value picker.
-- **Move-strip rule (Notion-style):** moving a Page across Page Types strips properties not in the destination schema (no quarantine; confirmation warning lists strips). Implemented v0.3.0 (pulled forward from v0.4.0).
+- **Move-strip rule (Notion-style):** moving a Page across Page Types strips properties not in the destination schema (no quarantine; confirmation warning lists strips). Implemented v0.3.0.
 
 Full catalog, config shapes, schema-mutation rules → `// Features//Properties.md`.
 
@@ -359,12 +359,12 @@ Agenda Tasks and Agenda Events do NOT appear in the sidebar — they surface via
 
 Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side panes drag-resizable from v0.0; widths persist across launches. Default window 1200×800; minimum 960×560.
 
-**Main-window inspector hosts the Claude chat** (frontend to Nathan's local CLI, not an API integration; subprocess bridge) — ships at v0.6.0 (LLM Interface). **Properties do NOT live in the main-window inspector under the locked direction.** They live in two surfaces depending on context (full spec at [[Properties]] § "Where Properties Live"):
+**Main-window inspector hosts the Claude chat** (frontend to Nathan's local CLI, not an API integration; subprocess bridge) — ships at v0.7.0 (LLM Interface). **Properties do NOT live in the main-window inspector under the locked direction.** They live in two surfaces depending on context (full spec at [[Properties]] § "Where Properties Live"):
 
 | Surface | Property home |
 |---|---|
 | **Page in main window** | Target: NavDropdown-style pulldown at top of content (lazy properties); today the editor's `.inspector` (`FrontmatterInspector`) until the pulldown ships |
-| **PagePreview card** (in-window) | Property panel in the card's inspector pane (`PagePreviewInspector`, defaults open) |
+| **PagePreview window** | The shared `FrontmatterInspector` mounted compact (defaults open) |
 
 **Window chrome — macOS unified title bar.** No separate Pommora title bar. Traffic-lights render OS-rendered in the sidebar pane's column. A single unified toolbar (`.windowToolbarStyle(.unified(showsTitle: false))`) holds sidebar toggle, back/forward arrows, NavDropdown trigger, and inspector toggle, all in the same row as traffic-lights. No second toolbar row. Pattern: Mail / Notes / Finder.
 
@@ -374,13 +374,13 @@ Built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with inspec
 
 Main pane is **single-pane.** Navigation history lives in a Liquid Glass dropdown button (SF Symbol `square.on.square`) in the toolbar — popover with two toggleable lists: **Pinned** (user-curated via right-click) and **Recents** (auto-tracked LRU). Replaces the earlier "Top-Bar Tabs" model. Pattern: Things 3 Quick Find, Notes.app Move-To popover.
 
-Single-click highlights, double-click opens in main detail pane. Keyboard: `⌘T` opens dropdown; `⌘[` / `⌘]` walk Recents back/forward. State persists in `<nexus>/.nexus/state.json` (per-nexus, vault-portable); Pinned uncapped; Recents store cap 500; dropdown shows top 100; full-frame Recents view (v0.6.0) shows the full store.
+Single-click highlights, double-click opens in main detail pane. Keyboard: `⌘T` opens dropdown; `⌘[` / `⌘]` walk Recents back/forward. State persists in `<nexus>/.nexus/state.json` (per-nexus, vault-portable); Pinned uncapped; Recents store cap 500; dropdown shows top 100; full-frame Recents view (v0.7.0) shows the full store.
 
 Shipped at v0.2.7.1. Full spec → `// Features//NavDropdown.md`.
 
-##### PagePreview Card
+##### PagePreview Window
 
-Pages in a `compact`-mode vault open as an **in-window draggable Liquid Glass card** floating over the detail content — a `PreviewStack` overlay hosted in `ContentView`, not a separate window scene. 475×475 collapsed (and minimum), resizable; multiple cards cascade +24pt; one card per Page (re-open focuses). Cards open **locked** (read-only) with the inspector **open** (`PagePreviewInspector` over the shared `FrontmatterInspectorViewModel` save path); the footer lock toggles editing, and unlocking reveals an **Open** affordance beside it. Header carries a ✕ close capsule + inspector toggle; the context menu's **Open Page** promotes the Page to the main detail pane and removes the card. A Page already shown in the main pane never previews (edit-conflict guard). Full spec → `// Features//Pages.md` § "Opening behavior".
+Pages in a `compact`-mode vault open in **PagePreview** — a real `WindowGroup` window (`id: "page-preview"`, `for: PageRef.self`; one window per Page, re-open focuses) restricted to never act as its own app window: traffic lights hidden, no Dock minimize, no Window menu / Mission Control presence, no fullscreen Space; child-attached above the main window at normal level (rides its moves, never floats over other apps, hides with it, closes with it and on Nexus switch). Standard `windowBackground` material — the only glass is the two `WindowCapsuleButton` capsules (✕ close, inspector toggle). Windows open **locked** (read-only) with the inspector **open** — the shared `FrontmatterInspector` mounted compact; the footer lock toggles editing, and unlocking reveals an **Open** button. `Ctrl-Cmd-F` or a title-strip double-click promotes the Page to the main detail pane. Default 840×540; minimum 630×424. A Page already shown in the main pane never previews (edit-conflict guard); every open path routes through `PageOpenRouter`. Full spec → `// Features//Pages.md` § "Opening behavior".
 
 ##### First-Launch Experience
 
@@ -388,7 +388,7 @@ After the user picks a nexus location, Pommora opens with empty sidebars plus a 
 
 ##### Design System
 
-SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into the v0.6.0 Settings UI). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`.
+SwiftUI native idioms (semantic colors, Materials, Font scale, SF Symbols) plus small Pommora-brand Color/Font extensions for values SwiftUI doesn't cover (accent, code, callout, blockquote). V1 ships one initial scheme plus in-app customization for accent color and font size (folded into the v0.7.0 Settings UI). Full design philosophy → `// Guidelines//Design.md`. SF Symbol assignments → `// Guidelines//Symbols.md`.
 
 ##### File Renames and Connection Resolution
 
@@ -419,11 +419,11 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 **In:**
 
 - **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `project_links` as typed multi-valued property (additional Context IDs across tiers).
-- **Page Types + Page Collections + Pages** — each Page Type carries its `_pagetype.json` sidecar; Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` carries id + type_id + icon + ordering + views). UI labels "Vault" + "Collection" (renameable via Settings). Per-vault `open_in` mode (`compact` → PagePreview card; `window` → main detail pane).
+- **Page Types + Page Collections + Pages** — each Page Type carries its `_pagetype.json` sidecar; Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` carries id + type_id + icon + ordering + views). UI labels "Vault" + "Collection" (renameable via Settings). Per-vault `open_in` mode (`compact` → PagePreview window; `window` → main detail pane).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + the Pommora-owned `MarkdownPM` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
-- **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.5.0). NO sidebar section — Calendar pin entry surfaces both kinds.
+- **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.
-- **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.6.0; storage + label-read plumbing + Cmd+, stub scene shipped at v0.3.0.
+- **Settings scaffold** — `.nexus/settings.json` + `SettingsManager` + UI label wiring across all renameable surfaces + accent color reading. Settings editing UI ships v0.7.0; storage + label-read plumbing + Cmd+, stub scene shipped at v0.3.0.
 - Property panel UI driven by Page Type / AgendaTask / AgendaEvent schemas; all 10 v1 property types incl. Status with EventKit-aligned groups + File / Attachment; the Vault Settings sheet centralizes schema editing. Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in the View Settings surface; phasing in `Framework.md`.
 - Connections — `[[Page]]` inline links (styled colored text; the sole connection syntax).
 - Automatic file rename with cross-nexus connection cascade (title rewrite across all referencing bodies).
@@ -431,7 +431,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - Global search (SQLite FTS5 over Page bodies + frontmatter).
 - Four-section sidebar (Pinned / Spaces / Topics / Vaults) plus user-creatable vault sections, user-reorderable, default-collapsed. Agenda surfaces via Pinned → Calendar.
 - **Inline editing of embedded views** — every embed in a composed-blocks surface is a live editable view of its source.
-- One initial design scheme + in-app accent color + font size customization (folded into the v0.6.0 Settings UI on top of the v0.3.0 Settings scaffold); SwiftUI native handles everything else.
+- One initial design scheme + in-app accent color + font size customization (folded into the v0.7.0 Settings UI on top of the v0.3.0 Settings scaffold); SwiftUI native handles everything else.
 
 **Out (post-v1):** additional view types, block features, sync, mobile, plugins, ad-hoc properties, multi-Collection pages, independent UI titles, in-line view embeds in Pages, chip-style connection variants, board view drag-to-rewrite-frontmatter, full Settings editing UI, etc. — see `// Features//Prospects.md`. Prospects move into `Framework.md` when committed.
 
@@ -455,4 +455,4 @@ Items were Pommora's second operational entity beside Pages, from the founding p
 
 **The index.** The SQLite index carried three item tables — `items` (with a `description` projection of the body), `item_types`, and `item_collections` — parallel to the page tables, dropped at schema v11.
 
-**Why and when it collapsed.** Ratified 2026-06-09 after the Items↔Pages collapse evaluation: the two entities had converged to the point of redundancy — same file format, same codec, same property catalog, same container shape, same tier relations — leaving only a body-length cap and a render surface as the differences. Neither needed a second entity: per-vault **`open_in`** settings (`compact` | `window`) now give any vault the row-shaped glance experience via the **PagePreview card** or the full-page experience in the detail pane, on a single Page entity. The collapse deleted rather than migrated (no on-disk data change; the index is regeneratable); legacy `_itemtype.json` folders adopt as ordinary sidecar-less Page Types with the stale sidecar left inert.
+**Why and when it collapsed.** Ratified 2026-06-09 after the Items↔Pages collapse evaluation: the two entities had converged to the point of redundancy — same file format, same codec, same property catalog, same container shape, same tier relations — leaving only a body-length cap and a render surface as the differences. Neither needed a second entity: per-vault **`open_in`** settings (`compact` | `window`) now give any vault the row-shaped glance experience via the **PagePreview window** or the full-page experience in the detail pane, on a single Page entity. The collapse deleted rather than migrated (no on-disk data change; the index is regeneratable); legacy `_itemtype.json` folders adopt as ordinary sidecar-less Page Types with the stale sidecar left inert.

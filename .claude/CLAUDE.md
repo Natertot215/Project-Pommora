@@ -9,7 +9,7 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
   - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside Page Types; Page Collections organize within. UI labels: **"Vault"** + **"Collection"** (renameable via Settings).
   - **Agenda** — split into Agenda Tasks (`.task.json`, EKReminder-shaped) and Agenda Events (`.event.json`, EKEvent-shaped). Data layer ships v0.3.0; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
-- **Settings scaffold** (`.nexus/settings.json`): per-Nexus user-overridable UI labels + accent color (storage + label wiring shipped v0.3.0; full editing UI ships v0.6.0).
+- **Settings scaffold** (`.nexus/settings.json`): per-Nexus user-overridable UI labels + accent color (storage + label wiring shipped v0.3.0; full editing UI ships v0.7.0).
 
 A second operational entity ("Items") existed until the 2026-06 PagesV2 collapse into Pages — see `History.md` + the `PommoraPRD.md` retrospective.
 
@@ -59,7 +59,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 
-- **Pages open per their vault's `open_in` mode** (`compact` | `window` on `_pagetype.json`; absent = `window`). `window` → the main detail pane; `compact` → a **PagePreview card**: an in-window draggable Liquid Glass card over the detail content (`PreviewStack` overlay in `ContentView` — no separate window scene). Cards open locked with the inspector open; the context menu's Open Page promotes to the main pane; a page already in the main pane never previews. Full behavior → `// Features//Pages.md` § "Opening behavior".
+- **Pages open per their vault's `open_in` mode** (`compact` | `window` on `_pagetype.json`; absent = `window`). `window` → the main detail pane; `compact` → a **PagePreview window**: a real `WindowGroup` window (`id: "page-preview"`, `for: PageRef.self`) restricted to never act as its own app window — traffic lights hidden, no Dock/Window-menu/Mission Control presence, child-attached ABOVE the main window (rides its moves, never floats over other apps, closes with it and on Nexus switch). Opens locked with the shared `FrontmatterInspector` mounted compact and open; unlock reveals Open; "grow" gestures (Ctrl-Cmd-F, title-strip double-click) promote to the main pane; a page already in the main pane never previews. Routing lives in `PageOpenRouter` — sidebar (single-click) + detail tables (double-click) share the one open-path. Full behavior → `// Features//Pages.md` § "Opening behavior".
 
 #### Document Map
 

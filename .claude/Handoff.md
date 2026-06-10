@@ -6,37 +6,36 @@
 >
 > *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess, you LOOK, you ASK. You open the file and LOOK AT THE CODE before you assert anything. You ASK ME when unsure.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it."* ASK ME when you're unsure! Honesty is key; confidence must be earned through evidence.
 
-#### Session Summary (2026-06-10 — PagesV2 EXECUTED IN FULL, P0→P10, overnight run)
+#### Session Summary (2026-06-10 — v0.4.0 shipped to main)
 
-**PagesV2 is complete.** The Items→Pages collapse executed end-to-end on `itemsv2-interactive-window`, every phase a clean-room-verified green commit. Pommora now has **one operational entity** (Pages, beside Agenda): Items deleted from code, schema (v11 — nine tables), settings, tests, and docs; `{{ }}` retired to plain text; `Class` never written; **PagePreview** (in-window draggable Liquid Glass card) + per-vault **`open_in`** + **user sidebar sections** shipped. Net: roughly **−16k lines**; the suite reshaped from 1,246 item-era tests to **985 page-native, 0 failures**. Plans archived to `// Planning//Superseded//`; collapse entry in `History.md`; the sanctioned "What Items Were" retrospective lives in `PommoraPRD.md`.
-
-Key commits: P1 `caaae19` · P2 `9120047` · P2.5 `424ccce` · P4 `9815ebd` · P3 `e9c8430` · P7 `477d82e` · P5 `67ee817`+`85b2ba4`+`58b4296` · P6 `c50ff49` · P8 `da2d223` · P9 `c7f48c7` · P10 `fc289b6`.
-
-Mid-run plan revisions (all Nathan-ratified): **V6** stop-and-ask became a binding obligation; **V7** `{{ }}` retirement got its own phase (P2.5) with the chip visual surviving as the one dormant Component Library design file; **V8** the PagePreview primitive became an in-window draggable card (no window scene); overnight amendments — P5 reconciled to the transcript (inspector defaults open; unlock reveals an Open affordance; ✕ close), and the PRD "What Items Were" section became the third sanctioned survivor.
+**v0.4.0 is merged: the PagesV2 collapse + the PagePreview real-window rebuild.** The V8 in-window glass card failed first contact (laggy drag, no table opens, a save-bricking validator gap) and was rebuilt the same day as a real `WindowGroup` window that can't act as its own app window, mounting the shared `FrontmatterInspector` at a compact scale. Live-verified end-to-end on The Nexus via an accessibility-driven interaction matrix; 987 tests green. Full record → `History.md` § "v0.4.0"; plan → `Planning/Superseded/PagePreviewWindow.md`. The roadmap renumbered +1 (Views now v0.5.0 … Contexts+Homepage v0.8.0).
 
 #### Lessons Learned
 
-- **Type-safe ≠ runtime-safe (CR-9):** dropping an error-mapper branch while its `LocalizedError` extension still delegated into it compiled clean and crashed 902 tests via infinite recursion. The test gate caught what the build gate cannot.
-- **Invert, don't delete:** retired behaviors are pinned by inverted tests — `{{` never scans/styles/pairs, `Class` never written, item tables absent from `sqlite_master`. Regression guards instead of lost coverage.
-- **Executed-count reconciliation works:** every phase's test delta was predicted and reconciled (±1 between agents is parser variance; more is a finding).
-- **NotchNook owns the menu-bar/toolbar hit-zone** for computer-use clicks — driving Pommora's toolbar needs it quit or coordinates below the notch strip.
+- **The test suite was eating the real `state.json`** (resetBookmark test in the shared container) — the recurring "lost Nexus bookmark" mystery. All app-state paths now divert to a temp dir under XCTest; never let the test host share live state.
+- **`windowResizeBehavior(.disabled)` freezes ALL window resizing**, not just zoom — caught only by live AX resize probing, invisible to the suite.
+- **Explicit fonts beat environment fonts** — components that hard-code `.font(...)` silently ignore a caller's compact scale; the deference pattern is `@Environment(\.font)` + `inherited ?? default`.
+- **Screenshot-verified iteration works**: build → relaunch → `screencapture` → Read → pixel-measure → tune. Chat-pasted images never arrive; captures I take and Read render where Nathan can see them.
 
-#### Next Session (Nathan's morning review list)
+#### Next Session (Nathan's standing direction)
 
-1. **PagePreview screenshot** — launch against `~//Test`, set a vault to Compact (View Settings footer toggle), tap a page; compare against `// Planning//Assets//PagePreview-Figma-V8.jpg`. Code parity is done; this is the owed visual confirmation. Check: inspector opens by default, unlock reveals Open, ✕ close capsule.
-2. **One manual sidebar-section create** — exercises the populated-outline path headless tests can't (quirk #8). Add Section via the Vaults header context menu → inline rename → Move to Section on a vault row.
-3. **Gate-allowlist sanctions (P10 flags, Nathan's call):** archive `06-05-Connections-Plan.md` + `Contextv2.md` to Superseded/ (shipped; the largest remaining grep noise) and allowlist `Transcripts//` + `ReactInfo//` + `skills//` in the no-trace gate.
-4. **Prospect check:** "Per-page open-in override" reframes Item↔Page promotion in `Prospects.md` — swap if something else was meant. Also new prospects: drag-reorder within user sections; section-rename duplicate validation.
+**Execute the Contexts Decoupling plan** — the parallel session's ratified work, now unblocked (its gate required this branch landing + clean status, both satisfied):
+1. `Planning/06-10-Contexts-Decoupling-Spec.md` — the ratified spec (Projects free-standing tier-3, context relations reset, sidebar tier disclosure rows, Space→Area rename).
+2. `Planning/06-10-Contexts-Decoupling-Plan.md` — the adversarially-verified P1–P6 plan. Re-verify its SidebarView line anchors against the landed v0.4.0 file before P1/P3 (the plan says so itself).
+
+Manual one-click checks still owed on v0.4.0 (deferred from the interaction matrix): Mission Control + Cmd-` absence of the preview window; dedupe re-click focus feel; inspector-toggle widen animation feel.
 
 #### Pending Focuses
 
-- Agenda compact-panel surface: hosting surface intentionally undecided post-PreviewWindow-elimination (noted in `Agenda.md` + `Framework.md`).
-- Launch-tail indexing contract (now documented in `Architecture.md`): a page Finder-dropped onto a current-stamped index arrives via CRUD or forced rebuild, not the launch scan — revisit if same-launch pickup is ever expected.
-- Settings full editing UI remains v0.6.0.
+- Agenda compact-panel surface: hosting decided by the v0.6.0 Agenda UIX work (was undecided post-PreviewWindow-elimination; the PagePreview window pattern is the likely template).
+- Launch-tail indexing contract (documented in `Architecture.md`): Finder-dropped pages arrive via CRUD or forced rebuild, not the launch scan.
+- `LaunchTrace` breadcrumbs (DEBUG-only) live at the container's `tmp/launch-trace.log` — keep until a few clean weeks of launches, then consider removing.
+- Settings full editing UI ships v0.7.0 (post-renumber).
 
 #### Fix Log
 
-- CR-9: `ItemTypeManagerError` LocalizedError recursion — extension deleted on the error side (P1, Nathan's ruling).
-- P9 reorder-offset translation: the filtered default Vaults section's `.onMove` maps back to full-array indices (order-corruption guard).
-- `AdoptionPreviewView` wrapper-dissolve string: "Pages/Items/Agenda" → "Pages/Agenda" (last production item string, P10).
-- Stale claims fixed en route: index has **9** data tables at v11 (plan said 8); `Wiki-Link.md` doesn't exist (Document Map → `Connections.md`); Settings-UI version drift aligned to v0.6.0; Planning README phantom entries removed.
+- `PageValidator` status/file gap (banned `default:` arm) — exhaustive value-side switch; legacy Ideas/Notes vaults repaired, inert `_itemtype.json` removed.
+- Compact routing from detail panes — `PageOpenRouter`, one shared open-path.
+- Launch dead-ends: panel abort retry + activation wait; `dismissWindow` deferred out of the first view update.
+- Inspector toggle width drift — instant pane mount (transaction) + 840×540 default agreeing with the 630 width floor.
+- `AppGlobals.mainWindow` prefix matching (exact `== "main"` never matched SwiftUI's identifiers).

@@ -61,22 +61,24 @@ The `.md` file format is the architectural firewall — Pages on disk are identi
 
 #### Properties surface
 
-Currently, a Page's properties surface as the **property panel** in the editor's pop-out **inspector** (`FrontmatterInspector`, a SwiftUI `.inspector` at the window's trailing edge — not inside the page body), rendering every schema property as a fillable row. This **will move to a dedicated properties dropdown** (`PropertiesPulldown`) to free the inspector for the planned LLM / CLI interface. Auto-managed `id` + `created_at` sit in a divider-separated section; `modified_at` shows as **Last Edited Time** for sortability. Title is not included (filename plays that role). Canonical architecture: [[Properties]] § "Where Properties Live".
+Currently, a Page's properties surface as the **property panel** in the editor's pop-out **inspector** (`FrontmatterInspector`, a SwiftUI `.inspector` at the window's trailing edge — not inside the page body), rendering every schema property as a fillable row. This **will move to a dedicated properties dropdown** (`PropertiesPulldown`) to free the inspector for the planned LLM / CLI interface. The inspector has no meta section (Title / ID / Created / Icon) — the filename is the title, the page ID renders as a bottom-pinned pane footer, and an **Add Property** affordance beneath the rows commits through the shared `PropertyCreation` path. Canonical architecture: [[Properties]] § "Where Properties Live".
 
 ---
 
 #### Opening behavior
 
-**Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"); `PreviewStack.destination(for:page:currentSelection:)` routes every sidebar page-tap.
+**Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"). `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path — `destination(for:page:currentSelection:)` plus `routeOpen` overloads taking an `openPreview: (PageRef) -> Void` closure. Sidebar single-click, `PageTypeDetailView` / `PageCollectionDetailView` double-click, and the Component Library all route through it.
 
 **`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
 
-**`compact` — PagePreview card.** The Page opens as an **in-window draggable Liquid Glass card** floating over the detail content (the `PreviewStack` overlay hosted in `ContentView` — no separate window scene). Behavior:
+**`compact` — PagePreview window.** The Page opens in **PagePreview** — a real `WindowGroup` window (`id: "page-preview"`, `for: PageRef.self`; one window per Page — re-opening focuses the existing one), restricted to never act as its own app window:
 
-- **475×475 collapsed** (also the minimum), resizable; multiple cards open at once, cascading +24pt per already-open card; re-opening an already-previewed Page focuses its existing card (one card per Page).
-- **Opens locked** (read-only). The footer lock toggles editing; unlocking reveals an **Open** affordance beside the lock. The header carries a **✕ close capsule** and an inspector-toggle capsule.
-- **Inspector defaults open** — the preview-styled `PagePreviewInspector`, saving through the same `FrontmatterInspectorViewModel` path as the main-pane inspector.
-- **Context menu: Open Page / Lock-Unlock.** Open Page promotes the Page to the main detail pane and removes the card.
+- **Child-attached above the main window** at normal level — rides main-window moves, never floats over other apps, hides with the main window, and closes with it and on Nexus switch. Traffic lights hidden; no Dock minimize, no Window menu / Mission Control presence, no fullscreen Space.
+- **Standard `windowBackground` material** — not glass; the only glass is the two `WindowCapsuleButton` capsules (✕ close, inspector toggle).
+- **Chrome:** native-voice editable title bar (15pt semibold title + 18pt proxy icon); uniform-inset hairlines; footer = breadcrumb + lock. The body is the shared `MarkdownPMEditor` at 13pt (horizontal text inset = the 12pt chrome rail; vertical inset 12).
+- **Opens locked** (read-only) with the inspector open. The footer lock toggles editing; unlocking reveals an **Open** button. `Ctrl-Cmd-F` and a title-strip double-click promote the Page to the main detail pane.
+- **Inspector** — the shared `FrontmatterInspector` mounted `compact: true` (→ [[Properties]] § "Where Properties Live").
+- **Sizing:** default 840×540; minimum 630×424 (420 body + 210 inspector); toggling the inspector resizes the window by exactly 210.
 - **Edit conflicts are structurally unreachable** — a Page currently shown in the main detail pane never opens as a preview (the tap is suppressed).
 
 **From the NavDropdown — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure. Full mechanics live in `NavDropdown.md`.
@@ -99,7 +101,7 @@ Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a
 
 #### Connections
 
-Canonical spec → [[Connections]]; the on-disk form is ratified by blessed decision D1 (`// Planning//2026-06-02-MarkdownPM-Decisions.md`). The connection system itself lands as a separate post-rebuild session (roadmap → v0.4.0).
+Canonical spec → [[Connections]]; the on-disk form is ratified by blessed decision D1 (`// Planning//2026-06-02-MarkdownPM-Decisions.md`). A deeper connection-model layer (per-shape tables, weight-at-query) is planned but not yet slotted on the roadmap.
 
 - **Disk format: plain `[[Page Name]]`** (Obsidian-compatible) — Pommora never writes a piped `[[Title|<id>]]` form to disk, and there is no frontmatter mirror. Rename-safety comes from cascade: every referencing body is rewritten when the target is renamed.
 - **Resolution is by globally-unique title** — every Page title is unique nexus-wide, so a bare `[[Page Name]]` resolves to exactly one Page. A name matching nothing renders as inert literal text until that Page exists.
