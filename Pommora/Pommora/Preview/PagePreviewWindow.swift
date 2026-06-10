@@ -7,16 +7,9 @@ import SwiftUI
 /// Tunable geometry for the PagePreview window — every value here is a
 /// deliberate design constant; adjust on sight, never inline.
 enum PreviewWindowMetrics {
-    /// Default window size with the inspector OPEN (its default state).
-    /// Width = minBodySize.width (420) + inspector (210) + body headroom
-    /// (210) — agreeing with the window's effective width floor so the
-    /// inspector toggle moves the frame by EXACTLY the pane width from the
-    /// very first click (a default below the floor would clamp once).
     static let defaultSize = CGSize(width: 840, height: 540)
-    /// Minimum size of the BODY column (the window's min width grows by the
-    /// inspector width while the inspector is presented).
     static let minBodySize = CGSize(width: 420, height: 360)
-    /// Fixed inspector pane width (Figma delta: 685 − 475).
+    /// Inspector pane ideal width; user can drag between min (180) and max (400).
     static let inspectorWidth: CGFloat = 210
     /// Horizontal rail shared by the header content, both hairline insets,
     /// and the footer — separator ends align with the capsules' bounds
@@ -37,16 +30,19 @@ enum PreviewWindowMetrics {
 
 // MARK: - PagePreviewWindowRoot
 
-/// Root of the `WindowGroup(id: "page-preview", for: PageRef.self)` scene.
+/// Root of the `UtilityWindow(id: "page-preview")` scene.
 /// Bootstraps the per-Nexus environment from `AppGlobals.current` (published
 /// by `NexusEnvironment` exactly for standalone scenes) and self-dismisses
-/// when there's nothing to show (no open Nexus / valueless open).
+/// when there's nothing to show (no open Nexus / cleared target).
 struct PagePreviewWindowRoot: View {
-    let ref: PageRef?
+    /// `UtilityWindow` is id-based (no value plumbing), so the previewed ref
+    /// is held in a shared @Observable read reactively here — setting it
+    /// retargets this one reusable panel. `@State` anchors the observation.
+    @State private var target = PreviewTarget.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if let ref, let env = AppGlobals.current {
+        if let ref = target.ref, let env = AppGlobals.current {
             PagePreviewContent(ref: ref)
                 .injectNexusEnvironment(env)
         } else {
@@ -91,46 +87,56 @@ struct PagePreviewContent: View {
     @State private var collection: PageCollection?
     @State private var loadFailed = false
 
-    /// Lock-gated editing: opens locked (read-only); the footer Lock glyph
-    /// and the context menu toggle it.
     @State private var isLocked = true
-    /// Inspector pane — defaults OPEN; toggling widens/shrinks the window
-    /// so the body column never squeezes.
     @State private var inspectorShown = true
-    /// Live NSWindow handle surfaced by the configurator — drives the
-    /// widen/shrink frame animation.
-    @State private var window: NSWindow?
 
     @State private var titleDraft = ""
     @FocusState private var titleFocused: Bool
     @State private var iconPickerOpen = false
+    @State private var isEditingTitle = false
 
     var body: some View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, PreviewWindowMetrics.railPadding)
                 .padding(.vertical, PreviewWindowMetrics.headerVPad)
+                // The whole strip (incl. the Spacer gap) is the drag handle —
+                // contentShape makes the empty areas hit-testable so the gesture
+                // fires there, not just on the buttons/title.
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
             hairline
             bodyEditor
             hairline
             footer
                 .padding(.horizontal, PreviewWindowMetrics.railPadding)
                 .padding(.vertical, PUI.Spacing.md)
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
         }
         .frame(
             minWidth: PreviewWindowMetrics.minBodySize.width,
             minHeight: PreviewWindowMetrics.minBodySize.height
         )
+        // Commit an in-progress title rename when the user clicks elsewhere in
+        // the window (a focused field isn't resigned by clicks on non-first-
+        // responder surfaces, so do it explicitly). Lower priority than the
+        // field's own clicks, so clicking inside the field keeps editing.
+        .onTapGesture { if isEditingTitle { commitTitleEdit() } }
         // The hidden title bar still reserves a top safe-area strip — without
         // this the header floats ~28pt below the window's top edge. The
         // header IS the title bar; it owns the top edge.
         .ignoresSafeArea(.container, edges: .top)
         .inspector(isPresented: $inspectorShown) {
             inspectorContent
-                .inspectorColumnWidth(PreviewWindowMetrics.inspectorWidth)
+                // The inspector is a separate pane — a native drag handle so its
+                // empty areas move the window (its controls keep their clicks).
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
+                .inspectorColumnWidth(min: 180, ideal: PreviewWindowMetrics.inspectorWidth, max: 400)
                 .interactiveDismissDisabled()
         }
-        .background(PreviewWindowConfigurator(window: $window))
+        .background(PreviewWindowConfigurator())
         // A preview can never minimize to the Dock, zoom, or become its own
         // fullscreen Space.
         .windowMinimizeBehavior(.disabled)
@@ -173,18 +179,9 @@ struct PagePreviewContent: View {
 
             HStack(spacing: PUI.Spacing.sm) {
                 iconAffordance
-                TextField("Untitled", text: $titleDraft)
-                    .textFieldStyle(.plain)
-                    // Native title-bar voice, sized for this window's
-                    // proportions. Still inline-editable.
-                    .font(.system(size: 15, weight: .semibold))
-                    .focused($titleFocused)
-                    .onSubmit { Task { await commitRename() } }
-                    .onChange(of: titleFocused) { wasFocused, isFocused in
-                        // Commit on click-out (blur), not just Enter.
-                        if wasFocused && !isFocused { Task { await commitRename() } }
-                    }
+                titleLabel
             }
+            .offset(y: 1)
             .contextMenu { menuCommands }
 
             Spacer(minLength: PUI.Spacing.md)
@@ -193,10 +190,37 @@ struct PagePreviewContent: View {
                 toggleInspector()
             }
         }
-        .contentShape(Rectangle())
-        // Title-bar double-click "zoom" → promote. Native zoom is disabled,
-        // so this is the only double-click behavior up here.
-        .onTapGesture(count: 2) { openInMainPane() }
+    }
+
+    /// Proxy-title: a plain label that reads as part of the draggable title bar
+    /// (no caret, fully draggable). A double-click swaps in a focused field to
+    /// rename (filename = title); Enter or focus-loss commits and returns to the
+    /// label. Mirrors a native window's proxy title — the caret only ever
+    /// appears on the text, and only while editing.
+    @ViewBuilder
+    private var titleLabel: some View {
+        if isEditingTitle {
+            TextField("Untitled", text: $titleDraft)
+                .textFieldStyle(.plain)
+                .font(.title2.weight(.semibold))
+                .fixedSize(horizontal: true, vertical: true)
+                .focused($titleFocused)
+                .onAppear { titleFocused = true }
+                .onSubmit { commitTitleEdit() }
+                .onChange(of: titleFocused) { _, focused in
+                    if !focused { commitTitleEdit() }
+                }
+        } else {
+            Text(displayTitle)
+                .font(.title2.weight(.semibold))
+                .fixedSize(horizontal: true, vertical: true)
+                .onTapGesture(count: 2) { beginTitleEdit() }
+        }
+    }
+
+    private var displayTitle: String {
+        let title = viewModel?.page.title ?? titleDraft
+        return title.isEmpty ? "Untitled" : title
     }
 
     /// Page icon (or the default page glyph) — tap opens the existing icon
@@ -208,8 +232,8 @@ struct PagePreviewContent: View {
             // Proxy-icon scale — the small document icon beside a native
             // window title, tracking the 15pt title.
             Image(systemName: currentIcon ?? "doc.text")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(currentIcon == nil ? .tertiary : .primary)
+                .font(.title2)
+                .foregroundStyle(currentIcon == nil ? .secondary : .primary)
                 .frame(width: 18, height: 18)
                 .contentShape(Rectangle())
         }
@@ -258,10 +282,13 @@ struct PagePreviewContent: View {
     /// the hairlines' insets, never double-indented — while a small vertical
     /// inset keeps the reduced type from squishing against the dividers.
     private var editorConfiguration: MarkdownPMConfiguration {
-        MarkdownEditorConfig.pommora(
+        var config = MarkdownEditorConfig.pommora(
             verticalInset: PreviewWindowMetrics.bodyVerticalInset,
             horizontalInset: PreviewWindowMetrics.railPadding,
             pageResolver: connectionResolver)
+        // A preview is a peek — no scrollbar chrome (wheel/trackpad still scroll).
+        config.scrollers = .hidden
+        return config
     }
 
     // MARK: - Footer
@@ -377,24 +404,22 @@ struct PagePreviewContent: View {
         }
     }
 
-    /// Inspector toggle widens/shrinks the window by the pane width so the
-    /// body column keeps its size (decision #8). The frame animates via the
-    /// window server; growth extends from the top-leading anchor.
     private func toggleInspector() {
-        // The pane mounts/unmounts INSTANTLY (animation suppressed) so the
-        // window's min-width constraint updates atomically — otherwise the
-        // animated collapse keeps the old minimum alive and the frame change
-        // clamps mid-flight, drifting the width on every toggle. The window
-        // frame animation is the only visible motion.
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) { inspectorShown.toggle() }
-        guard let window else { return }
-        var frame = window.frame
-        frame.size.width += inspectorShown
-            ? PreviewWindowMetrics.inspectorWidth
-            : -PreviewWindowMetrics.inspectorWidth
-        window.setFrame(frame, display: true, animate: true)
+        inspectorShown.toggle()
+    }
+
+    /// Enter rename mode: seed the buffer from the live title; the field takes
+    /// focus in its own `onAppear`.
+    private func beginTitleEdit() {
+        titleDraft = viewModel?.page.title ?? ""
+        isEditingTitle = true
+    }
+
+    /// Leave rename mode and persist via the shared rename path (idempotent —
+    /// guards empty/unchanged input).
+    private func commitTitleEdit() {
+        isEditingTitle = false
+        Task { await commitRename() }
     }
 
     /// "Open Page" promotion: flush the debounced edit BEFORE routing (the
@@ -421,12 +446,16 @@ struct PagePreviewContent: View {
     /// the sidebar/detail ever browsed that container), then build the editor
     /// VM on the same saver path as `PageEditorHost`.
     private func load() async {
-        // Defensive: a re-run must not orphan a previously registered VM in
-        // the lifecycle-flush registry.
+        // Defensive: a re-run (retarget to another Page) must flush + unregister
+        // the previous VM before discarding it — the reused panel doesn't fire
+        // onDisappear between peeks, so a pending debounced edit would be lost.
         if let old = viewModel {
             AppGlobals.unregister(old)
+            await old.close()
             viewModel = nil
         }
+        // Every peek opens locked — the fresh-defaults contract for the panel.
+        isLocked = true
         if ref.resolve(vaultManager: vaultManager, contentManager: contentManager) == nil {
             await loadContainer()
         }

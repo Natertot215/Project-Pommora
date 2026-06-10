@@ -333,7 +333,10 @@ struct ContentView: View {
         // scene state (dismissWindow) mid-update breaks the update cycle.
         if nexusEnvironment != nil {
             let dismissWindow = dismissWindow
-            Task { @MainActor in dismissWindow(id: "page-preview") }
+            Task { @MainActor in
+                PreviewTarget.shared.ref = nil
+                dismissWindow(id: "page-preview")
+            }
         }
         guard let nexus else {
             nexusEnvironment = nil
@@ -348,7 +351,7 @@ struct ContentView: View {
             let env = nexusEnvironment
         {
             PreviewSampleLauncher.run(env: env) { ref in
-                openWindow(id: "page-preview", value: ref)
+                openPagePreview(ref, using: openWindow)
             }
         }
         #endif

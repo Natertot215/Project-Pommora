@@ -348,7 +348,7 @@ struct PageTypeDetailView: View {
             PageOpenRouter.routeOpen(
                 p, selection: &selection,
                 content: contentManager, vaultManager: pageTypeManager,
-                openPreview: { openWindow(id: "page-preview", value: $0) })
+                openPreview: { openPagePreview($0, using: openWindow) })
         }
     }
 

@@ -49,16 +49,19 @@ struct PommoraApp: App {
             InspectorCommands()
         }
 
-        // PagePreview (V9): one real window per compact-opened Page. The
-        // window is standard in the hand (drag/resize/focus/Cmd-W) but
-        // invisible to the system — PreviewWindowConfigurator hides the
-        // traffic lights, excludes it from the Window menu/cycling/Mission
-        // Control, and attaches it as a child of the main window. Re-opening
-        // an already-previewed page focuses its window (per-value dedupe);
-        // `dismissWindow(id: "page-preview")` closes the whole group on
-        // Nexus switch. Never restored at launch; fresh defaults every open.
-        WindowGroup("Page Preview", id: "page-preview", for: PageRef.self) { $ref in
-            PagePreviewWindowRoot(ref: ref)
+        // PagePreview: one reusable panel for compact-opened Pages, as a
+        // native SwiftUI `UtilityWindow` (a non-activating NSPanel) — clicking
+        // or dragging it never becomes the main window, so the window behind it
+        // doesn't dim. It's id-based (no value plumbing), so the previewed ref
+        // lives in `PreviewTarget.shared`; peeking another Page retargets the
+        // same panel. PreviewWindowConfigurator still hides the traffic lights,
+        // excludes it from the Window menu/cycling/Mission Control, and attaches
+        // it as a child of the main window. `dismissWindow(id: "page-preview")`
+        // closes it on Nexus switch. Never restored at launch.
+        // Empty title: the header IS the title bar, so there is no window-title
+        // string for SwiftUI to display (the configurator also clears/hides it).
+        UtilityWindow(Text(verbatim: ""), id: "page-preview") {
+            PagePreviewWindowRoot()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(
@@ -66,7 +69,10 @@ struct PommoraApp: App {
             height: PreviewWindowMetrics.defaultSize.height
         )
         .windowResizability(.contentMinSize)
-        .windowBackgroundDragBehavior(.enabled)
+        // No .windowBackgroundDragBehavior: dragging comes solely from
+        // WindowDragGesture (chrome) + performDrag (locked body). Keeping the
+        // window-background drag too made the two race — empty header gaps fell
+        // through to the flaky background path (needed a "priming" drag first).
         .restorationBehavior(.disabled)
         .commandsRemoved()
 

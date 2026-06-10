@@ -395,7 +395,7 @@ private struct WindowsGallery: View {
     private func openSamplePreviewWindow() {
         guard let env = AppGlobals.current else { return }
         PreviewSampleLauncher.run(env: env) { ref in
-            openWindow(id: "page-preview", value: ref)
+            openPagePreview(ref, using: openWindow)
         }
     }
 }

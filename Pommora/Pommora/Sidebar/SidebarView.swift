@@ -88,7 +88,7 @@ struct SidebarView: View {
                     let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
                         content: contentManager, vaultManager: vaultManager,
-                        openPreview: { openWindow(id: "page-preview", value: $0) })
+                        openPreview: { openPagePreview($0, using: openWindow) })
                     if routed != .detailPane {
                         // Snap the row highlight back to the still-active
                         // main-pane selection (the List already moved it).

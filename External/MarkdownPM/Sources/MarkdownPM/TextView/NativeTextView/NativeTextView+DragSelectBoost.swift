@@ -12,6 +12,20 @@ import AppKit
 
 extension NativeTextView {
     override func mouseDown(with event: NSEvent) {
+        // Locked / read-only body: a press-and-drag moves the host window.
+        // An NSTextView never participates in `isMovableByWindowBackground`
+        // (mouse-down is consumed by the text system before the window's
+        // drag handler sees it), so drive the standard window drag explicitly.
+        // A plain click with no movement is harmlessly swallowed — the body
+        // is non-selectable when read-only, so there's nothing to lose.
+        if !isEditable {
+            // Read-only body: resign any focused field elsewhere (e.g. an active
+            // title rename, which a click on a non-first-responder view won't
+            // otherwise dismiss), then drag the window.
+            window?.makeFirstResponder(nil)
+            window?.performDrag(with: event)
+            return
+        }
         if let toggled = toggleTaskCheckboxIfHit(event: event), toggled {
             return
         }

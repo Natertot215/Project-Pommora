@@ -192,7 +192,7 @@ struct PageCollectionDetailView: View {
             // the direct variant skips parent resolution.
             PageOpenRouter.routeOpen(
                 p, vault: vault, collection: collection, selection: &selection,
-                openPreview: { openWindow(id: "page-preview", value: $0) })
+                openPreview: { openPagePreview($0, using: openWindow) })
         case .collection: break
         }
     }
