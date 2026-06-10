@@ -4,6 +4,7 @@ import SwiftUI
 struct SidebarView: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
+    @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(AgendaTaskManager.self) private var agendaTaskManager
@@ -72,7 +73,8 @@ struct SidebarView: View {
                     content: contentManager,
                     pageType: vaultManager,
                     space: spaceManager,
-                    topic: topicManager
+                    topic: topicManager,
+                    project: projectManager
                 )
                 guard let newTag else {
                     if selection != .none { selection = .none }
@@ -133,7 +135,7 @@ struct SidebarView: View {
     private var confirmationTitle: String {
         switch confirmingDelete {
         case .deleteSpace(let s)?: return "Delete Space \"\(s.title)\"?"
-        case .deleteTopic(let t, _)?: return "Delete Topic \"\(t.title)\"?"
+        case .deleteTopic(let t)?: return "Delete Topic \"\(t.title)\"?"
         case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
@@ -144,10 +146,7 @@ struct SidebarView: View {
     private func confirmationMessage(for confirmation: SidebarConfirmation) -> String {
         switch confirmation {
         case .deleteSpace: return "This action cannot be undone."
-        case .deleteTopic(_, let count):
-            return count > 0
-                ? "Contains \(count) Project(s). Promote them or delete all?"
-                : "This action cannot be undone."
+        case .deleteTopic: return "This action cannot be undone."
         case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
         case .deleteCollection: return "All Pages inside will be deleted."
@@ -166,37 +165,13 @@ struct SidebarView: View {
                 }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
-        case .deleteTopic(let t, let count):
-            if count > 0 {
-                Button("Delete & Promote Projects", role: .destructive) {
-                    Task {
-                        await cascadeUnlinkTier(contextID: t.id, tier: 2)
-                        do { try await topicManager.deleteTopic(t, promotingProjects: true) } catch
-                        { /* pendingError set by manager; toast surfaces */  }
-                        confirmingDelete = nil
-                    }
-                }
-                Button("Delete All", role: .destructive) {
-                    Task {
-                        // Promoting false deletes the Topic's child Projects too, so
-                        // cascade-unlink each Project's tier-3 refs before the tier-2 Topic unlink.
-                        for project in topicManager.projects(in: t) {
-                            await cascadeUnlinkTier(contextID: project.id, tier: 3)
-                        }
-                        await cascadeUnlinkTier(contextID: t.id, tier: 2)
-                        do { try await topicManager.deleteTopic(t, promotingProjects: false) } catch
-                        { /* pendingError set by manager; toast surfaces */  }
-                        confirmingDelete = nil
-                    }
-                }
-            } else {
-                Button("Delete", role: .destructive) {
-                    Task {
-                        await cascadeUnlinkTier(contextID: t.id, tier: 2)
-                        do { try await topicManager.deleteTopic(t, promotingProjects: true) } catch
-                        { /* pendingError set by manager; toast surfaces */  }
-                        confirmingDelete = nil
-                    }
+        case .deleteTopic(let t):
+            Button("Delete", role: .destructive) {
+                Task {
+                    await cascadeUnlinkTier(contextID: t.id, tier: 2)
+                    do { try await topicManager.deleteTopic(t) } catch
+                    { /* pendingError set by manager; toast surfaces */  }
+                    confirmingDelete = nil
                 }
             }
             Button("Cancel", role: .cancel) { confirmingDelete = nil }
@@ -204,7 +179,7 @@ struct SidebarView: View {
             Button("Delete", role: .destructive) {
                 Task {
                     await cascadeUnlinkTier(contextID: p.id, tier: 3)
-                    do { try await topicManager.deleteProject(p) } catch
+                    do { try await projectManager.delete(p) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }

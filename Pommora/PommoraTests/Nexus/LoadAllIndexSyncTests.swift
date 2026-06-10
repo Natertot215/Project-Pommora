@@ -137,6 +137,36 @@ struct LoadAllIndexSyncTests {
         try IndexUpdater(index).upsertPage(pageMeta, pageTypeID: vaultID, pageCollectionID: collID)
     }
 
+    // MARK: - Project (tier-3 contexts) sync
+
+    /// A free-standing Project folder + sidecar on disk (adoption / external-
+    /// folder state) must be upserted into the `contexts` table as tier 3 by
+    /// ProjectManager.loadAll, so the tier-3 picker can surface it.
+    @Test func projectManagerLoadAllSyncsTier3ContextRow() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
+
+        // Write a Project folder + sidecar directly to disk (bypassing CRUD).
+        let projectID = ULID.generate()
+        let folder = nexus.rootURL
+            .appendingPathComponent(".nexus/projects/Adopted Project", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let project = Project(id: projectID, title: "Adopted Project", icon: nil, blocks: [], modifiedAt: Date())
+        try project.save(to: folder.appendingPathComponent("_project.json"))
+
+        let manager = ProjectManager(nexus: nexus)
+        manager.indexUpdater = IndexUpdater(index)
+        await manager.loadAll()
+
+        let count = try await index.dbQueue.read { db in
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM contexts WHERE id = ? AND tier = 3",
+                arguments: [projectID]) ?? -1
+        }
+        #expect(count == 1)
+    }
+
     // MARK: - Idempotency
 
     /// loadAll runs at startup; if IndexBuilder already populated the DB,

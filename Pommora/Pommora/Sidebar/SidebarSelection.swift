@@ -48,6 +48,7 @@ struct SidebarLookupBundle {
     let pageType: PageTypeManager?
     let space: SpaceManager?
     let topic: TopicManager?
+    let project: ProjectManager?
 }
 
 extension SidebarSelection {
@@ -73,11 +74,8 @@ extension SidebarSelection {
 
     @MainActor
     private static func resolveProject(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
-        guard let tm = lookup.topic else { return nil }
-        for projects in tm.projectsByParent.values {
-            if let p = projects.first(where: { $0.id == id }) { return .project(p) }
-        }
-        return nil
+        guard let pm = lookup.project, let p = pm.projects.first(where: { $0.id == id }) else { return nil }
+        return .project(p)
     }
 
     @MainActor

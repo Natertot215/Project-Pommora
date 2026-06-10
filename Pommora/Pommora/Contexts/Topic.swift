@@ -11,19 +11,13 @@ struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
     var blocks: [ContextBlock]
     var modifiedAt: Date
 
-    // Persisted Project display order (v0.2.8.0; renamed from subtopicOrder per
-    // ParadigmV2). Nil until the user reorders Projects inside this Topic;
-    // missing entries fall through to OrderResolver's alphabetic tail.
-    var projectOrder: [String]?
-
     init(
         id: String,
         title: String,
         parents: [String],
         icon: String?,
         blocks: [ContextBlock],
-        modifiedAt: Date,
-        projectOrder: [String]? = nil
+        modifiedAt: Date
     ) {
         self.id = id
         self.tier = 2
@@ -32,13 +26,11 @@ struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.icon = icon
         self.blocks = blocks
         self.modifiedAt = modifiedAt
-        self.projectOrder = projectOrder
     }
 
     enum CodingKeys: String, CodingKey {
         case id, tier, parents, icon, blocks
         case modifiedAt = "modified_at"
-        case projectOrder = "project_order"
     }
 
     init(from decoder: any Decoder) throws {
@@ -50,7 +42,6 @@ struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.blocks = try c.decodeIfPresent([ContextBlock].self, forKey: .blocks) ?? []
         self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
-        self.projectOrder = try c.decodeIfPresent([String].self, forKey: .projectOrder)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -61,7 +52,6 @@ struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(blocks, forKey: .blocks)
         try c.encode(modifiedAt, forKey: .modifiedAt)
-        try c.encodeIfPresent(projectOrder, forKey: .projectOrder)
     }
 }
 

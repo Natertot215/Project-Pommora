@@ -220,15 +220,6 @@ enum NexusPaths {
             .appendingPathComponent("_topic.json", isDirectory: false)
     }
 
-    static func projectFileURL(
-        forTitle title: String,
-        inTopicTitled topicTitle: String,
-        in nexus: Nexus
-    ) -> URL {
-        topicFolderURL(forTitle: topicTitle, in: nexus)
-            .appendingPathComponent("\(title).project.json", isDirectory: false)
-    }
-
     static func projectFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
         projectsDir(in: nexus).appendingPathComponent(title, isDirectory: true)
     }

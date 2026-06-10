@@ -6,21 +6,19 @@ import Testing
 @Suite("ProjectFile")
 struct ProjectFileTests {
 
-    @Test("Project round-trips; title derives from filename")
+    @Test("Project round-trips; title derives from parent folder name")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
         let folder = nexus.rootURL
-            .appendingPathComponent(".nexus/topics/Productivity", isDirectory: true)
+            .appendingPathComponent(".nexus/projects/GTD method", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("GTD method.project.json")
+        let url = folder.appendingPathComponent("_project.json")
 
         let original = Project(
             id: "01HPROJ",
             title: "GTD method",
-            parents: ["01HTOPIC-PRODUCTIVITY"],
-            projectLinks: ["01HTOPIC-OTHER", "01HSPACE-PERSONAL"],
             icon: "checklist",
             blocks: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)
@@ -29,27 +27,24 @@ struct ProjectFileTests {
 
         let loaded = try Project.load(from: url)
         #expect(loaded.id == "01HPROJ")
-        #expect(loaded.title == "GTD method")
-        #expect(loaded.parents == ["01HTOPIC-PRODUCTIVITY"])
-        #expect(loaded.projectLinks == ["01HTOPIC-OTHER", "01HSPACE-PERSONAL"])
+        #expect(loaded.title == "GTD method")  // from folder
         #expect(loaded.icon == "checklist")
         #expect(loaded.tier == 3)
+        #expect(loaded.modifiedAt == Date(timeIntervalSince1970: 1716480000))
     }
 
-    @Test("Project on-disk JSON omits title field")
-    func titleNotPersisted() throws {
+    @Test("Project on-disk JSON omits title + containment keys")
+    func bareSchemaOnDisk() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL
-            .appendingPathComponent(".nexus/topics/Productivity", isDirectory: true)
+            .appendingPathComponent(".nexus/projects/Foo", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("Foo.project.json")
+        let url = folder.appendingPathComponent("_project.json")
 
         let p = Project(
             id: "01H",
             title: "Foo",
-            parents: ["01HPARENT"],
-            projectLinks: [],
             icon: nil,
             blocks: [],
             modifiedAt: Date()
@@ -57,44 +52,31 @@ struct ProjectFileTests {
         try p.save(to: url)
         let raw = try String(contentsOf: url, encoding: .utf8)
         #expect(!raw.contains("\"title\""))
-    }
-
-    @Test("Project uses snake_case project_links on disk")
-    func projectLinksKey() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let folder = nexus.rootURL
-            .appendingPathComponent(".nexus/topics/X", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("Y.project.json")
-
-        let p = Project(
-            id: "01H", title: "Y", parents: ["01HP"],
-            projectLinks: ["01HZ"], icon: nil, blocks: [], modifiedAt: Date()
-        )
-        try p.save(to: url)
-        let raw = try String(contentsOf: url, encoding: .utf8)
-        #expect(raw.contains("\"project_links\""))
+        #expect(!raw.contains("\"parents\""))
+        #expect(!raw.contains("\"project_links\""))
         #expect(!raw.contains("\"linked_relations\""))
-        #expect(!raw.contains("\"projectLinks\""))
     }
 
-    @Test("Project decodes legacy linked_relations key")
-    func legacyLinkedRelationsDecode() throws {
+    @Test("Project ignores legacy parents / project_links / linked_relations on decode")
+    func legacyKeysIgnoredOnDecode() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL
-            .appendingPathComponent(".nexus/topics/X", isDirectory: true)
+            .appendingPathComponent(".nexus/projects/Legacy", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("Legacy.project.json")
+        let url = folder.appendingPathComponent("_project.json")
 
-        // Write a JSON with the OLD key "linked_relations" directly.
+        // A legacy file carrying the now-dropped containment keys must still
+        // decode — the keys are simply ignored.
         let legacyJSON = """
-            {"id":"01HLEG","tier":3,"parents":["01HP"],"linked_relations":["01HOLD"],"modified_at":"2026-01-01T00:00:00Z"}
+            {"id":"01HLEG","tier":3,"parents":["01HP"],"project_links":["01HZ"],"linked_relations":["01HOLD"],"icon":"star","modified_at":"2026-01-01T00:00:00Z"}
             """
         try legacyJSON.write(to: url, atomically: true, encoding: .utf8)
 
         let loaded = try Project.load(from: url)
-        #expect(loaded.projectLinks == ["01HOLD"])
+        #expect(loaded.id == "01HLEG")
+        #expect(loaded.title == "Legacy")
+        #expect(loaded.icon == "star")
+        #expect(loaded.tier == 3)
     }
 }

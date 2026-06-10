@@ -3,14 +3,13 @@ import SwiftUI
 /// Renamed from `SubtopicRow` per ParadigmV2.
 struct ProjectRow: View {
     let project: Project
-    let parentTopic: Topic
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
-    @Environment(TopicManager.self) private var topicManager
+    @Environment(ProjectManager.self) private var projectManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -66,7 +65,7 @@ struct ProjectRow: View {
         Task {
             defer { isCommitting = false }
             do {
-                try await topicManager.renameProject(project, to: draft)
+                try await projectManager.rename(project, to: draft)
                 editingID = nil
                 justCreatedID = nil
             } catch {

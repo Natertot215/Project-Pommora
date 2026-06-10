@@ -15,6 +15,7 @@ import SwiftUI
 struct SidebarToast: View {
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
+    @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
@@ -24,7 +25,7 @@ struct SidebarToast: View {
     @State private var displayedSource: ErrorSource? = nil
 
     enum ErrorSource: String, Hashable {
-        case space, topic, vault, content, savedConfig, sidebarSections
+        case space, topic, project, vault, content, savedConfig, sidebarSections
     }
 
     var body: some View {
@@ -59,6 +60,9 @@ struct SidebarToast: View {
         .onChange(of: errorChangeID(topicManager.pendingError)) { _, _ in
             capture(from: topicManager.pendingError, source: .topic)
         }
+        .onChange(of: errorChangeID(projectManager.pendingError)) { _, _ in
+            capture(from: projectManager.pendingError, source: .project)
+        }
         .onChange(of: errorChangeID(vaultManager.pendingError)) { _, _ in
             capture(from: vaultManager.pendingError, source: .vault)
         }
@@ -83,6 +87,7 @@ struct SidebarToast: View {
         switch displayedSource {
         case .space: spaceManager.pendingError = nil
         case .topic: topicManager.pendingError = nil
+        case .project: projectManager.pendingError = nil
         case .vault: vaultManager.pendingError = nil
         case .content: contentManager.pendingError = nil
         case .savedConfig: savedConfigManager.pendingError = nil

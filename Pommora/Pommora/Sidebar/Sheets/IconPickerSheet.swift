@@ -18,6 +18,7 @@ struct IconPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SpaceManager.self) private var spaceManager
     @Environment(TopicManager.self) private var topicManager
+    @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var pageContentManager
 
@@ -65,7 +66,7 @@ struct IconPickerSheet: View {
             do { try await topicManager.updateTopicIcon(t, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .project(let p):
-            do { try await topicManager.updateProjectIcon(p, to: newIcon) } catch
+            do { try await projectManager.updateIcon(p, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .pageType(let t):
             do { try await vaultManager.updatePageTypeIcon(t, to: newIcon) } catch

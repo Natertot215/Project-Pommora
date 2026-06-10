@@ -312,7 +312,7 @@ final class IndexBuilder {
             }
         }
 
-        // Topics (tier 2) + Projects (tier 3)
+        // Topics (tier 2)
         let topicsDir = NexusPaths.topicsDir(in: nexus)
         if Filesystem.folderExists(at: topicsDir) {
             let topicFolders = (try? Filesystem.childFolders(of: topicsDir)) ?? []
@@ -323,17 +323,20 @@ final class IndexBuilder {
                 else { continue }
                 result.append(
                     ContextSnapshot(id: topic.id, tier: 2, title: topic.title, icon: topic.icon, parentTopicID: nil))
+            }
+        }
 
-                let projectURLs =
-                    (try? Filesystem.children(of: folder) { url in
-                        url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "project"
-                    }) ?? []
-                for url in projectURLs {
-                    guard let project = try? Project.load(from: url) else { continue }
-                    result.append(
-                        ContextSnapshot(
-                            id: project.id, tier: 3, title: project.title, icon: project.icon, parentTopicID: topic.id))
-                }
+        // Projects (tier 3) — free-standing folders
+        let projectsDir = NexusPaths.projectsDir(in: nexus)
+        if Filesystem.folderExists(at: projectsDir) {
+            let projectFolders = (try? Filesystem.childFolders(of: projectsDir)) ?? []
+            for folder in projectFolders {
+                let metaURL = folder.appendingPathComponent("_project.json")
+                guard Filesystem.fileExists(at: metaURL),
+                    let project = try? Project.load(from: metaURL)
+                else { continue }
+                result.append(
+                    ContextSnapshot(id: project.id, tier: 3, title: project.title, icon: project.icon, parentTopicID: nil))
             }
         }
 

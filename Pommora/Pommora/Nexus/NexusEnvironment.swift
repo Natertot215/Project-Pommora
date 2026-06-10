@@ -49,6 +49,7 @@ final class NexusEnvironment {
 
     let spaceManager: SpaceManager
     let topicManager: TopicManager
+    let projectManager: ProjectManager
     let vaultManager: PageTypeManager
     let contentManager: PageContentManager
     let agendaTaskManager: AgendaTaskManager
@@ -81,6 +82,7 @@ final class NexusEnvironment {
     /// `@MainActor` at the call site.
     init(nexus: Nexus, nexusManager: NexusManager) {
         let spaceMgr = SpaceManager(nexus: nexus)
+        let projectMgr = ProjectManager(nexus: nexus)
         let vaultMgr = PageTypeManager(nexus: nexus)
 
         // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
@@ -103,20 +105,15 @@ final class NexusEnvironment {
         // PageContentManager needs Space + Topic + Project + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on
         // MainActor; inner @Sendable closures use value-type snapshots.
-        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [spaceMgr, vaultMgr] in
+        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [spaceMgr, vaultMgr, projectMgr] in
             let spaces = spaceMgr.spaces
             let types = vaultMgr.types
             let topics = topicMgr.topics
-            let projectsByParent = topicMgr.projectsByParent
+            let projectsSnapshot = projectMgr.projects
             return NexusContext(
                 lookupSpace: { id in spaces.first { $0.id == id } },
                 lookupTopic: { id in topics.first { $0.id == id } },
-                lookupProject: { id in
-                    for arr in projectsByParent.values {
-                        if let p = arr.first(where: { $0.id == id }) { return p }
-                    }
-                    return nil
-                },
+                lookupProject: { id in projectsSnapshot.first(where: { $0.id == id }) },
                 lookupVault: { id in types.first { $0.id == id } }
             )
         }
@@ -152,6 +149,7 @@ final class NexusEnvironment {
         let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
         spaceMgr.indexUpdater = updater
         topicMgr.indexUpdater = updater
+        projectMgr.indexUpdater = updater
         vaultMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater
         agendaTaskMgr.indexUpdater = updater
@@ -165,6 +163,7 @@ final class NexusEnvironment {
         self.nexusManager = nexusManager
         self.spaceManager = spaceMgr
         self.topicManager = topicMgr
+        self.projectManager = projectMgr
         self.vaultManager = vaultMgr
         self.contentManager = contentMgr
         self.agendaTaskManager = agendaTaskMgr
@@ -202,6 +201,7 @@ final class NexusEnvironment {
         Task {
             async let _ = spaceMgr.loadAll()
             async let _ = topicMgr.loadAll()
+            async let _ = projectMgr.loadAll()
             async let _ = vaultMgr.loadAll(filter: folderFilter)
             async let _ = agendaTaskMgr.loadAll()
             async let _ = agendaEventMgr.loadAll()
@@ -229,6 +229,7 @@ extension View {
             .environment(env.nexusManager)
             .environment(env.spaceManager)
             .environment(env.topicManager)
+            .environment(env.projectManager)
             .environment(env.vaultManager)
             .environment(env.contentManager)
             .environment(env.agendaTaskManager)

@@ -32,11 +32,7 @@ final class ProjectManager {
             for folder in folders {
                 let metaURL = folder.appendingPathComponent("_project.json")
                 guard Filesystem.fileExists(at: metaURL) else { continue }
-                // Project.load derives title from the filename; for "_project.json" that yields
-                // "_project", not the real title — so derive it from the enclosing folder name
-                // (Topic.load's idiom).
-                guard var project = try? Project.load(from: metaURL) else { continue }
-                project.title = folder.lastPathComponent
+                guard let project = try? Project.load(from: metaURL) else { continue }
                 loaded.append(project)
             }
             self.projects = OrderResolver.resolve(
@@ -63,8 +59,6 @@ final class ProjectManager {
             let project = Project(
                 id: ULID.generate(),
                 title: name,
-                parents: [],          // field removed in Task 1.3
-                projectLinks: [],     // field removed in Task 1.3
                 icon: icon,
                 blocks: [],
                 modifiedAt: Date()

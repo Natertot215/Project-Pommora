@@ -82,4 +82,23 @@ struct ProjectManagerTests {
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.projects.isEmpty)
     }
+
+    @Test("loadAll reads an externally-placed _project.json; title derives from folder")
+    func loadAllReadsFixture() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Write a Project folder + sidecar directly to disk (bypassing CRUD),
+        // mirroring an adopted / externally-created Project.
+        let folder = nexus.rootURL
+            .appendingPathComponent(".nexus/projects/Fixture", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let p = Project(id: ULID.generate(), title: "Fixture", icon: nil, blocks: [], modifiedAt: Date())
+        try p.save(to: folder.appendingPathComponent("_project.json"))
+
+        let manager = ProjectManager(nexus: nexus)
+        await manager.loadAll()
+        #expect(manager.projects.count == 1)
+        #expect(manager.projects.first?.title == "Fixture")
+    }
 }

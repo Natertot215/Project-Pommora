@@ -278,14 +278,13 @@ struct IndexUpdater: Sendable {
 
     func upsertContext(_ project: Project) throws {
         try index.dbQueue.write { db in
-            let parentTopicID = project.parents.first
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
                         (id, tier, title, icon, parent_topic_id)
                     VALUES (?, ?, ?, ?, ?)
                     """,
-                arguments: [project.id, 3, project.title, project.icon, parentTopicID]
+                arguments: [project.id, 3, project.title, project.icon, nil]
             )
         }
     }

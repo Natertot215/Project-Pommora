@@ -94,7 +94,8 @@ struct ContentView: View {
                 content: contentMgr,
                 pageType: vaultMgr,
                 space: env.spaceManager,
-                topic: env.topicManager
+                topic: env.topicManager,
+                project: env.projectManager
             )
             HStack(spacing: 0) {
                 ViewSettingsButton(
@@ -171,7 +172,8 @@ struct ContentView: View {
                                     content: env.contentManager,
                                     pageType: env.vaultManager,
                                     space: env.spaceManager,
-                                    topic: env.topicManager
+                                    topic: env.topicManager,
+                                    project: env.projectManager
                                 ))
                         }
                     }

@@ -8,7 +8,6 @@ import Foundation
 /// sidecar:
 ///   - PageType  → `_pagetype.json`
 ///   - PageCollection → `_pagecollection.json`
-///   - Topic → `_topic.json`
 ///
 /// Every write is a read-modify-atomic-write round-trip: the file is
 /// re-decoded just before mutation so concurrent writes by sibling managers
@@ -40,15 +39,6 @@ enum OrderPersister {
         try mutateNexusState(in: nexus) { state in
             state.projectOrder = order.isEmpty ? nil : order
         }
-    }
-
-    // MARK: - Project order (_topic.json)
-
-    static func setProjectOrder(_ order: [String], in topic: Topic, nexus: Nexus) throws {
-        let url = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
-        var updated = try Topic.load(from: url)
-        updated.projectOrder = order.isEmpty ? nil : order
-        try updated.save(to: url)
     }
 
     // MARK: - PageCollection / Page-Type-root Pages (sidecar JSON)

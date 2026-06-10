@@ -67,16 +67,15 @@ struct ManagerCreateReturnContractTests {
         #expect(returned.title == "Productivity")
     }
 
-    @Test("TopicManager.createProject returns the new Project")
+    @Test("ProjectManager.create returns the new Project")
     func createProjectReturns() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let manager = ProjectManager(nexus: nexus)
         await manager.loadAll()
-        let topic = try await manager.createTopic(name: "Productivity", parents: [], icon: nil)
 
-        let returned = try await manager.createProject(name: "GTD", inTopic: topic, icon: nil)
-        #expect(manager.projects(in: topic).contains(where: { $0.id == returned.id }))
+        let returned = try await manager.create(name: "GTD", icon: nil)
+        #expect(manager.projects.contains(where: { $0.id == returned.id }))
         #expect(returned.title == "GTD")
     }
 }

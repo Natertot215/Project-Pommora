@@ -173,19 +173,6 @@ struct NexusPathsTests {
         #expect(meta.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
-    @Test("projectFileURL nests inside parent Topic folder with .project.json")
-    func projectFileFormat() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.projectFileURL(
-            forTitle: "GTD method",
-            inTopicTitled: "Productivity",
-            in: nexus
-        )
-        #expect(url.lastPathComponent == "GTD method.project.json")
-        #expect(url.deletingLastPathComponent().lastPathComponent == "Productivity")
-    }
-
     // MARK: - PageType / PageCollection (flatlayout: rooted at the nexus root)
 
     @Test("pageTypeFolderURL sits at the nexus root (no wrapper)")

@@ -7,7 +7,6 @@ struct TopicRow: View {
     @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
-    @State private var expanded: Bool = false
 
     @Environment(TopicManager.self) private var topicManager
     @Environment(SpaceManager.self) private var spaceManager
@@ -17,37 +16,14 @@ struct TopicRow: View {
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
     @State private var isCreatingTopic: Bool = false
-    @State private var isCreatingProject: Bool = false
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            ForEach(topicManager.projects(in: topic)) { project in
-                ProjectRow(
-                    project: project,
-                    parentTopic: topic,
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
+        label
+            .listRowBackground(
+                SelectionChrome(
+                    isSelected: SelectionTag.topic(topic.id).matches(selection)
                 )
-                .tag(SelectionTag.project(project.id))
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    topicManager.reorderProjects(
-                        in: topic, fromOffsets: source, toOffset: destination
-                    )
-                }
-            }
-        } label: {
-            label
-        }
-        .listRowBackground(
-            SelectionChrome(
-                isSelected: SelectionTag.topic(topic.id).matches(selection)
             )
-        )
     }
 
     @ViewBuilder
@@ -82,18 +58,15 @@ struct TopicRow: View {
                 }
             )
             .contextMenu {
-                let projectLabel = settingsManager.settings.labels.project.singular
                 Button("New Topic") { createTopic() }
                     .disabled(isCreatingTopic)
-                Button("New \(projectLabel)") { createProject() }
-                    .disabled(isCreatingProject)
                 Divider()
                 Button("Edit Title") { editingID = topic.id }
                 Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }
                 Button("Edit Icon") { presentedSheet = .editIcon(.topic(topic)) }
                 Divider()
                 Button("Delete", role: .destructive) {
-                    confirmingDelete = .deleteTopic(topic, projectCount: topicManager.projects(in: topic).count)
+                    confirmingDelete = .deleteTopic(topic)
                 }
             }
         }
@@ -122,33 +95,6 @@ struct TopicRow: View {
                     onCreate: { newTopic in
                         editingID = newTopic.id
                         justCreatedID = newTopic.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
-    }
-
-    /// Stub-and-edit "New Project (in This Topic)" trigger.
-    private func createProject() {
-        guard !isCreatingProject else { return }
-        isCreatingProject = true
-        let label = settingsManager.settings.labels.project.singular
-        let existing = topicManager.projects(in: topic).map(\.title)
-        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
-        Task {
-            defer { isCreatingProject = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await topicManager.createProject(
-                            name: title, inTopic: topic, icon: nil
-                        )
-                    },
-                    onCreate: { newProject in
-                        editingID = newProject.id
-                        justCreatedID = newProject.id
                     }
                 )
             } catch {
