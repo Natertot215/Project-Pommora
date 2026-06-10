@@ -114,61 +114,35 @@ static func setProjectOrder(_ order: [String], in nexus: Nexus) throws {
 
 **Files:** Create `Pommora/Pommora/Contexts/ProjectManager.swift`; rewrite `Pommora/Pommora/Validation/ProjectValidator.swift`; create `Pommora/PommoraTests/Contexts/ProjectManagerTests.swift`; rewrite `Pommora/PommoraTests/Validation/ProjectValidatorTests.swift`.
 
-**Compile note:** `TopicManager.createProject`/`renameProject` currently call the OLD `ProjectValidator.validate(title:parents:fileLocation:existing:context:excluding:)`. Rewriting the validator breaks them — so this task inlines a temporary stub of the old signature (quirk #7 stub-and-progressively-replace), deleted in Task 1.3.
+**Compile note (zero throwaway code):** `TopicManager.createProject`/`renameProject` call the legacy 6-param `ProjectValidator.validate(title:parents:fileLocation:existing:context:excluding:)`. This task does NOT touch that signature — it adds the bare overload BESIDE it (pure addition; the legacy `ValidationError` enum already carries `emptyTitle`/`invalidTitleCharacters`/`duplicateTitle`, so the new overload reuses it). Task 1.3 deletes the legacy signature, `FileLocation`, and the parent error cases in the same commit that deletes their only callers. No stub, no double-edit.
 
-- [ ] **Step 1:** Rewrite `ProjectValidator.swift` in full (mirrors `SpaceValidator` — title rules + case-insensitive duplicate via flat siblings; no parents, no context, no file location):
+- [ ] **Step 1:** In `ProjectValidator.swift`, ADD the bare overload below the existing `validate` (existing code untouched):
 
 ```swift
-import Foundation
-
 /// Bare title validation for free-standing tier-3 Projects (Contexts
-/// Decoupling). Parent/containment checks retired with the relation reset.
-enum ProjectValidator {
-    enum ValidationError: Error, Equatable {
-        case emptyTitle
-        case invalidTitleCharacters
-        case duplicateTitle
+/// Decoupling). The legacy parent/containment overload above is deleted
+/// in Task 1.3 along with its last callers in TopicManager.
+static func validate(
+    title: String,
+    existing: [Project],
+    excluding: Project? = nil
+) throws {
+    let trimmed = title.trimmingCharacters(in: .whitespaces)
+    guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
+
+    let invalidChars: Set<Character> = ["/", "\\", ":"]
+    guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
+        throw ValidationError.invalidTitleCharacters
     }
 
-    static func validate(
-        title: String,
-        existing: [Project],
-        excluding: Project? = nil
-    ) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
-
-        let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            throw ValidationError.invalidTitleCharacters
-        }
-
-        let conflict = existing.contains { p in
-            p.id != excluding?.id && p.title.lowercased() == trimmed.lowercased()
-        }
-        if conflict { throw ValidationError.duplicateTitle }
+    let conflict = existing.contains { p in
+        p.id != excluding?.id && p.title.lowercased() == trimmed.lowercased()
     }
+    if conflict { throw ValidationError.duplicateTitle }
 }
 ```
 
-- [ ] **Step 2:** At the bottom of `Contexts/TopicManager.swift`, inline the throwaway compatibility stub so the file keeps compiling until Task 1.3 deletes both it and its callers:
-
-```swift
-// THROWAWAY STUB (Contexts Decoupling Task 1.2) — bridges TopicManager's
-// legacy project CRUD to the rewritten ProjectValidator until Task 1.3
-// deletes that CRUD wholesale. Do not ship past Task 1.3.
-extension ProjectValidator {
-    struct FileLocation: Equatable, Sendable { var parentFolderTitle: String }
-    static func validate(
-        title: String, parents: [String], fileLocation: FileLocation,
-        existing: [Project], context: NexusContext, excluding: Project? = nil
-    ) throws {
-        try validate(title: title, existing: existing, excluding: excluding)
-    }
-}
-```
-
-- [ ] **Step 3:** Create `ProjectManager.swift` in full — `SpaceManager`'s shape (loadAll + defensive index sync per quirk #14, create, rename with `RenameAtomicityError` rollback mirroring `renameTopic` :139-188, updateIcon, reorder, delete) on the folder + `_project.json` layout. Until Task 1.3 rewrites the entity, construct with `parents: [], projectLinks: []`:
+- [ ] **Step 2:** Create `ProjectManager.swift` in full — `SpaceManager`'s shape (loadAll + defensive index sync per quirk #14, create, rename with `RenameAtomicityError` rollback mirroring `renameTopic` :139-188, updateIcon, reorder, delete) on the folder + `_project.json` layout. Until Task 1.3 rewrites the entity, construct with `parents: [], projectLinks: []`:
 
 ```swift
 import Foundation
@@ -372,10 +346,9 @@ final class ProjectManager {
 }
 ```
 
-- [ ] **Step 4:** Rewrite `ProjectValidatorTests.swift` (suite stays `@Suite("ProjectValidator")` shape — mirror `SpaceValidatorTests` cases): `nonEmptyPasses`, `emptyFails`, `whitespaceFails`, `slashFails`, `backslashFails`, `colonFails`, `duplicateFails` (case-insensitive), `renameToSelfPasses` (excluding). Delete `zeroParents`, `tooManyParents`, `parentNotFound`, `locationMismatch`.
-- [ ] **Step 5:** Create `ProjectManagerTests.swift`, `@Suite("ProjectManager")`, mirroring `SpaceManagerTests` cases against a temp-dir nexus: `create()` writes `.nexus/projects/<Title>/_project.json` + appends to `projects`; `createDuplicate()` throws, disk unchanged; `rename()` renames the folder + updates in-memory entry; `updateIcon()` mutates icon + bumps `modified_at` on disk; `delete()` trashes folder + drops from array; `loadAll()` reads pre-existing project folders (write a fixture folder + `_project.json` first, then `loadAll`, assert title derives from folder name once Task 1.3 lands — until then assert from filename behavior matches `Project.load`). Hoist `let id = ULID.generate()` before entity construction (quirk #5).
-- [ ] **Step 6:** Background-builder verify; non-zero count; green.
-- [ ] **Step 7:** Commit: `feat(contexts): ProjectManager + bare ProjectValidator (flat tier-3, unused until pivot)`
+- [ ] **Step 3:** Create `ProjectManagerTests.swift`, `@Suite("ProjectManager")`, mirroring `SpaceManagerTests` cases against a temp-dir nexus: `create()` writes `.nexus/projects/<Title>/_project.json` + appends to `projects`; `createDuplicate()` throws, disk unchanged; `rename()` renames the folder + updates in-memory entry; `updateIcon()` mutates icon + bumps `modified_at` on disk; `delete()` trashes folder + drops from array. DEFER the `loadAll`-fixture test to Task 1.3 Step 17 (until the entity rewrite lands, `Project.load` still derives title from FILENAME, so a `_project.json` fixture would title itself "_project"). Hoist `let id = ULID.generate()` before entity construction (quirk #5). Legacy `ProjectValidatorTests` stay untouched this task (they exercise the legacy overload, which still exists).
+- [ ] **Step 4:** Background-builder verify; non-zero count; green.
+- [ ] **Step 5:** Commit: `feat(contexts): ProjectManager + bare ProjectValidator overload (flat tier-3, unused until pivot)`
 
 #### Task 1.3: The pivot — entity rewrite, TopicManager strip, env + index + UI compile-closure
 
@@ -453,7 +426,7 @@ extension Project {
 ```
 
 - [ ] **Step 2:** `Contexts/Topic.swift` — delete `projectOrder` entirely: property + doc comment (:14-17), init param + assignment (:26, :35), CodingKey (:41), decode (:53), encode (:64). (`parents` stays until P2.)
-- [ ] **Step 3:** `Contexts/TopicManager.swift` — delete: `projectsByParent` (:9-10), `projects(in:)` (:32-36), the project-scanning half of `loadAll` (:46, :55-68 — keep the topic scan; `loadedProjects` and the per-topic project upsert loop :87-89 go), `projectsByParent[topic.id] = []` in `createTopic` (:126), `updateTopicParents` (:190-217), the whole `deleteTopic` promote path + project rows (:244-250, :261-263, :267 — new body below), `promoteProjectToTopic` (:274-301), ALL of "Project CRUD" (:303-529), `reorderProjects` (:546-564), and the Task 1.2 stub extension. New `deleteTopic`:
+- [ ] **Step 3:** `Contexts/TopicManager.swift` — delete: `projectsByParent` (:9-10), `projects(in:)` (:32-36), the project-scanning half of `loadAll` (:46, :55-68 — keep the topic scan; `loadedProjects` and the per-topic project upsert loop :87-89 go), `projectsByParent[topic.id] = []` in `createTopic` (:126), `updateTopicParents` (:190-217), the whole `deleteTopic` promote path + project rows (:244-250, :261-263, :267 — new body below), `promoteProjectToTopic` (:274-301), ALL of "Project CRUD" (:303-529), and `reorderProjects` (:546-564). Then in `Validation/ProjectValidator.swift` delete the legacy 6-param `validate`, the `FileLocation` struct, and the now-unreferenced error cases `missingParent`/`tooManyParents`/`parentNotFound`/`fileLocationMismatch` (their only callers died with the CRUD above). New `deleteTopic`:
 
 ```swift
 func deleteTopic(_ topic: Topic) async throws {
@@ -516,10 +489,12 @@ private static func resolveProject(id: String, lookup: SidebarLookupBundle) -> S
 - [ ] **Step 11:** `Sidebar/TopicRow.swift` — remove the DisclosureGroup: body becomes the `label` content directly with `.listRowBackground(...)` (keep chrome at row level, quirk #9); delete the ForEach/`.onMove` (:23-45), `createProject()` (:133-158), `isCreatingProject` (:20), the "New \(projectLabel)" button (:85, :88-89), and the `projectCount:` argument (:96 → `confirmingDelete = .deleteTopic(topic)`). Keep `ParentSpaceTags` (dies in P2).
 - [ ] **Step 12:** `Sidebar/ProjectRow.swift` — delete `let parentTopic: Topic` (:6); swap `@Environment(TopicManager.self)` → `@Environment(ProjectManager.self) private var projectManager` (:13); `commit()` calls `try await projectManager.rename(project, to: draft)` (:69).
 - [ ] **Step 13:** `Sidebar/SidebarConfirmation.swift` — `case deleteTopic(Topic, projectCount: Int)` → `case deleteTopic(Topic)`; fix `id` (:14).
-- [ ] **Step 14:** `Sidebar/SidebarView.swift` — confirmation surfaces: `.deleteTopic(let t, _)` → `.deleteTopic(let t)` (:136); message (:147-150) → `return "This action cannot be undone."`; replace the whole `.deleteTopic` button block (:169-202) with the single-delete shape used by `.deleteSpace`, calling `try await topicManager.deleteTopic(t)` after `cascadeUnlinkTier(contextID: t.id, tier: 2)`; `.deleteProject` (:203-212) calls `try await projectManager.deleteProject` → `try await projectManager.delete(p)` (add `@Environment(ProjectManager.self) private var projectManager`).
-- [ ] **Step 15:** Tests. `TopicManagerTests`: delete `createProject`, `deletePromote`, `moveProject` tests; update `deleteTopic` test to the new signature; update `createTopic` if it asserted `projectsByParent` seeding. `ProjectFileTests`: rewrite round-trip for bare schema (`id`/`tier`/`icon`/`blocks`/`modified_at` only; title from folder name; assert `parents`/`project_links`/`linked_relations` keys absent on encode and IGNORED on decode). `TopicFileTests`: drop `project_order` round-trip assertions. `ManagerCreateReturnContractTests`: `createProjectReturns` now exercises `ProjectManager.create`. `LoadAllIndexSyncTests`: add a project case — write a fixture `.nexus/projects/Fixture/_project.json`, `loadAll`, assert a tier-3 `contexts` row exists.
-- [ ] **Step 16:** Background-builder verify full `PommoraTests`; non-zero count; green. Expect count to DROP (deleted containment tests) — record the new baseline in the commit message.
-- [ ] **Step 17:** Commit: `refactor(contexts)!: decouple Projects — flat .nexus/projects, ProjectManager, containment CRUD deleted`
+- [ ] **Step 14:** `Sidebar/SidebarView.swift` — confirmation surfaces: `.deleteTopic(let t, _)` → `.deleteTopic(let t)` (:136); message (:147-150) → `return "This action cannot be undone."`; replace the whole `.deleteTopic` button block (:169-202) with the single-delete shape used by `.deleteSpace`, calling `try await topicManager.deleteTopic(t)` after `cascadeUnlinkTier(contextID: t.id, tier: 2)`; in `.deleteProject` (:203-212) replace `try await topicManager.deleteProject(p)` with `try await projectManager.delete(p)` (add `@Environment(ProjectManager.self) private var projectManager`).
+- [ ] **Step 15:** `Sidebar/Sheets/IconPickerSheet.swift:68` — replace `try await topicManager.updateProjectIcon(p, to: newIcon)` with `try await projectManager.updateIcon(p, to: newIcon)`; add `@Environment(ProjectManager.self) private var projectManager` and drop the `topicManager` env var if the `.project` branch was its last use.
+- [ ] **Step 16:** `Sidebar/SidebarToast.swift` — it aggregates `pendingError` from spaceManager / topicManager / vaultManager / contentManager (:16-21, :56-73) but not projects: add `@Environment(ProjectManager.self)` and wire `projectManager.pendingError` into the same observation/clear pattern as the existing four.
+- [ ] **Step 17:** Tests. `TopicManagerTests`: delete `createProject`, `deletePromote`, `moveProject` tests; update `deleteTopic` test to the new signature; update `createTopic` if it asserted `projectsByParent` seeding. `ProjectFileTests`: rewrite round-trip for bare schema (`id`/`tier`/`icon`/`blocks`/`modified_at` only; title from folder name; assert `parents`/`project_links`/`linked_relations` keys absent on encode and IGNORED on decode). `TopicFileTests`: drop `project_order` round-trip assertions. `ManagerCreateReturnContractTests`: `createProjectReturns` now exercises `ProjectManager.create`. `ProjectValidatorTests`: rewrite for the bare overload (mirror `SpaceValidatorTests`: `nonEmptyPasses`, `emptyFails`, `whitespaceFails`, `slashFails`, `backslashFails`, `colonFails`, `duplicateFails` case-insensitive, `renameToSelfPasses`); delete `zeroParents`/`tooManyParents`/`parentNotFound`/`locationMismatch`. `ProjectManagerTests`: add the deferred `loadAll` fixture test (write `.nexus/projects/Fixture/_project.json`, `loadAll`, assert title == "Fixture"). `LoadAllIndexSyncTests`: add a project case — same fixture, assert a tier-3 `contexts` row exists.
+- [ ] **Step 18:** Background-builder verify full `PommoraTests`; non-zero count; green. Expect count to DROP (deleted containment tests) — record the new baseline in the commit message.
+- [ ] **Step 19:** Commit: `refactor(contexts)!: decouple Projects — flat .nexus/projects, ProjectManager, containment CRUD deleted`
 
 ---
 
@@ -531,7 +506,7 @@ private static func resolveProject(id: String, lookup: SidebarLookupBundle) -> S
 
 - [ ] **Step 1:** Delete file `EditTopicParentsSheet.swift`.
 - [ ] **Step 2:** `SidebarSheet.swift` — delete `case editTopicParents(Topic)` (:12) and its `id` line (:29); update the doc comment (:10).
-- [ ] **Step 3:** `SidebarView.swift` — delete the `.editTopicParents` case from the `.sheet` switch (:113).
+- [ ] **Step 3:** Delete the `.editTopicParents` case from BOTH `.sheet` switches: `SidebarView.swift:113` AND `SidebarDetailView.swift:121` (the detail pane presents the same sheet — second-pass finding).
 - [ ] **Step 4:** `TopicRow.swift` — delete `Button("Edit Parents")` (:92); delete the whole `ParentSpaceTags` struct (:186-206), both `trailing:` closures passing it (:69-71, :80-82), and `@Environment(SpaceManager.self)` (:13) if now unused.
 - [ ] **Step 5:** `SidebarDetailView.swift` — Topic placeholder `supportingLine` (:43) → `"Tier 2 — Topic"`; delete `parentSpaceNames` (:169-173).
 - [ ] **Step 6:** Background-builder verify; green. Commit: `refactor(contexts): delete topic parents UI (sheet, dots, breadcrumb)`
@@ -554,12 +529,13 @@ private static func resolveProject(id: String, lookup: SidebarLookupBundle) -> S
 
 #### Task 3.1: TierDisclosureRow + ContextsSection
 
-**Files:** Create `Sidebar/ContextsSection.swift`; modify `Sidebar/SidebarView.swift` (delete `SpacesSection` :382-441 and `TopicsSection` :443-502; replace their two call sites :32-45 with one `ContextsSection`), `Settings/SettingsLabels.swift`.
+**Files:** Create `Sidebar/ContextsSection.swift`; modify `Sidebar/SidebarView.swift` (delete `SpacesSection` :382-441 and `TopicsSection` :443-502; replace their two call sites :32-45 with one `ContextsSection`).
+
+**Label sources (second-pass ruling — no new settings surface):** Spaces/Topics tier rows read the EXISTING `sidebarSections.spaces`/`sidebarSections.topics`; the Projects tier row reuses the EXISTING `labels.project.plural`. Do NOT add a `sidebarSections.projects` key — a strip refactor adds no settings machinery; unifying label sources is future settings-UI work.
 
 **Shape rules (quirk #8):** ONE headerless `Section` containing exactly three `TierDisclosureRow`s — homogeneous siblings. The tier rows carry NO `.tag` (never selectable; clicking toggles disclosure). Children (`SpaceRow`/`TopicRow`/`ProjectRow`) keep their existing `.tag` + row-level `SelectionChrome`. This mirrors the proven `Section { PageTypeRow… }` disclosure shape.
 
-- [ ] **Step 1:** `SettingsLabels.swift` — add `projects: String` to `SidebarSectionLabels` beside `spaces`/`topics` (:39-41); default `"Projects"` (:48); CodingKey (:54); decode fallback `?? "Projects"` (:68 idiom). Match the file's existing pattern exactly.
-- [ ] **Step 2:** Create `Sidebar/ContextsSection.swift`:
+- [ ] **Step 1:** Create `Sidebar/ContextsSection.swift`:
 
 ```swift
 import SwiftUI
@@ -626,7 +602,9 @@ struct ContextsSection: View {
                 }
             }
             TierDisclosureRow(
-                label: settingsManager.settings.labels.sidebarSections.projects,
+                // Reuses the existing entity label pair — no new settings key
+                // (second-pass ruling; sidebarSections gains nothing).
+                label: settingsManager.settings.labels.project.plural,
                 createLabel: settingsManager.settings.labels.project.singular,
                 onCreate: { createProject() }
             ) {
@@ -742,7 +720,6 @@ struct TierDisclosureRow<Children: View>: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("New \(createLabel)")
                 .opacity(hovered ? 1 : 0)
                 .allowsHitTesting(hovered)
                 .animation(.easeInOut(duration: 0.12), value: hovered)
@@ -762,11 +739,10 @@ struct TierDisclosureRow<Children: View>: View {
 ```
 
   SF Symbol note: the catalog name is `square.grid.2x2` (Nathan wrote `square.grid2x2` — same symbol, dotted form is the valid name).
-- [ ] **Step 3:** `SidebarView.swift` — replace the `SpacesSection(...)` + `TopicsSection(...)` calls (:32-45) with one `ContextsSection(selection:editingID:justCreatedID:presentedSheet:confirmingDelete:)`; delete the `SpacesSection` and `TopicsSection` structs (:382-502).
-- [ ] **Step 4:** `SpaceRow.swift` / `TopicRow.swift` row-level "New Space"/"New Topic" context-menu items: KEEP (existing affordance, unchanged scope; TopicRow's already lost "New Project" in P1).
-- [ ] **Step 5:** Background-builder verify — tests MUST bootstrap, not just compile (quirk #8 regression class). Green. Run the app once via the builder agent for a launch sanity check if any sidebar test is inconclusive.
-- [ ] **Step 6:** Settings label tests: extend the existing SettingsLabels suite (locate via `grep -rn "SidebarSectionLabels" Pommora/PommoraTests -l`) with a `projects` default + round-trip case.
-- [ ] **Step 7:** Commit: `feat(sidebar): ContextsSection — three tier disclosure rows replace Spaces/Topics headings`
+- [ ] **Step 2:** `SidebarView.swift` — replace the `SpacesSection(...)` + `TopicsSection(...)` calls (:32-45) with one `ContextsSection(selection:editingID:justCreatedID:presentedSheet:confirmingDelete:)`; delete the `SpacesSection` and `TopicsSection` structs (:382-502).
+- [ ] **Step 3:** `SpaceRow.swift` / `TopicRow.swift` row-level "New Space"/"New Topic" context-menu items: KEEP (existing affordance, unchanged scope; TopicRow's already lost "New Project" in P1).
+- [ ] **Step 4:** Background-builder verify — tests MUST bootstrap, not just compile (quirk #8 regression class). Green. Run the app once via the builder agent for a launch sanity check if any sidebar test is inconclusive.
+- [ ] **Step 5:** Commit: `feat(sidebar): ContextsSection — three tier disclosure rows replace Spaces/Topics headings`
 
 ---
 
@@ -824,7 +800,7 @@ Mechanical, three commits, in this order (compiler carries each): **(a)** Swift 
 
 - [ ] **Step 1:** `EntityKind` raw value `space`→`area` (it is `String, Codable` — the case rename in 5.1 changed the raw value; VERIFY no explicit `= "space"` raw assignment remains); `kindTableMap` key `"space"`→`"area"` (IndexQuery.swift:13-26); `RelationTargetKind` tier-1 string `"space"`→`"area"` (:20-22); any literal `"space"` comparisons found by `grep -rn '"space"' Pommora/Pommora --include="*.swift"` (excluding IconCatalog).
 - [ ] **Step 2:** On-disk tokens: `NexusPaths.areasDir` path component `"spaces"`→`"areas"`; sidecar literal `"_space.json"`→`"_area.json"` (NexusPaths + AreaManager + IndexBuilder + test fixtures).
-- [ ] **Step 3:** Labels + UI strings: `TierConfig.swift:32` → `Tier(level: 1, singular: "Area", plural: "Areas", exposed: true)`; `SettingsLabels.swift` — `SidebarSectionLabels.spaces`→`areas`, CodingKey `"spaces"`→`"areas"`, default + decode fallback `"Spaces"`→`"Areas"`; UI literals: `"Delete Space"`→`"Delete Area"` (SidebarView confirmation title), `DefaultTitleResolver.resolve(label: "Space"...)`→`"Area"` (ContextsSection), `"New Space"`→`"New Area"` (AreaRow context menu + ContextsSection createLabel `"Space"`→`"Area"`), `"Tier 1 — Space"`→`"Tier 1 — Area"` (SidebarDetailView:35), EntityRow label `"Space"`→`"Area"` (:73), tier-picker labels `"Spaces"`→`"Areas"` (PropertiesPulldown :197-202, PropertyPanel, FrontmatterInspector, EditPropertyPane:365 — confirm each is a literal, not a settings read, before editing).
+- [ ] **Step 3:** Labels + UI strings: `TierConfig.swift:32` → `Tier(level: 1, singular: "Area", plural: "Areas", exposed: true)`; `SettingsLabels.swift` — `SidebarSectionLabels.spaces`→`areas`, CodingKey `"spaces"`→`"areas"`, default + decode fallback `"Spaces"`→`"Areas"`; UI literals: `"Delete Space"`→`"Delete Area"` (SidebarView confirmation title), `DefaultTitleResolver.resolve(label: "Space"...)`→`"Area"` (ContextsSection), `"New Space"`→`"New Area"` (AreaRow context menu + ContextsSection createLabel `"Space"`→`"Area"`), `"Tier 1 — Space"`→`"Tier 1 — Area"` (SidebarDetailView:35), EntityRow label `"Space"`→`"Area"` (:73), and the VERIFIED hardcoded tier-1 literals (second-pass census — all confirmed string literals, not settings reads; only the `"Spaces"` string changes, `"Topics"`/`"Projects"` stay): `PropertiesPulldown.swift:198` (`tierRow(label: "Spaces", ids: tier1)`), `PropertyPanel.swift:120/125/130` (ContextChipRow labels — tier-1 line only), `FrontmatterInspector.swift:139-145` (both the `tierRow("Spaces", ...)` and `LabeledContent("Spaces", ...)` groups), `EditPropertyPane.swift:365` (`case 1: return ("square.stack.3d.up", "Spaces")`).
 - [ ] **Step 4:** Because the persisted kind strings changed (`EntityKind` in `state.json` recents/pinned, `"area"` in rebuilt `context_links`/`contexts` query paths): bump `currentSchemaVersion = 13` ("v13: Space→Area rename — kind strings; rebuild re-stamps rows"). Stale `state.json` refs with kind `"space"` simply fail resolution and self-heal (recents/pinned are non-critical; greenfield).
 - [ ] **Step 5:** Update test fixtures/assertions referencing the old strings (`ManagerCreateReturnContractTests`, `RenameAtomicityTests`, `IndexBuilderTests`, `RecentsManagerTests`, `SettingsTests`, `UILabelThreadingTests`, `TierConfigTests`, `PropertyColumnBuilderTests` — locate each by `grep -rln 'Space\|"space"' Pommora/PommoraTests`).
 - [ ] **Step 6:** Background-builder verify; green. Commit: `refactor(contexts)!: Area strings, kind raw values, on-disk tokens — schema v13`
@@ -853,5 +829,6 @@ Write every passage as locked present-tense spec ("Projects are free-standing ti
 ### Plan Self-Review Record
 
 - **Spec coverage:** decoupling → P1; relation reset → P1+P2; folders-with-sidecars (all three tiers) → P1 (projects), P4 (areas), topics already folders; blocks kept → entity rewrites preserve `blocks`; sibling managers → P1; sidebar disclosure rows → P3; no migration → none planned; docs → P6; Area rename → P5 (user addition post-spec — supersedes the spec's "Spaces" naming; P6 docs absorb it).
-- **Known judgment calls baked in:** tier label for Projects comes from a NEW `sidebarSections.projects` settings key (consistency with spaces/topics); index column drop deferred to P4 so P1–P3 write `nil` into a still-existing column; kind-string rename forces schema v13 in P5.
+- **Known judgment calls baked in:** Projects tier-row label reuses the EXISTING `labels.project.plural` — no new settings key (strip mandate; label-source unification deferred to the settings-UI work); index column drop deferred to P4 so P1–P3 write `nil` into a still-existing column; kind-string rename forces schema v13 in P5; validator transition is a staged overload (bare overload added in Task 1.2, legacy signature deleted in Task 1.3 with its last callers) — zero throwaway code.
 - **Deliberate deviations from current code:** none — all idioms (rollback, defensive sync, stub-and-edit, OrderResolver) are copied from verified sources.
+- **Second adversarial pass (applied):** every API signature in the plan's snippets verified against declarations (`Filesystem.*`, `OrderResolver.resolve`, `RenameAtomicityError`, `AtomicJSON`, `CreateWithInlineEdit.run`, `DefaultTitleResolver`, `ULID.generate`, `EntityKind` implicit raw values — all OK). Added findings: `IconPickerSheet.swift:68` project-icon dispatch (P1 Step 15), `SidebarToast` pendingError aggregation (P1 Step 16), `SidebarDetailView.swift:121` second `editTopicParents` sheet site (P2 Task 2.1 Step 3), hardcoded tier-1 literals in PropertiesPulldown/PropertyPanel/FrontmatterInspector (P5 Task 5.2 Step 3). Removed as scope creep: `sidebarSections.projects` settings key, `.help()` tooltip, the Task 1.2 throwaway validator stub. Verified safe (no plan change needed): ConnectionFileLocator/ConnectionCascade context cases are no-ops; ComponentLibraryView has no breaking constructors; PageValidator's tier lookups ride the rewired NexusContext closures; EntityStateRef decodes unknown kinds to `typedKind == nil` and skips (the P5 self-heal claim is real).
