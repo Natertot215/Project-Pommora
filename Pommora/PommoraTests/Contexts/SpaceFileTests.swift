@@ -10,7 +10,10 @@ struct SpaceFileTests {
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("Personal.space.json")
+        let url = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
+        try FileManager.default.createDirectory(
+            at: NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus),
+            withIntermediateDirectories: true)
 
         let original = Space(
             id: "01HX2K6Z3V4Y5W6X7Y8Z9A0B1C",
@@ -23,7 +26,7 @@ struct SpaceFileTests {
         try original.save(to: url)
 
         var loaded = try Space.load(from: url)
-        // title is derived from filename on load — overwrite to match
+        // title is derived from folder name on load — overwrite to match
         loaded.title = "Personal"
         #expect(loaded == original)
     }
@@ -32,7 +35,10 @@ struct SpaceFileTests {
     func titleNotPersisted() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("Work.space.json")
+        let url = NexusPaths.spaceMetadataURL(forTitle: "Work", in: nexus)
+        try FileManager.default.createDirectory(
+            at: NexusPaths.spaceFolderURL(forTitle: "Work", in: nexus),
+            withIntermediateDirectories: true)
 
         let space = Space(
             id: "01HX",
@@ -52,7 +58,10 @@ struct SpaceFileTests {
     func tierAlways1() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("Academics.space.json")
+        let url = NexusPaths.spaceMetadataURL(forTitle: "Academics", in: nexus)
+        try FileManager.default.createDirectory(
+            at: NexusPaths.spaceFolderURL(forTitle: "Academics", in: nexus),
+            withIntermediateDirectories: true)
 
         let space = Space(
             id: "01H",
@@ -67,11 +76,14 @@ struct SpaceFileTests {
         #expect(loaded.tier == 1)
     }
 
-    @Test("Space load derives title from filename")
-    func titleFromFilename() throws {
+    @Test("Space load derives title from folder name")
+    func titleFromFolderName() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = nexus.rootURL.appendingPathComponent("Side Projects.space.json")
+        let url = NexusPaths.spaceMetadataURL(forTitle: "Side Projects", in: nexus)
+        try FileManager.default.createDirectory(
+            at: NexusPaths.spaceFolderURL(forTitle: "Side Projects", in: nexus),
+            withIntermediateDirectories: true)
 
         let space = Space(
             id: "01H",

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Tier-1 Context entity — broad life domain.
-/// On disk: `.nexus/spaces/<Title>.space.json` (filename = title; no `title` field on disk).
+/// On disk: `.nexus/spaces/<Title>/_space.json` (folder name = title; no `title` field on disk).
 struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var tier: Int  // always 1
@@ -60,8 +60,8 @@ struct Space: Codable, Equatable, Identifiable, Hashable, Sendable {
 extension Space {
     static func load(from url: URL) throws -> Space {
         var space = try AtomicJSON.decode(Space.self, from: url)
-        // Derive title from filename: "Personal.space.json" → "Personal"
-        space.title = url.deletingPathExtension().deletingPathExtension().lastPathComponent
+        // Derive title from parent folder name: `.nexus/spaces/Personal/_space.json` → "Personal"
+        space.title = url.deletingLastPathComponent().lastPathComponent
         return space
     }
 

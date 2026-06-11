@@ -28,11 +28,11 @@ struct IconBackfillTests {
 
         // --- Seed a Space (tier 1) WITH an icon. ---
         let spaceID = ULID.generate()
-        let spacesDir = NexusPaths.spacesDir(in: nexus)
-        try FileManager.default.createDirectory(at: spacesDir, withIntermediateDirectories: true)
-        try Space(
-            id: spaceID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date()
-        ).save(to: NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus))
+        try Filesystem.createFolderWithMetadata(
+            folderURL: NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus),
+            metadataURL: NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus),
+            metadata: Space(id: spaceID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
+        )
 
         // --- Seed a PageType + a Page WITH an icon and tier1 = [Space]. ---
         let pageTypeManager = PageTypeManager(nexus: nexus)

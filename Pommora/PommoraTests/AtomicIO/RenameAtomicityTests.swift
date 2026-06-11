@@ -54,8 +54,8 @@ struct RenameAtomicityTests {
         #expect(manager.pendingError != nil)
 
         // Disk + in-memory state both unchanged.
-        let personalURL = NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus)
-        let workURL = NexusPaths.spaceFileURL(forTitle: "Work", in: nexus)
+        let personalURL = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
+        let workURL = NexusPaths.spaceMetadataURL(forTitle: "Work", in: nexus)
         #expect(FileManager.default.fileExists(atPath: personalURL.path))
         #expect(FileManager.default.fileExists(atPath: workURL.path))
         #expect(manager.spaces.count == 2)
@@ -72,8 +72,8 @@ struct RenameAtomicityTests {
         let space = manager.spaces.first!
 
         try await manager.rename(space, to: "Life")
-        let oldURL = NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus)
-        let newURL = NexusPaths.spaceFileURL(forTitle: "Life", in: nexus)
+        let oldURL = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
+        let newURL = NexusPaths.spaceMetadataURL(forTitle: "Life", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: oldURL.path))
         #expect(FileManager.default.fileExists(atPath: newURL.path))
         #expect(manager.spaces.first?.title == "Life")

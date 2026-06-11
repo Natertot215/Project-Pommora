@@ -86,11 +86,11 @@ struct IndexPopulationReproTests {
         // --- Seed a VALID Space (tier 1). ---
         let spaceID = ULID.generate()
         let spaceName = "Personal"
-        let spacesDir = NexusPaths.spacesDir(in: nexus)
-        try FileManager.default.createDirectory(at: spacesDir, withIntermediateDirectories: true)
-        try Space(
-            id: spaceID, title: spaceName, color: nil, icon: nil, blocks: [], modifiedAt: Date()
-        ).save(to: NexusPaths.spaceFileURL(forTitle: spaceName, in: nexus))
+        try Filesystem.createFolderWithMetadata(
+            folderURL: NexusPaths.spaceFolderURL(forTitle: spaceName, in: nexus),
+            metadataURL: NexusPaths.spaceMetadataURL(forTitle: spaceName, in: nexus),
+            metadata: Space(id: spaceID, title: spaceName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
+        )
 
         // --- Seed a VALID Topic (tier 2). ---
         let topicID = ULID.generate()

@@ -7,7 +7,7 @@ import Testing
 @Suite("SpaceManager")
 struct SpaceManagerTests {
 
-    @Test("create writes a .space.json on disk and adds to spaces")
+    @Test("create writes a _space.json folder on disk and adds to spaces")
     func create() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -15,7 +15,7 @@ struct SpaceManagerTests {
         await manager.loadAll()
 
         try await manager.create(name: "Personal", color: .blue, icon: "person.circle")
-        let url = NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus)
+        let url = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
         #expect(FileManager.default.fileExists(atPath: url.path))
         #expect(manager.spaces.count == 1)
         #expect(manager.spaces.first?.title == "Personal")
@@ -35,7 +35,7 @@ struct SpaceManagerTests {
         #expect(manager.spaces.count == 1)
     }
 
-    @Test("rename renames the file + updates in-memory entry")
+    @Test("rename renames the folder + updates in-memory entry")
     func rename() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -45,8 +45,8 @@ struct SpaceManagerTests {
         let space = manager.spaces.first!
 
         try await manager.rename(space, to: "Life")
-        let oldURL = NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus)
-        let newURL = NexusPaths.spaceFileURL(forTitle: "Life", in: nexus)
+        let oldURL = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
+        let newURL = NexusPaths.spaceMetadataURL(forTitle: "Life", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: oldURL.path))
         #expect(FileManager.default.fileExists(atPath: newURL.path))
         #expect(manager.spaces.first?.title == "Life")
@@ -63,11 +63,11 @@ struct SpaceManagerTests {
 
         try await manager.updateColor(space, to: .red)
         #expect(manager.spaces.first?.color == .red)
-        let reloaded = try Space.load(from: NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus))
+        let reloaded = try Space.load(from: NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus))
         #expect(reloaded.color == .red)
     }
 
-    @Test("delete removes file + drops from spaces")
+    @Test("delete removes folder + drops from spaces")
     func delete() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -77,22 +77,23 @@ struct SpaceManagerTests {
         let space = manager.spaces.first!
 
         try await manager.delete(space)
-        let url = NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus)
+        let url = NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: url.path))
         #expect(manager.spaces.isEmpty)
     }
 
-    @Test("loadAll reads existing .space.json files")
+    @Test("loadAll reads existing _space.json folders")
     func loadExisting() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let dir = NexusPaths.spacesDir(in: nexus)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let folder = NexusPaths.spaceFolderURL(forTitle: "Pre-existing", in: nexus)
+        let meta = NexusPaths.spaceMetadataURL(forTitle: "Pre-existing", in: nexus)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Space(
             id: "01H", title: "Pre-existing", color: .green, icon: nil,
             blocks: [], modifiedAt: Date()
         )
-        .save(to: NexusPaths.spaceFileURL(forTitle: "Pre-existing", in: nexus))
+        .save(to: meta)
 
         let manager = SpaceManager(nexus: nexus)
         await manager.loadAll()

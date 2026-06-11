@@ -207,8 +207,13 @@ enum NexusPaths {
 
     // MARK: - Contexts file paths
 
-    static func spaceFileURL(forTitle title: String, in nexus: Nexus) -> URL {
-        spacesDir(in: nexus).appendingPathComponent("\(title).space.json", isDirectory: false)
+    static func spaceFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
+        spacesDir(in: nexus).appendingPathComponent(title, isDirectory: true)
+    }
+
+    static func spaceMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
+        spaceFolderURL(forTitle: title, in: nexus)
+            .appendingPathComponent("_space.json", isDirectory: false)
     }
 
     static func topicFolderURL(forTitle title: String, in nexus: Nexus) -> URL {

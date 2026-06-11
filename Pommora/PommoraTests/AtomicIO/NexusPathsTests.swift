@@ -155,13 +155,16 @@ struct NexusPathsTests {
         #expect(NexusPaths.homepageURL(in: nexus).lastPathComponent == "homepage.json")
     }
 
-    @Test("spaceFileURL embeds title with .space.json extension")
-    func spaceFileURLFormat() throws {
+    @Test("spaceFolderURL uses title as folder name under spaces/; spaceMetadataURL appends _space.json")
+    func spaceFolderURLFormat() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.spaceFileURL(forTitle: "Personal", in: nexus)
-        #expect(url.lastPathComponent == "Personal.space.json")
-        #expect(url.deletingLastPathComponent().lastPathComponent == "spaces")
+        let folder = NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus)
+        #expect(folder.lastPathComponent == "Personal")
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "spaces")
+        let meta = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
+        #expect(meta.lastPathComponent == "_space.json")
+        #expect(meta.deletingLastPathComponent().lastPathComponent == "Personal")
     }
 
     @Test("topicFolderURL uses title as folder name; metadata file is _topic.json")

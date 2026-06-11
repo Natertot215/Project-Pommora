@@ -301,12 +301,12 @@ final class IndexBuilder {
         // Spaces (tier 1)
         let spacesDir = NexusPaths.spacesDir(in: nexus)
         if Filesystem.folderExists(at: spacesDir) {
-            let urls =
-                (try? Filesystem.children(of: spacesDir) { url in
-                    url.pathExtension == "json" && url.deletingPathExtension().pathExtension == "space"
-                }) ?? []
-            for url in urls {
-                guard let space = try? Space.load(from: url) else { continue }
+            let spaceFolders = (try? Filesystem.childFolders(of: spacesDir)) ?? []
+            for folder in spaceFolders {
+                let metaURL = folder.appendingPathComponent("_space.json")
+                guard Filesystem.fileExists(at: metaURL),
+                    let space = try? Space.load(from: metaURL)
+                else { continue }
                 result.append(
                     ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon, parentTopicID: nil))
             }
