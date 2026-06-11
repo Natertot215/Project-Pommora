@@ -112,7 +112,6 @@ struct SidebarView: View {
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
             case .editColor(let s): ColorPickerSheet(space: s)
             }
@@ -765,8 +764,7 @@ private struct UserSectionHeader: View {
 /// row-file level via `.listRowBackground(SelectionChrome(...))` so the fill
 /// covers the full List row including any DisclosureGroup chevron gutter — not
 /// just the label area. `trailing` is an optional ViewBuilder slot for callers
-/// that need to render content at the right edge of the row (e.g. TopicRow's
-/// ParentSpaceTags dots).
+/// that need to render content at the right edge of the row.
 struct SelectableRow<Trailing: View>: View {
     let title: String
     let symbol: String

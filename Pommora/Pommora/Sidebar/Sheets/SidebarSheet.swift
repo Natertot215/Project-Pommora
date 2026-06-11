@@ -7,9 +7,8 @@ import Foundation
 /// title (via `DefaultTitleResolver`) and flips the matching sidebar row
 /// into inline-rename mode. The retired `New*Sheet.swift` files (and their
 /// `.new*` cases) are gone. Only edit-affordance sheets remain:
-/// `editTopicParents`, `editIcon`, `editColor`.
+/// `editIcon`, `editColor`.
 enum SidebarSheet: Identifiable {
-    case editTopicParents(Topic)
     case editIcon(IconTarget)
     case editColor(Space)
 
@@ -26,7 +25,6 @@ enum SidebarSheet: Identifiable {
 
     var id: String {
         switch self {
-        case .editTopicParents(let t): return "editTopicParents-\(t.id)"
         case .editIcon(let target):
             switch target {
             case .space(let s): return "editIcon-space-\(s.id)"

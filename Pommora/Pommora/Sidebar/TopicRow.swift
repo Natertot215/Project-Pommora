@@ -9,8 +9,6 @@ struct TopicRow: View {
     @Binding var confirmingDelete: SidebarConfirmation?
 
     @Environment(TopicManager.self) private var topicManager
-    @Environment(SpaceManager.self) private var spaceManager
-    @Environment(SettingsManager.self) private var settingsManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -41,10 +39,7 @@ struct TopicRow: View {
                         cancel()
                     }
                 },
-                selectAllOnAppear: justCreatedID == topic.id,
-                trailing: {
-                    ParentSpaceTags(topic: topic, spaceManager: spaceManager)
-                }
+                selectAllOnAppear: justCreatedID == topic.id
             )
         } else {
             SelectableRow(
@@ -52,17 +47,13 @@ struct TopicRow: View {
                 symbol: topic.icon ?? "folder",
                 tag: SelectionTag.topic(topic.id),
                 selection: $selection,
-                accent: nil,
-                trailing: {
-                    ParentSpaceTags(topic: topic, spaceManager: spaceManager)
-                }
+                accent: nil
             )
             .contextMenu {
                 Button("New Topic") { createTopic() }
                     .disabled(isCreatingTopic)
                 Divider()
                 Button("Edit Title") { editingID = topic.id }
-                Button("Edit Parents") { presentedSheet = .editTopicParents(topic) }
                 Button("Edit Icon") { presentedSheet = .editIcon(.topic(topic)) }
                 Divider()
                 Button("Delete", role: .destructive) {
@@ -73,11 +64,7 @@ struct TopicRow: View {
     }
 
     /// Stub-and-edit "New Topic" trigger. New Topics inherit this Topic's
-    /// current parents (Spaces) — matches the parent-selection UX of the
-    /// retired NewTopicSheet, where the freshly-created Topic was initially
-    /// rootless and the user picked parents via the sheet. With stub-and-edit
-    /// the parents are inherited from the row that fired the action, and the
-    /// user can adjust later via "Edit Parents".
+    /// current parents (Spaces) from the row that fired the action.
     private func createTopic() {
         guard !isCreatingTopic else { return }
         isCreatingTopic = true
@@ -126,27 +113,5 @@ struct TopicRow: View {
     private func cancel() {
         editingID = nil
         justCreatedID = nil
-    }
-}
-
-/// Renders one small color dot per parent Space of the Topic.
-struct ParentSpaceTags: View {
-    let topic: Topic
-    let spaceManager: SpaceManager
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(parentSpaces, id: \.id) { space in
-                Circle()
-                    .fill(space.color?.swiftUIColor ?? .secondary)
-                    .frame(width: 6, height: 6)
-            }
-        }
-    }
-
-    private var parentSpaces: [Space] {
-        topic.parents.compactMap { id in
-            spaceManager.spaces.first { $0.id == id }
-        }
     }
 }

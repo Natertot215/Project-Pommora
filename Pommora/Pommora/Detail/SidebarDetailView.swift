@@ -9,7 +9,6 @@ struct SidebarDetailView: View {
     /// collection or vault view so the user can tap back to it.
     @State private var pageTrail: PageMeta? = nil
 
-    @Environment(SpaceManager.self) private var spaceManager
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
 
@@ -40,7 +39,7 @@ struct SidebarDetailView: View {
                     title: t.title,
                     icon: t.icon ?? "folder",
                     accent: nil,
-                    supportingLine: "Tier 2 — Topic\nParents: \(parentSpaceNames(for: t).joined(separator: ", "))"
+                    supportingLine: "Tier 2 — Topic"
                 )
 
             case .project(let p):
@@ -118,7 +117,6 @@ struct SidebarDetailView: View {
         }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
-            case .editTopicParents(let t): EditTopicParentsSheet(topic: t)
             case .editIcon(let target): IconPickerSheet(target: target)
             case .editColor(let s): ColorPickerSheet(space: s)
             }
@@ -166,9 +164,4 @@ struct SidebarDetailView: View {
         }
     }
 
-    private func parentSpaceNames(for topic: Topic) -> [String] {
-        topic.parents.compactMap { id in
-            spaceManager.spaces.first { $0.id == id }?.title
-        }
-    }
 }
