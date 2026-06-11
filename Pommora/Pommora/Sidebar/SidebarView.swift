@@ -30,14 +30,7 @@ struct SidebarView: View {
             SidebarToast()
             List(selection: $selectedTag) {
                 SavedSection(selection: $selection)
-                SpacesSection(
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
-                )
-                TopicsSection(
+                ContextsSection(
                     selection: $selection,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID,
@@ -349,128 +342,6 @@ struct SavedSection: View {
         case "calendar": return "calendar"
         case "recents": return "clock"
         default: return "questionmark.square"
-        }
-    }
-}
-
-struct SpacesSection: View {
-    @Binding var selection: SidebarSelection
-    @Binding var editingID: String?
-    @Binding var justCreatedID: String?
-    @Binding var presentedSheet: SidebarSheet?
-    @Binding var confirmingDelete: SidebarConfirmation?
-    @Environment(SpaceManager.self) private var spaceManager
-    @Environment(SettingsManager.self) private var settingsManager
-
-    @State private var expanded: Bool = true
-    @State private var isCreating: Bool = false
-
-    var body: some View {
-        Section(isExpanded: $expanded) {
-            ForEach(spaceManager.spaces) { space in
-                SpaceRow(
-                    space: space,
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
-                )
-                .tag(SelectionTag.space(space.id))
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
-                }
-            }
-        } header: {
-            SectionHeader(title: settingsManager.settings.labels.sidebarSections.spaces) {
-                createSpace()
-            }
-        }
-    }
-
-    private func createSpace() {
-        guard !isCreating else { return }
-        isCreating = true
-        let existing = spaceManager.spaces.map(\.title)
-        let title = DefaultTitleResolver.resolve(label: "Space", existingTitles: existing)
-        Task {
-            defer { isCreating = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await spaceManager.create(name: title, color: nil, icon: nil)
-                    },
-                    onCreate: { newSpace in
-                        editingID = newSpace.id
-                        justCreatedID = newSpace.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
-    }
-}
-
-struct TopicsSection: View {
-    @Binding var selection: SidebarSelection
-    @Binding var editingID: String?
-    @Binding var justCreatedID: String?
-    @Binding var presentedSheet: SidebarSheet?
-    @Binding var confirmingDelete: SidebarConfirmation?
-    @Environment(TopicManager.self) private var topicManager
-    @Environment(SettingsManager.self) private var settingsManager
-
-    @State private var expanded: Bool = true
-    @State private var isCreating: Bool = false
-
-    var body: some View {
-        Section(isExpanded: $expanded) {
-            ForEach(topicManager.topics) { topic in
-                TopicRow(
-                    topic: topic,
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID,
-                    presentedSheet: $presentedSheet,
-                    confirmingDelete: $confirmingDelete
-                )
-                .tag(SelectionTag.topic(topic.id))
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    topicManager.reorderTopics(fromOffsets: source, toOffset: destination)
-                }
-            }
-        } header: {
-            SectionHeader(title: settingsManager.settings.labels.sidebarSections.topics) {
-                createTopic()
-            }
-        }
-    }
-
-    private func createTopic() {
-        guard !isCreating else { return }
-        isCreating = true
-        let existing = topicManager.topics.map(\.title)
-        let title = DefaultTitleResolver.resolve(label: "Topic", existingTitles: existing)
-        Task {
-            defer { isCreating = false }
-            do {
-                _ = try await CreateWithInlineEdit.run(
-                    create: {
-                        try await topicManager.createTopic(name: title, icon: nil)
-                    },
-                    onCreate: { newTopic in
-                        editingID = newTopic.id
-                        justCreatedID = newTopic.id
-                    }
-                )
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
         }
     }
 }
