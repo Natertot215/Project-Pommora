@@ -423,37 +423,9 @@ struct EditPropertyPane: View {
         }
     }
 
-    /// Labeled inline selector: section-header title (left) + a plain dropdown
-    /// (right) — a `Menu` hosting an inline `Picker` (checkmark on the current
-    /// value, NO chevron glyph on the trigger). Shared shape for Display As /
-    /// number format / date format.
-    @ViewBuilder
-    private func menuSelectorRow<P: View>(
-        _ title: String,
-        value: String,
-        @ViewBuilder picker: () -> P
-    ) -> some View {
-        HStack(spacing: PUI.Spacing.md) {
-            Text(title)
-                .font(PUI.Typography.sectionHeader)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Menu {
-                picker()
-                    .pickerStyle(.inline)
-            } label: {
-                Text(value)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.secondary)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-        }
-    }
-
     @ViewBuilder
     private func displayAsPicker(def: PropertyDefinition) -> some View {
-        menuSelectorRow("Display As", value: displayAsLabel(def.displayAs)) {
+        LabeledMenuSelector(title: "Display As", value: displayAsLabel(def.displayAs)) {
             Picker("Display As", selection: displayAsSelectionBinding(def: def)) {
                 Text("Box").tag(DisplayVariant.box)
                 Text("Select").tag(DisplayVariant.select)
@@ -464,7 +436,7 @@ struct EditPropertyPane: View {
 
     @ViewBuilder
     private func numberFormatPicker(def: PropertyDefinition) -> some View {
-        menuSelectorRow("Format", value: (def.numberFormat ?? .decimal).rawValue.capitalized) {
+        LabeledMenuSelector(title: "Format", value: (def.numberFormat ?? .decimal).rawValue.capitalized) {
             Picker("Format", selection: bindingForNumberFormat(def: def)) {
                 ForEach(PropertyDefinition.NumberFormat.allCases, id: \.self) { fmt in
                     Text(fmt.rawValue.capitalized).tag(fmt)
@@ -477,7 +449,7 @@ struct EditPropertyPane: View {
     /// (nil reads as `.long`).
     @ViewBuilder
     private func dateFormatPicker(def: PropertyDefinition) -> some View {
-        menuSelectorRow("Display Date", value: (def.dateFormat ?? .full).displayLabel) {
+        LabeledMenuSelector(title: "Display Date", value: (def.dateFormat ?? .full).displayLabel) {
             Picker("Display Date", selection: bindingForDateFormat(def: def)) {
                 ForEach(DateFormat.allCases, id: \.self) { fmt in
                     Text(fmt.displayLabel).tag(fmt)
@@ -490,7 +462,7 @@ struct EditPropertyPane: View {
     /// `.none`.
     @ViewBuilder
     private func timeFormatPicker(def: PropertyDefinition) -> some View {
-        menuSelectorRow("Display Time", value: (def.timeFormat ?? .none).displayLabel) {
+        LabeledMenuSelector(title: "Display Time", value: (def.timeFormat ?? .none).displayLabel) {
             Picker("Display Time", selection: bindingForTimeFormat(def: def)) {
                 ForEach(TimeFormat.allCases, id: \.self) { fmt in
                     Text(fmt.displayLabel).tag(fmt)

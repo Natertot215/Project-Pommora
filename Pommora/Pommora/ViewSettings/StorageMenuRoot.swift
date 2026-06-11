@@ -53,8 +53,8 @@ struct StorageMenuRoot: View {
                     route: .propertyVisibility
                 )
                 mutedRow(icon: "doc.on.doc", title: "Templates")
-                mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
                 mutedRow(icon: "square.stack.3d.down.right", title: "Group")
+                mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
                 mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
             }
             .padding(.vertical, PUI.Spacing.xs)
@@ -63,16 +63,19 @@ struct StorageMenuRoot: View {
         }
     }
 
-    /// Pinned open-in footer (vault-scoped, decision #2): a compact
-    /// `Compact | Window` segmented control below a trailing divider,
-    /// right-aligned. Writes `PageType.open_in` via `setOpenIn`. Labels are
-    /// structural — NOT user-renameable.
+    /// Pinned open-in footer (vault-scoped, decision #2): a `Layout` selector
+    /// below a trailing divider, rendered as the shared `LabeledMenuSelector`
+    /// (label left, value-dropdown right) so it reads identically to the
+    /// Edit-Property "Display As" picker. Writes `PageType.open_in` via
+    /// `setOpenIn`. Labels are structural — NOT user-renameable.
     @ViewBuilder
     private var openInFooter: some View {
         if case .pageType(let liveVault) = liveScope {
             Divider()
-            HStack {
-                Spacer()
+            LabeledMenuSelector(
+                title: "Layout",
+                value: layoutLabel(liveVault.openIn ?? .window)
+            ) {
                 Picker(
                     "Layout",
                     selection: Binding(
@@ -85,11 +88,16 @@ struct StorageMenuRoot: View {
                     Text("Compact").tag(OpenInMode.compact)
                     Text("Window").tag(OpenInMode.window)
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
             }
             .padding(.horizontal, PUI.Row.paddingHorizontal)
             .padding(.vertical, PUI.Row.paddingVertical)
+        }
+    }
+
+    private func layoutLabel(_ mode: OpenInMode) -> String {
+        switch mode {
+        case .compact: return "Compact"
+        case .window: return "Window"
         }
     }
 
