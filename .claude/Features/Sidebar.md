@@ -1,6 +1,6 @@
 ### Sidebar
 
-Pommora's leading-edge navigation pane in the three-pane shell. Four top-level groups — a heading-less pinned section at top, then Spaces, Topics, Vaults — plus user-creatable vault sections after Vaults.
+Pommora's leading-edge navigation pane in the three-pane shell. Top-level groups — a heading-less pinned section at top, then **Contexts** (one section holding the three free-standing tiers), then Vaults — plus user-creatable vault sections after Vaults.
 
 Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelines//CRUD-Patterns.md`.
 
@@ -8,14 +8,13 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 
 #### Layout
 
-Four top-level groups, plus user sections:
+Top-level groups, plus user sections:
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
-- **Spaces** — flat rows for tier-1 Contexts
-- **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
+- **Contexts** — one section headed "Contexts" holding three `square.grid.2x2` disclosure rows: Areas (tier 1) / Topics (tier 2) / Projects (tier 3). Each tier row expands to its entities as flat leaf rows.
 - **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection").
 - **User sections** — user-created sibling sections after Vaults, each grouping Vaults the user moved into it (§ "User vault sections" below).
 
-Section-header defaults come from `SidebarSectionLabels.defaults()`: `Spaces` / `Topics` / `Vaults`. All renameable via Settings; user-section labels rename inline.
+The **Contexts** section header is a fixed `Contexts` label. Its three tier rows read their labels from the renameable tier config — `Areas` / `Topics` from `SidebarSectionLabels`, `Projects` from the Project label pair. The Vaults section header default comes from `SidebarSectionLabels.defaults()` (`Vaults`); user-section labels rename inline.
 
 Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens `CalendarDetailView` (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
 
@@ -24,18 +23,18 @@ Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned sectio
   Homepage
   Calendar
   Recents
-─ Spaces ───────────────────────
-  ◉ Personal       [color/symbol]
-  ◉ Academics
-  ◉ Work
-─ Topics ───────────────────────
-  ▾ Academics      [tagged: red]
+─ Contexts ─────────────────────
+  ▾ Areas
+      ◉ Personal       [color/symbol]
+      ◉ Academics
+      ◉ Work
+  ▾ Topics
       CS 161
-      Linear Algebra
-  ▾ Productivity   [tagged: blue + green]   ← multi-Space topic
-      GTD method
-      Time-blocking
-  ▸ Side Projects  [tagged: blue]
+      Productivity
+      Side Projects
+  ▾ Projects
+      Pommora
+      "Atomic Habits"
 ─ Vaults ───────────────────────              ← default section header
   ▾ Assignments                            ← Page Type row (UI label: "Vault")
       📄 README                            ← Page directly in Page Type root
@@ -48,12 +47,13 @@ Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned sectio
   ▸ Readings
 ```
 
-No always-visible "+ New" buttons — creation is **right-click first**, complemented by **hover-only `+` buttons** on section headings (visible on hover, hidden at rest). The fuller discoverability layer lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
+No always-visible "+ New" buttons — creation is **right-click first**, complemented by **hover-only `+` buttons** on section/tier headings (visible on hover, hidden at rest). The fuller discoverability layer lands separately via quick-capture (Cmd+Shift+N / menu-bar; pre-v1).
 
 ##### Section grouping (sidecar-driven)
 
 There are no wrapper folders on disk (see [[Architecture]]); the sidebar groups each root folder by its **per-kind sidecar filename** (the sidecars stay JSON):
 
+- `_area.json` / `_topic.json` / `_project.json` (under `.nexus/areas` · `topics` · `projects`) → the **Contexts** section's Areas / Topics / Projects tier rows
 - `_pagetype.json` → **Vaults** section (or the user section the vault was moved into)
 - `_taskconfig.json` / `_eventconfig.json` (Tasks / Events singletons) → **no dedicated Agenda section**; their data surfaces through the Calendar pin entry
 
@@ -88,21 +88,22 @@ Each entry's `key` is fixed in code; `label` is user-renamable via Settings → 
 
 **User-pinning of arbitrary entities is post-v1** — section gets its "Saved" heading + "+" affordance then; the three defaults become movable / removable.
 
-##### Spaces
+##### Contexts
 
-Flat rows — no chevron, no children disclosure. Each Space carries a `color` (the `SpaceColor` palette — see [[Contexts]]) and optional `icon` (SF Symbol). Visual mode settable per Nexus via `tier-config.json.tagging_style`: `"color"` (dot, default), `"symbol"` (SF Symbol), `"both"`. Clicking opens its composed-blocks page.
+One `Section` headed **"Contexts"** (a fixed label) holding exactly three `square.grid.2x2` **tier disclosure rows** — Areas, Topics, Projects — homogeneous siblings (quirk #8). The three tiers are free-standing: no containment, no parents, no cross-tier nesting (see [[Contexts]]).
 
-##### Topics
+- **Tier rows** are expand/collapse only. A tier row carries no selection tag — clicking anywhere toggles its disclosure. Its label reads from the tier config; creation is via the row's hover `+` or right-click "New <Tier>".
+- **Entity rows** render as **flat leaf rows** inside the disclosure:
+  - **Area rows** carry a `color` (the `AreaColor` palette — see [[Contexts]]) and optional `icon`.
+  - **Topic rows** and **Project rows** are bare leaf rows (icon + title). Topics no longer inherit any parent indicator — the parent-Area tagging died with containment.
 
-Chevron-disclosure rows. Each Topic expands to show file-nested Projects (tier-3 Contexts) as leaf rows.
-
-Topic rows carry **tagging indicators inherited from parent Space(s)**. Multi-Space Topics show multiple indicators side by side (e.g. blue + green dots for a Topic that belongs to both Personal and Work). Clicking a Topic or Project opens its composed-blocks page.
+Per-tier drag-reorder (`.onMove`) persists sibling order to `.nexus/state.json` (`area_order` / `topic_order` / `project_order`). Clicking an entity opens its detail surface. Selection chrome stays at row-file level (§ "Selection language"); the tier rows mirror the proven `Section { … } header:` disclosure shape used by Vaults.
 
 ##### Vaults (default label)
 
 Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages show their frontmatter `icon` if set, else the `doc.text` default; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
 
-Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page routes per the vault's `open_in` mode — main detail pane (`window`, the default) or a PagePreview card (`compact`); see [[Pages]] § "Opening behavior".
+Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page routes per the vault's `open_in` mode — main detail pane (`window`, the default) or a PagePreview window (`compact`); see [[Pages]] § "Opening behavior".
 
 ##### User vault sections (navigation-only grouping)
 
@@ -121,28 +122,29 @@ Affordances: **"Add Section"** in the Vaults section-header context menu (stub-a
 
 #### Creation affordance: right-click context menus, scoped by cursor location
 
-Canonical creation pattern. No always-visible "+ New" buttons; right-click the relevant heading / row / area and a context menu's "New X" options auto-scope to that location's parent. Section headings also expose a hover-only `+` complement — see below.
+Canonical creation pattern. No always-visible "+ New" buttons; right-click the relevant heading / row / area and a context menu's "New X" options auto-scope to that location's tier or container. Tier/section headings also expose a hover-only `+` complement — see below.
 
 | Right-click target | Scoped creation options | Other context menu entries |
 |---|---|---|
-| Spaces section area (empty / on heading) | New Space | — |
-| Topics section area | New Topic | — |
+| Areas tier row | New Area | (toggles disclosure) |
+| Topics tier row | New Topic | (toggles disclosure) |
+| Projects tier row | New Project | (toggles disclosure) |
+| Area row | New Area | Rename / Change Color / Change Icon / Delete |
+| Topic row | New Topic | Rename / Change Icon / Delete |
+| Project row | New Project | Rename / Change Icon / Delete |
 | Vaults section heading | New Page Type | **Add Section** (new user section, inline-rename) |
-| Space row | New Space | Rename / Change Color / Change Icon / Delete |
-| Topic row (when disclosed) | New Project *(in THIS Topic)* | Rename / Edit Parents / Change Icon / Delete |
-| Project row | — | Rename / Change Icon / Delete |
 | Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Vault Settings…** (opens schema editor) / **Move to Section** (+ Remove from Section while grouped) / Rename / Change Icon / Delete |
 | Page Collection row | New Page *(in THIS Collection)* | Rename / Delete |
 | Page row | — | Rename / Delete |
 | User section header | — | Rename Section / Delete Section (ungroups its vaults) |
 
-Location scoping is load-bearing — right-clicking on a Page Collection produces "New Page" that creates IN that Page Collection. Matches Finder + Notion + Obsidian.
+Location scoping is load-bearing — right-clicking a Page Collection produces "New Page" that creates IN that Page Collection. The three tier rows each create only their own tier (no cross-tier creation — the tiers are independent). Matches Finder + Notion + Obsidian.
 
 No Agenda menu rows in the sidebar at all — Agenda surfaces via the Calendar pin entry. Right-click the Calendar pin → "New Task" / "New Event" handles quick capture.
 
 #### Discoverable creation: hover-icon "+" + quick-capture
 
-Section headings expose a **hover-only `+` button** as a discoverable complement, opening the section's default new sheet. Keeps the sidebar visually quiet at rest while remaining discoverable.
+Tier and section headings expose a **hover-only `+` button** as a discoverable complement, opening that tier/section's new flow. Keeps the sidebar visually quiet at rest while remaining discoverable.
 
 Fuller global creation path lands via **quick-capture** (Cmd+Shift+N or menu-bar capture; pre-v1) — expected to absorb most CRUD entry traffic.
 
@@ -155,7 +157,7 @@ Fuller global creation path lands via **quick-capture** (Cmd+Shift+N or menu-bar
 - **Text** gets `.brightness(0.10)`; **icon** gets no brightness modifier
 - Row content insets: **1pt vertical, 0 horizontal** (`.listRowInsets`)
 - Icons use `.symbolRenderingMode(.monochrome)` so `.foregroundStyle(.accentColor)` applies
-- Chrome is applied at each row file's body root via `.listRowBackground(SelectionChrome(...))`, deriving `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. `SelectableRow` itself is pure content — no chrome. Implementation in `Pommora/Pommora/Sidebar/SidebarView.swift`.
+- Chrome is applied at each row file's body root via `.listRowBackground(SelectionChrome(...))`, deriving `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. `SelectableRow` itself is pure content — no chrome. Implementation in `Pommora/Pommora/Sidebar/SidebarView.swift` + `Pommora/Pommora/Sidebar/ContextsSection.swift`.
 
 ---
 
@@ -172,10 +174,10 @@ When adjusting sidebar geometry, the mechanism depends on what's being adjusted 
 
 #### Section ordering
 
-User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Spaces / Topics / Vaults / user sections** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
+User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Contexts / Vaults / user sections** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
 
 ---
 
 #### Open until content lands
 
-Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, `tagging_style` default, and Page-row icon hover behavior all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.
+Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, and Page-row icon hover behavior all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.
