@@ -7,6 +7,8 @@ import Testing
 @Suite("AgendaTaskManager")
 struct AgendaTaskManagerTests {
 
+    private func canonical(_ url: URL) -> URL { url.resolvingSymlinksInPath() }
+
     @Test("loadAll eagerly seeds <nexus>/Tasks/_taskconfig.json on a fresh Nexus")
     func seedsSchema() async throws {
         let nexus = try TempNexus.make()
@@ -18,7 +20,7 @@ struct AgendaTaskManagerTests {
         // subsequent loads.
         let tasksDir = NexusPaths.tasksDir(in: nexus)
         #expect(tasksDir.lastPathComponent == "Tasks")
-        #expect(tasksDir.deletingLastPathComponent().path == nexus.rootURL.path)
+        #expect(canonical(tasksDir.deletingLastPathComponent()).path == canonical(nexus.rootURL).path)
         let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
         #expect(schemaURL.lastPathComponent == NexusPaths.taskConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
@@ -42,7 +44,7 @@ struct AgendaTaskManagerTests {
         await manager.loadAll()
 
         // Discovery picks the renamed folder; default <nexus>/Tasks/ is NOT created.
-        #expect(NexusPaths.tasksDir(in: nexus).path == renamed.path)
+        #expect(canonical(NexusPaths.tasksDir(in: nexus)).path == canonical(renamed).path)
         let defaultFolder = nexus.rootURL.appendingPathComponent("Tasks", isDirectory: true)
         #expect(!FileManager.default.fileExists(atPath: defaultFolder.path))
     }

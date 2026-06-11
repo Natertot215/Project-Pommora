@@ -7,6 +7,8 @@ import Testing
 @Suite("AgendaEventManager")
 struct AgendaEventManagerTests {
 
+    private func canonical(_ url: URL) -> URL { url.resolvingSymlinksInPath() }
+
     private func makeEvent(
         id: String = ULID.generate(),
         title: String,
@@ -47,7 +49,7 @@ struct AgendaEventManagerTests {
         // the default name `<nexus>/Events/` and discovery sticks to it.
         let eventsDir = NexusPaths.eventsDir(in: nexus)
         #expect(eventsDir.lastPathComponent == "Events")
-        #expect(eventsDir.deletingLastPathComponent().path == nexus.rootURL.path)
+        #expect(canonical(eventsDir.deletingLastPathComponent()).path == canonical(nexus.rootURL).path)
         let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
         #expect(schemaURL.lastPathComponent == NexusPaths.eventConfigSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: schemaURL.path))
@@ -69,7 +71,7 @@ struct AgendaEventManagerTests {
         let manager = AgendaEventManager(nexus: nexus)
         await manager.loadAll()
 
-        #expect(NexusPaths.eventsDir(in: nexus).path == renamed.path)
+        #expect(canonical(NexusPaths.eventsDir(in: nexus)).path == canonical(renamed).path)
         let defaultFolder = nexus.rootURL.appendingPathComponent("Events", isDirectory: true)
         #expect(!FileManager.default.fileExists(atPath: defaultFolder.path))
     }

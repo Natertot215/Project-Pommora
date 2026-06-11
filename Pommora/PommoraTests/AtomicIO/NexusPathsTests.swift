@@ -6,6 +6,8 @@ import Testing
 @Suite("NexusPaths")
 struct NexusPathsTests {
 
+    private func canonical(_ url: URL) -> URL { url.resolvingSymlinksInPath() }
+
     @Test("nexusConfigDir is rootURL/.nexus")
     func nexusConfigDirShape() throws {
         let nexus = try TempNexus.make()
@@ -84,7 +86,7 @@ struct NexusPathsTests {
 
         let resolved = NexusPaths.tasksDir(in: nexus)
         #expect(resolved.lastPathComponent == "Errands")
-        #expect(resolved.path == renamed.path)
+        #expect(canonical(resolved).path == canonical(renamed).path)
     }
 
     @Test("eventsDir discovers a renamed folder by _eventconfig.json presence")
@@ -99,7 +101,7 @@ struct NexusPathsTests {
 
         let resolved = NexusPaths.eventsDir(in: nexus)
         #expect(resolved.lastPathComponent == "Calendar")
-        #expect(resolved.path == renamed.path)
+        #expect(canonical(resolved).path == canonical(renamed).path)
     }
 
     @Test("tasksDir picks first-found when multiple folders carry _taskconfig.json")
@@ -118,7 +120,7 @@ struct NexusPathsTests {
         let resolved = NexusPaths.tasksDir(in: nexus)
         let candidates = Set(["AlphaTasks", "BetaTasks"])
         #expect(candidates.contains(resolved.lastPathComponent))
-        #expect(resolved.deletingLastPathComponent().path == nexus.rootURL.path)
+        #expect(canonical(resolved.deletingLastPathComponent()).path == canonical(nexus.rootURL).path)
     }
 
     @Test("taskSchemaURL / eventSchemaURL use per-kind sidecar filenames")

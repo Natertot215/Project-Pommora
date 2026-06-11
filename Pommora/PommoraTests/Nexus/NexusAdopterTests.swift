@@ -10,6 +10,8 @@ import Testing
 @Suite("NexusAdopter")
 struct NexusAdopterTests {
 
+    private func canonical(_ url: URL) -> URL { url.resolvingSymlinksInPath() }
+
     // MARK: - scan: empty / fresh
 
     @Test("scan returns empty plan for an empty folder")
@@ -122,7 +124,7 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.inPlaceRenames.count == 1)
         let rename = try #require(plan.inPlaceRenames.first)
-        #expect(rename.folderURL == folder)
+        #expect(canonical(rename.folderURL) == canonical(folder))
         #expect(rename.oldSidecar == "_vault.json")
         #expect(rename.newSidecar == NexusPaths.pageTypeSidecarFilename)
         #expect(rename.depth == .type)
