@@ -1,5 +1,5 @@
 ### Pommora — Project Instructions
-
+TEST
 #### Overview
 
 A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 2026-05-22; Contexts Decoupling — free-standing tiers + Space→Area rename — 2026-06-10):
@@ -59,7 +59,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 
-- **Pages open per their vault's `open_in` mode** (`compact` | `window` on `_pagetype.json`; absent = `window`). `window` → the main detail pane; `compact` → a **PagePreview window**: a real `WindowGroup` window (`id: "page-preview"`, `for: PageRef.self`) restricted to never act as its own app window — traffic lights hidden, no Dock/Window-menu/Mission Control presence, child-attached ABOVE the main window (rides its moves, never floats over other apps, closes with it and on Nexus switch). Opens locked with the shared `FrontmatterInspector` mounted compact and open; unlock reveals Open; "grow" gestures (Ctrl-Cmd-F, title-strip double-click) promote to the main pane; a page already in the main pane never previews. Routing lives in `PageOpenRouter` — sidebar (single-click) + detail tables (double-click) share the one open-path. Full behavior → `// Features//Pages.md` § "Opening behavior".
+- **Pages open per their vault's `open_in` mode** (`compact` | `window` on `_pagetype.json`; absent = `window`). `window` → the main detail pane; `compact` → a **PagePreview window**: a real **`NSPanel`** owned by `PreviewTarget` (a regular panel — natively activating, never-main, and key: it brings the app forward on outside-click, takes keyboard focus, and never dims the main window) restricted to never act as its own app window — traffic lights hidden, no Dock/Window-menu/Mission Control presence, child-attached ABOVE the main window (rides its moves, never floats over other apps, closes with it and on Nexus switch). Opens locked with the shared `FrontmatterInspector` mounted compact and open; unlock reveals Open; "grow" gestures (Ctrl-Cmd-F, title-strip double-click) promote to the main pane; a page already in the main pane never previews. Routing lives in `PageOpenRouter` — sidebar (single-click) + detail tables (double-click) share the one open-path. Full behavior → `// Features//Pages.md` § "Opening behavior".
 
 #### Document Map
 
