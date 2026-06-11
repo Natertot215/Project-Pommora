@@ -268,9 +268,7 @@ final class PageSetManager {
     /// the sidecar stays behind for the trash move.
     private func rehomePages(of set: PageSet) throws {
         let collectionFolder = set.folderURL.deletingLastPathComponent()
-        let pageFiles = try Filesystem.descendantFiles(of: set.folderURL) { url in
-            url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
-        }
+        let pageFiles = try Self.memberPageFiles(of: set.folderURL)
 
         // Check every destination FIRST — throw before moving anything.
         // Flattening can also collide two nested same-named Pages with each
@@ -306,6 +304,161 @@ final class PageSetManager {
                     meta, pageTypeID: parent.typeID, pageCollectionID: parent.id, pageSetID: nil
                 )
             }
+        }
+    }
+
+    /// Every descendant `.md` Page of a Set folder — descendants, not just
+    /// direct children, because depth-3+ folders roll up INTO the Set (same
+    /// walk as `PageContentManager.loadAll(for:)`).
+    private static func memberPageFiles(of folder: URL) throws -> [URL] {
+        try Filesystem.descendantFiles(of: folder) { url in
+            url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
+        }
+    }
+
+    // MARK: - Move (whole Set between Collections)
+
+    /// Number of property VALUES a cross-vault `moveSet` would strip across
+    /// all of `set`'s Pages — the name-matched strip set (the same primitive
+    /// `movePageAcrossTypes` uses) summed over the Pages that actually carry
+    /// a value for a stripped property. The UI calls this first and confirms
+    /// with the user when non-zero; `moveSet` itself presents no UI.
+    func moveStripTotal(
+        for set: PageSet, from sourceVault: PageType, to destinationVault: PageType
+    ) async throws -> Int {
+        let strippedIDs = PageContentManager.strippedPropertyIDs(
+            from: sourceVault, to: destinationVault)
+        guard !strippedIDs.isEmpty else { return 0 }
+        let nexusRoot = nexus.rootURL
+        return try Self.memberPageFiles(of: set.folderURL).reduce(into: 0) { total, url in
+            guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot) else { return }
+            total += strippedIDs.intersection(pf.frontmatter.properties.keys).count
+        }
+    }
+
+    /// Moves `set` — folder, sidecar, and every contained Page — from its
+    /// current PageCollection into `destination` (which may live in a
+    /// different Vault). Validates the destination title collision BEFORE any
+    /// disk change; no-ops when the destination is the current Collection.
+    ///
+    /// Same-vault (`sourceVault.id == destinationVault.id`): a single folder
+    /// move — Pages stay byte-for-byte identical (every location shares the
+    /// Type's schema); only their index rows re-point `page_collection_id`
+    /// (`page_set_id` unchanged).
+    ///
+    /// Cross-vault: property values whose NAMES don't exist on
+    /// `destinationVault`'s schema are stripped from each Page's frontmatter
+    /// (foreign frontmatter preserved by value), staged in one atomic
+    /// SchemaTransaction after the folder move; every Page row re-indexes
+    /// under the destination Vault/Collection/Set.
+    func moveSet(
+        _ set: PageSet,
+        to destination: PageCollection,
+        destinationVault: PageType,
+        sourceVault: PageType,
+        contentManager: PageContentManager
+    ) async throws {
+        guard destination.id != set.collectionID else { return }
+        do {
+            try PageSetValidator.validate(
+                title: set.title, existingInCollection: pageSets(in: destination))
+
+            let strippedIDs =
+                sourceVault.id == destinationVault.id
+                ? []
+                : PageContentManager.strippedPropertyIDs(from: sourceVault, to: destinationVault)
+
+            // Move the folder; everything inside travels with it.
+            let sourceCollectionID = set.collectionID
+            let newFolder = destination.folderURL.appendingPathComponent(set.title, isDirectory: true)
+            try Filesystem.renameFolder(from: set.folderURL, to: newFolder)
+
+            // Re-save the sidecar under the new parent; revert the folder
+            // move if the save fails (renamePageSet's atomicity contract).
+            var updated = set
+            updated.collectionID = destination.id
+            updated.folderURL = newFolder
+            updated.modifiedAt = Date()
+            let metaURL = newFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+            do {
+                try updated.save(to: metaURL)
+            } catch let saveError {
+                do {
+                    try Filesystem.renameFolder(from: newFolder, to: set.folderURL)
+                } catch let revertError {
+                    let combined = RenameAtomicityError(saveError: saveError, revertError: revertError)
+                    self.pendingError = combined
+                    throw combined
+                }
+                throw saveError
+            }
+
+            // Gather every contained Page from the moved folder. Cross-vault:
+            // strip doomed values in place via one atomic SchemaTransaction
+            // (foreign frontmatter rides along by value, same encode path as
+            // movePageAcrossTypes). Same-vault stages nothing — bytes untouched.
+            let nexusRoot = nexus.rootURL
+            var movedMetas: [PageMeta] = []
+            let tx = SchemaTransaction()
+            var stagedAny = false
+            for url in try Self.memberPageFiles(of: newFolder) {
+                guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
+                else { continue }
+                var fm = pf.frontmatter
+                let carried = strippedIDs.intersection(fm.properties.keys)
+                if !carried.isEmpty {
+                    for id in carried { fm.properties.removeValue(forKey: id) }
+                    let payload = try AtomicYAMLMarkdown.encode(
+                        frontmatter: fm,
+                        body: pf.body,
+                        preservingFrom: url,
+                        modeledKeys: PageFrontmatter.modeledKeys
+                    )
+                    tx.stage(payload: payload, to: url)
+                    stagedAny = true
+                }
+                movedMetas.append(PageMeta(id: fm.id, title: pf.title, url: url, frontmatter: fm))
+            }
+            if stagedAny { try tx.commit() }
+
+            // Index: re-point the Set row + every contained Page row.
+            if let updater = indexUpdater {
+                do { try updater.upsertPageSet(updated) } catch { self.pendingError = error }
+                for meta in movedMetas {
+                    do {
+                        try updater.upsertPage(
+                            meta,
+                            pageTypeID: destinationVault.id,
+                            pageCollectionID: destination.id,
+                            pageSetID: updated.id
+                        )
+                    } catch { self.pendingError = error }
+                }
+            }
+
+            // Set caches: out of the source bucket, into the destination
+            // re-resolved against its persisted setOrder.
+            var sourceArr = pageSetsByCollection[sourceCollectionID] ?? []
+            sourceArr.removeAll { $0.id == set.id }
+            pageSetsByCollection[sourceCollectionID] = sourceArr
+
+            var destArr = pageSetsByCollection[destination.id] ?? []
+            destArr.append(updated)
+            destArr = OrderResolver.resolve(
+                destArr,
+                persistedOrder: destination.setOrder,
+                titleKeyPath: \PageSet.title
+            )
+            pageSetsByCollection[destination.id] = destArr
+
+            // Contained Pages' cached URLs (and any stripped frontmatter)
+            // went stale with the folder move — reload the Set bucket from disk.
+            await contentManager.loadAll(for: updated)
+        } catch {
+            if !(error is RenameAtomicityError) {
+                self.pendingError = error
+            }
+            throw error
         }
     }
 

@@ -17,6 +17,7 @@ struct PageSetRow: View {
 
     @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
@@ -85,6 +86,17 @@ struct PageSetRow: View {
                 Button("Edit Title") { editingID = set.id }
                 Button("Edit Icon") { presentedSheet = .editIcon(.pageSet(set)) }
                 Divider()
+                Menu("Move to…") {
+                    ForEach(vaultManager.types) { vault in
+                        ForEach(vaultManager.pageCollections(in: vault)) { collection in
+                            Button("\(vault.title) › \(collection.title)") {
+                                moveTo(collection, vault: vault)
+                            }
+                            .disabled(isCurrentCollection(collection))
+                        }
+                    }
+                }
+                Divider()
                 Button("Delete", role: .destructive) {
                     confirmingDelete = .deleteSet(set)
                 }
@@ -112,6 +124,38 @@ struct PageSetRow: View {
                         justCreatedID = newPage.id
                     }
                 )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Plain-value helper for the move menu's `disabled` check — kept out of
+    /// the @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
+    private func isCurrentCollection(_ collection: PageCollection) -> Bool {
+        collection.id == parentCollection.id
+    }
+
+    /// Whole-Set move. Same-vault targets move immediately (strip-free — one
+    /// schema). A cross-vault target first counts the property values the
+    /// move would strip: non-zero routes through the sidebar confirmation
+    /// dialog; zero proceeds directly.
+    private func moveTo(_ collection: PageCollection, vault: PageType) {
+        Task {
+            do {
+                if vault.id != parentVault.id {
+                    let stripCount = try await pageSetManager.moveStripTotal(
+                        for: set, from: parentVault, to: vault)
+                    if stripCount > 0 {
+                        confirmingDelete = .moveSet(
+                            set, destination: collection, destinationVault: vault,
+                            sourceVault: parentVault, stripCount: stripCount)
+                        return
+                    }
+                }
+                try await pageSetManager.moveSet(
+                    set, to: collection, destinationVault: vault,
+                    sourceVault: parentVault, contentManager: contentManager)
             } catch {
                 // pendingError set by manager; toast surfaces.
             }

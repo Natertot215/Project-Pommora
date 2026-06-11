@@ -133,6 +133,8 @@ struct SidebarView: View {
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
         case .deleteSet(let s)?: return "Delete Set \"\(s.title)\"?"
+        case .moveSet(let s, let dest, let destVault, _, _)?:
+            return "Move Set \"\(s.title)\" to \(destVault.title) › \(dest.title)?"
         case nil: return ""
         }
     }
@@ -147,6 +149,8 @@ struct SidebarView: View {
         case .deleteSet:
             return
                 "\"Delete Set Only\" moves its Pages up into the Collection. \"Delete Set and Pages\" deletes everything."
+        case .moveSet(_, _, _, _, let count):
+            return "\(count) property value(s) don't exist in the destination's schema and will be removed."
         }
     }
 
@@ -212,6 +216,18 @@ struct SidebarView: View {
                 Task {
                     do { try await pageSetManager.deletePageSet(s, mode: .withPages) } catch
                     { /* pendingError set by manager; toast surfaces */  }
+                    confirmingDelete = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .moveSet(let s, let dest, let destVault, let srcVault, _):
+            Button("Move", role: .destructive) {
+                Task {
+                    do {
+                        try await pageSetManager.moveSet(
+                            s, to: dest, destinationVault: destVault,
+                            sourceVault: srcVault, contentManager: contentManager)
+                    } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }

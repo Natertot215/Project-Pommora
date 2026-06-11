@@ -817,6 +817,16 @@ extension PageContentManager {
 
     // MARK: - Move (cross-Type, with property strip)
 
+    /// Property IDs on `source` whose NAMES don't exist on `destination` — the
+    /// name-matched strip set. Move-strip matches by NAME, not ID: property IDs
+    /// are globally unique per `property_definitions.id PRIMARY KEY`, so
+    /// cross-type matching by ID is structurally impossible. Shared by
+    /// `movePageAcrossTypes` and `PageSetManager.moveSet` / `moveStripTotal`.
+    static func strippedPropertyIDs(from source: PageType, to destination: PageType) -> Set<String> {
+        let destNames = Set(destination.properties.map { $0.name })
+        return Set(source.properties.filter { !destNames.contains($0.name) }.map { $0.id })
+    }
+
     /// Moves `page` from one PageType (and optional PageCollection) to a different
     /// PageType (and optional PageCollection). Performs:
     ///
@@ -839,10 +849,8 @@ extension PageContentManager {
             "movePageAcrossTypes requires distinct source and destination PageTypes."
         )
         do {
-            // 1. Determine strip set by name comparison.
-            let destNames = Set(destination.properties.map { $0.name })
-            let strippedDefs = source.properties.filter { !destNames.contains($0.name) }
-            let strippedIDs = Set(strippedDefs.map { $0.id })
+            // 1. Determine strip set by name comparison (shared primitive).
+            let strippedIDs = Self.strippedPropertyIDs(from: source, to: destination)
 
             // 2. Load the page file (frontmatter + body).
             let pageFile = try PageFile.load(from: page.url)
