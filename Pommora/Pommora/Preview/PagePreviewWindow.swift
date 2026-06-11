@@ -15,6 +15,15 @@ enum PreviewWindowMetrics {
     /// and the footer — separator ends align with the capsules' bounds
     /// (uniform-distance dividers).
     static let railPadding: CGFloat = PUI.Spacing.xl
+
+    /// Body leading inset — aligns the first body character with the LEFT EDGE
+    /// of the close button's "X" glyph (a 10pt glyph centered in the 36pt
+    /// capsule), so text starts where the X begins and the heading-fold chevron
+    /// gets its gutter to the LEFT (at railPadding it landed at -6pt, clipped).
+    /// The editor inset is symmetric, so it also lifts the right edge off the
+    /// hairline — the body reads with breathing room, not pressed to the edges.
+    static let bodyHorizontalInset: CGFloat =
+        railPadding + (WindowCapsuleButton.size.width - 10) / 2
     /// Header vertical rhythm: padding(top→title) == padding(title→separator).
     /// Title-bar height = capsule 26 + 2×10 = 46pt — the standard unified-
     /// toolbar height, which also lands the header hairline on the
@@ -30,19 +39,19 @@ enum PreviewWindowMetrics {
 
 // MARK: - PagePreviewWindowRoot
 
-/// Root of the `UtilityWindow(id: "page-preview")` scene.
+/// Root of the `WindowGroup(id: "page-preview", for: PageRef.self)` scene.
 /// Bootstraps the per-Nexus environment from `AppGlobals.current` (published
 /// by `NexusEnvironment` exactly for standalone scenes) and self-dismisses
-/// when there's nothing to show (no open Nexus / cleared target).
+/// when there's nothing to show (no open Nexus / valueless open).
 struct PagePreviewWindowRoot: View {
-    /// `UtilityWindow` is id-based (no value plumbing), so the previewed ref
-    /// is held in a shared @Observable read reactively here — setting it
-    /// retargets this one reusable panel. `@State` anchors the observation.
-    @State private var target = PreviewTarget.shared
+    /// `WindowGroup(for: PageRef.self)` delivers the previewed ref via the
+    /// scene's value plumbing; opening the same value focuses the existing
+    /// window (per-value dedupe).
+    let ref: PageRef?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if let ref = target.ref, let env = AppGlobals.current {
+        if let ref, let env = AppGlobals.current {
             PagePreviewContent(ref: ref)
                 .injectNexusEnvironment(env)
         } else {
@@ -277,14 +286,14 @@ struct PagePreviewContent: View {
         .secondaryClickMenu(bodyMenuItems)
     }
 
-    /// Pommora's shared editor config tuned for the preview surface: the
-    /// horizontal text inset is the chrome RAIL — body text sits flush with
-    /// the hairlines' insets, never double-indented — while a small vertical
-    /// inset keeps the reduced type from squishing against the dividers.
+    /// Pommora's shared editor config tuned for the preview surface: the body
+    /// leading inset aligns the first character with the close button's "X"
+    /// glyph and reserves the heading-fold chevron gutter to its left; a small
+    /// vertical inset keeps the reduced type from squishing against the dividers.
     private var editorConfiguration: MarkdownPMConfiguration {
         var config = MarkdownEditorConfig.pommora(
             verticalInset: PreviewWindowMetrics.bodyVerticalInset,
-            horizontalInset: PreviewWindowMetrics.railPadding,
+            horizontalInset: PreviewWindowMetrics.bodyHorizontalInset,
             pageResolver: connectionResolver)
         // A preview is a peek — no scrollbar chrome (wheel/trackpad still scroll).
         config.scrollers = .hidden

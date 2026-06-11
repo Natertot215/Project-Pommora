@@ -1,11 +1,19 @@
 import SwiftUI
 
-/// The single previewed `PageRef` for the reusable PagePreview panel.
-///
-/// `UtilityWindow` — SwiftUI's native non-activating panel scene — is id-based
-/// and has no value-based `for:` plumbing, so the ref being previewed is held
-/// here and read reactively by `PagePreviewWindowRoot`. Setting `ref` retargets
-/// the one open panel (Quick-Look style); clearing it lets the panel dismiss.
+/// The ONE open-path for the PagePreview window (DRY): every call site (sidebar,
+/// detail tables, debug sample) routes through this so the open sequence can't
+/// drift. `WindowGroup(for: PageRef.self)` is value-based, so this opens by
+/// value — per-value dedupe focuses an already-open window for the same Page.
+@MainActor
+func openPagePreview(_ ref: PageRef, using openWindow: OpenWindowAction) {
+    openWindow(id: "page-preview", value: ref)
+}
+
+/// Vestigial: retained only so `ContentView`'s Nexus-switch teardown
+/// (`PreviewTarget.shared.ref = nil`) keeps compiling while that file is owned
+/// by a parallel session. The window scene no longer reads it (it uses value
+/// plumbing). Delete together with that teardown line once the other session
+/// lands and `ContentView` is safe to edit.
 @MainActor
 @Observable
 final class PreviewTarget {
@@ -13,13 +21,4 @@ final class PreviewTarget {
     private init() {}
 
     var ref: PageRef?
-}
-
-/// The ONE open-path for the preview panel (DRY): retarget, then open/focus.
-/// Every call site (sidebar, detail tables, debug sample) routes through this
-/// so the retarget-then-open sequence can't drift.
-@MainActor
-func openPagePreview(_ ref: PageRef, using openWindow: OpenWindowAction) {
-    PreviewTarget.shared.ref = ref
-    openWindow(id: "page-preview")
 }

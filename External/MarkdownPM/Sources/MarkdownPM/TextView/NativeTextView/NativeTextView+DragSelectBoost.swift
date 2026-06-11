@@ -19,9 +19,9 @@ extension NativeTextView {
         // A plain click with no movement is harmlessly swallowed — the body
         // is non-selectable when read-only, so there's nothing to lose.
         if !isEditable {
-            // Read-only body: resign any focused field elsewhere (e.g. an active
-            // title rename, which a click on a non-first-responder view won't
-            // otherwise dismiss), then drag the window.
+            // Read-only body click: commit any focused field elsewhere (e.g. an
+            // active title rename, which a click on a non-first-responder view
+            // won't dismiss), then drag the window.
             window?.makeFirstResponder(nil)
             window?.performDrag(with: event)
             return

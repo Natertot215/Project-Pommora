@@ -60,17 +60,6 @@ struct PreviewWindowRestrictionTests {
         #expect(window.collectionBehavior.contains(.fullScreenNone))
     }
 
-    @Test("Tames the UtilityWindow panel focus defaults (no dim, focuses on open)")
-    func tamesPanelFocus() {
-        let panel = makePanel()
-        panel.hidesOnDeactivate = true
-        panel.becomesKeyOnlyIfNeeded = true
-        PreviewWindowConfigurator.restrict(panel)
-        #expect(!panel.styleMask.contains(.nonactivatingPanel))
-        #expect(panel.hidesOnDeactivate == false)
-        #expect(panel.becomesKeyOnlyIfNeeded == false)
-    }
-
     /// The reported bug: the "Page Preview" title reappeared on the 2nd preview.
     /// Simulates SwiftUI re-applying the scene title on a later open, then
     /// re-runs the restriction (exactly what `updateNSView` does on every render)

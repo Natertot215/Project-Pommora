@@ -13,9 +13,10 @@ import SwiftUI
 /// - closes itself when the main window closes (AppKit does NOT do this for
 ///   children) and re-asserts its chrome if SwiftUI re-renders reset it.
 ///
-/// The host scene is a `UtilityWindow` (a non-activating NSPanel), so clicking
-/// or dragging the preview never makes it the main window — the window behind
-/// it keeps its active (undimmed) appearance with no `makeMain` intervention.
+/// The host scene is a `WindowGroup` with the secondary `.associated` window-
+/// manager role: a normal window (so clicking it activates the app — refocus
+/// from the background works natively), marked dependent so it reads as a
+/// satellite of the main window rather than a co-equal primary.
 struct PreviewWindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> ConfiguratorView { ConfiguratorView() }
     func updateNSView(_ nsView: ConfiguratorView, context: Context) {
@@ -40,15 +41,6 @@ struct PreviewWindowConfigurator: NSViewRepresentable {
         window.title = ""
         window.titleVisibility = .hidden
         window.collectionBehavior = [.transient, .ignoresCycle, .fullScreenNone]
-        // UtilityWindow ships palette defaults (no focus on open, hides on app
-        // deactivate, non-activating). A preview wants the opposite on all three
-        // — while still never becoming the main window (an NSPanel can't), so the
-        // window behind it never dims.
-        if let panel = window as? NSPanel {
-            panel.styleMask.remove(.nonactivatingPanel)
-            panel.hidesOnDeactivate = false
-            panel.becomesKeyOnlyIfNeeded = false
-        }
     }
 
     @MainActor
@@ -70,11 +62,6 @@ struct PreviewWindowConfigurator: NSViewRepresentable {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(someWindowWillClose(_:)),
                 name: NSWindow.willCloseNotification, object: nil)
-            // UtilityWindow opens unfocused — focus it on open (configure()
-            // cleared becomesKeyOnlyIfNeeded so the panel will accept key).
-            Task { @MainActor [weak self] in
-                self?.configuredWindow?.makeKeyAndOrderFront(nil)
-            }
         }
 
         // Pure window accessor — never intercept clicks, so the SwiftUI content
@@ -101,12 +88,6 @@ struct PreviewWindowConfigurator: NSViewRepresentable {
             guard let window = configuredWindow else { return }
             PreviewWindowConfigurator.restrict(window)
             attachToMainWindow(window)
-            // A UtilityWindow panel is non-activating: clicking it while Pommora
-            // is in the background makes the panel key but does NOT bring the app
-            // forward. Re-asserting activation here (event-driven, so it's not
-            // subject to the no-render-while-inactive race the styleMask edit is)
-            // refocuses the app the moment the preview is clicked.
-            if !NSApp.isActive { NSApp.activate() }
         }
 
         @objc private func someWindowWillClose(_ note: Notification) {

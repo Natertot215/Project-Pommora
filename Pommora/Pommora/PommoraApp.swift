@@ -49,30 +49,29 @@ struct PommoraApp: App {
             InspectorCommands()
         }
 
-        // PagePreview: one reusable panel for compact-opened Pages, as a
-        // native SwiftUI `UtilityWindow` (a non-activating NSPanel) — clicking
-        // or dragging it never becomes the main window, so the window behind it
-        // doesn't dim. It's id-based (no value plumbing), so the previewed ref
-        // lives in `PreviewTarget.shared`; peeking another Page retargets the
-        // same panel. PreviewWindowConfigurator still hides the traffic lights,
-        // excludes it from the Window menu/cycling/Mission Control, and attaches
-        // it as a child of the main window. `dismissWindow(id: "page-preview")`
-        // closes it on Nexus switch. Never restored at launch.
-        // Empty title: the header IS the title bar, so there is no window-title
-        // string for SwiftUI to display (the configurator also clears/hides it).
-        UtilityWindow(Text(verbatim: ""), id: "page-preview") {
-            PagePreviewWindowRoot()
+        // PagePreview: one window per compact-opened Page — a native SwiftUI
+        // `WindowGroup` with the secondary `.associated` window-manager role.
+        // A normal window activates the app when clicked, so refocus-from-outside
+        // works natively (no non-activating-panel workarounds); `.associated`
+        // marks it a dependent/secondary window of the main scene. The
+        // configurator hides the traffic lights, excludes it from the Window
+        // menu/cycling/Mission Control, attaches it as a child of the main window
+        // (rides moves, above main, never over other apps, closes with it), and
+        // clears/hides the title. Value plumbing delivers the PageRef;
+        // `dismissWindow(id: "page-preview")` closes on Nexus switch. Empty title:
+        // the header IS the title bar (the configurator also clears/hides it).
+        WindowGroup(Text(verbatim: ""), id: "page-preview", for: PageRef.self) { $ref in
+            PagePreviewWindowRoot(ref: ref)
         }
         .windowStyle(.hiddenTitleBar)
+        .windowManagerRole(.associated)
         .defaultSize(
             width: PreviewWindowMetrics.defaultSize.width,
             height: PreviewWindowMetrics.defaultSize.height
         )
         .windowResizability(.contentMinSize)
         // No .windowBackgroundDragBehavior: dragging comes solely from
-        // WindowDragGesture (chrome) + performDrag (locked body). Keeping the
-        // window-background drag too made the two race — empty header gaps fell
-        // through to the flaky background path (needed a "priming" drag first).
+        // WindowDragGesture (chrome) + performDrag (locked body).
         .restorationBehavior(.disabled)
         .commandsRemoved()
 
