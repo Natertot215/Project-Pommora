@@ -2,9 +2,9 @@
 
 #### Overview
 
-A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 refactor 2026-05-22):
+A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 2026-05-22; Contexts Decoupling — free-standing tiers + Space→Area rename — 2026-06-10):
 
-- **Organization layer — Contexts** (3 tiers): Spaces (1) / Topics (2) / **Projects** (3). All three are composed-blocks surfaces. Per-tier labels user-configurable per Nexus.
+- **Organization layer — Contexts** (3 tiers): Areas (1) / Topics (2) / **Projects** (3). Three **free-standing** tiers — no containment, no parents; each a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`). Per-tier labels user-configurable per Nexus. (Context→context relations are a deferred design pass.)
 - **Operational layer — Pages + Agenda**:
   - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside Page Types; Page Collections organize within. UI labels: **"Vault"** + **"Collection"** (renameable via Settings).
   - **Agenda** — split into Agenda Tasks (`.task.json`, EKReminder-shaped) and Agenda Events (`.event.json`, EKEvent-shaped). Data layer ships v0.3.0; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
@@ -36,7 +36,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 - **Three load-bearing constraints:** (1) **conceptual portability of functionalities** — file formats, schemas, design values, UX patterns survive a stack rebuild; (2) **cross-nexus queryability + cloud sync compatibility** — the on-disk model maps cleanly to a cloud DB so sync arrives as additive translation; (3) **persistent immediate legibility for agents** — every entity is a file an external agent can read directly without tool-call round-trips. Full detail → `// Features//Architecture.md`.
 
 
-- **Files are canonical (≠ everything is Markdown).** Pages are `.md` (frontmatter + body); Agenda + all sidecars / Projects / Spaces / Settings stay JSON. **Kind authority is the parent Type folder's sidecar, not the extension or any frontmatter field.** Foreign frontmatter is preserved by value on every write; SQLite is a regeneratable index (no user data trapped in it). Full on-disk spec → `// Features//Architecture.md` + `PommoraPRD.md`.
+- **Files are canonical (≠ everything is Markdown).** Pages are `.md` (frontmatter + body); Agenda + all sidecars / Projects / Areas / Settings stay JSON. **Kind authority is the parent Type folder's sidecar, not the extension or any frontmatter field.** Foreign frontmatter is preserved by value on every write; SQLite is a regeneratable index (no user data trapped in it). Full on-disk spec → `// Features//Architecture.md` + `PommoraPRD.md`.
 
 - **Filename = title** everywhere. No `title` field. Renaming in the UI renames the file. Independent UI titles are a Prospect.
 

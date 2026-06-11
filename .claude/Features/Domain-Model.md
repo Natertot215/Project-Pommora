@@ -11,7 +11,7 @@ Per-entity detail → dedicated docs in `// Features//`.
 | PARA term | Pommora term | Layer |
 |---|---|---|
 | (workspace) | **Nexus** | Root |
-| Areas | **Spaces** (tier 1) | Organization |
+| Areas | **Areas** (tier 1) | Organization |
 | Projects | **Topics** (tier 2) | Organization |
 | (specifics) | **Projects** (tier 3) | Organization |
 | Resources | **Page Types + Agenda** | Operational |
@@ -24,20 +24,18 @@ PARA's "Projects" maps to Pommora tier-3 "Projects" — same word, intentional a
 
 #### Organization layer — Contexts
 
-Three tiers — Spaces (1), Topics (2), Projects (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code. Tier-3 Projects are stored as `.project.json` files inside their parent Topic folder.
+Three **free-standing** tiers — Areas (1), Topics (2), Projects (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code. None of the tiers contains, parents, or is restricted to another — a Project is not "inside" a Topic; a Topic does not belong to an Area. Each tier is stored in its own sibling folder under `.nexus/`.
 
-| Tier | Default label | Role | Sidebar render |
+| Tier | Default label | Role | On disk |
 |---|---|---|---|
-| 1 | Spaces | Broad life domains (Personal, Academics, Work) | Flat row with color/symbol; no chevron |
-| 2 | Topics | Subject areas inside Spaces (Productivity, Side Projects) | Chevron-disclosure expanding to Projects |
-| 3 | Projects | Specifics within one Topic (CS 161, Pommora) | Leaf row inside parent Topic |
+| 1 | Areas | Broad life domains (Personal, Academics, Work) | `.nexus/areas/<Title>/_area.json` |
+| 2 | Topics | Subject areas (Productivity, Side Projects, Reading List) | `.nexus/topics/<Title>/_topic.json` |
+| 3 | Projects | Specifics (CS 161, Pommora, "Atomic Habits") | `.nexus/projects/<Title>/_project.json` |
 
 **Rules:**
-- Topics multi-parent across Spaces; Projects single-parent at file (folder location = parent Topic)
-- Projects carry additional `project_links` to other Topics/Spaces as a **typed multi-valued context-link property** (NOT body connections)
-- No same-tier file-structural links (Topic ↛ Topic; Space ↛ Space)
-- Tier-skip allowed: a Project can parent directly to a Space
-- All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; can embed anything)
+- No containment, no `parents` field, no `project_links` property — tiers are independent
+- No tier-parent requirement — Pages/Agenda tag any tiers independently; a page can relate to a Topic without relating to an Area
+- All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; currently always empty pending the blocks surface)
 
 Detail → `Contexts.md`.
 
@@ -93,14 +91,14 @@ Detail → `Homepage.md`.
 Operational-layer entities (Pages, Agenda Tasks, Agenda Events) carry **per-tier multi-relation fields** pointing to Contexts, stored at the frontmatter / JSON root as ID arrays:
 
 ```yaml
-tier1: [<space-id>, ...]
+tier1: [<area-id>, ...]
 tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. An Agenda Task can link to a Space, a Topic, and a Project independently — no requirement to fill all three.
+Each tier filled independently. An Agenda Task can link to an Area, a Topic, and a Project independently — no requirement to fill all three.
 
-**Tier values ARE relations.** Spaces / Topics / Projects (`tier1` / `tier2` / `tier3`) are pre-configured context-link properties — `relation_target: { kind: "context_tier", tier: N }` — merged onto every Type's schema via `BuiltInContextLinkProperties`. They edit inline through the normal property-editing row (`PropertyEditorRow`), and their values render as the target Context's icon + title in plain styled colored text. In Table views the three tiers appear as default-visible columns at the rightmost content positions (after all user-property columns, before Last Edited Time); each is individually hideable. They stay one-way — no reverse property, since Contexts carry no `properties[]` schema; reverse lookups resolve through the index (`IndexQuery.incomingContextLinks`).
+**Tier values ARE relations.** Areas / Topics / Projects (`tier1` / `tier2` / `tier3`) are pre-configured context-link properties — `relation_target: { kind: "context_tier", tier: N }` — merged onto every Type's schema via `BuiltInContextLinkProperties`. They edit inline through the normal property-editing row (`PropertyEditorRow`), and their values render as the target Context's icon + title in plain styled colored text. In Table views the three tiers appear as default-visible columns at the rightmost content positions (after all user-property columns, before Last Edited Time); each is individually hideable. They stay one-way — no reverse property, since Contexts carry no `properties[]` schema; reverse lookups resolve through the index (`IndexQuery.incomingContextLinks`).
 
 ---
 
@@ -125,7 +123,7 @@ Full mechanic for `[[ ]]` connections → [[Connections]].
 | Page → Context (tier N) | `tierN: [<id>, ...]` in frontmatter | Categorical assignment |
 | Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
 | Agenda Event → Context (tier N) | `tierN: [<id>, ...]` in `.event.json` | Categorical assignment |
-| Context → Context | `parents` (file-structural) + `project_links` (property, Projects only) | Hierarchy + cross-cutting relations |
+| Context → Context | None — tiers are free-standing; context→context relations are deferred | — |
 | Page → Page Type / Page Collection | Implicit by file location | Membership |
 
 Relations are stored by ID (rename-safe); body connections are plain `[[Title]]` on disk, resolved by globally-unique title with rename-safety via cascade — see [[Connections]].
@@ -137,8 +135,7 @@ Relations are stored by ID (rename-safe); body connections are plain `[[Title]]`
 Four top-level groups (three carry a heading; labels renameable via Settings scaffold — v0.3.0 storage / v0.6.0 editing UI), plus user-creatable vault sections:
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
-- **Spaces** — flat rows for tier-1 Contexts
-- **Topics** — chevron-disclosure for tier-2 with file-nested Projects (tier-3)
+- **Contexts** — one section containing three disclosure rows (Areas / Topics / Projects); each tier row is never selectable and toggles its own disclosure only; each tier's entities render as flat leaf rows inside their disclosure
 - **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages (in Type root) + Page Collections (UI label "Collection"); each Collection discloses its Pages
 - **User sections** — user-created sibling sections that group Vaults for navigation only (`.nexus/sidebar-sections.json`; single-membership; ungrouped Vaults stay in the default Vaults section). Detail → `Sidebar.md`
 

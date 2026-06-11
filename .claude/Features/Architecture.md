@@ -10,7 +10,7 @@ PRD carries the high-altitude storage model + SQLite DDL; this doc covers the **
 
 These principles hold the data layer together. Every architectural choice below traces back to one of them.
 
-1. **Files are canonical (≠ everything is Markdown).** Pages = `.md` (YAML frontmatter + body), Spaces = `.space.json`, Topics = folder + `_topic.json`, Projects = `.project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Among operational content, only Pages are Markdown — Agenda, sidecars, Contexts, Homepage, and Settings stay JSON. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
+1. **Files are canonical (≠ everything is Markdown).** Pages = `.md` (YAML frontmatter + body), Areas = folder + `_area.json`, Topics = folder + `_topic.json`, Projects = folder + `_project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Among operational content, only Pages are Markdown — Agenda, sidecars, Contexts, Homepage, and Settings stay JSON. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
 
 2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) can read Pommora's entire structured graph — Pages, schemas, relations, properties — directly from files without tool-call round-trips. This is the differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Any choice that trades file-canonical legibility for app-internal convenience violates this principle.
 
@@ -45,8 +45,9 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
     saved-config.json                   ← Saved-section entry labels
     homepage.json                       ← singleton Homepage entity (composed blocks)
     index.db                            ← SQLite index (regeneratable, schema-versioned)
-    spaces/                             ← tier-1 Contexts (flat files)
-    topics/                             ← tier-2 Contexts (folders) + tier-3 Projects (files inside)
+    areas/<Title>/_area.json            ← tier-1 Contexts (free-standing folder + sidecar)
+    topics/<Title>/_topic.json          ← tier-2 Contexts (free-standing folder + sidecar)
+    projects/<Title>/_project.json      ← tier-3 Contexts (free-standing folder + sidecar)
     attachments/<entity-id>/            ← copy-on-attach files (file/attachment properties)
 
   .trash/                               ← deleted entities (nexus-local trash; v1+ surface)
@@ -62,7 +63,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 
 **Hidden + private.** `.nexus/` and `.trash/` (leading dot) are hidden from the sidebar and from non-Pommora tools by convention (matches `.obsidian/`). Pommora's own writes to `.nexus/` don't surface in the user-facing tree.
 
-**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Spaces / Topics) never consult the filter. Stale entries are inert (git semantics); editing UI ships with the v0.6.0 Settings panel. Spec → `Planning/2026-06-03-Folder-Exclusion-Plan.md`.
+**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Areas / Topics / Projects) never consult the filter. Stale entries are inert (git semantics); editing UI ships with the v0.6.0 Settings panel. Spec → `Planning/2026-06-03-Folder-Exclusion-Plan.md`.
 
 ---
 
@@ -76,7 +77,7 @@ Per-entity managers own the in-memory cache for their kind. They load files at a
 | `PageContentManager` | Per-Page bodies + frontmatter | `.md` files inside Page Types |
 | `AgendaTaskManager` | Tasks + schema | `.task.json` files + `_taskconfig.json` |
 | `AgendaEventManager` | Events + schema | `.event.json` files + `_eventconfig.json` |
-| `SpaceManager` / `TopicManager` | Contexts (tier-1 / tier-2 + tier-3) | `.space.json` / `_topic.json` / `.project.json` under `.nexus/` |
+| `AreaManager` / `TopicManager` / `ProjectManager` | Contexts (tier-1 / tier-2 / tier-3) | `_area.json` / `_topic.json` / `_project.json` under `.nexus/areas/` / `.nexus/topics/` / `.nexus/projects/` |
 | `HomepageManager` | Singleton dashboard | `.nexus/homepage.json` |
 | `SettingsManager` | UI labels + accent color | `.nexus/settings.json` |
 
@@ -90,7 +91,7 @@ Managers are `@MainActor` `@Observable` classes. SwiftUI views observe them dire
 
 The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a moved or renamed Nexus keeps its index without re-pathing. It holds titles / properties / links / relations — **never** Page bodies (the `pages` table has no body column; full-text search reads files directly).
 
-**Fully regeneratable.** `PommoraIndex.open` stamps the file with a `schema_version` and force-deletes + rebuilds via `IndexBuilder` whenever that version differs from the code's `currentSchemaVersion` (currently **11**; a bump marks every pre-v11 DB stale so it deletes + recreates on open — no data migration). No user data is trapped — losing the index file just means a rebuild on next open.
+**Fully regeneratable.** `PommoraIndex.open` stamps the file with a `schema_version` and force-deletes + rebuilds via `IndexBuilder` whenever that version differs from the code's `currentSchemaVersion` (currently **13**; a bump marks every pre-v13 DB stale so it deletes + recreates on open — no data migration). No user data is trapped — losing the index file just means a rebuild on next open.
 
 **Launch-tail indexing contract.** On launch, the index rebuilds **only** when the schema-version mismatch flags `needsRebuild` — there is no unconditional launch scan. The version is stamped only *after* `IndexBuilder.populate` succeeds, so a failed rebuild retries next launch instead of locking in an empty index. Consequence: a page Finder-dropped *after* the index is current-stamped enters the index via CRUD upserts (or a forced rebuild), **not** via the launch path.
 
@@ -98,7 +99,7 @@ The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a mo
 
 **Query surface.** `IndexQuery` (`Index/IndexQuery.swift`) is a Notion-style filter/sort/group/broken-links facade — it composes parameterized SQL using SQLite's JSON1 extension to reach into the `properties` JSON column, and reads the `context_links` table for tier-relation lookups. Embedded views in Contexts / Homepage flow through this surface. So the UI is one hop removed from the canonical file: it renders what the **store → query → render** chain hands it (file → index → `IndexQuery` → view), never the file directly. A wrong, empty, or `(missing)` surface therefore localizes to the query/render hop — stale or unbuilt index rows, a load-timing or layout fault in the view — and is not by itself evidence that the canonical file is wrong; confirm the data at the relevant hop (read the file, run the query) before attributing a fault to the store.
 
-**Reverse-view query (Context-side Linked-from).** `IndexQuery.incomingContextLinks(targetID:)` reads the `context_links` table for every row whose `target_id` equals a given ID, returning one `EntityRef` per row built from `source_id` + `source_kind`, with each source's current title resolved by joining `source_id` to its source-kind table. It powers a Context's Linked-from surface — every operational entity that links to that Context via a tier relation. Each `tier1` / `tier2` / `tier3` value emits one row into `context_links` (`property_id` = the reserved tier ID `_tier1` / `_tier2` / `_tier3`, `target_kind` = the coarse `space` / `topic` / `project`). The `target_kind` string is derived by `RelationTargetKind.string(from:)`, shared between the full rebuild and incremental upsert paths.
+**Reverse-view query (Context-side Linked-from).** `IndexQuery.incomingContextLinks(targetID:)` reads the `context_links` table for every row whose `target_id` equals a given ID, returning one `EntityRef` per row built from `source_id` + `source_kind`, with each source's current title resolved by joining `source_id` to its source-kind table. It powers a Context's Linked-from surface — every operational entity that links to that Context via a tier relation. Each `tier1` / `tier2` / `tier3` value emits one row into `context_links` (`property_id` = the reserved tier ID `_tier1` / `_tier2` / `_tier3`, `target_kind` = the coarse `area` / `topic` / `project`). The `target_kind` string is derived by `RelationTargetKind.string(from:)`, shared between the full rebuild and incremental upsert paths.
 
 **Update path: `IndexUpdater`.** Wired into the per-entity content + type managers (Pages, Page Types, Agenda Tasks, Agenda Events) plus Contexts and property definitions; mid-session mutations propagate to the DB without waiting for a restart. Pattern: every manager mutation method (`upsertX`, `deleteX`) runs after the atomic file write succeeds.
 
