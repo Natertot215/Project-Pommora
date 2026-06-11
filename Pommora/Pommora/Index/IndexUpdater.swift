@@ -253,10 +253,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
-                        (id, tier, title, icon, parent_topic_id)
-                    VALUES (?, ?, ?, ?, ?)
+                        (id, tier, title, icon)
+                    VALUES (?, ?, ?, ?)
                     """,
-                arguments: [space.id, 1, space.title, space.icon, nil]
+                arguments: [space.id, 1, space.title, space.icon]
             )
         }
     }
@@ -266,10 +266,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
-                        (id, tier, title, icon, parent_topic_id)
-                    VALUES (?, ?, ?, ?, ?)
+                        (id, tier, title, icon)
+                    VALUES (?, ?, ?, ?)
                     """,
-                arguments: [topic.id, 2, topic.title, topic.icon, nil]
+                arguments: [topic.id, 2, topic.title, topic.icon]
             )
         }
     }
@@ -279,10 +279,10 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
-                        (id, tier, title, icon, parent_topic_id)
-                    VALUES (?, ?, ?, ?, ?)
+                        (id, tier, title, icon)
+                    VALUES (?, ?, ?, ?)
                     """,
-                arguments: [project.id, 3, project.title, project.icon, nil]
+                arguments: [project.id, 3, project.title, project.icon]
             )
         }
     }

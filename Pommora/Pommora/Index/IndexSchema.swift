@@ -78,8 +78,7 @@ enum IndexSchema {
             id TEXT PRIMARY KEY,
             tier INTEGER NOT NULL,
             title TEXT NOT NULL,
-            icon TEXT,
-            parent_topic_id TEXT
+            icon TEXT
         );
         """
 
@@ -135,7 +134,6 @@ enum IndexSchema {
         CREATE INDEX IF NOT EXISTS idx_context_links_property_id ON context_links(property_id);
         CREATE INDEX IF NOT EXISTS idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
         CREATE INDEX IF NOT EXISTS idx_contexts_tier ON contexts(tier);
-        CREATE INDEX IF NOT EXISTS idx_contexts_parent_topic ON contexts(parent_topic_id);
         CREATE INDEX IF NOT EXISTS idx_connections_source_id ON connections(source_id);
         CREATE INDEX IF NOT EXISTS idx_connections_target_id ON connections(target_id);
         CREATE INDEX IF NOT EXISTS idx_connections_target_title ON connections(target_kind, target_title);

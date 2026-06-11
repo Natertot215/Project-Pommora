@@ -69,7 +69,6 @@ private struct ContextSnapshot: Sendable {
     let tier: Int
     let title: String
     let icon: String?
-    let parentTopicID: String?
 }
 
 private struct TaskSchemaSnapshot: Sendable {
@@ -308,7 +307,7 @@ final class IndexBuilder {
                     let space = try? Space.load(from: metaURL)
                 else { continue }
                 result.append(
-                    ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon, parentTopicID: nil))
+                    ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon))
             }
         }
 
@@ -322,7 +321,7 @@ final class IndexBuilder {
                     let topic = try? Topic.load(from: metaURL)
                 else { continue }
                 result.append(
-                    ContextSnapshot(id: topic.id, tier: 2, title: topic.title, icon: topic.icon, parentTopicID: nil))
+                    ContextSnapshot(id: topic.id, tier: 2, title: topic.title, icon: topic.icon))
             }
         }
 
@@ -336,7 +335,7 @@ final class IndexBuilder {
                     let project = try? Project.load(from: metaURL)
                 else { continue }
                 result.append(
-                    ContextSnapshot(id: project.id, tier: 3, title: project.title, icon: project.icon, parentTopicID: nil))
+                    ContextSnapshot(id: project.id, tier: 3, title: project.title, icon: project.icon))
             }
         }
 
@@ -496,8 +495,8 @@ final class IndexBuilder {
                 {
                     try db.execute(
                         literal: """
-                            INSERT INTO contexts (id, tier, title, icon, parent_topic_id)
-                            VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon), \(ctx.parentTopicID))
+                            INSERT INTO contexts (id, tier, title, icon)
+                            VALUES (\(ctx.id), \(ctx.tier), \(ctx.title), \(ctx.icon))
                             """
                     )
                 })

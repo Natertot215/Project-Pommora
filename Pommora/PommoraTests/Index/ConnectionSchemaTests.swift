@@ -17,7 +17,7 @@ import Testing
     }
 
     // Tripwire: forces a deliberate update whenever the index schema version
-    // bumps. v11 (2026-06-09) = PagesV2 P7 — item tables dropped from the
-    // schema; pre-v11 DBs delete + recreate page-only on open.
-    @Test func schemaVersionIsEleven() { #expect(PommoraIndex.currentSchemaVersion == 11) }
+    // bumps. v12 (2026-06-10) = Contexts Decoupling — contexts.parent_topic_id
+    // dropped; pre-v12 DBs delete + recreate on open, no data migration.
+    @Test func schemaVersionIsTwelve() { #expect(PommoraIndex.currentSchemaVersion == 12) }
 }

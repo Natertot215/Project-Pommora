@@ -90,7 +90,9 @@ final class PommoraIndex: @unchecked Sendable {
     // recreates it page-only on open (no data migration — the index is
     // regeneratable); any orphaned legacy rows lingering in connections or
     // context_links vanish with the rebuild.
-    static let currentSchemaVersion: Int = 11
+    //
+    // v12: Contexts Decoupling — contexts.parent_topic_id dropped (free-standing tiers); delete+rebuild on open, no data migration.
+    static let currentSchemaVersion: Int = 12
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL
