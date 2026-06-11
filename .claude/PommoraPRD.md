@@ -6,7 +6,7 @@
 
 #### Vision
 
-Personal management platform combining Obsidian's customization + local-first ethos with Notion's database and view capabilities. Pages are Markdown files inside **Page Types** (folder-based database entities holding property schemas + saved views); **Page Collections** are organizational sub-folders sharing the Type's schema; **Contexts** (Spaces / Topics / Projects — 3-tier) are composed-blocks dashboard surfaces. UI labels default to "Vault" + "Collection". A simpler Notion that's also a more capable Obsidian — without the trade-offs that push users to bounce between the two.
+Personal management platform combining Obsidian's customization + local-first ethos with Notion's database and view capabilities. Pages are Markdown files inside **Page Types** (folder-based database entities holding property schemas + saved views); **Page Collections** are organizational sub-folders sharing the Type's schema; **Contexts** (Areas / Topics / Projects — 3-tier) are free-standing organization surfaces. UI labels default to "Vault" + "Collection". A simpler Notion that's also a more capable Obsidian — without the trade-offs that push users to bounce between the two.
 
 #### Why
 
@@ -28,7 +28,7 @@ Pommora's bet: a Markdown-canonical foundation with SQLite as the property + que
 
 Two layers, PARA-aligned:
 
-- **Organization — Contexts** (3 tiers): Spaces (tier 1, broad life domains) / Topics (tier 2, subject areas) / **Projects** (tier 3). All composed-blocks surfaces under `.nexus/spaces/` and `.nexus/topics/`. Per-tier labels user-configurable per-Nexus.
+- **Organization — Contexts** (3 tiers): Areas (tier 1, broad life domains) / Topics (tier 2, subject areas) / **Projects** (tier 3). Three **free-standing** tiers (no containment, no parents) — each a folder with a config sidecar under `.nexus/areas/`, `.nexus/topics/`, `.nexus/projects/`. Per-tier labels user-configurable per-Nexus.
 - **Operational — Pages + Agenda:**
   - **Pages:** **Page Type** (root folder + `_pagetype.json`) contains **Page Collections** (sub-folders + `_pagecollection.json` carrying id + type_id + ordering) which contain **Pages** (`.md`). UI labels default to "Vault" + "Collection".
   - **Agenda:** split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective singleton folders at the nexus root — the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton (sidecar-driven discovery; folder name renameable via Finder). EventKit integration via separate access permissions per kind.
@@ -54,7 +54,7 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
 | UI framework | SwiftUI primary + AppKit interop where needed (NSTextView/TextKit 2, NSSplitView, NSItemProvider) |
 | Styling | SwiftUI native semantic colors / Materials / Font scale + small Pommora-brand `Color` / `Font` extensions (accent + code + callout) |
 | Editor (Pages) | Shipped v0.2.7.0, rebuilt 2026-06-03: native NSTextView + `swift-markdown` 0.8.0 + TextKit 2 + the Pommora-owned `MarkdownPM` package (`External/MarkdownPM/`). One owned `MarkdownPMStyler` (with an `AppleASTSupplementalStyler` AST helper) covers BlockQuote / Strikethrough / Table; emphasis locates on the Apple AST; HR/ThematicBreak is sole-written by the HR-visibility service. `MarkdownTextLayoutFragment.draw` overrides are the extension point for HR + Blockquote + Tables work. |
-| Spaces composer | SwiftUI `.draggable` / `.dropDestination` + `Codable` block enum; candidate libs (`visfitness/reorderable`, `stevengharris/SplitView`) evaluated at build time |
+| Areas composer | SwiftUI `.draggable` / `.dropDestination` + `Codable` block enum; candidate libs (`visfitness/reorderable`, `stevengharris/SplitView`) evaluated at build time |
 | Backend layer | Pure Swift |
 | Database | SQLite via GRDB.swift 6.29.3 (FTS5 + `ValueObservation`) |
 | Markdown parser | `apple/swift-markdown` (parse only; hand-rolled writer for save path) |
@@ -67,9 +67,9 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
 
 1. **Stack portability of functionalities.** File formats, SQLite schema, domain model, property catalog, directive syntax, connection behavior, view directives, design values, UX patterns survive a stack rebuild — the codebase doesn't. No enforced layer separation; portability comes from documented decisions. Detail → `// Features//Architecture.md`.
 
-2. **Cross-nexus queryability + cloud sync compatibility.** Types and Collections aren't isolated — any Page or Context can query/link/embed any Type's contents regardless of folder location. On-disk model maps cleanly to a cloud DB: shared `pages` table with `page_type_id` + `page_collection_id` + `properties` JSONB; one `page_types` row per `_pagetype.json`; `agenda_tasks` + `agenda_events` tables; one `contexts` row per Space / Topic / Project. Sync arrives as additive translation. V1 gets device-to-device sync free via nexus in iCloud/Dropbox/any synced folder. **Reference convention:** relations stored by ID (rename-safe); body connections use titles (rewritten on rename via cascade).
+2. **Cross-nexus queryability + cloud sync compatibility.** Types and Collections aren't isolated — any Page or Context can query/link/embed any Type's contents regardless of folder location. On-disk model maps cleanly to a cloud DB: shared `pages` table with `page_type_id` + `page_collection_id` + `properties` JSONB; one `page_types` row per `_pagetype.json`; `agenda_tasks` + `agenda_events` tables; one `contexts` row per Area / Topic / Project. Sync arrives as additive translation. V1 gets device-to-device sync free via nexus in iCloud/Dropbox/any synced folder. **Reference convention:** relations stored by ID (rename-safe); body connections use titles (rewritten on rename via cascade).
 
-3. **Persistent immediate legibility for agents.** External agents (Claude, MCP clients, any tool with filesystem access) read Pommora's entire structured graph — Pages, schemas, Spaces, relations, properties — directly from files without tool-call round-trips. SQLite is performance scaffolding, not source of truth. Differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Choices that trade file-canonical legibility for app-internal convenience violate this constraint.
+3. **Persistent immediate legibility for agents.** External agents (Claude, MCP clients, any tool with filesystem access) read Pommora's entire structured graph — Pages, schemas, Areas, relations, properties — directly from files without tool-call round-trips. SQLite is performance scaffolding, not source of truth. Differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Choices that trade file-canonical legibility for app-internal convenience violate this constraint.
 
 ##### Storage Model
 
@@ -106,18 +106,17 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
     saved-config.json                       ← Saved-section entry labels
     homepage.json                           ← singleton Homepage entity (composed blocks)
     index.db                                ← SQLite index (v0.2+); regeneratable, schema-versioned
-    spaces//                                ← tier-1 Contexts (flat files)
-      Personal.space.json
-      Academics.space.json
-      Work.space.json
-    topics//                                ← tier-2 Contexts (each Topic is a folder)
+    areas//                                 ← tier-1 Contexts (folder + sidecar, free-standing)
+      Personal//
+        _area.json                          ← id, tier 1, color, icon, blocks
       Academics//
-        _topic.json                         ← parents: [Academics-space-id]
-        CS-161.project.json                 ← tier-3 Project, file-structural parent = this folder
-        Linear-Algebra.project.json
+        _area.json
+    topics//                                ← tier-2 Contexts (free-standing)
       Productivity//
-        _topic.json                         ← parents: [Personal-id, Work-id] (multi-Space)
-        GTD-method.project.json
+        _topic.json                         ← id, tier 2, icon, blocks
+    projects//                              ← tier-3 Contexts (free-standing — no longer nested in Topics)
+      Pommora//
+        _project.json                       ← id, tier 3, icon, blocks
 
   .trash//                                  ← Deleted entities (nexus-local trash; v1+)
     Assignments//
@@ -137,7 +136,7 @@ Classification is by sidecar filename alone: folder location at the nexus root p
 
 Pages are Markdown documents, not block surfaces — one continuous stream. Standard Markdown (headings H1–H5, lists, code blocks + inline code (SF Mono; `code//` tokens), images, GFM tables, blockquotes, HRs) plus two Pommora rendering directives: **`@Columns`** (`:::columns` fenced section; renders N equidistant horizontal columns; layout-only, content inside is standard Markdown) and **`:::callout`** (outlined-box, distinct from blockquotes' left-side emphasis bar; border binds to `callout//` token).
 
-Both directives resolve to inert text + standard Markdown for external tools (Notion's Markdown export principle). Headings are foldable by default (chevron collapses until next equal-or-higher heading); no `:::toggle` construct, no on-disk syntax. Blocks belong to Spaces only. `@View` in-line embeds in Page bodies are out of v1 (TextKit 2 layout-attachment complexity); embedded views remain available inside Spaces. Full detail → `// Features//Pages.md`.
+Both directives resolve to inert text + standard Markdown for external tools (Notion's Markdown export principle). Headings are foldable by default (chevron collapses until next equal-or-higher heading); no `:::toggle` construct, no on-disk syntax. Blocks belong to Contexts (the deferred composed-blocks surface), not Pages. `@View` in-line embeds in Page bodies are out of v1 (TextKit 2 layout-attachment complexity). Full detail → `// Features//Pages.md`.
 
 ##### Page Types
 
@@ -145,9 +144,9 @@ The operational-layer container: a **Page Type** is a folder at `<nexus>/<Title>
 
 A Page Type has no text-editor surface — a pure database viewer (table / board / list / cards / gallery). Move-strip applies cross-Type (a Page moved across Page Types loses properties absent from the destination schema). The per-vault `open_in` field (`compact` | `window`; absent = `window`) decides where the vault's Pages open — the PagePreview window or the main detail pane.
 
-##### Contexts (Spaces / Topics / Projects)
+##### Contexts (Areas / Topics / Projects)
 
-Three-tier organization layer; all three are composed-blocks surfaces. Tier-1 Spaces: `.nexus/spaces/<Title>.space.json` (carries `color`, tier-1 only). Tier-2 Topics: `.nexus/topics/<Title>/_topic.json` (multi-parent across Spaces). Tier-3 **Projects**: `.nexus/topics/<TopicFolder>/<Title>.project.json` (single file-structural parent + `project_links` typed property — additional Context IDs across tiers; on-disk key `project_links`, legacy `linked_relations` tolerated on read). Tier labels user-configurable per-Nexus (Capacities-style singular + plural). Same `blocks` shape as Homepage. Full detail → `// Features//Contexts.md`.
+Three **free-standing** tiers — none contains or parents another. Each is a folder with a config sidecar: tier-1 Areas `.nexus/areas/<Title>/_area.json` (carries `color`, tier-1 only), tier-2 Topics `.nexus/topics/<Title>/_topic.json`, tier-3 **Projects** `.nexus/projects/<Title>/_project.json`. Bare entities — `id` / `tier` / `icon` / `blocks` (a reserved, currently-empty composed-blocks field) / `modified_at`. Tier labels user-configurable per-Nexus (Capacities-style singular + plural). Context→context relations are a deferred design pass. Full detail → `// Features//Contexts.md`.
 
 ##### Agenda
 
@@ -170,7 +169,7 @@ Singleton composed-blocks dashboard at `.nexus/homepage.json`. No `id`/`tier`/`p
 
 ##### SQLite Schema
 
-Nine data tables plus an internal `meta` table, rebuilt from files when the stored `schema_version` mismatches the code's (currently **11**). The index stores titles, properties, links, connections, and context-tier relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
+Nine data tables plus an internal `meta` table, rebuilt from files when the stored `schema_version` mismatches the code's (currently **13**). The index stores titles, properties, links, connections, and context-tier relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
 
 ```sql
 -- Page Type index (one row per <nexus>/<Title>/_pagetype.json at the root)
@@ -224,13 +223,12 @@ CREATE TABLE agenda_events (
   modified_at TEXT NOT NULL
 );
 
--- Contexts index — Spaces / Topics / Projects share one table, discriminated by tier
+-- Contexts index — Areas / Topics / Projects share one table, discriminated by tier
 CREATE TABLE contexts (
   id TEXT PRIMARY KEY,
-  tier INTEGER NOT NULL,              -- 1 (Space) | 2 (Topic) | 3 (Project)
+  tier INTEGER NOT NULL,              -- 1 (Area) | 2 (Topic) | 3 (Project)
   title TEXT NOT NULL,
-  icon TEXT,
-  parent_topic_id TEXT                -- tier-3 Projects: file-structural parent Topic; nullable for tier 1/2
+  icon TEXT                           -- free-standing tiers: no parent column
 );
 
 -- Context-link index — tier relations only (tier1/2/3 emit one row each via property_id)
@@ -279,7 +277,6 @@ CREATE INDEX idx_context_links_target_id ON context_links(target_id);
 CREATE INDEX idx_context_links_property_id ON context_links(property_id);
 CREATE INDEX idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
 CREATE INDEX idx_contexts_tier ON contexts(tier);
-CREATE INDEX idx_contexts_parent_topic ON contexts(parent_topic_id);
 CREATE INDEX idx_connections_source_id ON connections(source_id);
 CREATE INDEX idx_connections_target_id ON connections(target_id);
 CREATE INDEX idx_connections_target_title ON connections(target_kind, target_title);
@@ -339,15 +336,14 @@ In-line `@View` embeds *inside Page bodies* are out of v1 (TextKit 2 layout-atta
 
 ##### Columns
 
-`@Columns` supported in Pages and Spaces. **V1 columns are equidistant** — widths divide available space evenly by child count; no per-column width config in v1. Ships as Pommora-specific render; file format stays standard `:::columns` Markdown on disk.
+`@Columns` supported in Pages and Areas. **V1 columns are equidistant** — widths divide available space evenly by child count; no per-column width config in v1. Ships as Pommora-specific render; file format stays standard `:::columns` Markdown on disk.
 
 ##### Sidebar Navigation
 
-Surfaces curated, app-relevant navigation, not filesystem layout. Four top-level groups (plus user-creatable vault sections); the headed groups are default-collapsed disclosure groups. User can drag headings to reorder; initial-boot order: **(heading-less pinned section) / Spaces / Topics / Vaults / user sections**. No dedicated Agenda section — Agenda Tasks + Agenda Events surface via the Pinned section's Calendar entry.
+Surfaces curated, app-relevant navigation, not filesystem layout. Top-level groups (plus user-creatable vault sections); the headed groups are default-collapsed disclosure groups. User can drag headings to reorder; initial-boot order: **(heading-less pinned section) / Contexts / Vaults / user sections**. No dedicated Agenda section — Agenda Tasks + Agenda Events surface via the Pinned section's Calendar entry.
 
 - **Pinned (heading-less, top)** — three fixed entries (Homepage / Calendar / Recents); labels renamable via Settings. Structurally a `Section` wrapper to host future user-pinned pages (gains "Saved" heading then). `Homepage` opens the singleton dashboard; `Calendar` opens calendar view over Agenda Tasks + Agenda Events + EventKit-mirrored events; `Recents` shows recently-opened tabs.
-- **Spaces** — flat rows for tier-1 Contexts; color/symbol indicator (tagging style settable).
-- **Topics** — chevron-disclosure for tier-2 Contexts; expanded shows file-nested Projects (tier-3). Inherited tagging from parent Space(s); multi-Space Topics show multi-color/symbol.
+- **Contexts** — one "Contexts" section with three `square.grid.2x2` disclosure rows (Areas / Topics / Projects), expand/collapse only; each tier's entities are flat leaf rows. Areas carry a color/symbol indicator. The tiers are free-standing — no parent-derived tagging.
 - **Vaults** (default label, renameable via Settings) — chevron-disclosure for Page Types (UI label "Vault" by default). Each Type discloses Page Collections (UI label "Collection") + root Pages. Pages: `doc.text` icon; Collections: `folder` icon.
 - **User sections** — user-created sibling sections after Vaults that group Vaults for navigation only (`.nexus/sidebar-sections.json`; single-membership; ungrouped Vaults stay in the default Vaults section).
 
@@ -384,7 +380,7 @@ Pages in a `compact`-mode vault open in **PagePreview** — a real `WindowGroup`
 
 ##### First-Launch Experience
 
-After the user picks a nexus location, Pommora opens with empty sidebars plus a seeded Homepage singleton at `.nexus/homepage.json` (NOT a Space) as the landing surface via the pinned `Homepage` row. Per-Nexus singletons auto-seed on first manager init: Homepage + `tier-config.json` + `saved-config.json` + `settings.json` (user-overridable UI labels + accent color) + Tasks singleton folder (default `Tasks/`) carrying `_taskconfig.json` + Events singleton folder (default `Events/`) carrying `_eventconfig.json`. No tutorial, no walkthrough wizard.
+After the user picks a nexus location, Pommora opens with empty sidebars plus a seeded Homepage singleton at `.nexus/homepage.json` (NOT an Area) as the landing surface via the pinned `Homepage` row. Per-Nexus singletons auto-seed on first manager init: Homepage + `tier-config.json` + `saved-config.json` + `settings.json` (user-overridable UI labels + accent color) + Tasks singleton folder (default `Tasks/`) carrying `_taskconfig.json` + Events singleton folder (default `Events/`) carrying `_eventconfig.json`. No tutorial, no walkthrough wizard.
 
 ##### Design System
 
@@ -418,7 +414,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 
 **In:**
 
-- **Contexts** (3 tiers — Spaces / Topics / **Projects**) — composed-blocks surfaces; tier labels per-Nexus configurable. Spaces flat in sidebar; Topics chevron-disclose to file-nested Projects. Tier-skip allowed; same-tier file-structural links forbidden. Projects carry `project_links` as typed multi-valued property (additional Context IDs across tiers).
+- **Contexts** (3 tiers — Areas / Topics / **Projects**) — free-standing folder+sidecar organization surfaces; tier labels per-Nexus configurable. All three render in one "Contexts" sidebar section as disclosure rows. No containment, no parents, no cross-tier links — context→context relations are a deferred design pass.
 - **Page Types + Page Collections + Pages** — each Page Type carries its `_pagetype.json` sidecar; Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` carries id + type_id + icon + ordering + views). UI labels "Vault" + "Collection" (renameable via Settings). Per-vault `open_in` mode (`compact` → PagePreview window; `window` → main detail pane).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + the Pommora-owned `MarkdownPM` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
@@ -429,7 +425,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 - Automatic file rename with cross-nexus connection cascade (title rewrite across all referencing bodies).
 - File watcher keeping SQLite synced.
 - Global search (SQLite FTS5 over Page bodies + frontmatter).
-- Four-section sidebar (Pinned / Spaces / Topics / Vaults) plus user-creatable vault sections, user-reorderable, default-collapsed. Agenda surfaces via Pinned → Calendar.
+- Sidebar (Pinned / Contexts / Vaults) plus user-creatable vault sections, user-reorderable, default-collapsed. Agenda surfaces via Pinned → Calendar.
 - **Inline editing of embedded views** — every embed in a composed-blocks surface is a live editable view of its source.
 - One initial design scheme + in-app accent color + font size customization (folded into the v0.7.0 Settings UI on top of the v0.3.0 Settings scaffold); SwiftUI native handles everything else.
 
