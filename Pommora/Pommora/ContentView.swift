@@ -8,8 +8,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(NexusManager.self) private var nexusManager
-    @Environment(\.dismissWindow) private var dismissWindow
-    @Environment(\.openWindow) private var openWindow
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
 
@@ -326,14 +324,10 @@ struct ContentView: View {
         // the outgoing managers) — close the whole group when switching away
         // from a live environment. MUST stay guarded to non-initial runs and
         // deferred out of the current view update: this runs from
-        // `onChange(initial: true)` during the FIRST render, and mutating
-        // scene state (dismissWindow) mid-update breaks the update cycle.
+        // `onChange(initial: true)` during the FIRST render, and tearing the
+        // panel down mid-update can disturb the update cycle.
         if nexusEnvironment != nil {
-            let dismissWindow = dismissWindow
-            Task { @MainActor in
-                PreviewTarget.shared.ref = nil
-                dismissWindow(id: "page-preview")
-            }
+            Task { @MainActor in PreviewTarget.shared.close() }
         }
         guard let nexus else {
             nexusEnvironment = nil
@@ -348,7 +342,7 @@ struct ContentView: View {
             let env = nexusEnvironment
         {
             PreviewSampleLauncher.run(env: env) { ref in
-                openPagePreview(ref, using: openWindow)
+                openPagePreview(ref)
             }
         }
         #endif

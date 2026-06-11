@@ -18,7 +18,6 @@ struct PageCollectionDetailView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
-    @Environment(\.openWindow) private var openWindow
 
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
@@ -192,7 +191,7 @@ struct PageCollectionDetailView: View {
             // the direct variant skips parent resolution.
             PageOpenRouter.routeOpen(
                 p, vault: vault, collection: collection, selection: &selection,
-                openPreview: { openPagePreview($0, using: openWindow) })
+                openPreview: { openPagePreview($0) })
         case .collection: break
         }
     }

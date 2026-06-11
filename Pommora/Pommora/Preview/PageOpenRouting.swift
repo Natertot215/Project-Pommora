@@ -14,9 +14,8 @@ enum PageOpenDestination: Equatable {
 /// The ONE open-path for a page-tap, shared by the sidebar and the
 /// detail-pane tables so the surfaces can't drift. `.detailPane` selects into
 /// the main pane; `.previewCard` hands a rename-safe `PageRef` to
-/// `openPreview` (call sites pass `{ openWindow(id: "page-preview", value: $0) }`
-/// — a closure, not `OpenWindowAction`, so the routing stays unit-testable);
-/// `.suppressed` is the edit-conflict no-op.
+/// `openPreview` (call sites pass `{ openPagePreview($0) }` — a closure, so the
+/// routing stays unit-testable); `.suppressed` is the edit-conflict no-op.
 @MainActor
 enum PageOpenRouter {
     /// Pure routing per the vault's `open_in` mode, including the

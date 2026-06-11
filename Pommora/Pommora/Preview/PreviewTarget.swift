@@ -32,16 +32,9 @@ final class PreviewTarget {
     private var panel: PreviewPanel?
     private var parentCloseObserver: (any NSObjectProtocol)?
 
-    /// `ContentView` sets this to nil on Nexus switch (its existing teardown);
-    /// clearing it closes the panel. Opening goes through `open(_:)`.
-    var ref: PageRef? {
-        didSet { if ref == nil { close() } }
-    }
-
     /// Open — or retarget + focus — the preview panel for `pageRef`.
     func open(_ pageRef: PageRef) {
         guard let env = AppGlobals.current else { return }
-        ref = pageRef
         let host = NSHostingView(rootView: PagePreviewContent(ref: pageRef).injectNexusEnvironment(env))
 
         if let panel {
@@ -92,10 +85,9 @@ final class PreviewTarget {
     }
 }
 
-/// The ONE open-path for the preview (DRY). The `using openWindow` parameter is
-/// retained so the existing call sites compile unchanged; the panel is managed
-/// directly now, so the SwiftUI window action is unused.
+/// The ONE open-path for the preview (DRY) — the panel is owned and managed
+/// directly by `PreviewTarget`; no SwiftUI window action is involved.
 @MainActor
-func openPagePreview(_ ref: PageRef, using openWindow: OpenWindowAction) {
+func openPagePreview(_ ref: PageRef) {
     PreviewTarget.shared.open(ref)
 }

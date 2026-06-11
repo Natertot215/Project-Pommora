@@ -19,7 +19,6 @@ struct PageTypeDetailView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
-    @Environment(\.openWindow) private var openWindow
 
     @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
 
@@ -348,7 +347,7 @@ struct PageTypeDetailView: View {
             PageOpenRouter.routeOpen(
                 p, selection: &selection,
                 content: contentManager, vaultManager: pageTypeManager,
-                openPreview: { openPagePreview($0, using: openWindow) })
+                openPreview: { openPagePreview($0) })
         }
     }
 

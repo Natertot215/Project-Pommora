@@ -11,7 +11,6 @@ struct SidebarView: View {
     @Environment(AgendaEventManager.self) private var agendaEventManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(SettingsManager.self) private var settingsManager
-    @Environment(\.openWindow) private var openWindow
     @Environment(SidebarSectionsManager.self) private var sidebarSectionsManager
 
     @Binding var selection: SidebarSelection
@@ -83,7 +82,7 @@ struct SidebarView: View {
                     let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
                         content: contentManager, vaultManager: vaultManager,
-                        openPreview: { openPagePreview($0, using: openWindow) })
+                        openPreview: { openPagePreview($0) })
                     if routed != .detailPane {
                         // Snap the row highlight back to the still-active
                         // main-pane selection (the List already moved it).

@@ -84,18 +84,16 @@ struct PagePreviewContent: View {
                 .padding(.horizontal, PreviewWindowMetrics.railPadding)
                 .padding(.vertical, PreviewWindowMetrics.headerVPad)
                 // The whole strip (incl. the Spacer gap) is the drag handle —
-                // contentShape makes the empty areas hit-testable so the gesture
-                // fires there, not just on the buttons/title.
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
+                // empty areas become hit-testable so dragging them moves the
+                // panel, not just the buttons/title.
+                .windowDragHandle()
             hairline
             bodyEditor
             hairline
             footer
                 .padding(.horizontal, PreviewWindowMetrics.railPadding)
                 .padding(.vertical, PUI.Spacing.md)
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
+                .windowDragHandle()
         }
         .frame(
             minWidth: PreviewWindowMetrics.minBodySize.width,
@@ -112,10 +110,9 @@ struct PagePreviewContent: View {
         .ignoresSafeArea(.container, edges: .top)
         .inspector(isPresented: $inspectorShown) {
             inspectorContent
-                // The inspector is a separate pane — a native drag handle so its
-                // empty areas move the window (its controls keep their clicks).
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
+                // The inspector is a separate pane — a drag handle so its empty
+                // areas move the window (its controls keep their clicks).
+                .windowDragHandle()
                 .inspectorColumnWidth(min: 180, ideal: PreviewWindowMetrics.inspectorWidth, max: 400)
                 .interactiveDismissDisabled()
         }
@@ -535,5 +532,16 @@ struct PagePreviewContent: View {
             // pendingError set by manager; toast surfaces. Revert the draft.
             titleDraft = oldTitle
         }
+    }
+}
+
+private extension View {
+    /// Turns a non-interactive strip into a window-drag handle: makes its empty
+    /// areas hit-testable and drags the panel from them, while interactive
+    /// controls inside keep their own clicks/gestures. The one drag-anywhere
+    /// path shared by the header, footer, and inspector panes.
+    func windowDragHandle() -> some View {
+        contentShape(Rectangle())
+            .gesture(WindowDragGesture())
     }
 }

@@ -353,8 +353,6 @@ private struct ChipsGallery: View {
 /// same cross-scene bridge the standalone scenes use) so the shipped chrome
 /// is browsable from the library.
 private struct WindowsGallery: View {
-    @Environment(\.openWindow) private var openWindow
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
@@ -395,7 +393,7 @@ private struct WindowsGallery: View {
     private func openSamplePreviewWindow() {
         guard let env = AppGlobals.current else { return }
         PreviewSampleLauncher.run(env: env) { ref in
-            openPagePreview(ref, using: openWindow)
+            openPagePreview(ref)
         }
     }
 }

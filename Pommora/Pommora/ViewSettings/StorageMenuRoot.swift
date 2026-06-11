@@ -74,7 +74,7 @@ struct StorageMenuRoot: View {
             Divider()
             LabeledMenuSelector(
                 title: "Layout",
-                value: layoutLabel(liveVault.openIn ?? .window)
+                value: (liveVault.openIn ?? .window).displayLabel
             ) {
                 Picker(
                     "Layout",
@@ -85,19 +85,13 @@ struct StorageMenuRoot: View {
                         }
                     )
                 ) {
-                    Text("Compact").tag(OpenInMode.compact)
-                    Text("Window").tag(OpenInMode.window)
+                    ForEach(OpenInMode.allCases, id: \.self) { mode in
+                        Text(mode.displayLabel).tag(mode)
+                    }
                 }
             }
             .padding(.horizontal, PUI.Row.paddingHorizontal)
             .padding(.vertical, PUI.Row.paddingVertical)
-        }
-    }
-
-    private func layoutLabel(_ mode: OpenInMode) -> String {
-        switch mode {
-        case .compact: return "Compact"
-        case .window: return "Window"
         }
     }
 

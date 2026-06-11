@@ -392,7 +392,7 @@ struct EditPropertyPane: View {
                 Task {
                     await applyTransform { transformee in
                         let trimmed = newName.trimmingCharacters(in: .whitespaces)
-                        transformee.reverseName = trimmed.isEmpty ? nil : newName
+                        transformee.reverseName = trimmed.isEmpty ? nil : trimmed
                     }
                 }
             }

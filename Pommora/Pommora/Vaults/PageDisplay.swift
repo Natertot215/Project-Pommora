@@ -8,6 +8,15 @@ enum OpenInMode: String, Codable, Sendable, CaseIterable {
     case compact
     /// Opens the page in the main detail pane.
     case window
+
+    /// User-facing label for the Layout selector (single source for both the
+    /// selector's value text and its picker rows).
+    var displayLabel: String {
+        switch self {
+        case .compact: return "Compact"
+        case .window: return "Window"
+        }
+    }
 }
 
 /// How a property value renders in page surfaces (columns/cells). Tolerant
