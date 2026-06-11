@@ -9,6 +9,7 @@
 //      <nexus>/<TypeFolder>/_pagetype.json (or _taskconfig.json
 //                                            / _eventconfig.json)
 //      <nexus>/<TypeFolder>/<CollectionFolder>/_pagecollection.json
+//      <nexus>/<TypeFolder>/<CollectionFolder>/<SetFolder>/_pageset.json
 //
 //  Shape classifier (per locked decision #7):
 //    1. Fresh             — no recognized sidecar; content-sniff always picks
@@ -39,6 +40,7 @@ import Foundation
 enum AdoptedSidecarKind: Sendable, Equatable {
     case pageType
     case pageCollection
+    case pageSet
     case taskConfig
     case eventConfig
 
@@ -46,6 +48,7 @@ enum AdoptedSidecarKind: Sendable, Equatable {
         switch self {
         case .pageType: return NexusPaths.pageTypeSidecarFilename
         case .pageCollection: return NexusPaths.pageCollectionSidecarFilename
+        case .pageSet: return NexusPaths.pageSetSidecarFilename
         case .taskConfig: return NexusPaths.taskConfigSidecarFilename
         case .eventConfig: return NexusPaths.eventConfigSidecarFilename
         }
@@ -257,6 +260,7 @@ private let paradigmV2UnifiedSidecarFilename = "_schema.json"
 private let recognizedFlatSidecarFilenames: Set<String> = [
     NexusPaths.pageTypeSidecarFilename,
     NexusPaths.pageCollectionSidecarFilename,
+    NexusPaths.pageSetSidecarFilename,
     NexusPaths.taskConfigSidecarFilename,
     NexusPaths.eventConfigSidecarFilename,
 ]
@@ -511,10 +515,12 @@ enum NexusAdopter {
         var found: [AdoptedSidecarKind] = []
         // Ordering matters — first wins for authoritative-sidecar selection
         // (orphan cleanup picks `found.first`). Tier-1 kinds (Types) precede
-        // tier-2 kinds (Collections), matching the natural-parent inference rule.
+        // tier-2 kinds (Collections) precede tier-3 kinds (Sets), matching the
+        // natural-parent inference rule.
         let allKinds: [AdoptedSidecarKind] = [
             .pageType, .taskConfig, .eventConfig,
             .pageCollection,
+            .pageSet,
         ]
         for kind in allKinds {
             let url = folder.appendingPathComponent(kind.filename, isDirectory: false)
@@ -609,9 +615,9 @@ enum NexusAdopter {
         )
     }
 
-    // MARK: - autoTagMissingSidecars (silent two-tier auto-tag)
+    // MARK: - autoTagMissingSidecars (silent three-tier auto-tag)
 
-    /// Silent two-level walk that writes missing per-kind sidecars so
+    /// Silent three-level walk that writes missing per-kind sidecars so
     /// Finder-built structure is first-class on the next launch. The launch
     /// caller runs it UNCONDITIONALLY after `runAdoptionIfNeeded` (whether the
     /// adoption preview was shown / confirmed / declined) and BEFORE
@@ -626,7 +632,9 @@ enum NexusAdopter {
     /// - Depth 0 unknown → content-sniff via `contentSniff` → always
     ///   `_pagetype.json` (sidecar-less folders adopt as Page Types).
     /// - Depth 1, parent has `_pagetype.json` → write `_pagecollection.json`.
-    /// - No deeper tier — Types + Collections are the only auto-tagged kinds.
+    /// - Depth 2, parent has `_pagecollection.json` → write `_pageset.json`.
+    /// - Depth 3+ folders stay sidecar-less — Types, Collections, and Sets
+    ///   are the only auto-tagged kinds; deeper folders roll up into the Set.
     ///
     /// **Paradigm-shift note:** overrides the previous "non-Pommora folders
     /// at root stay invisible to discovery" rule. Anything at the Nexus
@@ -679,8 +687,9 @@ enum NexusAdopter {
     }
 
     /// Walks the Collections inside `typeFolder` and writes missing
-    /// `_pagecollection.json` sidecars. Two tiers only — auto-tagging stops
-    /// at the Collection level.
+    /// `_pagecollection.json` sidecars, then descends one more level so each
+    /// Collection's Sets get tagged too. Three tiers total — auto-tagging
+    /// stops at the Set level.
     private static func walkDepth1(_ typeFolder: URL, now: Date, filter: FolderFilter = .empty) {
         // Re-read parent id after depth-0 write — the type sidecar should
         // now exist (or have existed before this run).
@@ -688,6 +697,12 @@ enum NexusAdopter {
         let children = (try? Filesystem.childFolders(of: typeFolder, folderFilter: filter)) ?? []
         for child in children where !shouldSkipForAutoTag(child) {
             tagDepth1IfMissing(child, typeID: typeID, now: now)
+            // Descend AFTER tagging so a freshly-tagged Collection immediately
+            // gets its Sets tagged in the same pass. Re-read the collection id
+            // from the sidecar that now exists (or pre-existed).
+            if let collectionID = loadCollectionParentID(at: child) {
+                walkDepth2(child, collectionID: collectionID, now: now, filter: filter)
+            }
         }
     }
 
@@ -712,6 +727,39 @@ enum NexusAdopter {
         }
     }
 
+    /// Walks the Sets inside `collectionFolder` and writes missing
+    /// `_pageset.json` sidecars. Depth-3+ folders stay sidecar-less — they
+    /// roll up into the Set above them.
+    private static func walkDepth2(
+        _ collectionFolder: URL, collectionID: String, now: Date, filter: FolderFilter = .empty
+    ) {
+        let children = (try? Filesystem.childFolders(of: collectionFolder, folderFilter: filter)) ?? []
+        for child in children where !shouldSkipForAutoTag(child) {
+            tagDepth2IfMissing(child, collectionID: collectionID, now: now)
+        }
+    }
+
+    /// Writes `_pageset.json` if the folder has no recognized sidecar.
+    private static func tagDepth2IfMissing(
+        _ folder: URL, collectionID: String, now: Date
+    ) {
+        let existing = recognizedSidecarsAt(folder)
+        guard existing.isEmpty else { return }
+        let title = folder.lastPathComponent
+        do {
+            try writeAutoTagSetSidecar(
+                at: folder, title: title, collectionID: collectionID, now: now
+            )
+        } catch {
+            #if DEBUG
+            FileHandle.standardError.write(
+                Data(
+                    "autoTag depth-2 write failed at \(folder.path): \(error)\n".utf8
+                ))
+            #endif
+        }
+    }
+
     // MARK: autoTag — sidecar writers (silent)
 
     /// Reads the parent `_pagetype.json` sidecar to extract the id used as FK
@@ -725,6 +773,20 @@ enum NexusAdopter {
             let pt = try? PageType.load(from: ptURL)
         else { return nil }
         return pt.id
+    }
+
+    /// Reads the parent `_pagecollection.json` sidecar to extract the id used
+    /// as FK on freshly-tagged child Set sidecars. Returns nil if the
+    /// collection sidecar doesn't exist or decoding fails (silent — failures
+    /// don't abort).
+    private static func loadCollectionParentID(at folder: URL) -> String? {
+        let pcURL = folder.appendingPathComponent(
+            NexusPaths.pageCollectionSidecarFilename, isDirectory: false
+        )
+        guard Filesystem.fileExists(at: pcURL),
+            let pc = try? PageCollection.load(from: pcURL)
+        else { return nil }
+        return pc.id
     }
 
     private static func writeAutoTagTypeSidecar(
@@ -754,6 +816,26 @@ enum NexusAdopter {
             metadata: PageCollection(
                 id: ULID.generate(),
                 typeID: typeID,
+                title: title,
+                folderURL: folder,
+                modifiedAt: now
+            )
+        )
+    }
+
+    private static func writeAutoTagSetSidecar(
+        at folder: URL,
+        title: String,
+        collectionID: String,
+        now: Date
+    ) throws {
+        let metaURL = folder.appendingPathComponent(
+            NexusPaths.pageSetSidecarFilename, isDirectory: false)
+        try Filesystem.writeMetadataIntoExistingFolder(
+            metadataURL: metaURL,
+            metadata: PageSet(
+                id: ULID.generate(),
+                collectionID: collectionID,
                 title: title,
                 folderURL: folder,
                 modifiedAt: now
@@ -801,10 +883,10 @@ enum NexusAdopter {
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
             )
-        case .pageCollection:
-            // Fresh PageCollection writes are not initiated by the LEGACY
-            // adopter for top-level folders — those land via type-creation
-            // flow inside the app, or via the silent `autoTagMissingSidecars`
+        case .pageCollection, .pageSet:
+            // Fresh PageCollection / PageSet writes are not initiated by the
+            // LEGACY adopter for top-level folders — those land via creation
+            // flows inside the app, or via the silent `autoTagMissingSidecars`
             // pass below for Finder-built folders. If we somehow get here
             // through the scan/apply path, no-op. (Defensive — classifyFolder
             // routes Types only into freshSidecars.)
@@ -931,9 +1013,16 @@ enum NexusAdopter {
     ///    persists. Rule: only ONE per-kind sidecar is valid at a folder's
     ///    top level; the rest are orphans. "Which one is authoritative" is
     ///    decided by `recognizedSidecarsAt`'s order (pageType > taskConfig >
-    ///    eventConfig > pageCollection), which matches the natural-parent
-    ///    inference (a folder at root carrying both is a Type, not a
-    ///    Collection, because Collections must live inside a Type).
+    ///    eventConfig > pageCollection > pageSet), which matches the
+    ///    natural-parent inference (a folder at root carrying both is a Type,
+    ///    not a Collection, because Collections must live inside a Type, and
+    ///    Sets inside a Collection).
+    ///
+    /// Scope: this pass visits the Type folder + one level deep (Collections)
+    /// only. Set folders at depth 2 are never walked, so a legitimate
+    /// `_pageset.json` is never touched; a stray `_pageset.json` co-located
+    /// with a Type or Collection sidecar at depths 0–1 IS deleted (it orders
+    /// last, so it never wins the authoritative pick).
     private static func cleanupLegacyOrphans(
         in folder: URL, fm: FileManager, filter: FolderFilter = .empty
     ) {

@@ -20,7 +20,8 @@ enum SidebarSheet: Identifiable {
         case project(Project)
         case pageType(PageType)
         case pageCollection(PageCollection)
-        case page(PageMeta, vault: PageType, collection: PageCollection?)
+        case pageSet(PageSet)
+        case page(PageMeta, vault: PageType, collection: PageCollection?, set: PageSet?)
     }
 
     var id: String {
@@ -32,7 +33,8 @@ enum SidebarSheet: Identifiable {
             case .project(let p): return "editIcon-project-\(p.id)"
             case .pageType(let t): return "editIcon-pageType-\(t.id)"
             case .pageCollection(let c): return "editIcon-pageCollection-\(c.id)"
-            case .page(let p, _, _): return "editIcon-page-\(p.id)"
+            case .pageSet(let s): return "editIcon-pageSet-\(s.id)"
+            case .page(let p, _, _, _): return "editIcon-page-\(p.id)"
             }
         case .editColor(let s): return "editColor-\(s.id)"
         }

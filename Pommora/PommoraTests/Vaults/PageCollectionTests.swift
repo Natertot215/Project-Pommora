@@ -93,4 +93,35 @@ struct PageCollectionTests {
         let loaded = try PageCollection.load(from: metaURL)
         #expect(loaded.folderURL == folder)
     }
+
+    @Test("PageCollection set_order round-trips and is omitted when nil")
+    func setOrderRoundTrip() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let folder = nexus.rootURL
+            .appendingPathComponent("V", isDirectory: true)
+            .appendingPathComponent("C", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+
+        try PageCollection(
+            id: "01H", typeID: "01HV", title: "C",
+            folderURL: folder, modifiedAt: Date(),
+            setOrder: ["01HSET1", "01HSET2"]
+        ).save(to: metaURL)
+
+        let raw = try String(contentsOf: metaURL, encoding: .utf8)
+        #expect(raw.contains("\"set_order\""))
+
+        let loaded = try PageCollection.load(from: metaURL)
+        #expect(loaded.setOrder == ["01HSET1", "01HSET2"])
+
+        try PageCollection(
+            id: "01H", typeID: "01HV", title: "C",
+            folderURL: folder, modifiedAt: Date()
+        ).save(to: metaURL)
+        let rawNil = try String(contentsOf: metaURL, encoding: .utf8)
+        #expect(!rawNil.contains("\"set_order\""))
+        #expect(try PageCollection.load(from: metaURL).setOrder == nil)
+    }
 }

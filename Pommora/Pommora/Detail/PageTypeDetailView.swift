@@ -14,6 +14,7 @@ struct PageTypeDetailView: View {
     @State private var isCreatingCollection: Bool = false
 
     @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
@@ -310,7 +311,7 @@ struct PageTypeDetailView: View {
 
     private var rows: [DetailRow] {
         // Page-Type-root Pages appear as top-level rows alongside Collections.
-        let rootRows: [DetailRow] = contentManager.pages(in: pageType).map(Self.pageRow)
+        let rootRows: [DetailRow] = contentManager.pages(in: pageType).map(DetailRow.pageRow)
         let collectionRows: [DetailRow] = pageTypeManager.pageCollections(in: pageType).map { coll in
             DetailRow(
                 id: "collection-\(coll.id)",
@@ -318,27 +319,18 @@ struct PageTypeDetailView: View {
                 kind: .collection(coll),
                 iconName: "folder",
                 modifiedAt: coll.modifiedAt,
-                children: contentManager.pages(in: coll).map(Self.pageRow)
+                children: contentManager.pages(in: coll).map(DetailRow.pageRow)
             )
         }
         return rootRows + collectionRows
-    }
-
-    private static func pageRow(_ p: PageMeta) -> DetailRow {
-        DetailRow(
-            id: "page-\(p.id)",
-            title: p.title,
-            kind: .page(p),
-            iconName: p.frontmatter.icon ?? "doc.text",
-            modifiedAt: p.frontmatter.createdAt,
-            children: nil
-        )
     }
 
     // MARK: - Interaction
 
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
+        case .set:
+            break  // Set rows never appear in vault tables
         case .collection(let c):
             selection = .collection(c)
         case .page(let p):
@@ -347,6 +339,7 @@ struct PageTypeDetailView: View {
             PageOpenRouter.routeOpen(
                 p, selection: &selection,
                 content: contentManager, vaultManager: pageTypeManager,
+                setManager: pageSetManager,
                 openPreview: { openPagePreview($0) })
         }
     }
@@ -359,7 +352,7 @@ struct PageTypeDetailView: View {
         case .page(let meta):
             Button("Edit Title") { beginRename(row) }
             Button("Edit Icon") {
-                presentedSheet = .editIcon(.page(meta, vault: pageType, collection: nil))
+                presentedSheet = .editIcon(.page(meta, vault: pageType, collection: nil, set: nil))
             }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()
@@ -381,6 +374,8 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 deleteTarget = row
             }
+        case .set:
+            EmptyView()  // Set rows never appear in vault tables
         }
     }
 
@@ -434,9 +429,13 @@ struct PageTypeDetailView: View {
                     switch parent {
                     case .collection(let coll, let t):
                         try await contentManager.renamePage(p, to: newName, in: coll, vault: t)
+                    case .set(let set, let coll, let t):
+                        try await contentManager.renamePage(p, to: newName, in: set, collection: coll, vault: t)
                     case .vaultRoot(let t):
                         try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
+                case .set:
+                    break  // Set rows never appear in vault tables
                 }
             } catch {
                 // pendingError set by manager; toast surfaces.
@@ -471,9 +470,13 @@ struct PageTypeDetailView: View {
                 switch parent {
                 case .collection(let coll, _):
                     try await contentManager.deletePage(p, in: coll)
+                case .set(let set, _, _):
+                    try await contentManager.deletePage(p, in: set)
                 case .vaultRoot(let t):
                     try await contentManager.deletePage(p, inVaultRoot: t)
                 }
+            case .set:
+                break  // Set rows never appear in vault tables
             }
         } catch {
             // pendingError set by manager; toast surfaces.

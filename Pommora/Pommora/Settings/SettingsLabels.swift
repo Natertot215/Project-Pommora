@@ -4,6 +4,7 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
     var sidebarSections: SidebarSectionLabels
     var pageType: LabelPair
     var pageCollection: LabelPair
+    var pageSet: LabelPair
     var project: LabelPair
     var agendaTask: LabelPair
     var agendaEvent: LabelPair
@@ -12,6 +13,7 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
         case sidebarSections = "sidebar_sections"
         case pageType = "page_type"
         case pageCollection = "page_collection"
+        case pageSet = "page_set"
         case project
         case agendaTask = "agenda_task"
         case agendaEvent = "agenda_event"
@@ -22,10 +24,47 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
             sidebarSections: SidebarSectionLabels.defaults(),
             pageType: LabelPair(singular: "Vault", plural: "Vaults"),
             pageCollection: LabelPair(singular: "Collection", plural: "Collections"),
+            pageSet: LabelPair(singular: "Set", plural: "Sets"),
             project: LabelPair(singular: "Project", plural: "Projects"),
             agendaTask: LabelPair(singular: "Task", plural: "Tasks"),
             agendaEvent: LabelPair(singular: "Event", plural: "Events")
         )
+    }
+
+    // MARK: - Codable
+
+    init(
+        sidebarSections: SidebarSectionLabels,
+        pageType: LabelPair,
+        pageCollection: LabelPair,
+        pageSet: LabelPair,
+        project: LabelPair,
+        agendaTask: LabelPair,
+        agendaEvent: LabelPair
+    ) {
+        self.sidebarSections = sidebarSections
+        self.pageType = pageType
+        self.pageCollection = pageCollection
+        self.pageSet = pageSet
+        self.project = project
+        self.agendaTask = agendaTask
+        self.agendaEvent = agendaEvent
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sidebarSections = try c.decode(SidebarSectionLabels.self, forKey: .sidebarSections)
+        pageType = try c.decode(LabelPair.self, forKey: .pageType)
+        pageCollection = try c.decode(LabelPair.self, forKey: .pageCollection)
+        // Older files lack `page_set` — decode with the default, mirroring
+        // SidebarSectionLabels' areas/topics. The decoded value equals the
+        // new default, so no defaultsVersion bump or migration step needed.
+        pageSet =
+            (try? c.decode(LabelPair.self, forKey: .pageSet))
+            ?? LabelPair(singular: "Set", plural: "Sets")
+        project = try c.decode(LabelPair.self, forKey: .project)
+        agendaTask = try c.decode(LabelPair.self, forKey: .agendaTask)
+        agendaEvent = try c.decode(LabelPair.self, forKey: .agendaEvent)
     }
 }
 

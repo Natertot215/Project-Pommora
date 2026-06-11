@@ -99,6 +99,9 @@ extension SidebarSelection {
         for pages in cm.pagesByCollection.values {
             if let page = pages.first(where: { $0.id == id }) { return .page(page) }
         }
+        for pages in cm.pagesBySet.values {
+            if let page = pages.first(where: { $0.id == id }) { return .page(page) }
+        }
         for pages in cm.pagesByTypeRoot.values {
             if let page = pages.first(where: { $0.id == id }) { return .page(page) }
         }
@@ -143,6 +146,10 @@ extension SidebarSelection {
         case .pageType(let id): resolved = Self.resolvePageType(id: id, lookup: lookup)
         case .collection(let id): resolved = Self.resolveCollection(id: id, lookup: lookup)
         case .page(let id): resolved = Self.resolvePage(id: id, lookup: lookup)
+        // Sets have no detail view — a .set tag resolves to nothing, which
+        // SidebarView's `.onChange` guard treats as "do nothing" (the current
+        // selection is NOT cleared).
+        case .set: resolved = nil
         }
         guard let resolved else { return nil }
         self = resolved
@@ -159,6 +166,12 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case pageType(String)
     case collection(String)
     case page(String)
+    /// Identity-only tag for PageSet rows. Gives each Set row a distinct row
+    /// identity inside `List(selection:)` so it never inherits an enclosing
+    /// container's tag (the v0.4.1 selection-bleed bug). Never produced by
+    /// `init?(_ selection:)` — `SidebarSelection` has no Set case — so
+    /// `matches(_:)` is always false and Set rows never paint as selected.
+    case set(String)
 
     func matches(_ selection: SidebarSelection) -> Bool {
         // Derive the tag for `selection` and value-compare. Equivalent to the

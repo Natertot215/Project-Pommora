@@ -55,32 +55,16 @@ The EventKit-shaped fields live at the root of each `.task.json` / `.event.json`
 
 ---
 
-#### EventKit sync (v0.5.0)
+#### EventKit sync (deferred)
 
-EventKit sync is opt-in (Settings → Agenda), not enabled by default; the on-disk fields exist day one so opt-in is purely additive. The design below is the sync contract — the integration itself lands at v0.5.0.
+Opt-in (Settings → Agenda); on-disk fields exist now so opt-in is purely additive. Each side maps to one EventKit entity by file extension:
 
-Each side maps to one EventKit entity, discriminated by file extension (no data-driven inference).
-
-| File extension | EventKit target | Mapping |
+| File extension | EventKit target | Key field mapping |
 |---|---|---|
-| `.task.json` | `EKReminder` | `dueDateComponents` ← `due_at` (with `timeZone = nil` if `due_floating`); `isCompleted` ← `completed`; `completionDate` ← `completed_at`; `priority` ← `priority` |
-| `.event.json` | `EKEvent` | `startDate` ← `start_at`; `endDate` ← `end_at`; `isAllDay` ← `all_day`; `location` ← `location` |
+| `.task.json` | `EKReminder` | `due_at` → `dueDateComponents`; `completed` → `isCompleted`; `priority` → `priority` |
+| `.event.json` | `EKEvent` | `start_at` → `startDate`; `end_at` → `endDate`; `all_day` → `isAllDay` |
 
-Stable identifiers: `EKEvent.eventIdentifier` for events, `EKCalendarItem.calendarItemIdentifier` for reminders. Both stored on the entity (field name `eventkit_uuid` on each Codable struct).
-
-##### Sandbox + permissions
-
-Sandboxed EventKit access requires:
-
-1. **Entitlements** — `com.apple.security.personal-information.calendars` (events) AND `...reminders` (tasks); the two sides hit separate APIs with separate grants.
-2. **Info.plist** — `NSCalendarsFullAccessUsageDescription` + `NSRemindersFullAccessUsageDescription`.
-3. **Access APIs** — `requestFullAccessToEvents` + `requestFullAccessToReminders` (legacy `requestAccess` deprecated on macOS 14+).
-
-##### Change observation
-
-External `EKEventStore` changes are observed via async sequences over the `.EKEventStoreChanged` notification; each manager re-fetches its side, compares against the `.task.json` / `.event.json` files by `eventkit_uuid` + `EKCalendarItem.lastModifiedDate`, and applies last-write-wins.
-
-`EKRecurrenceRule` is immutable after creation, so the sync layer always builds a fresh rule from the JSON `recurrence` block rather than mutating in place — both sides.
+Sync state stored as `calendar_id` + `eventkit_uuid` on each entity. Required entitlements: `com.apple.security.personal-information.calendars` + `.reminders`; APIs: `requestFullAccessToEvents` / `requestFullAccessToReminders` (macOS 14+). Change observation via `.EKEventStoreChanged` with last-write-wins reconciliation.
 
 ---
 

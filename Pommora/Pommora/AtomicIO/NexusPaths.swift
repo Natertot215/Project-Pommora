@@ -10,6 +10,8 @@ enum NexusPaths {
     static let pageTypeSidecarFilename = "_pagetype.json"
     /// `_pagecollection.json` — PageCollection sub-folder sidecar.
     static let pageCollectionSidecarFilename = "_pagecollection.json"
+    /// `_pageset.json` — PageSet sub-folder sidecar.
+    static let pageSetSidecarFilename = "_pageset.json"
     /// `_taskconfig.json` — Tasks singleton sidecar (AgendaTask schema).
     static let taskConfigSidecarFilename = "_taskconfig.json"
     /// `_eventconfig.json` — Events singleton sidecar (AgendaEvent schema).
@@ -294,6 +296,53 @@ enum NexusPaths {
             collectionFolderName: collectionFolderName
         )
         .appendingPathComponent(pageCollectionSidecarFilename, isDirectory: false)
+    }
+
+    /// `<nexus>/<typeFolderName>/<collectionFolderName>/<setFolderName>/` — PageSet folder
+    /// (nested inside its parent PageCollection folder).
+    static func pageSetFolderURL(
+        in nexusRoot: URL,
+        typeFolderName: String,
+        collectionFolderName: String,
+        setFolderName: String
+    ) -> URL {
+        pageCollectionFolderURL(
+            in: nexusRoot,
+            typeFolderName: typeFolderName,
+            collectionFolderName: collectionFolderName
+        )
+        .appendingPathComponent(setFolderName, isDirectory: true)
+    }
+
+    /// Nexus-typed convenience overload.
+    static func pageSetFolderURL(
+        forTitle title: String,
+        inPageCollectionTitled pageCollectionTitle: String,
+        inPageTypeTitled pageTypeTitle: String,
+        in nexus: Nexus
+    ) -> URL {
+        pageSetFolderURL(
+            in: nexus.rootURL,
+            typeFolderName: pageTypeTitle,
+            collectionFolderName: pageCollectionTitle,
+            setFolderName: title
+        )
+    }
+
+    /// `<nexus>/<typeFolderName>/<collectionFolderName>/<setFolderName>/_pageset.json` — PageSet schema sidecar.
+    static func pageSetMetadataURL(
+        in nexusRoot: URL,
+        typeFolderName: String,
+        collectionFolderName: String,
+        setFolderName: String
+    ) -> URL {
+        pageSetFolderURL(
+            in: nexusRoot,
+            typeFolderName: typeFolderName,
+            collectionFolderName: collectionFolderName,
+            setFolderName: setFolderName
+        )
+        .appendingPathComponent(pageSetSidecarFilename, isDirectory: false)
     }
 
     // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)

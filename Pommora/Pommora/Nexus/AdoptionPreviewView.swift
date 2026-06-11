@@ -437,7 +437,7 @@ struct AdoptionPreviewView: View {
 
     private func iconForSidecar(_ kind: AdoptedSidecarKind) -> String {
         switch kind {
-        case .pageType, .pageCollection: return "folder.fill"
+        case .pageType, .pageCollection, .pageSet: return "folder.fill"
         case .taskConfig: return "checkmark.circle"
         case .eventConfig: return "calendar"
         }
@@ -447,6 +447,7 @@ struct AdoptionPreviewView: View {
         switch kind {
         case .pageType: return labels.pageType.singular
         case .pageCollection: return labels.pageCollection.singular
+        case .pageSet: return labels.pageSet.singular
         case .taskConfig: return labels.agendaTask.plural
         case .eventConfig: return labels.agendaEvent.plural
         }

@@ -6,6 +6,7 @@ struct SidebarView: View {
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(AgendaTaskManager.self) private var agendaTaskManager
     @Environment(AgendaEventManager.self) private var agendaEventManager
@@ -82,6 +83,7 @@ struct SidebarView: View {
                     let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
                         content: contentManager, vaultManager: vaultManager,
+                        setManager: pageSetManager,
                         openPreview: { openPagePreview($0) })
                     if routed != .detailPane {
                         // Snap the row highlight back to the still-active
@@ -130,6 +132,9 @@ struct SidebarView: View {
         case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
         case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
+        case .deleteSet(let s)?: return "Delete Set \"\(s.title)\"?"
+        case .moveSet(let s, let dest, let destVault, _, _)?:
+            return "Move Set \"\(s.title)\" to \(destVault.title) › \(dest.title)?"
         case nil: return ""
         }
     }
@@ -141,6 +146,11 @@ struct SidebarView: View {
         case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
         case .deleteCollection: return "All Pages inside will be deleted."
+        case .deleteSet:
+            return
+                "\"Delete Set Only\" moves its Pages up into the Collection. \"Delete Set and Pages\" deletes everything."
+        case .moveSet(_, _, _, _, let count):
+            return "\(count) property value(s) don't exist in the destination's schema and will be removed."
         }
     }
 
@@ -190,6 +200,34 @@ struct SidebarView: View {
                 Task {
                     do { try await vaultManager.deletePageCollection(c) } catch
                     { /* pendingError set by manager; toast surfaces */  }
+                    confirmingDelete = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .deleteSet(let s):
+            Button("Delete Set Only") {
+                Task {
+                    do { try await pageSetManager.deletePageSet(s, mode: .setOnly) } catch
+                    { /* pendingError set by manager; toast surfaces */  }
+                    confirmingDelete = nil
+                }
+            }
+            Button("Delete Set and Pages", role: .destructive) {
+                Task {
+                    do { try await pageSetManager.deletePageSet(s, mode: .withPages) } catch
+                    { /* pendingError set by manager; toast surfaces */  }
+                    confirmingDelete = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+        case .moveSet(let s, let dest, let destVault, let srcVault, _):
+            Button("Move", role: .destructive) {
+                Task {
+                    do {
+                        try await pageSetManager.moveSet(
+                            s, to: dest, destinationVault: destVault,
+                            sourceVault: srcVault, contentManager: contentManager)
+                    } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }
@@ -634,11 +672,14 @@ private struct UserSectionHeader: View {
 /// row-file level via `.listRowBackground(SelectionChrome(...))` so the fill
 /// covers the full List row including any DisclosureGroup chevron gutter — not
 /// just the label area. `trailing` is an optional ViewBuilder slot for callers
-/// that need to render content at the right edge of the row.
+/// that need to render content at the right edge of the row. A `nil` tag marks
+/// a non-selectable row (PageSet labels pass nil — their `.set` tag is
+/// identity-only and never matches a selection) — same content, never
+/// highlighted.
 struct SelectableRow<Trailing: View>: View {
     let title: String
     let symbol: String
-    let tag: SelectionTag
+    let tag: SelectionTag?
     @Binding var selection: SidebarSelection
     let accent: Color?
     @ViewBuilder let trailing: () -> Trailing
@@ -646,7 +687,7 @@ struct SelectableRow<Trailing: View>: View {
     init(
         title: String,
         symbol: String,
-        tag: SelectionTag,
+        tag: SelectionTag?,
         selection: Binding<SidebarSelection>,
         accent: Color?,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
@@ -660,7 +701,7 @@ struct SelectableRow<Trailing: View>: View {
     }
 
     var isSelected: Bool {
-        tag.matches(selection)
+        tag?.matches(selection) ?? false
     }
 
     var body: some View {

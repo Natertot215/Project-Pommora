@@ -129,6 +129,36 @@ struct UILabelThreadingTests {
         #expect(m.settings.labels.agendaEvent.plural   == "Events")
     }
 
+    // MARK: - Test 8b: pageSet label defaults to "Set"
+
+    @Test("Default pageSet label is Set / Sets")
+    func defaultPageSetLabel() async throws {
+        let m = try await makeSettingsManager()
+        #expect(m.settings.labels.pageSet.singular == "Set")
+        #expect(m.settings.labels.pageSet.plural   == "Sets")
+    }
+
+    // MARK: - Test 8c: Customizing the pageSet label persists
+
+    @Test("Customizing pageSet label persists and is readable on next load")
+    func customizePageSetLabelPersists() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        await m.updateLabel(\.pageSet, to: LabelPair(singular: "Bundle", plural: "Bundles"))
+
+        #expect(m.settings.labels.pageSet.singular == "Bundle")
+
+        // Re-read from a second manager instance — verifies on-disk persistence.
+        let m2 = SettingsManager(nexus: nexus)
+        await m2.loadOrSeed()
+        #expect(m2.settings.labels.pageSet.singular == "Bundle")
+        #expect(m2.settings.labels.pageSet.plural   == "Bundles")
+    }
+
     // MARK: - Test 9: Backward-compatible decode of legacy settings without areas/topics
 
     @Test("Decoding legacy settings without areas/topics fields uses safe defaults")
@@ -162,5 +192,9 @@ struct UILabelThreadingTests {
         #expect(decoded.labels.sidebarSections.areas == "Areas")
         #expect(decoded.labels.sidebarSections.topics == "Topics")
         #expect(decoded.labels.sidebarSections.pages  == "Vaults")
+        // `page_set` is also absent from the legacy block — decodes to the
+        // default pair (no defaultsVersion bump; absent → default by design).
+        #expect(decoded.labels.pageSet.singular == "Set")
+        #expect(decoded.labels.pageSet.plural   == "Sets")
     }
 }

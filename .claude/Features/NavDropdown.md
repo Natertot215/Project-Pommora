@@ -6,13 +6,9 @@ The functional layer, click model, context-menu Pin, and detail-view context men
 
 ---
 
-#### Future implementation
+#### Deferred
 
-Explicit follow-ups not yet wired:
-
-1. **Drag-to-reorder Pinned** — `.onMove` is wired but drag doesn't initiate inside the popover's List (a SwiftUI List + popover view-host interaction issue).
-2. **Remove type chip** — drop the trailing chip, rely on the leading icon.
-3. **Segmented Pinned/Recents UI polish** — opacity / contrast pass on the picker pill.
+Drag-to-reorder Pinned (`.onMove` wired but doesn't fire inside the popover — SwiftUI List + popover view-host interaction); type-chip removal; Pinned/Recents segment polish.
 
 ---
 
@@ -104,7 +100,7 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 On double-click, `handleOpen(ref)` dispatches by `ref.typedKind`:
 
 - **`.page` / `.vault` / `.area` / `.topic` / `.project` / `.collection`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:lookup:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
-- **`.agenda` / `.none`** — no-op. Agenda surfaces ship v0.5.0.
+- **`.agenda` / `.none`** — no-op (deferred).
 
 ##### Routing architecture
 
@@ -114,7 +110,7 @@ The dropdown **bypasses `MainWindowRouter`**: writing through that `@Observable`
 
 ##### Lazy-load fallback
 
-If `SidebarSelection.init?(stateRef:lookup:)` returns nil for a page or collection (the host vault's content lazy-loads per-collection on detail-view appear), `handleOpen` falls back to an async walk of `AppGlobals.pageTypeManager.types` calling `loadAll(for:)` on each vault + collection, retrying at each step. SQLite v0.4.0 makes this O(1) and removes the walk.
+If `SidebarSelection.init?(stateRef:lookup:)` returns nil for a page or collection (the host vault's content lazy-loads per-collection on detail-view appear), `handleOpen` falls back to an async walk of `AppGlobals.pageTypeManager.types` calling `loadAll(for:)` on each vault + collection, retrying at each step.
 
 ##### No preview routing
 
@@ -128,7 +124,7 @@ The dropdown always opens Pages in the main detail pane — it does not consult 
 |---|---|
 | Storage cap | **500** (single source of truth in `RecentsManager`) |
 | Dropdown display cap | **100** (top 100 from store) |
-| Sidebar full-frame view cap (v0.6.0+) | **500** (full store) |
+| Sidebar full-frame view cap (deferred) | **500** (full store) |
 | Eviction | LRU — oldest drops when cap hit |
 | Dedupe | Re-inserting an existing entity moves it to position 0, doesn't duplicate |
 
@@ -161,7 +157,7 @@ The dropdown always opens Pages in the main detail pane — it does not consult 
 | Vault | "Vault" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
 | Collection | "Collection" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
 | Area / Topic / Project | "Area" / "Topic" / "Project" | ✗ — reached via sidebar | — | ✓ (legacy pins still resolve) |
-| Agenda | **"Task"** | ✗ (TBD at v0.5.0) | — | ✗ — v0.5.0+ |
+| Agenda | **"Task"** | ✗ (deferred) | — | ✗ (deferred) |
 | Homepage | — | excluded | — | never |
 
 "Task" is a chip-label override for Agenda entries (underlying files stay `.task.json` / `.event.json`; only the chip reads "Task").
@@ -228,7 +224,7 @@ Distinct classifications, not redundant:
 | **Recents** (dropdown) | Recents tab in dropdown panel | `RecentsManager` (`.nexus/state.json`) | Auto — main-frame land |
 | **Recents** (sidebar full-frame view) | Saved-section `Recents` pin → full-frame view at v0.6.0 | Same data as dropdown Recents | n/a — read-only view of the same store |
 
-Sidebar `Recents` pin and dropdown Recents share `RecentsManager` but render different surfaces — dropdown shows top 100; sidebar full-frame view (v0.6.0) shows up to 500 with sort + filter.
+Sidebar `Recents` pin and dropdown Recents share `RecentsManager` but render different surfaces — dropdown shows top 100; sidebar full-frame view (deferred) shows up to 500 with sort + filter.
 
 ---
 
@@ -246,15 +242,7 @@ PageTypeDetailView resolves a row's parent via a `parent(for: DetailRow) -> Page
 
 #### Type architecture
 
-- **`EntityStateRef`** (`Pommora/Pommora/NavDropdown/EntityStateRef.swift`) — flat Codable wire-record for state.json. `Hashable, Sendable, Codable`. Equality by `(kind, id)`.
-- **`NexusState`** (`Pommora/Pommora/NavDropdown/NexusState.swift`) — top-level Codable container for state.json. Holds `recents`, `pinned`, `cursor`, `schemaVersion`. Custom Codable for backward-compat key fallback.
-- **`RecentsManager`** (`Pommora/Pommora/NavDropdown/RecentsManager.swift`) — `@MainActor @Observable`. Holds `entries`, `cursor`, `isNavigatingHistory`. Provides `record(_:)`, `stepBack()`, `stepForward()`, `canStepBack`, `canStepForward`, `dropdownTop`, `load()`, `save()`.
-- **`PinnedManager`** (`Pommora/Pommora/NavDropdown/PinnedManager.swift`) — `@MainActor @Observable`. Holds `entries`. Provides `contains(_:)`, `toggle(_:)`, `move(fromOffsets:toOffset:)`, `load()`, `save()`.
-- **`MainWindowRouter`** (`Pommora/Pommora/NavDropdown/MainWindowRouter.swift`) — `@MainActor @Observable` bridge for back/forward. `Intent` enum (`.directNavigation` / `.stepHistory`). `requestOpen(to:)` / `requestStep(to:)`. Dropdown bypasses (direct closure from ContentView); only BackForwardButtons + ContentView's `onChange(of: bringToFrontTick)` use it.
-- **`SidebarSelection.init?(stateRef:lookup:)`** (`Pommora/Pommora/Sidebar/SidebarSelection.swift`) — bridges `EntityStateRef` → `SidebarSelection`, resolving each kind against a `SidebarLookupBundle` of live managers. Returns nil for non-main-pane kinds (`.agenda`, `.none`) and deleted entities.
-- **`EntityRow`** (`Pommora/Pommora/NavDropdown/EntityRow.swift`) — single row view in both lists. Takes `ref: EntityStateRef`, `lookup: SidebarLookupBundle` (resolves the entity's live custom icon), `isPinned: Bool`, `pinAction: () -> Void`. Renders icon + title + chip + hover-tint background + `.contextMenu` with "Pin {chip}" / "Unpin {chip}".
-- **`NavDropdownButton`** (`Pommora/Pommora/NavDropdown/NavDropdownButton.swift`) — toolbar trigger + popover panel. Takes `asSegment: Bool` (default `false`) and `onOpen: (SidebarSelection) -> Void`. Owns snapshot state.
-- **`BackForwardButtons`** (`Pommora/Pommora/NavDropdown/BackForwardButtons.swift`) — `‹ ›` toolbar pair. Reads `AppGlobals.recentsManager` directly. Wires `⌘[` / `⌘]`.
+`EntityStateRef` (wire record; `Hashable` by `kind+id`), `NexusState` (top-level Codable container for state.json), `RecentsManager` + `PinnedManager` (`@MainActor @Observable`), `MainWindowRouter` (back/forward bridge; dropdown bypasses it via direct ContentView closure), `SidebarSelection.init?(stateRef:lookup:)` (bridges `EntityStateRef` → `SidebarSelection`), `EntityRow` (row view), `NavDropdownButton` (trigger + panel), `BackForwardButtons` (`‹ ›` pair, wires `⌘[`/`⌘]`). All in `NavDropdown/` except `SidebarSelection` (`Sidebar/`).
 
 ---
 

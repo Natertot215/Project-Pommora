@@ -98,7 +98,13 @@ final class PommoraIndex: @unchecked Sendable {
     // kindTableMap/RelationTargetKind lookups), so persisted state.json refs and
     // every "area" row in context_links/contexts re-derive on rebuild. Bumping
     // 12 → 13 forces one delete+rebuild on open; no data migration (regeneratable).
-    static let currentSchemaVersion: Int = 13
+    //
+    // v14: Page Sets — new `page_sets` table (sub-folders inside a Collection
+    // carrying `_pageset.json`) + `pages.page_set_id` FK column. Bumping
+    // 13 → 14 forces one delete+rebuild so existing DBs gain the table/column
+    // and IndexBuilder backfills sets from the sidecars. No data migration
+    // (regeneratable).
+    static let currentSchemaVersion: Int = 14
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL

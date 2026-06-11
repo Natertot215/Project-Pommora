@@ -270,7 +270,8 @@ struct ContentView: View {
         // stays in the scene tree to avoid layout jumps when toggling).
         if case .page(let p) = sidebarSelection,
             let env = nexusEnvironment,
-            let resolved = env.contentManager.resolveParent(for: p, pageTypeManager: env.vaultManager)
+            let resolved = env.contentManager.resolveParent(
+                for: p, pageTypeManager: env.vaultManager, pageSetManager: env.pageSetManager)
         {
             FrontmatterInspector(
                 page: p,
@@ -280,7 +281,8 @@ struct ContentView: View {
                 onSave: { updated in
                     Task {
                         try? await env.contentManager.updatePageFrontmatter(
-                            p, frontmatter: updated, vault: resolved.vault, collection: resolved.collection)
+                            p, frontmatter: updated, vault: resolved.vault,
+                            collection: resolved.collection, set: resolved.set)
                     }
                 }
             )

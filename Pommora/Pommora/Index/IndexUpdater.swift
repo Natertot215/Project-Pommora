@@ -109,28 +109,58 @@ struct IndexUpdater: Sendable {
         }
     }
 
+    // MARK: - PageSet
+
+    func upsertPageSet(_ set: PageSet) throws {
+        try index.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO page_sets
+                        (id, page_collection_id, title, icon, modified_at, schema_version)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        page_collection_id = excluded.page_collection_id, title = excluded.title,
+                        icon = excluded.icon, modified_at = excluded.modified_at,
+                        schema_version = excluded.schema_version
+                    """,
+                arguments: [set.id, set.collectionID, set.title, set.icon, iso(set.modifiedAt), set.schemaVersion]
+            )
+        }
+    }
+
+    func deletePageSet(id: String) throws {
+        try index.dbQueue.write { db in
+            try db.execute(
+                sql: "DELETE FROM page_sets WHERE id = ?",
+                arguments: [id]
+            )
+        }
+    }
+
     // MARK: - Page
 
     func upsertPage(
         _ meta: PageMeta,
         pageTypeID: String,
-        pageCollectionID: String?
+        pageCollectionID: String?,
+        pageSetID: String? = nil
     ) throws {
         let propsJSON = propertiesJSON(meta.frontmatter.properties)
         let modifiedAt =
             (try? FileManager.default.attributesOfItem(atPath: meta.url.path)[.modificationDate] as? Date).map {
                 iso($0)
             } ?? nowISO()
-        func write(collectionID: String?) throws {
+        func write(collectionID: String?, setID: String?) throws {
             try index.dbQueue.write { db in
                 try db.execute(
                     sql: """
                         INSERT OR REPLACE INTO pages
-                            (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                            (id, page_type_id, page_collection_id, page_set_id, title, icon, properties, modified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                     arguments: [
-                        meta.id, pageTypeID, collectionID, meta.title, meta.frontmatter.icon, propsJSON, modifiedAt,
+                        meta.id, pageTypeID, collectionID, setID, meta.title, meta.frontmatter.icon, propsJSON,
+                        modifiedAt,
                     ]
                 )
                 try reconcileContextLinks(
@@ -144,25 +174,36 @@ struct IndexUpdater: Sendable {
                 )
             }
         }
+        // The index is a regeneratable cache — a parent (page_type / page_collection /
+        // page_set) that isn't indexed yet must NEVER be fatal (it surfaced as the
+        // "FOREIGN KEY constraint failed" toast). Fall back scope by scope: drop the
+        // set first (keep the Collection), then the collection too (keep the Vault);
+        // if the Vault itself is missing, skip + log.
         do {
-            try write(collectionID: pageCollectionID)
+            try write(collectionID: pageCollectionID, setID: pageSetID)
+            return
         } catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT {
-            // The index is a regeneratable cache — a parent (page_type / page_collection)
-            // that isn't indexed yet must NEVER be fatal (it surfaced as the
-            // "FOREIGN KEY constraint failed" toast). If only the collection is missing,
-            // retry without it so the page still indexes under its Vault; if the Vault
-            // itself is missing, skip + log.
             Self.log.error(
                 "upsertPage FK violation for page \(meta.id, privacy: .public): \(String(describing: error), privacy: .public)"
             )
-            guard pageCollectionID != nil else { return }
+        }
+        if pageSetID != nil {
             do {
-                try write(collectionID: nil)
+                try write(collectionID: pageCollectionID, setID: nil)
+                return
             } catch {
                 Self.log.error(
-                    "upsertPage skipped page \(meta.id, privacy: .public) — parent type unindexed: \(String(describing: error), privacy: .public)"
+                    "upsertPage FK violation for page \(meta.id, privacy: .public) without set: \(String(describing: error), privacy: .public)"
                 )
             }
+        }
+        guard pageCollectionID != nil else { return }
+        do {
+            try write(collectionID: nil, setID: nil)
+        } catch {
+            Self.log.error(
+                "upsertPage skipped page \(meta.id, privacy: .public) — parent type unindexed: \(String(describing: error), privacy: .public)"
+            )
         }
     }
 

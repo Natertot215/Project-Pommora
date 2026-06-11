@@ -2,23 +2,19 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### Sets — third operational tier (v0.4.1, 2026-06-11)
+
+The Pages-side hierarchy is now **Vault → Collection → Set (optional) → Pages**. A Page Set is a schema-less folder inside a Collection (`_pageset.json` — identity + icon + `page_order`; views / settings / open-in inherit from the Collection), owned by a dedicated `PageSetManager`. Strict three levels — deeper folders stay sidecar-less and roll up into the nearest Set; adoption auto-tags depth-2 folders (supersedes the 2026-05-21 "2-level structural depth" adoption lock). Index schema v13 → v14 (`page_sets` table + nullable `pages.page_set_id`); all in-vault page moves are strip-free; Set delete prompts two modes (pages-up vs trash-whole). Bundled hardening: `ContainerIDHealer` mints fresh ULIDs for Finder-duplicated container sidecars (Collections + Sets). Spec → `Features/Sets.md`; decision → registry #19.
+
 #### Contexts Decoupling — free-standing Areas / Topics / Projects (2026-06-10, 994 tests green)
 
 The three context tiers became free-standing. **Projects decoupled from Topics** (no containment, no `parents`, no `project_links`, no promotion); **Topics lost their `parents`**; **tier-1 Space renamed to Area**. Each tier is now a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`), owned by three sibling managers (`AreaManager` / `TopicManager` / `ProjectManager`). The sidebar's separate Spaces/Topics headings collapsed into one **Contexts** section with three `square.grid.2x2` disclosure rows (Areas / Topics / Projects); the dead sidebar search bar was removed. Index schema → **v13** (v12 dropped `contexts.parent_topic_id`; v13 re-stamped the Area kind strings — delete-and-rebuild on open, no data migration). Executed subagent-driven on `main`, P1–P6 each a green commit. Spec + plan → `Planning/Superseded/06-10-Contexts-Decoupling-{Spec,Plan}.md`. Context→context relations, transitive page roll-up, and the composed-blocks surface are deferred to a future design pass. **Previously** (what the prior model worked like, for the record): Areas were flat `.space.json` files named "Spaces"; Projects lived *inside* their Topic's folder (file location = the containment parent); Topics carried a `parents` array of Spaces, and Topic rows showed parent-Space color tags; deleting a Topic could promote its Projects up a tier; the sidebar had separate "Spaces" and "Topics" headings rather than one Contexts section. Decision → `Guidelines/Paradigm-Decisions.md` registry.
 
 #### v0.4.0 — PagePreview real window + shared inspector (2026-06-10, 987 tests green)
 
-The V8 in-window glass card lasted one morning of real use: laggy drag (a SwiftUI gesture repainting a TextKit editor per frame), no opens from the main-pane tables, and a save-bricking validation bug on first contact with The Nexus. Rebuilt as a real window the same day. Plan: `Planning/Superseded/PagePreviewWindow.md` — grounded in four research reports (SwiftUI window scenes, `.inspector` mechanics, AppKit child windows, a Mail-compose survey), executed with screenshot-verified live iteration against The Nexus.
+The V8 in-window glass card lasted one morning of real use: laggy drag (a SwiftUI gesture repainting a TextKit editor per frame), no opens from the main-pane tables, and a save-bricking validation bug on first contact with The Nexus. Rebuilt as a A regular `NSPanel` owned by `PreviewTarget` is natively activating + never-main + key — the one combination no SwiftUI scene type expresses: refocus-from-outside works, it takes keyboard focus, and it never dims the main window. Content stays 100% SwiftUI via `NSHostingView` (same editor / inspector / save path). 
 
-- **PagePreview is a real `WindowGroup` window** (`id: "page-preview"`, `for: PageRef.self` — per-page dedupe built in) restricted to never act as its own app window: traffic lights hidden, no Dock minimize, no Window-menu / Cmd-` / Mission Control presence, no fullscreen Space, child-attached ABOVE the main window at normal level (rides its moves, never floats over other apps, hides with it, closes with it and on Nexus switch). Drag / resize / focus / Cmd-W are stock window behavior — the drag lag is gone by construction (window server). "Grow" gestures (Ctrl-Cmd-F, title-strip double-click) promote to the main pane. 840×540 default; the inspector toggle moves the frame by exactly the pane width (210).
-- **Chrome:** native-voice editable title bar (15pt semibold + proxy icon) between two Liquid Glass capsules (`WindowCapsuleButton`, a Component Library asset); uniform-inset hairlines; breadcrumb + lock footer (unlock reveals Open). Body = the shared editor at preview scale (13pt, rail-flush, vertical breathing).
-- **One inspector, two mounts.** `PagePreviewInspector` deleted; the preview mounts the REAL `FrontmatterInspector` with a `compact` typographic scale (no section headings, condensed rows, action affordances a step down, cards flush at uniform 10pt insets). Dual-domain changes: the Page meta section removed everywhere (the ID survives as a bottom-pinned pane footer), an **Add Property** affordance added (committing through `PropertyCreation`, the path shared with View Settings), the property-name double-render fixed, schema lookups made live.
-- **Routing rehomed** to `PageOpenRouter` (testable `openPreview` closure seam); sidebar + both detail tables + Component Library share the one open-path. Tables open on double-click; the sidebar on single click.
-- **Same-day fixes folded in:** compact routing from the detail panes; the `PageValidator` status/file type gap (hidden behind a banned `default:` arm — status-valued pages bricked every save); legacy item-era vault repair (Ideas/Notes Status schemas merged into `_pagetype.json`, inert `_itemtype.json` removed — supersedes the "stale sidecar left inert" line in the entry below).
-- **Launch/state hardening found by live verification:** the unit-test suite could DELETE the real `state.json` via `resetBookmark()` (the recurring lost-bookmark mystery) — all app-state paths now divert to a per-run temp dir under XCTest; launch-time `NSOpenPanel` aborts get an activation wait + retry; `LaunchTrace` breadcrumbs diagnose a stuck launch from outside the process.
-- **Misc:** tier fallback icons unified to `square.grid.2x2`; `AppGlobals.mainWindow` prefix-matching locator (the previous exact-match `== "main"` lookups never matched SwiftUI's real window identifiers).
-
-Verified end-to-end on The Nexus via an accessibility-driven interaction matrix: child-ride, both-direction resize + min clamp, Window-menu exclusion, minimize-with-parent, Esc survival, Cmd-W, promote, body-edit round-trip (byte-identical restore), rename round-trip (file + index), Add Property popover, SQLite integrity + FK clean. Deferred to manual eyes: Mission Control / Cmd-` visual absence, dedupe re-click feel.
+Verified end-to-end on The Nexus via an accessibility-driven interaction matrix. `WindowGroup`, `NSWindow`, and `UtilityWindow` were all trialed until all desired functionality and design was finally achieved with an `NSPanel` + `NSHostingView`.
 
 #### PagesV2 — Items collapse into Pages (2026-06-09/10, through `c7f48c7`, 986 tests green)
 
@@ -36,47 +32,34 @@ The Items operational side is **deleted, not migrated** — Page is now the only
 
 #### Connections — page-level complete (2026-06-07, v0.3.5)
 
-> Partially superseded by the PagesV2 collapse above — the `{{ }}` item syntax and all Item-side behavior in this entry are gone; `[[ ]]` survives as the sole syntax.
+> `{{ }}` item syntax removed by PagesV2; `[[ ]]` is the sole syntax.
 
-`[[Page Title]]` (Pages) + `{{Item Title}}` (Items) connection syntax shipped end-to-end. Bundles all v0.3.x work since v0.3.4 — Contextv2, MarkdownPM performance, index hardening, page icon.
+`[[Page Title]]` connection syntax shipped end-to-end. Bundles Contextv2, MarkdownPM performance, index hardening, and page icon.
 
-- **Syntax + render.** `[[`/`]]` wiki-link + `{{`/`}}` item-link tokens; `{{}}` auto-pairs. Resolved page links: blue styled colored text (Obsidian-style). Resolved item links: inline pill chip (kern-trick collapsed markers; SF Symbol icon + title; highlight fill). Unresolved: muted `secondaryLabel`. `linkTextAttributes = [:]` on NSTextView decouples click detection from visual styling; chip Y fixed to `baselineY − font.ascender`.
-- **Navigation.** Page links open the main detail pane. Item links route to the Item Window stub (floating panel is the Item UIX next step). `resolvePageByIDOrTitle` (ID-first → title NOCASE); `resolveParentFromIndex` queries `page_type_id`/`page_collection_id` from SQLite — no dependency on sidebar expansion state. Both use `PageFile.loadLenient` for adopted pages.
-- **Autocomplete popup.** `[[` / `{{` entry fires a Liquid Glass popup; `titleCandidates` ranks exact → shortest → A-Z; query uses the token interior. Enter exits the link syntax; caret nudges async to the nearest token boundary if it lands in a collapsed marker.
-- **SQLite index.** `connections` table (schema v8): `source_id`, `target_title` (normalized), `kind` (`page`/`item`), `source_range`. `ConnectionScanner` body-scans on write; `activateConnections`/`deactivateConnections` maintain the table; `connectionsChanged` bus restyles open editors.
-- **Rename cascade.** `WikiLinkCascade` atomically rewrites all referencing bodies on Page/Item rename — one `SchemaTransaction`, one bus notification, one pinned/recents refresh. Nexus-wide per-kind title uniqueness enforced on create/rename.
-- **Index hardening.** Parent upserts changed `INSERT OR REPLACE` → `ON CONFLICT DO UPDATE` (the former cascade-wiped child pages/items); launch scan uses lenient loader + honors `excluded_folders` at file level (schema 9 → 10); ISO-8601 formatter precision unified across `IndexBuilder`.
-- **MarkdownPM performance.** `constructLineStarts` precomputed per `ParsedDocument`; heading/HR/blockquote/bullet state reads from token/construct caches instead of per-restyle re-scan; `blockCodeTokens` DRY. Scroll lag from per-fragment allocation eliminated.
-- **Page icon.** Page-header icon rendered in-editor + "Add Icon" hover affordance; `showPageIcon` per-Nexus toggle (Settings, default OFF).
-- **Item description cap** raised 250 → 500 (per-Type override via `description_cap`).
+- **Syntax + render.** Resolved page links: blue styled colored text (Obsidian-style). Unresolved: literal text with brackets visible. `linkTextAttributes = [:]` decouples click detection from styling.
+- **Navigation.** `resolvePageByIDOrTitle` (ID-first → title NOCASE); `resolveParentFromIndex` queries `page_type_id`/`page_collection_id` from SQLite. Uses `PageFile.loadLenient` for adopted pages.
+- **Autocomplete popup.** `[[` fires a Liquid Glass popup; `titleCandidates` ranks exact → shortest → A-Z; caret nudges async to the nearest token boundary if it lands in a collapsed marker.
+- **SQLite index.** `connections` table: `source_id`, `target_title` (normalized), `kind`, `source_range`. `ConnectionScanner` body-scans on write; `connectionsChanged` bus restyles open editors.
+- **Rename cascade.** `WikiLinkCascade` atomically rewrites all referencing bodies — one `SchemaTransaction`. Nexus-wide title uniqueness enforced on create/rename.
+- **Index hardening.** `ON CONFLICT DO UPDATE` parent upserts; launch scan honors `excluded_folders`; schema 9 → 10.
+- **MarkdownPM performance.** `constructLineStarts` precomputed; heading/HR/blockquote/bullet reads from caches; scroll lag eliminated.
+- **Page icon.** In-editor page-header icon + "Add Icon" hover; `showPageIcon` toggle (default OFF).
 
-Deferred: Item Window floating panel UI content (the `WindowGroup` scene + click routing is wired; the window's property display is the Item UIX next step). Feature name is Connections; "WikiLinks" was the planning-era label. Full spec → `Features/Connections.md`; plan → `Planning/06-05-Connections-Plan.md`.
+Full spec → `Features/Connections.md`.
 
 #### Contextv2 — Drop Relations → Contexts (2026-06-04)
 
-User-creatable relation properties removed; context tiers (`tier1`/`tier2`/`tier3`) are now the only relation-type connection in Pommora. The substrate is kept: `$rel` token, `PropertyValue.relation` codec, `RelationTarget.contextTier`, `TierRelationCarrying`, `RelationTargetKind`, `PropertyType.relation` (tier-only).
-
-- **User relations retired at decode.** A tier-safe `droppingUserRelations()` filter strips any stored `PropertyType.relation` definition that isn't a reserved `_tier1/2/3` ID — so tier customizations (custom reverse-name / icon) survive.
-- **`RelationTarget` collapses to `.contextTier`-only.** All user-facing target cases (`page_type`, `item_type`, `agenda_tasks`, `agenda_events`, `page_collection`, `item_collection`) removed. Decode is tolerant (`try?`) — legacy sidecars with unknown target shapes load without error; the def is filtered by the decode filter.
-- **`relations`→`context_links` table rename.** Indexes renamed `idx_relations_*`→`idx_context_links_*`. All surviving `Relation*` symbols renamed `Context*`: `RelationChip`→`ContextChip`, `RelationValueEditor`→`ContextValueEditor`, `RelationPicker`→`ContextPicker`, `RelationDisplayResolver`→`ContextDisplayResolver`, `BuiltInRelationProperties`→`BuiltInContextLinkProperties`; query paths `incomingRelations`→`incomingContextLinks`, `reconcileRelations`→`reconcileContextLinks`, `entitiesByTarget`→`entitiesByContextTarget`.
-- **`Project.linked_relations`→`project_links` (ProjectLink).** Dual-key tolerant decode: accepts both `project_links` (new) and legacy `linked_relations` on read; always writes `project_links`.
-- **Orphaned `$rel` values cleared during migration walk.** Leftover `$rel` member values in properties blocks are schema-invisible (the property panel iterates the schema, not the member dict), unindexed, and round-trip-safe; cleared opportunistically inside the migration's existing member-walk for any Type the migration rewrites.
-- **Legacy Collection→Type migration deleted.** `applyRelationTransforms` was dead-after-filter (the decode filter strips user relation defs before the migration scan runs); deleted along with the consent-gate UI it fed.
-- **v0.4.0:** a separate connection-model layer (per-shape tables, weight-at-query, contexts-as-cores "spiderweb") is planned but not yet built.
+User-creatable relation properties removed; `tier1`/`tier2`/`tier3` are now the only relation-type connection. The `$rel` token, `PropertyValue.relation` codec, and `RelationTarget.contextTier` substrate are kept. `droppingUserRelations()` strips any stored relation def that isn't a reserved `_tier1/2/3` ID at decode time. `relations` SQLite table renamed `context_links`; all `Relation*` symbols renamed `Context*` (ContextChip, ContextValueEditor, ContextPicker, etc.). Orphaned `$rel` member values cleared during the migration walk; legacy `applyRelationTransforms` deleted (dead after the decode filter).
 
 Registry decision #16 in `Paradigm-Decisions.md`. Plan → `Planning/Contextv2.md`.
 
 #### ItemsV2 — floating Item Window + per-Type templates (2026-06-03)
 
-> Superseded by the PagesV2 collapse above — everything this entry shipped was deleted with the Items side.
-
-The Item Window became a native, draggable, chromeless floating scene (`WindowGroup(for: ItemRef.self)` + `.windowStyle(.plain)` + `.windowLevel(.floating)`), hosted by the reusable `PreviewWindow` primitive — replacing the deleted `.sheet`-hosted `ItemWindow.swift`. One config-driven `ItemWindowRenderer` draws every window from its resolved `template_config` (layout-as-data via the `LayoutArchetype` enum + `AnyLayout`; promoted-vs-overflow partition is disjoint), edited in a WYSIWYG "Templates" settings pane (mockup frame, `editing: true`) — archetype, pinned promoted properties, per-property display, image-filtered cover. Type default → Collection override. Description cap set to 250 at ship (raised to 500 post-ItemsV2) with a per-Type `description_cap` override. Deferred: item body-connection grammar (now `{{ }}` — see `Features/Connections.md`), Page open-in-preview UI, the non-standard archetypes (selectable-but-muted stubs).
-
-Registry decision #15 in `Paradigm-Decisions.md`. Full spec in `Features/Items.md`.
+> Superseded by PagesV2 — everything shipped here was deleted with the Items side. Registry decision #15.
 
 #### Folder exclusion — vault-owned `excluded_folders` (2026-06-03)
 
-User-configurable per-Nexus folder exclusion (branch `folder-exclusion`; full target 1204 tests / 0 failures). An `excluded_folders` list on `.nexus/settings.json` — anchored vault-relative paths (`Archive`, `Projects/Old`) — that Pommora ignores **completely**: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag/cleanup pass, at any depth. One `FolderFilter` value (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected) is the single rule, loaded from disk via `FolderFilter.load(for:)` so it works in the pre-`NexusEnvironment` index pass, and applied as a subtractive veto in front of every user-content discovery site via a defaulted `folderFilter:` param on `Filesystem.childFolders` / `descendantFiles`. The dot/underscore/`node_modules` convention skips stay untouched; `.nexus/` internal Context reads (Spaces/Topics) stay exempt. No editing UI yet — hand-edit the JSON; the v0.6.0 Settings panel wires a row to the existing field. Settings gained `currentDefaultsVersion` 4 (no-op v3→v4 migration).
+User-configurable per-Nexus folder exclusion (branch `folder-exclusion`; full target 1204 tests / 0 failures). An `excluded_folders` list on `.nexus/settings.json` — anchored vault-relative paths (`Archive`, `Projects/Old`) — that Pommora ignores **completely**: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag/cleanup pass, at any depth. One `FolderFilter` value (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected) is the single rule, loaded from disk via `FolderFilter.load(for:)` so it works in the pre-`NexusEnvironment` index pass, and applied as a subtractive veto in front of every user-content discovery site via a defaulted `folderFilter:` param on `Filesystem.childFolders` / `descendantFiles`. The dot/underscore/`node_modules` convention skips stay untouched; `.nexus/` internal Context reads (Areas/Topics/Projects) stay exempt. No editing UI yet — hand-edit the JSON; the Settings panel wires a row to the existing field when it ships. Settings gained `currentDefaultsVersion` 4 (no-op v3→v4 migration).
 
 Full record → `Planning/2026-06-03-Folder-Exclusion-Plan.md`; on-disk + behavior spec → `Features/Architecture.md`.
 
@@ -96,17 +79,7 @@ Full spec → `Features/Properties.md`; design rule → `Guidelines/Design.md`.
 
 #### Items are Markdown — Shape A (2026-06-02)
 
-> Superseded by the PagesV2 collapse above — the Items entity, the `Class` stamp, and the `.json`→`.md` migration machinery are all gone.
-
-Items converted from whole-`.json` to plain `.md` (YAML frontmatter + body) over a 19-commit run, sharing Pages' `AtomicYAMLMarkdown` pipeline. **Shape A:** the capped description IS the markdown body — single source of truth, no frontmatter-description field, no mirror. Items stay a distinct *form* of one entity-type, not a separate codec.
-
-- **One pipeline, kind authority by folder.** A reserved, UI-hidden, **non-authoritative** `Class` frontmatter stamp (`item`|`page`) marks the form; the parent Type folder's sidecar (`_itemtype.json` / `_pagetype.json`) is the kind authority. Stamp-vs-folder disagreement, or a homeless file, routes to a hidden `.unsorted` inbox (future-UI-surfaced; resolution out of it is deferred).
-- **Foreign frontmatter preserved by value** on EVERY Item AND Page write path — a reversal of the deleted Session-Context cull. Yams round-trips by value (reflows flow→block style, drops comments/anchors; content safe, exact styling not).
-- **Mandatory auto-run launch migration** normalizes legacy `.json` Items → `.md` (idempotent, resumable, reports-not-throws) — not a declinable consent-gate. The transitional dual-format read/write code retired once no `.json` Items remain.
-- **Agenda stays JSON** (`.task.json` / `.event.json`); sidecars stay JSON; Projects / Spaces / Settings stay JSON. Only Item *content* files became `.md`.
-- Description char cap = **1000 markdown-source chars** (provisional — "for now"; was 250), validated on save by `ItemValidator` (its first production callers), not silently clamped. SQLite `items.description` is now a projection of the body (DDL unchanged).
-
-Registry decision #14 in `Paradigm-Decisions.md`. Full spec in `Features/Items.md` + `Features/Architecture.md`.
+> Superseded by PagesV2 — Items as Markdown and the `Class` frontmatter stamp are gone; foreign-frontmatter-preserved-by-value survived into Pages. Registry decision #14.
 
 #### Title-collision data-loss fix + NexusEnvironment injection + cleanup (2026-06-01)
 
@@ -130,24 +103,11 @@ Replaced the third-party `xnth97/SymbolPicker` with Pommora's own **`IconPicker`
 
 #### Make Relations Real — render half + index/picker hardening (2026-05-29/30)
 
-Follow-on to the Relations Redesign — the stored feature wasn't rendering/editing everywhere.
-
-- **Render half.** Entity `icon` denormalized into the SQLite index; shared `RelationDisplayResolver` resolves any target ID → icon + title; the four table detail views render relation + tier columns as icon + title (killed "(missing)").
-- **Index resilience** (`02f8a67`). `IndexBuilder.populate` made per-row (`attemptInsert` skips + logs a bad row instead of rolling back the whole rebuild); `schema_version` stamped only after `populate` succeeds. `currentSchemaVersion` 4 → 5.
-- **Picker popover collapse** (`9deb818`). The inline tier picker rendered as a zero-size "glass blob" — fixed via fixed panel width. Data + wiring were correct throughout. Earned **quirk #18** (layer-confusion check: confirm the data before blaming the store).
-- **Relation-lifecycle hardening** (`f1d66f6`). Member-file value-strip crashed on a frontmatter-less `.md`; hoisted the strip-loop resilience into one shared `MemberFileStrip.forEach` and routed all 8 strip sites through it. `upsertPage`/`upsertItem` FK-19 on an unindexed parent now retries without the orphan collection, else skips + logs.
+Follow-on to the Relations Redesign (both now superseded by Contextv2). Entity `icon` denormalized into SQLite index; `RelationDisplayResolver` (now `ContextDisplayResolver`) resolves target ID → icon + title; tier columns render correctly. `IndexBuilder.populate` made per-row (bad rows skip + log instead of rolling back). Picker popover zero-size glass-blob fixed via fixed panel width — this earned **quirk #18** (confirm the data before blaming the store). `MemberFileStrip.forEach` shared across all 8 strip sites.
 
 #### Relations Redesign — relations + tiers unified (2026-05-29)
 
-One linking system replaces two: tier tagging and relation properties share a single pipeline. Plan: superseded.
-
-- **Tiers are relations.** `tier1/2/3` (root frontmatter arrays) flow through the property pipeline and emit into the SQLite `relations` table; the `tier_links` table retired (one reverse-lookup path, `IndexQuery.incomingRelations`).
-- **Always-multi.** `allows_multiple` dropped; a relation value is always an array of `{"$rel": "<ULID>"}`. `RelationScope` → `RelationTarget` (user-creatable: Page Type / Item Type / Agenda Tasks / Agenda Events; `context_tier` internal-only).
-- **One editor, one rendering.** A single-pane relation editor (create + edit, home side + reverse name + reverse icon) replaces the multi-step wizard. Values render as the target's icon + title via the single `RelationChip` primitive.
-- **Context-delete cascades source-side** — deleting a Space / Topic / Project removes its tier reference from every Page, Item, and Agenda entry.
-- **Adoption.** Per-Type sidecar `schemaVersion` 1 → 2 triggers a one-time normalizing re-save (silent; the one lossy change — dropping a context-tier-targeting relation — gated behind acknowledgment). Index DB `currentSchemaVersion` 2 → 3 forces a rebuild that backfills tiers.
-
-Registry decisions #8–#12 in `Paradigm-Decisions.md`. Deferred items in `Prospects.md`.
+> Superseded by Contextv2 above — user-creatable relation properties are gone; tier tagging is the sole relation mechanism. Registry decisions #8–#12.
 
 #### View Settings editor redesign + Design.md consolidation (2026-05-27, v0.3.2)
 
@@ -159,11 +119,7 @@ Built a full `PageType → PageCollection → Folder → Page` third tier then r
 
 #### v0.3.1 Properties end-to-end (2026-05-26, v0.3.1)
 
-The approved View-Settings-edit-properties plan shipped as 21 commits (`627e972` → `0d5aa16`). The `slider.horizontal.3` View Settings popover goes live: schema CRUD via the Edit Properties pane (Notion-format, per-type editors, Duplicate/Delete footer), dynamic property-value columns in all 4 storage detail-view Tables (`TableColumnForEach`, macOS 14+), click-to-edit cell popovers for every property type, and the Property Visibility pane.
-
-Data-layer additions: `DisplayVariant` (Status-only) + `DateFormat` enums · `PropertyDefinition.displayAs` + `.dateFormat` · `ItemType.singular` · real `SavedView` fields + `views[]` on Collections + default-view migration · flat 12-case `PropertyChipColor`. Three chip primitives — `RelationChip` / `FileChip` / `LinkChip`. New manager methods: `updateProperty(id:in:transform:)`, `updateView(viewID:in:transform:)`, `updatePageProperty` / `updateItemProperty`.
-
-Deferred: in-window Item property editing (its surface is slated for a rebuild), cell-editor inline Relation/File editors, the SelectOptions/StatusGroups chevron-push refactor. Ratified decisions in `Paradigm-Decisions.md` / `Properties.md`.
+View Settings popover live: schema CRUD via Edit Properties pane, dynamic property-value columns in all 4 detail-view Tables (`TableColumnForEach`, macOS 14+), click-to-edit cell popovers, Property Visibility pane. Added `DisplayVariant` + `DateFormat` enums, `PropertyChipColor` (12 cases), chip primitives (`RelationChip` / `FileChip` / `LinkChip`), `updateProperty`/`updateView`/`updatePageProperty` manager methods. Ratified decisions in `Paradigm-Decisions.md` / `Properties.md`.
 
 #### v0.3.x View Settings chrome slice (2026-05-25)
 
@@ -177,14 +133,7 @@ Two forward-binding invariants locked: **`loadAll` syncs in-memory parents to th
 
 #### v0.3.0 Properties — FEATURE-COMPLETE (2026-05-25, merged `3d1bc19`)
 
-71 commits across 11 phases A–K. The data-layer chapter — full property system + SQLite index + placeholder UI.
-
-- **A–D — Data layer.** 11-type `PropertyType`; `PropertyValue` + `FileRef`; `ReservedPropertyID` + `mintUserPropertyID`; `PropertyDefinition` (stable ULID `id` + config + nested `StatusGroup`/`DualPropertyConfig`); `SchemaTransaction` atomic multi-file commit; `PropertyIDMigration` (runs every nexus open, preview-before-commit); schema CRUD on all 4 schema-bearing managers; `PropertyDefinitionValidator` (8 rules); `SchemaConflictDialog` drift defense.
-- **E — SQLite index, live end-to-end.** GRDB.swift; per-nexus `.nexus/index.db`; 12-table schema; `IndexBuilder` two-phase populate; `IndexUpdater` wired into all 6 managers; `IndexQuery` Notion-style filter/sort/broken-links. Mid-session mutations propagate.
-- **F–I — Attachments + Agenda + move-strip + Settings.** `AttachmentManager` (copy-on-attach, 50/500 MB caps, cascade-delete); `_status` built-in on AgendaTask + AgendaEvent; `DualRelationCoordinator` paired-relation lifecycle; name-matched move-strip (IDs are globally unique); `Settings.defaultsVersion` + `migrate` scaffold + label wiring.
-- **J–K — Placeholder UI.** Every interaction has a working path: PropertyEditorRow dispatcher, Status/Relation/File pickers, RelationPropertyWizard, Vault/Type Settings sheets, PropertyPanel, PropertiesPulldown, FrontmatterInspector, CalendarDetailView + Calendar pin quick-create.
-
-10 branch decisions (status `{"$status": value}` encoding, move-strip by name, reserved IDs, tier1/2/3 at frontmatter root, paired-relation lifecycle owner, etc.) in `Paradigm-Decisions.md`. Full per-phase detail in `Features/Properties.md`.
+71 commits, 11 phases. Full property system + SQLite index + placeholder UI. Data layer: `PropertyType` (11 types), `PropertyValue`/`FileRef`, `PropertyDefinition` (stable ULID id), `SchemaTransaction` atomic multi-file commit, `PropertyIDMigration`, schema CRUD on all 4 managers, `PropertyDefinitionValidator`. SQLite: GRDB.swift, `IndexBuilder` + `IndexUpdater` + `IndexQuery`. Attachments (`AttachmentManager`, copy-on-attach), `_status` built-in on Agenda. All interaction paths working (pickers, Settings sheets, `FrontmatterInspector`, `CalendarDetailView`). 10 branch decisions in `Paradigm-Decisions.md`; full detail in `Features/Properties.md`.
 
 #### v0.3.0 Properties — scope redirection (2026-05-23, brainstorm)
 
@@ -214,7 +163,7 @@ Two jitter symptoms on large docs fixed via systematic debugging. **Selection-sc
 
 #### Editor — Nexus folder adoption (2026-05-21, v0.2.7.4)
 
-Obsidian-parity "open folder as Nexus." Both open paths run `NexusAdopter.scan` and present a preview-and-confirm sheet (top-level folders → Vaults, sub-folders → Collections). `PageFile.loadLenient` accepts `.md` without Pommora frontmatter (synthesizes a stable `id`, never writes back — files stay byte-identical until edited). Locked: adoption runs on every open (idempotent); 2-level structural depth preserved (deeper folders roll up to nearest Collection); existing notes never mutated.
+Obsidian-parity "open folder as Nexus." Both open paths run `NexusAdopter.scan` and present a preview-and-confirm sheet (top-level folders → Vaults, sub-folders → Collections). `PageFile.loadLenient` accepts `.md` without Pommora frontmatter (synthesizes a stable `id`, never writes back — files stay byte-identical until edited). Locked: adoption runs on every open (idempotent); 3-level structural depth (deeper folders roll up to the nearest Set — see the v0.4.1 Sets entry); existing notes never mutated.
 
 #### Editor — Lists (2026-05-20, v0.2.7.2)
 

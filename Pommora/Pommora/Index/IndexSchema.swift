@@ -5,6 +5,7 @@ enum IndexSchema {
     static func apply(to db: Database) throws {
         try db.execute(sql: pageTypesDDL)
         try db.execute(sql: pageCollectionsDDL)
+        try db.execute(sql: pageSetsDDL)
         try db.execute(sql: pagesDDL)
         try db.execute(sql: agendaTasksDDL)
         try db.execute(sql: agendaEventsDDL)
@@ -38,11 +39,23 @@ enum IndexSchema {
         );
         """
 
+    private static let pageSetsDDL = """
+        CREATE TABLE IF NOT EXISTS page_sets (
+            id TEXT PRIMARY KEY,
+            page_collection_id TEXT NOT NULL REFERENCES page_collections(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            icon TEXT,
+            modified_at TEXT NOT NULL,
+            schema_version INTEGER NOT NULL DEFAULT 1
+        );
+        """
+
     private static let pagesDDL = """
         CREATE TABLE IF NOT EXISTS pages (
             id TEXT PRIMARY KEY,
             page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
             page_collection_id TEXT REFERENCES page_collections(id) ON DELETE SET NULL,
+            page_set_id TEXT REFERENCES page_sets(id) ON DELETE SET NULL,
             title TEXT NOT NULL,
             icon TEXT,
             properties TEXT NOT NULL DEFAULT '{}',
@@ -128,7 +141,9 @@ enum IndexSchema {
     private static let indexesDDL = """
         CREATE INDEX IF NOT EXISTS idx_pages_page_type_id ON pages(page_type_id);
         CREATE INDEX IF NOT EXISTS idx_pages_page_collection_id ON pages(page_collection_id);
+        CREATE INDEX IF NOT EXISTS idx_pages_page_set_id ON pages(page_set_id);
         CREATE INDEX IF NOT EXISTS idx_page_collections_page_type_id ON page_collections(page_type_id);
+        CREATE INDEX IF NOT EXISTS idx_page_sets_page_collection_id ON page_sets(page_collection_id);
         CREATE INDEX IF NOT EXISTS idx_context_links_source_id ON context_links(source_id);
         CREATE INDEX IF NOT EXISTS idx_context_links_target_id ON context_links(target_id);
         CREATE INDEX IF NOT EXISTS idx_context_links_property_id ON context_links(property_id);

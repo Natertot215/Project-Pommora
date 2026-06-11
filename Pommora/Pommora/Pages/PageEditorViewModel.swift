@@ -133,22 +133,31 @@ protocol PageSaver: AnyObject, Sendable {
 }
 
 /// Production PageSaver — routes to the appropriate PageContentManager variant
-/// based on whether the Page lives inside a Collection or directly in the
-/// Vault root.
+/// based on whether the Page lives inside a Set, a Collection, or directly in
+/// the Vault root. The Set route is load-bearing: saving a Set page through
+/// the Collection overload would re-point its index row's `page_set_id` to nil.
 @MainActor
 final class ContentManagerPageSaver: PageSaver {
     private let contentManager: PageContentManager
     private let vault: PageType
     private let collection: PageCollection?
+    private let set: PageSet?
 
-    init(contentManager: PageContentManager, vault: PageType, collection: PageCollection?) {
+    init(
+        contentManager: PageContentManager, vault: PageType, collection: PageCollection?,
+        set: PageSet? = nil
+    ) {
         self.contentManager = contentManager
         self.vault = vault
         self.collection = collection
+        self.set = set
     }
 
     func save(page: PageMeta, body: String) async throws {
-        if let collection {
+        if let set, let collection {
+            try await contentManager.updatePage(
+                page, body: body, in: set, collection: collection, vault: vault)
+        } else if let collection {
             try await contentManager.updatePage(page, body: body, in: collection, vault: vault)
         } else {
             try await contentManager.updatePage(page, body: body, inVaultRoot: vault)

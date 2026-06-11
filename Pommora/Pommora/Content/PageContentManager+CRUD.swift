@@ -262,6 +262,219 @@ extension PageContentManager {
         }
     }
 
+    // MARK: - Page CRUD (PageSet-scoped)
+    //
+    // Mirrors the PageCollection-scoped methods above. A Set shares its
+    // Collection's vault schema, so `vault` drives validation and `collection`
+    // only scopes the index row; the index upsert carries `pageSetID`.
+
+    @discardableResult
+    func createPage(
+        name: String, icon: String? = nil, in set: PageSet, collection: PageCollection, vault: PageType
+    ) async throws -> PageMeta {
+        do {
+            let existing = pagesBySet[set.id] ?? []
+            try PageValidator.validate(
+                title: name,
+                tier1: [], tier2: [], tier3: [],
+                properties: [:],
+                createdAt: Date(),
+                vault: vault,
+                context: contextProvider()
+            )
+            try enforceTitleUniqueness(name, among: existing)
+            try await enforceNexusWideTitleUniqueness(name, excludingID: nil)
+
+            let now = Date()
+            let frontmatter = PageFrontmatter(
+                id: ULID.generate(), icon: icon,
+                tier1: [], tier2: [], tier3: [],
+                properties: [:],
+                createdAt: now
+            )
+            let page = PageFile(frontmatter: frontmatter, body: "", title: name)
+            let url = NexusPaths.pageFileURL(forTitle: name, in: set.folderURL)
+            try guardNoOverwrite(at: url)
+            try page.save(to: url)
+
+            let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(
+                        meta, pageTypeID: vault.id, pageCollectionID: collection.id, pageSetID: set.id)
+                } catch {
+                    self.pendingError = error
+                }
+                do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
+                    self.pendingError = error
+                }
+            }
+            // A new title now exists — restyle open editors so any phantom [[name]] lights up.
+            ConnectionsBus.postChanged(from: self)
+
+            var arr = existing
+            arr.append(meta)
+            arr = OrderResolver.resolve(
+                arr,
+                persistedOrder: set.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
+            pagesBySet[set.id] = arr
+            return meta
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    func renamePage(
+        _ page: PageMeta, to newName: String, in set: PageSet, collection: PageCollection, vault: PageType
+    ) async throws {
+        do {
+            let existing = pagesBySet[set.id] ?? []
+            try PageValidator.validate(
+                title: newName,
+                tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2, tier3: page.frontmatter.tier3,
+                properties: page.frontmatter.properties,
+                createdAt: page.frontmatter.createdAt,
+                vault: vault,
+                context: contextProvider()
+            )
+            try enforceTitleUniqueness(newName, among: existing, excluding: page)
+            try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
+
+            let newURL = NexusPaths.pageFileURL(forTitle: newName, in: set.folderURL)
+            // No metadata save here — single-step atomic via FileManager.moveItem.
+            try Filesystem.renameFile(from: page.url, to: newURL)
+
+            if let updater = indexUpdater {
+                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
+                let touched: [ConnectionCascade.Touched]
+                do {
+                    touched = try await cascade.run(
+                        targetID: page.id, oldTitle: page.title, newTitle: newName)
+                } catch let cascadeError {
+                    do {
+                        try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?
+                        throw cascadeError
+                    } catch {
+                        throw PageCRUDError.cascadeFailed(message: "\(cascadeError)")
+                    }
+                }
+                for t in touched {
+                    do {
+                        try updater.reconcileConnections(
+                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
+                    } catch { self.pendingError = error }
+                }
+            }
+
+            var updated = page
+            updated.title = newName
+            updated.url = newURL
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(
+                        updated, pageTypeID: vault.id, pageCollectionID: collection.id, pageSetID: set.id)
+                } catch {
+                    self.pendingError = error
+                }
+                do {
+                    try updater.activateConnections(
+                        targetID: page.id, targetKind: "page", targetTitle: newName)
+                } catch { self.pendingError = error }
+            }
+            // The title changed — restyle open editors (old [[ ]] cascaded, new title resolves).
+            ConnectionsBus.postChanged(from: self)
+
+            var arr = existing
+            if let i = arr.firstIndex(where: { $0.id == page.id }) {
+                arr[i] = updated
+                arr = OrderResolver.resolve(
+                    arr,
+                    persistedOrder: set.pageOrder,
+                    titleKeyPath: \PageMeta.title
+                )
+            }
+            pagesBySet[set.id] = arr
+
+            pinnedManager?.updateTitle(for: "page", id: page.id, to: newName)
+            recentsManager?.updateTitle(for: "page", id: page.id, to: newName)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    func deletePage(_ page: PageMeta, in set: PageSet) async throws {
+        do {
+            try Filesystem.moveToTrash(page.url, in: nexus)
+            if let updater = indexUpdater {
+                do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
+                do { try updater.deactivateConnections(targetID: page.id) } catch { self.pendingError = error }
+                do { try updater.reactivateIfNowUnique(targetKind: "page", title: page.title) } catch {
+                    self.pendingError = error
+                }
+            }
+            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
+            ConnectionsBus.postChanged(from: self)
+            var arr = pagesBySet[set.id] ?? []
+            arr.removeAll { $0.id == page.id }
+            pagesBySet[set.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+        trashAttachments(for: page.id)
+    }
+
+    /// PageSet variant of `updatePage`. Same contract: body-only write,
+    /// frontmatter preserved, atomic, in-memory cache mutated after success.
+    func updatePage(
+        _ page: PageMeta, body: String, in set: PageSet, collection: PageCollection, vault: PageType
+    ) async throws {
+        do {
+            let existing = pagesBySet[set.id] ?? []
+            try PageValidator.validate(
+                title: page.title,
+                tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2,
+                tier3: page.frontmatter.tier3,
+                properties: page.frontmatter.properties,
+                createdAt: page.frontmatter.createdAt,
+                vault: vault,
+                context: contextProvider()
+            )
+
+            let pageFile = PageFile(frontmatter: page.frontmatter, body: body, title: page.title)
+            try pageFile.save(to: page.url)
+
+            if let updater = indexUpdater {
+                do {
+                    try updater.upsertPage(
+                        page, pageTypeID: vault.id, pageCollectionID: collection.id, pageSetID: set.id)
+                } catch {
+                    self.pendingError = error
+                }
+                do {
+                    try updater.reconcileConnections(
+                        sourceID: page.id, sourceKind: "page", sourceTitle: page.title, body: body)
+                } catch {
+                    self.pendingError = error
+                }
+            }
+
+            var arr = existing
+            if let i = arr.firstIndex(where: { $0.id == page.id }) {
+                arr[i] = page
+            }
+            pagesBySet[set.id] = arr
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     // MARK: - Page CRUD (Page-Type-root)
 
     @discardableResult
@@ -465,20 +678,21 @@ extension PageContentManager {
         }
     }
 
-    // MARK: - Move (same-Type, between PageCollections)
+    // MARK: - Move (same-Type, strip-free)
 
-    /// Moves `page` from one PageCollection to another within the SAME PageType.
-    /// No property strip — both Collections share the same Type schema.
-    /// Atomically rewrites the page file at the destination path; on failure the
-    /// source remains untouched.
-    func movePageBetweenCollections(
-        _ page: PageMeta,
-        from source: PageCollection,
-        to destination: PageCollection,
-        in vault: PageType
-    ) async throws {
+    /// Moves `page` between any two locations inside the SAME PageType — vault
+    /// root, PageCollection root, or PageSet. No property strip — every
+    /// location shares the Type's schema. The file is atomically rewritten at
+    /// the destination (foreign frontmatter preserved by value); on failure
+    /// the source remains untouched. The index row re-points its
+    /// `page_collection_id` / `page_set_id` to the destination scope.
+    func movePage(_ page: PageMeta, from source: PageParent, to destination: PageParent) async throws {
+        precondition(
+            source.vault.id == destination.vault.id,
+            "movePage(from:to:) is same-Type only; use movePageAcrossTypes for cross-Type moves."
+        )
         do {
-            let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: destination.folderURL)
+            let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: folderURL(for: destination))
 
             // Refuse to clobber a different same-title Page already in the
             // destination. `SchemaTransaction.commit` backs the target up then
@@ -509,32 +723,109 @@ extension PageContentManager {
 
             if let updater = indexUpdater {
                 do {
-                    try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: destination.id)
+                    try updater.upsertPage(
+                        updated,
+                        pageTypeID: destination.vault.id,
+                        pageCollectionID: destination.collectionID,
+                        pageSetID: destination.setID
+                    )
                 } catch {
                     self.pendingError = error
                 }
             }
 
             // Update in-memory caches.
-            var srcArr = pagesByCollection[source.id] ?? []
+            var srcArr = cachedPages(at: source)
             srcArr.removeAll { $0.id == page.id }
-            pagesByCollection[source.id] = srcArr
+            setCachedPages(srcArr, at: source)
 
-            var dstArr = pagesByCollection[destination.id] ?? []
+            var dstArr = cachedPages(at: destination)
             dstArr.append(updated)
             dstArr = OrderResolver.resolve(
                 dstArr,
                 persistedOrder: destination.pageOrder,
                 titleKeyPath: \PageMeta.title
             )
-            pagesByCollection[destination.id] = dstArr
+            setCachedPages(dstArr, at: destination)
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
+    /// Moves `page` from one PageCollection to another within the SAME PageType.
+    func movePageBetweenCollections(
+        _ page: PageMeta,
+        from source: PageCollection,
+        to destination: PageCollection,
+        in vault: PageType
+    ) async throws {
+        try await movePage(
+            page, from: .collection(source, vault: vault), to: .collection(destination, vault: vault))
+    }
+
+    /// Moves `page` from anywhere in the vault (vault root, Collection root,
+    /// or another Set) into `set`.
+    func movePageToSet(
+        _ page: PageMeta,
+        from source: PageParent,
+        to set: PageSet,
+        collection: PageCollection,
+        vault: PageType
+    ) async throws {
+        try await movePage(page, from: source, to: .set(set, collection: collection, vault: vault))
+    }
+
+    /// Moves `page` out of `set` to anywhere in the vault (Collection root or
+    /// vault root — or another Set, equivalent to `movePageToSet`).
+    func movePageOutOfSet(
+        _ page: PageMeta,
+        from set: PageSet,
+        collection: PageCollection,
+        vault: PageType,
+        to destination: PageParent
+    ) async throws {
+        try await movePage(page, from: .set(set, collection: collection, vault: vault), to: destination)
+    }
+
+    // MARK: - PageParent plumbing (shared by movePage)
+
+    /// The on-disk folder a `PageParent` writes Pages into.
+    private func folderURL(for parent: PageParent) -> URL {
+        switch parent {
+        case .collection(let coll, _): return coll.folderURL
+        case .set(let set, _, _): return set.folderURL
+        case .vaultRoot(let vault): return folderURL(for: vault)
+        }
+    }
+
+    private func cachedPages(at parent: PageParent) -> [PageMeta] {
+        switch parent {
+        case .collection(let coll, _): return pagesByCollection[coll.id] ?? []
+        case .set(let set, _, _): return pagesBySet[set.id] ?? []
+        case .vaultRoot(let vault): return pagesByTypeRoot[vault.id] ?? []
+        }
+    }
+
+    private func setCachedPages(_ pages: [PageMeta], at parent: PageParent) {
+        switch parent {
+        case .collection(let coll, _): pagesByCollection[coll.id] = pages
+        case .set(let set, _, _): pagesBySet[set.id] = pages
+        case .vaultRoot(let vault): pagesByTypeRoot[vault.id] = pages
+        }
+    }
+
     // MARK: - Move (cross-Type, with property strip)
+
+    /// Property IDs on `source` whose NAMES don't exist on `destination` — the
+    /// name-matched strip set. Move-strip matches by NAME, not ID: property IDs
+    /// are globally unique per `property_definitions.id PRIMARY KEY`, so
+    /// cross-type matching by ID is structurally impossible. Shared by
+    /// `movePageAcrossTypes` and `PageSetManager.moveSet` / `moveStripTotal`.
+    static func strippedPropertyIDs(from source: PageType, to destination: PageType) -> Set<String> {
+        let destNames = Set(destination.properties.map { $0.name })
+        return Set(source.properties.filter { !destNames.contains($0.name) }.map { $0.id })
+    }
 
     /// Moves `page` from one PageType (and optional PageCollection) to a different
     /// PageType (and optional PageCollection). Performs:
@@ -558,10 +849,8 @@ extension PageContentManager {
             "movePageAcrossTypes requires distinct source and destination PageTypes."
         )
         do {
-            // 1. Determine strip set by name comparison.
-            let destNames = Set(destination.properties.map { $0.name })
-            let strippedDefs = source.properties.filter { !destNames.contains($0.name) }
-            let strippedIDs = Set(strippedDefs.map { $0.id })
+            // 1. Determine strip set by name comparison (shared primitive).
+            let strippedIDs = Self.strippedPropertyIDs(from: source, to: destination)
 
             // 2. Load the page file (frontmatter + body).
             let pageFile = try PageFile.load(from: page.url)
@@ -662,14 +951,16 @@ extension PageContentManager {
     /// cell-editor popovers — Phase H).
     ///
     /// Caller passes `collection: nil` for Page-Type-root-scoped pages and
-    /// the matching PageCollection otherwise.
+    /// the matching PageCollection otherwise; Set pages also pass their
+    /// PageSet so the index row keeps its `page_set_id`.
     ///
     func updatePageProperty(
         _ page: PageMeta,
         propertyID: String,
         newValue: PropertyValue?,
         vault: PageType,
-        collection: PageCollection?
+        collection: PageCollection?,
+        set: PageSet? = nil
     ) async throws {
         do {
             let pageFile = try PageFile.load(from: page.url)
@@ -689,28 +980,15 @@ extension PageContentManager {
             var updatedMeta = page
             updatedMeta.frontmatter = fm
 
-            if let collection {
-                if var arr = pagesByCollection[collection.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByCollection[collection.id] = arr
-                }
-            } else {
-                if var arr = pagesByTypeRoot[vault.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByTypeRoot[vault.id] = arr
-                }
-            }
+            refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
 
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
                         updatedMeta,
                         pageTypeID: vault.id,
-                        pageCollectionID: collection?.id
+                        pageCollectionID: collection?.id,
+                        pageSetID: set?.id
                     )
                 } catch {
                     self.pendingError = error
@@ -731,7 +1009,8 @@ extension PageContentManager {
         _ page: PageMeta,
         frontmatter: PageFrontmatter,
         vault: PageType,
-        collection: PageCollection?
+        collection: PageCollection?,
+        set: PageSet? = nil
     ) async throws {
         do {
             let pageFile = try PageFile.load(from: page.url)
@@ -744,26 +1023,13 @@ extension PageContentManager {
             var updatedMeta = page
             updatedMeta.frontmatter = fm
 
-            if let collection {
-                if var arr = pagesByCollection[collection.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByCollection[collection.id] = arr
-                }
-            } else {
-                if var arr = pagesByTypeRoot[vault.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByTypeRoot[vault.id] = arr
-                }
-            }
+            refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
 
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
-                        updatedMeta, pageTypeID: vault.id, pageCollectionID: collection?.id)
+                        updatedMeta, pageTypeID: vault.id, pageCollectionID: collection?.id,
+                        pageSetID: set?.id)
                 } catch {
                     self.pendingError = error
                 }
@@ -774,16 +1040,51 @@ extension PageContentManager {
         }
     }
 
+    /// Cache refresh shared by the frontmatter-mutation paths above — routes
+    /// the updated PageMeta into whichever bucket matches the page's parent
+    /// (Set, Collection, or Type root). No-op when the bucket doesn't hold
+    /// the page; disk + index stay the source of truth.
+    private func refreshFrontmatterCache(
+        _ updated: PageMeta, vault: PageType, collection: PageCollection?, set: PageSet?
+    ) {
+        if let set {
+            if var arr = pagesBySet[set.id],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesBySet[set.id] = arr
+            }
+        } else if let collection {
+            if var arr = pagesByCollection[collection.id],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesByCollection[collection.id] = arr
+            }
+        } else {
+            if var arr = pagesByTypeRoot[vault.id],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesByTypeRoot[vault.id] = arr
+            }
+        }
+    }
+
     // MARK: - Update icon
 
     /// Persists a new icon onto a Page's frontmatter — sets `icon` on a copy of
     /// the current frontmatter and routes through `updatePageFrontmatter`, which
     /// atomically rewrites the `.md` (preserving the body + bumping `modifiedAt`),
     /// refreshes the in-memory cache, and re-indexes.
-    func updatePageIcon(_ page: PageMeta, to icon: String?, vault: PageType, collection: PageCollection?) async throws {
+    func updatePageIcon(
+        _ page: PageMeta, to icon: String?, vault: PageType, collection: PageCollection?,
+        set: PageSet? = nil
+    ) async throws {
         var fm = page.frontmatter
         fm.icon = icon
-        try await updatePageFrontmatter(page, frontmatter: fm, vault: vault, collection: collection)
+        try await updatePageFrontmatter(
+            page, frontmatter: fm, vault: vault, collection: collection, set: set)
     }
 
     // MARK: - Context-delete cascade (Phase 18b)
@@ -841,7 +1142,8 @@ extension PageContentManager {
                         try updater.upsertPage(
                             updatedMeta,
                             pageTypeID: container.typeID,
-                            pageCollectionID: container.collectionID
+                            pageCollectionID: container.collectionID,
+                            pageSetID: container.setID
                         )
                     } catch {
                         self.pendingError = error
@@ -869,7 +1171,14 @@ extension PageContentManager {
     /// holds it (Collection-scoped or Type-root), if present. No-op when the Page
     /// isn't loaded — the on-disk write + index upsert are the source of truth.
     private func refreshPageCache(_ updated: PageMeta, container: EntityContainer) {
-        if let collectionID = container.collectionID {
+        if let setID = container.setID {
+            if var arr = pagesBySet[setID],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesBySet[setID] = arr
+            }
+        } else if let collectionID = container.collectionID {
             if var arr = pagesByCollection[collectionID],
                 let i = arr.firstIndex(where: { $0.id == updated.id })
             {

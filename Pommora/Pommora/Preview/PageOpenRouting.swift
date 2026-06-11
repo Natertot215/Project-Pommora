@@ -44,6 +44,7 @@ enum PageOpenRouter {
         _ page: PageMeta,
         vault: PageType,
         collection: PageCollection?,
+        set: PageSet?,
         selection: inout SidebarSelection,
         openPreview: (PageRef) -> Void
     ) -> PageOpenDestination {
@@ -53,9 +54,15 @@ enum PageOpenRouter {
             let resolved = SidebarSelection.page(page)
             if selection != resolved { selection = resolved }
         case .previewCard:
-            let ref =
-                collection.map { PageRef(page: page, in: $0, vault: vault) }
-                ?? PageRef(page: page, inVaultRoot: vault)
+            let ref: PageRef =
+                switch (collection, set) {
+                case (let collection?, let set?):
+                    PageRef(page: page, in: set, collection: collection, vault: vault)
+                case (let collection?, nil):
+                    PageRef(page: page, in: collection, vault: vault)
+                case (nil, _):
+                    PageRef(page: page, inVaultRoot: vault)
+                }
             openPreview(ref)
         case .suppressed:
             break
@@ -73,15 +80,19 @@ enum PageOpenRouter {
         selection: inout SidebarSelection,
         content: PageContentManager,
         vaultManager: PageTypeManager,
+        setManager: PageSetManager,
         openPreview: (PageRef) -> Void
     ) -> PageOpenDestination {
-        guard let parent = content.resolveParent(for: page, pageTypeManager: vaultManager) else {
+        guard
+            let parent = content.resolveParent(
+                for: page, pageTypeManager: vaultManager, pageSetManager: setManager)
+        else {
             let resolved = SidebarSelection.page(page)
             if selection != resolved { selection = resolved }
             return .detailPane
         }
         return routeOpen(
-            page, vault: parent.vault, collection: parent.collection,
+            page, vault: parent.vault, collection: parent.collection, set: parent.set,
             selection: &selection, openPreview: openPreview)
     }
 }

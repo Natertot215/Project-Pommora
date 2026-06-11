@@ -107,25 +107,15 @@ Apple-Notes-style inline-grid tables (drag-resize columns, double-click popover 
 
 #### Deferred
 
-Future direction lives in [`Framework.md`](../Framework.md); the changelog of what shipped when lives in [`History.md`](../History.md). Editor work not yet wired:
-
-- **`PommoraWikiLinkResolver`** — Pommora-side conformance to the engine's `WikiLinkResolver`; unblocks wikilink autocomplete + click routing + rename cascade (couples with the SQLite layer).
-- **`:::callout` + `@Columns` directives** + **slash menu** — via Apple `BlockDirective`; the editor is functional without them.
-- **HighlighterSwift bridge** (code-block syntax highlighting) and **SwiftMath bridge** (LaTeX rendering) — the engine ships no-op service defaults; both are opt-in.
-- **Pommora-brand theme overlay** — the engine currently uses SwiftUI semantic colors; brand purple + custom callout treatments land with `Color+Pommora.swift`.
-- **Image embed provider** — Pommora-side `EmbeddedImageProvider` so `![[name]]` resolves to disk images.
-- **Find-in-document UI** — Pommora-side find palette over the engine's existing find bus.
-- **Auto-pair polish** — selection-wrap (typing `*` around a selection) + auto-exit-on-whitespace.
+- **`PommoraWikiLinkResolver`** — unblocks wikilink click routing + rename cascade.
+- **`:::callout` + `@Columns` directives** + **slash menu** — via Apple `BlockDirective`.
+- **HighlighterSwift bridge** (syntax highlighting) + **SwiftMath bridge** (LaTeX rendering) — no-op service defaults ship; both opt-in.
+- **Image embed provider** — `EmbeddedImageProvider` for `![[name]]`.
+- **Find-in-document UI** — Pommora-side find palette over the existing find bus.
+- **Auto-pair polish** — selection-wrap + auto-exit-on-whitespace.
 
 ---
 
 #### Hot-swap surface
 
-If the editor library ever needs replacing again, the swap surface is:
-
-- **`.md` file format** — the firewall; never changes regardless of editor library.
-- **`PageEditorViewModel` ↔ `PageContentManager` chain** — domain layer, editor-library-agnostic.
-- **`AtomicYAMLMarkdown` write contract** — survives any editor.
-- **Apple swift-markdown AST** — portable across editor choices; the styler logic moves to a new library by re-implementing the rendering layer.
-
-The only Pommora-side editor-coupled code is the `MarkdownPMEditor` call site in `PageEditorView.swift` (~10 lines) plus the Pommora customizations inside the `MarkdownPM` package (`Styling/AppleASTSupplementalStyler.swift` + extensions to `Input/MarkdownInputHandler.swift`, `Renderer/MarkdownTextLayoutFragment.swift`, `TextView/ContextMenu.swift`).
+Swap boundary: `MarkdownPMEditor` call site in `PageEditorView.swift` (~10 lines) + Pommora customizations inside `MarkdownPM` (`AppleASTSupplementalStyler.swift` + extensions to `MarkdownInputHandler.swift`, `MarkdownTextLayoutFragment.swift`, `ContextMenu.swift`). The `.md` format, `PageEditorViewModel ↔ PageContentManager` chain, and `AtomicYAMLMarkdown` contract are all editor-library-agnostic.

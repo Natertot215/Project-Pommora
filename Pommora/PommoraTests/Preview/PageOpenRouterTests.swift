@@ -95,7 +95,7 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: nil, selection: &selection
+            page, vault: vault, collection: nil, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .previewCard)
@@ -115,7 +115,7 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         PageOpenRouter.routeOpen(
-            page, vault: vault, collection: collection, selection: &selection
+            page, vault: vault, collection: collection, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(opened == [PageRef(page: page, in: collection, vault: vault)])
@@ -129,7 +129,7 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: nil, selection: &selection
+            page, vault: vault, collection: nil, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .detailPane)
@@ -145,7 +145,7 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: nil, selection: &selection
+            page, vault: vault, collection: nil, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .suppressed)

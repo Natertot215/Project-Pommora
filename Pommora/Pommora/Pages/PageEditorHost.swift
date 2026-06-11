@@ -19,16 +19,20 @@ struct PageEditorHost: View {
 
     @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageSetManager.self) private var pageSetManager
 
     @State private var viewModel: PageEditorViewModel?
     @State private var resolvedVault: PageType?
     @State private var resolvedCollection: PageCollection?
+    @State private var resolvedSet: PageSet?
     @State private var loadFailed = false
 
     var body: some View {
         Group {
             if let vm = viewModel, let vault = resolvedVault {
-                PageEditorView(viewModel: vm, vault: vault, collection: resolvedCollection, selection: $selection)
+                PageEditorView(
+                    viewModel: vm, vault: vault, collection: resolvedCollection,
+                    set: resolvedSet, selection: $selection)
                     // Force a full teardown + rebuild of PageEditorView when
                     // the loaded Page changes — guarantees @State (titleDraft)
                     // resets cleanly per-page and that the body editor
@@ -58,11 +62,14 @@ struct PageEditorHost: View {
     }
 
     private func loadAndConstruct(for page: PageMeta) async {
-        guard let resolved = contentManager.resolveParent(for: page, pageTypeManager: vaultManager)
+        guard
+            let resolved = contentManager.resolveParent(
+                for: page, pageTypeManager: vaultManager, pageSetManager: pageSetManager)
         else {
             viewModel = nil
             resolvedVault = nil
             resolvedCollection = nil
+            resolvedSet = nil
             loadFailed = true
             return
         }
@@ -85,6 +92,7 @@ struct PageEditorHost: View {
             viewModel = nil
             resolvedVault = nil
             resolvedCollection = nil
+            resolvedSet = nil
             loadFailed = true
             return
         }
@@ -92,12 +100,14 @@ struct PageEditorHost: View {
         let saver = ContentManagerPageSaver(
             contentManager: contentManager,
             vault: resolved.vault,
-            collection: resolved.collection
+            collection: resolved.collection,
+            set: resolved.set
         )
         let vm = PageEditorViewModel(page: page, body: pageFile.body, saver: saver)
         viewModel = vm
         resolvedVault = resolved.vault
         resolvedCollection = resolved.collection
+        resolvedSet = resolved.set
         loadFailed = false
     }
 }

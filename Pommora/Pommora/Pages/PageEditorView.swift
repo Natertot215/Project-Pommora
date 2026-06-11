@@ -28,6 +28,10 @@ struct PageEditorView: View {
     let vault: PageType
     /// nil = vault-root Page (no Collection parent)
     let collection: PageCollection?
+    /// nil = Page outside any Set. Non-nil implies `collection` is non-nil
+    /// (Sets only live inside Collections); routes saves/renames through the
+    /// Set-scoped overloads so the index row keeps its `page_set_id`.
+    let set: PageSet?
     /// Drives breadcrumb back-navigation. Set by SidebarDetailView.
     @Binding var selection: SidebarSelection
 
@@ -129,11 +133,13 @@ struct PageEditorView: View {
         viewModel: PageEditorViewModel,
         vault: PageType,
         collection: PageCollection?,
+        set: PageSet? = nil,
         selection: Binding<SidebarSelection>
     ) {
         self.viewModel = viewModel
         self.vault = vault
         self.collection = collection
+        self.set = set
         self._selection = selection
         self._titleDraft = State(initialValue: viewModel.page.title)
     }
@@ -185,13 +191,17 @@ struct PageEditorView: View {
     }
 
     /// Breadcrumb segments for the stats bar footer: vault and collection
-    /// are tappable ancestors; the page itself is the non-navigable tail.
+    /// are tappable ancestors; the set (non-navigable — Sets have no detail
+    /// surface) and the page itself render without actions.
     private var breadcrumbCrumbs: [FooterCrumb] {
         var crumbs: [FooterCrumb] = [
             FooterCrumb(title: vault.title) { selection = .pageType(vault) }
         ]
         if let c = collection {
             crumbs.append(FooterCrumb(title: c.title) { selection = .collection(c) })
+        }
+        if let set {
+            crumbs.append(FooterCrumb(title: set.title))
         }
         crumbs.append(FooterCrumb(title: viewModel.page.title))
         return crumbs
@@ -533,11 +543,13 @@ struct PageEditorView: View {
     }
 
     /// The current PageMeta freshly resolved from the manager cache by id — the
-    /// collection-vs-vault-root branch in one place. Used after a manager
+    /// set-vs-collection-vs-vault-root branch in one place. Used after a manager
     /// mutation (icon edit / rename) to refresh `viewModel.page` so the next
     /// body save re-serializes current frontmatter, not a stale copy.
     private func currentPageMetaFromCache() -> PageMeta? {
-        if let collection {
+        if let set {
+            return contentManager.pages(in: set).first { $0.id == viewModel.page.id }
+        } else if let collection {
             return contentManager.pages(in: collection).first { $0.id == viewModel.page.id }
         } else {
             return contentManager.pages(in: vault).first { $0.id == viewModel.page.id }
@@ -552,7 +564,7 @@ struct PageEditorView: View {
     private func commitIcon(_ newIcon: String?) async {
         do {
             try await contentManager.updatePageIcon(
-                viewModel.page, to: newIcon, vault: vault, collection: collection)
+                viewModel.page, to: newIcon, vault: vault, collection: collection, set: set)
             if let updated = currentPageMetaFromCache() { viewModel.page = updated }
         } catch {
             viewModel.pendingError = error
@@ -571,7 +583,11 @@ struct PageEditorView: View {
         guard newTitle != oldTitle else { return }
 
         do {
-            if let collection {
+            if let set, let collection {
+                try await contentManager.renamePage(
+                    viewModel.page, to: newTitle, in: set, collection: collection, vault: vault
+                )
+            } else if let collection {
                 try await contentManager.renamePage(
                     viewModel.page, to: newTitle, in: collection, vault: vault
                 )

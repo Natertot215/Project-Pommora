@@ -47,7 +47,8 @@ Detail → `Contexts.md`.
 |---|---|---|---|
 | **Page Type** | Schema-bearing container for Pages | `<nexus>/<Title>/_pagetype.json` | **"Vault"** |
 | **Page Collection** | Organizational sub-folder inside a Page Type | `<nexus>/<Type>/<Title>/_pagecollection.json` | "Collection" |
-| **Page** | Markdown document with prose + frontmatter | `<nexus>/<Type>/<Collection>/Page.md` | "Page" |
+| **Page Set** | Optional schema-less sub-folder inside a Page Collection; identity + icon only, everything else inherits from the Collection | `<nexus>/<Type>/<Collection>/<Title>/_pageset.json` | "Set" |
+| **Page** | Markdown document with prose + frontmatter | `<nexus>/<Type>/<Collection>/<Set>/Page.md` | "Page" |
 
 #### Operational layer — Agenda
 
@@ -57,9 +58,10 @@ Detail → `Contexts.md`.
 | **Agenda Event** | EKEvent-shaped: start + end, location | Events singleton (root folder carrying `_eventconfig.json`) + `<title>.event.json` | "Event" |
 
 **Rules:**
-- Page Type schema applies to all Pages inside (including Pages in Page Collections — Collections inherit the parent Type's schema)
+- Page Type schema applies to all Pages inside (including Pages in Page Collections and Page Sets — both inherit the parent Type's schema)
+- Page Sets carry no schema, views, or settings — `_pageset.json` holds identity, icon, and `page_order` only; the hierarchy is strictly three levels (depth-2 folder = Set; deeper folders are sidecar-less, their pages roll up into the nearest Set). Canonical detail → `Sets.md`
 - Page Collections are **not** storage-only. They **inherit only the parent Type's property schema** (collection-local schema overrides remain a post-v1 Prospect), but **own** their saved `views` — and the groups, visibility, and sorts configured inside them — persisted in their sidecar (`_pagecollection.json`). Titles are the folder name (filename = title). Each Collection also carries an optional `icon` in its sidecar (source of truth), mirrored into a SQLite column so the context picker can query it. Canonical detail → `PageTypes.md` / `Properties.md`
-- Move between Page Types strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections), no strip — schema is shared
+- Move between Page Types strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections, Sets, and the Type root), no strip — schema is shared
 - Agenda Tasks and Agenda Events are separate kinds with separate schemas
 
 #### Naming convention — three layers
@@ -68,11 +70,11 @@ Pommora's domain model has three layers of naming that intentionally diverge:
 
 | Layer | Use |
 |---|---|
-| **Code + data** | `PageType` / `PageCollection` — always exact, unambiguous. JSON keys, sidecar fields, file references all use these literal names. |
-| **Docs prose** | "Page Type" / "Page Collection" (or "Type" / "Collection" where unambiguous) |
-| **UI label (default)** | **"Vault"** + "Collection". All labels user-renameable via the Settings scaffold (storage v0.3.0; editing UI v0.6.0). |
+| **Code + data** | `PageType` / `PageCollection` / `PageSet` — always exact, unambiguous. JSON keys, sidecar fields, file references all use these literal names. |
+| **Docs prose** | "Page Type" / "Page Collection" / "Page Set" (or "Type" / "Collection" / "Set" where unambiguous) |
+| **UI label (default)** | **"Vault"** + "Collection" + "Set". All labels user-renameable via the Settings scaffold (storage v0.3.0; editing UI v0.6.0). |
 
-Every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_taskconfig.json` / `_eventconfig.json` — and the sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON.
+Every typed container has a per-kind sidecar — `_pagetype.json` / `_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json` — and the sidecar **filename** is the kind discriminator, so any LLM or external agent reading a folder at the nexus root can classify it immediately without opening the JSON.
 
 Detail → `PageTypes.md` + `Pages.md` + `Agenda.md`.
 
@@ -124,7 +126,7 @@ Full mechanic for `[[ ]]` connections → [[Connections]].
 | Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
 | Agenda Event → Context (tier N) | `tierN: [<id>, ...]` in `.event.json` | Categorical assignment |
 | Context → Context | None — tiers are free-standing; context→context relations are deferred | — |
-| Page → Page Type / Page Collection | Implicit by file location | Membership |
+| Page → Page Type / Page Collection / Page Set | Implicit by file location | Membership |
 
 Relations are stored by ID (rename-safe); body connections are plain `[[Title]]` on disk, resolved by globally-unique title with rename-safety via cascade — see [[Connections]].
 
@@ -136,7 +138,7 @@ Four top-level groups (three carry a heading; labels renameable via Settings sca
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Contexts** — one section containing three disclosure rows (Areas / Topics / Projects); each tier row is never selectable and toggles its own disclosure only; each tier's entities render as flat leaf rows inside their disclosure
-- **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages (in Type root) + Page Collections (UI label "Collection"); each Collection discloses its Pages
+- **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages (in Type root) + Page Collections (UI label "Collection"); each Collection discloses Page Sets (UI label "Set"; expandable, never selectable) + its Pages; each Set discloses its Pages
 - **User sections** — user-created sibling sections that group Vaults for navigation only (`.nexus/sidebar-sections.json`; single-membership; ungrouped Vaults stay in the default Vaults section). Detail → `Sidebar.md`
 
 There are no wrapper folders on disk — Page Types and the Agenda singletons live as siblings at the nexus root; the section headings are pure UI groupings with no on-disk counterpart.
@@ -155,4 +157,4 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections carry their own sidecar (`_pagecollection.json`) for id, ordering, `icon`, and their own `views`; only the property **schema** inherits from the parent Type. Same property catalog applies across Pages, Agenda Tasks, and Agenda Events. **10 property types in v1.** **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types. The three context-tier relations (`tier1` / `tier2` / `tier3`) are the only relation-type connections — no user-creatable Relation properties. Schema editing centralizes in the Page Type Settings sheet. Full catalog → `// Features//Properties.md`.
+Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections carry their own sidecar (`_pagecollection.json`) for id, ordering, `icon`, and their own `views`; only the property **schema** inherits from the parent Type. Same property catalog applies across Pages, Agenda Tasks, and Agenda Events. **11 property types in v1** (10 active; `.date` retained for backward decode only; 8 user-creatable via the picker). **Status is first-class with 3 EventKit-aligned fixed groups (Upcoming / In Progress / Done)** — required built-in on both AgendaTask and AgendaEvent schemas; not auto-seeded on Page Types. The three context-tier relations (`tier1` / `tier2` / `tier3`) are the only relation-type connections — no user-creatable Relation properties. Schema editing centralizes in the Page Type Settings sheet. Full catalog → `// Features//Properties.md`.

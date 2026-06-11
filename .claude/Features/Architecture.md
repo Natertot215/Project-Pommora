@@ -10,7 +10,7 @@ PRD carries the high-altitude storage model + SQLite DDL; this doc covers the **
 
 These principles hold the data layer together. Every architectural choice below traces back to one of them.
 
-1. **Files are canonical (≠ everything is Markdown).** Pages = `.md` (YAML frontmatter + body), Areas = folder + `_area.json`, Topics = folder + `_topic.json`, Projects = folder + `_project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Among operational content, only Pages are Markdown — Agenda, sidecars, Contexts, Homepage, and Settings stay JSON. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
+1. **Files are canonical (≠ everything is Markdown).** Pages = `.md` (YAML frontmatter + body), Areas = folder + `_area.json`, Topics = folder + `_topic.json`, Projects = folder + `_project.json`, Agenda Tasks = `.task.json`, Agenda Events = `.event.json`, Homepage = `.nexus/homepage.json`, Settings = `.nexus/settings.json`. Among operational content, only Pages are Markdown — Agenda, sidecars, Contexts, Homepage, and Settings stay JSON. Per-Type schemas live in per-kind sidecars at the relevant folder (`_pagetype.json` / `_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`). SQLite is performance scaffolding, never source of truth. No user data is trapped in the DB.
 
 2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) can read Pommora's entire structured graph — Pages, schemas, relations, properties — directly from files without tool-call round-trips. This is the differentiator from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Any choice that trades file-canonical legibility for app-internal convenience violates this principle.
 
@@ -25,8 +25,11 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
   Assignments/                          ← Page Type (root folder, identified by sidecar)
     _pagetype.json                      ← shared property schema
     Spring-2026/                        ← Page Collection (sub-folder)
-      _pagecollection.json              ← collection metadata + per-Collection views[]
-      Essay-1.md                        ← Page
+      _pagecollection.json              ← collection metadata + per-Collection views[] + set_order
+      Midterm-Prep/                     ← Page Set (optional schema-less sub-folder)
+        _pageset.json                   ← set metadata (id + collection_id + icon + page_order)
+        Exam-Review.md                  ← Page inside a Page Set
+      Essay-1.md                        ← Page at Collection root
     Final-Project.md                    ← Page directly in Page Type
 
   Tasks/                                ← AgendaTask singleton (folder + _taskconfig.json)
@@ -57,13 +60,13 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
   state.json                            ← security-scoped bookmark + recent-nexuses
 ```
 
-**Classification by sidecar filename alone.** A root folder containing `_pagetype.json` IS a Page Type — regardless of folder name. Folders renameable via Finder; the sidecar identifies kind. The four per-kind sidecar filenames (`_pagetype.json` / `_pagecollection.json` / `_taskconfig.json` / `_eventconfig.json`) are the discriminators.
+**Classification by sidecar filename alone.** A root folder containing `_pagetype.json` IS a Page Type — regardless of folder name. Folders renameable via Finder; the sidecar identifies kind. The five per-kind sidecar filenames (`_pagetype.json` / `_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`) are the discriminators. Container depth is strictly three levels — depth-2 folders inside a Collection are Page Sets; deeper folders are sidecar-less and their pages roll up into the nearest Set (→ `// Features//Sets.md`).
 
 **No wrapper folders.** Page Types, Tasks singleton, Events singleton all live as siblings at the nexus root. The legacy `Pages/` / `Agenda/` wrappers (paradigmV2-era) are unwrapped by the adopter and disappear from the on-disk shape.
 
 **Hidden + private.** `.nexus/` and `.trash/` (leading dot) are hidden from the sidebar and from non-Pommora tools by convention (matches `.obsidian/`). Pommora's own writes to `.nexus/` don't surface in the user-facing tree.
 
-**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Areas / Topics / Projects) never consult the filter. Stale entries are inert (git semantics); editing UI ships with the v0.6.0 Settings panel. Spec → `Planning/2026-06-03-Folder-Exclusion-Plan.md`.
+**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Areas / Topics / Projects) never consult the filter. Stale entries are inert (git semantics); editing UI is deferred to the Settings panel.
 
 ---
 
@@ -74,6 +77,7 @@ Per-entity managers own the in-memory cache for their kind. They load files at a
 | Manager | Owns | Source |
 |---|---|---|
 | `PageTypeManager` | In-memory list of Page Types + their Collections | `_pagetype.json` + `_pagecollection.json` files at nexus root |
+| `PageSetManager` | In-memory Page Sets per Collection (loads after vaults — needs Collections) | `_pageset.json` files inside Page Collections |
 | `PageContentManager` | Per-Page bodies + frontmatter | `.md` files inside Page Types |
 | `AgendaTaskManager` | Tasks + schema | `.task.json` files + `_taskconfig.json` |
 | `AgendaEventManager` | Events + schema | `.event.json` files + `_eventconfig.json` |
@@ -91,11 +95,11 @@ Managers are `@MainActor` `@Observable` classes. SwiftUI views observe them dire
 
 The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a moved or renamed Nexus keeps its index without re-pathing. It holds titles / properties / links / relations — **never** Page bodies (the `pages` table has no body column; full-text search reads files directly).
 
-**Fully regeneratable.** `PommoraIndex.open` stamps the file with a `schema_version` and force-deletes + rebuilds via `IndexBuilder` whenever that version differs from the code's `currentSchemaVersion` (currently **13**; a bump marks every pre-v13 DB stale so it deletes + recreates on open — no data migration). No user data is trapped — losing the index file just means a rebuild on next open.
+**Fully regeneratable.** `PommoraIndex.open` stamps the file with a `schema_version` and force-deletes + rebuilds via `IndexBuilder` whenever that version differs from the code's `currentSchemaVersion` (currently **14**; a bump marks every pre-v14 DB stale so it deletes + recreates on open — no data migration). No user data is trapped — losing the index file just means a rebuild on next open.
 
 **Launch-tail indexing contract.** On launch, the index rebuilds **only** when the schema-version mismatch flags `needsRebuild` — there is no unconditional launch scan. The version is stamped only *after* `IndexBuilder.populate` succeeds, so a failed rebuild retries next launch instead of locking in an empty index. Consequence: a page Finder-dropped *after* the index is current-stamped enters the index via CRUD upserts (or a forced rebuild), **not** via the launch path.
 
-**Nine data tables** (DDL canonical in PRD § SQLite Schema): `page_types`, `page_collections`, `pages`, `agenda_tasks`, `agenda_events`, `contexts`, `context_links`, `connections`, `property_definitions`. Tier relations use the `context_links` table — there is no separate tier table; body connections use the `connections` table (page-only — `source_kind` / `target_kind` are always `"page"`). Plus an internal `meta(key, value)` table holding the `schema_version` itself.
+**Ten data tables** (DDL canonical in PRD § SQLite Schema): `page_types`, `page_collections`, `page_sets`, `pages`, `agenda_tasks`, `agenda_events`, `contexts`, `context_links`, `connections`, `property_definitions`. Tier relations use the `context_links` table — there is no separate tier table; body connections use the `connections` table (page-only — `source_kind` / `target_kind` are always `"page"`). Plus an internal `meta(key, value)` table holding the `schema_version` itself.
 
 **Query surface.** `IndexQuery` (`Index/IndexQuery.swift`) is a Notion-style filter/sort/group/broken-links facade — it composes parameterized SQL using SQLite's JSON1 extension to reach into the `properties` JSON column, and reads the `context_links` table for tier-relation lookups. Embedded views in Contexts / Homepage flow through this surface. So the UI is one hop removed from the canonical file: it renders what the **store → query → render** chain hands it (file → index → `IndexQuery` → view), never the file directly. A wrong, empty, or `(missing)` surface therefore localizes to the query/render hop — stale or unbuilt index rows, a load-timing or layout fault in the view — and is not by itself evidence that the canonical file is wrong; confirm the data at the relevant hop (read the file, run the query) before attributing a fault to the store.
 
@@ -103,7 +107,7 @@ The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a mo
 
 **Update path: `IndexUpdater`.** Wired into the per-entity content + type managers (Pages, Page Types, Agenda Tasks, Agenda Events) plus Contexts and property definitions; mid-session mutations propagate to the DB without waiting for a restart. Pattern: every manager mutation method (`upsertX`, `deleteX`) runs after the atomic file write succeeds.
 
-**FK constraint shape.** Most relationships cascade-delete in SQLite (`ON DELETE CASCADE` on `page_type_id`). The `page_collection_id` field on `pages` is `ON DELETE SET NULL` so deleting a Collection doesn't cascade-delete its child Pages — they move back to the Type root in the index until the next `loadAll` reconciles.
+**FK constraint shape.** Most relationships cascade-delete in SQLite (`ON DELETE CASCADE` on `page_type_id`; `page_sets.page_collection_id` cascades with its Collection). The `page_collection_id` and `page_set_id` fields on `pages` are `ON DELETE SET NULL` so deleting a Collection or Set doesn't cascade-delete its child Pages — they move up a level in the index until the next `loadAll` reconciles.
 
 ---
 
@@ -121,15 +125,9 @@ Every file write goes through one of three atomic-write helpers:
 
 ---
 
-#### File-watcher contract (deferred — `Framework.md` v0.4.0)
+#### File-watcher contract (deferred)
 
-External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. Planned shape:
-
-- **FSEventStream** — recursive watch on the Nexus root with a per-event payload (`DispatchSource.makeFileSystemObjectSource` is per-fd, no recursion).
-- **Self-write filtering** — debounce 50–100ms by path; track outbound mtimes so Pommora's own `.tmp` + rename writes don't round-trip through the watcher.
-- **Lost-update protection** — on entity save, compare on-disk mtime to the last-loaded version; prompt to reload before overwriting if it drifted.
-
-The atomic-write discipline + IndexUpdater shape already support this — the watcher is a wiring task, not an architectural change.
+External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. Uses `FSEventStream` (recursive watch on the Nexus root) with self-write filtering (debounce by path + outbound mtime tracking) and lost-update protection (mtime compare before overwriting). The atomic-write discipline + `IndexUpdater` shape already support this — the watcher is a wiring task, not an architectural change.
 
 ---
 
@@ -173,7 +171,6 @@ No enforced layer separation. Patterns that keep the data layer tractable:
 - **View specs are data** (filter / sort / group / shown-properties on each storage container's `views[]`).
 - **File renames + connection resolution as algorithm.** Connections resolve by title at render time (backed by index-based ID lookup); renames are pure filesystem renames followed by a cascade body-rewrite of all referencing files.
 - **Agent-legibility check per decision** — would an external file-only agent still see this? If no, revisit.
-- **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for module name, app branding, documentation; not allowed in JSON field names (`pommora_*`) or as a Swift type discriminator (`Pommora.X`). Side-prefixed names are canonical when collisions arise (`AgendaTask` not `Pommora.Task`).
 
 ---
 
