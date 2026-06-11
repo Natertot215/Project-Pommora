@@ -39,3 +39,16 @@ Manual one-click checks still owed on v0.4.0 (deferred from the interaction matr
 - Launch dead-ends: panel abort retry + activation wait; `dismissWindow` deferred out of the first view update.
 - Inspector toggle width drift — instant pane mount (transaction) + 840×540 default agreeing with the 630 width floor.
 - `AppGlobals.mainWindow` prefix matching (exact `== "main"` never matched SwiftUI's identifiers).
+
+Outstanding (restored — wiped by the PagesV2 refresh, not yet fixed):
+
+- **Column reorder broken** — drag-reordering table columns; folds into v0.7.0 view-system work.
+- **"Modified" not hideable** in the visibility settings.
+- **Inline-edit lag** — property value inline edit has a noticeable update buffer.
+- **Column layout not persisted** across sessions (+ property columns don't show icons); folds into v0.7.0.
+- **`AgendaEventManagerError._status` doc-vs-guard mismatch** — decide separately.
+- **Backspace on a checkbox / list item** should auto-delete the syntax — confirmed UNIMPLEMENTED; a feature-add.
+- **Agenda description-cap doc mismatch** — specs claim a 1000-char cap but validators enforce none; decide the intended cap or drop the doc claim.
+- **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
+- **New property values aren't selectable until an app restart** — adding a value to a property doesn't refresh its picker live; the new option only appears after a relaunch.
+- **Pinned-nav title staleness** — changing a page's title doesn't update its title in the pinned section of the nav dropdown until re-pinned (recents update fine, being constantly refreshed). Likely needs a file-watcher (possibly overkill, or naturally resolved once a watcher lands). Non-issue for now.
