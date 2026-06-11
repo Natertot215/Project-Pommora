@@ -68,7 +68,7 @@ final class TopicManager {
     // MARK: - Topic CRUD
 
     @discardableResult
-    func createTopic(name: String, icon: String?) async throws -> Topic {
+    func create(name: String, icon: String?) async throws -> Topic {
         do {
             try TopicValidator.validate(
                 title: name,
@@ -103,7 +103,7 @@ final class TopicManager {
         }
     }
 
-    func renameTopic(_ topic: Topic, to newName: String) async throws {
+    func rename(_ topic: Topic, to newName: String) async throws {
         do {
             try TopicValidator.validate(
                 title: newName,
@@ -154,7 +154,7 @@ final class TopicManager {
         }
     }
 
-    func updateTopicIcon(_ topic: Topic, to icon: String?) async throws {
+    func updateIcon(_ topic: Topic, to icon: String?) async throws {
         do {
             var updated = topic
             updated.icon = icon
@@ -174,7 +174,7 @@ final class TopicManager {
         }
     }
 
-    func deleteTopic(_ topic: Topic) async throws {
+    func delete(_ topic: Topic) async throws {
         do {
             let folder = NexusPaths.topicFolderURL(forTitle: topic.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)

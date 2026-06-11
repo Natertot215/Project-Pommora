@@ -276,7 +276,7 @@ struct IndexBuilderTests {
 
         let topicManager = TopicManager(nexus: nexus)
         await topicManager.loadAll()
-        try await topicManager.createTopic(name: "Finance", icon: nil)
+        try await topicManager.create(name: "Finance", icon: nil)
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)

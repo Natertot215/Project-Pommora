@@ -62,7 +62,7 @@ struct ManagerCreateReturnContractTests {
         let manager = TopicManager(nexus: nexus)
         await manager.loadAll()
 
-        let returned = try await manager.createTopic(name: "Productivity", icon: nil)
+        let returned = try await manager.create(name: "Productivity", icon: nil)
         #expect(manager.topics.contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Productivity")
     }

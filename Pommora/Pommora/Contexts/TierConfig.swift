@@ -1,8 +1,9 @@
 import Foundation
 
 /// Per-nexus tier label configuration. Singular + plural labels per tier
-/// (Capacities-style); exposed toggle hides a tier from UI; tagging style
-/// controls how Topic rows render their parent-Area indicators.
+/// (Capacities-style); exposed toggle hides a tier from UI; `taggingStyle`
+/// is currently vestigial — the parent-Area indicator it controlled was
+/// removed with containment.
 struct TierConfig: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var tiers: [Tier]

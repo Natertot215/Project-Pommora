@@ -126,7 +126,7 @@ struct ContextsSection: View {
             defer { isCreatingTopic = false }
             do {
                 _ = try await CreateWithInlineEdit.run(
-                    create: { try await topicManager.createTopic(name: title, icon: nil) },
+                    create: { try await topicManager.create(name: title, icon: nil) },
                     onCreate: { editingID = $0.id; justCreatedID = $0.id }
                 )
             } catch { /* pendingError set by manager; toast surfaces */ }

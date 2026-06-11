@@ -63,7 +63,7 @@ struct IconPickerSheet: View {
             do { try await areaManager.updateIcon(s, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .topic(let t):
-            do { try await topicManager.updateTopicIcon(t, to: newIcon) } catch
+            do { try await topicManager.updateIcon(t, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .project(let p):
             do { try await projectManager.updateIcon(p, to: newIcon) } catch

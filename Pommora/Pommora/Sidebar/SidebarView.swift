@@ -160,7 +160,7 @@ struct SidebarView: View {
             Button("Delete", role: .destructive) {
                 Task {
                     await cascadeUnlinkTier(contextID: t.id, tier: 2)
-                    do { try await topicManager.deleteTopic(t) } catch
+                    do { try await topicManager.delete(t) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }

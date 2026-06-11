@@ -75,7 +75,7 @@ struct TopicRow: View {
             do {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
-                        try await topicManager.createTopic(
+                        try await topicManager.create(
                             name: title, icon: nil
                         )
                     },
@@ -100,7 +100,7 @@ struct TopicRow: View {
         Task {
             defer { isCommitting = false }
             do {
-                try await topicManager.renameTopic(topic, to: draft)
+                try await topicManager.rename(topic, to: draft)
                 editingID = nil
                 justCreatedID = nil
             } catch {

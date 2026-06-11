@@ -216,7 +216,7 @@ import Testing
 
         // (b) A root-level "topics" exclusion must NOT suppress TopicManager.loadAll().
         let tm = TopicManager(nexus: nexus)
-        try await tm.createTopic(name: "Research", icon: nil)
+        try await tm.create(name: "Research", icon: nil)
 
         try setExcluded(["topics"], in: nexus)
 
