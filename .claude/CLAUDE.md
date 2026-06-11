@@ -1,5 +1,5 @@
 ### Pommora — Project Instructions
-TEST
+
 #### Overview
 
 A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 2026-05-22; Contexts Decoupling — free-standing tiers + Space→Area rename — 2026-06-10):
@@ -44,7 +44,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source.
 
-- **Wikilinks render as styled colored inline text** (Obsidian-style), not Notion-style chips.
+- **Connections render as styled colored inline text** (Obsidian wikilink-style), not Notion-style chips.
 
 - **Context-tier links stored by ID, displayed by icon + title.** Always multi-value — frontmatter holds an array of target IDs (`[{"$rel": "<ULID>"}]`, rename-safe); each renders as the target's current icon + title in styled colored text. Tiers are the sole relation-type connection: `tier1` / `tier2` / `tier3` are pre-configured relation properties (merged via `BuiltInContextLinkProperties`), stored at frontmatter root, edited inline. Full catalog → `// Features//Properties.md`.
 
@@ -59,7 +59,6 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
 
-- **Pages open per their vault's `open_in` mode** (`compact` | `window` on `_pagetype.json`; absent = `window`). `window` → the main detail pane; `compact` → a **PagePreview window**: a real **`NSPanel`** owned by `PreviewTarget` (a regular panel — natively activating, never-main, and key: it brings the app forward on outside-click, takes keyboard focus, and never dims the main window) restricted to never act as its own app window — traffic lights hidden, no Dock/Window-menu/Mission Control presence, child-attached ABOVE the main window (rides its moves, never floats over other apps, closes with it and on Nexus switch). Opens locked with the shared `FrontmatterInspector` mounted compact and open; unlock reveals Open; "grow" gestures (Ctrl-Cmd-F, title-strip double-click) promote to the main pane; a page already in the main pane never previews. Routing lives in `PageOpenRouter` — sidebar (single-click) + detail tables (double-click) share the one open-path. Full behavior → `// Features//Pages.md` § "Opening behavior".
 
 #### Document Map
 
@@ -84,7 +83,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 7. **Stub-and-progressively-replace** — each task ships as a green commit; when an earlier task's file references a type built in a later task, inline a throwaway stub and replace it in place when the real type lands (paradigm decision #4 in `// Guidelines//Paradigm-Decisions.md`). Rejected: batch-commit all tasks at branch end.
 8. **Section structure in SidebarView is load-bearing.** Changes to `Section(isExpanded:) { } header: { SectionHeader(...) }` patterns or to the `SectionHeader`/`SelectableRow`/`SelectionChrome` shape risk regressing a launch crash (the in-content `.background` workaround tried during the polish series broke `OutlineListCoordinator.recursivelyDiffRows`, a SwiftUI-internal symbol). Verify via `xcodebuild test` (tests must actually bootstrap, not just compile). ALSO: keep every `Section`'s rows homogeneous — don't mix flat-leaf and disclosure-style rows inside the same outer `Section` (`OutlineListCoordinator.recursivelyDiffRows` can crash on the asymmetry). This includes user vault sections: each renders the identical `Section { PageTypeRow… } header:` shape as the default Vaults section, and an empty user section renders header-only — never a placeholder leaf.
 9. **Sidebar selection chrome lives at row file level via `.listRowBackground(SelectionChrome(...))`**, not in-content `.background`. Locked spec at `// Features//Sidebar.md` "Selection language" + paradigm decision #6. Row files derive `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. SelectableRow itself is pure content — no chrome.
-10. **Parallel-session caveat** — Nathan may have a separate session running small UI tweaks. Pommora/* working tree is NOT guaranteed clean between subagent dispatches. Never revert unattributed working-tree changes; surface in report rather than bundling or discarding.
+10. **Parallel-session caveat** — Nathan may have a separate session running small UI tweaks. Pommora/* working tree is NOT guaranteed clean between subagent dispatches. Never revert unattributed working-tree changes; surface in report rather than bundling or discarding. Assume documentation changes in parallel sessions are safe to commmit in parallel unless individually asessed otherwise.
 11. **`swift format` is invoked as a subcommand** (`swift format format --in-place ...`, `swift format lint --strict --recursive ...`) via Xcode 26's bundled toolchain. The direct `swift-format` binary is NOT on `$PATH` on this machine.
 12. **GRDB `String` overload pollution in @ViewBuilder closures** — `SQLSpecificExpressible` conformance on String causes overload ambiguity for `==` and `contains` inside SwiftUI views. Workaround: isolate per-row rendering into private struct sub-views with plain value types; use `first(where:)` not `contains(_:)`. Pattern established in `ContextPicker.swift`.
 13. **Use `Agent run_in_background: true` for builder-subagent verification** — Nathan does not want xcodebuild grabbing window focus. Always builder via background Agent with `-only-testing:PommoraTests` to skip UI tests.

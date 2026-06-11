@@ -21,11 +21,13 @@ A Page is one Markdown file inside a [[PageTypes|Page Type]] — the only operat
 
 - **Adopted `.md` files load leniently.** Markdown files without Pommora frontmatter open via `PageFile.loadLenient(from:nexusRoot:)`. Missing `id` is synthesized as `"adopted-" + sha256(relativePath).prefix(16)` (stable across launches, path-relative to the Nexus root); missing `created_at` falls back to the file's `creationDate`; tier and properties default to empty. The loader **never mutates** the on-disk file — frontmatter is written only when the user edits and saves through the editor, so opening a folder that's also an Obsidian vault leaves notes byte-identical until touched. Both sidebar discovery and the editor use the lenient path, so anything that surfaces also opens.
 
+
+
 ---
 
 #### Markdown features in v1
 
-**Pages are Markdown documents — not block surfaces.** A Page is one continuous Markdown stream from top to bottom. Pommora doesn't impose a block abstraction on Pages; "block-level features" as a project term belongs to Contexts (Spaces / Topics / Projects) only — the composed-blocks surfaces, not Pages.
+**Pages are Markdown documents — not block surfaces.** A Page is one continuous Markdown stream from top to bottom. Pommora doesn't impose a block abstraction on Pages; "block-level features" as a project term belongs to Contexts (Areas / Topics / Projects) only — the composed-blocks surfaces, not Pages.
 
 Pages support everything in standard Markdown — paragraphs, headings (H1–H6; H5/H6 render at body size), bulleted / numbered / task lists, fenced + inline code, images, GFM tables, blockquotes, horizontal rules. Standard Markdown round-trips natively to any external tool.
 
@@ -69,16 +71,20 @@ Currently, a Page's properties surface as the **property panel** in the editor's
 
 **Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"). `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path — `destination(for:page:currentSelection:)` plus `routeOpen` overloads taking an `openPreview: (PageRef) -> Void` closure. Sidebar single-click, `PageTypeDetailView` / `PageCollectionDetailView` double-click, and the Component Library all route through it.
 
+- **Pages open per their vault's `open_in` mode** (`compact` | `window` on `_pagetype.json`; absent = `window`). `window` → the main detail pane; `compact` → a **PagePreview window**: a real **`NSPanel`** owned by `PreviewTarget` (a regular panel — natively activating, never-main, and key: it brings the app forward on outside-click, takes keyboard focus, and never dims the main window) restricted to never act as its own app window — traffic lights hidden, no Dock/Window-menu/Mission Control presence, child-attached ABOVE the main window (rides its moves, never floats over other apps, closes with it and on Nexus switch). Opens locked with the shared `FrontmatterInspector` mounted compact and open; unlock reveals Open; "grow" gestures (Ctrl-Cmd-F, title-strip double-click) promote to the main pane; a page already in the main pane never previews. Routing lives in `PageOpenRouter` — sidebar (single-click) + detail tables (double-click) share the one open-path. Full behavior → `// Features//Pages.md` § "Opening behavior".
+
 **`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
 
-**`compact` — PagePreview window.** The Page opens in **PagePreview** — a real `WindowGroup` window (`id: "page-preview"`, `for: PageRef.self`; one window per Page — re-opening focuses the existing one), restricted to never act as its own app window:
+**`compact` — PagePreview window.** The Page opens in **PagePreview** — a dedicated preview window owned by `PreviewTarget` as a custom `NSPanel` (`PreviewPanel`, `Preview/PreviewTarget.swift`); one reusable panel that retargets when you peek another Page. It's restricted to never act as its own app window:
 
-- **Child-attached above the main window** at normal level — rides main-window moves, never floats over other apps, hides with the main window, and closes with it and on Nexus switch. Traffic lights hidden; no Dock minimize, no Window menu / Mission Control presence, no fullscreen Space.
+- **Uniform focus (why a panel, not a `WindowGroup`).** A regular `NSPanel` activates the app when clicked — so clicking the preview from another app refocuses Pommora — but can *never* become the **main** window, so it never demotes/dims the main Pommora window: preview + main read as one focus unit. No SwiftUI scene type is both "activating" and "never-main", and reclassing SwiftUI's own window to force it crashes — hence owning the window directly.
+- **Child-attached above the main window** at normal level — rides main-window moves, never floats over other apps, hides with the main window, and closes with it and on Nexus switch. Traffic lights hidden; no title text; no Dock minimize, no Window menu / Mission Control presence, no fullscreen Space (`PreviewWindowConfigurator.restrict`).
 - **Standard `windowBackground` material** — not glass; the only glass is the two `WindowCapsuleButton` capsules (✕ close, inspector toggle).
-- **Chrome:** native-voice editable title bar (15pt semibold title + 18pt proxy icon); uniform-inset hairlines; footer = breadcrumb + lock. The body is the shared `MarkdownPMEditor` at 13pt (horizontal text inset = the 12pt chrome rail; vertical inset 12).
-- **Opens locked** (read-only) with the inspector open. The footer lock toggles editing; unlocking reveals an **Open** button. `Ctrl-Cmd-F` and a title-strip double-click promote the Page to the main detail pane.
-- **Inspector** — the shared `FrontmatterInspector` mounted `compact: true` (→ [[Properties]] § "Where Properties Live").
-- **Sizing:** default 840×540; minimum 630×424 (420 body + 210 inspector); toggling the inspector resizes the window by exactly 210.
+- **Chrome:** a **proxy title** — a plain label that's part of the draggable title bar; a double-click swaps in a focused field to rename (filename = title; Enter or click-away commits, then reverts to the label) — beside an 18pt proxy icon; uniform-inset hairlines; footer = breadcrumb + lock. The body is the shared `MarkdownPMEditor` at 13pt; its leading inset aligns the first character with the close-button's "X" glyph (reserving the heading-fold chevron gutter), and the scrollbar is hidden.
+- **Drag from anywhere non-interactive.** The window moves when dragged from any non-interactive point — the header gaps, footer, and inspector empty areas (`WindowDragGesture`) and the locked read-only body (`NSWindow.performDrag`) — but not the title field, the capsule buttons, or the editable body.
+- **Opens locked** (read-only) with the inspector open. The footer lock toggles editing; unlocking reveals an **Open** button. Promote the Page to the main detail pane via `Ctrl-Cmd-F` or the footer **Open** (a title double-click renames, it does not promote).
+- **Inspector** — the shared `FrontmatterInspector` mounted `compact: true`, natively resizable (180–400pt, ideal 210) (→ [[Properties]] § "Where Properties Live").
+- **Sizing:** default 840×540; content minimum 420 body + the inspector pane.
 - **Edit conflicts are structurally unreachable** — a Page currently shown in the main detail pane never opens as a preview (the tap is suppressed).
 
 **From the NavDropdown — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure. Full mechanics live in `NavDropdown.md`.
