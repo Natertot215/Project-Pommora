@@ -186,7 +186,7 @@ struct FrontmatterInspector: View {
         } header: {
             // Compact drops the section headings entirely; the full-size
             // mount keeps them.
-            if !compact { Text("Tiers") }
+            if !compact { Text("Contexts") }
         }
     }
 
