@@ -14,6 +14,7 @@ struct PageTypeDetailView: View {
     @State private var isCreatingCollection: Bool = false
 
     @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
@@ -347,6 +348,7 @@ struct PageTypeDetailView: View {
             PageOpenRouter.routeOpen(
                 p, selection: &selection,
                 content: contentManager, vaultManager: pageTypeManager,
+                setManager: pageSetManager,
                 openPreview: { openPagePreview($0) })
         }
     }

@@ -83,6 +83,7 @@ struct SidebarView: View {
                     let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
                         content: contentManager, vaultManager: vaultManager,
+                        setManager: pageSetManager,
                         openPreview: { openPagePreview($0) })
                     if routed != .detailPane {
                         // Snap the row highlight back to the still-active

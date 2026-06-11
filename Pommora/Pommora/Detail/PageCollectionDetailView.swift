@@ -208,9 +208,11 @@ struct PageCollectionDetailView: View {
         switch row.kind {
         case .page(let p):
             // Open-in routing: this view knows its vault + collection, so
-            // the direct variant skips parent resolution.
+            // the direct variant skips parent resolution. Set pages surface
+            // flat in this table — carry their Set into the preview ref.
             PageOpenRouter.routeOpen(
-                p, vault: vault, collection: collection, selection: &selection,
+                p, vault: vault, collection: collection,
+                set: setContaining(pageID: p.id), selection: &selection,
                 openPreview: { openPagePreview($0) })
         case .collection: break
         }
