@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The sidebar's context area (Contexts Decoupling): ONE headerless Section
-/// holding exactly three TierDisclosureRows — homogeneous siblings (quirk #8).
-/// Tier rows are expand/collapse only; entity rows inside keep selection.
+/// The sidebar's context area (Contexts Decoupling): ONE Section with a
+/// "Contexts" header, holding exactly three TierDisclosureRows — homogeneous
+/// siblings (quirk #8). Tier rows are expand/collapse only; entity rows inside
+/// keep selection.
 struct ContextsSection: View {
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -15,8 +16,10 @@ struct ContextsSection: View {
     @Environment(ProjectManager.self) private var projectManager
     @Environment(SettingsManager.self) private var settingsManager
 
+    @State private var expanded: Bool = true
+
     var body: some View {
-        Section {
+        Section(isExpanded: $expanded) {
             TierDisclosureRow(
                 label: settingsManager.settings.labels.sidebarSections.spaces,
                 createLabel: "Space",
@@ -85,6 +88,9 @@ struct ContextsSection: View {
                     }
                 }
             }
+        } header: {
+            Text("Contexts")
+                .foregroundStyle(.secondary)
         }
     }
 
