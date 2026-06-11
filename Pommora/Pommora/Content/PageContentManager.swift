@@ -71,61 +71,79 @@ final class PageContentManager {
 
     // MARK: - Resolvers
 
-    /// Find the PageType (and optionally PageCollection) that a `PageMeta` lives in.
-    /// Works regardless of whether the vault's pages have been loaded into the sidebar.
+    /// Find the PageType (and optionally PageCollection + PageSet) that a
+    /// `PageMeta` lives in. Works regardless of whether the vault's pages have
+    /// been loaded into the sidebar.
     ///
-    /// Primary path: index lookup by page ID → type/collection IDs → in-memory objects.
-    /// Fallback (no index): URL prefix matching against vault/collection folder paths.
+    /// Primary path: index lookup by page ID → type/collection/set IDs → in-memory objects.
+    /// Fallback (no index): URL prefix matching against vault/collection/set folder paths.
+    ///
+    /// `pageSetManager` is optional for call sites that don't care about Set
+    /// membership; without it `set` resolves nil even for Set pages.
     func resolveParent(
-        for page: PageMeta, pageTypeManager: PageTypeManager
+        for page: PageMeta, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager? = nil
     )
-        -> (vault: PageType, collection: PageCollection?)?
+        -> (vault: PageType, collection: PageCollection?, set: PageSet?)?
     {
         if let index = indexUpdater?.index,
            let result = resolveParentFromIndex(
-               pageID: page.id, pageTypeManager: pageTypeManager, index: index)
+               pageID: page.id, pageTypeManager: pageTypeManager,
+               pageSetManager: pageSetManager, index: index)
         {
             return result
         }
-        return resolveParentByURL(page.url, pageTypeManager: pageTypeManager)
+        return resolveParentByURL(
+            page.url, pageTypeManager: pageTypeManager, pageSetManager: pageSetManager)
     }
 
-    /// Index-based parent resolution: queries page_type_id / page_collection_id
-    /// directly, then matches them to the in-memory PageType and PageCollection.
+    /// Index-based parent resolution: queries page_type_id / page_collection_id /
+    /// page_set_id directly, then matches them to the in-memory objects.
     private func resolveParentFromIndex(
-        pageID: String, pageTypeManager: PageTypeManager, index: PommoraIndex
-    ) -> (vault: PageType, collection: PageCollection?)? {
+        pageID: String, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?,
+        index: PommoraIndex
+    ) -> (vault: PageType, collection: PageCollection?, set: PageSet?)? {
         guard let row = try? index.dbQueue.read({ db in
             try Row.fetchOne(
-                db, sql: "SELECT page_type_id, page_collection_id FROM pages WHERE id = ?",
+                db, sql: "SELECT page_type_id, page_collection_id, page_set_id FROM pages WHERE id = ?",
                 arguments: [pageID])
         }) else { return nil }
         let typeID: String = row["page_type_id"]
         let collectionID: String? = row["page_collection_id"]
+        let setID: String? = row["page_set_id"]
         guard let vault = pageTypeManager.types.first(where: { $0.id == typeID })
         else { return nil }
         if let collID = collectionID,
            let coll = pageTypeManager.pageCollections(in: vault).first(where: { $0.id == collID })
         {
-            return (vault, coll)
+            let set = setID.flatMap { sid in
+                pageSetManager?.pageSets(in: coll).first { $0.id == sid }
+            }
+            return (vault, coll, set)
         }
-        return (vault, nil)
+        return (vault, nil, nil)
     }
 
     /// URL-based fallback when no index is available. All PageTypes are loaded at
     /// launch so folder-path prefix matching is always complete.
     private func resolveParentByURL(
-        _ pageURL: URL, pageTypeManager: PageTypeManager
-    ) -> (vault: PageType, collection: PageCollection?)? {
+        _ pageURL: URL, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?
+    ) -> (vault: PageType, collection: PageCollection?, set: PageSet?)? {
         let canonical = pageURL.standardizedFileURL.path
         for pageType in pageTypeManager.types {
             let vaultPath = folderURL(for: pageType).standardizedFileURL.path + "/"
             guard canonical.hasPrefix(vaultPath) else { continue }
             for collection in pageTypeManager.pageCollections(in: pageType) {
                 let collPath = collection.folderURL.standardizedFileURL.path + "/"
-                if canonical.hasPrefix(collPath) { return (pageType, collection) }
+                guard canonical.hasPrefix(collPath) else { continue }
+                if let pageSetManager {
+                    for set in pageSetManager.pageSets(in: collection) {
+                        let setPath = set.folderURL.standardizedFileURL.path + "/"
+                        if canonical.hasPrefix(setPath) { return (pageType, collection, set) }
+                    }
+                }
+                return (pageType, collection, nil)
             }
-            return (pageType, nil)
+            return (pageType, nil, nil)
         }
         return nil
     }

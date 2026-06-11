@@ -943,14 +943,16 @@ extension PageContentManager {
     /// cell-editor popovers — Phase H).
     ///
     /// Caller passes `collection: nil` for Page-Type-root-scoped pages and
-    /// the matching PageCollection otherwise.
+    /// the matching PageCollection otherwise; Set pages also pass their
+    /// PageSet so the index row keeps its `page_set_id`.
     ///
     func updatePageProperty(
         _ page: PageMeta,
         propertyID: String,
         newValue: PropertyValue?,
         vault: PageType,
-        collection: PageCollection?
+        collection: PageCollection?,
+        set: PageSet? = nil
     ) async throws {
         do {
             let pageFile = try PageFile.load(from: page.url)
@@ -970,28 +972,15 @@ extension PageContentManager {
             var updatedMeta = page
             updatedMeta.frontmatter = fm
 
-            if let collection {
-                if var arr = pagesByCollection[collection.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByCollection[collection.id] = arr
-                }
-            } else {
-                if var arr = pagesByTypeRoot[vault.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByTypeRoot[vault.id] = arr
-                }
-            }
+            refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
 
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
                         updatedMeta,
                         pageTypeID: vault.id,
-                        pageCollectionID: collection?.id
+                        pageCollectionID: collection?.id,
+                        pageSetID: set?.id
                     )
                 } catch {
                     self.pendingError = error
@@ -1012,7 +1001,8 @@ extension PageContentManager {
         _ page: PageMeta,
         frontmatter: PageFrontmatter,
         vault: PageType,
-        collection: PageCollection?
+        collection: PageCollection?,
+        set: PageSet? = nil
     ) async throws {
         do {
             let pageFile = try PageFile.load(from: page.url)
@@ -1025,26 +1015,13 @@ extension PageContentManager {
             var updatedMeta = page
             updatedMeta.frontmatter = fm
 
-            if let collection {
-                if var arr = pagesByCollection[collection.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByCollection[collection.id] = arr
-                }
-            } else {
-                if var arr = pagesByTypeRoot[vault.id],
-                    let i = arr.firstIndex(where: { $0.id == page.id })
-                {
-                    arr[i] = updatedMeta
-                    pagesByTypeRoot[vault.id] = arr
-                }
-            }
+            refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
 
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
-                        updatedMeta, pageTypeID: vault.id, pageCollectionID: collection?.id)
+                        updatedMeta, pageTypeID: vault.id, pageCollectionID: collection?.id,
+                        pageSetID: set?.id)
                 } catch {
                     self.pendingError = error
                 }
@@ -1055,16 +1032,51 @@ extension PageContentManager {
         }
     }
 
+    /// Cache refresh shared by the frontmatter-mutation paths above — routes
+    /// the updated PageMeta into whichever bucket matches the page's parent
+    /// (Set, Collection, or Type root). No-op when the bucket doesn't hold
+    /// the page; disk + index stay the source of truth.
+    private func refreshFrontmatterCache(
+        _ updated: PageMeta, vault: PageType, collection: PageCollection?, set: PageSet?
+    ) {
+        if let set {
+            if var arr = pagesBySet[set.id],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesBySet[set.id] = arr
+            }
+        } else if let collection {
+            if var arr = pagesByCollection[collection.id],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesByCollection[collection.id] = arr
+            }
+        } else {
+            if var arr = pagesByTypeRoot[vault.id],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesByTypeRoot[vault.id] = arr
+            }
+        }
+    }
+
     // MARK: - Update icon
 
     /// Persists a new icon onto a Page's frontmatter — sets `icon` on a copy of
     /// the current frontmatter and routes through `updatePageFrontmatter`, which
     /// atomically rewrites the `.md` (preserving the body + bumping `modifiedAt`),
     /// refreshes the in-memory cache, and re-indexes.
-    func updatePageIcon(_ page: PageMeta, to icon: String?, vault: PageType, collection: PageCollection?) async throws {
+    func updatePageIcon(
+        _ page: PageMeta, to icon: String?, vault: PageType, collection: PageCollection?,
+        set: PageSet? = nil
+    ) async throws {
         var fm = page.frontmatter
         fm.icon = icon
-        try await updatePageFrontmatter(page, frontmatter: fm, vault: vault, collection: collection)
+        try await updatePageFrontmatter(
+            page, frontmatter: fm, vault: vault, collection: collection, set: set)
     }
 
     // MARK: - Context-delete cascade (Phase 18b)

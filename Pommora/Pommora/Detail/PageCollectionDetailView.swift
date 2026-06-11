@@ -12,9 +12,12 @@ struct PageCollectionDetailView: View {
     var trailPage: PageMeta? = nil
 
     @State private var isCreatingPage: Bool = false
+    @State private var isCreatingSet: Bool = false
 
     @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageSetManager.self) private var pageSetManager
+    @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
@@ -31,7 +34,12 @@ struct PageCollectionDetailView: View {
             footer
         }
         .task(id: collection.id) {
+            // Root pages + every Set's pages — Set rows render in this table
+            // below the root zone, so their caches must be warm too.
             await contentManager.loadAll(for: collection)
+            for set in pageSetManager.pageSets(in: collection) {
+                await contentManager.loadAll(for: set)
+            }
         }
         .alert("Rename", isPresented: renameAlertBinding) {
             TextField("Title", text: $renameDraft)
@@ -116,6 +124,7 @@ struct PageCollectionDetailView: View {
             TableColumnForEach(userPropertyColumns, id: \.id) { def in
                 TableColumn(def.name) { row in
                     if case .page(let pageMeta) = row.kind {
+                        let parentSet = setContaining(pageID: pageMeta.id)
                         PropertyCellEditor(
                             definition: def,
                             value: def.type == .relation
@@ -129,7 +138,8 @@ struct PageCollectionDetailView: View {
                                         propertyID: def.id,
                                         newValue: newValue,
                                         vault: vault,
-                                        collection: collection
+                                        collection: collection,
+                                        set: parentSet
                                     )
                                 }
                             },
@@ -174,11 +184,21 @@ struct PageCollectionDetailView: View {
 
     /// Row drop handler — persists via manager. `offset` is the insertion index
     /// the table reports; unknown payloads and no-ops are dropped by the planner.
+    ///
+    /// Scoped to the collection-root zone: Set pages render below the root
+    /// pages (flat concatenation until grouping ships), and their order
+    /// belongs to each Set's own `pageOrder` — a drag that starts on or lands
+    /// past the root zone is rejected.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        guard let plan = DetailReorderPlanner.plan(rows: rows, movingRowID: payload.rowID, dropOffset: offset) else {
+        let rootRows = Array(rows.prefix(contentManager.pages(in: collection).count))
+        guard rootRows.contains(where: { $0.id == payload.rowID }), offset <= rootRows.count else {
             return
         }
+        guard
+            let plan = DetailReorderPlanner.plan(
+                rows: rootRows, movingRowID: payload.rowID, dropOffset: offset)
+        else { return }
         if plan.kind == .page {
             contentManager.reorderPages(in: collection, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
         }
@@ -197,19 +217,28 @@ struct PageCollectionDetailView: View {
     }
 
     private var footer: some View {
+        let setLabel = settingsManager.settings.labels.pageSet.singular
         var crumbs: [FooterCrumb] = [
             FooterCrumb(title: vault.title) { selection = .pageType(vault) },
             FooterCrumb(title: collection.title),
         ]
-        if let trail = trailPage,
-            contentManager.pages(in: collection).contains(where: { $0.id == trail.id })
-        {
-            crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
+        if let trail = trailPage {
+            if contentManager.pages(in: collection).contains(where: { $0.id == trail.id }) {
+                crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
+            } else if let set = setContaining(pageID: trail.id) {
+                // Trail page lives in one of this collection's Sets — show the
+                // Set as a non-clickable ghost segment ahead of the page crumb.
+                crumbs.append(FooterCrumb(title: set.title, isGhost: true))
+                crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { selection = .page(trail) })
+            }
         }
         return DetailFooterBar(crumbs: crumbs) {
             FooterAddMenuButton(
-                items: [.init(label: "New Page", isDisabled: isCreatingPage, action: createPage)],
-                allDisabled: isCreatingPage
+                items: [
+                    .init(label: "New Page", isDisabled: isCreatingPage, action: createPage),
+                    .init(label: "New \(setLabel)", isDisabled: isCreatingSet, action: createSet),
+                ],
+                allDisabled: isCreatingPage && isCreatingSet
             )
         }
     }
@@ -243,8 +272,43 @@ struct PageCollectionDetailView: View {
         }
     }
 
+    /// Stub-and-edit "New Set" trigger from the detail-view footer. Mirrors
+    /// PageCollectionRow's createPageSet — same default-title resolver, same
+    /// justCreatedID + editingID flip so the new sidebar row opens in rename
+    /// mode while this view's table picks up the (empty) Set.
+    private func createSet() {
+        guard !isCreatingSet else { return }
+        isCreatingSet = true
+        let label = settingsManager.settings.labels.pageSet.singular
+        let existing = pageSetManager.pageSets(in: collection).map(\.title)
+        let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
+        Task {
+            defer { isCreatingSet = false }
+            do {
+                _ = try await CreateWithInlineEdit.run(
+                    create: {
+                        try await pageSetManager.createPageSet(name: title, in: collection)
+                    },
+                    onCreate: { newSet in
+                        editingID = newSet.id
+                        justCreatedID = newSet.id
+                    }
+                )
+            } catch {
+                // pendingError set by manager; toast surfaces.
+            }
+        }
+    }
+
+    /// Collection-root pages (per `collection.pageOrder`) followed by each
+    /// Set's pages in `pageSets(in:)` order, each per its own `pageOrder` —
+    /// both already resolved by the managers' load paths. Flat concatenation
+    /// for now; visual grouping ships with the Views cluster.
     private var rows: [DetailRow] {
-        contentManager.pages(in: collection).map { p in
+        let rootPages = contentManager.pages(in: collection)
+        let setPages = pageSetManager.pageSets(in: collection)
+            .flatMap { contentManager.pages(in: $0) }
+        return (rootPages + setPages).map { p in
             DetailRow(
                 id: "page-\(p.id)",
                 title: p.title,
@@ -256,13 +320,24 @@ struct PageCollectionDetailView: View {
         }
     }
 
+    /// The PageSet (if any) whose loaded pages include `pageID` — nil for
+    /// collection-root pages. Same in-memory parent lookup as
+    /// PageTypeDetailView's `collectionContaining`; called on actions, not
+    /// in render.
+    private func setContaining(pageID: String) -> PageSet? {
+        pageSetManager.pageSets(in: collection).first { set in
+            contentManager.pages(in: set).first { $0.id == pageID } != nil
+        }
+    }
+
     @ViewBuilder
     private func menuItems(for row: DetailRow) -> some View {
         switch row.kind {
         case .page(let meta):
             Button("Edit Title") { beginRename(row) }
             Button("Edit Icon") {
-                presentedSheet = .editIcon(.page(meta, vault: vault, collection: collection))
+                presentedSheet = .editIcon(
+                    .page(meta, vault: vault, collection: collection, set: setContaining(pageID: meta.id)))
             }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()
@@ -297,7 +372,12 @@ struct PageCollectionDetailView: View {
             do {
                 switch row.kind {
                 case .page(let p):
-                    try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
+                    if let set = setContaining(pageID: p.id) {
+                        try await contentManager.renamePage(
+                            p, to: newName, in: set, collection: collection, vault: vault)
+                    } else {
+                        try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
+                    }
                 case .collection:
                     break
                 }
@@ -311,7 +391,11 @@ struct PageCollectionDetailView: View {
         do {
             switch row.kind {
             case .page(let p):
-                try await contentManager.deletePage(p, in: collection)
+                if let set = setContaining(pageID: p.id) {
+                    try await contentManager.deletePage(p, in: set)
+                } else {
+                    try await contentManager.deletePage(p, in: collection)
+                }
             case .collection:
                 break
             }

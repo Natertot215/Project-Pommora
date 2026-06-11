@@ -54,7 +54,7 @@ struct IconPickerSheet: View {
         case .pageType(let t): return t.icon
         case .pageCollection(let c): return c.icon
         case .pageSet(let s): return s.icon
-        case .page(let p, _, _): return p.frontmatter.icon
+        case .page(let p, _, _, _): return p.frontmatter.icon
         }
     }
 
@@ -79,8 +79,11 @@ struct IconPickerSheet: View {
         case .pageSet(let s):
             do { try await pageSetManager.updatePageSetIcon(s, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
-        case .page(let p, let vault, let collection):
-            do { try await pageContentManager.updatePageIcon(p, to: newIcon, vault: vault, collection: collection) } catch
+        case .page(let p, let vault, let collection, let set):
+            do {
+                try await pageContentManager.updatePageIcon(
+                    p, to: newIcon, vault: vault, collection: collection, set: set)
+            } catch
             { /* pendingError set by manager; toast surfaces */  }
         }
     }

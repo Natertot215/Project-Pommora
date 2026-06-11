@@ -359,7 +359,7 @@ struct PageTypeDetailView: View {
         case .page(let meta):
             Button("Edit Title") { beginRename(row) }
             Button("Edit Icon") {
-                presentedSheet = .editIcon(.page(meta, vault: pageType, collection: nil))
+                presentedSheet = .editIcon(.page(meta, vault: pageType, collection: nil, set: nil))
             }
             Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
                 row.togglePin()

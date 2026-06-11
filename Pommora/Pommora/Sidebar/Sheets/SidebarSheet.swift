@@ -21,7 +21,7 @@ enum SidebarSheet: Identifiable {
         case pageType(PageType)
         case pageCollection(PageCollection)
         case pageSet(PageSet)
-        case page(PageMeta, vault: PageType, collection: PageCollection?)
+        case page(PageMeta, vault: PageType, collection: PageCollection?, set: PageSet?)
     }
 
     var id: String {
@@ -34,7 +34,7 @@ enum SidebarSheet: Identifiable {
             case .pageType(let t): return "editIcon-pageType-\(t.id)"
             case .pageCollection(let c): return "editIcon-pageCollection-\(c.id)"
             case .pageSet(let s): return "editIcon-pageSet-\(s.id)"
-            case .page(let p, _, _): return "editIcon-page-\(p.id)"
+            case .page(let p, _, _, _): return "editIcon-page-\(p.id)"
             }
         case .editColor(let s): return "editColor-\(s.id)"
         }
