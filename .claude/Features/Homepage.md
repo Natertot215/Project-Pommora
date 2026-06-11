@@ -45,7 +45,7 @@ The block catalog (shared with Contexts; `ContextBlock` is an empty placeholder 
 
 Every widget is a **live, fully-editable view of its source**, never a read-only snapshot; edits flow to source files via atomic write (inline-editing principle → [[Domain-Model]]).
 
-**Value rendering inside widgets** mirrors the rest of the app: tier relation values (Spaces / Topics / Projects) render as the target entity's **icon + title in plain styled colored text** — never chips/pills — resolved live from the target; body wikilinks render as inline styled colored text. Both resolve by ID, so renaming a target updates the rendered label without rewriting the source.
+**Value rendering inside widgets** mirrors the rest of the app: tier relation values (Areas / Topics / Projects) render as the target entity's **icon + title in plain styled colored text** — never chips/pills — resolved live from the target; body wikilinks render as inline styled colored text. Both resolve by ID, so renaming a target updates the rendered label without rewriting the source.
 
 ---
 

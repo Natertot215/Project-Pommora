@@ -88,7 +88,7 @@ id: 01HPAGE...
 created_at: 2026-05-24T...
 modified_at: 2026-05-24T...
 icon: doc.text
-tier1: [01HSPACE...]
+tier1: [01HAREA...]
 tier2: [01HTOPIC...]
 prop_01HXY...: { $status: active }         # display name: "Status" — tagged-object form
 prop_01HAB...: ["research", "frontend"]    # display name: "Tags"  (Multi-select stays bare-array)
@@ -149,7 +149,7 @@ Connections resolve by globally-unique title. Disk format: plain `[[Title]]` (Ob
 Operational entities (Pages, Agenda Tasks, Agenda Events) each carry three tier relation properties pointing to Contexts. They store at the frontmatter / JSON root (not under `properties`) as ID arrays:
 
 ```yaml
-tier1: [<space-id>, ...]   # Spaces (Context tier 1)
+tier1: [<area-id>, ...]    # Areas (Context tier 1)
 tier2: [<topic-id>, ...]   # Topics (Context tier 2)
 tier3: [<project-id>, ...] # Projects (Context tier 3)
 ```
@@ -211,9 +211,9 @@ Reserved property ID `_status` on both AgendaTask and AgendaEvent schemas. Users
 
 #### Relation values bind to specific entities
 
-The VALUE of a tier relation property is always one or more specific Contexts' ULIDs — specific Spaces, Topics, or Projects. Never a Type-abstraction.
+The VALUE of a tier relation property is always one or more specific Contexts' ULIDs — specific Areas, Topics, or Projects. Never a Type-abstraction.
 
-**The target is the picker constraint, not what the value points at.** Each tier property (`_tier1` / `_tier2` / `_tier3`) narrows the picker to the corresponding Context tier (Spaces / Topics / Projects). The user picks specific Contexts from that filtered set; the stored value is those Contexts' ULIDs.
+**The target is the picker constraint, not what the value points at.** Each tier property (`_tier1` / `_tier2` / `_tier3`) narrows the picker to the corresponding Context tier (Areas / Topics / Projects). The user picks specific Contexts from that filtered set; the stored value is those Contexts' ULIDs.
 
 Tier values are always multi-value — stored as an array. A single chosen Context is stored as a 1-element array. The VALUE is always specific.
 
@@ -224,7 +224,7 @@ Tier values are always multi-value — stored as an array. A single chosen Conte
 The sole active relation target is `context_tier`. It carries the tier number and backs the three built-in tier properties:
 
 ```json
-{ "kind": "context_tier", "tier": 1 }   // _tier1 → Spaces
+{ "kind": "context_tier", "tier": 1 }   // _tier1 → Areas
 { "kind": "context_tier", "tier": 2 }   // _tier2 → Topics
 { "kind": "context_tier", "tier": 3 }   // _tier3 → Projects
 ```
@@ -237,7 +237,7 @@ Context-tier pickers query the SQLite `context_links` table.
 
 #### Context-side linked-from picker
 
-A Context (Space / Topic / Project) shows what links to it through a dropdown surface — `LinkedFromDropdown`. Because the built-in tier relations are one-directional (Contexts carry no `properties[]` schema), the Context can't store an explicit reverse list; instead the dropdown reads the incoming edges live from the SQLite index via `IndexQuery.incomingContextLinks(targetID:)`, which returns every entity whose `tier1` / `tier2` / `tier3` points at that Context. Each row renders through the same `ContextChip` primitive (target icon + title). The full surface is a follow-on.
+A Context (Area / Topic / Project) shows what links to it through a dropdown surface — `LinkedFromDropdown`. Because the built-in tier relations are one-directional (Contexts carry no `properties[]` schema), the Context can't store an explicit reverse list; instead the dropdown reads the incoming edges live from the SQLite index via `IndexQuery.incomingContextLinks(targetID:)`, which returns every entity whose `tier1` / `tier2` / `tier3` points at that Context. Each row renders through the same `ContextChip` primitive (target icon + title). The full surface is a follow-on.
 
 ---
 
@@ -474,7 +474,7 @@ Three orderings, three layers:
 
 #### Built-in tier columns in Table views
 
-The three tier relations (Spaces / Topics / Projects) surface in a Table view as pre-configured relation columns at the RIGHTMOST content positions — after every user-property column and immediately before the trailing Last Edited Time column. Order is Project, then Topic, then Space (`_tier3`, `_tier2`, `_tier1`). They render through `ContextChip` like any relation column and are reorderable + hideable like any column (hidden via Property Visibility). A schema without tiers (e.g. a Type that doesn't carry them) gets no tier columns.
+The three tier relations (Areas / Topics / Projects) surface in a Table view as pre-configured relation columns at the RIGHTMOST content positions — after every user-property column and immediately before the trailing Last Edited Time column. Order is Project, then Topic, then Area (`_tier3`, `_tier2`, `_tier1`). They render through `ContextChip` like any relation column and are reorderable + hideable like any column (hidden via Property Visibility). A schema without tiers (e.g. a Type that doesn't carry them) gets no tier columns.
 
 ---
 
@@ -492,7 +492,7 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 - [[Domain-Model]] — 2-layer domain model overview
 - [[PageTypes]] — Page Type + Page Collection container layer
 - [[Agenda]] — AgendaTask + AgendaEvent split; per-side schemas
-- [[Contexts]] — Spaces / Topics / Projects tier system
+- [[Contexts]] — Areas / Topics / Projects tier system
 - [[Pages]] — on-disk shape, connection mechanics
 - [[Prospects]] — post-v1 deferrals
 - [[Framework]] — version roadmap

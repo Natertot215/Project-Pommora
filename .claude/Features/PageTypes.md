@@ -194,7 +194,7 @@ Page Collections don't carry their own `properties` — the property schema is i
 
 Five view types: **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
 
-Table views carry **pre-configured tier columns** — rendered left-to-right as Project / Topic / Space (`tier3` / `tier2` / `tier1`) — at the rightmost content positions, between the last user-property column and the trailing Last Edited Time column. Each is a relation column rendering target icon + title, default-visible and individually hideable.
+Table views carry **pre-configured tier columns** — rendered left-to-right as Project / Topic / Area (`tier3` / `tier2` / `tier1`) — at the rightmost content positions, between the last user-property column and the trailing Last Edited Time column. Each is a relation column rendering target icon + title, default-visible and individually hideable.
 
 **Every storage container has view surfaces** — not just the schema-bearing Types. Page Types AND Page Collections both carry `views[]`. The property schema is inherited from the Type, but each container's saved view configuration is independent — a Page Collection can show a Board filtered to a subset of its Pages while the parent Page Type shows a Table.
 

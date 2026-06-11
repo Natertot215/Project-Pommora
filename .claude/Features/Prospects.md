@@ -23,7 +23,7 @@ On native TextKit 2, hosting a non-text view inline requires custom layout-attac
 **Description:** Allow a Page to declare properties not in its parent Page Type's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Page Type. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
 
 #### Cloud sync (Supabase or otherwise)
-**Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `page_type_id` + `properties` JSONB; each Page Type's `_pagetype.json` → a row in a `types` table; each Context (Space / Topic / Project) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
+**Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `page_type_id` + `properties` JSONB; each Page Type's `_pagetype.json` → a row in a `types` table; each Context (Area / Topic / Project) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
 
 #### Mobile companion (iOS / iPad)
 **Description:** Real long-term intent. Read + edit access to the nexus from mobile. Same Swift Package codebase ships to iPad and iOS with platform adaptations — the natural growth path on the current stack. React pivot path → `// ReactInfo// ReactInfo.md`.
@@ -40,8 +40,8 @@ On native TextKit 2, hosting a non-text view inline requires custom layout-attac
 The full Settings UI ships v0.6.0 and brings:
 
 - **Accent color picker** — replace the JSON-edited hex value with a swatch grid + custom color well, plus live preview across selection chrome and link styling.
-- **Label rename forms** — text inputs for every renameable label (the Spaces / Topics / Vaults section headings, "Vault" / "Collection" defaults, "Task" / "Event" defaults, tier labels). Per-Nexus scope.
-- **Tier-config consolidation** — the existing `.nexus/tier-config.json` (Space / Topic / Project label customization) folds into the same Settings surface so all label customization lives in one place.
+- **Label rename forms** — text inputs for every renameable label (the Areas / Topics / Vaults section headings, "Vault" / "Collection" defaults, "Task" / "Event" defaults, tier labels). Per-Nexus scope.
+- **Tier-config consolidation** — the existing `.nexus/tier-config.json` (Area / Topic / Project label customization) folds into the same Settings surface so all label customization lives in one place.
 
 Slotted v0.6.0 (Settings + Quick Capture + LLM + global search batch).
 
@@ -64,7 +64,7 @@ Slotted v0.6.0 (Settings + Quick Capture + LLM + global search batch).
 **Description:** Now committed roadmap, not a post-v1 prospect — full concept + architecture in [[QuickCapture]] (roadmap slot → `Framework.md` v0.6.0). A menu-bar capture pane (and an optional browser / Share-sheet web-clip route) adds Pages / Agenda Tasks / Agenda Events directly to the nexus as another in-process entry point. Kept here only as a redirect.
 
 #### Hover-icon "+" affordance on sidebar section headings
-**Description:** Visible counterpart to the right-click creation menu — section headings (Spaces / Topics / Vaults) get a hover-revealed "+" icon at the trailing edge (same pattern as the disclosure chevron). Click triggers the section's default new sheet. **Explicitly skipped in v0.2** in favor of right-click-only; if sidebar discoverability becomes a friction point pre-quick-capture, this is the open slot. After quick-capture ships, this likely stays deferred indefinitely — quick-capture is the primary discoverable path.
+**Description:** Visible counterpart to the right-click creation menu — section headings (Areas / Topics / Vaults) get a hover-revealed "+" icon at the trailing edge (same pattern as the disclosure chevron). Click triggers the section's default new sheet. **Explicitly skipped in v0.2** in favor of right-click-only; if sidebar discoverability becomes a friction point pre-quick-capture, this is the open slot. After quick-capture ships, this likely stays deferred indefinitely — quick-capture is the primary discoverable path.
 
 #### Pinned-page user pinning (the "Saved" section's real role)
 **Description:** v0.2 ships the Saved section heading-less with three fixed entries (Homepage / Calendar / Recents). Post-v1: users pin arbitrary Pages / Agenda Tasks / Agenda Events / Contexts; section gets "Saved" heading + "+" affordance; defaults become movable. `saved-config.json` already accommodates arbitrary `SavedConfig.Item` entries.

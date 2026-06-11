@@ -58,7 +58,7 @@ Window title suppressed (`.windowToolbarStyle(.unified(showsTitle: false))`).
 ├─────────────────────────────────────────┤
 │  ▦  Stoic Reflections          Page    │
 │  📖 Reading List               Vault    │
-│  🎨 Studio                     Space    │
+│  🎨 Studio                     Area     │
 │  ▦  Q3 Plan                    Page    │
 │  ▦  Meeting Notes              Page    │
 │  📚 Productivity               Topic    │
@@ -85,7 +85,7 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 [icon] [title — truncates with ellipsis] [type chip]
 ```
 
-- **Icon** (`EntityRow.iconName`) — the entity's own custom `icon` if set (resolved live via `SidebarSelection(stateRef:lookup:).resolvedIcon`, since `EntityStateRef` stores no icon), else the per-kind default (`EntityRow.defaultIcon`): Page = `doc.text`, Vault = `book`, Collection = `tray.2`, Space = `rectangle.3.group`, Topic / Project = `folder`, Agenda = `calendar`, unknown kind = `questionmark.circle`. Defaults are outline (non-`.fill`) so an unset entity never reads as a filled state.
+- **Icon** (`EntityRow.iconName`) — the entity's own custom `icon` if set (resolved live via `SidebarSelection(stateRef:lookup:).resolvedIcon`, since `EntityStateRef` stores no icon), else the per-kind default (`EntityRow.defaultIcon`): Page = `doc.text`, Vault = `book`, Collection = `tray.2`, Area = `rectangle.3.group`, Topic / Project = `folder`, Agenda = `calendar`, unknown kind = `questionmark.circle`. Defaults are outline (non-`.fill`) so an unset entity never reads as a filled state.
 - **Title** — `Text(ref.title).lineLimit(1).truncationMode(.tail)`
 - **Type chip** — full-word, `.font(.caption)`, `.foregroundStyle(.secondary)`, trailing
 
@@ -103,7 +103,7 @@ Pinned and Recents lists render from `@State pinnedSnapshot` / `recentsSnapshot`
 
 On double-click, `handleOpen(ref)` dispatches by `ref.typedKind`:
 
-- **`.page` / `.vault` / `.space` / `.topic` / `.project` / `.collection`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:lookup:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
+- **`.page` / `.vault` / `.area` / `.topic` / `.project` / `.collection`** — closes popover, calls `onOpen(sel)` with a `SidebarSelection` built via `SidebarSelection.init?(stateRef:lookup:)`. ContentView's closure writes to its `sidebarSelection` `@State`; the main detail pane swaps.
 - **`.agenda` / `.none`** — no-op. Agenda surfaces ship v0.5.0.
 
 ##### Routing architecture
@@ -139,7 +139,7 @@ The dropdown always opens Pages in the main detail pane — it does not consult 
 
 `isNavigatingHistory` is true during back/forward stepping so cursor movement doesn't re-record the older entity (which would reset cursor to 0 and break LRU order).
 
-**What records (`RecentsManager.recordableKinds`):** Pages plus the storage containers (Vault / Collection). Contexts (Spaces / Topics / Projects) stay out — they're reached via the sidebar. Containers are recorded and steppable (Back/Forward walks them) but **hidden from the dropdown's Recents list** (`dropdownTop` filters `containerKinds`), so the dropdown shows Pages only.
+**What records (`RecentsManager.recordableKinds`):** Pages plus the storage containers (Vault / Collection). Contexts (Areas / Topics / Projects) stay out — they're reached via the sidebar. Containers are recorded and steppable (Back/Forward walks them) but **hidden from the dropdown's Recents list** (`dropdownTop` filters `containerKinds`), so the dropdown shows Pages only.
 
 ---
 
@@ -160,7 +160,7 @@ The dropdown always opens Pages in the main detail pane — it does not consult 
 | Page | "Page" | ✓ (main-frame land) | ✓ | ✓ |
 | Vault | "Vault" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
 | Collection | "Collection" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
-| Space / Topic / Project | "Space" / "Topic" / "Project" | ✗ — reached via sidebar | — | ✓ (legacy pins still resolve) |
+| Area / Topic / Project | "Area" / "Topic" / "Project" | ✗ — reached via sidebar | — | ✓ (legacy pins still resolve) |
 | Agenda | **"Task"** | ✗ (TBD at v0.5.0) | — | ✗ — v0.5.0+ |
 | Homepage | — | excluded | — | never |
 
@@ -201,11 +201,11 @@ The dropdown always opens Pages in the main detail pane — it does not consult 
 
 **`EntityStateRef` fields** (`kind` / `id` / `title`):
 
-- `kind` — raw String mapped to the `Kind` enum (`page` / `vault` / `collection` / `space` / `topic` / `project` / `agenda`). Raw String allows forward-compat — an unknown or retired kind decodes with `typedKind == nil` and is skipped.
+- `kind` — raw String mapped to the `Kind` enum (`page` / `vault` / `collection` / `area` / `topic` / `project` / `agenda`). Raw String allows forward-compat — an unknown or retired kind decodes with `typedKind == nil` and is skipped.
 - `id` — ULID of the underlying entity (rename-safe)
 - `title` — denormalized, refreshed on resolve. Used for orphan display after deletion.
 
-`NexusState` also holds a top-level `cursor` (Recents position for back/forward; 0 = newest) and per-section order arrays (`spaceOrder` / `topicOrder` / `vaultOrder`, the persisted sidebar reorder; nil until the user reorders).
+`NexusState` also holds a top-level `cursor` (Recents position for back/forward; 0 = newest) and per-section order arrays (`areaOrder` / `topicOrder` / `vaultOrder`, the persisted sidebar reorder; nil until the user reorders).
 
 **Equality / hash** by `(kind, id)` — a renamed entity stays the same record.
 

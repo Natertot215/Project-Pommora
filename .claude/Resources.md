@@ -71,7 +71,7 @@ declare `QLSupportedContentTypes` for `net.daringfireball.markdown`. Renders Pom
 - **CommonMark** — base Markdown spec. [Site](https://commonmark.org/)
 - **GFM** — GitHub-flavored Markdown extensions (tables, strikethrough, task lists). [Spec](https://github.github.com/gfm/)
 - **YAML 1.2** — frontmatter format. [Spec](https://yaml.org/spec/1.2.2/)
-- **ULID** — sortable IDs (Pages, Collections, Spaces). [Spec](https://github.com/ulid/spec)
+- **ULID** — sortable IDs (Pages, Collections, Areas). [Spec](https://github.com/ulid/spec)
 - **Notion data model** — reference for property types, database conventions. [Notion blog](https://www.notion.com/blog/data-model-behind-notion)
 
 ---

@@ -18,7 +18,7 @@ The Connection **system is Pommora's own code**: the grammar, the parser, the re
 
 `[[Title]]` targets a **Page**; the source is any Page body.
 
-**Not connection targets:** Contexts (Spaces / Topics / Projects) are reached only through tier relations, never inline. Agenda Tasks / Events are excluded in v1 (a future "Tasks" / "Events" property mechanism will cover them).
+**Not connection targets:** Contexts (Areas / Topics / Projects) are reached only through tier relations, never inline. Agenda Tasks / Events are excluded in v1 (a future "Tasks" / "Events" property mechanism will cover them).
 
 **Authored in Markdown bodies only.** Context and Homepage block surfaces (JSON, not Markdown) are not connection sources in v1 — inline connections inside composed-block surfaces are deferred.
 

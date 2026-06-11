@@ -6,7 +6,7 @@ Phased plan in chronological order; no calendar dates. Each version ships green 
 
 A Markdown-canonical, SQLite-indexed personal management platform combining Obsidian's local-first openness with Notion's database and view capabilities. **2-layer PARA-aligned domain model:**
 
-- **Organization layer — Contexts** (Spaces / Topics / Projects, 3 tiers) — composed-blocks surfaces
+- **Organization layer — Contexts** (Areas / Topics / Projects, 3 tiers) — composed-blocks surfaces
 - **Operational layer:**
   - **Pages** — Page Types → Page Collections → Pages (`.md`). UI labels default to "Vault" + "Collection"
   - **Agenda** — Agenda Tasks (`.task.json`, EKReminder-aligned) + Agenda Events (`.event.json`, EKEvent-aligned)
@@ -30,7 +30,7 @@ Toolchain proof. macOS 26+ (Tahoe). Three-pane shell — sidebar (240) / main (f
 Sandboxed picker, security-scoped bookmark persistence, `.nexus/` init flow, per-nexus App Support subdir keyed by ULID. Sidebar mirrors picked folder showing `.md` + `.json`. File menu → Open Nexus; Debug menu → Reset Bookmark. 25 unit tests pass.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX
-Single 69-commit branch that scaffolded the full locked paradigm. Every entity is CRUD-able end-to-end via sidebar + sheets + detail pane. Spaces / Topics / Vaults sections in the sidebar with Pages disclosed under Vaults/Collections; Agenda lives in detail-pane Tables. 177 unit tests at merge.
+Single 69-commit branch that scaffolded the full locked paradigm. Every entity is CRUD-able end-to-end via sidebar + sheets + detail pane. Areas / Topics / Vaults sections in the sidebar with Pages disclosed under Vaults/Collections; Agenda lives in detail-pane Tables. 177 unit tests at merge.
 
 ##### v0.2.1–v0.2.6 — Infrastructure baseline
 Parallel-session sidebar UX tweaks, CodeRabbit tightening, GitHub Actions CI (`runs-on: macos-26`), `swift-format` baseline + `.swift-format` config + CI lint step, `.trash//` data foundation (5 new APIs + 10 manager delete-site swaps; deletes recoverable from disk; in-app Trash window slot at v0.4.0).
@@ -51,7 +51,7 @@ HR jitter fix (layout-constant; only foreground color toggles). Bullet glyph sub
 Always-show overlay; renderer-drawn rounded card with continuous vertical pill accent bar (Notion/Obsidian-style). Per-fragment corner-rounding for multi-line visual continuity. Activation `> ` (marker + space); plain Enter continues, Shift+Enter exits. `>` marker hidden in-editor; on disk standard CommonMark.
 
 ##### v0.2.8 — Sidebar drag-to-reorder
-Phase 1 persistence shipped (`OrderResolver` + `OrderPersister` + per-sidecar order fields). Phase 2 UX shipped on Pages-side + Contexts rows (PageType / Topic / Space / Page / PageCollection / Project). NavDropdown Pinned reorder + cross-container drag + detail-pane Table reorder remain queued.
+Phase 1 persistence shipped (`OrderResolver` + `OrderPersister` + per-sidecar order fields). Phase 2 UX shipped on Pages-side + Contexts rows (PageType / Topic / Area / Page / PageCollection / Project). NavDropdown Pinned reorder + cross-container drag + detail-pane Table reorder remain queued.
 
 ##### v0.3.0 — Properties (data layer + SQLite + placeholder UI)
 The data-layer chapter. 71 commits across 11 phases A–K, merged to main 2026-05-25.
@@ -112,7 +112,7 @@ EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*
 - **(folded) Recents full-frame view.** The Saved-section `Recents` pin opens a full-frame view of the Recents store (up to 500, with sort + filter) — the same data the NavDropdown shows as its top 100.
 
 ##### v0.8.0 — Contexts + Homepage editor
-- **Contexts + Homepage block editor.** The composed-blocks surface (Spaces / Topics / Projects / Homepage) gets its editor — paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (inline-editable per the locked principle, not snapshots — renderers shipped v0.5.0), linked-pages widget, link-list widget, mini-calendar widget; drag-and-drop reorder + slash-menu insertion.
+- **Contexts + Homepage block editor.** The composed-blocks surface (Areas / Topics / Projects / Homepage) gets its editor — paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (inline-editable per the locked principle, not snapshots — renderers shipped v0.5.0), linked-pages widget, link-list widget, mini-calendar widget; drag-and-drop reorder + slash-menu insertion.
 - **Context Linked-from surface.** The real `LinkedFromDropdown` (stub today at `Detail/LinkedFromDropdown.swift`): a dropdown listing every operational entity whose `tier1/2/3` points at the Context, via `IndexQuery.incomingContextLinks(targetID:)` (shipped). Supporting bits: `EntityStateRef.iconName`, `EntityKind.displayLabel`, an `EntityStateRef → SidebarSelection` navigation resolver, and a host slot.
 
 ##### v1.0.0 — Stabilization
