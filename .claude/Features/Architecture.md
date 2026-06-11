@@ -63,7 +63,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 
 **Hidden + private.** `.nexus/` and `.trash/` (leading dot) are hidden from the sidebar and from non-Pommora tools by convention (matches `.obsidian/`). Pommora's own writes to `.nexus/` don't surface in the user-facing tree.
 
-**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Areas / Topics / Projects) never consult the filter. Stale entries are inert (git semantics); editing UI ships with the v0.6.0 Settings panel. Spec → `Planning/2026-06-03-Folder-Exclusion-Plan.md`.
+**User folder exclusion.** Beyond the built-in convention skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths (`Archive`, `Projects/Old`) that Pommora ignores *completely*: never adopted, shown in the sidebar, indexed, walked for content, or touched by the launch auto-tag pass, at any depth. The single rule is `FolderFilter` (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected), loaded from disk via `FolderFilter.load(for:)` — so it works in the index-rebuild pass that runs before `NexusEnvironment` exists — and applied as a subtractive veto *in front of* every user-content discovery site through a defaulted `folderFilter:` parameter on `Filesystem.childFolders` / `descendantFiles`. The per-kind positive discovery (each kind finds its own sidecar) is unchanged; the `.nexus/` internal Context reads (Areas / Topics / Projects) never consult the filter. Stale entries are inert (git semantics); editing UI is deferred to the Settings panel.
 
 ---
 
@@ -121,15 +121,9 @@ Every file write goes through one of three atomic-write helpers:
 
 ---
 
-#### File-watcher contract (deferred — `Framework.md` v0.4.0)
+#### File-watcher contract (deferred)
 
-External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. Planned shape:
-
-- **FSEventStream** — recursive watch on the Nexus root with a per-event payload (`DispatchSource.makeFileSystemObjectSource` is per-fd, no recursion).
-- **Self-write filtering** — debounce 50–100ms by path; track outbound mtimes so Pommora's own `.tmp` + rename writes don't round-trip through the watcher.
-- **Lost-update protection** — on entity save, compare on-disk mtime to the last-loaded version; prompt to reload before overwriting if it drifted.
-
-The atomic-write discipline + IndexUpdater shape already support this — the watcher is a wiring task, not an architectural change.
+External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. Uses `FSEventStream` (recursive watch on the Nexus root) with self-write filtering (debounce by path + outbound mtime tracking) and lost-update protection (mtime compare before overwriting). The atomic-write discipline + `IndexUpdater` shape already support this — the watcher is a wiring task, not an architectural change.
 
 ---
 
@@ -173,7 +167,6 @@ No enforced layer separation. Patterns that keep the data layer tractable:
 - **View specs are data** (filter / sort / group / shown-properties on each storage container's `views[]`).
 - **File renames + connection resolution as algorithm.** Connections resolve by title at render time (backed by index-based ID lookup); renames are pure filesystem renames followed by a cascade body-rewrite of all referencing files.
 - **Agent-legibility check per decision** — would an external file-only agent still see this? If no, revisit.
-- **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for module name, app branding, documentation; not allowed in JSON field names (`pommora_*`) or as a Swift type discriminator (`Pommora.X`). Side-prefixed names are canonical when collisions arise (`AgendaTask` not `Pommora.Task`).
 
 ---
 

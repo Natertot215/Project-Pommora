@@ -174,10 +174,5 @@ When adjusting sidebar geometry, the mechanism depends on what's being adjusted 
 
 #### Section ordering
 
-User-reorderable in v1.x (drag headings up/down). Initial-boot order is **Pinned (heading-less) / Contexts / Vaults / user sections** as shown above. Order persists per Nexus in `.nexus/state.json` (alongside other sidebar UI state).
+Initial-boot order: Pinned (heading-less) / Contexts / Vaults / user sections. Order persists per Nexus in `.nexus/state.json`.
 
----
-
-#### Open until content lands
-
-Hover treatment, keyboard navigation, focus-ring styling, row-density tuning, and Page-row icon hover behavior all resolve once real content lands. Captured intent: a third hovered state subtler than the selected fill.

@@ -27,6 +27,8 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **Simplicity-first.** Don't add complexity that wasn't asked for. If it can be simplified, simplify it.
 
+- **Versioning.** AVOID referencing specific versions in the framework as planned places for future features to be implemented. Feature-timing is fragile and declaring versioning of a feature before its worked on is a great way to compile confusion. Versioning should be exclusive to conversation and historical records / feature docs + Framework.  
+
 - **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md` / `Guidelines/Paradigm-Decisions.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. Never accumulate per-session work logs.
 
  - **Re-assess the plan between green commits.**  After each task ships green, read the active plan against what just landed. If the task surfaced wrong assumptions, missing prerequisites, scope drift, or shortened/expanded downstream tasks, rewrite the affected later tasks before dispatching the next one. The plan is the controller's live working theory of the work, not a fixed script — only green commits are facts.

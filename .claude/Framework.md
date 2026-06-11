@@ -88,7 +88,7 @@ Tagged 2026-06-07. 231 commits since v0.3.4.
 Full ship detail → [[History]] § "Connections — page-level complete".
 
 ##### v0.4.0 — Pages unification + PagePreview window (2026-06-09/10)
-The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` (`compact` | `window`) routes page-taps to **PagePreview** — a real `WindowGroup` window restricted to never act as its own app window (no traffic lights / Dock / Window-menu presence; child-attached above the main window; mounts the shared `FrontmatterInspector` at a compact scale) — or the main detail pane; user-creatable sidebar sections group Vaults (navigation-only); index schema v10 → v11 (legacy tables dropped, delete-and-rebuild). Launch/state hardening: XCTest app-state isolation, launch-panel abort retry. Full record + retrospective pointers → [[History]] § "v0.4.0" + § "PagesV2".
+The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` (`compact` | `window`) routes page-taps to **PagePreview** — a real `NSPanel` (not a SwiftUI `WindowGroup`; AppKit is required for no-dim child-window behavior with no traffic lights / Dock / Window-menu presence; child-attached above the main window; mounts the shared `FrontmatterInspector` at a compact scale) — or the main detail pane; user-creatable sidebar sections group Vaults (navigation-only); index schema v10 → v11 (legacy tables dropped, delete-and-rebuild). Launch/state hardening: XCTest app-state isolation, launch-panel abort retry. Full record + retrospective pointers → [[History]] § "v0.4.0" + § "PagesV2".
 
 ---
 
