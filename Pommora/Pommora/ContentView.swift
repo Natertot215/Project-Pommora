@@ -10,7 +10,6 @@ struct ContentView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.openWindow) private var openWindow
-    @State private var searchQuery = ""
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
 
@@ -130,10 +129,6 @@ struct ContentView: View {
 
         NavigationSplitView {
             sidebar
-                .safeAreaInset(edge: .top, spacing: 8) {
-                    SidebarSearchField(text: $searchQuery)
-                        .padding(.horizontal, 10)
-                }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
             detail
@@ -379,35 +374,6 @@ private struct IndexingHUD: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(.separator, lineWidth: 0.5)
         )
-    }
-}
-
-private struct SidebarSearchField: NSViewRepresentable {
-    @Binding var text: String
-
-    func makeNSView(context: Context) -> NSSearchField {
-        let field = NSSearchField()
-        field.delegate = context.coordinator
-        return field
-    }
-
-    func updateNSView(_ nsView: NSSearchField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
-    }
-
-    final class Coordinator: NSObject, NSSearchFieldDelegate {
-        var text: Binding<String>
-        init(text: Binding<String>) { self.text = text }
-        func controlTextDidChange(_ notification: Notification) {
-            guard let field = notification.object as? NSSearchField else { return }
-            text.wrappedValue = field.stringValue
-        }
     }
 }
 
