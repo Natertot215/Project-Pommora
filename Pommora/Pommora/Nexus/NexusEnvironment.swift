@@ -51,6 +51,7 @@ final class NexusEnvironment {
     let topicManager: TopicManager
     let projectManager: ProjectManager
     let vaultManager: PageTypeManager
+    let pageSetManager: PageSetManager
     let contentManager: PageContentManager
     let agendaTaskManager: AgendaTaskManager
     let agendaEventManager: AgendaEventManager
@@ -84,6 +85,13 @@ final class NexusEnvironment {
         let areaMgr = AreaManager(nexus: nexus)
         let projectMgr = ProjectManager(nexus: nexus)
         let vaultMgr = PageTypeManager(nexus: nexus)
+        let pageSetMgr = PageSetManager(nexus: nexus)
+
+        // Collection folder moves (its own rename, or its parent Type's)
+        // re-derive the cached child-Set folder URLs.
+        vaultMgr.onCollectionFolderChanged = { [pageSetMgr] collection in
+            pageSetMgr.rebuildFolderURLs(for: collection)
+        }
 
         let topicMgr = TopicManager(nexus: nexus)
 
@@ -136,6 +144,7 @@ final class NexusEnvironment {
         topicMgr.indexUpdater = updater
         projectMgr.indexUpdater = updater
         vaultMgr.indexUpdater = updater
+        pageSetMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
@@ -150,6 +159,7 @@ final class NexusEnvironment {
         self.topicManager = topicMgr
         self.projectManager = projectMgr
         self.vaultManager = vaultMgr
+        self.pageSetManager = pageSetMgr
         self.contentManager = contentMgr
         self.agendaTaskManager = agendaTaskMgr
         self.agendaEventManager = agendaEventMgr
@@ -181,13 +191,18 @@ final class NexusEnvironment {
         // the parallel load task fires.
         let folderFilter = FolderFilter.load(for: nexus)
 
-        // Initial load — fire all in parallel.
+        // Initial load — vaults first (PageSet discovery walks the loaded
+        // Collections), then everything else in parallel.
         // PageContentManager loads per-collection lazily on detail-view appear.
         Task {
+            await vaultMgr.loadAll(filter: folderFilter)
+            await pageSetMgr.loadAll(
+                collections: vaultMgr.pageCollectionsByType.values.flatMap { $0 },
+                filter: folderFilter
+            )
             async let _ = areaMgr.loadAll()
             async let _ = topicMgr.loadAll()
             async let _ = projectMgr.loadAll()
-            async let _ = vaultMgr.loadAll(filter: folderFilter)
             async let _ = agendaTaskMgr.loadAll()
             async let _ = agendaEventMgr.loadAll()
             async let _ = homepageMgr.load()
@@ -216,6 +231,7 @@ extension View {
             .environment(env.topicManager)
             .environment(env.projectManager)
             .environment(env.vaultManager)
+            .environment(env.pageSetManager)
             .environment(env.contentManager)
             .environment(env.agendaTaskManager)
             .environment(env.agendaEventManager)

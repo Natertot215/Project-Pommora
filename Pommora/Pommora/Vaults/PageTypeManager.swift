@@ -18,6 +18,12 @@ final class PageTypeManager {
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
     var indexUpdater: IndexUpdater?
 
+    /// Fired after a rename moves a PageCollection's folder on disk (its own
+    /// rename, or its parent Page Type's) with the updated collection.
+    /// NexusEnvironment wires this to PageSetManager.rebuildFolderURLs so
+    /// cached child-Set URLs follow the move. Optional — no-op when unset.
+    var onCollectionFolderChanged: (@MainActor (PageCollection) -> Void)?
+
     /// Backing store for the lazily-constructed `schemaAdapter` (declared in the
     /// per-type schema-adapter extension). Held here because stored properties can't
     /// live on an extension. Not observed — purely an internal service bridge.
@@ -260,6 +266,7 @@ final class PageTypeManager {
                         )
                     }
                     pageCollectionsByType[pageType.id] = rebuilt
+                    rebuilt.forEach { onCollectionFolderChanged?($0) }
                 }
                 types = OrderResolver.resolve(
                     types,
@@ -424,6 +431,7 @@ final class PageTypeManager {
                 )
             }
             pageCollectionsByType[pageType.id] = arr
+            onCollectionFolderChanged?(updated)
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error

@@ -61,6 +61,20 @@ enum OrderPersister {
         }
     }
 
+    // MARK: - PageSet (sidecar JSON)
+
+    static func setPageSetOrder(_ order: [String], in collection: PageCollection) throws {
+        try mutatePageCollection(collection) { c in
+            c.setOrder = order.isEmpty ? nil : order
+        }
+    }
+
+    static func setPageOrder(_ order: [String], in set: PageSet) throws {
+        try mutatePageSet(set) { s in
+            s.pageOrder = order.isEmpty ? nil : order
+        }
+    }
+
     // MARK: - Private read-mutate-write helpers
 
     private static func mutateNexusState(
@@ -99,6 +113,16 @@ enum OrderPersister {
     ) throws {
         let url = collection.folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         var updated = try PageCollection.load(from: url)
+        mutate(&updated)
+        try updated.save(to: url)
+    }
+
+    private static func mutatePageSet(
+        _ set: PageSet,
+        _ mutate: (inout PageSet) -> Void
+    ) throws {
+        let url = set.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        var updated = try PageSet.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
     }
