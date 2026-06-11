@@ -26,7 +26,7 @@ import Testing
         )
     }
 
-    private var tier1Def: PropertyDefinition { tierDef(id: ReservedPropertyID.tier1, name: "Space", tier: 1) }
+    private var tier1Def: PropertyDefinition { tierDef(id: ReservedPropertyID.tier1, name: "Area", tier: 1) }
     private var tier2Def: PropertyDefinition { tierDef(id: ReservedPropertyID.tier2, name: "Topic", tier: 2) }
     private var tier3Def: PropertyDefinition { tierDef(id: ReservedPropertyID.tier3, name: "Project", tier: 3) }
 

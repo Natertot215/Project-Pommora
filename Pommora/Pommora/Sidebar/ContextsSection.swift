@@ -11,7 +11,7 @@ struct ContextsSection: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
-    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
     @Environment(SettingsManager.self) private var settingsManager
@@ -21,24 +21,24 @@ struct ContextsSection: View {
     var body: some View {
         Section(isExpanded: $expanded) {
             TierDisclosureRow(
-                label: settingsManager.settings.labels.sidebarSections.spaces,
-                createLabel: "Space",
-                onCreate: { createSpace() }
+                label: settingsManager.settings.labels.sidebarSections.areas,
+                createLabel: "Area",
+                onCreate: { createArea() }
             ) {
-                ForEach(spaceManager.spaces) { space in
-                    SpaceRow(
-                        space: space,
+                ForEach(areaManager.areas) { area in
+                    AreaRow(
+                        area: area,
                         selection: $selection,
                         editingID: $editingID,
                         justCreatedID: $justCreatedID,
                         presentedSheet: $presentedSheet,
                         confirmingDelete: $confirmingDelete
                     )
-                    .tag(SelectionTag.space(space.id))
+                    .tag(SelectionTag.area(area.id))
                 }
                 .onMove { source, destination in
                     withAnimation(.snappy) {
-                        spaceManager.reorderSpaces(fromOffsets: source, toOffset: destination)
+                        areaManager.reorderAreas(fromOffsets: source, toOffset: destination)
                     }
                 }
             }
@@ -95,22 +95,22 @@ struct ContextsSection: View {
     }
 
     // Stub-and-edit creation flows — bodies MOVED VERBATIM from the deleted
-    // SpacesSection.createSpace / TopicsSection.createTopic and TopicRow's
+    // AreasSection.createArea / TopicsSection.createTopic and TopicRow's
     // deleted createProject, re-pointed at projectManager.create(name:icon:).
-    @State private var isCreatingSpace: Bool = false
+    @State private var isCreatingArea: Bool = false
     @State private var isCreatingTopic: Bool = false
     @State private var isCreatingProject: Bool = false
 
-    private func createSpace() {
-        guard !isCreatingSpace else { return }
-        isCreatingSpace = true
-        let existing = spaceManager.spaces.map(\.title)
-        let title = DefaultTitleResolver.resolve(label: "Space", existingTitles: existing)
+    private func createArea() {
+        guard !isCreatingArea else { return }
+        isCreatingArea = true
+        let existing = areaManager.areas.map(\.title)
+        let title = DefaultTitleResolver.resolve(label: "Area", existingTitles: existing)
         Task {
-            defer { isCreatingSpace = false }
+            defer { isCreatingArea = false }
             do {
                 _ = try await CreateWithInlineEdit.run(
-                    create: { try await spaceManager.create(name: title, color: nil, icon: nil) },
+                    create: { try await areaManager.create(name: title, color: nil, icon: nil) },
                     onCreate: { editingID = $0.id; justCreatedID = $0.id }
                 )
             } catch { /* pendingError set by manager; toast surfaces */ }

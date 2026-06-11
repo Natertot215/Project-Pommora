@@ -2,7 +2,7 @@ import Foundation
 
 /// Writes drag-reorder results to the appropriate sidecar JSON (v0.2.8.0).
 ///
-/// Top-level sidebar order (Spaces / Topics / Page Types) lives on
+/// Top-level sidebar order (Areas / Topics / Page Types) lives on
 /// `<nexus>/.nexus/state.json` — the same file PinnedManager and RecentsManager
 /// own. Per-container child order lives on each container's own per-kind
 /// sidecar:
@@ -17,9 +17,9 @@ enum OrderPersister {
 
     // MARK: - Top-level (state.json)
 
-    static func setSpaceOrder(_ order: [String], in nexus: Nexus) throws {
+    static func setAreaOrder(_ order: [String], in nexus: Nexus) throws {
         try mutateNexusState(in: nexus) { state in
-            state.spaceOrder = order.isEmpty ? nil : order
+            state.areaOrder = order.isEmpty ? nil : order
         }
     }
 

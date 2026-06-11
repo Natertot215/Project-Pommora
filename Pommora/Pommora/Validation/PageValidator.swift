@@ -31,7 +31,7 @@ enum PageValidator {
             throw ValidationError.missingCreatedAt
         }
 
-        for id in tier1 where context.lookupSpace(id) == nil {
+        for id in tier1 where context.lookupArea(id) == nil {
             throw ValidationError.tierMismatch(expectedTier: 1, id: id)
         }
         for id in tier2 where context.lookupTopic(id) == nil {

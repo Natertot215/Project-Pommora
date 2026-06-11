@@ -195,7 +195,7 @@ struct PropertiesPulldown: View {
 
                 // Tier rows — lazy: only if non-empty
                 if !tier1.isEmpty {
-                    tierRow(label: "Spaces", ids: tier1)
+                    tierRow(label: "Areas", ids: tier1)
                     Divider().padding(.horizontal, 16)
                 }
                 if !tier2.isEmpty {

@@ -100,7 +100,7 @@ struct FrontmatterInspector: View {
     /// window's ~320pt inspector stays stock.
     let compact: Bool
 
-    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(AreaManager.self) private var areaManager
     @Environment(PageTypeManager.self) private var vaultManager
 
     @State private var vm: FrontmatterInspectorViewModel?
@@ -175,11 +175,11 @@ struct FrontmatterInspector: View {
     private var tiersSection: some View {
         Section {
             if let model = vm {
-                tierRow("Spaces", tier: 1, ids: tierBinding(model, 1))
+                tierRow("Areas", tier: 1, ids: tierBinding(model, 1))
                 tierRow("Topics", tier: 2, ids: tierBinding(model, 2))
                 tierRow("Projects", tier: 3, ids: tierBinding(model, 3))
             } else {
-                LabeledContent("Spaces", value: tier1Names)
+                LabeledContent("Areas", value: tier1Names)
                 LabeledContent("Topics", value: tier2Names)
                 LabeledContent("Projects", value: tier3Names)
             }
@@ -311,7 +311,7 @@ struct FrontmatterInspector: View {
 
     private var tier1Names: String {
         let names = page.frontmatter.tier1.compactMap { id in
-            spaceManager.spaces.first { $0.id == id }?.title
+            areaManager.areas.first { $0.id == id }?.title
         }
         return names.isEmpty ? "—" : names.joined(separator: ", ")
     }

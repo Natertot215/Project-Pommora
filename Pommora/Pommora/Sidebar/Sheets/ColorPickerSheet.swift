@@ -1,28 +1,28 @@
 import SwiftUI
 
 struct ColorPickerSheet: View {
-    let space: Space
+    let area: Area
     @Environment(\.dismiss) private var dismiss
-    @Environment(SpaceManager.self) private var spaceManager
-    @State private var draft: SpaceColor?
+    @Environment(AreaManager.self) private var areaManager
+    @State private var draft: AreaColor?
 
-    init(space: Space) {
-        self.space = space
-        _draft = State(initialValue: space.color)
+    init(area: Area) {
+        self.area = area
+        _draft = State(initialValue: area.color)
     }
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Change Color for \"\(space.title)\"")
+            Text("Change Color for \"\(area.title)\"")
                 .font(.headline)
-            SpaceColorPicker(color: $draft)
+            AreaColorPicker(color: $draft)
                 .padding()
             HStack {
                 Button("Cancel") { dismiss() }
                 Spacer()
                 Button("Save") {
                     Task {
-                        do { try await spaceManager.updateColor(space, to: draft) } catch
+                        do { try await areaManager.updateColor(area, to: draft) } catch
                         { /* pendingError set by manager; toast surfaces */  }
                         dismiss()
                     }

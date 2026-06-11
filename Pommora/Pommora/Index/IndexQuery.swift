@@ -14,7 +14,7 @@ struct IndexQuery: Sendable {
         "page": "pages",
         "agenda_task": "agenda_tasks",
         "agenda_event": "agenda_events",
-        "space": "contexts",
+        "area": "contexts",
         "topic": "contexts",
         "project": "contexts",
         // `target_kind` is stored coarse ("page" for any type/collection
@@ -37,7 +37,7 @@ struct IndexQuery: Sendable {
                 )
                 .map { row -> EntityRef in
                     let t = (row["tier"] as Int?) ?? tier
-                    let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
+                    let kind: EntityKind = t == 1 ? .area : (t == 2 ? .topic : .project)
                     return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
                 }
             }
@@ -81,7 +81,7 @@ struct IndexQuery: Sendable {
             }
             try collect("SELECT id, title, icon, tier FROM contexts WHERE id IN (\(qs))") { row in
                 let t = (row["tier"] as Int?) ?? 1
-                let kind: EntityKind = t == 1 ? .space : (t == 2 ? .topic : .project)
+                let kind: EntityKind = t == 1 ? .area : (t == 2 ? .topic : .project)
                 return EntityRef(id: row["id"], kind: kind, title: row["title"], icon: row["icon"])
             }
             try collect("SELECT id, title, icon FROM agenda_tasks WHERE id IN (\(qs))") {
@@ -179,7 +179,7 @@ struct IndexQuery: Sendable {
                 )
 
             case .agendaTask, .agendaEvent, .pageType,
-                .pageCollection, .space, .topic, .project:
+                .pageCollection, .area, .topic, .project:
                 return nil
             }
         }
@@ -455,7 +455,7 @@ private enum FilterBuilder {
         case .pageType, .pageCollection: return .page
         case .agendaTasks: return .agendaTask
         case .agendaEvents: return .agendaEvent
-        case .contextTier(let t): return t == 1 ? .space : (t == 2 ? .topic : .project)
+        case .contextTier(let t): return t == 1 ? .area : (t == 2 ? .topic : .project)
         }
     }
 
@@ -558,7 +558,7 @@ private enum FilterBuilder {
         case .agendaTask: return "agenda_task"
         case .agendaEvent: return "agenda_event"
         case .page: return "page"
-        case .space: return "space"
+        case .area: return "area"
         case .topic: return "topic"
         case .project: return "project"
         }
@@ -571,7 +571,7 @@ private enum FilterBuilder {
         case "agenda_event": return .agendaEvent
         case "page_type": return .pageType
         case "page_collection": return .pageCollection
-        case "space": return .space
+        case "area": return .area
         case "topic": return .topic
         case "project": return .project
         default: return .page
@@ -597,7 +597,7 @@ enum SortDirection: String, Codable, Equatable, Hashable, Sendable { case ascend
 
 enum EntityKind: String, Codable, Sendable {
     case page, agendaTask, agendaEvent, pageType,
-        pageCollection, space, topic, project
+        pageCollection, area, topic, project
 }
 
 struct EntityRef: Equatable, Hashable, Sendable {

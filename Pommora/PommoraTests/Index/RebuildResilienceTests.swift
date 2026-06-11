@@ -27,7 +27,7 @@
 //  Setup mirrors `PommoraTests/Index/IndexPopulationReproTests.swift` and
 //  `PommoraTests/Nexus/LoadAllIndexSyncTests.swift` verbatim (TempNexus on
 //  disk, `PommoraIndex.open(at:)`, `PageFile(...).save(to:)` /
-//  `Space(...).save(...)` / `Topic(...).save(...)` seeding via `NexusPaths`
+//  `Area(...).save(...)` / `Topic(...).save(...)` seeding via `NexusPaths`
 //  helpers, `IndexQuery(index).entitiesByContextTarget(.contextTier(N))`). The one
 //  new ingredient vs. IndexPopulationRepro is that this drives the real
 //  `IndexBuilder.populate(index:from:)` directly (the bug lives in `populate`,
@@ -66,14 +66,14 @@ struct RebuildResilienceTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        // --- Seed a VALID Space (tier 1). ---
-        let spaceID = ULID.generate()
-        let spaceName = "Personal"
-        let spaceFolder = NexusPaths.spaceFolderURL(forTitle: spaceName, in: nexus)
+        // --- Seed a VALID Area (tier 1). ---
+        let areaID = ULID.generate()
+        let areaName = "Personal"
+        let areaFolder = NexusPaths.areaFolderURL(forTitle: areaName, in: nexus)
         try Filesystem.createFolderWithMetadata(
-            folderURL: spaceFolder,
-            metadataURL: NexusPaths.spaceMetadataURL(forTitle: spaceName, in: nexus),
-            metadata: Space(id: spaceID, title: spaceName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
+            folderURL: areaFolder,
+            metadataURL: NexusPaths.areaMetadataURL(forTitle: areaName, in: nexus),
+            metadata: Area(id: areaID, title: areaName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
         )
 
         // --- Seed a VALID Topic (tier 2). ---
@@ -129,7 +129,7 @@ struct RebuildResilienceTests {
         // reproduction. Once the rebuild skips the dup page, the contexts land
         // and both assertions PASS. ---
         let tier1 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(1))
-        #expect(tier1.contains { $0.id == spaceID })
+        #expect(tier1.contains { $0.id == areaID })
 
         let tier2 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(2))
         #expect(tier2.contains { $0.id == topicID })

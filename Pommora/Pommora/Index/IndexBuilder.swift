@@ -297,17 +297,17 @@ final class IndexBuilder {
     private static func collectContexts(from nexus: Nexus) -> [ContextSnapshot] {
         var result: [ContextSnapshot] = []
 
-        // Spaces (tier 1)
-        let spacesDir = NexusPaths.spacesDir(in: nexus)
-        if Filesystem.folderExists(at: spacesDir) {
-            let spaceFolders = (try? Filesystem.childFolders(of: spacesDir)) ?? []
-            for folder in spaceFolders {
-                let metaURL = folder.appendingPathComponent("_space.json")
+        // Areas (tier 1)
+        let areasDir = NexusPaths.areasDir(in: nexus)
+        if Filesystem.folderExists(at: areasDir) {
+            let areaFolders = (try? Filesystem.childFolders(of: areasDir)) ?? []
+            for folder in areaFolders {
+                let metaURL = folder.appendingPathComponent("_area.json")
                 guard Filesystem.fileExists(at: metaURL),
-                    let space = try? Space.load(from: metaURL)
+                    let area = try? Area.load(from: metaURL)
                 else { continue }
                 result.append(
-                    ContextSnapshot(id: space.id, tier: 1, title: space.title, icon: space.icon))
+                    ContextSnapshot(id: area.id, tier: 1, title: area.title, icon: area.icon))
             }
         }
 

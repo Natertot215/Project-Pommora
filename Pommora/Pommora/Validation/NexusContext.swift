@@ -8,14 +8,14 @@ import Foundation
 ///
 /// All closures return `nil` if the ID is unknown.
 struct NexusContext: Sendable {
-    var lookupSpace: @Sendable (String) -> Space?
+    var lookupArea: @Sendable (String) -> Area?
     var lookupTopic: @Sendable (String) -> Topic?
     var lookupProject: @Sendable (String) -> Project?
     var lookupVault: @Sendable (String) -> PageType?
 
     /// Sentinel context with all lookups returning nil — for tests / standalone validation.
     static let empty = NexusContext(
-        lookupSpace: { _ in nil },
+        lookupArea: { _ in nil },
         lookupTopic: { _ in nil },
         lookupProject: { _ in nil },
         lookupVault: { _ in nil }
@@ -28,14 +28,14 @@ struct NexusContext: Sendable {
     /// peer-manager snapshot, and the on-disk scan resolves targets living
     /// outside the calling manager's in-memory `types`. Captures only the Sendable
     /// `id` / `rootURL` (Nexus itself is non-Sendable) and rebuilds a `Nexus` inside
-    /// the `@Sendable` closure. Space / Topic / Project lookups stay nil — relation
+    /// the `@Sendable` closure. Area / Topic / Project lookups stay nil — relation
     /// validation only needs the Type catalog.
     @MainActor
     static func forTypeResolution(in nexus: Nexus) -> NexusContext {
         let id = nexus.id
         let rootURL = nexus.rootURL
         return NexusContext(
-            lookupSpace: { _ in nil },
+            lookupArea: { _ in nil },
             lookupTopic: { _ in nil },
             lookupProject: { _ in nil },
             // `find` is @MainActor (project-default isolation); this @Sendable

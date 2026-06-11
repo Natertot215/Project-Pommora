@@ -2,7 +2,7 @@ import Foundation
 
 /// Per-nexus tier label configuration. Singular + plural labels per tier
 /// (Capacities-style); exposed toggle hides a tier from UI; tagging style
-/// controls how Topic rows render their parent-Space indicators.
+/// controls how Topic rows render their parent-Area indicators.
 struct TierConfig: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var tiers: [Tier]
@@ -29,7 +29,7 @@ struct TierConfig: Codable, Equatable, Hashable, Sendable {
         TierConfig(
             schemaVersion: 1,
             tiers: [
-                Tier(level: 1, singular: "Space", plural: "Spaces", exposed: true),
+                Tier(level: 1, singular: "Area", plural: "Areas", exposed: true),
                 Tier(level: 2, singular: "Topic", plural: "Topics", exposed: true),
                 Tier(level: 3, singular: "Project", plural: "Projects", exposed: true),
             ],

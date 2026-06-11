@@ -8,8 +8,8 @@ import Testing
 @Suite("RelationTargetKindTests")
 struct RelationTargetKindTests {
 
-    @Test func contextTierOneMapsToSpace() {
-        #expect(RelationTargetKind.string(from: .contextTier(1)) == "space")
+    @Test func contextTierOneMapsToArea() {
+        #expect(RelationTargetKind.string(from: .contextTier(1)) == "area")
     }
 
     @Test func contextTierTwoMapsToTopic() {

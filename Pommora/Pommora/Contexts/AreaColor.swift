@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// Palette options for Spaces. Stored as lowercase string in JSON; mapped
+/// Palette options for Areas. Stored as lowercase string in JSON; mapped
 /// to SwiftUI `Color` for rendering. `.blue` is the Pommora-brand accent
 /// (tracks `Color.accentColor` so brand-accent changes propagate). `.accent`
 /// is a legacy enum case retained for backward-compat with previously-saved
 /// data; it maps to the same accent color as `.blue` and is no longer
 /// surfaced in the picker — the picker's rainbow swatch now means
 /// "no color" (nil) instead.
-enum SpaceColor: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
+enum AreaColor: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case gray, brown, orange, yellow, green, blue, purple, pink, red, accent
 
     var id: String { rawValue }

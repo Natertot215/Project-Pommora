@@ -10,12 +10,12 @@ import Foundation
 /// `editIcon`, `editColor`.
 enum SidebarSheet: Identifiable {
     case editIcon(IconTarget)
-    case editColor(Space)
+    case editColor(Area)
 
     /// Disambiguates the icon picker between entity kinds (each manager has its
     /// own updateIcon path).
     enum IconTarget: Hashable {
-        case space(Space)
+        case area(Area)
         case topic(Topic)
         case project(Project)
         case pageType(PageType)
@@ -27,7 +27,7 @@ enum SidebarSheet: Identifiable {
         switch self {
         case .editIcon(let target):
             switch target {
-            case .space(let s): return "editIcon-space-\(s.id)"
+            case .area(let s): return "editIcon-area-\(s.id)"
             case .topic(let t): return "editIcon-topic-\(t.id)"
             case .project(let p): return "editIcon-project-\(p.id)"
             case .pageType(let t): return "editIcon-pageType-\(t.id)"

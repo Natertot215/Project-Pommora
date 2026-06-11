@@ -17,7 +17,7 @@ import Testing
     }
 
     // Tripwire: forces a deliberate update whenever the index schema version
-    // bumps. v12 (2026-06-10) = Contexts Decoupling — contexts.parent_topic_id
-    // dropped; pre-v12 DBs delete + recreate on open, no data migration.
-    @Test func schemaVersionIsTwelve() { #expect(PommoraIndex.currentSchemaVersion == 12) }
+    // bumps. v13 (2026-06-10) = Space→Area rename — the tier-1 kind string
+    // changed "space"→"area"; pre-v13 DBs delete + recreate on open, no migration.
+    @Test func schemaVersionIsThirteen() { #expect(PommoraIndex.currentSchemaVersion == 13) }
 }

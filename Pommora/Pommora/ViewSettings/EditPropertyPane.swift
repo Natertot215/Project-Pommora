@@ -362,7 +362,7 @@ struct EditPropertyPane: View {
         switch target {
         case .some(.contextTier(let tier)):
             switch tier {
-            case 1: return ("square.stack.3d.up", "Spaces")
+            case 1: return ("square.stack.3d.up", "Areas")
             case 2: return ("folder", "Topics")
             default: return ("list.bullet.rectangle", "Projects")
             }

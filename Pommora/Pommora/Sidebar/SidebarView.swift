@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct SidebarView: View {
-    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -65,7 +65,7 @@ struct SidebarView: View {
                 let lookup = SidebarLookupBundle(
                     content: contentManager,
                     pageType: vaultManager,
-                    space: spaceManager,
+                    area: areaManager,
                     topic: topicManager,
                     project: projectManager
                 )
@@ -106,7 +106,7 @@ struct SidebarView: View {
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .editIcon(let target): IconPickerSheet(target: target)
-            case .editColor(let s): ColorPickerSheet(space: s)
+            case .editColor(let s): ColorPickerSheet(area: s)
             }
         }
         .confirmationDialog(
@@ -126,7 +126,7 @@ struct SidebarView: View {
 
     private var confirmationTitle: String {
         switch confirmingDelete {
-        case .deleteSpace(let s)?: return "Delete Space \"\(s.title)\"?"
+        case .deleteArea(let s)?: return "Delete Area \"\(s.title)\"?"
         case .deleteTopic(let t)?: return "Delete Topic \"\(t.title)\"?"
         case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
         case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
@@ -137,7 +137,7 @@ struct SidebarView: View {
 
     private func confirmationMessage(for confirmation: SidebarConfirmation) -> String {
         switch confirmation {
-        case .deleteSpace: return "This action cannot be undone."
+        case .deleteArea: return "This action cannot be undone."
         case .deleteTopic: return "This action cannot be undone."
         case .deleteProject: return "This action cannot be undone."
         case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
@@ -148,11 +148,11 @@ struct SidebarView: View {
     @ViewBuilder
     private func confirmationButtons(for confirmation: SidebarConfirmation) -> some View {
         switch confirmation {
-        case .deleteSpace(let s):
+        case .deleteArea(let s):
             Button("Delete", role: .destructive) {
                 Task {
                     await cascadeUnlinkTier(contextID: s.id, tier: 1)
-                    do { try await spaceManager.delete(s) } catch { /* pendingError set by manager; toast surfaces */  }
+                    do { try await areaManager.delete(s) } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
             }
@@ -717,7 +717,7 @@ struct SelectionChrome: View {
 
 // MARK: - SectionHeader
 
-/// Section header strip used by Spaces / Topics / Vaults: secondary-styled title,
+/// Section header strip used by Areas / Topics / Vaults: secondary-styled title,
 /// trailing "+" button that fades in on hover (matching the disclosure-chevron's
 /// hover affordance), and a section-wide right-click context menu offering the
 /// same action regardless of hover state. `extraMenu` is an optional ViewBuilder

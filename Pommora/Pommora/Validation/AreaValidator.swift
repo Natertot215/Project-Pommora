@@ -1,6 +1,6 @@
 import Foundation
 
-enum SpaceValidator {
+enum AreaValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
@@ -9,8 +9,8 @@ enum SpaceValidator {
 
     static func validate(
         title: String,
-        existing: [Space],
-        excluding: Space? = nil
+        existing: [Area],
+        excluding: Area? = nil
     ) throws {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }

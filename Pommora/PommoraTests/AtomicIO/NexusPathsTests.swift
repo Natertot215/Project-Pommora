@@ -17,12 +17,12 @@ struct NexusPathsTests {
         #expect(dir.deletingLastPathComponent().path == nexus.rootURL.path)
     }
 
-    @Test("spacesDir is .nexus/spaces")
-    func spacesDirShape() throws {
+    @Test("areasDir is .nexus/areas")
+    func areasDirShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let dir = NexusPaths.spacesDir(in: nexus)
-        #expect(dir.lastPathComponent == "spaces")
+        let dir = NexusPaths.areasDir(in: nexus)
+        #expect(dir.lastPathComponent == "areas")
         #expect(dir.deletingLastPathComponent().lastPathComponent == ".nexus")
     }
 
@@ -155,15 +155,15 @@ struct NexusPathsTests {
         #expect(NexusPaths.homepageURL(in: nexus).lastPathComponent == "homepage.json")
     }
 
-    @Test("spaceFolderURL uses title as folder name under spaces/; spaceMetadataURL appends _space.json")
-    func spaceFolderURLFormat() throws {
+    @Test("areaFolderURL uses title as folder name under areas/; areaMetadataURL appends _area.json")
+    func areaFolderURLFormat() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus)
+        let folder = NexusPaths.areaFolderURL(forTitle: "Personal", in: nexus)
         #expect(folder.lastPathComponent == "Personal")
-        #expect(folder.deletingLastPathComponent().lastPathComponent == "spaces")
-        let meta = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
-        #expect(meta.lastPathComponent == "_space.json")
+        #expect(folder.deletingLastPathComponent().lastPathComponent == "areas")
+        let meta = NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus)
+        #expect(meta.lastPathComponent == "_area.json")
         #expect(meta.deletingLastPathComponent().lastPathComponent == "Personal")
     }
 

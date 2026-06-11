@@ -145,7 +145,7 @@ struct RecentsManagerTests {
         let m = RecentsManager(nexus: nexus)
         await m.load()
         // Contexts and Agenda never enter the Back/Forward stack.
-        m.record(EntityStateRef(kind: .space, id: "S", title: "Space"))
+        m.record(EntityStateRef(kind: .area, id: "S", title: "Area"))
         m.record(EntityStateRef(kind: .topic, id: "T", title: "Topic"))
         m.record(EntityStateRef(kind: .project, id: "PR", title: "Project"))
         m.record(EntityStateRef(kind: .agenda, id: "A", title: "Task"))

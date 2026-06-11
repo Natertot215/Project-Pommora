@@ -6,7 +6,7 @@
 import Foundation
 
 /// A Pommora Nexus: a user-picked folder that holds the canonical content
-/// (Pages, Collections, Spaces) plus a hidden `.nexus/` config folder
+/// (Pages, Collections, Areas) plus a hidden `.nexus/` config folder
 /// at its root.
 ///
 /// The id is a ULID stored in `.nexus/nexus.json`; it survives the nexus

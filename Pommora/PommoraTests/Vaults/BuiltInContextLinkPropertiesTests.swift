@@ -42,8 +42,8 @@ import Testing
             sourceTypeID: "type_test"
         )
         let tier1 = result.first { $0.id == ReservedPropertyID.tier1 }
-        // TierConfig.defaultSeed() level 1 plural == "Spaces"
-        #expect(tier1?.name == "Spaces")
+        // TierConfig.defaultSeed() level 1 plural == "Areas"
+        #expect(tier1?.name == "Areas")
     }
 
     @Test func mergeUsesHardcodedFallbackIconsWhenSidecarAbsent() {
@@ -66,7 +66,7 @@ import Testing
         // trusted for reserved tier IDs.
         let tamperedTier1 = PropertyDefinition(
             id: ReservedPropertyID.tier1,
-            name: "Spaces",
+            name: "Areas",
             type: .relation,
             relationTarget: .contextTier(99)
         )

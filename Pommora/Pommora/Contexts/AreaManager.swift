@@ -1,11 +1,11 @@
 import Foundation
 import Observation
-import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderSpaces
+import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderAreas
 
 @MainActor
 @Observable
-final class SpaceManager {
-    private(set) var spaces: [Space] = []
+final class AreaManager {
+    private(set) var areas: [Area] = []
     var pendingError: (any Error)?
 
     private let nexus: Nexus
@@ -15,9 +15,9 @@ final class SpaceManager {
 
     /// Injected by ContentView.constructManagers. Nil until wired; CRUD methods
     /// call it post-commit as a best-effort non-fatal write (filesystem is canonical).
-    /// Spaces index into `contexts` as tier 1 via `upsertContext(_:)` — without this,
+    /// Areas index into `contexts` as tier 1 via `upsertContext(_:)` — without this,
     /// `IndexQuery.entitiesByContextTarget(.contextTier(1))` (the inline tier picker source)
-    /// never sees Spaces created/edited since the last full IndexBuilder rebuild.
+    /// never sees Areas created/edited since the last full IndexBuilder rebuild.
     var indexUpdater: IndexUpdater?
 
     init(nexus: Nexus) {
@@ -26,45 +26,45 @@ final class SpaceManager {
 
     func loadAll() async {
         do {
-            let dir = NexusPaths.spacesDir(in: nexus)
+            let dir = NexusPaths.areasDir(in: nexus)
             try NexusPaths.ensureDirectoryExists(dir)
-            var loaded: [Space] = []
+            var loaded: [Area] = []
             let folders = try Filesystem.childFolders(of: dir)
             for folder in folders {
-                let metaURL = folder.appendingPathComponent("_space.json")
+                let metaURL = folder.appendingPathComponent("_area.json")
                 guard Filesystem.fileExists(at: metaURL) else { continue }
-                guard let space = try? Space.load(from: metaURL) else { continue }
-                loaded.append(space)
+                guard let area = try? Area.load(from: metaURL) else { continue }
+                loaded.append(area)
             }
-            self.spaces = OrderResolver.resolve(
+            self.areas = OrderResolver.resolve(
                 loaded,
-                persistedOrder: readPersistedSpaceOrder(),
-                titleKeyPath: \Space.title
+                persistedOrder: readPersistedAreaOrder(),
+                titleKeyPath: \Area.title
             )
             self.pendingError = nil
 
-            // Defensive index sync (quirk #15). Spaces arriving outside CRUD
+            // Defensive index sync (quirk #15). Areas arriving outside CRUD
             // (adopted / externally-added / pre-existing folders) must land in
             // the `contexts` table so the tier-1 picker can surface them.
             // INSERT OR REPLACE is idempotent; failures swallowed (index is
             // regeneratable, no user data lost).
             if let updater = indexUpdater {
-                for space in self.spaces {
-                    try? updater.upsertContext(space)
+                for area in self.areas {
+                    try? updater.upsertContext(area)
                 }
             }
         } catch {
-            self.spaces = []
+            self.areas = []
             self.pendingError = error
         }
     }
 
     @discardableResult
-    func create(name: String, color: SpaceColor?, icon: String?) async throws -> Space {
+    func create(name: String, color: AreaColor?, icon: String?) async throws -> Area {
         do {
-            try SpaceValidator.validate(title: name, existing: spaces)
+            try AreaValidator.validate(title: name, existing: areas)
 
-            let space = Space(
+            let area = Area(
                 id: ULID.generate(),
                 title: name,
                 color: color,
@@ -72,40 +72,40 @@ final class SpaceManager {
                 blocks: [],
                 modifiedAt: Date()
             )
-            let folder = NexusPaths.spaceFolderURL(forTitle: name, in: nexus)
-            let meta = NexusPaths.spaceMetadataURL(forTitle: name, in: nexus)
-            try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: space)
+            let folder = NexusPaths.areaFolderURL(forTitle: name, in: nexus)
+            let meta = NexusPaths.areaMetadataURL(forTitle: name, in: nexus)
+            try Filesystem.createFolderWithMetadata(folderURL: folder, metadataURL: meta, metadata: area)
 
             if let updater = indexUpdater {
-                do { try updater.upsertContext(space) } catch { self.pendingError = error }
+                do { try updater.upsertContext(area) } catch { self.pendingError = error }
             }
 
-            spaces.append(space)
-            spaces = OrderResolver.resolve(
-                spaces,
-                persistedOrder: readPersistedSpaceOrder(),
-                titleKeyPath: \Space.title
+            areas.append(area)
+            areas = OrderResolver.resolve(
+                areas,
+                persistedOrder: readPersistedAreaOrder(),
+                titleKeyPath: \Area.title
             )
-            return space
+            return area
         } catch {
             self.pendingError = error
             throw error
         }
     }
 
-    func rename(_ space: Space, to newName: String) async throws {
+    func rename(_ area: Area, to newName: String) async throws {
         do {
-            try SpaceValidator.validate(title: newName, existing: spaces, excluding: space)
+            try AreaValidator.validate(title: newName, existing: areas, excluding: area)
 
-            let oldFolder = NexusPaths.spaceFolderURL(forTitle: space.title, in: nexus)
-            let newFolder = NexusPaths.spaceFolderURL(forTitle: newName, in: nexus)
+            let oldFolder = NexusPaths.areaFolderURL(forTitle: area.title, in: nexus)
+            let newFolder = NexusPaths.areaFolderURL(forTitle: newName, in: nexus)
 
             try Filesystem.renameFolder(from: oldFolder, to: newFolder)
 
-            var updated = space
+            var updated = area
             updated.title = newName
             updated.modifiedAt = Date()
-            let newMeta = NexusPaths.spaceMetadataURL(forTitle: newName, in: nexus)
+            let newMeta = NexusPaths.areaMetadataURL(forTitle: newName, in: nexus)
             do {
                 try updated.save(to: newMeta)
             } catch let saveError {
@@ -126,12 +126,12 @@ final class SpaceManager {
                 do { try updater.upsertContext(updated) } catch { self.pendingError = error }
             }
 
-            if let i = spaces.firstIndex(where: { $0.id == space.id }) {
-                spaces[i] = updated
-                spaces = OrderResolver.resolve(
-                    spaces,
-                    persistedOrder: readPersistedSpaceOrder(),
-                    titleKeyPath: \Space.title
+            if let i = areas.firstIndex(where: { $0.id == area.id }) {
+                areas[i] = updated
+                areas = OrderResolver.resolve(
+                    areas,
+                    persistedOrder: readPersistedAreaOrder(),
+                    titleKeyPath: \Area.title
                 )
             }
         } catch {
@@ -143,24 +143,24 @@ final class SpaceManager {
         }
     }
 
-    /// Reads the persisted Space sibling order from `.nexus/state.json`. Returns
-    /// nil if no state.json exists or no `spaceOrder` has been recorded — the
+    /// Reads the persisted Area sibling order from `.nexus/state.json`. Returns
+    /// nil if no state.json exists or no `areaOrder` has been recorded — the
     /// resolver falls back to alphabetic in that case.
-    private func readPersistedSpaceOrder() -> [String]? {
+    private func readPersistedAreaOrder() -> [String]? {
         let url = NexusPaths.nexusStateURL(in: nexus)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return (try? AtomicJSON.decode(NexusState.self, from: url))?.spaceOrder
+        return (try? AtomicJSON.decode(NexusState.self, from: url))?.areaOrder
     }
 
-    func updateColor(_ space: Space, to color: SpaceColor?) async throws {
+    func updateColor(_ area: Area, to color: AreaColor?) async throws {
         do {
-            var updated = space
+            var updated = area
             updated.color = color
             updated.modifiedAt = Date()
-            let meta = NexusPaths.spaceMetadataURL(forTitle: space.title, in: nexus)
+            let meta = NexusPaths.areaMetadataURL(forTitle: area.title, in: nexus)
             try updated.save(to: meta)
-            if let i = spaces.firstIndex(where: { $0.id == space.id }) {
-                spaces[i] = updated
+            if let i = areas.firstIndex(where: { $0.id == area.id }) {
+                areas[i] = updated
             }
         } catch {
             self.pendingError = error
@@ -168,20 +168,20 @@ final class SpaceManager {
         }
     }
 
-    func updateIcon(_ space: Space, to icon: String?) async throws {
+    func updateIcon(_ area: Area, to icon: String?) async throws {
         do {
-            var updated = space
+            var updated = area
             updated.icon = icon
             updated.modifiedAt = Date()
-            let meta = NexusPaths.spaceMetadataURL(forTitle: space.title, in: nexus)
+            let meta = NexusPaths.areaMetadataURL(forTitle: area.title, in: nexus)
             try updated.save(to: meta)
             // `icon` is an indexed `contexts` column — re-upsert so the tier
             // picker (which displays icon + title) reflects the change.
             if let updater = indexUpdater {
                 do { try updater.upsertContext(updated) } catch { self.pendingError = error }
             }
-            if let i = spaces.firstIndex(where: { $0.id == space.id }) {
-                spaces[i] = updated
+            if let i = areas.firstIndex(where: { $0.id == area.id }) {
+                areas[i] = updated
             }
         } catch {
             self.pendingError = error
@@ -189,30 +189,30 @@ final class SpaceManager {
         }
     }
 
-    /// Reorders Spaces in response to a sidebar drag (v0.2.8.0). Matches the
+    /// Reorders Areas in response to a sidebar drag (v0.2.8.0). Matches the
     /// SwiftUI `.onMove(perform:)` signature. New full ID order persists to
     /// `.nexus/state.json`.
-    func reorderSpaces(fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = spaces
+    func reorderAreas(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var arr = areas
         arr.move(fromOffsets: source, toOffset: destination)
-        guard arr != spaces else { return }
-        spaces = arr
+        guard arr != areas else { return }
+        areas = arr
         do {
-            try OrderPersister.setSpaceOrder(arr.map(\.id), in: nexus)
+            try OrderPersister.setAreaOrder(arr.map(\.id), in: nexus)
         } catch {
             self.pendingError = error
         }
     }
 
-    func delete(_ space: Space) async throws {
+    func delete(_ area: Area) async throws {
         do {
-            let folder = NexusPaths.spaceFolderURL(forTitle: space.title, in: nexus)
+            let folder = NexusPaths.areaFolderURL(forTitle: area.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
             // Drop the stale `contexts` row (closes the stale-index-row-on-delete gap).
             if let updater = indexUpdater {
-                do { try updater.deleteContext(id: space.id) } catch { self.pendingError = error }
+                do { try updater.deleteContext(id: area.id) } catch { self.pendingError = error }
             }
-            spaces.removeAll { $0.id == space.id }
+            areas.removeAll { $0.id == area.id }
         } catch {
             self.pendingError = error
             throw error

@@ -43,15 +43,15 @@ struct ManagerCreateReturnContractTests {
         #expect(returned.typeID == pt.id)
     }
 
-    @Test("SpaceManager.create returns the new Space")
-    func createSpaceReturns() async throws {
+    @Test("AreaManager.create returns the new Area")
+    func createAreaReturns() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = SpaceManager(nexus: nexus)
+        let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
 
         let returned = try await manager.create(name: "Personal", color: .blue, icon: nil)
-        #expect(manager.spaces.contains(where: { $0.id == returned.id }))
+        #expect(manager.areas.contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Personal")
     }
 

@@ -6,7 +6,7 @@ import SwiftUI
 /// render `StorageMenuRoot` — a Notion-style root menu with active Edit
 /// Properties + Property Visibility rows plus muted Layout / Sort / Filter /
 /// Group rows pointing at upcoming v0.3.1.x patches. Non-storage scopes
-/// (Spaces / Topics / Projects / Pages / Calendar / none) keep the empty
+/// (Areas / Topics / Projects / Pages / Calendar / none) keep the empty
 /// 300x360pt shell from the v0.3.0.5 chrome slice; their View Settings
 /// surfaces ship in later versions.
 ///

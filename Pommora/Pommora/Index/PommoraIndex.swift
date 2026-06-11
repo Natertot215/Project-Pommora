@@ -92,7 +92,13 @@ final class PommoraIndex: @unchecked Sendable {
     // context_links vanish with the rebuild.
     //
     // v12: Contexts Decoupling — contexts.parent_topic_id dropped (free-standing tiers); delete+rebuild on open, no data migration.
-    static let currentSchemaVersion: Int = 12
+    //
+    // v13: Space→Area rename — kind strings; rebuild re-stamps rows. The tier-1
+    // entity-kind string changed from "space" to "area" (EntityKind raw + the
+    // kindTableMap/RelationTargetKind lookups), so persisted state.json refs and
+    // every "area" row in context_links/contexts re-derive on rebuild. Bumping
+    // 12 → 13 forces one delete+rebuild on open; no data migration (regeneratable).
+    static let currentSchemaVersion: Int = 13
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL

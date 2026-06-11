@@ -21,8 +21,8 @@ enum NexusPaths {
         nexus.rootURL.appendingPathComponent(".nexus", isDirectory: true)
     }
 
-    static func spacesDir(in nexus: Nexus) -> URL {
-        nexusConfigDir(in: nexus).appendingPathComponent("spaces", isDirectory: true)
+    static func areasDir(in nexus: Nexus) -> URL {
+        nexusConfigDir(in: nexus).appendingPathComponent("areas", isDirectory: true)
     }
 
     static func topicsDir(in nexus: Nexus) -> URL {
@@ -207,13 +207,13 @@ enum NexusPaths {
 
     // MARK: - Contexts file paths
 
-    static func spaceFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
-        spacesDir(in: nexus).appendingPathComponent(title, isDirectory: true)
+    static func areaFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
+        areasDir(in: nexus).appendingPathComponent(title, isDirectory: true)
     }
 
-    static func spaceMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
-        spaceFolderURL(forTitle: title, in: nexus)
-            .appendingPathComponent("_space.json", isDirectory: false)
+    static func areaMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
+        areaFolderURL(forTitle: title, in: nexus)
+            .appendingPathComponent("_area.json", isDirectory: false)
     }
 
     static func topicFolderURL(forTitle title: String, in nexus: Nexus) -> URL {

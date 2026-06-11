@@ -160,7 +160,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                 .init(
                     name: "Renameable Row",
                     detail:
-                        "Inline-rename mode for any sidebar row. Used by Space / Project / PageType / Topic / Page / PageCollection."
+                        "Inline-rename mode for any sidebar row. Used by Area / Project / PageType / Topic / Page / PageCollection."
                 ),
                 .init(
                     name: "Section Header",
@@ -195,7 +195,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                 ),
                 .init(
                     name: "Color Picker Sheet",
-                    detail: "SpaceColor chooser — Pommora's hand-picked Space accent palette."),
+                    detail: "AreaColor chooser — Pommora's hand-picked Area accent palette."),
             ]
         case .pageEditor:
             return [

@@ -19,7 +19,7 @@ struct NexusState: Codable, Equatable, Sendable {
     // Top-level sidebar order (v0.2.8.0). All nil until the user reorders that
     // section's siblings; missing entries fall through to OrderResolver's
     // alphabetic tail.
-    var spaceOrder: [String]?
+    var areaOrder: [String]?
     var topicOrder: [String]?
     var projectOrder: [String]?
     var vaultOrder: [String]?
@@ -32,7 +32,7 @@ struct NexusState: Codable, Equatable, Sendable {
         case pinned
         case favoritesLegacy = "favorites"
         case cursor
-        case spaceOrder = "space_order"
+        case areaOrder = "area_order"
         case topicOrder = "topic_order"
         case projectOrder = "project_order"
         case vaultOrder = "vault_order"
@@ -47,7 +47,7 @@ struct NexusState: Codable, Equatable, Sendable {
             ?? c.decodeIfPresent([EntityStateRef].self, forKey: .favoritesLegacy)
             ?? []
         self.cursor = try c.decodeIfPresent(Int.self, forKey: .cursor) ?? 0
-        self.spaceOrder = try c.decodeIfPresent([String].self, forKey: .spaceOrder)
+        self.areaOrder = try c.decodeIfPresent([String].self, forKey: .areaOrder)
         self.topicOrder = try c.decodeIfPresent([String].self, forKey: .topicOrder)
         self.projectOrder = try c.decodeIfPresent([String].self, forKey: .projectOrder)
         self.vaultOrder = try c.decodeIfPresent([String].self, forKey: .vaultOrder)
@@ -59,7 +59,7 @@ struct NexusState: Codable, Equatable, Sendable {
         try c.encode(recents, forKey: .recents)
         try c.encode(pinned, forKey: .pinned)
         try c.encode(cursor, forKey: .cursor)
-        try c.encodeIfPresent(spaceOrder, forKey: .spaceOrder)
+        try c.encodeIfPresent(areaOrder, forKey: .areaOrder)
         try c.encodeIfPresent(topicOrder, forKey: .topicOrder)
         try c.encodeIfPresent(projectOrder, forKey: .projectOrder)
         try c.encodeIfPresent(vaultOrder, forKey: .vaultOrder)

@@ -40,8 +40,8 @@ struct ResolvedPropertiesTests {
         #expect(!pageType.properties.contains { $0.id == ReservedPropertyID.tier3 })
     }
 
-    @Test("PageType tier1 resolves to Spaces with default TierConfig")
-    func pageTypeTier1ResolvesToSpaces() {
+    @Test("PageType tier1 resolves to Areas with default TierConfig")
+    func pageTypeTier1ResolvesToAreas() {
         let pageType = PageType(
             id: "01HPTYPE",
             title: "Notes",
@@ -52,7 +52,7 @@ struct ResolvedPropertiesTests {
         )
         let resolved = pageType.resolvedProperties(tierConfig: tierConfig)
         let tier1 = resolved.first { $0.id == ReservedPropertyID.tier1 }
-        #expect(tier1?.name == "Spaces")
+        #expect(tier1?.name == "Areas")
     }
 
     // MARK: - AgendaTaskSchema

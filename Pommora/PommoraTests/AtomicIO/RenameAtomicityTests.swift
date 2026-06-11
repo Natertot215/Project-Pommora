@@ -33,20 +33,20 @@ struct RenameAtomicityTests {
         #expect(desc.contains("revert-failed-message"))
     }
 
-    @Test("SpaceManager.rename failure sets pendingError + leaves disk + in-memory state intact")
+    @Test("AreaManager.rename failure sets pendingError + leaves disk + in-memory state intact")
     func renameFailureSetsPendingError() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = SpaceManager(nexus: nexus)
+        let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
 
-        // Create two Spaces; renaming one to the other's title should throw
+        // Create two Areas; renaming one to the other's title should throw
         // duplicateTitle and set pendingError.
         try await manager.create(name: "Personal", color: .blue, icon: nil)
         try await manager.create(name: "Work", color: .red, icon: nil)
-        let personal = manager.spaces.first(where: { $0.title == "Personal" })!
+        let personal = manager.areas.first(where: { $0.title == "Personal" })!
 
-        await #expect(throws: SpaceValidator.ValidationError.duplicateTitle) {
+        await #expect(throws: AreaValidator.ValidationError.duplicateTitle) {
             try await manager.rename(personal, to: "Work")
         }
 
@@ -54,36 +54,36 @@ struct RenameAtomicityTests {
         #expect(manager.pendingError != nil)
 
         // Disk + in-memory state both unchanged.
-        let personalURL = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
-        let workURL = NexusPaths.spaceMetadataURL(forTitle: "Work", in: nexus)
+        let personalURL = NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus)
+        let workURL = NexusPaths.areaMetadataURL(forTitle: "Work", in: nexus)
         #expect(FileManager.default.fileExists(atPath: personalURL.path))
         #expect(FileManager.default.fileExists(atPath: workURL.path))
-        #expect(manager.spaces.count == 2)
+        #expect(manager.areas.count == 2)
     }
 
-    @Test("Successful SpaceManager.rename clears prior pendingError and leaves single file at new URL")
+    @Test("Successful AreaManager.rename clears prior pendingError and leaves single file at new URL")
     func successfulRenameLeavesNoTrace() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = SpaceManager(nexus: nexus)
+        let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
 
         try await manager.create(name: "Personal", color: .blue, icon: nil)
-        let space = manager.spaces.first!
+        let area = manager.areas.first!
 
-        try await manager.rename(space, to: "Life")
-        let oldURL = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
-        let newURL = NexusPaths.spaceMetadataURL(forTitle: "Life", in: nexus)
+        try await manager.rename(area, to: "Life")
+        let oldURL = NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus)
+        let newURL = NexusPaths.areaMetadataURL(forTitle: "Life", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: oldURL.path))
         #expect(FileManager.default.fileExists(atPath: newURL.path))
-        #expect(manager.spaces.first?.title == "Life")
+        #expect(manager.areas.first?.title == "Life")
 
         // Reload + verify state survives a fresh manager — proves the save
         // succeeded fully (rollback path was NOT triggered).
-        let reloadManager = SpaceManager(nexus: nexus)
+        let reloadManager = AreaManager(nexus: nexus)
         await reloadManager.loadAll()
-        #expect(reloadManager.spaces.count == 1)
-        #expect(reloadManager.spaces.first?.title == "Life")
+        #expect(reloadManager.areas.count == 1)
+        #expect(reloadManager.areas.first?.title == "Life")
     }
 
     @Test("PageTypeManager rename failure (duplicate target) sets pendingError + folder stays at old name")

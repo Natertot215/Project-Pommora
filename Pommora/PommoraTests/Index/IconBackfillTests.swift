@@ -26,15 +26,15 @@ struct IconBackfillTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // --- Seed a Space (tier 1) WITH an icon. ---
-        let spaceID = ULID.generate()
+        // --- Seed a Area (tier 1) WITH an icon. ---
+        let areaID = ULID.generate()
         try Filesystem.createFolderWithMetadata(
-            folderURL: NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus),
-            metadataURL: NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus),
-            metadata: Space(id: spaceID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
+            folderURL: NexusPaths.areaFolderURL(forTitle: "Personal", in: nexus),
+            metadataURL: NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus),
+            metadata: Area(id: areaID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
         )
 
-        // --- Seed a PageType + a Page WITH an icon and tier1 = [Space]. ---
+        // --- Seed a PageType + a Page WITH an icon and tier1 = [Area]. ---
         let pageTypeManager = PageTypeManager(nexus: nexus)
         await pageTypeManager.loadAll()
         try await pageTypeManager.createPageType(name: "Notes", icon: nil)
@@ -44,7 +44,7 @@ struct IconBackfillTests {
 
         let pageID = ULID.generate()
         let fm = PageFrontmatter(
-            id: pageID, icon: "doc.text", tier1: [spaceID], tier2: [], tier3: [],
+            id: pageID, icon: "doc.text", tier1: [areaID], tier2: [], tier3: [],
             properties: [:], createdAt: Date(), modifiedAt: Date()
         )
         try AtomicYAMLMarkdown.write(
@@ -55,14 +55,14 @@ struct IconBackfillTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         // --- Icons backfilled: resolveEntities returns icon + title for both. ---
-        let resolved = try await IndexQuery(idx).resolveEntities(ids: [spaceID, pageID])
-        #expect(resolved[spaceID]?.icon == "person")
-        #expect(resolved[spaceID]?.title == "Personal")
+        let resolved = try await IndexQuery(idx).resolveEntities(ids: [areaID, pageID])
+        #expect(resolved[areaID]?.icon == "person")
+        #expect(resolved[areaID]?.title == "Personal")
         #expect(resolved[pageID]?.icon == "doc.text")
 
-        // --- Tier link emitted into `context_links` (page --tier1--> space), via the
+        // --- Tier link emitted into `context_links` (page --tier1--> area), via the
         // tested reverse-lookup query rather than raw SQL. ---
-        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: spaceID)
+        let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: areaID)
         #expect(incoming.contains { $0.id == pageID })
     }
 }

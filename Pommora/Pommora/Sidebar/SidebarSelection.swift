@@ -5,7 +5,7 @@ import Foundation
 enum SidebarSelection: Equatable, Hashable, Sendable {
     case none
     case savedKey(String)  // "homepage" | "calendar" | "recents"
-    case space(Space)
+    case area(Area)
     case topic(Topic)
     case project(Project)
     case pageType(PageType)
@@ -24,7 +24,7 @@ extension SidebarSelection {
         case .page(let p): raw = p.frontmatter.icon
         case .pageType(let t): raw = t.icon
         case .collection(let c): raw = c.icon
-        case .space(let s): raw = s.icon
+        case .area(let s): raw = s.icon
         case .topic(let t): raw = t.icon
         case .project(let p): raw = p.icon
         case .none, .savedKey: raw = nil
@@ -46,7 +46,7 @@ extension SidebarSelection {
 struct SidebarLookupBundle {
     let content: PageContentManager?
     let pageType: PageTypeManager?
-    let space: SpaceManager?
+    let area: AreaManager?
     let topic: TopicManager?
     let project: ProjectManager?
 }
@@ -61,9 +61,9 @@ extension SidebarSelection {
     // dispatch cases, not two duplicated lookup bodies (the prior shape).
 
     @MainActor
-    private static func resolveSpace(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
-        guard let sm = lookup.space, let s = sm.spaces.first(where: { $0.id == id }) else { return nil }
-        return .space(s)
+    private static func resolveArea(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let sm = lookup.area, let s = sm.areas.first(where: { $0.id == id }) else { return nil }
+        return .area(s)
     }
 
     @MainActor
@@ -116,7 +116,7 @@ extension SidebarSelection {
         switch stateRef.typedKind {
         case .page: resolved = Self.resolvePage(id: stateRef.id, lookup: lookup)
         case .vault: resolved = Self.resolvePageType(id: stateRef.id, lookup: lookup)
-        case .space: resolved = Self.resolveSpace(id: stateRef.id, lookup: lookup)
+        case .area: resolved = Self.resolveArea(id: stateRef.id, lookup: lookup)
         case .topic: resolved = Self.resolveTopic(id: stateRef.id, lookup: lookup)
         case .project: resolved = Self.resolveProject(id: stateRef.id, lookup: lookup)
         case .collection: resolved = Self.resolveCollection(id: stateRef.id, lookup: lookup)
@@ -137,7 +137,7 @@ extension SidebarSelection {
         let resolved: SidebarSelection?
         switch tag {
         case .savedKey(let key): resolved = .savedKey(key)
-        case .space(let id): resolved = Self.resolveSpace(id: id, lookup: lookup)
+        case .area(let id): resolved = Self.resolveArea(id: id, lookup: lookup)
         case .topic(let id): resolved = Self.resolveTopic(id: id, lookup: lookup)
         case .project(let id): resolved = Self.resolveProject(id: id, lookup: lookup)
         case .pageType(let id): resolved = Self.resolvePageType(id: id, lookup: lookup)
@@ -153,7 +153,7 @@ extension SidebarSelection {
 /// for highlight state. Each case carries the entity's ULID.
 enum SelectionTag: Equatable, Hashable, Sendable {
     case savedKey(String)
-    case space(String)
+    case area(String)
     case topic(String)
     case project(String)
     case pageType(String)
@@ -176,7 +176,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         switch selection {
         case .none: return nil
         case .savedKey(let k): self = .savedKey(k)
-        case .space(let s): self = .space(s.id)
+        case .area(let s): self = .area(s.id)
         case .topic(let t): self = .topic(t.id)
         case .project(let p): self = .project(p.id)
         case .pageType(let t): self = .pageType(t.id)

@@ -36,7 +36,7 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
 // Codable ignores unlisted keys, so they decode cleanly and drop on next write.
 
 struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
-    var spaces: String
+    var areas: String
     var topics: String
     var pages: String
     // No `agenda` field — Agenda has no sidebar section. Agenda Tasks + Agenda Events
@@ -45,27 +45,27 @@ struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
     static func defaults() -> SidebarSectionLabels {
         // Pages-side section header defaults to its container-plural signature
         // word "Vaults" — renameable via Settings.
-        SidebarSectionLabels(spaces: "Spaces", topics: "Topics", pages: "Vaults")
+        SidebarSectionLabels(areas: "Areas", topics: "Topics", pages: "Vaults")
     }
 
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case spaces, topics, pages
+        case areas, topics, pages
     }
 
-    init(spaces: String, topics: String, pages: String) {
-        self.spaces = spaces
+    init(areas: String, topics: String, pages: String) {
+        self.areas = areas
         self.topics = topics
         self.pages = pages
     }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        // Legacy files lack `spaces` / `topics` — decode with defaults for
+        // Legacy files lack `areas` / `topics` — decode with defaults for
         // backward compatibility. Users who customized will re-apply the label.
         // A retired section key may also be present; it's simply not decoded.
-        spaces = (try? c.decode(String.self, forKey: .spaces)) ?? "Spaces"
+        areas = (try? c.decode(String.self, forKey: .areas)) ?? "Areas"
         topics = (try? c.decode(String.self, forKey: .topics)) ?? "Topics"
         pages = try c.decode(String.self, forKey: .pages)
     }

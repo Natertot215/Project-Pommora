@@ -227,16 +227,16 @@ struct IndexQueryTests {
             try db.execute(
                 sql: """
                         INSERT INTO contexts(id, tier, title) VALUES
-                        ('CTX1', 1, 'Space Alpha'),
-                        ('CTX2', 1, 'Space Beta')
+                        ('CTX1', 1, 'Area Alpha'),
+                        ('CTX2', 1, 'Area Beta')
                     """)
         }
 
         let results = try await IndexQuery(idx).entitiesByContextTarget(.contextTier(1))
         #expect(results.count == 2)
-        #expect(results.allSatisfy { $0.kind == .space })
+        #expect(results.allSatisfy { $0.kind == .area })
         let titles = Set(results.map(\.title))
-        #expect(titles == ["Space Alpha", "Space Beta"])
+        #expect(titles == ["Area Alpha", "Area Beta"])
     }
 
     // MARK: - Move-strip count

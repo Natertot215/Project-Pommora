@@ -248,7 +248,7 @@ struct IndexUpdater: Sendable {
 
     // MARK: - Contexts
 
-    func upsertContext(_ space: Space) throws {
+    func upsertContext(_ area: Area) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
@@ -256,7 +256,7 @@ struct IndexUpdater: Sendable {
                         (id, tier, title, icon)
                     VALUES (?, ?, ?, ?)
                     """,
-                arguments: [space.id, 1, space.title, space.icon]
+                arguments: [area.id, 1, area.title, area.icon]
             )
         }
     }
@@ -359,7 +359,7 @@ struct IndexUpdater: Sendable {
             (3, tier3, ReservedPropertyID.tier3),
         ]
         for (level, targetIDs, propertyID) in tiers {
-            // `target_kind` via the shared mapper (DRY): tier 1→"space" / 2→"topic" / 3→"project".
+            // `target_kind` via the shared mapper (DRY): tier 1→"area" / 2→"topic" / 3→"project".
             let targetKind = RelationTargetKind.string(from: .contextTier(level))
             for targetID in targetIDs {
                 let relID = ULID.generate()

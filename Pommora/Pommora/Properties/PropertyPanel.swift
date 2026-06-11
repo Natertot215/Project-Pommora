@@ -117,7 +117,7 @@ struct PropertyPanel: View {
             }
 
             // Tier relations — always rendered (icon + title chips via the shared resolver)
-            ContextChipRow(label: "Spaces", ids: tier1, resolver: relationDisplay)
+            ContextChipRow(label: "Areas", ids: tier1, resolver: relationDisplay)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
             Divider()

@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct SpaceRow: View {
-    let space: Space
+struct AreaRow: View {
+    let area: Area
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
@@ -11,80 +11,80 @@ struct SpaceRow: View {
     @State private var draft: String = ""
     @State private var isCommitting: Bool = false
     @FocusState private var renameFocused: Bool
-    @State private var isCreatingSpace: Bool = false
+    @State private var isCreatingArea: Bool = false
 
-    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(AreaManager.self) private var areaManager
     @Environment(SettingsManager.self) private var settingsManager
 
     var body: some View {
         Group {
-            if editingID == space.id {
+            if editingID == area.id {
                 RenameableRow(
-                    symbol: space.icon ?? "circle.fill",
-                    symbolForeground: space.color?.swiftUIColor ?? .primary,
-                    initialTitle: space.title,
+                    symbol: area.icon ?? "circle.fill",
+                    symbolForeground: area.color?.swiftUIColor ?? .primary,
+                    initialTitle: area.title,
                     draft: $draft,
                     renameFocused: $renameFocused,
                     onSubmit: { commit() },
                     onCancel: { cancel() },
                     onFocusLoss: {
-                        if !isCommitting && editingID == space.id {
+                        if !isCommitting && editingID == area.id {
                             cancel()
                         }
                     },
-                    selectAllOnAppear: justCreatedID == space.id
+                    selectAllOnAppear: justCreatedID == area.id
                 )
             } else {
                 SelectableRow(
-                    title: space.title,
-                    symbol: space.icon ?? "circle.fill",
-                    tag: SelectionTag.space(space.id),
+                    title: area.title,
+                    symbol: area.icon ?? "circle.fill",
+                    tag: SelectionTag.area(area.id),
                     selection: $selection,
-                    accent: space.color?.swiftUIColor
+                    accent: area.color?.swiftUIColor
                 )
                 .contextMenu {
-                    Button("New Space") { createSpace() }
-                        .disabled(isCreatingSpace)
+                    Button("New Area") { createArea() }
+                        .disabled(isCreatingArea)
                     Divider()
                     Button("Edit Title") { startRename() }
-                    Button("Change Color") { presentedSheet = .editColor(space) }
-                    Button("Edit Icon") { presentedSheet = .editIcon(.space(space)) }
+                    Button("Change Color") { presentedSheet = .editColor(area) }
+                    Button("Edit Icon") { presentedSheet = .editIcon(.area(area)) }
                     Divider()
                     Button("Delete", role: .destructive) {
-                        confirmingDelete = .deleteSpace(space)
+                        confirmingDelete = .deleteArea(area)
                     }
                 }
             }
         }
         .listRowBackground(
-            SelectionChrome(isSelected: SelectionTag.space(space.id).matches(selection))
+            SelectionChrome(isSelected: SelectionTag.area(area.id).matches(selection))
         )
     }
 
     private func startRename() {
-        editingID = space.id
+        editingID = area.id
     }
 
-    /// Stub-and-edit "New Space" trigger.
-    private func createSpace() {
-        guard !isCreatingSpace else { return }
-        isCreatingSpace = true
-        let label = settingsManager.settings.labels.sidebarSections.spaces
-        let existing = spaceManager.spaces.map(\.title)
-        // sidebarSections.spaces is plural ("Spaces") — use the singular
+    /// Stub-and-edit "New Area" trigger.
+    private func createArea() {
+        guard !isCreatingArea else { return }
+        isCreatingArea = true
+        let label = settingsManager.settings.labels.sidebarSections.areas
+        let existing = areaManager.areas.map(\.title)
+        // sidebarSections.areas is plural ("Areas") — use the singular
         // fallback via stripping a trailing "s" when present.
         let singular = label.hasSuffix("s") ? String(label.dropLast()) : label
         let title = DefaultTitleResolver.resolve(label: singular, existingTitles: existing)
         Task {
-            defer { isCreatingSpace = false }
+            defer { isCreatingArea = false }
             do {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
-                        try await spaceManager.create(name: title, color: nil, icon: nil)
+                        try await areaManager.create(name: title, color: nil, icon: nil)
                     },
-                    onCreate: { newSpace in
-                        editingID = newSpace.id
-                        justCreatedID = newSpace.id
+                    onCreate: { newArea in
+                        editingID = newArea.id
+                        justCreatedID = newArea.id
                     }
                 )
             } catch {
@@ -94,7 +94,7 @@ struct SpaceRow: View {
     }
 
     private func commit() {
-        guard draft != space.title else {
+        guard draft != area.title else {
             editingID = nil
             justCreatedID = nil
             return
@@ -103,7 +103,7 @@ struct SpaceRow: View {
         Task {
             defer { isCommitting = false }
             do {
-                try await spaceManager.rename(space, to: draft)
+                try await areaManager.rename(area, to: draft)
                 editingID = nil  // success: dismiss edit mode
                 justCreatedID = nil
             } catch {

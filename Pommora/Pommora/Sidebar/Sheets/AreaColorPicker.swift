@@ -2,17 +2,17 @@ import SwiftUI
 
 /// 10-swatch palette grid: 9 Notion-palette hues + a rainbow "no color"
 /// swatch that clears the selection (sets binding to nil). `.blue` renders
-/// as the brand accent (per `SpaceColor.blue`'s mapping to
+/// as the brand accent (per `AreaColor.blue`'s mapping to
 /// `Color.accentColor`). Laid out 5x2 (centered).
-struct SpaceColorPicker: View {
-    @Binding var color: SpaceColor?
+struct AreaColorPicker: View {
+    @Binding var color: AreaColor?
 
     private let columns = Array(repeating: GridItem(.fixed(32), spacing: 8), count: 5)
 
     /// Hues shown in the grid. The rainbow "no color" swatch is appended
     /// separately so the click handler can map it to `nil` without
-    /// special-casing the `SpaceColor` enum.
-    private static let hues: [SpaceColor] = [
+    /// special-casing the `AreaColor` enum.
+    private static let hues: [AreaColor] = [
         .gray, .brown, .orange, .yellow, .green,
         .blue, .purple, .pink, .red,
     ]
@@ -50,7 +50,7 @@ struct SpaceColorPicker: View {
     }
 
     @ViewBuilder
-    private func swatch(for option: SpaceColor) -> some View {
+    private func swatch(for option: AreaColor) -> some View {
         Circle().fill(option.swiftUIColor)
     }
 

@@ -5,7 +5,7 @@ import Testing
 @testable import Pommora
 
 /// Context-delete cascade (Phase 18b): `unlinkTier(contextID:tier:index:)` on the
-/// content managers. When a Context (Space / Topic / Project) is deleted, every
+/// content managers. When a Context (Area / Topic / Project) is deleted, every
 /// operational entity that tier-links to it must have that Context's ID removed
 /// from the relevant tier array — on disk, in the in-memory cache, and in the
 /// SQLite index's `relations` rows.
@@ -22,8 +22,8 @@ import Testing
 struct UnlinkTierTests {
 
     // Stable Context IDs reused across cases.
-    private let spaceA = "ctx_space_A"
-    private let spaceB = "ctx_space_B"
+    private let areaA = "ctx_area_A"
+    private let areaB = "ctx_area_B"
 
     // MARK: - Page (Type-root)
 
@@ -37,29 +37,29 @@ struct UnlinkTierTests {
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
-        // Two Pages, both tagged tier1 == [spaceA, spaceB].
+        // Two Pages, both tagged tier1 == [areaA, areaB].
         let p1 = try await manager.createPage(name: "Alpha", inVaultRoot: vault)
         let p2 = try await manager.createPage(name: "Beta", inVaultRoot: vault)
-        try await setPageTier(manager, p1, tier: 1, ids: [spaceA, spaceB], vault: vault)
-        try await setPageTier(manager, p2, tier: 1, ids: [spaceA, spaceB], vault: vault)
+        try await setPageTier(manager, p1, tier: 1, ids: [areaA, areaB], vault: vault)
+        try await setPageTier(manager, p2, tier: 1, ids: [areaA, areaB], vault: vault)
 
-        // Sanity: the index sees both Pages as referencing spaceA before the cascade.
-        let before = try await IndexQuery(index).incomingContextLinks(targetID: spaceA)
+        // Sanity: the index sees both Pages as referencing areaA before the cascade.
+        let before = try await IndexQuery(index).incomingContextLinks(targetID: areaA)
         #expect(Set(before.map(\.id)) == [p1.id, p2.id])
 
-        try await manager.unlinkTier(contextID: spaceA, tier: 1, index: index)
+        try await manager.unlinkTier(contextID: areaA, tier: 1, index: index)
 
-        // Reload BOTH from disk — assert spaceA gone, spaceB retained, order preserved.
+        // Reload BOTH from disk — assert areaA gone, areaB retained, order preserved.
         let reloaded1 = try PageFile.load(from: p1.url).frontmatter
         let reloaded2 = try PageFile.load(from: p2.url).frontmatter
-        #expect(reloaded1.tier1 == [spaceB])
-        #expect(reloaded2.tier1 == [spaceB])
+        #expect(reloaded1.tier1 == [areaB])
+        #expect(reloaded2.tier1 == [areaB])
         #expect(manager.pendingError == nil)
 
-        // Index reconciled: no `relations` row (page → spaceA, _tier1) remains;
-        // the spaceB tier row is still present for both Pages.
-        #expect(try await tierRelationCount(index, target: spaceA, propertyID: ReservedPropertyID.tier1) == 0)
-        #expect(try await tierRelationCount(index, target: spaceB, propertyID: ReservedPropertyID.tier1) == 2)
+        // Index reconciled: no `relations` row (page → areaA, _tier1) remains;
+        // the areaB tier row is still present for both Pages.
+        #expect(try await tierRelationCount(index, target: areaA, propertyID: ReservedPropertyID.tier1) == 0)
+        #expect(try await tierRelationCount(index, target: areaB, propertyID: ReservedPropertyID.tier1) == 2)
     }
 
     // MARK: - Page (Collection-nested)
@@ -76,15 +76,15 @@ struct UnlinkTierTests {
         manager.indexUpdater = IndexUpdater(index)
 
         let page = try await manager.createPage(name: "Nested", in: coll, vault: vault)
-        try await setPageTier(manager, page, tier: 1, ids: [spaceA], vault: vault, collection: coll)
+        try await setPageTier(manager, page, tier: 1, ids: [areaA], vault: vault, collection: coll)
 
-        try await manager.unlinkTier(contextID: spaceA, tier: 1, index: index)
+        try await manager.unlinkTier(contextID: areaA, tier: 1, index: index)
 
         // Reload from disk — proves the Collection URL derivation in `locatePageFile`.
         let reloaded = try PageFile.load(from: page.url).frontmatter
         #expect(reloaded.tier1.isEmpty)
         #expect(manager.pendingError == nil)
-        #expect(try await tierRelationCount(index, target: spaceA, propertyID: ReservedPropertyID.tier1) == 0)
+        #expect(try await tierRelationCount(index, target: areaA, propertyID: ReservedPropertyID.tier1) == 0)
     }
 
     // MARK: - Agenda Task
@@ -104,18 +104,18 @@ struct UnlinkTierTests {
             dueAt: nil, dueFloating: false, dueAllDay: false, startAt: nil,
             completed: false, completedAt: nil, priority: 0,
             recurrence: nil, alarmOffsets: [], calendarID: nil, eventkitUUID: nil,
-            tier1: [spaceA, spaceB], tier2: [], tier3: [],
+            tier1: [areaA, areaB], tier2: [], tier3: [],
             createdAt: Date(), modifiedAt: Date(), properties: [:]
         )
         try await manager.createTask(task)
 
-        try await manager.unlinkTier(contextID: spaceA, tier: 1, index: index)
+        try await manager.unlinkTier(contextID: areaA, tier: 1, index: index)
 
         let url = NexusPaths.taskFileURL(forTitle: "Plan release", in: nexus)
         let reloaded = try AgendaTask.load(from: url)
-        #expect(reloaded.tier1 == [spaceB])
+        #expect(reloaded.tier1 == [areaB])
         #expect(manager.pendingError == nil)
-        #expect(try await tierRelationCount(index, target: spaceA, propertyID: ReservedPropertyID.tier1) == 0)
+        #expect(try await tierRelationCount(index, target: areaA, propertyID: ReservedPropertyID.tier1) == 0)
     }
 
     // MARK: - No-op (unreferenced Context leaves files untouched)
@@ -130,20 +130,20 @@ struct UnlinkTierTests {
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
-        // Page references ONLY spaceB.
+        // Page references ONLY areaB.
         let page = try await manager.createPage(name: "Untouched", inVaultRoot: vault)
-        try await setPageTier(manager, page, tier: 1, ids: [spaceB], vault: vault)
+        try await setPageTier(manager, page, tier: 1, ids: [areaB], vault: vault)
 
         // Capture the file's modification timestamp + content before the cascade.
         let mtimeBefore = try modificationDate(of: page.url)
         let bytesBefore = try Data(contentsOf: page.url)
 
         // Unlink a Context this Page never referenced.
-        try await manager.unlinkTier(contextID: spaceA, tier: 1, index: index)
+        try await manager.unlinkTier(contextID: areaA, tier: 1, index: index)
 
         // tier1 unchanged; file not rewritten (identical bytes + mtime).
         let reloaded = try PageFile.load(from: page.url).frontmatter
-        #expect(reloaded.tier1 == [spaceB])
+        #expect(reloaded.tier1 == [areaB])
         #expect(try Data(contentsOf: page.url) == bytesBefore)
         #expect(try modificationDate(of: page.url) == mtimeBefore)
         #expect(manager.pendingError == nil)
@@ -162,12 +162,12 @@ struct UnlinkTierTests {
         manager.indexUpdater = IndexUpdater(index)
 
         let page = try await manager.createPage(name: "Solo", inVaultRoot: vault)
-        try await setPageTier(manager, page, tier: 1, ids: [spaceA], vault: vault)
+        try await setPageTier(manager, page, tier: 1, ids: [areaA], vault: vault)
         let bytesBefore = try Data(contentsOf: page.url)
 
         // tier 4 has no `_tierN` mapping → ReservedPropertyID.tierPropertyID returns
         // nil → early return; nothing is touched.
-        try await manager.unlinkTier(contextID: spaceA, tier: 4, index: index)
+        try await manager.unlinkTier(contextID: areaA, tier: 4, index: index)
 
         #expect(try Data(contentsOf: page.url) == bytesBefore)
         #expect(manager.pendingError == nil)

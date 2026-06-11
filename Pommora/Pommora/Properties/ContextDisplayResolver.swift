@@ -42,7 +42,7 @@ final class ContextDisplayResolver {
     static func defaultIcon(for kind: EntityKind) -> String {
         switch kind {
         case .page, .pageType, .pageCollection: return "doc.text"
-        case .space: return "square.stack.3d.up"
+        case .area: return "square.stack.3d.up"
         case .topic: return "folder"
         case .project: return "list.bullet.rectangle"
         case .agendaTask: return "checklist"

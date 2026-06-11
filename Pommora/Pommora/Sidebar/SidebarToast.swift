@@ -13,7 +13,7 @@ import SwiftUI
 /// HomepageManager, TierConfigManager. Add them if user-reachable code paths
 /// appear later.
 struct SidebarToast: View {
-    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -25,7 +25,7 @@ struct SidebarToast: View {
     @State private var displayedSource: ErrorSource? = nil
 
     enum ErrorSource: String, Hashable {
-        case space, topic, project, vault, content, savedConfig, sidebarSections
+        case area, topic, project, vault, content, savedConfig, sidebarSections
     }
 
     var body: some View {
@@ -54,8 +54,8 @@ struct SidebarToast: View {
                 .padding(.vertical, 4)
             }
         }
-        .onChange(of: errorChangeID(spaceManager.pendingError)) { _, _ in
-            capture(from: spaceManager.pendingError, source: .space)
+        .onChange(of: errorChangeID(areaManager.pendingError)) { _, _ in
+            capture(from: areaManager.pendingError, source: .area)
         }
         .onChange(of: errorChangeID(topicManager.pendingError)) { _, _ in
             capture(from: topicManager.pendingError, source: .topic)
@@ -85,7 +85,7 @@ struct SidebarToast: View {
 
     private func dismiss() {
         switch displayedSource {
-        case .space: spaceManager.pendingError = nil
+        case .area: areaManager.pendingError = nil
         case .topic: topicManager.pendingError = nil
         case .project: projectManager.pendingError = nil
         case .vault: vaultManager.pendingError = nil

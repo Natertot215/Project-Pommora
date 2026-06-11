@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A labeled row that renders a list of relation/tier target IDs as their current
 /// icon + title chips, via the shared `ContextDisplayResolver`. The reusable
-/// display for property-panel tier rows (Spaces / Topics /
+/// display for property-panel tier rows (Areas / Topics /
 /// Projects) and any labeled relation display.
 ///
 /// Warms the resolver for its IDs on appear (and when they change); resolves

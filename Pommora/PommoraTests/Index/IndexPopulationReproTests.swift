@@ -7,19 +7,19 @@
 //
 //    (1) the inline tier picker shows NO Contexts —
 //        `IndexQuery.entitiesByContextTarget(.contextTier(N))` returns empty even
-//        though the user has Spaces/Topics;
+//        though the user has Areas/Topics;
 //    (2) "SQLite error 19: FOREIGN KEY constraint failed - while executing
 //        INSERT OR REPLACE INTO pages" when disclosing a Collection group.
 //
 //  Suspected root: a parent-entity sidecar that fails to decode is silently
 //  skipped (`try?`) during loadAll / index population. Its child Pages then
-//  FK-fail on `pages.page_collection_id` upsert, and skipped Spaces/Topics
+//  FK-fail on `pages.page_collection_id` upsert, and skipped Areas/Topics
 //  never land in `contexts` so the tier picker reads empty.
 //
 //  Setup mirrors `PommoraTests/Nexus/LoadAllIndexSyncTests.swift` verbatim
 //  (TempNexus + `PommoraIndex.open` + `IndexUpdater(index)` injected into each
 //  manager + `manager.loadAll()`), plus the manager-construction shapes from
-//  `SpaceManagerTests` / `TopicManagerTests` and the on-disk page seeding from
+//  `AreaManagerTests` / `TopicManagerTests` and the on-disk page seeding from
 //  `Index/TierRelationsEmitTests` (`PageFile(...).save(to:)`).
 //
 //  Struct name MATCHES the filename (quirk #18 — Swift Testing filters by
@@ -42,10 +42,10 @@ struct IndexPopulationReproTests {
     // MARK: - Test A — clean-nexus structural population
 
     /// Isolates STRUCTURAL gaps. A fully VALID nexus (one Vault → one Page
-    /// Collection → one Page; one Space at tier 1; one Topic at tier 2) is
+    /// Collection → one Page; one Area at tier 1; one Topic at tier 2) is
     /// loaded through every manager in app order, all sharing one IndexUpdater
     /// over a fresh (schema-only, zero-row) index. If loadAll populates the
-    /// index fully, the tier pickers see the Space + Topic and a page-property
+    /// index fully, the tier pickers see the Area + Topic and a page-property
     /// write does not FK-fail. If THIS fails, the bug is structural — loadAll
     /// itself doesn't fully populate the index.
     @Test func cleanNexusLoadAllPopulatesIndexAndContexts() async throws {
@@ -83,13 +83,13 @@ struct IndexPopulationReproTests {
         let pageURL = collFolder.appendingPathComponent("Monday.md")
         try PageFile(frontmatter: pageFrontmatter, body: "# Monday\n").save(to: pageURL)
 
-        // --- Seed a VALID Space (tier 1). ---
-        let spaceID = ULID.generate()
-        let spaceName = "Personal"
+        // --- Seed a VALID Area (tier 1). ---
+        let areaID = ULID.generate()
+        let areaName = "Personal"
         try Filesystem.createFolderWithMetadata(
-            folderURL: NexusPaths.spaceFolderURL(forTitle: spaceName, in: nexus),
-            metadataURL: NexusPaths.spaceMetadataURL(forTitle: spaceName, in: nexus),
-            metadata: Space(id: spaceID, title: spaceName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
+            folderURL: NexusPaths.areaFolderURL(forTitle: areaName, in: nexus),
+            metadataURL: NexusPaths.areaMetadataURL(forTitle: areaName, in: nexus),
+            metadata: Area(id: areaID, title: areaName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
         )
 
         // --- Seed a VALID Topic (tier 2). ---
@@ -107,8 +107,8 @@ struct IndexPopulationReproTests {
         pageTypeManager.indexUpdater = IndexUpdater(index)
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
-        let spaceManager = SpaceManager(nexus: nexus)
-        spaceManager.indexUpdater = IndexUpdater(index)
+        let areaManager = AreaManager(nexus: nexus)
+        areaManager.indexUpdater = IndexUpdater(index)
         let topicManager = TopicManager(nexus: nexus)
         topicManager.indexUpdater = IndexUpdater(index)
 
@@ -120,12 +120,12 @@ struct IndexPopulationReproTests {
         )
         await pageContentManager.loadAll(for: loadedVault)
         await pageContentManager.loadAll(for: loadedCollection)
-        await spaceManager.loadAll()
+        await areaManager.loadAll()
         await topicManager.loadAll()
 
-        // --- ASSERT: tier pickers see the Space + Topic. ---
+        // --- ASSERT: tier pickers see the Area + Topic. ---
         let tier1 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(1))
-        #expect(tier1.contains { $0.id == spaceID })
+        #expect(tier1.contains { $0.id == areaID })
 
         let tier2 = try await IndexQuery(index).entitiesByContextTarget(.contextTier(2))
         #expect(tier2.contains { $0.id == topicID })
@@ -141,7 +141,7 @@ struct IndexPopulationReproTests {
         try await pageContentManager.updatePageProperty(
             loadedPage,
             propertyID: ReservedPropertyID.tier1,
-            newValue: .relation([spaceID]),
+            newValue: .relation([areaID]),
             vault: loadedVault,
             collection: loadedCollection
         )

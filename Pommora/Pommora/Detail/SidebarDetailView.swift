@@ -26,12 +26,12 @@ struct SidebarDetailView: View {
                     supportingLine: "Saved view coming v0.6.0"
                 )
 
-            case .space(let s):
+            case .area(let s):
                 ContextDetailPlaceholder(
                     title: s.title,
                     icon: s.icon ?? "circle.fill",
                     accent: s.color?.swiftUIColor,
-                    supportingLine: "Tier 1 — Space"
+                    supportingLine: "Tier 1 — Area"
                 )
 
             case .topic(let t):
@@ -118,7 +118,7 @@ struct SidebarDetailView: View {
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .editIcon(let target): IconPickerSheet(target: target)
-            case .editColor(let s): ColorPickerSheet(space: s)
+            case .editColor(let s): ColorPickerSheet(area: s)
             }
         }
     }

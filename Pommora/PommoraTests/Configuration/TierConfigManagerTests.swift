@@ -15,7 +15,7 @@ struct TierConfigManagerTests {
         await m.load()
         #expect(FileManager.default.fileExists(atPath: NexusPaths.tierConfigURL(in: nexus).path))
         #expect(m.config.tiers.count == 3)
-        #expect(m.config.tiers[0].singular == "Space")
+        #expect(m.config.tiers[0].singular == "Area")
     }
 
     @Test("save persists user edits")

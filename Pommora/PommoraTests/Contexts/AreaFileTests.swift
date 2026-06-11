@@ -3,19 +3,19 @@ import Testing
 
 @testable import Pommora
 
-@Suite("SpaceFile")
-struct SpaceFileTests {
+@Suite("AreaFile")
+struct AreaFileTests {
 
-    @Test("Space round-trips through AtomicJSON")
+    @Test("Area round-trips through AtomicJSON")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.spaceMetadataURL(forTitle: "Personal", in: nexus)
+        let url = NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus)
         try FileManager.default.createDirectory(
-            at: NexusPaths.spaceFolderURL(forTitle: "Personal", in: nexus),
+            at: NexusPaths.areaFolderURL(forTitle: "Personal", in: nexus),
             withIntermediateDirectories: true)
 
-        let original = Space(
+        let original = Area(
             id: "01HX2K6Z3V4Y5W6X7Y8Z9A0B1C",
             title: "Personal",
             color: .blue,
@@ -25,22 +25,22 @@ struct SpaceFileTests {
         )
         try original.save(to: url)
 
-        var loaded = try Space.load(from: url)
+        var loaded = try Area.load(from: url)
         // title is derived from folder name on load — overwrite to match
         loaded.title = "Personal"
         #expect(loaded == original)
     }
 
-    @Test("Space on-disk JSON omits title field (filename = title rule)")
+    @Test("Area on-disk JSON omits title field (filename = title rule)")
     func titleNotPersisted() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.spaceMetadataURL(forTitle: "Work", in: nexus)
+        let url = NexusPaths.areaMetadataURL(forTitle: "Work", in: nexus)
         try FileManager.default.createDirectory(
-            at: NexusPaths.spaceFolderURL(forTitle: "Work", in: nexus),
+            at: NexusPaths.areaFolderURL(forTitle: "Work", in: nexus),
             withIntermediateDirectories: true)
 
-        let space = Space(
+        let area = Area(
             id: "01HX",
             title: "Work",
             color: .green,
@@ -48,22 +48,22 @@ struct SpaceFileTests {
             blocks: [],
             modifiedAt: Date()
         )
-        try space.save(to: url)
+        try area.save(to: url)
 
         let raw = try String(contentsOf: url, encoding: .utf8)
         #expect(!raw.contains("\"title\""), "title field must not appear on disk")
     }
 
-    @Test("Space tier is always 1 after load")
+    @Test("Area tier is always 1 after load")
     func tierAlways1() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.spaceMetadataURL(forTitle: "Academics", in: nexus)
+        let url = NexusPaths.areaMetadataURL(forTitle: "Academics", in: nexus)
         try FileManager.default.createDirectory(
-            at: NexusPaths.spaceFolderURL(forTitle: "Academics", in: nexus),
+            at: NexusPaths.areaFolderURL(forTitle: "Academics", in: nexus),
             withIntermediateDirectories: true)
 
-        let space = Space(
+        let area = Area(
             id: "01H",
             title: "Academics",
             color: .red,
@@ -71,21 +71,21 @@ struct SpaceFileTests {
             blocks: [],
             modifiedAt: Date()
         )
-        try space.save(to: url)
-        let loaded = try Space.load(from: url)
+        try area.save(to: url)
+        let loaded = try Area.load(from: url)
         #expect(loaded.tier == 1)
     }
 
-    @Test("Space load derives title from folder name")
+    @Test("Area load derives title from folder name")
     func titleFromFolderName() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.spaceMetadataURL(forTitle: "Side Projects", in: nexus)
+        let url = NexusPaths.areaMetadataURL(forTitle: "Side Projects", in: nexus)
         try FileManager.default.createDirectory(
-            at: NexusPaths.spaceFolderURL(forTitle: "Side Projects", in: nexus),
+            at: NexusPaths.areaFolderURL(forTitle: "Side Projects", in: nexus),
             withIntermediateDirectories: true)
 
-        let space = Space(
+        let area = Area(
             id: "01H",
             title: "Side Projects",
             color: .purple,
@@ -93,8 +93,8 @@ struct SpaceFileTests {
             blocks: [],
             modifiedAt: Date()
         )
-        try space.save(to: url)
-        let loaded = try Space.load(from: url)
+        try area.save(to: url)
+        let loaded = try Area.load(from: url)
         #expect(loaded.title == "Side Projects")
     }
 }

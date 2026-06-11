@@ -6,7 +6,7 @@ import Testing
 @Suite("TopicValidator")
 struct TopicValidatorTests {
 
-    @Test("title rules apply same as Space")
+    @Test("title rules apply same as Area")
     func titleRules() {
         #expect(throws: TopicValidator.ValidationError.emptyTitle) {
             try TopicValidator.validate(title: "", existing: [])
@@ -37,8 +37,8 @@ struct TopicValidatorTests {
             icon: nil, blocks: [], modifiedAt: Date())
     }
 
-    private func makeSpace(title: String) -> Space {
-        Space(
+    private func makeArea(title: String) -> Area {
+        Area(
             id: ULID.generate(), title: title, color: .blue,
             icon: nil, blocks: [], modifiedAt: Date())
     }

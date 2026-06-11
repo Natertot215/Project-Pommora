@@ -265,14 +265,14 @@ struct IndexBuilderTests {
         #expect(pageCount == 2, "Duplicate pages rows after second populate")
     }
 
-    @Test func populateContextsSpacesAndTopics() async throws {
+    @Test func populateContextsAreasAndTopics() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let spaceManager = SpaceManager(nexus: nexus)
-        await spaceManager.loadAll()
-        try await spaceManager.create(name: "Work", color: nil, icon: nil)
-        try await spaceManager.create(name: "Personal", color: nil, icon: nil)
+        let areaManager = AreaManager(nexus: nexus)
+        await areaManager.loadAll()
+        try await areaManager.create(name: "Work", color: nil, icon: nil)
+        try await areaManager.create(name: "Personal", color: nil, icon: nil)
 
         let topicManager = TopicManager(nexus: nexus)
         await topicManager.loadAll()
@@ -281,10 +281,10 @@ struct IndexBuilderTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)
 
-        let spaceCount = try await idx.dbQueue.read { db in
+        let areaCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM contexts WHERE tier = 1") ?? -1
         }
-        #expect(spaceCount == 2)
+        #expect(areaCount == 2)
 
         let topicCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM contexts WHERE tier = 2") ?? -1
@@ -359,11 +359,11 @@ struct IndexBuilderTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Create a space so we have a real tier-1 ID.
-        let spaceManager = SpaceManager(nexus: nexus)
-        await spaceManager.loadAll()
-        try await spaceManager.create(name: "Work", color: nil, icon: nil)
-        let space = spaceManager.spaces.first!
+        // Create a area so we have a real tier-1 ID.
+        let areaManager = AreaManager(nexus: nexus)
+        await areaManager.loadAll()
+        try await areaManager.create(name: "Work", color: nil, icon: nil)
+        let area = areaManager.areas.first!
 
         // Create a page type + collection + one page with tier1 populated.
         let pageTypeManager = PageTypeManager(nexus: nexus)
@@ -376,7 +376,7 @@ struct IndexBuilderTests {
         let now = Date()
         let fm = PageFrontmatter(
             id: ULID.generate(), icon: nil,
-            tier1: [space.id], tier2: [], tier3: [],
+            tier1: [area.id], tier2: [], tier3: [],
             properties: [:],
             createdAt: now, modifiedAt: now
         )
@@ -387,7 +387,7 @@ struct IndexBuilderTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         // The page's tier1 value emits one `context_links` row carrying the reserved
-        // tier-1 property id and the space as target.
+        // tier-1 property id and the area as target.
         let relCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
@@ -404,7 +404,7 @@ struct IndexBuilderTests {
                 arguments: [ReservedPropertyID.tier1]
             )
         }
-        #expect(targetID == space.id)
+        #expect(targetID == area.id)
     }
 
     @Test func populatePropertyDefinitionsForPageType() async throws {

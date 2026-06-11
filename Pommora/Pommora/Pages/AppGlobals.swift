@@ -5,7 +5,7 @@ import Foundation
 /// and the editor-VM registry that gets flushed on app lifecycle events.
 ///
 /// **Why not hoist managers to `PommoraApp`?** PageContentManager construction
-/// depends on TopicManager which depends on SpaceManager + PageTypeManager (see
+/// depends on TopicManager which depends on AreaManager + PageTypeManager (see
 /// `ContentView.constructManagers`). The full graph is too entangled to hoist
 /// without major restructuring. AppGlobals gives `WindowGroup(for: PageRef.self)`
 /// read access without that surgery — ContentView publishes refs here when it
@@ -21,7 +21,7 @@ enum AppGlobals {
 
     static var contentManager: PageContentManager?
     static var pageTypeManager: PageTypeManager?
-    static var spaceManager: SpaceManager?
+    static var areaManager: AreaManager?
     static var topicManager: TopicManager?
     static var recentsManager: RecentsManager?
     static var pinnedManager: PinnedManager?
@@ -47,7 +47,7 @@ enum AppGlobals {
     static func publish(
         contentManager: PageContentManager,
         pageTypeManager: PageTypeManager,
-        spaceManager: SpaceManager,
+        areaManager: AreaManager,
         topicManager: TopicManager,
         recentsManager: RecentsManager,
         pinnedManager: PinnedManager,
@@ -55,7 +55,7 @@ enum AppGlobals {
     ) {
         self.contentManager = contentManager
         self.pageTypeManager = pageTypeManager
-        self.spaceManager = spaceManager
+        self.areaManager = areaManager
         self.topicManager = topicManager
         self.recentsManager = recentsManager
         self.pinnedManager = pinnedManager

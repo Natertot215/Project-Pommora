@@ -128,7 +128,7 @@ extension PageType {
     }
 
     /// Stored `properties` plus the three pre-configured tier relation properties
-    /// (Spaces/Topics/Projects), merged via BuiltInContextLinkProperties. Surfaces that
+    /// (Areas/Topics/Projects), merged via BuiltInContextLinkProperties. Surfaces that
     /// must SHOW tiers read this; everything that persists or mutates the schema
     /// keeps using the stored `properties`.
     func resolvedProperties(tierConfig: TierConfig) -> [PropertyDefinition] {

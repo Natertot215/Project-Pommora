@@ -231,7 +231,7 @@ struct NavDropdownButton: View {
         switch ref.typedKind {
         case .agenda, .none:
             return
-        case .page, .vault, .space, .topic, .project, .collection:
+        case .page, .vault, .area, .topic, .project, .collection:
             if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                 onOpen(sel)
                 return

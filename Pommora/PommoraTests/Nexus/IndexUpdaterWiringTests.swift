@@ -40,7 +40,7 @@ struct IndexUpdaterWiringTests {
 
         let contentMgr: PageContentManager = PageContentManager(nexus: nexus) {
             NexusContext(
-                lookupSpace: { _ in nil },
+                lookupArea: { _ in nil },
                 lookupTopic: { _ in nil },
                 lookupProject: { _ in nil },
                 lookupVault: { _ in nil }
@@ -101,7 +101,7 @@ struct IndexUpdaterWiringTests {
 
         let contentMgr: PageContentManager = PageContentManager(nexus: nexus) {
             NexusContext(
-                lookupSpace: { _ in nil },
+                lookupArea: { _ in nil },
                 lookupTopic: { _ in nil },
                 lookupProject: { _ in nil },
                 lookupVault: { _ in nil }

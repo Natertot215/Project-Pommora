@@ -26,7 +26,7 @@ struct UserRelationDecodeFilterTests {
     @Test func pageTypeKeepsStoredTierOverrideOnDecode() throws {
         let json = """
             {"id":"01PAGETYPE","modified_at":"2026-06-04T00:00:00Z","schema_version":2,
-             "properties":[{"id":"_tier1","name":"My Spaces","type":"relation","relation_target":{"kind":"context_tier","tier":1},"reverse_name":"Members"}]}
+             "properties":[{"id":"_tier1","name":"My Areas","type":"relation","relation_target":{"kind":"context_tier","tier":1},"reverse_name":"Members"}]}
             """
         let t = try decoder().decode(PageType.self, from: Data(json.utf8))
         let tier = try #require(t.properties.first { $0.id == "_tier1" })

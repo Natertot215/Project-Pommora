@@ -37,7 +37,7 @@ struct PropertyColumn: Identifiable, Hashable, Sendable {
 /// (in neither visible nor hidden — e.g. freshly created) as visible-by-
 /// default. Only `hiddenProperties` are excluded.
 ///
-/// The three tier relation columns (Project / Topic / Space → `_tier3`,
+/// The three tier relation columns (Project / Topic / Area → `_tier3`,
 /// `_tier2`, `_tier1`) are emitted rightmost-before-Modified, in that order,
 /// after all user-property columns and immediately before the trailing
 /// `.lastEditedTime`. Callers pass `resolvedProperties(tierConfig:)` so the
@@ -77,7 +77,7 @@ enum PropertyColumnBuilder {
         }
 
         // Tier relation columns — rightmost content columns, before Modified.
-        // Order is Project / Topic / Space (tier3, tier2, tier1). Each tier is
+        // Order is Project / Topic / Area (tier3, tier2, tier1). Each tier is
         // hideable via `hiddenProperties`, and only emitted when its def is
         // present in `schema` (callers pass `resolvedProperties(tierConfig:)`;
         // a schema without tiers gets none). They never appear as user-property

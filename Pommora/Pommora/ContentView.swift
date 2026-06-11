@@ -55,8 +55,8 @@ struct ContentView: View {
             return .none
         case .savedKey(let key):
             return key == "calendar" ? .calendar : .none
-        case .space:
-            return .space
+        case .area:
+            return .area
         case .topic:
             return .topic
         case .project:
@@ -92,7 +92,7 @@ struct ContentView: View {
             let lookup = SidebarLookupBundle(
                 content: contentMgr,
                 pageType: vaultMgr,
-                space: env.spaceManager,
+                area: env.areaManager,
                 topic: env.topicManager,
                 project: env.projectManager
             )
@@ -166,7 +166,7 @@ struct ContentView: View {
                                 lookup: SidebarLookupBundle(
                                     content: env.contentManager,
                                     pageType: env.vaultManager,
-                                    space: env.spaceManager,
+                                    area: env.areaManager,
                                     topic: env.topicManager,
                                     project: env.projectManager
                                 ))

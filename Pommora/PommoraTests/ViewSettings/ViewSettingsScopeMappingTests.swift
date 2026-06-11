@@ -37,14 +37,14 @@ struct ViewSettingsScopeMappingTests {
         #expect(scope == .none)
     }
 
-    @Test("space selection maps to .space scope")
-    func spaceMapsToSpace() {
-        let s = Space(
+    @Test("area selection maps to .area scope")
+    func areaMapsToArea() {
+        let s = Area(
             id: "01HSPACE", title: "Personal", color: nil, icon: nil,
             blocks: [], modifiedAt: Date()
         )
-        let scope = ContentView.viewSettingsScope(for: .space(s))
-        #expect(scope == .space)
+        let scope = ContentView.viewSettingsScope(for: .area(s))
+        #expect(scope == .area)
     }
 
     @Test("topic selection maps to .topic scope")

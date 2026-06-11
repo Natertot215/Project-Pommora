@@ -366,10 +366,10 @@ import Testing
         let pageURL = folder.appendingPathComponent("Page-1.md")
         let orphanRelKey = "prop_OLDREL_ORPHAN"
         let targetID = "01HTARGET01HTARGET01HTARGET"
-        let spaceID = "01HSPACE01HSPACE01HSPACE01H"
+        let areaID = "01HAREAX01HAREAX01HAREAX01H"
         let fm = PageFrontmatter(
             id: "01HPAGE1", icon: nil,
-            tier1: [spaceID], tier2: [], tier3: [],
+            tier1: [areaID], tier2: [], tier3: [],
             properties: [
                 "Status": .select("active"),
                 orphanRelKey: .relation([targetID]),
@@ -396,7 +396,7 @@ import Testing
         #expect(pf.frontmatter.properties[statusID] == .select("active"), "legit property survives rekeyed")
 
         // Root tier array survives.
-        #expect(pf.frontmatter.tier1 == [spaceID], "root tier1 array must not be touched")
+        #expect(pf.frontmatter.tier1 == [areaID], "root tier1 array must not be touched")
 
         // Body survives.
         #expect(pf.body.contains("Body survives"), "page body must survive the rewrite")

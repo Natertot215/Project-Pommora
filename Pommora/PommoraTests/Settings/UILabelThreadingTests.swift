@@ -27,7 +27,7 @@ struct UILabelThreadingTests {
         let labels = m.settings.labels
         let defaults = SettingsLabels.defaults()
 
-        #expect(labels.sidebarSections.spaces == defaults.sidebarSections.spaces)
+        #expect(labels.sidebarSections.areas == defaults.sidebarSections.areas)
         #expect(labels.sidebarSections.topics == defaults.sidebarSections.topics)
         #expect(labels.sidebarSections.pages  == defaults.sidebarSections.pages)
         #expect(labels.pageType.singular      == defaults.pageType.singular)
@@ -38,11 +38,11 @@ struct UILabelThreadingTests {
 
     // MARK: - Test 2: Default sidebar section values are correct strings
 
-    @Test("Default sidebar section labels are Spaces / Topics / Vaults")
+    @Test("Default sidebar section labels are Areas / Topics / Vaults")
     func defaultSidebarSectionStrings() async throws {
         let m = try await makeSettingsManager()
         let s = m.settings.labels.sidebarSections
-        #expect(s.spaces == "Spaces")
+        #expect(s.areas == "Areas")
         #expect(s.topics == "Topics")
         #expect(s.pages  == "Vaults")
     }
@@ -76,10 +76,10 @@ struct UILabelThreadingTests {
         #expect(m2.settings.labels.pageType.singular == "Library")
     }
 
-    // MARK: - Test 5: Customizing the "Spaces" section label propagates
+    // MARK: - Test 5: Customizing the "Areas" section label propagates
 
-    @Test("Customizing sidebarSections.spaces persists")
-    func customizeSpacesSectionLabel() async throws {
+    @Test("Customizing sidebarSections.areas persists")
+    func customizeAreasSectionLabel() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
@@ -87,14 +87,14 @@ struct UILabelThreadingTests {
         await m.loadOrSeed()
 
         var sections = m.settings.labels.sidebarSections
-        sections.spaces = "Contexts"
+        sections.areas = "Contexts"
         await m.updateLabel(\.sidebarSections, to: sections)
 
-        #expect(m.settings.labels.sidebarSections.spaces == "Contexts")
+        #expect(m.settings.labels.sidebarSections.areas == "Contexts")
 
         let m2 = SettingsManager(nexus: nexus)
         await m2.loadOrSeed()
-        #expect(m2.settings.labels.sidebarSections.spaces == "Contexts")
+        #expect(m2.settings.labels.sidebarSections.areas == "Contexts")
     }
 
     // MARK: - Test 6: Untouched labels are preserved when one is updated
@@ -129,11 +129,11 @@ struct UILabelThreadingTests {
         #expect(m.settings.labels.agendaEvent.plural   == "Events")
     }
 
-    // MARK: - Test 9: Backward-compatible decode of legacy settings without spaces/topics
+    // MARK: - Test 9: Backward-compatible decode of legacy settings without areas/topics
 
-    @Test("Decoding legacy settings without spaces/topics fields uses safe defaults")
+    @Test("Decoding legacy settings without areas/topics fields uses safe defaults")
     func legacyDecodeHasSafeDefaults() throws {
-        // Simulate a legacy settings file that lacks `spaces` and `topics`
+        // Simulate a legacy settings file that lacks `areas` and `topics`
         // in the sidebar_sections block.
         let json = """
         {
@@ -159,7 +159,7 @@ struct UILabelThreadingTests {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(Settings.self, from: json)
-        #expect(decoded.labels.sidebarSections.spaces == "Spaces")
+        #expect(decoded.labels.sidebarSections.areas == "Areas")
         #expect(decoded.labels.sidebarSections.topics == "Topics")
         #expect(decoded.labels.sidebarSections.pages  == "Vaults")
     }

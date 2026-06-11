@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Shared rename-mode row content used by every sidebar row that supports
-/// inline rename: Space / Project / PageType / PageCollection / Topic / Page.
+/// inline rename: Area / Project / PageType / PageCollection / Topic / Page.
 ///
 /// Mirrors `SelectableRow`'s HStack shape (icon + text slot + trailing spacer +
 /// optional trailing slot) so the row doesn't visually jump when entering or

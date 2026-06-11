@@ -57,7 +57,7 @@ struct EntityRow: View {
         switch ref.typedKind {
         case .page: return "doc.text"
         case .vault: return "book"
-        case .space: return "rectangle.3.group"
+        case .area: return "rectangle.3.group"
         case .topic: return "folder"
         case .project: return "folder"
         case .agenda: return "calendar"
@@ -70,7 +70,7 @@ struct EntityRow: View {
         switch ref.typedKind {
         case .page: return "Page"
         case .vault: return "Vault"
-        case .space: return "Space"
+        case .area: return "Area"
         case .topic: return "Topic"
         case .project: return "Project"
         case .agenda: return "Task"

@@ -168,7 +168,7 @@ struct PropertyDefinition: Codable, Equatable, Identifiable, Hashable, Sendable 
     /// `nil` and the def is dropped by `droppingUserRelations()`. Tier-only
     /// tolerance; retired from user creation.
     enum RelationTarget: Codable, Equatable, Hashable, Sendable {
-        /// Internal-only: built-in Spaces / Topics / Projects context tiers (tier 1 / 2 / 3).
+        /// Internal-only: built-in Areas / Topics / Projects context tiers (tier 1 / 2 / 3).
         /// Tier-only tolerance; retired from user creation.
         case contextTier(Int)
 

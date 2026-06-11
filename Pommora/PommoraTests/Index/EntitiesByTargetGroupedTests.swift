@@ -24,15 +24,15 @@ struct EntitiesByTargetGroupedTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let spaceID = ULID.generate()
+        let areaID = ULID.generate()
         try updater.upsertContext(
-            Space(id: spaceID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
+            Area(id: areaID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
         )
 
         let grouped = try await IndexQuery(index).entitiesByContextTargetGrouped(.contextTier(1))
 
-        // Context-tier scope → flat: no groups; the Space lands in rootEntities.
+        // Context-tier scope → flat: no groups; the Area lands in rootEntities.
         #expect(grouped.groups.isEmpty)
-        #expect(grouped.rootEntities.contains { $0.id == spaceID })
+        #expect(grouped.rootEntities.contains { $0.id == areaID })
     }
 }

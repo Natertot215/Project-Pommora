@@ -69,7 +69,7 @@ final class RecentsManager {
 
     /// Kinds that enter the shared `entries` list — i.e. what the Back/Forward
     /// stack steps through and what persists to state.json. Pages plus the
-    /// storage containers (Vault / Collection). Contexts (Spaces / Topics /
+    /// storage containers (Vault / Collection). Contexts (Areas / Topics /
     /// Projects) stay out — they're reached via the sidebar.
     static let recordableKinds: Set<EntityStateRef.Kind> = [
         .page, .vault, .collection,

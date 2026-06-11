@@ -21,7 +21,7 @@ enum ViewSettingsScope: Equatable, Sendable {
     case pageType(PageType)
     case pageCollection(PageCollection)
     case page
-    case space
+    case area
     case topic
     case project
     case calendar

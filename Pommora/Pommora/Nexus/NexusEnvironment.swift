@@ -47,7 +47,7 @@ final class NexusEnvironment {
     /// without SIGTRAP (quirk #15).
     let nexusManager: NexusManager
 
-    let spaceManager: SpaceManager
+    let areaManager: AreaManager
     let topicManager: TopicManager
     let projectManager: ProjectManager
     let vaultManager: PageTypeManager
@@ -81,22 +81,22 @@ final class NexusEnvironment {
     /// (e.g. a future FSEventStream watcher or SQLite indexer) — rebuild it inline on the
     /// `@MainActor` at the call site.
     init(nexus: Nexus, nexusManager: NexusManager) {
-        let spaceMgr = SpaceManager(nexus: nexus)
+        let areaMgr = AreaManager(nexus: nexus)
         let projectMgr = ProjectManager(nexus: nexus)
         let vaultMgr = PageTypeManager(nexus: nexus)
 
         let topicMgr = TopicManager(nexus: nexus)
 
-        // PageContentManager needs Space + Topic + Project + Page Type for tier validation.
+        // PageContentManager needs Area + Topic + Project + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on
         // MainActor; inner @Sendable closures use value-type snapshots.
-        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [spaceMgr, vaultMgr, projectMgr] in
-            let spaces = spaceMgr.spaces
+        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [areaMgr, vaultMgr, projectMgr] in
+            let areas = areaMgr.areas
             let types = vaultMgr.types
             let topics = topicMgr.topics
             let projectsSnapshot = projectMgr.projects
             return NexusContext(
-                lookupSpace: { id in spaces.first { $0.id == id } },
+                lookupArea: { id in areas.first { $0.id == id } },
                 lookupTopic: { id in topics.first { $0.id == id } },
                 lookupProject: { id in projectsSnapshot.first(where: { $0.id == id }) },
                 lookupVault: { id in types.first { $0.id == id } }
@@ -127,12 +127,12 @@ final class NexusEnvironment {
             ?? NoOpWikiLinkResolver()
 
         // Phase E.7.5: wire IndexUpdater into all CRUD managers before publishing
-        // (Space + Topic added so Contexts sync to the `contexts` index table).
+        // (Area + Topic added so Contexts sync to the `contexts` index table).
         // IndexUpdater is Sendable — a single value can be shared across all of them.
         // If currentIndex is nil (degraded mode), updater stays nil and every
         // manager's `if let updater = indexUpdater` guard skips index writes.
         let updater = nexusManager.currentIndex.map { IndexUpdater($0) }
-        spaceMgr.indexUpdater = updater
+        areaMgr.indexUpdater = updater
         topicMgr.indexUpdater = updater
         projectMgr.indexUpdater = updater
         vaultMgr.indexUpdater = updater
@@ -146,7 +146,7 @@ final class NexusEnvironment {
         contentMgr.recentsManager = recentsMgr
 
         self.nexusManager = nexusManager
-        self.spaceManager = spaceMgr
+        self.areaManager = areaMgr
         self.topicManager = topicMgr
         self.projectManager = projectMgr
         self.vaultManager = vaultMgr
@@ -169,7 +169,7 @@ final class NexusEnvironment {
         AppGlobals.publish(
             contentManager: contentMgr,
             pageTypeManager: vaultMgr,
-            spaceManager: spaceMgr,
+            areaManager: areaMgr,
             topicManager: topicMgr,
             recentsManager: recentsMgr,
             pinnedManager: pinnedMgr,
@@ -184,7 +184,7 @@ final class NexusEnvironment {
         // Initial load — fire all in parallel.
         // PageContentManager loads per-collection lazily on detail-view appear.
         Task {
-            async let _ = spaceMgr.loadAll()
+            async let _ = areaMgr.loadAll()
             async let _ = topicMgr.loadAll()
             async let _ = projectMgr.loadAll()
             async let _ = vaultMgr.loadAll(filter: folderFilter)
@@ -212,7 +212,7 @@ extension View {
     func injectNexusEnvironment(_ env: NexusEnvironment) -> some View {
         self
             .environment(env.nexusManager)
-            .environment(env.spaceManager)
+            .environment(env.areaManager)
             .environment(env.topicManager)
             .environment(env.projectManager)
             .environment(env.vaultManager)

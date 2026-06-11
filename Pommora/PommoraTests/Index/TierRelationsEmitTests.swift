@@ -94,7 +94,7 @@ struct TierRelationsEmitTests {
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
         try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
 
-        // The relations row exists and carries the reserved tier property id + space target kind.
+        // The relations row exists and carries the reserved tier property id + area target kind.
         let count = try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx)
         #expect(count == 1)
 
@@ -102,7 +102,7 @@ struct TierRelationsEmitTests {
         let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: contextID)
         #expect(incoming.contains { $0.id == pageID })
 
-        // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "space").
+        // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "area").
         let targetKind = try await idx.dbQueue.read { db in
             try String.fetchOne(
                 db,
@@ -166,7 +166,7 @@ struct TierRelationsEmitTests {
         let incoming = try await IndexQuery(idx).incomingContextLinks(targetID: contextID)
         #expect(incoming.contains { $0.id == task.id })
 
-        // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "space").
+        // target_kind derives from the shared RelationTargetKind mapper (tier 1 → "area").
         let targetKind = try await idx.dbQueue.read { db in
             try String.fetchOne(
                 db,
@@ -387,14 +387,14 @@ struct TierRelationsEmitTests {
             to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename),
             options: [.atomic])
 
-        let spaceID = ULID.generate()
+        let areaID = ULID.generate()
         let orphanRelKey = "prop_ORPHAN_REL"
         let orphanTargetID = ULID.generate()
         let pageID = ULID.generate()
 
         let fm = PageFrontmatter(
             id: pageID, icon: nil,
-            tier1: [spaceID], tier2: [], tier3: [],
+            tier1: [areaID], tier2: [], tier3: [],
             properties: [
                 "Status": .select("active"),
                 orphanRelKey: .relation([orphanTargetID]),
@@ -421,7 +421,7 @@ struct TierRelationsEmitTests {
 
         // Tier row must exist.
         #expect(
-            try tierRelationCount(targetID: spaceID, propertyID: ReservedPropertyID.tier1, db: idx) == 1,
+            try tierRelationCount(targetID: areaID, propertyID: ReservedPropertyID.tier1, db: idx) == 1,
             "tier1 context_links row must be present after migration + index")
 
         // Orphan relation target must NOT appear in context_links.

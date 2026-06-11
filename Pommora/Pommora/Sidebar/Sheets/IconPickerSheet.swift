@@ -16,7 +16,7 @@ import SwiftUI
 struct IconPickerSheet: View {
     let target: SidebarSheet.IconTarget
     @Environment(\.dismiss) private var dismiss
-    @Environment(SpaceManager.self) private var spaceManager
+    @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
@@ -47,7 +47,7 @@ struct IconPickerSheet: View {
 
     private var currentIcon: String? {
         switch target {
-        case .space(let s): return s.icon
+        case .area(let s): return s.icon
         case .topic(let t): return t.icon
         case .project(let p): return p.icon
         case .pageType(let t): return t.icon
@@ -59,8 +59,8 @@ struct IconPickerSheet: View {
     private func save(newIcon: String?) async {
         // pendingError is set by each manager on failure; SidebarToast surfaces it.
         switch target {
-        case .space(let s):
-            do { try await spaceManager.updateIcon(s, to: newIcon) } catch
+        case .area(let s):
+            do { try await areaManager.updateIcon(s, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .topic(let t):
             do { try await topicManager.updateTopicIcon(t, to: newIcon) } catch

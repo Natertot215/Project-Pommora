@@ -36,7 +36,7 @@ struct ResolveEntitiesTests {
         #expect(out["P1"]?.title == "My Page")
         #expect(out["P1"]?.icon == "doc.text")
         #expect(out["P1"]?.kind == .page)
-        #expect(out["S1"]?.kind == .space)
+        #expect(out["S1"]?.kind == .area)
         #expect(out["S1"]?.icon == "square.stack.3d.up")
         #expect(out["missing"] == nil)
     }
