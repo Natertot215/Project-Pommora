@@ -20,6 +20,7 @@ struct IconPickerSheet: View {
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
     @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var pageContentManager
 
     /// Nullable binding so the picker exposes its built-in delete-icon button on
@@ -52,6 +53,7 @@ struct IconPickerSheet: View {
         case .project(let p): return p.icon
         case .pageType(let t): return t.icon
         case .pageCollection(let c): return c.icon
+        case .pageSet(let s): return s.icon
         case .page(let p, _, _): return p.frontmatter.icon
         }
     }
@@ -73,6 +75,9 @@ struct IconPickerSheet: View {
             { /* pendingError set by manager; toast surfaces */  }
         case .pageCollection(let c):
             do { try await vaultManager.updatePageCollectionIcon(c, to: newIcon) } catch
+            { /* pendingError set by manager; toast surfaces */  }
+        case .pageSet(let s):
+            do { try await pageSetManager.updatePageSetIcon(s, to: newIcon) } catch
             { /* pendingError set by manager; toast surfaces */  }
         case .page(let p, let vault, let collection):
             do { try await pageContentManager.updatePageIcon(p, to: newIcon, vault: vault, collection: collection) } catch

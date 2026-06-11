@@ -447,8 +447,7 @@ struct AdoptionPreviewView: View {
         switch kind {
         case .pageType: return labels.pageType.singular
         case .pageCollection: return labels.pageCollection.singular
-        // Sets have no SettingsLabels pair (not user-renameable yet).
-        case .pageSet: return "Set"
+        case .pageSet: return labels.pageSet.singular
         case .taskConfig: return labels.agendaTask.plural
         case .eventConfig: return labels.agendaEvent.plural
         }

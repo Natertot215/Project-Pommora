@@ -7,6 +7,7 @@ enum SidebarConfirmation: Identifiable {
     case deleteProject(Project)
     case deleteVault(PageType, collectionCount: Int)
     case deleteCollection(PageCollection)
+    case deleteSet(PageSet)
 
     var id: String {
         switch self {
@@ -15,6 +16,7 @@ enum SidebarConfirmation: Identifiable {
         case .deleteProject(let p): return "deleteProject-\(p.id)"
         case .deleteVault(let v, _): return "deleteVault-\(v.id)"
         case .deleteCollection(let c): return "deleteCollection-\(c.id)"
+        case .deleteSet(let s): return "deleteSet-\(s.id)"
         }
     }
 }
