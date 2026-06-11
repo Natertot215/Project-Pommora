@@ -1,22 +1,23 @@
 ### Page Types
 
-The operational layer's **Pages-side** schema-bearing container. A Page Type is a folder containing a `_pagetype.json` sidecar that defines the property schema shared by every Page inside. Page Collections are organizational sub-folders within a Page Type carrying their own `_pagecollection.json` sidecar (sharing the Type's schema; no properties of their own).
+The operational layer's **Pages-side** schema-bearing container. A Page Type is a folder containing a `_pagetype.json` sidecar that defines the property schema shared by every Page inside. Page Collections are organizational sub-folders within a Page Type carrying their own `_pagecollection.json` sidecar (sharing the Type's schema; no properties of their own). Page Sets are optional schema-less sub-folders within a Page Collection (`_pageset.json`; full spec → [[Sets]]).
 
-**UI labels:** Page Types render as **"Vault"** by default, Page Collections as **"Collection"** (both renameable via Settings). Doc prose says "Page Type" / "Page Collection" for conceptual clarity.
+**UI labels:** Page Types render as **"Vault"** by default, Page Collections as **"Collection"**, Page Sets as **"Set"** (all renameable via Settings). Doc prose says "Page Type" / "Page Collection" / "Page Set" for conceptual clarity.
 
 Maps to PARA's "Resources" alongside Agenda.
 
 ---
 
-#### Two-tier shape
+#### Three-tier shape
 
 | Entity | Role | On disk |
 |---|---|---|
 | **Page Type** | Folder with property schema; every Page inside shares the schema | Folder at the nexus root containing `_pagetype.json` |
 | **Page Collection** | Organizational sub-folder inside a Page Type; inherits the Type's property schema | Folder inside a Page Type containing its own `_pagecollection.json` (no `properties` — carries id, ordering, `icon`, own `views`) |
-| **Content** | Pages only (`.md`) | Files inside a Page Collection, or directly inside the Page Type |
+| **Page Set** | Optional schema-less sub-folder inside a Page Collection; identity + icon only — views, settings, and open-in all inherit from the Collection | Folder inside a Page Collection containing its own `_pageset.json` (carries `id`, `collection_id`, `icon`, `page_order`) — see [[Sets]] |
+| **Content** | Pages only (`.md`) | Files inside a Page Set, a Page Collection, or directly inside the Page Type |
 
-Page Collections share the parent Page Type's schema for simplicity (Collection-local overrides are a post-v1 Prospect).
+Page Collections share the parent Page Type's schema for simplicity (Collection-local overrides are a post-v1 Prospect). The hierarchy is strictly three levels: depth-2 folders are Sets; depth-3+ folders are sidecar-less and their pages roll up into the nearest Set.
 
 ---
 
@@ -28,7 +29,10 @@ Page Collections share the parent Page Type's schema for simplicity (Collection-
     _pagetype.json                    ← shared schema sidecar
     Spring-2026/                      ← Page Collection
       _pagecollection.json            ← per-Collection metadata
-      Essay-1.md                      ← Page
+      Midterm-Prep/                   ← Page Set (optional)
+        _pageset.json                 ← per-Set metadata
+        Exam-Review.md                ← Page inside a Set
+      Essay-1.md                      ← Page at Collection root
     Final-Project.md                  ← Page directly in Page Type root
 ```
 
@@ -96,7 +100,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 }
 ```
 
-Title = folder name. The schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively. An optional `open_in` field carries the vault's open-in mode (§ "Open-in mode" below). Per-property and per-panel visibility hide-lists are a post-v1 deferral (the inspector renders all schema properties today).
+Title = folder name. The schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively (the parent holds its children's order — a Collection's sidecar likewise carries `set_order` for its Sets). An optional `open_in` field carries the vault's open-in mode (§ "Open-in mode" below). Per-property and per-panel visibility hide-lists are a post-v1 deferral (the inspector renders all schema properties today).
 
 **Tier relation values are always multi-valued.** The built-in `_tier1` / `_tier2` / `_tier3` properties hold an array of tagged Context IDs — `[{"$rel": "<ULID>"}]` — one entry per linked Context (a single target is a one-element array). Values render as the target's **icon + title in plain styled colored text** (never chips/pills), resolved live from the target entity.
 
@@ -164,14 +168,17 @@ Filesystem folders inside a Page Type with a minimal sidecar. They inherit the p
   "schema_version": 1,
   "icon": "folder",
   "page_order": [],
+  "set_order": [],
   "views": [],
   "modified_at": "2026-05-22T..."
 }
 ```
 
-Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the context picker), `page_order` (user-arranged child Pages), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
+Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the context picker), `page_order` (user-arranged collection-root Pages — pages inside a Set order via that Set's own `page_order`), `set_order` (user-arranged child Page Sets), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
 
-- Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id/type_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page between Collections in the same Page Type = pure filesystem move, properties unchanged.
+- Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id/type_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page anywhere within the same Page Type (between Collections, Sets, and the Type root) = pure filesystem move, properties unchanged.
+
+Page Sets subdivide a Collection one level further — schema-less, view-less, settings-less folders whose `_pageset.json` carries identity + icon + `page_order` only. Full spec → [[Sets]].
 
 **Collection-local schemas** are a post-v1 Prospect; see [[Prospects]].
 
@@ -181,12 +188,13 @@ Page Collections don't carry their own `properties` — the property schema is i
 
 - Page Types appear as chevron-disclosure rows directly under the `Vaults` section heading (default label per `SidebarSectionLabels.defaults()`; the heading itself is a pure UI grouping — there is no `Pages/` wrapper folder on disk). The sidebar groups under "Vaults" any root folder whose sidecar filename is `_pagetype.json`.
 - **A Page Type's disclosure children**: Pages directly in the Type's root + Page Collection sub-folders (Pages above Collections in v1). Pages = `doc.text`; Collections = `folder`
-- **A Page Collection's disclosure children**: its Pages (`doc.text`)
+- **A Page Collection's disclosure children**: its Page Sets (`folder`; expandable, never selectable) + its Pages (`doc.text`)
+- **A Page Set's disclosure children**: its Pages (`doc.text`)
 - **Agenda Tasks and Agenda Events do NOT appear in the sidebar** — they surface via the Calendar pin entry
 - Clicking a Page Type opens `PageTypeDetailView` — hierarchical Finder-style Table over Collections (expandable for contained Pages)
-- Clicking a Page Collection opens `PageCollectionDetailView` — flat Table of Pages
+- Clicking a Page Collection opens `PageCollectionDetailView` — flat Table of Pages (root pages + each Set's pages concatenated; structural grouping ships with the Views cluster). Page Sets have no detail view of their own
 - Clicking a Page opens it in the main detail pane via the TextKit-2 editor (spec → [[PageEditor]])
-- A new Page Type is created from the "+" button in the Pages section header. Right-clicking a Page Type row creates its children — "New Collection" / "New Page"; right-clicking a Page Collection gives "New Page". See [[Sidebar]] for the full table.
+- A new Page Type is created from the "+" button in the Pages section header. Right-clicking a Page Type row creates its children — "New Collection" / "New Page"; right-clicking a Page Collection gives "New Page" / "New Set"; right-clicking a Page Set gives "New Page". See [[Sidebar]] for the full table.
 
 ---
 
@@ -212,7 +220,7 @@ Pages carry `tier1` / `tier2` / `tier3` multi-relations to Contexts. Queryable b
 
 #### Move-strip rule
 
-Moving a Page to another Page Type strips properties not in the destination schema (Notion-style, no quarantine). Confirmation warning lists what's stripped. Within the same Page Type (between Collections), no strip — shared schema.
+Moving a Page to another Page Type strips properties not in the destination schema (Notion-style, no quarantine). Confirmation warning lists what's stripped. Within the same Page Type (between Collections, Sets, and the Type root) there is no strip — shared schema, and Sets carry none of their own.
 
 ---
 
@@ -222,7 +230,7 @@ Enforced at every file write:
 
 1. Page Type folder MUST contain `_pagetype.json` — otherwise it's a cosmetic folder, not a Page Type (eligible for adoption)
 2. Every Page inside a Page Type must carry frontmatter values conforming to the Type's schema
-3. Page Collection folder name doesn't collide with another Collection in the same Page Type
+3. Page Collection folder name doesn't collide with another Collection in the same Page Type; Page Set folder name doesn't collide with another Set in the same Collection
 4. Filename = title
 
 ---
@@ -236,7 +244,9 @@ Shape detection per root folder:
 - **Fresh** — no recognized sidecar. Content-sniff always picks Pages: fresh `.md`-bearing or empty folders adopt as Page Types (auto-tagged with a new `_pagetype.json`). Unrecognized legacy sidecars (e.g. a stale `_itemtype.json`) don't change the classification — the adoption semantic is canonical in [[Architecture]] § "Adoption".
 - **Legacy Vault sidecar** — folder carries the `_vault` filename; renamed in place to `_pagetype.json`. Any sub-folder carrying a `_collection` sidecar is renamed to `_pagecollection.json`.
 - **Legacy wrapper layout** — folder is one of the legacy wrappers (`Pages` / `Agenda` at root, each containing children with a unified `_schema` sidecar). The adopter unwraps each child up to the nexus root and renames the legacy unified sidecar to the appropriate per-kind name based on parent + depth — Page Type children become `_pagetype.json`, their nested Collections become `_pagecollection.json`, the Agenda wrapper's `Tasks` child becomes the Tasks singleton with `_taskconfig.json`, and the Agenda wrapper's `Events` child becomes the Events singleton with `_eventconfig.json`.
-- **Already flat (target)** — folder carries one of the four per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_taskconfig.json` / `_eventconfig.json`) at the right depth. No-op (with a cleanup pass to delete any co-located legacy orphan sidecars).
+- **Already flat (target)** — folder carries one of the per-kind sidecars (`_pagetype.json` / `_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`) at the right depth. No-op (with a cleanup pass to delete any co-located legacy orphan sidecars).
+
+Sidecar-less sub-folders auto-tag by depth (idempotent, honors `excluded_folders`): depth-1 folders inside a Page Type get `_pagecollection.json`, depth-2 folders inside a Collection get `_pageset.json`. Depth-3+ folders stay sidecar-less — their pages roll up into the nearest Set. The adoption preview labels third-level folders as Sets.
 
 A preview sheet shows counts + a warnings list (ambiguous classifications, collisions, etc.). Adopt applies each folder's migration as a self-atomic step (no two-phase transaction across folders) — a single failure doesn't block the rest, and re-launching after an interruption is safe (already-migrated folders are recognized as "already flat" and skipped). Fully-flat Nexuses skip the sheet silently.
 

@@ -11,7 +11,7 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 Top-level groups, plus user sections:
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
 - **Contexts** — one section headed "Contexts" holding three `square.grid.2x2` disclosure rows: Areas (tier 1) / Topics (tier 2) / Projects (tier 3). Each tier row expands to its entities as flat leaf rows.
-- **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection").
+- **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection"); each Collection discloses Page Sets (UI label "Set") + Pages.
 - **User sections** — user-created sibling sections after Vaults, each grouping Vaults the user moved into it (§ "User vault sections" below).
 
 The **Contexts** section header is a fixed `Contexts` label. Its three tier rows read their labels from the renameable tier config — `Areas` / `Topics` from `SidebarSectionLabels`, `Projects` from the Project label pair. The Vaults section header default comes from `SidebarSectionLabels.defaults()` (`Vaults`); user-section labels rename inline.
@@ -39,7 +39,9 @@ Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned sectio
   ▾ Assignments                            ← Page Type row (UI label: "Vault")
       📄 README                            ← Page directly in Page Type root
       ▾ Spring 2026                        ← Page Collection row (UI label: "Collection")
-          📄 Essay 1
+          ▾ Midterm Prep                   ← Page Set row (UI label: "Set"; expandable, never selectable)
+              📄 Exam Review
+          📄 Essay 1                       ← Page at Collection root
       ▾ Reports
           📄 2026 H1
   ▸ Notes
@@ -101,7 +103,9 @@ Per-tier drag-reorder (`.onMove`) persists sibling order to `.nexus/state.json` 
 
 ##### Vaults (default label)
 
-Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Pages. Pages show their frontmatter `icon` if set, else the `doc.text` default; Page Collections use `folder`. The default UI label for Page Type rows is **"Vault"**; for Page Collection rows is "Collection" (both renameable via Settings).
+Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Page Sets + its Pages; each Page Set discloses its Pages. Pages show their frontmatter `icon` if set, else the `doc.text` default; Page Collections and Page Sets use `folder` (per-Set icon overridable). The default UI label for Page Type rows is **"Vault"**; for Page Collection rows "Collection"; for Page Set rows "Set" (all renameable via Settings).
+
+**Page Set rows are expandable, never selectable** — no `SelectionTag`, no selection chrome; clicking toggles the disclosure only (Sets have no detail view). Drag-reorder inside a Collection's disclosure is **two-zone**: Sets reorder among Sets, Pages among Pages; cross-zone drags are rejected. Order persists parent-side — `set_order` on the Collection's sidecar, each Set's child Pages in that Set's own `page_order`.
 
 Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page routes per the vault's `open_in` mode — main detail pane (`window`, the default) or a PagePreview window (`compact`); see [[Pages]] § "Opening behavior".
 
@@ -134,7 +138,8 @@ Canonical creation pattern. No always-visible "+ New" buttons; right-click the r
 | Project row | New Project | Rename / Change Icon / Delete |
 | Vaults section heading | New Page Type | **Add Section** (new user section, inline-rename) |
 | Page Type row | New Collection + New Page *(scoped to THIS Page Type)* | **Vault Settings…** (opens schema editor) / **Move to Section** (+ Remove from Section while grouped) / Rename / Change Icon / Delete |
-| Page Collection row | New Page *(in THIS Collection)* | Rename / Delete |
+| Page Collection row | New Page + New Set *(in THIS Collection)* | Rename / Delete |
+| Page Set row | New Page *(in THIS Set)* | Rename / Change Icon / Move to… (another Collection) / Delete (two modes — see [[Sets]]) |
 | Page row | — | Rename / Delete |
 | User section header | — | Rename Section / Delete Section (ungroups its vaults) |
 

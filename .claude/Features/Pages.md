@@ -8,9 +8,9 @@ A Page is one Markdown file inside a [[PageTypes|Page Type]] — the only operat
 
 - A single `.md` file inside a Page Type folder (a root folder carrying `_pagetype.json`).
 
-- **Page Type membership is determined by location.** A Page inside a Page Type folder (folder containing `_pagetype.json`) is a Page in that Page Type. Pages can live directly in a Page Type folder or in a Page Collection sub-folder (carrying `_pagecollection.json`) inside the Page Type.
+- **Page Type membership is determined by location.** A Page inside a Page Type folder (folder containing `_pagetype.json`) is a Page in that Page Type. Pages can live directly in a Page Type folder, in a Page Collection sub-folder (carrying `_pagecollection.json`), or in a Page Set sub-folder (carrying `_pageset.json`) inside a Collection.
 
-- Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it within the same Page Type (between Page Collection sub-folders) → no strip; schema is shared.
+- Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it anywhere within the same Page Type (between Sets, Collection roots, and the Type root) → no strip; schema is shared and Sets carry none of their own.
 
 - YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Page Type's schema. **No `page_type` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
 - **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (connections, context-link tier values) resolve via `id`, never by filename. Two Pages in the same Page Type / Page Collection cannot share a title — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] § "Entity identity vs title").
@@ -69,7 +69,7 @@ Currently, a Page's properties surface as the **property panel** in the editor's
 
 #### Opening behavior
 
-**Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"). `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path — `destination(for:page:currentSelection:)` plus `routeOpen` overloads taking an `openPreview: (PageRef) -> Void` closure. Sidebar single-click, `PageTypeDetailView` / `PageCollectionDetailView` double-click, and the Component Library all route through it.
+**Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"). `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path — `destination(for:page:currentSelection:)` plus `routeOpen` overloads taking an `openPreview: (PageRef) -> Void` closure. Sidebar single-click, `PageTypeDetailView` / `PageCollectionDetailView` double-click, and the Component Library all route through it. Pages inside a Page Set route identically — `PageRef` carries an optional set ID (legacy refs decode), and the editor / preview / inspector write paths are set-aware (a save never re-points `page_set_id`).
 
 **Routing is per-vault** — `open_in` on `_pagetype.json` (`compact` | `window`; absent = `window`) determines whether a page-tap opens in the main detail pane or a PagePreview window. `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path shared by sidebar single-click and detail-table double-click.
 
@@ -93,13 +93,13 @@ Currently, a Page's properties surface as the **property panel** in the editor's
 
 #### Hierarchy
 
-Pages are flat within a Page Collection. No forced sub-page nesting. A Page Collection's folder typically holds its member `.md` files directly (no nested sub-folders inside a Page Collection). Pages can also live directly in a Page Type's folder root (outside any Page Collection sub-folder). Sub-pages (nested Page hierarchy inside a Page Collection) is a v2 candidate (see [[Prospects]]).
+Pages live at three depths inside a Page Type: the Type root, a Page Collection root, or a Page Set inside a Collection (the optional third container level — see [[Sets]]). The hierarchy stops there — depth-3+ folders are sidecar-less and their pages roll up into the nearest Set. No forced sub-page nesting; sub-pages (nested Page hierarchy) are a v2 candidate (see [[Prospects]]).
 
 ---
 
 #### Sidebar visibility
 
-Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root) or Page Collection. **Agenda Tasks and Agenda Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
+Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root), Page Collection, or Page Set. **Agenda Tasks and Agenda Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
 
 Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Page Type or Page Collection detail view gives Rename / Pin (or Unpin) / Delete. For full sidebar layout + creation affordances → [[Sidebar]].
 

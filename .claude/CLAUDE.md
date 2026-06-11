@@ -6,7 +6,7 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 
 - **Organization layer — Contexts** (3 tiers): Areas (1) / Topics (2) / **Projects** (3). Three **free-standing** tiers — no containment, no parents; each a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`). Per-tier labels user-configurable per Nexus. (Context→context relations are a deferred design pass.)
 - **Operational layer — Pages + Agenda**:
-  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside Page Types; Page Collections organize within. UI labels: **"Vault"** + **"Collection"** (renameable via Settings).
+  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside Page Types; Page Collections organize within, optionally subdivided by Page Sets (schema-less; inherit everything from the Collection). UI labels: **"Vault"** + **"Collection"** + **"Set"** (renameable via Settings).
   - **Agenda** — split into Agenda Tasks (`.task.json`, EKReminder-shaped) and Agenda Events (`.event.json`, EKEvent-shaped). Data layer ships v0.3.0; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
 - **Settings scaffold** (`.nexus/settings.json`): per-Nexus user-overridable UI labels + accent color (storage + label wiring shipped v0.3.0; full editing UI ships v0.7.0).

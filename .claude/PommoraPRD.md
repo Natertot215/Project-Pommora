@@ -6,7 +6,7 @@
 
 #### Vision
 
-Personal management platform combining Obsidian's customization + local-first ethos with Notion's database and view capabilities. Pages are Markdown files inside **Page Types** (folder-based database entities holding property schemas + saved views); **Page Collections** are organizational sub-folders sharing the Type's schema; **Contexts** (Areas / Topics / Projects — 3-tier) are free-standing organization surfaces. UI labels default to "Vault" + "Collection". A simpler Notion that's also a more capable Obsidian — without the trade-offs that push users to bounce between the two.
+Personal management platform combining Obsidian's customization + local-first ethos with Notion's database and view capabilities. Pages are Markdown files inside **Page Types** (folder-based database entities holding property schemas + saved views); **Page Collections** are organizational sub-folders sharing the Type's schema, optionally subdivided by schema-less **Page Sets**; **Contexts** (Areas / Topics / Projects — 3-tier) are free-standing organization surfaces. UI labels default to "Vault" + "Collection" + "Set". A simpler Notion that's also a more capable Obsidian — without the trade-offs that push users to bounce between the two.
 
 #### Why
 
@@ -30,7 +30,7 @@ Two layers, PARA-aligned:
 
 - **Organization — Contexts** (3 tiers): Areas (tier 1, broad life domains) / Topics (tier 2, subject areas) / **Projects** (tier 3). Three **free-standing** tiers (no containment, no parents) — each a folder with a config sidecar under `.nexus/areas/`, `.nexus/topics/`, `.nexus/projects/`. Per-tier labels user-configurable per-Nexus.
 - **Operational — Pages + Agenda:**
-  - **Pages:** **Page Type** (root folder + `_pagetype.json`) contains **Page Collections** (sub-folders + `_pagecollection.json` carrying id + type_id + ordering) which contain **Pages** (`.md`). UI labels default to "Vault" + "Collection".
+  - **Pages:** **Page Type** (root folder + `_pagetype.json`) contains **Page Collections** (sub-folders + `_pagecollection.json` carrying id + type_id + ordering), optionally subdivided by **Page Sets** (sub-folders + `_pageset.json`; no schema, no views — everything inherits from the Collection), which contain **Pages** (`.md`). Strict three levels — deeper folders are sidecar-less and their pages roll up into the nearest Set. UI labels default to "Vault" + "Collection" + "Set".
   - **Agenda:** split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective singleton folders at the nexus root — the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton (sidecar-driven discovery; folder name renameable via Finder). EventKit integration via separate access permissions per kind.
 - **No wrapper folders.** All operational containers — Page Types, Tasks singleton, Events singleton — live directly at the nexus root. Sidecar filename alone classifies each folder.
 - **Singleton — Homepage** (`.nexus/homepage.json`) — composed-blocks dashboard, one per Nexus.
@@ -82,8 +82,11 @@ Pommora's stack is SwiftUI. **The Pages editor shipped at v0.2.7.0 on native NST
   Assignments//                             ← Page Type (folder + _pagetype.json; UI label "Vault")
     _pagetype.json                          ← shared schema for Pages inside
     Spring-2026//                           ← Page Collection (sub-folder + _pagecollection.json; UI label "Collection")
-      _pagecollection.json                  ← per-Collection metadata (id + type_id + page_order)
-      Essay-1.md                            ← Page
+      _pagecollection.json                  ← per-Collection metadata (id + type_id + page_order + set_order)
+      Midterm-Prep//                        ← Page Set (sub-folder + _pageset.json; UI label "Set")
+        _pageset.json                       ← per-Set metadata (id + collection_id + icon + page_order)
+        Exam-Review.md                      ← Page inside a Page Set
+      Essay-1.md                            ← Page at Collection root (no Set)
     Final-Project.md                        ← Page directly in Page Type (no Collection)
 
   Notes//                                   ← Page Type
@@ -140,7 +143,7 @@ Both directives resolve to inert text + standard Markdown for external tools (No
 
 ##### Page Types
 
-The operational-layer container: a **Page Type** is a folder at `<nexus>/<Title>/` + `_pagetype.json` sidecar (`id`, `icon`, `properties[]` shared schema, `views[]`, `collection_order`, `page_order`, `default_sort`, optional `open_in`). Title = folder name. **Page Collections** are sub-folders inside a Page Type, sharing the Type's schema (their own `_pagecollection.json` carries `id` + `type_id` + `icon` + ordering + `views[]`). UI label "Vault" / "Collection" by default. Full detail → `// Features//PageTypes.md`.
+The operational-layer container: a **Page Type** is a folder at `<nexus>/<Title>/` + `_pagetype.json` sidecar (`id`, `icon`, `properties[]` shared schema, `views[]`, `collection_order`, `page_order`, `default_sort`, optional `open_in`). Title = folder name. **Page Collections** are sub-folders inside a Page Type, sharing the Type's schema (their own `_pagecollection.json` carries `id` + `type_id` + `icon` + ordering + `views[]`). **Page Sets** are optional sub-folders inside a Collection (`_pageset.json` — `id` + `collection_id` + `icon` + `page_order`; no schema, no views, no settings — everything inherits from the Collection). The hierarchy is strictly three levels — depth-3+ folders are sidecar-less and their pages roll up into the nearest Set. UI labels "Vault" / "Collection" / "Set" by default. Full detail → `// Features//PageTypes.md` + `// Features//Sets.md`.
 
 A Page Type has no text-editor surface — a pure database viewer (table / board / list / cards / gallery). Move-strip applies cross-Type (a Page moved across Page Types loses properties absent from the destination schema). The per-vault `open_in` field (`compact` | `window`; absent = `window`) decides where the vault's Pages open — the PagePreview window or the main detail pane.
 
@@ -169,7 +172,7 @@ Singleton composed-blocks dashboard at `.nexus/homepage.json`. No `id`/`tier`/`p
 
 ##### SQLite Schema
 
-Nine data tables plus an internal `meta` table, rebuilt from files when the stored `schema_version` mismatches the code's (currently **13**). The index stores titles, properties, links, connections, and context-tier relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
+Ten data tables plus an internal `meta` table, rebuilt from files when the stored `schema_version` mismatches the code's (currently **14**). The index stores titles, properties, links, connections, and context-tier relations — **not** Page bodies or frontmatter (the `pages` table has no body column; full-text search reads files). Property schemas live in each Type's per-kind sidecar (`_pagetype.json` / `_taskconfig.json` / `_eventconfig.json`) — all canonical on disk, loaded into memory at app start. DDL lives in `Index/IndexSchema.swift`.
 
 ```sql
 -- Page Type index (one row per <nexus>/<Title>/_pagetype.json at the root)
@@ -191,11 +194,22 @@ CREATE TABLE page_collections (
   schema_version INTEGER NOT NULL DEFAULT 1
 );
 
+-- Page Set index (sub-folders inside a Page Collection)
+CREATE TABLE page_sets (
+  id TEXT PRIMARY KEY,
+  page_collection_id TEXT NOT NULL REFERENCES page_collections(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  icon TEXT,
+  modified_at TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1
+);
+
 -- Page index (rebuilt from .md files inside any Page Type folder; no body/frontmatter columns)
 CREATE TABLE pages (
   id TEXT PRIMARY KEY,                                                        -- ULID from frontmatter
   page_type_id TEXT NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
   page_collection_id TEXT REFERENCES page_collections(id) ON DELETE SET NULL, -- nullable
+  page_set_id TEXT REFERENCES page_sets(id) ON DELETE SET NULL,               -- nullable
   title TEXT NOT NULL,                                                        -- derived from filename
   icon TEXT,
   properties TEXT NOT NULL DEFAULT '{}',                                      -- JSON; property values
@@ -271,7 +285,9 @@ CREATE TABLE property_definitions (
 
 CREATE INDEX idx_pages_page_type_id ON pages(page_type_id);
 CREATE INDEX idx_pages_page_collection_id ON pages(page_collection_id);
+CREATE INDEX idx_pages_page_set_id ON pages(page_set_id);
 CREATE INDEX idx_page_collections_page_type_id ON page_collections(page_type_id);
+CREATE INDEX idx_page_sets_page_collection_id ON page_sets(page_collection_id);
 CREATE INDEX idx_context_links_source_id ON context_links(source_id);
 CREATE INDEX idx_context_links_target_id ON context_links(target_id);
 CREATE INDEX idx_context_links_property_id ON context_links(property_id);
@@ -344,7 +360,7 @@ Surfaces curated, app-relevant navigation, not filesystem layout. Top-level grou
 
 - **Pinned (heading-less, top)** — three fixed entries (Homepage / Calendar / Recents); labels renamable via Settings. Structurally a `Section` wrapper to host future user-pinned pages (gains "Saved" heading then). `Homepage` opens the singleton dashboard; `Calendar` opens calendar view over Agenda Tasks + Agenda Events + EventKit-mirrored events; `Recents` shows recently-opened tabs.
 - **Contexts** — one "Contexts" section with three `square.grid.2x2` disclosure rows (Areas / Topics / Projects), expand/collapse only; each tier's entities are flat leaf rows. Areas carry a color/symbol indicator. The tiers are free-standing — no parent-derived tagging.
-- **Vaults** (default label, renameable via Settings) — chevron-disclosure for Page Types (UI label "Vault" by default). Each Type discloses Page Collections (UI label "Collection") + root Pages. Pages: `doc.text` icon; Collections: `folder` icon.
+- **Vaults** (default label, renameable via Settings) — chevron-disclosure for Page Types (UI label "Vault" by default). Each Type discloses Page Collections (UI label "Collection") + root Pages; each Collection discloses Page Sets (UI label "Set"; expandable, never selectable) + its Pages. Pages: `doc.text` icon; Collections + Sets: `folder` icon.
 - **User sections** — user-created sibling sections after Vaults that group Vaults for navigation only (`.nexus/sidebar-sections.json`; single-membership; ungrouped Vaults stay in the default Vaults section).
 
 Agenda Tasks and Agenda Events do NOT appear in the sidebar — they surface via the Calendar pin entry, not as sidebar rows. The Vaults section classifies root folders by sidecar filename (rows are root folders carrying `_pagetype.json`). No raw filesystem view in v1.
@@ -415,7 +431,7 @@ SwiftUI-first-party (no companion bundles): **QuickLook** (`QLPreviewProvider` v
 **In:**
 
 - **Contexts** (3 tiers — Areas / Topics / **Projects**) — free-standing folder+sidecar organization surfaces; tier labels per-Nexus configurable. All three render in one "Contexts" sidebar section as disclosure rows. No containment, no parents, no cross-tier links — context→context relations are a deferred design pass.
-- **Page Types + Page Collections + Pages** — each Page Type carries its `_pagetype.json` sidecar; Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` carries id + type_id + icon + ordering + views). UI labels "Vault" + "Collection" (renameable via Settings). Per-vault `open_in` mode (`compact` → PagePreview window; `window` → main detail pane).
+- **Page Types + Page Collections + Page Sets + Pages** — each Page Type carries its `_pagetype.json` sidecar; Collections are sub-folders sharing the Type's schema (their `_pagecollection.json` carries id + type_id + icon + ordering + views); Sets are optional schema-less sub-folders inside Collections (`_pageset.json`). UI labels "Vault" + "Collection" + "Set" (renameable via Settings). Per-vault `open_in` mode (`compact` → PagePreview window; `window` → main detail pane).
 - **Pages** — Markdown + YAML frontmatter (incl. per-tier multi-relations `tier1`/`tier2`/`tier3`); editor = native TextKit 2 + `swift-markdown` + the Pommora-owned `MarkdownPM` (shipped v0.2.7.0). Standard Markdown + `@Columns` + `:::callout` directives.
 - **Agenda** — split into **Agenda Tasks** (`.task.json`, EKReminder-aligned) and **Agenda Events** (`.event.json`, EKEvent-aligned) inside their respective root-level singleton folders (the folder carrying `_taskconfig.json` is the Tasks singleton; the folder carrying `_eventconfig.json` is the Events singleton). Required `status` Status property on both Agenda Tasks and Agenda Events (built-in, non-deletable). AgendaTask bridges to `EKReminder.isCompleted`; AgendaEvent Status is user-set, decoupled from `start_at` / `end_at`. Sync opt-in (data layer ships v0.3.0; sync ships v0.6.0). NO sidebar section — Calendar pin entry surfaces both kinds.
 - **Homepage** — singleton dashboard at `.nexus/homepage.json`. Seeded on first launch.

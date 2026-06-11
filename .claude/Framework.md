@@ -8,7 +8,7 @@ A Markdown-canonical, SQLite-indexed personal management platform combining Obsi
 
 - **Organization layer — Contexts** (Areas / Topics / Projects, 3 tiers) — composed-blocks surfaces
 - **Operational layer:**
-  - **Pages** — Page Types → Page Collections → Pages (`.md`). UI labels default to "Vault" + "Collection"
+  - **Pages** — Page Types → Page Collections → Page Sets (optional) → Pages (`.md`). UI labels default to "Vault" + "Collection" + "Set"
   - **Agenda** — Agenda Tasks (`.task.json`, EKReminder-aligned) + Agenda Events (`.event.json`, EKEvent-aligned)
 - **Singleton — Homepage** (`.nexus/homepage.json`)
 - **Settings scaffold** (`.nexus/settings.json`) — per-Nexus user-overridable UI labels + accent color
@@ -89,6 +89,9 @@ Full ship detail → [[History]] § "Connections — page-level complete".
 
 ##### v0.4.0 — Pages unification + PagePreview window (2026-06-09/10)
 The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` (`compact` | `window`) routes page-taps to **PagePreview** — a real `NSPanel` (not a SwiftUI `WindowGroup`; AppKit is required for no-dim child-window behavior with no traffic lights / Dock / Window-menu presence; child-attached above the main window; mounts the shared `FrontmatterInspector` at a compact scale) — or the main detail pane; user-creatable sidebar sections group Vaults (navigation-only); index schema v10 → v11 (legacy tables dropped, delete-and-rebuild). Launch/state hardening: XCTest app-state isolation, launch-panel abort retry. Full record + retrospective pointers → [[History]] § "v0.4.0" + § "PagesV2".
+
+##### v0.4.1 — Sets (2026-06-11)
+The third operational tier: Vault → Collection → **Set** (optional) → Pages. A Set is a schema-less folder inside a Collection (`_pageset.json` — identity + icon + `page_order` only; views / settings / open-in all inherit from the Collection). Strict three levels — deeper folders stay sidecar-less and roll up into the nearest Set. Dedicated `PageSetManager`; index schema v13 → v14 (`page_sets` table + nullable `pages.page_set_id`); in-vault page moves are strip-free everywhere; whole-Set moves between Collections; adoption auto-tags depth-2 folders. Bundled hardening: `ContainerIDHealer` mints fresh ULIDs for Finder-duplicated container sidecars (Collections + Sets). Spec → [[Sets]].
 
 ---
 
