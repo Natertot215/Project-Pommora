@@ -314,37 +314,6 @@ enum NexusPaths {
         .appendingPathComponent(setFolderName, isDirectory: true)
     }
 
-    /// Nexus-typed convenience overload.
-    static func pageSetFolderURL(
-        forTitle title: String,
-        inPageCollectionTitled pageCollectionTitle: String,
-        inPageTypeTitled pageTypeTitle: String,
-        in nexus: Nexus
-    ) -> URL {
-        pageSetFolderURL(
-            in: nexus.rootURL,
-            typeFolderName: pageTypeTitle,
-            collectionFolderName: pageCollectionTitle,
-            setFolderName: title
-        )
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/<setFolderName>/_pageset.json` — PageSet schema sidecar.
-    static func pageSetMetadataURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String,
-        setFolderName: String
-    ) -> URL {
-        pageSetFolderURL(
-            in: nexusRoot,
-            typeFolderName: typeFolderName,
-            collectionFolderName: collectionFolderName,
-            setFolderName: setFolderName
-        )
-        .appendingPathComponent(pageSetSidecarFilename, isDirectory: false)
-    }
-
     // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)
     //
     // Existing call sites still use `vaultFolderURL` / `vaultMetadataURL` /
