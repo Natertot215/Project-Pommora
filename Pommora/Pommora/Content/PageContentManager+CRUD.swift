@@ -1142,7 +1142,8 @@ extension PageContentManager {
                         try updater.upsertPage(
                             updatedMeta,
                             pageTypeID: container.typeID,
-                            pageCollectionID: container.collectionID
+                            pageCollectionID: container.collectionID,
+                            pageSetID: container.setID
                         )
                     } catch {
                         self.pendingError = error
@@ -1170,7 +1171,14 @@ extension PageContentManager {
     /// holds it (Collection-scoped or Type-root), if present. No-op when the Page
     /// isn't loaded — the on-disk write + index upsert are the source of truth.
     private func refreshPageCache(_ updated: PageMeta, container: EntityContainer) {
-        if let collectionID = container.collectionID {
+        if let setID = container.setID {
+            if var arr = pagesBySet[setID],
+                let i = arr.firstIndex(where: { $0.id == updated.id })
+            {
+                arr[i] = updated
+                pagesBySet[setID] = arr
+            }
+        } else if let collectionID = container.collectionID {
             if var arr = pagesByCollection[collectionID],
                 let i = arr.firstIndex(where: { $0.id == updated.id })
             {

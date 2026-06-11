@@ -209,6 +209,24 @@ struct PageSetDetailTests {
         #expect(SidebarSelection(tag: .set(ULID.generate()), lookup: lookup) == nil)
     }
 
+    @Test("a Set page resolves through .page tags — pagesBySet is part of the sidebar lookup")
+    func setPageResolvesThroughLookup() {
+        let pageID = ULID.generate()
+        let fm = PageFrontmatter(
+            id: pageID, icon: nil, tier1: [], tier2: [], tier3: [],
+            properties: [:], createdAt: Date())
+        let page = PageMeta(
+            id: pageID, title: "In Set", url: URL(fileURLWithPath: "/"), frontmatter: fm)
+        let cm = PageContentManager(
+            nexus: Nexus(id: ULID.generate(), rootURL: URL(fileURLWithPath: "/")),
+            contextProvider: { NexusContext.empty })
+        cm.pagesBySet[ULID.generate()] = [page]
+
+        let lookup = SidebarLookupBundle(
+            content: cm, pageType: nil, area: nil, topic: nil, project: nil)
+        #expect(SidebarSelection(tag: .page(pageID), lookup: lookup) == .page(page))
+    }
+
     // MARK: - Fixtures (mirror PageSetContentTests)
 
     /// In-memory PageSet — no disk, for pure row-construction tests.
