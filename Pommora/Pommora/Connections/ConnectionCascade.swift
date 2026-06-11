@@ -53,7 +53,7 @@ struct ConnectionCascade {
                 newBody = ConnectionRewriter.rewrite(body: pf.body, oldTitle: oldTitle, newTitle: newTitle)
                 fileData = try AtomicYAMLMarkdown.encode(frontmatter: pf.frontmatter, body: newBody, preservingFrom: url, modeledKeys: PageFrontmatter.modeledKeys)
                 title = pf.title
-            case .agendaTask, .agendaEvent, .pageType, .pageCollection, .area, .topic, .project:
+            case .agendaTask, .agendaEvent, .pageType, .pageCollection, .pageSet, .area, .topic, .project:
                 continue
             }
             txn.stage(payload: fileData, to: url)

@@ -11,7 +11,7 @@ enum ConnectionFileLocator {
             folder = container.collectionTitle.map {
                 NexusPaths.pageCollectionFolderURL(in: nexusRoot, typeFolderName: container.typeTitle, collectionFolderName: $0)
             } ?? NexusPaths.pageTypeFolderURL(in: nexusRoot, typeFolderName: container.typeTitle)
-        case .agendaTask, .agendaEvent, .pageType, .pageCollection, .area, .topic, .project:
+        case .agendaTask, .agendaEvent, .pageType, .pageCollection, .pageSet, .area, .topic, .project:
             return nil
         }
         let candidate = NexusPaths.pageFileURL(forTitle: container.entityTitle, in: folder)

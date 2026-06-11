@@ -23,6 +23,7 @@ struct IndexQuery: Sendable {
         // consistency with `FilterBuilder.entityKindFromString`.
         "page_type": "page_types",
         "page_collection": "page_collections",
+        "page_set": "page_sets",
     ]
 
     // MARK: - Target queries
@@ -155,7 +156,7 @@ struct IndexQuery: Sendable {
                 guard
                     let row = try Row.fetchOne(
                         db,
-                        sql: "SELECT title, page_type_id, page_collection_id FROM pages WHERE id = ?",
+                        sql: "SELECT title, page_type_id, page_collection_id, page_set_id FROM pages WHERE id = ?",
                         arguments: [id]
                     )
                 else { return nil }
@@ -172,14 +173,23 @@ struct IndexQuery: Sendable {
                         arguments: [collectionID]
                     )
                 }
+                let setID: String? = row["page_set_id"]
+                var setTitle: String?
+                if let setID {
+                    setTitle = try String.fetchOne(
+                        db, sql: "SELECT title FROM page_sets WHERE id = ?",
+                        arguments: [setID]
+                    )
+                }
                 return EntityContainer(
                     entityTitle: row["title"], kind: .page,
                     typeID: typeID, typeTitle: typeTitle,
-                    collectionID: collectionID, collectionTitle: collectionTitle
+                    collectionID: collectionID, collectionTitle: collectionTitle,
+                    setID: setID, setTitle: setTitle
                 )
 
             case .agendaTask, .agendaEvent, .pageType,
-                .pageCollection, .area, .topic, .project:
+                .pageCollection, .pageSet, .area, .topic, .project:
                 return nil
             }
         }
@@ -555,6 +565,7 @@ private enum FilterBuilder {
         switch kind {
         case .pageType: return "page_type"
         case .pageCollection: return "page_collection"
+        case .pageSet: return "page_set"
         case .agendaTask: return "agenda_task"
         case .agendaEvent: return "agenda_event"
         case .page: return "page"
@@ -571,6 +582,7 @@ private enum FilterBuilder {
         case "agenda_event": return .agendaEvent
         case "page_type": return .pageType
         case "page_collection": return .pageCollection
+        case "page_set": return .pageSet
         case "area": return .area
         case "topic": return .topic
         case "project": return .project
@@ -597,7 +609,7 @@ enum SortDirection: String, Codable, Equatable, Hashable, Sendable { case ascend
 
 enum EntityKind: String, Codable, Sendable {
     case page, agendaTask, agendaEvent, pageType,
-        pageCollection, area, topic, project
+        pageCollection, pageSet, area, topic, project
 }
 
 struct EntityRef: Equatable, Hashable, Sendable {
@@ -638,7 +650,8 @@ struct GroupedEntities: Sendable, Equatable {
 /// The on-disk container of a Page, resolved from the index by
 /// `IndexQuery.entityContainer(id:kind:)`. Titles derive the folder URL via
 /// `NexusPaths`; IDs re-supply `IndexUpdater.upsert…` after a mutation.
-/// `collectionTitle`/`collectionID` are `nil` for Type-root entities.
+/// `collectionTitle`/`collectionID` are `nil` for Type-root entities;
+/// `setID`/`setTitle` are `nil` for any Page outside a Set.
 struct EntityContainer: Equatable, Sendable {
     let entityTitle: String
     let kind: EntityKind  // `.page`
@@ -646,6 +659,8 @@ struct EntityContainer: Equatable, Sendable {
     let typeTitle: String
     let collectionID: String?
     let collectionTitle: String?
+    let setID: String?
+    let setTitle: String?
 }
 
 enum TargetRef: Sendable {

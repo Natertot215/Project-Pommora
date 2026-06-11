@@ -17,7 +17,7 @@ import Testing
     }
 
     // Tripwire: forces a deliberate update whenever the index schema version
-    // bumps. v13 (2026-06-10) = Space→Area rename — the tier-1 kind string
-    // changed "space"→"area"; pre-v13 DBs delete + recreate on open, no migration.
-    @Test func schemaVersionIsThirteen() { #expect(PommoraIndex.currentSchemaVersion == 13) }
+    // bumps. v14 (2026-06-11) = Sets — new page_sets table + pages.page_set_id;
+    // pre-v14 DBs delete + recreate on open, no migration.
+    @Test func schemaVersionIsFourteen() { #expect(PommoraIndex.currentSchemaVersion == 14) }
 }

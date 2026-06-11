@@ -22,6 +22,16 @@ private struct PageCollectionSnapshot: Sendable {
     let icon: String?
     let modifiedAt: Date
     let schemaVersion: Int
+    let sets: [PageSetSnapshot]
+    let pages: [PageSnapshot]
+}
+
+private struct PageSetSnapshot: Sendable {
+    let id: String
+    let title: String
+    let icon: String?
+    let modifiedAt: Date
+    let schemaVersion: Int
     let pages: [PageSnapshot]
 }
 
@@ -34,6 +44,7 @@ private struct PageSnapshot: Sendable {
     let modifiedAt: Date
     let pageTypeID: String
     let collectionID: String?
+    let setID: String?
     let tier1: [String]
     let tier2: [String]
     let tier3: [String]
@@ -162,6 +173,34 @@ final class IndexBuilder {
                 guard Filesystem.fileExists(at: collURL),
                     let coll = try? PageCollection.load(from: collURL)
                 else { continue }
+
+                // Sets — direct child folders of the Collection carrying `_pageset.json`.
+                // Their pages roll up under the Set; the Collection's own roll-up below
+                // collects only IMMEDIATE child files (Filesystem.children is non-recursive),
+                // so set subtrees stay out of it — the same structural exclusion that keeps
+                // collection folders out of the type-root walk.
+                let setFolders = (try? Filesystem.childFolders(of: sub, folderFilter: filter)) ?? []
+                var sets: [PageSetSnapshot] = []
+                for setFolder in setFolders
+                where !setFolder.lastPathComponent.hasPrefix("_") && !setFolder.lastPathComponent.hasPrefix(".") {
+                    let setURL = setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+                    guard Filesystem.fileExists(at: setURL),
+                        let set = try? PageSet.load(from: setURL)
+                    else { continue }
+                    let setPages = collectPagesInFolder(
+                        setFolder, pageTypeID: pageType.id, collectionID: coll.id, setID: set.id,
+                        nexusRoot: root, filter: filter)
+                    sets.append(
+                        PageSetSnapshot(
+                            id: set.id,
+                            title: set.title,
+                            icon: set.icon,
+                            modifiedAt: set.modifiedAt,
+                            schemaVersion: set.schemaVersion,
+                            pages: setPages
+                        ))
+                }
+
                 let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id, nexusRoot: root, filter: filter)
                 collections.append(
                     PageCollectionSnapshot(
@@ -170,6 +209,7 @@ final class IndexBuilder {
                         icon: coll.icon,
                         modifiedAt: coll.modifiedAt,
                         schemaVersion: coll.schemaVersion,
+                        sets: sets,
                         pages: pages
                     ))
             }
@@ -195,6 +235,7 @@ final class IndexBuilder {
         _ folderURL: URL,
         pageTypeID: String,
         collectionID: String?,
+        setID: String? = nil,
         nexusRoot: URL,
         filter: FolderFilter
     ) -> [PageSnapshot] {
@@ -224,6 +265,7 @@ final class IndexBuilder {
                 modifiedAt: fm.modifiedAt ?? fm.createdAt,
                 pageTypeID: pageTypeID,
                 collectionID: collectionID,
+                setID: setID,
                 tier1: fm.tier1,
                 tier2: fm.tier2,
                 tier3: fm.tier3
@@ -381,6 +423,7 @@ final class IndexBuilder {
         try db.execute(sql: "DELETE FROM context_links")
         try db.execute(sql: "DELETE FROM property_definitions")
         try db.execute(sql: "DELETE FROM pages")
+        try db.execute(sql: "DELETE FROM page_sets")
         try db.execute(sql: "DELETE FROM page_collections")
         try db.execute(sql: "DELETE FROM agenda_tasks")
         try db.execute(sql: "DELETE FROM agenda_events")
@@ -422,6 +465,9 @@ final class IndexBuilder {
                             )
                         })
                 else { continue }
+                for set in coll.sets {
+                    insertPageSet(db, set: set, collectionID: coll.id)
+                }
                 for page in coll.pages {
                     insertPage(db, page: page)
                 }
@@ -432,6 +478,26 @@ final class IndexBuilder {
         }
     }
 
+    private nonisolated static func insertPageSet(_ db: Database, set: PageSetSnapshot, collectionID: String) {
+        // Parent must land before its pages; if it can't, skip the subtree —
+        // the pages would only FK-fail (same guard as the collection insert).
+        guard
+            attemptInsert(
+                "page_set \(set.title) [\(set.id)]",
+                {
+                    try db.execute(
+                        literal: """
+                            INSERT INTO page_sets (id, page_collection_id, title, icon, modified_at, schema_version)
+                            VALUES (\(set.id), \(collectionID), \(set.title), \(set.icon), \(iso8601(set.modifiedAt)), \(set.schemaVersion))
+                            """
+                    )
+                })
+        else { return }
+        for page in set.pages {
+            insertPage(db, page: page)
+        }
+    }
+
     private nonisolated static func insertPage(_ db: Database, page: PageSnapshot) {
         let propsJSON = (try? propertiesJSON(page.properties)) ?? "{}"
         attemptInsert(
@@ -439,8 +505,8 @@ final class IndexBuilder {
             {
                 try db.execute(
                     literal: """
-                        INSERT INTO pages (id, page_type_id, page_collection_id, title, icon, properties, modified_at)
-                        VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
+                        INSERT INTO pages (id, page_type_id, page_collection_id, page_set_id, title, icon, properties, modified_at)
+                        VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.setID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
                         """
                 )
             })
@@ -506,7 +572,7 @@ final class IndexBuilder {
     private nonisolated static func insertTierContextLinks(_ db: Database, snapshot: NexusSnapshot) {
         for pt in snapshot.pageTypes {
             for coll in pt.collections {
-                for page in coll.pages {
+                for page in coll.pages + coll.sets.flatMap(\.pages) {
                     insertTierContextLinkRows(
                         db, sourceID: page.id, sourceKind: "page",
                         tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
@@ -597,7 +663,11 @@ final class IndexBuilder {
             }
         }
         for pt in snapshot.pageTypes {
-            for coll in pt.collections { for p in coll.pages { emit(sourceID: p.id, sourceTitle: p.title, body: p.body) } }
+            for coll in pt.collections {
+                for p in coll.pages + coll.sets.flatMap(\.pages) {
+                    emit(sourceID: p.id, sourceTitle: p.title, body: p.body)
+                }
+            }
             for p in pt.directPages { emit(sourceID: p.id, sourceTitle: p.title, body: p.body) }
         }
     }
