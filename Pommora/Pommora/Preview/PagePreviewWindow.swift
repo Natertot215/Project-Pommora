@@ -37,31 +37,6 @@ enum PreviewWindowMetrics {
     static let bodyVerticalInset: CGFloat = PUI.Spacing.xl
 }
 
-// MARK: - PagePreviewWindowRoot
-
-/// Root of the `WindowGroup(id: "page-preview", for: PageRef.self)` scene.
-/// Bootstraps the per-Nexus environment from `AppGlobals.current` (published
-/// by `NexusEnvironment` exactly for standalone scenes) and self-dismisses
-/// when there's nothing to show (no open Nexus / valueless open).
-struct PagePreviewWindowRoot: View {
-    /// `WindowGroup(for: PageRef.self)` delivers the previewed ref via the
-    /// scene's value plumbing; opening the same value focuses the existing
-    /// window (per-value dedupe).
-    let ref: PageRef?
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        if let ref, let env = AppGlobals.current {
-            PagePreviewContent(ref: ref)
-                .injectNexusEnvironment(env)
-        } else {
-            Color.clear
-                .frame(width: 200, height: 120)
-                .task { dismiss() }
-        }
-    }
-}
-
 // MARK: - PagePreviewContent
 
 /// One Page previewed in a real window. The window is standard in every
@@ -87,7 +62,6 @@ struct PagePreviewContent: View {
     @Environment(MainWindowRouter.self) private var router
     @Environment(ContextDisplayResolver.self) private var contextResolver
     @Environment(\.connectionResolver) private var connectionResolver
-    @Environment(\.dismiss) private var dismiss
 
     /// Same VM + saver the main `PageEditorView` uses — unlocked edits flow
     /// through the identical debounced `ContentManager.updatePage` path.
@@ -145,12 +119,10 @@ struct PagePreviewContent: View {
                 .inspectorColumnWidth(min: 180, ideal: PreviewWindowMetrics.inspectorWidth, max: 400)
                 .interactiveDismissDisabled()
         }
-        .background(PreviewWindowConfigurator())
-        // A preview can never minimize to the Dock, zoom, or become its own
-        // fullscreen Space.
-        .windowMinimizeBehavior(.disabled)
-        .windowFullScreenBehavior(.disabled)
-        .windowResizeAnchor(.topLeading)
+        // Chrome (no traffic lights / hidden title), minimize/fullscreen
+        // disablement, and child attachment are all handled by the panel itself
+        // (PreviewPanel styleMask + PreviewWindowConfigurator.restrict in
+        // PreviewTarget) — this view is just the panel's hosted content.
         // The "make this big" muscle-memory shortcut promotes to the main
         // pane instead of fullscreening.
         .background {
@@ -440,12 +412,12 @@ struct PagePreviewContent: View {
         Task {
             await vm.flushNow()
             router.requestOpen(to: .page(vm.page))
-            dismiss()
+            PreviewTarget.shared.close()
         }
     }
 
     private func closeWindow() {
-        dismiss()
+        PreviewTarget.shared.close()
     }
 
     // MARK: - Data load + commits

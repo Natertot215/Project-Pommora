@@ -49,31 +49,10 @@ struct PommoraApp: App {
             InspectorCommands()
         }
 
-        // PagePreview: one window per compact-opened Page — a native SwiftUI
-        // `WindowGroup` with the secondary `.associated` window-manager role.
-        // A normal window activates the app when clicked, so refocus-from-outside
-        // works natively (no non-activating-panel workarounds); `.associated`
-        // marks it a dependent/secondary window of the main scene. The
-        // configurator hides the traffic lights, excludes it from the Window
-        // menu/cycling/Mission Control, attaches it as a child of the main window
-        // (rides moves, above main, never over other apps, closes with it), and
-        // clears/hides the title. Value plumbing delivers the PageRef;
-        // `dismissWindow(id: "page-preview")` closes on Nexus switch. Empty title:
-        // the header IS the title bar (the configurator also clears/hides it).
-        WindowGroup(Text(verbatim: ""), id: "page-preview", for: PageRef.self) { $ref in
-            PagePreviewWindowRoot(ref: ref)
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowManagerRole(.associated)
-        .defaultSize(
-            width: PreviewWindowMetrics.defaultSize.width,
-            height: PreviewWindowMetrics.defaultSize.height
-        )
-        .windowResizability(.contentMinSize)
-        // No .windowBackgroundDragBehavior: dragging comes solely from
-        // WindowDragGesture (chrome) + performDrag (locked body).
-        .restorationBehavior(.disabled)
-        .commandsRemoved()
+        // PagePreview is NOT a SwiftUI scene: it's a real NSPanel owned by
+        // `PreviewTarget` (a regular panel is natively activating + never-main +
+        // key — uniform focus with no dim, which no scene type can express).
+        // Opened via `openPagePreview(_:)`; see Preview/PreviewTarget.swift.
 
         #if DEBUG
         // Debug-only: in-app design system explorer. Open via Cmd+Shift+D.
