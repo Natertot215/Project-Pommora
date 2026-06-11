@@ -67,6 +67,15 @@ Full ship summary → [[History]] § "v0.3.0 Properties — FEATURE-COMPLETE".
 ##### v0.3.2 — View Settings editor rebuild + nav/detail fixes
 Tagged 2026-05-27. The per-property editor rebuilt to the Figma — PaneDivider rail standard, pinned destructive footers, Subheadline / Callout type ramp, plain-`Menu` inline selectors; the popover-family UIX lessons folded into `Guidelines/Design.md` (standalone `UIX-Baseline.md` retired). A Pages-side third tier (Folders) was built and **reverted the same cycle** — it duplicated Collections' role and collided with the planned view-organization system; kept its system-wide stub-and-inline-rename CRUD (`CreateWithInlineEdit` + `DefaultTitleResolver`), the sidebar menu tweaks, and `NexusAdopter.autoTagMissingSidecars`. Nav/detail bug fixes landed alongside.
 
+
+##### v0.3.4 — Relations made real + manager de-dup + Pages stats footer
+Tagged 2026-05-31; the big consolidation release (**v0.3.3 was skipped** — the relations work folded forward into this tag). Marketing version bumped `0.2.6` → `0.3.4` at release.
+- **Relations unified (since superseded — see Contextv2 below).** `tier1/2/3` and relation properties shared a single pipeline; the `tier_links` table retired (one reverse-lookup path). Relations are always-multi (`[{"$rel": "<ULID>"}]`); a single-pane editor set home side + reverse name + reverse icon. Context-delete cascades the tier reference out of every operational entity. Entity `icon` denormalized into the SQLite index. Index resilience hardened (per-row insert, version-stamp-after-populate) + `MemberFileStrip.forEach` tolerates frontmatter-less member files.
+- **Native IconPicker.** Pommora's own SF Symbols 6 picker (`IconCatalog`, 6,195 names + `IconFavorites`) replaces the third-party `SymbolPicker`; one `.iconPickerPopover` modifier at every icon-edit entry.
+- **Manager de-dup.** The 5 schema-mutation methods duplicated across the schema-bearing managers collapsed behind two shared `@MainActor` services — `PerTypeSchemaService` + `SingletonSchemaService` (Agenda). ~590 lines of copy-paste removed, fully behavior-preserving.
+- **Vault-table display-only + creation-order.** *Type* detail tables are display-only for row order (mirror the sidebar live); Collection tables keep flat reorder; empty-state default order changed alphabetical → **creation order** (ULID-id ascending). The full per-view ordering system ships v0.5.0.
+- **Pages stats footer + editor polish.** Footer with live line / word / character counts (toggle) + plain-text Finder-style breadcrumb (the clickable `NSPathControl` variant was tried and reverted). Code-block syntax-hide now ignores inline code spans and fires inside headings; bullet gap / indent tuning; `-[]` / `-[x]` checkbox shorthand continues + toggles on Enter.
+
 ##### v0.3.5 — Connections (page-level) + Contextv2 + MarkdownPM perf
 Tagged 2026-06-07. 231 commits since v0.3.4.
 
@@ -80,14 +89,6 @@ Full ship detail → [[History]] § "Connections — page-level complete".
 
 ##### v0.4.0 — Pages unification + PagePreview window (2026-06-09/10)
 The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` (`compact` | `window`) routes page-taps to **PagePreview** — a real `WindowGroup` window restricted to never act as its own app window (no traffic lights / Dock / Window-menu presence; child-attached above the main window; mounts the shared `FrontmatterInspector` at a compact scale) — or the main detail pane; user-creatable sidebar sections group Vaults (navigation-only); index schema v10 → v11 (legacy tables dropped, delete-and-rebuild). Launch/state hardening: XCTest app-state isolation, launch-panel abort retry. Full record + retrospective pointers → [[History]] § "v0.4.0" + § "PagesV2".
-
-##### v0.3.4 — Relations made real + manager de-dup + Pages stats footer
-Tagged 2026-05-31; the big consolidation release (**v0.3.3 was skipped** — the relations work folded forward into this tag). Marketing version bumped `0.2.6` → `0.3.4` at release.
-- **Relations unified (since superseded — see Contextv2 below).** `tier1/2/3` and relation properties shared a single pipeline; the `tier_links` table retired (one reverse-lookup path). Relations are always-multi (`[{"$rel": "<ULID>"}]`); a single-pane editor set home side + reverse name + reverse icon. Context-delete cascades the tier reference out of every operational entity. Entity `icon` denormalized into the SQLite index. Index resilience hardened (per-row insert, version-stamp-after-populate) + `MemberFileStrip.forEach` tolerates frontmatter-less member files.
-- **Native IconPicker.** Pommora's own SF Symbols 6 picker (`IconCatalog`, 6,195 names + `IconFavorites`) replaces the third-party `SymbolPicker`; one `.iconPickerPopover` modifier at every icon-edit entry.
-- **Manager de-dup.** The 5 schema-mutation methods duplicated across the schema-bearing managers collapsed behind two shared `@MainActor` services — `PerTypeSchemaService` + `SingletonSchemaService` (Agenda). ~590 lines of copy-paste removed, fully behavior-preserving.
-- **Vault-table display-only + creation-order.** *Type* detail tables are display-only for row order (mirror the sidebar live); Collection tables keep flat reorder; empty-state default order changed alphabetical → **creation order** (ULID-id ascending). The full per-view ordering system ships v0.5.0.
-- **Pages stats footer + editor polish.** Footer with live line / word / character counts (toggle) + plain-text Finder-style breadcrumb (the clickable `NSPathControl` variant was tried and reverted). Code-block syntax-hide now ignores inline code spans and fires inside headings; bullet gap / indent tuning; `-[]` / `-[x]` checkbox shorthand continues + toggles on Enter.
 
 ---
 

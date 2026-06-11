@@ -118,7 +118,7 @@ If `SidebarSelection.init?(stateRef:lookup:)` returns nil for a page or collecti
 
 ##### No preview routing
 
-The dropdown always opens Pages in the main detail pane — it does not consult the vault's `open_in` mode. PagePreview cards are routed from sidebar page-taps only ([[Pages]] § "Opening behavior").
+The dropdown always opens Pages in the main detail pane — it does not consult the vault's `open_in` mode. PagePreview windows are routed from sidebar page-taps only ([[Pages]] § "Opening behavior").
 
 ---
 

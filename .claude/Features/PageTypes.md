@@ -102,7 +102,7 @@ Title = folder name. The schema applies to every Page inside (each Page's frontm
 
 #### Open-in mode
 
-Each Page Type carries an optional `open_in` field (`compact` | `window`; absent = `window`) deciding where its Pages open — `window` routes a page-tap to the main detail pane, `compact` opens a PagePreview card (full behavior → [[Pages]] § "Opening behavior"). Set via a vault-scoped `Compact | Window` segmented control pinned in the View Settings popover's footer (`StorageMenuRoot` → `ViewSettingsPane` footer slot), persisting through `PageTypeManager.setOpenIn(_:forVault:)`. The control's labels are structural — not user-renameable.
+Each Page Type carries an optional `open_in` field (`compact` | `window`; absent = `window`) deciding where its Pages open — `window` routes a page-tap to the main detail pane, `compact` opens a PagePreview window (full behavior → [[Pages]] § "Opening behavior"). Set via a vault-scoped `Layout` dropdown (`Compact` | `Window`) pinned in the View Settings popover's footer (`StorageMenuRoot` → `ViewSettingsPane` footer slot), persisting through `PageTypeManager.setOpenIn(_:forVault:)`. The control's labels are structural — not user-renameable.
 
 #### Page Type Settings sheet
 

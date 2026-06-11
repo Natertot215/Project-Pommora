@@ -19,9 +19,6 @@
 
 On native TextKit 2, hosting a non-text view inline requires custom layout-attachment work — materially harder than on a JS editor. Feasible if Pommora ever pivots to BlockNote / Tiptap, where node-component approach applies directly. See `// ReactInfo// Editor.md` for the React-pivot path.
 
-#### Ad-hoc page-local properties
-**Description:** Allow a Page to declare properties not in its parent Page Type's schema (Obsidian-flavor flexibility). v1 enforces schema conformance — every property on a Page must come from the Page Type. The only "outside the schema" thing for v1 is sidebar ordering / sorting, which is UI state and lives outside file content.
-
 #### Cloud sync (Supabase or otherwise)
 **Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `page_type_id` + `properties` JSONB; each Page Type's `_pagetype.json` → a row in a `types` table; each Context (Area / Topic / Project) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
 
