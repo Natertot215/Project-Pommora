@@ -215,12 +215,12 @@ import Testing
         #expect(!ptm.types.contains { $0.title == "node_modules" })
 
         // (b) A root-level "topics" exclusion must NOT suppress TopicManager.loadAll().
-        let tm = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        try await tm.createTopic(name: "Research", parents: [], icon: nil)
+        let tm = TopicManager(nexus: nexus)
+        try await tm.createTopic(name: "Research", icon: nil)
 
         try setExcluded(["topics"], in: nexus)
 
-        let tm2 = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let tm2 = TopicManager(nexus: nexus)
         await tm2.loadAll()  // exempt — no filter param
         #expect(tm2.topics.contains { $0.title == "Research" })
     }

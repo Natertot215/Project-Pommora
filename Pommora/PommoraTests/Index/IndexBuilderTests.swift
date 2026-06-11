@@ -274,19 +274,9 @@ struct IndexBuilderTests {
         try await spaceManager.create(name: "Work", color: nil, icon: nil)
         try await spaceManager.create(name: "Personal", color: nil, icon: nil)
 
-        let topicManager = TopicManager(
-            nexus: nexus,
-            contextProvider: {
-                NexusContext(
-                    lookupSpace: { _ in nil },
-                    lookupTopic: { _ in nil },
-                    lookupProject: { _ in nil },
-                    lookupVault: { _ in nil }
-                )
-            }
-        )
+        let topicManager = TopicManager(nexus: nexus)
         await topicManager.loadAll()
-        try await topicManager.createTopic(name: "Finance", parents: [], icon: nil)
+        try await topicManager.createTopic(name: "Finance", icon: nil)
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)

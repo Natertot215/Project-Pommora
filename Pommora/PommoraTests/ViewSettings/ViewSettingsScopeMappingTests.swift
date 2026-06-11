@@ -50,7 +50,7 @@ struct ViewSettingsScopeMappingTests {
     @Test("topic selection maps to .topic scope")
     func topicMapsToTopic() {
         let t = Topic(
-            id: "01HTOPIC", title: "Work", parents: [], icon: nil,
+            id: "01HTOPIC", title: "Work", icon: nil,
             blocks: [], modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .topic(t))

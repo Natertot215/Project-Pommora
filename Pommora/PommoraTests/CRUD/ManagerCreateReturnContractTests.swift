@@ -59,10 +59,10 @@ struct ManagerCreateReturnContractTests {
     func createTopicReturns() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let manager = TopicManager(nexus: nexus)
         await manager.loadAll()
 
-        let returned = try await manager.createTopic(name: "Productivity", parents: [], icon: nil)
+        let returned = try await manager.createTopic(name: "Productivity", icon: nil)
         #expect(manager.topics.contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Productivity")
     }

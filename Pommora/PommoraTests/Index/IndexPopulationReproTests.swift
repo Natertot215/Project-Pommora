@@ -98,7 +98,7 @@ struct IndexPopulationReproTests {
         let topicFolder = NexusPaths.topicFolderURL(forTitle: topicName, in: nexus)
         try FileManager.default.createDirectory(at: topicFolder, withIntermediateDirectories: true)
         try Topic(
-            id: topicID, title: topicName, parents: [], icon: nil, blocks: [], modifiedAt: Date()
+            id: topicID, title: topicName, icon: nil, blocks: [], modifiedAt: Date()
         ).save(to: NexusPaths.topicMetadataURL(forTitle: topicName, in: nexus))
 
         // --- Construct all managers sharing ONE IndexUpdater over the fresh index. ---
@@ -109,7 +109,7 @@ struct IndexPopulationReproTests {
         pageContentManager.indexUpdater = IndexUpdater(index)
         let spaceManager = SpaceManager(nexus: nexus)
         spaceManager.indexUpdater = IndexUpdater(index)
-        let topicManager = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let topicManager = TopicManager(nexus: nexus)
         topicManager.indexUpdater = IndexUpdater(index)
 
         // --- Run loadAll in the order the app does. ---
@@ -293,7 +293,7 @@ struct IndexPopulationReproTests {
         )
 
         // --- Wire + load. ---
-        let topicManager = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let topicManager = TopicManager(nexus: nexus)
         topicManager.indexUpdater = IndexUpdater(index)
         await topicManager.loadAll()
 

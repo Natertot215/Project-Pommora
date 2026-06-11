@@ -81,7 +81,7 @@ struct RebuildResilienceTests {
         let topicFolder = NexusPaths.topicFolderURL(forTitle: topicName, in: nexus)
         try FileManager.default.createDirectory(at: topicFolder, withIntermediateDirectories: true)
         try Topic(
-            id: topicID, title: topicName, parents: [], icon: nil, blocks: [], modifiedAt: Date()
+            id: topicID, title: topicName, icon: nil, blocks: [], modifiedAt: Date()
         ).save(to: NexusPaths.topicMetadataURL(forTitle: topicName, in: nexus))
 
         // --- Seed a VALID Vault (PageType) at the nexus root. ---

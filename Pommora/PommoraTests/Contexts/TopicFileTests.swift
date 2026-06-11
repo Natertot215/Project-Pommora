@@ -19,7 +19,6 @@ struct TopicFileTests {
         let original = Topic(
             id: "01HABC",
             title: "Productivity",
-            parents: ["01HSPACE-PERSONAL", "01HSPACE-WORK"],
             icon: "lightbulb",
             blocks: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)
@@ -29,7 +28,6 @@ struct TopicFileTests {
         let loaded = try Topic.load(from: metaURL)
         #expect(loaded.id == "01HABC")
         #expect(loaded.title == "Productivity")  // from folder
-        #expect(loaded.parents == ["01HSPACE-PERSONAL", "01HSPACE-WORK"])
         #expect(loaded.icon == "lightbulb")
         #expect(loaded.tier == 2)
         #expect(loaded.modifiedAt == Date(timeIntervalSince1970: 1716480000))
@@ -47,7 +45,6 @@ struct TopicFileTests {
         let topic = Topic(
             id: "01H",
             title: "CS-161",
-            parents: ["01HSPACE-ACADEMICS"],
             icon: nil,
             blocks: [],
             modifiedAt: Date()
@@ -67,24 +64,34 @@ struct TopicFileTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent("_topic.json")
 
-        let topic = Topic(id: "01H", title: "GTD", parents: [], icon: nil, blocks: [], modifiedAt: Date())
+        let topic = Topic(id: "01H", title: "GTD", icon: nil, blocks: [], modifiedAt: Date())
         try topic.save(to: metaURL)
         let loaded = try Topic.load(from: metaURL)
         #expect(loaded.tier == 2)
     }
 
-    @Test("Topic supports zero parents (Space-less topic allowed)")
-    func zeroParents() throws {
+    @Test("Legacy 'parents' key in JSON is silently ignored on decode; absent on encode")
+    func parentsKeyIgnored() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL
-            .appendingPathComponent(".nexus/topics/Loose", isDirectory: true)
+            .appendingPathComponent(".nexus/topics/Legacy", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent("_topic.json")
 
-        let topic = Topic(id: "01H", title: "Loose", parents: [], icon: nil, blocks: [], modifiedAt: Date())
-        try topic.save(to: metaURL)
+        // Write JSON that includes a legacy parents array.
+        let legacy = """
+            {"id":"01HLEG","tier":2,"parents":["01HSPACE-1"],"blocks":[],"modified_at":"2026-01-01T00:00:00.000Z"}
+            """
+        try legacy.write(to: metaURL, atomically: true, encoding: .utf8)
+
+        // Decode must succeed (parents silently ignored).
         let loaded = try Topic.load(from: metaURL)
-        #expect(loaded.parents == [])
+        #expect(loaded.id == "01HLEG")
+
+        // Re-encode must NOT contain a parents key.
+        try loaded.save(to: metaURL)
+        let raw = try String(contentsOf: metaURL, encoding: .utf8)
+        #expect(!raw.contains("\"parents\""))
     }
 }

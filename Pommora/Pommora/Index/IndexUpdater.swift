@@ -263,15 +263,13 @@ struct IndexUpdater: Sendable {
 
     func upsertContext(_ topic: Topic) throws {
         try index.dbQueue.write { db in
-            // Topics may have multiple parents — index first parent (or nil).
-            let firstParent = topic.parents.first
             try db.execute(
                 sql: """
                     INSERT OR REPLACE INTO contexts
                         (id, tier, title, icon, parent_topic_id)
                     VALUES (?, ?, ?, ?, ?)
                     """,
-                arguments: [topic.id, 2, topic.title, topic.icon, firstParent]
+                arguments: [topic.id, 2, topic.title, topic.icon, nil]
             )
         }
     }

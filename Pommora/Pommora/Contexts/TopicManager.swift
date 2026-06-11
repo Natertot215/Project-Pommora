@@ -9,7 +9,6 @@ final class TopicManager {
     var pendingError: (any Error)?
 
     private let nexus: Nexus
-    private let contextProvider: @MainActor () -> NexusContext
 
     /// Current Nexus ID — used by the drag system's cross-window guard.
     var nexusID: String { nexus.id }
@@ -22,9 +21,8 @@ final class TopicManager {
     /// created or edited since the last full IndexBuilder rebuild.
     var indexUpdater: IndexUpdater?
 
-    init(nexus: Nexus, contextProvider: @escaping @MainActor () -> NexusContext) {
+    init(nexus: Nexus) {
         self.nexus = nexus
-        self.contextProvider = contextProvider
     }
 
     // MARK: - Load
@@ -70,17 +68,16 @@ final class TopicManager {
     // MARK: - Topic CRUD
 
     @discardableResult
-    func createTopic(name: String, parents: [String], icon: String?) async throws -> Topic {
+    func createTopic(name: String, icon: String?) async throws -> Topic {
         do {
             try TopicValidator.validate(
-                title: name, parents: parents,
-                existing: topics, context: contextProvider()
+                title: name,
+                existing: topics
             )
 
             let topic = Topic(
                 id: ULID.generate(),
                 title: name,
-                parents: parents,
                 icon: icon,
                 blocks: [],
                 modifiedAt: Date()
@@ -109,8 +106,8 @@ final class TopicManager {
     func renameTopic(_ topic: Topic, to newName: String) async throws {
         do {
             try TopicValidator.validate(
-                title: newName, parents: topic.parents,
-                existing: topics, context: contextProvider(),
+                title: newName,
+                existing: topics,
                 excluding: topic
             )
 
@@ -153,35 +150,6 @@ final class TopicManager {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
             }
-            throw error
-        }
-    }
-
-    func updateTopicParents(_ topic: Topic, to parents: [String]) async throws {
-        do {
-            try TopicValidator.validate(
-                title: topic.title, parents: parents,
-                existing: topics, context: contextProvider(),
-                excluding: topic
-            )
-
-            var updated = topic
-            updated.parents = parents
-            updated.modifiedAt = Date()
-            let meta = NexusPaths.topicMetadataURL(forTitle: topic.title, in: nexus)
-            try updated.save(to: meta)
-
-            // `parent_topic_id` (first parent) is an indexed `contexts` column —
-            // re-upsert so the index reflects the reparented Topic.
-            if let updater = indexUpdater {
-                do { try updater.upsertContext(updated) } catch { self.pendingError = error }
-            }
-
-            if let i = topics.firstIndex(where: { $0.id == topic.id }) {
-                topics[i] = updated
-            }
-        } catch {
-            self.pendingError = error
             throw error
         }
     }

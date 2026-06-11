@@ -85,22 +85,7 @@ final class NexusEnvironment {
         let projectMgr = ProjectManager(nexus: nexus)
         let vaultMgr = PageTypeManager(nexus: nexus)
 
-        // TopicManager needs SpaceManager + PageTypeManager for cross-entity lookups.
-        // The outer closure runs on MainActor (per TopicManager's signature) and
-        // reads live state from the peer managers, then bakes value-type snapshots
-        // into the @Sendable NexusContext lookup closures — this is what allows
-        // capturing through Swift 6 strict concurrency: managers themselves are
-        // @MainActor-isolated and non-Sendable, but `[Space]` / `[Vault]` are.
-        let topicMgr = TopicManager(nexus: nexus) { [spaceMgr, vaultMgr] in
-            let spaces = spaceMgr.spaces
-            let types = vaultMgr.types
-            return NexusContext(
-                lookupSpace: { id in spaces.first { $0.id == id } },
-                lookupTopic: { _ in nil },
-                lookupProject: { _ in nil },
-                lookupVault: { id in types.first { $0.id == id } }
-            )
-        }
+        let topicMgr = TopicManager(nexus: nexus)
 
         // PageContentManager needs Space + Topic + Project + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on

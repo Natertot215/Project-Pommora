@@ -12,7 +12,7 @@ struct TopicManagerTests {
         let (nexus, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createTopic(name: "Productivity", parents: [], icon: nil)
+        try await manager.createTopic(name: "Productivity", icon: nil)
         let folder = NexusPaths.topicFolderURL(forTitle: "Productivity", in: nexus)
         let meta = NexusPaths.topicMetadataURL(forTitle: "Productivity", in: nexus)
         #expect(FileManager.default.fileExists(atPath: folder.path))
@@ -26,7 +26,7 @@ struct TopicManagerTests {
         let (nexus, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createTopic(name: "Productivity", parents: [], icon: nil)
+        try await manager.createTopic(name: "Productivity", icon: nil)
         let topic = manager.topics.first!
 
         try await manager.renameTopic(topic, to: "Workflows")
@@ -41,7 +41,7 @@ struct TopicManagerTests {
         let (nexus, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createTopic(name: "Productivity", parents: [], icon: nil)
+        try await manager.createTopic(name: "Productivity", icon: nil)
         let topic = manager.topics.first!
 
         try await manager.deleteTopic(topic)
@@ -56,7 +56,7 @@ struct TopicManagerTests {
 
     private func setup() async throws -> (Nexus, TopicManager) {
         let nexus = try TempNexus.make()
-        let manager = TopicManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        let manager = TopicManager(nexus: nexus)
         await manager.loadAll()
         return (nexus, manager)
     }

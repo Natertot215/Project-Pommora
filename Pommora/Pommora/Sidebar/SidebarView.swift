@@ -461,7 +461,7 @@ struct TopicsSection: View {
             do {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
-                        try await topicManager.createTopic(name: title, parents: [], icon: nil)
+                        try await topicManager.createTopic(name: title, icon: nil)
                     },
                     onCreate: { newTopic in
                         editingID = newTopic.id

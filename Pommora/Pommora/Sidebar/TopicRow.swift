@@ -63,8 +63,8 @@ struct TopicRow: View {
         }
     }
 
-    /// Stub-and-edit "New Topic" trigger. New Topics inherit this Topic's
-    /// current parents (Spaces) from the row that fired the action.
+    /// Stub-and-edit "New Topic" trigger — creates a free-standing tier-2
+    /// Topic (Topics no longer have parents).
     private func createTopic() {
         guard !isCreatingTopic else { return }
         isCreatingTopic = true
@@ -76,7 +76,7 @@ struct TopicRow: View {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
                         try await topicManager.createTopic(
-                            name: title, parents: topic.parents, icon: nil
+                            name: title, icon: nil
                         )
                     },
                     onCreate: { newTopic in
