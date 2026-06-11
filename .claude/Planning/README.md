@@ -8,6 +8,9 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Active
 
+- `06-11-Sets-Spec.md` — the Sets third-tier spec (Vault → Collection → Set). Design ratified + questions resolved 2026-06-11; ships as v0.4.1.
+- `06-11-Sets-Plan.md` — the Sets implementation plan: 11 tasks (each a green commit), subagent-driven, docs as the final task. Stress-tested once 2026-06-11.
+- `06-11-Views-Spec.md` — pre-design findings ledger for the Views cluster (next focus after Sets): current SavedView/GroupConfig facts, roadmap scope, Sets-derived requirements, platform notes.
 - `06-05-Connections-Plan.md` — the Connections implementation plan. Page-level work shipped at v0.3.5 (`History.md` § "Connections — page-level complete"); retained at top level pending the post-v0.4.0 connection-model layer it also scopes.
 - `Contextv2.md` — the Drop-Relations→Contexts refactor plan. Shipped 2026-06-04 (registry decision #16); retained at top level pending archival review.
 
