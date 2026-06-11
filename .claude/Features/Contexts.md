@@ -1,75 +1,52 @@
 ### Contexts
 
-The organization layer. Three tiers — Spaces (1), Topics (2), Projects (3) — that act as categorical anchors other entities relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
+The organization layer. Three **free-standing** tiers — Areas (1), Topics (2), Projects (3) — that act as categorical anchors operational entities (Pages, Agenda) relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
 
-All three tiers share the same shape; differences called out below.
+The tiers are independent: none contains, parents, or is restricted to another. A Project is not "inside" a Topic; a Topic does not belong to an Area. Each tier is a standalone entity with one shared shape. Context→context relations are a deferred design pass — see [Deferred](#deferred).
 
 ---
 
 #### Layer mapping (PARA-aligned)
 
-| PARA term | Pommora term | Tier | Role |
+| PARA term | Tier | Default label | Role |
 |---|---|---|---|
-| Areas | Spaces (renamable) | 1 | Broad life domains — Personal, Academics, Work |
-| Projects | Topics (renamable) | 2 | Subject areas inside one or more Spaces — Productivity, Side Projects, Reading List |
-| (sub-projects) | Projects (renamable) | 3 | Specifics within one Topic — CS 161, Pommora, "Atomic Habits" |
+| Areas | 1 | Area (renamable) | Broad life domains — Personal, Academics, Work |
+| Projects | 2 | Topic (renamable) | Subject areas — Productivity, Side Projects, Reading List |
+| (sub-projects) | 3 | Project (renamable) | Specifics — CS 161, Pommora, "Atomic Habits" |
 
-Tier names are stored in `.nexus/tier-config.json` with both singular and plural forms (Capacities convention). Default labels above; user can rename per-Nexus via Settings.
+Labels are stored per-Nexus (singular + plural, Capacities convention); tier *numbers* are fixed.
 
 ---
 
 #### Shared shape
 
-All three tiers are composed-blocks surfaces — same pattern as Homepage. Each carries:
+All three tiers are **folders with a config sidecar** — the same idiom as Page Types (folder + `_pagetype.json`). Each entity carries:
 
 - `id` (ULID), `tier` (1/2/3), `icon` (SF Symbol, optional)
-- `parents` — IDs of Contexts at lower tier numbers (validated)
-- `blocks` — composed-page block tree; can embed any entity by ID
+- `blocks` — an array reserved for a future composed-blocks surface; **currently always empty**
 - `modified_at`
-- Tier-1 (Space) additionally carries `color` — the `SpaceColor` palette (the 9 Notion-palette colors plus `accent`; `nil` = no tint)
+- Tier-1 (Area) additionally carries `color` — the `AreaColor` palette (the 9 Notion-palette colors plus `accent`; `nil` = no tint)
 
-Filename = title. Renaming in the UI renames the file.
-
----
-
-#### Spaces (tier 1)
-
-- File at `.nexus/spaces/<Title>.space.json` — flat files, no folder structure
-- `parents: []` always (tier 1 is root)
-- Carry `color` (visual identity used for Topic tagging in the sidebar)
-- Sidebar render: flat row with color/symbol indicator, no chevron, no children disclosure
-- Clicking opens the Space's composed-blocks page
+There is no `parents`, no containment field, and no cross-context link property. The folder name is the title; there is no `title` field on disk. Renaming in the UI renames the folder.
 
 ---
 
-#### Topics (tier 2)
+#### On-disk layout
 
-- Folder at `.nexus/topics/<Title>/` containing `_topic.json` and member Project files
-- `parents` — multi-valued tier-1 Space IDs (a Topic can belong to multiple Spaces)
-- Sidebar render: chevron-disclosure row; expanded view shows file-nested Projects
-- Topic's color tag in the sidebar derives from parent Space(s) — multi-Space Topics show multi-color indicators
-- The tagging visual mode (color dot / SF Symbol / both) is settable in `.nexus/tier-config.json` (`tagging_style`)
-- Clicking opens the Topic's composed-blocks page
+```
+.nexus/
+  areas/<Title>/_area.json        id, tier 1, color, icon, blocks, modified_at
+  topics/<Title>/_topic.json      id, tier 2, icon, blocks, modified_at
+  projects/<Title>/_project.json  id, tier 3, icon, blocks, modified_at
+```
 
----
-
-#### Projects (tier 3)
-
-- File at `.nexus/topics/<TopicFolder>/<Title>.project.json` — file location IS the file-structural parent
-- `parents` — single-valued (the parent Topic, encoded by folder location)
-- `project_links` — **typed multi-valued context-link property** on the Project. Holds IDs of additional Topics, Spaces, or Projects the Project relates to. **Not body connections** — editable in the property panel like any context-link, queryable via the index, surfaced in graph view. On-disk key `project_links`; legacy `linked_relations` key is decode-tolerated (dual-key decode).
-- Tier-skip allowed: a Project CAN parent directly to a Space if it has no file-structural Topic parent (handled by treating it as a Topic in v1 — the "standalone project" case is not a distinct user-facing concept)
-- Sidebar render: leaf row inside parent Topic's disclosure
-- Clicking opens the Project's composed-blocks page
+Each tier has its own sibling manager — `AreaManager` / `TopicManager` / `ProjectManager` — with identical folder CRUD: create (folder + sidecar via `Filesystem.createFolderWithMetadata`), rename (folder rename with atomic save-or-rollback), delete (move folder to trash), reorder (sibling order persisted to `.nexus/state.json` as `area_order` / `topic_order` / `project_order`). Each manager defensively re-syncs its rows into the SQLite `contexts` index on `loadAll`.
 
 ---
 
-#### Connection rules
+#### Sidebar
 
-- **Tier-parent rule** — every value in `parents` must resolve to a Context with `level < this.tier`. Cycles impossible by construction.
-- **Multi-parent allowed across tiers** — a Topic can parent to multiple Spaces; a Project's `project_links` can target multiple Topics, Spaces, or Projects.
-- **No same-tier file-structural links** — Topic ↛ Topic, Space ↛ Space. Same-tier relationships are expressed through a Context's composed-page block content; inline `[[ ]]` connections inside Context blocks are post-v1 (→ [[Connections]]).
-- **Tier-skip allowed** — Projects can connect to Spaces directly via `parents` or `project_links`.
+The three tiers share one **Contexts** section: a `Section` headed "Contexts" containing three `square.grid.2x2` disclosure rows (Areas / Topics / Projects). A tier row toggles its own disclosure only — it is never selectable; its entities are created via the row's hover "+" or right-click "New <Tier>". Each tier's entities render as flat leaf rows inside their disclosure. Full spec → [[Sidebar]].
 
 ---
 
@@ -78,7 +55,7 @@ Filename = title. Renaming in the UI renames the file.
 Pages and Agenda entries carry **per-tier multi-relation fields** independently:
 
 ```yaml
-tier1: [<space-id>, ...]
+tier1: [<area-id>, ...]
 tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
@@ -90,11 +67,13 @@ A tier relation is a **dual surface**:
 - **Outbound (entity → Context).** The operational entity tags the Context by holding its ID in `tier1` / `tier2` / `tier3`. This is the writable side — the value lives in the entity's frontmatter; the Context carries no `properties[]` schema and no reverse field.
 - **Inbound (Context → entities).** The Context reads back every entity that tags it. Because tier values emit one row each into the SQLite `context_links` table (`property_id` = the reserved tier ID), the inbound view is a pure index query — no reverse property to maintain.
 
+This cross-layer relation is the one connection contexts have today. It is unaffected by the decoupling: the tiers stop relating to *each other*, but Pages/Agenda still tag them.
+
 ---
 
 #### Linked-from
 
-A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Agenda Tasks / Agenda Events / lower-tier Contexts).
+A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Agenda Tasks / Agenda Events).
 
 The dropdown is powered by `IndexQuery.incomingContextLinks(targetID:)`, which reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
 
@@ -102,33 +81,36 @@ The dropdown is powered by `IndexQuery.incomingContextLinks(targetID:)`, which r
 
 #### Validation
 
-Enforced at every file write:
+Enforced at every write:
 
-1. `parents[i]` resolves to a Context with `level < this.tier`
-2. Project file MUST physically live inside a Topic folder (file location = file-structural parent)
-3. Project `parents` array contains exactly one ID (the folder-derived parent)
-4. Page / Agenda `tierN` values resolve to Contexts with `level == N`
-5. Filename = title; no separate `title` field
+1. Title is non-empty and contains none of `/ \ :`
+2. Title is unique among siblings of the same tier (case-insensitive)
+3. Filename (folder name) = title; no separate `title` field
+
+There is no parent, containment, or tier-relation validation — the tiers are free-standing.
 
 ---
 
 #### Tier config
 
-User-configurable per Nexus at `.nexus/tier-config.json`:
+Per-Nexus labels at `.nexus/tier-config.json` (defaults):
 
 ```json
-{
-  "schemaVersion": 1,
-  "tiers": [
-    { "level": 1, "singular": "Space",     "plural": "Spaces",     "exposed": true },
-    { "level": 2, "singular": "Topic",     "plural": "Topics",     "exposed": true },
-    { "level": 3, "singular": "Project", "plural": "Projects", "exposed": true }
-  ],
-  "tagging_style": "color"
-}
+{ "level": 1, "singular": "Area",    "plural": "Areas",    "exposed": true },
+{ "level": 2, "singular": "Topic",   "plural": "Topics",   "exposed": true },
+{ "level": 3, "singular": "Project", "plural": "Projects", "exposed": true }
 ```
 
-- `singular` / `plural` — Capacities-style separate inputs; UI uses one or the other depending on context
-- `exposed: false` hides a tier from CRUD/UI without breaking the schema — supports v1 "two tiers only" experimentation if user wants
-- `tagging_style` — `"color"` | `"symbol"` | `"both"` — controls Topic-row tagging visual in the sidebar
+- `singular` / `plural` — separate inputs; the UI picks one by context.
+- `exposed: false` hides a tier from CRUD/UI without breaking the schema.
+- `tagging_style` (`color` | `symbol` | `both`) is currently **vestigial** — it controlled the parent-Area indicator on Topic rows, which was removed with containment. It stays inert pending the future relation/tagging design.
 
+---
+
+#### Deferred
+
+Three capabilities are intentionally out of scope; each gets its own brainstorming + spec:
+
+- **Context→context relations** — Topics relating to Areas, Projects to Topics and Areas, edited via each context's settings surface.
+- **Transitive page roll-up** — page → project → topic → area aggregation.
+- **Composed-blocks surface** — the `blocks` field stays inert until contexts become editable block surfaces.
