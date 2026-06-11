@@ -68,8 +68,8 @@ final class PageTypeManager {
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
 
+            var typeFolders: [URL] = []
             var loadedTypes: [PageType] = []
-            var loadedCols: [String: [PageCollection]] = [:]
 
             for folder in topLevel {
                 let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
@@ -90,15 +90,34 @@ final class PageTypeManager {
                     ]
                     try? pageType.save(to: metaURL)
                 }
+                typeFolders.append(folder)
                 loadedTypes.append(pageType)
+            }
 
+            // Duplicate-ULID heal: a Finder-duplicated Type folder clones the
+            // `_pagetype.json` id. Runs BEFORE collection discovery so the
+            // `typeID` drift-heal below re-points the duplicate's collections
+            // at the freshly-minted id in the same pass.
+            var seenTypeIDs: Set<String> = []
+            loadedTypes = ContainerIDHealer.heal(
+                loadedTypes, seen: &seenTypeIDs,
+                reID: { $0.id = ULID.generate() },
+                save: { try $0.save(to: NexusPaths.vaultMetadataURL(forTitle: $0.title, in: nexus)) }
+            )
+
+            var loadedCols: [String: [PageCollection]] = [:]
+            // Load-wide id namespace — also catches collection ids cloned
+            // ACROSS two Types when a whole Type folder was duplicated.
+            var seenCollectionIDs: Set<String> = []
+
+            for (folder, pageType) in zip(typeFolders, loadedTypes) {
                 // Discover PageCollections (sub-folders with `_pagecollection.json`; skip _- and .-prefixed).
                 // A sub-folder inside an already-flat PageType can only be a PageCollection,
                 // so if the sidecar is missing (folder created by hand in Finder, or pre-existing
                 // before adoption), write a fresh one in place. Best-effort: a write failure
                 // falls through to the existing nil-skip behavior.
                 let parentPropertyIDs = pageType.properties.map(\.id)
-                let cols = try Filesystem.childFolders(of: folder, folderFilter: filter)
+                var cols = try Filesystem.childFolders(of: folder, folderFilter: filter)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> PageCollection? in
@@ -140,6 +159,18 @@ final class PageTypeManager {
                         }
                         return collection
                     }
+                // Duplicate-ULID heal: a Finder-duplicated Collection folder
+                // clones the `_pagecollection.json` id. Runs before the
+                // defensive index upsert so two rows never share one id.
+                cols = ContainerIDHealer.heal(
+                    cols, seen: &seenCollectionIDs,
+                    reID: { $0.id = ULID.generate() },
+                    save: {
+                        try $0.save(
+                            to: $0.folderURL.appendingPathComponent(
+                                NexusPaths.pageCollectionSidecarFilename))
+                    }
+                )
                 loadedCols[pageType.id] = OrderResolver.resolve(
                     cols,
                     persistedOrder: pageType.collectionOrder,

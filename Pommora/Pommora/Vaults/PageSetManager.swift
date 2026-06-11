@@ -43,8 +43,12 @@ final class PageSetManager {
     func loadAll(collections: [PageCollection], filter: FolderFilter = .empty) async {
         do {
             var loaded: [String: [PageSet]] = [:]
+            // Load-wide id namespace for the duplicate-ULID heal — also
+            // catches set ids cloned ACROSS two Collections when a whole
+            // Collection (or Type) folder was duplicated in Finder.
+            var seenSetIDs: Set<String> = []
             for collection in collections {
-                let sets = try Filesystem.childFolders(of: collection.folderURL, folderFilter: filter)
+                var sets = try Filesystem.childFolders(of: collection.folderURL, folderFilter: filter)
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> PageSet? in
@@ -71,6 +75,18 @@ final class PageSetManager {
                         }
                         return set
                     }
+                // Duplicate-ULID heal: a Finder-duplicated Set folder clones
+                // the `_pageset.json` id. Runs before the defensive index
+                // upsert so two rows never share one id.
+                sets = ContainerIDHealer.heal(
+                    sets, seen: &seenSetIDs,
+                    reID: { $0.id = ULID.generate() },
+                    save: {
+                        try $0.save(
+                            to: $0.folderURL.appendingPathComponent(
+                                NexusPaths.pageSetSidecarFilename))
+                    }
+                )
                 loaded[collection.id] = OrderResolver.resolve(
                     sets,
                     persistedOrder: collection.setOrder,

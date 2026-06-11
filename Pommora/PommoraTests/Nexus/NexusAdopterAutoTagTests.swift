@@ -5,13 +5,14 @@ import Testing
 
 /// Silent auto-sidecar-tagging tests.
 ///
-/// `NexusAdopter.autoTagMissingSidecars(at:)` walks the Nexus root two
+/// `NexusAdopter.autoTagMissingSidecars(at:)` walks the Nexus root three
 /// levels deep on every launch and writes missing per-kind sidecars so
-/// Finder-built structure (Types + Collections) is first-class without any
-/// user-facing prompt. These tests cover:
+/// Finder-built structure (Types + Collections + Sets) is first-class without
+/// any user-facing prompt. These tests cover:
 ///   - Two-tier round-trip (Type / Collection auto-tagged)
+///   - Three-tier round-trip (Set auto-tagged; depth-3+ stays sidecar-less)
 ///   - Idempotence (second pass produces identical disk state)
-///   - Exclusion rules (dotfile + underscore prefixes left alone)
+///   - Exclusion rules (dotfile + underscore prefixes + FolderFilter left alone)
 @MainActor
 @Suite("NexusAdopter+AutoTag")
 struct NexusAdopterAutoTagTests {
@@ -56,6 +57,111 @@ struct NexusAdopterAutoTagTests {
         #expect(
             FileManager.default.fileExists(
                 atPath: collFolder.appendingPathComponent("paper.md").path
+            )
+        )
+    }
+
+    // MARK: - Three-tier Pages round-trip
+
+    @Test("three-tier structure auto-tags Type + Collection + Set; depth-3 stays bare")
+    func threeTierRoundTrip() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Hand-built: Research/Sources/Drafts/Deep/note.md — zero sidecars.
+        let typeFolder = nexus.rootURL.appendingPathComponent("Research", isDirectory: true)
+        let collFolder = typeFolder.appendingPathComponent("Sources", isDirectory: true)
+        let setFolder = collFolder.appendingPathComponent("Drafts", isDirectory: true)
+        let deepFolder = setFolder.appendingPathComponent("Deep", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: deepFolder, withIntermediateDirectories: true
+        )
+        try FixtureFiles.write(
+            "# Note\n", to: deepFolder.appendingPathComponent("note.md")
+        )
+
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+
+        // All three sidecars exist with correct parent-id chaining.
+        let pt = try PageType.load(
+            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        )
+        let pc = try PageCollection.load(
+            from: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        )
+        let ps = try PageSet.load(
+            from: setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        )
+        #expect(pc.typeID == pt.id)
+        #expect(ps.collectionID == pc.id)
+        #expect(ps.title == "Drafts")
+
+        // Depth-3 folder inside the Set stays sidecar-less.
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: deepFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path
+            )
+        )
+        #expect(
+            !FileManager.default.fileExists(
+                atPath:
+                    deepFolder
+                    .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+                    .path
+            )
+        )
+    }
+
+    @Test("an existing _pageset.json is not overwritten on re-run")
+    func existingSetSidecarPreserved() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let setFolder = nexus.rootURL
+            .appendingPathComponent("Research")
+            .appendingPathComponent("Sources")
+            .appendingPathComponent("Drafts")
+        try FileManager.default.createDirectory(
+            at: setFolder, withIntermediateDirectories: true
+        )
+
+        // Pass 1 tags all three tiers; pass 2 must leave the Set id alone.
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+        let psMeta = setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        let ps1 = try PageSet.load(from: psMeta)
+
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+        let ps2 = try PageSet.load(from: psMeta)
+
+        #expect(ps1.id == ps2.id)
+        #expect(ps1.collectionID == ps2.collectionID)
+    }
+
+    @Test("a FolderFilter-excluded folder at depth 2 is untouched")
+    func skipsExcludedDepth2() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let collFolder = nexus.rootURL
+            .appendingPathComponent("Research")
+            .appendingPathComponent("Sources")
+        let excluded = collFolder.appendingPathComponent("Private", isDirectory: true)
+        let included = collFolder.appendingPathComponent("Drafts", isDirectory: true)
+        try FileManager.default.createDirectory(at: excluded, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: included, withIntermediateDirectories: true)
+
+        let filter = FolderFilter(
+            nexusRoot: nexus.rootURL, excludedFolders: ["Research/Sources/Private"]
+        )
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL, filter: filter)
+
+        // Sibling Set gets its sidecar; the excluded folder gets nothing.
+        #expect(
+            FileManager.default.fileExists(
+                atPath: included.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path
+            )
+        )
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: excluded.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path
             )
         )
     }
