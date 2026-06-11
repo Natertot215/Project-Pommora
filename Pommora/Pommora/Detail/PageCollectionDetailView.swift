@@ -22,8 +22,14 @@ struct PageCollectionDetailView: View {
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
 
+    @State private var expanded: Set<String> = []  // set row IDs that are disclosed
+
     @State private var renameTarget: DetailRow?
     @State private var renameDraft: String = ""
+    /// Container-delete confirmation target — set only from a Set row's menu.
+    /// Page deletes stay direct; the Set case routes through the same
+    /// two-mode dialog the sidebar uses (Set only vs. Set and Pages).
+    @State private var deleteTarget: DetailRow?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -35,7 +41,8 @@ struct PageCollectionDetailView: View {
         }
         .task(id: collection.id) {
             // Root pages + every Set's pages — Set rows render in this table
-            // below the root zone, so their caches must be warm too.
+            // above the root zone with their pages as disclosure children,
+            // so their caches must be warm too.
             await contentManager.loadAll(for: collection)
             for set in pageSetManager.pageSets(in: collection) {
                 await contentManager.loadAll(for: set)
@@ -49,6 +56,34 @@ struct PageCollectionDetailView: View {
             if let row = renameTarget {
                 Text("Rename \(row.kindLabel.lowercased()) \"\(row.title)\"")
             }
+        }
+        .confirmationDialog(
+            deleteConfirmationTitle,
+            isPresented: deleteConfirmationBinding,
+            titleVisibility: .visible,
+            presenting: deleteTarget
+        ) { row in
+            if case .set(let set) = row.kind {
+                Button("Delete Set Only") {
+                    Task {
+                        do { try await pageSetManager.deletePageSet(set, mode: .setOnly) } catch
+                        { /* pendingError set by manager; toast surfaces */  }
+                        deleteTarget = nil
+                    }
+                }
+                Button("Delete Set and Pages", role: .destructive) {
+                    Task {
+                        do { try await pageSetManager.deletePageSet(set, mode: .withPages) } catch
+                        { /* pendingError set by manager; toast surfaces */  }
+                        deleteTarget = nil
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+        } message: { _ in
+            Text(
+                "\"Delete Set Only\" moves its Pages up into the Collection. \"Delete Set and Pages\" deletes everything."
+            )
         }
     }
 
@@ -93,11 +128,12 @@ struct PageCollectionDetailView: View {
         }
     }
 
-    /// Relation + tier target IDs across every visible Page row — drives the
-    /// resolver warm so cells render icon + title instead of "(missing)".
+    /// Relation + tier target IDs across every visible Page row (top-level
+    /// AND Set disclosure children) — drives the resolver warm so cells
+    /// render icon + title instead of "(missing)".
     private var visibleContextLinkIDs: [String] {
         let relationColumns = userPropertyColumns.filter { $0.type == .relation }
-        return rows.flatMap { row -> [String] in
+        return rows.flatMap { [$0] + ($0.children ?? []) }.flatMap { row -> [String] in
             guard case .page(let pageMeta) = row.kind else { return [] }
             let fm = pageMeta.frontmatter
             let tiers = fm.tier1 + fm.tier2 + fm.tier3
@@ -161,12 +197,26 @@ struct PageCollectionDetailView: View {
             }
             .width(min: 140, ideal: 180, max: 240)
         } rows: {
-            // Row-level drag = reorder (table-specialized API). Selection
-            // highlight removed so the drag owns the gesture; multi-select
-            // returns as a hover checkbox in v0.4.0.
+            // Set rows disclose their Pages (same DisclosureTableRow shape as
+            // PageTypeDetailView's Collections); an empty Set renders as a
+            // plain leaf row so it's visible immediately after creation.
+            // Sets aren't draggable — only collection-root Page rows carry
+            // the reorder drag (root-zone-only guard in handleDrop).
             ForEach(rows) { row in
-                TableRow(row)
-                    .draggable(DetailRowDragPayload(rowID: row.id))
+                if case .set = row.kind {
+                    if let kids = row.children, !kids.isEmpty {
+                        DisclosureTableRow(row, isExpanded: expandedBinding(for: row.id)) {
+                            ForEach(kids) { kid in
+                                TableRow(kid)
+                            }
+                        }
+                    } else {
+                        TableRow(row)
+                    }
+                } else {
+                    TableRow(row)
+                        .draggable(DetailRowDragPayload(rowID: row.id))
+                }
             }
             .dropDestination(for: DetailRowDragPayload.self) { offset, payloads in
                 handleDrop(payloads: payloads, toOffset: offset)
@@ -185,19 +235,21 @@ struct PageCollectionDetailView: View {
     /// Row drop handler — persists via manager. `offset` is the insertion index
     /// the table reports; unknown payloads and no-ops are dropped by the planner.
     ///
-    /// Scoped to the collection-root zone: Set pages render below the root
-    /// pages (flat concatenation until grouping ships), and their order
-    /// belongs to each Set's own `pageOrder` — a drag that starts on or lands
-    /// past the root zone is rejected.
+    /// Scoped to the collection-root zone: Set rows render ABOVE the root
+    /// pages and aren't reorderable here, and Set pages live in disclosure
+    /// children whose order belongs to each Set's own `pageOrder` — a drag
+    /// that starts on or lands inside the Set zone is rejected. Offsets are
+    /// translated to root-zone-local before planning.
     private func handleDrop(payloads: [DetailRowDragPayload], toOffset offset: Int) {
         guard let payload = payloads.first else { return }
-        let rootRows = Array(rows.prefix(contentManager.pages(in: collection).count))
-        guard rootRows.contains(where: { $0.id == payload.rowID }), offset <= rootRows.count else {
-            return
-        }
+        let setCount = pageSetManager.pageSets(in: collection).count
+        let rootRows = Array(rows.dropFirst(setCount))
+        guard rootRows.contains(where: { $0.id == payload.rowID }),
+            offset >= setCount, offset <= setCount + rootRows.count
+        else { return }
         guard
             let plan = DetailReorderPlanner.plan(
-                rows: rootRows, movingRowID: payload.rowID, dropOffset: offset)
+                rows: rootRows, movingRowID: payload.rowID, dropOffset: offset - setCount)
         else { return }
         if plan.kind == .page {
             contentManager.reorderPages(in: collection, fromOffsets: plan.fromOffsets, toOffset: plan.toOffset)
@@ -209,12 +261,12 @@ struct PageCollectionDetailView: View {
         case .page(let p):
             // Open-in routing: this view knows its vault + collection, so
             // the direct variant skips parent resolution. Set pages surface
-            // flat in this table — carry their Set into the preview ref.
+            // as disclosure children here — carry their Set into the ref.
             PageOpenRouter.routeOpen(
                 p, vault: vault, collection: collection,
                 set: setContaining(pageID: p.id), selection: &selection,
                 openPreview: { openPagePreview($0) })
-        case .collection: break
+        case .collection, .set: break  // Sets have no detail view
         }
     }
 
@@ -302,24 +354,28 @@ struct PageCollectionDetailView: View {
         }
     }
 
-    /// Collection-root pages (per `collection.pageOrder`) followed by each
-    /// Set's pages in `pageSets(in:)` order, each per its own `pageOrder` —
-    /// both already resolved by the managers' load paths. Flat concatenation
-    /// for now; visual grouping ships with the Views cluster.
+    /// Set rows in `pageSets(in:)` order (each carrying its pages per its own
+    /// `pageOrder` as disclosure children) followed by collection-root pages
+    /// (per `collection.pageOrder`) — all already resolved by the managers'
+    /// load paths. Construction lives in `DetailRow.collectionRows` (pure,
+    /// unit-tested).
     private var rows: [DetailRow] {
-        let rootPages = contentManager.pages(in: collection)
-        let setPages = pageSetManager.pageSets(in: collection)
-            .flatMap { contentManager.pages(in: $0) }
-        return (rootPages + setPages).map { p in
-            DetailRow(
-                id: "page-\(p.id)",
-                title: p.title,
-                kind: .page(p),
-                iconName: p.frontmatter.icon ?? "doc.text",
-                modifiedAt: p.frontmatter.createdAt,
-                children: nil
-            )
-        }
+        DetailRow.collectionRows(
+            sets: pageSetManager.pageSets(in: collection).map { ($0, contentManager.pages(in: $0)) },
+            rootPages: contentManager.pages(in: collection)
+        )
+    }
+
+    /// Stable per-row disclosure binding so a Set's expanded state survives
+    /// the frequent `rows` recomputes (every manager change). Mirrors
+    /// PageTypeDetailView's Collection disclosure.
+    private func expandedBinding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { expanded.contains(id) },
+            set: { isOn in
+                if isOn { expanded.insert(id) } else { expanded.remove(id) }
+            }
+        )
     }
 
     /// The PageSet (if any) whose loaded pages include `pageID` — nil for
@@ -348,8 +404,20 @@ struct PageCollectionDetailView: View {
             Button("Delete", role: .destructive) {
                 Task { await delete(row) }
             }
+        case .set(let set):
+            // No Open (Sets have no detail view) and no Pin (containers
+            // aren't pinnable from detail views) — mirrors PageTypeDetailView's
+            // Collection rows otherwise.
+            Button("Edit Title") { beginRename(row) }
+            Button("Edit Icon") { presentedSheet = .editIcon(.pageSet(set)) }
+            Divider()
+            // Container delete is guarded — route through the two-mode
+            // confirmation dialog (mirrors the sidebar's Set delete).
+            Button("Delete", role: .destructive) {
+                deleteTarget = row
+            }
         case .collection:
-            EmptyView()  // containers aren't context-menu targets here
+            EmptyView()  // Collection rows never appear in this table
         }
     }
 
@@ -357,6 +425,20 @@ struct PageCollectionDetailView: View {
         Binding(
             get: { renameTarget != nil },
             set: { if !$0 { renameTarget = nil } }
+        )
+    }
+
+    /// Title for the Set-delete confirmation. Mirrors the sidebar's
+    /// `confirmationTitle` for `.deleteSet`.
+    private var deleteConfirmationTitle: String {
+        guard let row = deleteTarget else { return "" }
+        return "Delete Set \"\(row.title)\"?"
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
         )
     }
 
@@ -380,6 +462,8 @@ struct PageCollectionDetailView: View {
                     } else {
                         try await contentManager.renamePage(p, to: newName, in: collection, vault: vault)
                     }
+                case .set(let s):
+                    try await pageSetManager.renamePageSet(s, to: newName)
                 case .collection:
                     break
                 }
@@ -398,8 +482,8 @@ struct PageCollectionDetailView: View {
                 } else {
                     try await contentManager.deletePage(p, in: collection)
                 }
-            case .collection:
-                break
+            case .collection, .set:
+                break  // Set deletes route through the confirmation dialog
             }
         } catch {
             // pendingError set by manager; toast surfaces.

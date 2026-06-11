@@ -64,6 +64,13 @@ struct PageCollectionRow: View {
                         presentedSheet: $presentedSheet,
                         confirmingDelete: $confirmingDelete
                     )
+                    // Distinct identity-only tag — without it the Set row
+                    // inherits this collection's `.tag` from PageTypeRow and
+                    // selecting either highlights both (the v0.4.1 bleed bug).
+                    // `.set` never resolves to a SidebarSelection; the label
+                    // row inside PageSetRow is additionally
+                    // `.selectionDisabled` so clicks/arrow keys skip it.
+                    .tag(SelectionTag.set(set.id))
                 case .page(let page):
                     PageRow(
                         page: page,

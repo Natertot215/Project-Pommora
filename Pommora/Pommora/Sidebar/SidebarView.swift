@@ -673,8 +673,9 @@ private struct UserSectionHeader: View {
 /// covers the full List row including any DisclosureGroup chevron gutter — not
 /// just the label area. `trailing` is an optional ViewBuilder slot for callers
 /// that need to render content at the right edge of the row. A `nil` tag marks
-/// a non-selectable row (PageSets have no SelectionTag case) — same content,
-/// never highlighted.
+/// a non-selectable row (PageSet labels pass nil — their `.set` tag is
+/// identity-only and never matches a selection) — same content, never
+/// highlighted.
 struct SelectableRow<Trailing: View>: View {
     let title: String
     let symbol: String

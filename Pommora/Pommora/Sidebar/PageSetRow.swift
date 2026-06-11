@@ -2,9 +2,14 @@ import SwiftUI
 
 /// Sidebar row for a PageSet — a disclosure of its member Pages, one level
 /// below PageCollectionRow and modeled on it. Sets are non-selectable: the
-/// label carries NO `.tag()` and NO SelectionChrome (untagged rows are
-/// natively non-selectable in `List(selection:)`); only the PageRow children
-/// are tagged.
+/// call site (PageCollectionRow) tags the whole row with the identity-only
+/// `SelectionTag.set` (never matches, never resolves), the label row is
+/// `.selectionDisabled` so clicks and keyboard traversal skip it, and there
+/// is NO SelectionChrome. Only the PageRow children carry selectable tags.
+/// `.selectionDisabled` is applied to the LABEL, not the DisclosureGroup —
+/// row traits on a multi-row container propagate to the generated child rows
+/// (the same inheritance that caused the tag-bleed bug), which would disable
+/// the Pages inside.
 struct PageSetRow: View {
     let set: PageSet
     let parentCollection: PageCollection
@@ -46,6 +51,7 @@ struct PageSetRow: View {
             }
         } label: {
             label
+                .selectionDisabled(true)
         }
         // Same pattern as PageCollectionRow: load on row appearance so Pages
         // are available even when the disclosure is collapsed.

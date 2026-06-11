@@ -311,7 +311,7 @@ struct PageTypeDetailView: View {
 
     private var rows: [DetailRow] {
         // Page-Type-root Pages appear as top-level rows alongside Collections.
-        let rootRows: [DetailRow] = contentManager.pages(in: pageType).map(Self.pageRow)
+        let rootRows: [DetailRow] = contentManager.pages(in: pageType).map(DetailRow.pageRow)
         let collectionRows: [DetailRow] = pageTypeManager.pageCollections(in: pageType).map { coll in
             DetailRow(
                 id: "collection-\(coll.id)",
@@ -319,27 +319,18 @@ struct PageTypeDetailView: View {
                 kind: .collection(coll),
                 iconName: "folder",
                 modifiedAt: coll.modifiedAt,
-                children: contentManager.pages(in: coll).map(Self.pageRow)
+                children: contentManager.pages(in: coll).map(DetailRow.pageRow)
             )
         }
         return rootRows + collectionRows
-    }
-
-    private static func pageRow(_ p: PageMeta) -> DetailRow {
-        DetailRow(
-            id: "page-\(p.id)",
-            title: p.title,
-            kind: .page(p),
-            iconName: p.frontmatter.icon ?? "doc.text",
-            modifiedAt: p.frontmatter.createdAt,
-            children: nil
-        )
     }
 
     // MARK: - Interaction
 
     private func handleDoubleTap(_ row: DetailRow) {
         switch row.kind {
+        case .set:
+            break  // Set rows never appear in vault tables
         case .collection(let c):
             selection = .collection(c)
         case .page(let p):
@@ -383,6 +374,8 @@ struct PageTypeDetailView: View {
             Button("Delete", role: .destructive) {
                 deleteTarget = row
             }
+        case .set:
+            EmptyView()  // Set rows never appear in vault tables
         }
     }
 
@@ -441,6 +434,8 @@ struct PageTypeDetailView: View {
                     case .vaultRoot(let t):
                         try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
+                case .set:
+                    break  // Set rows never appear in vault tables
                 }
             } catch {
                 // pendingError set by manager; toast surfaces.
@@ -480,6 +475,8 @@ struct PageTypeDetailView: View {
                 case .vaultRoot(let t):
                     try await contentManager.deletePage(p, inVaultRoot: t)
                 }
+            case .set:
+                break  // Set rows never appear in vault tables
             }
         } catch {
             // pendingError set by manager; toast surfaces.
