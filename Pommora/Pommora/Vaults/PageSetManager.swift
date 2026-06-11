@@ -242,20 +242,30 @@ final class PageSetManager {
         }
     }
 
-    /// Moves every direct-child `.md` Page of `set` up into the parent
-    /// PageCollection folder. Collision-safe: ALL destination names are
-    /// checked before anything moves, so a duplicate-title throw leaves the
-    /// Set untouched. Each moved Page is re-indexed under the Collection
-    /// (page_set_id → nil); the sidecar stays behind for the trash move.
+    /// Moves every descendant `.md` Page of `set` up into the parent
+    /// PageCollection folder. Descendants, not just direct children — depth-3+
+    /// folders roll up INTO the Set, so dissolving it flattens their Pages
+    /// into the Collection root too. Collision-safe: ALL destination names are
+    /// checked before anything moves (against the Collection AND within the
+    /// batch itself), so a duplicate-title throw leaves the Set untouched.
+    /// Each moved Page is re-indexed under the Collection (page_set_id → nil);
+    /// the sidecar stays behind for the trash move.
     private func rehomePages(of set: PageSet) throws {
         let collectionFolder = set.folderURL.deletingLastPathComponent()
-        let pageFiles = try Filesystem.children(of: set.folderURL) { url in
+        let pageFiles = try Filesystem.descendantFiles(of: set.folderURL) { url in
             url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
         }
 
         // Check every destination FIRST — throw before moving anything.
+        // Flattening can also collide two nested same-named Pages with each
+        // other; `claimed` catches that (case-insensitive, APFS-style).
+        var claimed: Set<String> = []
         for url in pageFiles {
-            let dest = collectionFolder.appendingPathComponent(url.lastPathComponent)
+            let name = url.lastPathComponent
+            guard claimed.insert(name.lowercased()).inserted else {
+                throw PageSetValidator.ValidationError.duplicateTitle
+            }
+            let dest = collectionFolder.appendingPathComponent(name)
             try Filesystem.guardNoFile(at: dest, else: PageSetValidator.ValidationError.duplicateTitle)
         }
 

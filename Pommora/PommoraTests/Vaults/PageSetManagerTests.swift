@@ -214,13 +214,18 @@ struct PageSetManagerTests {
 
     // MARK: - Delete (.setOnly)
 
-    @Test("deletePageSet(.setOnly) re-homes pages and re-points index rows")
+    @Test("deletePageSet(.setOnly) re-homes all descendant pages and re-points index rows")
     func deleteSetOnly() async throws {
         let (fx, index) = try await makeIndexedFixture()
         defer { TempNexus.cleanup(fx.nexus) }
 
         let set = try await fx.setManager.createPageSet(name: "Drafts", in: fx.collection)
         let pageID = try writePage(titled: "Inside", in: set.folderURL)
+        // Depth-3+ folders roll up INTO the Set, so dissolving it must flatten
+        // their pages into the Collection root too — not just direct children.
+        let nestedFolder = set.folderURL.appendingPathComponent("Nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedFolder, withIntermediateDirectories: true)
+        _ = try writePage(titled: "Deep", in: nestedFolder)
 
         // Index the page under the Set first — the state being re-pointed.
         let pageURL = NexusPaths.pageFileURL(forTitle: "Inside", in: set.folderURL)
@@ -231,9 +236,12 @@ struct PageSetManagerTests {
 
         try await fx.setManager.deletePageSet(set, mode: .setOnly)
 
-        // Page re-homed into the Collection folder on disk; Set folder gone.
+        // Both pages re-homed (flattened) into the Collection folder on disk;
+        // Set folder gone.
         let rehomed = NexusPaths.pageFileURL(forTitle: "Inside", in: fx.collection.folderURL)
+        let rehomedDeep = NexusPaths.pageFileURL(forTitle: "Deep", in: fx.collection.folderURL)
         #expect(FileManager.default.fileExists(atPath: rehomed.path))
+        #expect(FileManager.default.fileExists(atPath: rehomedDeep.path))
         #expect(!FileManager.default.fileExists(atPath: set.folderURL.path))
         #expect(fx.setManager.pageSets(in: fx.collection).isEmpty)
 
@@ -276,6 +284,31 @@ struct PageSetManagerTests {
         #expect(
             !FileManager.default.fileExists(
                 atPath: NexusPaths.pageFileURL(forTitle: "Other", in: fx.collection.folderURL).path))
+        #expect(fx.setManager.pageSets(in: fx.collection).count == 1)
+    }
+
+    @Test("deletePageSet(.setOnly) throws when flattening would collide two nested pages")
+    func deleteSetOnlyBatchCollision() async throws {
+        let fx = try await makeFixture()
+        defer { TempNexus.cleanup(fx.nexus) }
+
+        // Same title at the Set root AND inside a nested folder — flattening
+        // both into the Collection root would collide them with each other.
+        let set = try await fx.setManager.createPageSet(name: "Drafts", in: fx.collection)
+        _ = try writePage(titled: "Same", in: set.folderURL)
+        let nestedFolder = set.folderURL.appendingPathComponent("Nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedFolder, withIntermediateDirectories: true)
+        _ = try writePage(titled: "Same", in: nestedFolder)
+
+        await #expect(throws: PageSetValidator.ValidationError.duplicateTitle) {
+            try await fx.setManager.deletePageSet(set, mode: .setOnly)
+        }
+
+        // Nothing moved; the Set survives intact.
+        #expect(FileManager.default.fileExists(atPath: set.folderURL.path))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: NexusPaths.pageFileURL(forTitle: "Same", in: fx.collection.folderURL).path))
         #expect(fx.setManager.pageSets(in: fx.collection).count == 1)
     }
 

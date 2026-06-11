@@ -29,6 +29,8 @@ final class PageContentManager {
     /// Page-Type-root Pages (directly inside the Type folder, NOT in a PageCollection)
     /// keyed by PageType.id.
     var pagesByTypeRoot: [String: [PageMeta]] = [:]
+    /// PageSet-scoped Pages keyed by PageSet.id.
+    var pagesBySet: [String: [PageMeta]] = [:]
     var pendingError: (any Error)?
 
     // nexus + contextProvider used by the +CRUD extension. Internal (not
@@ -61,6 +63,10 @@ final class PageContentManager {
 
     func pages(in pageType: PageType) -> [PageMeta] {
         pagesByTypeRoot[pageType.id] ?? []
+    }
+
+    func pages(in set: PageSet) -> [PageMeta] {
+        pagesBySet[set.id] ?? []
     }
 
     // MARK: - Resolvers
@@ -137,10 +143,10 @@ final class PageContentManager {
     // MARK: - Load (PageCollection-scoped)
 
     /// Loads every `.md` Page inside `collection.folderURL`, descending
-    /// recursively through sub-folders. Sub-folders deeper than the locked
-    /// 2-level Vault/PageCollection model aren't themselves PageCollections —
-    /// their files roll up into this PageCollection (Obsidian-parity for
-    /// adopted folder structures).
+    /// recursively through sub-folders EXCEPT those that are themselves
+    /// PageSets — those roll up under `loadAll(for: set)` instead. Other
+    /// sub-folders aren't recognized containers — their files roll up into
+    /// this PageCollection (Obsidian-parity for adopted folder structures).
     ///
     /// Pages use the lenient loader so adopted `.md` files without Pommora
     /// frontmatter still surface; missing `id` is synthesized deterministically
@@ -148,8 +154,19 @@ final class PageContentManager {
     /// not written back until the user edits).
     func loadAll(for collection: PageCollection) async {
         let nexusRoot = nexus.rootURL
+        // Discover PageSet sub-folders by sidecar presence so we exclude
+        // their subtrees from the Collection walk — same shape as the
+        // Type-root walk's PageCollection exclusion below.
+        let allSubs = (try? Filesystem.childFolders(of: collection.folderURL)) ?? []
+        let setFolders = allSubs.filter { sub in
+            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+        }
+        let excludedSetFolders = Set(setFolders.map { $0.standardizedFileURL })
         do {
-            let pageFiles = try Filesystem.descendantFiles(of: collection.folderURL) { url in
+            let pageFiles = try Filesystem.descendantFiles(
+                of: collection.folderURL,
+                excluding: excludedSetFolders
+            ) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
             let unsortedPages: [PageMeta] = pageFiles.compactMap { url in
@@ -172,6 +189,41 @@ final class PageContentManager {
             pendingError = nil
         } catch {
             pagesByCollection[collection.id] = []
+            pendingError = error
+        }
+    }
+
+    // MARK: - Load (PageSet-scoped)
+
+    /// Loads every `.md` Page inside `set.folderURL`, descending recursively
+    /// through sub-folders. A Set has no recognized sub-containers, so deeper
+    /// folders roll up into this PageSet — mirroring the PageCollection walk.
+    func loadAll(for set: PageSet) async {
+        let nexusRoot = nexus.rootURL
+        do {
+            let pageFiles = try Filesystem.descendantFiles(of: set.folderURL) { url in
+                url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
+            }
+            let unsortedPages: [PageMeta] = pageFiles.compactMap { url in
+                guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
+                else { return nil }
+                return PageMeta(
+                    id: pf.frontmatter.id,
+                    title: pf.title,
+                    url: url,
+                    frontmatter: pf.frontmatter
+                )
+            }
+            let pageMetas = OrderResolver.resolve(
+                unsortedPages,
+                persistedOrder: set.pageOrder,
+                titleKeyPath: \PageMeta.title
+            )
+
+            pagesBySet[set.id] = pageMetas
+            pendingError = nil
+        } catch {
+            pagesBySet[set.id] = []
             pendingError = error
         }
     }
@@ -247,6 +299,25 @@ final class PageContentManager {
         pagesByCollection[collection.id] = arr
         do {
             try OrderPersister.setPageOrder(arr.map(\.id), in: collection)
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    /// Reorders Pages within `set`. New ID order persists to the parent
+    /// PageSet's `_pageset.json` sidecar.
+    func reorderPages(
+        in set: PageSet,
+        fromOffsets source: IndexSet,
+        toOffset destination: Int
+    ) {
+        var arr = pagesBySet[set.id] ?? []
+        let before = arr
+        arr.move(fromOffsets: source, toOffset: destination)
+        guard arr != before else { return }
+        pagesBySet[set.id] = arr
+        do {
+            try OrderPersister.setPageOrder(arr.map(\.id), in: set)
         } catch {
             self.pendingError = error
         }

@@ -434,6 +434,8 @@ struct PageTypeDetailView: View {
                     switch parent {
                     case .collection(let coll, let t):
                         try await contentManager.renamePage(p, to: newName, in: coll, vault: t)
+                    case .set(let set, let coll, let t):
+                        try await contentManager.renamePage(p, to: newName, in: set, collection: coll, vault: t)
                     case .vaultRoot(let t):
                         try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
                     }
@@ -471,6 +473,8 @@ struct PageTypeDetailView: View {
                 switch parent {
                 case .collection(let coll, _):
                     try await contentManager.deletePage(p, in: coll)
+                case .set(let set, _, _):
+                    try await contentManager.deletePage(p, in: set)
                 case .vaultRoot(let t):
                     try await contentManager.deletePage(p, inVaultRoot: t)
                 }
