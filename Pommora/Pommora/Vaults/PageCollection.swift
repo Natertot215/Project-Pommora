@@ -21,6 +21,11 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     // OrderResolver's alphabetic tail.
     var pageOrder: [String]?
 
+    // Persisted display order for direct child PageSets. Nil until the user
+    // reorders Sets inside this PageCollection; missing entries fall through
+    // to OrderResolver's alphabetic tail.
+    var setOrder: [String]?
+
     /// Per-Collection saved views. Each Collection is INDEPENDENT of its parent
     /// PageType (locked decision): its own `views[0]` config separate from the
     /// PageType's. Empty array on legacy sidecars; Task 5's loadAll default-view
@@ -33,6 +38,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
         case pageOrder = "page_order"
+        case setOrder = "set_order"
         // Pre-ParadigmV2 `_collection.json` used `vault_id`. Auto-migrated
         // sidecars renamed to `_pagecollection.json` still carry the old key
         // until a save() rewrites them; this decode-only fallback bridges
@@ -49,6 +55,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         schemaVersion: Int = 1,
         icon: String? = nil,
         pageOrder: [String]? = nil,
+        setOrder: [String]? = nil,
         views: [SavedView] = []
     ) {
         self.id = id
@@ -59,6 +66,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = schemaVersion
         self.icon = icon
         self.pageOrder = pageOrder
+        self.setOrder = setOrder
         self.views = views
     }
 
@@ -79,6 +87,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
+        self.setOrder = try c.decodeIfPresent([String].self, forKey: .setOrder)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
     }
 
@@ -90,6 +99,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encode(schemaVersion, forKey: .schemaVersion)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
+        try c.encodeIfPresent(setOrder, forKey: .setOrder)
         try c.encode(views, forKey: .views)
     }
 }
