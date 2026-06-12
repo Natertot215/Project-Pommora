@@ -55,7 +55,24 @@ struct IconPickerSheet: View {
         case .pageCollection(let c): return c.icon
         case .pageSet(let s): return s.icon
         case .page(let p, _, _, _): return p.frontmatter.icon
+        case .savedView(let viewID, let containerID):
+            return resolveSavedView(viewID: viewID, in: containerID)?.icon
         }
+    }
+
+    /// Resolves a SavedView live off the manager by container + view ID,
+    /// searching PageType then PageCollection (the same dual lookup
+    /// `PageTypeManager.updateView` uses).
+    private func resolveSavedView(viewID: String, in containerID: String) -> SavedView? {
+        if let t = vaultManager.types.first(where: { $0.id == containerID }) {
+            return t.views.first(where: { $0.id == viewID })
+        }
+        for cols in vaultManager.pageCollectionsByType.values {
+            if let c = cols.first(where: { $0.id == containerID }) {
+                return c.views.first(where: { $0.id == viewID })
+            }
+        }
+        return nil
     }
 
     private func save(newIcon: String?) async {
@@ -83,8 +100,11 @@ struct IconPickerSheet: View {
             do {
                 try await pageContentManager.updatePageIcon(
                     p, to: newIcon, vault: vault, collection: collection, set: set)
-            } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            } catch { /* pendingError set by manager; toast surfaces */  }
+        case .savedView(let viewID, let containerID):
+            do {
+                try await vaultManager.updateView(viewID, in: containerID) { $0.icon = newIcon }
+            } catch { /* pendingError set by manager; toast surfaces */  }
         }
     }
 }

@@ -21,6 +21,7 @@ struct GroupPane: View {
 
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(TierConfigManager.self) private var tierConfigManager
+    @Environment(ActiveViewStore.self) private var activeViewStore
 
     @State private var commitError: String?
 
@@ -119,13 +120,20 @@ struct GroupPane: View {
 
     // MARK: - Lookups (re-query live off the manager by stable ID)
 
+    /// Resolves the ACTIVE view (the same resolution the detail views use:
+    /// `activeViewStore.activeViewID(for:)` → `first(where:) ?? first`), so the
+    /// pane edits whichever view the user is currently viewing rather than the
+    /// container's first view.
     private func currentView() -> SavedView? {
         guard let cid = containerID() else { return nil }
+        let activeID = activeViewStore.activeViewID(for: cid)
         if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
-            return t.views.first
+            return t.views.first(where: { $0.id == activeID }) ?? t.views.first
         }
         for cols in pageTypeManager.pageCollectionsByType.values {
-            if let c = cols.first(where: { $0.id == cid }) { return c.views.first }
+            if let c = cols.first(where: { $0.id == cid }) {
+                return c.views.first(where: { $0.id == activeID }) ?? c.views.first
+            }
         }
         return nil
     }

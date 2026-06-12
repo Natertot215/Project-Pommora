@@ -47,6 +47,13 @@ enum OrderPersister {
         }
     }
 
+    /// Persists the toolbar Views button display mode ("icon" | "title").
+    static func setViewsButtonStyle(_ style: String?, in nexus: Nexus) throws {
+        try mutateNexusState(in: nexus) { state in
+            state.viewsButtonStyle = style
+        }
+    }
+
     // MARK: - PageCollection / Page-Type-root Pages (sidecar JSON)
 
     static func setPageCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {

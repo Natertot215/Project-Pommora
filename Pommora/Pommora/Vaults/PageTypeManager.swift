@@ -609,6 +609,7 @@ enum PageTypeManagerError: Error, Equatable {
     case propertyNotFound
     case lossyChangeRequiresConfirmation
     case indexOutOfBounds
+    case cannotDeleteLastView
 }
 
 /// Human-readable text so these errors render as a friendly sentence instead of
@@ -708,6 +709,109 @@ extension PageTypeManager {
         } catch {
             self.pendingError = error
             throw error
+        }
+    }
+
+    // MARK: - View CRUD (add / duplicate / delete / rename)
+
+    /// Read-modify-write the WHOLE `views` array on a PageType or
+    /// PageCollection container (looked up by container ID), mirroring
+    /// `updateView`'s fresh-from-disk disk pattern so a concurrent
+    /// sidecar write (e.g. a drag-reorder's `page_order`) is never clobbered.
+    ///
+    /// `transform` receives the freshly-loaded `views` array `inout` and may
+    /// throw (the guard cases — e.g. deleting the last view — surface here);
+    /// it returns an arbitrary value handed back to the caller (the newly
+    /// minted / duplicated view). When `transform` throws, nothing is written.
+    private func mutateViews<Result>(
+        in containerID: String,
+        transform: (inout [SavedView]) throws -> Result
+    ) async throws -> Result {
+        do {
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+                var updated = try PageType.load(from: meta)
+                let result = try transform(&updated.views)
+                updated.modifiedAt = Date()
+                try updated.save(to: meta)
+                types[i] = updated
+                return result
+            }
+            for (typeID, cols) in pageCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    let meta = cols[ci].folderURL.appendingPathComponent(
+                        NexusPaths.pageCollectionSidecarFilename)
+                    var coll = try PageCollection.load(from: meta)
+                    let result = try transform(&coll.views)
+                    coll.modifiedAt = Date()
+                    try coll.save(to: meta)
+                    pageCollectionsByType[typeID]?[ci] = coll
+                    return result
+                }
+            }
+            throw PageTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
+    /// Appends a new view of `type` named "Untitled View". A `.gallery` view
+    /// mints `cardSize: .medium` (the Gallery renderer's default density) with
+    /// `showCover` left nil (covers hidden by default). Returns the minted view.
+    @discardableResult
+    func addView(type: ViewType, to containerID: String) async throws -> SavedView {
+        let isGallery = type == .gallery
+        let view = SavedView(
+            id: "view_\(ULID.generate())",
+            name: "Untitled View",
+            icon: type.defaultIcon,
+            type: type,
+            cardSize: isGallery ? .medium : nil,
+            showCover: nil)
+        return try await mutateViews(in: containerID) { views in
+            views.append(view)
+            return view
+        }
+    }
+
+    /// Deep-copies `viewID` with a FRESH id, carrying every v2 field forward,
+    /// and appends it. Returns the new view.
+    @discardableResult
+    func duplicateView(_ viewID: String, in containerID: String) async throws -> SavedView {
+        try await mutateViews(in: containerID) { views in
+            guard let source = views.first(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            var copy = source
+            copy.id = "view_\(ULID.generate())"
+            views.append(copy)
+            return copy
+        }
+    }
+
+    /// Removes `viewID`, guarding the ≥1-view invariant: deleting the last
+    /// remaining view throws `.cannotDeleteLastView` and writes nothing.
+    func deleteView(_ viewID: String, in containerID: String) async throws {
+        try await mutateViews(in: containerID) { views in
+            guard views.count > 1 else {
+                throw PageTypeManagerError.cannotDeleteLastView
+            }
+            guard let idx = views.firstIndex(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            views.remove(at: idx)
+        }
+    }
+
+    /// Renames `viewID` in place (filename-as-title doesn't apply to views —
+    /// the name lives in the sidecar's `views[i].name`).
+    func renameView(_ viewID: String, in containerID: String, to newName: String) async throws {
+        try await mutateViews(in: containerID) { views in
+            guard let idx = views.firstIndex(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            views[idx].name = newName
         }
     }
 

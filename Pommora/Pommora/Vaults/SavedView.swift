@@ -144,6 +144,19 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     /// field into the minted view's `sort` so the previously-persisted default
     /// ordering carries forward. `PageType.defaultSort` keeps DECODING but is
     /// never written again — the SavedView's `sort` is now authoritative.
+    /// Muted right-aligned type label for the Views dropdown row:
+    /// `"Table"` for non-gallery views; `"Gallery | Medium"` for gallery views
+    /// (pipe + capitalized CardSize word). Single source for the row label so
+    /// the panel + Component Library staging stay in lockstep.
+    var typeLabel: String {
+        switch type {
+        case .gallery:
+            return "\(type.displayName) | \((cardSize ?? .medium).displayName)"
+        default:
+            return type.displayName
+        }
+    }
+
     static func defaultTable(
         visiblePropertyIDs: [String],
         defaultSort: DefaultSortConfig? = nil
@@ -187,12 +200,56 @@ enum CardSize: String, Codable, Equatable, Hashable, Sendable {
 /// View renderer kind. Only `.table` is wired at v0.3.1; the remaining cases
 /// are forward-declared so future-view sidecars don't break v0.3.1 decodes
 /// and so the Layout pane can render them as muted/placeholder rows today.
-enum ViewType: String, Codable, Equatable, Hashable, Sendable {
+enum ViewType: String, Codable, Equatable, Hashable, CaseIterable, Sendable {
     case table
     case board
     case list
     case cards
     case gallery
+
+    /// Capitalized display name ("Table", "Gallery") for the Views dropdown
+    /// type label + the inline type-switch rows.
+    var displayName: String {
+        switch self {
+        case .table: return "Table"
+        case .board: return "Board"
+        case .list: return "List"
+        case .cards: return "Cards"
+        case .gallery: return "Gallery"
+        }
+    }
+
+    /// SF Symbol minted onto a freshly-added view of this type.
+    var defaultIcon: String {
+        switch self {
+        case .table: return "tablecells"
+        case .board: return "rectangle.split.3x1"
+        case .list: return "list.bullet"
+        case .cards: return "rectangle.grid.2x2"
+        case .gallery: return "square.grid.3x3"
+        }
+    }
+
+    /// Renderers wired today (the dropdown's inline type-switch offers these as
+    /// active rows; the rest render muted). Table + Gallery ship at this task.
+    var isImplemented: Bool {
+        switch self {
+        case .table, .gallery: return true
+        case .board, .list, .cards: return false
+        }
+    }
+}
+
+/// Capitalized display word for the Gallery card-size suffix
+/// ("Gallery | Small"). Single source for the dropdown type label.
+extension CardSize {
+    var displayName: String {
+        switch self {
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
+        }
+    }
 }
 
 // MARK: - Reserved Codable stubs (v0.3.1.x follow-up patches consume these)
