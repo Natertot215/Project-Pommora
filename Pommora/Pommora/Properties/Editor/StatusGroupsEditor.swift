@@ -70,7 +70,9 @@ struct StatusGroupsEditor: View {
                 pendingCrossGroupMove = nil
             }
         } message: { _ in
-            Text("Entities currently using this option will be re-grouped. Affected-entity count surfaces in a future v0.3.1.x patch.")
+            Text(
+                "Entities currently using this option will be re-grouped. Affected-entity count surfaces in a future v0.3.1.x patch."
+            )
         }
     }
 
@@ -82,7 +84,7 @@ struct StatusGroupsEditor: View {
         mutate: (inout PropertyDefinition.StatusOption) -> Void
     ) {
         guard let gi = groups.firstIndex(where: { $0.id == groupID }),
-              let oi = groups[gi].options.firstIndex(where: { $0.value == value })
+            let oi = groups[gi].options.firstIndex(where: { $0.value == value })
         else { return }
         var opt = groups[gi].options[oi]
         mutate(&opt)
@@ -116,8 +118,8 @@ struct StatusGroupsEditor: View {
             }
         }
         guard let fromID = sourceGroupID,
-              let opt = sourceOption,
-              let srcIdx = sourceIdx
+            let opt = sourceOption,
+            let srcIdx = sourceIdx
         else { return false }
 
         if fromID == targetGroupID {
@@ -157,7 +159,7 @@ struct StatusGroupsEditor: View {
     private func applyMove(_ move: PendingMove) {
         var newGroups = groups
         guard let srcGi = newGroups.firstIndex(where: { $0.id == move.fromGroupID }),
-              let srcOi = newGroups[srcGi].options.firstIndex(where: { $0.value == move.optionValue })
+            let srcOi = newGroups[srcGi].options.firstIndex(where: { $0.value == move.optionValue })
         else { return }
         var opt = newGroups[srcGi].options.remove(at: srcOi)
         opt.groupID = move.toGroupID
@@ -222,12 +224,12 @@ private struct StatusGroupSection: View {
                                     $0.color = newColor?.toSelectColor()
                                 }
                             },
-                            onDelete: { onDeleteOption(option.value) }
+                            onDelete: { onDeleteOption(option.value) },
+                            onDrop: { droppedValues in
+                                guard let v = droppedValues.first else { return false }
+                                return onDropOption(v, idx)
+                            }
                         )
-                        .dropDestination(for: String.self) { droppedValues, _ in
-                            guard let v = droppedValues.first else { return false }
-                            return onDropOption(v, idx)
-                        }
                     }
                 }
                 // +6pt below the final chip so each group reads as distinct.
@@ -263,8 +265,10 @@ private struct StatusOptionRow: View {
     let onUpdateLabel: (String) -> Void
     let onUpdateColor: (PropertyChipColor?) -> Void
     let onDelete: () -> Void
+    let onDrop: ([String]) -> Bool
 
     @State private var showingPopover: Bool = false
+    @State private var isDropTargeted: Bool = false
 
     private var chipColor: PropertyChipColor {
         // Option color overrides; nil inherits group default.
@@ -292,6 +296,12 @@ private struct StatusOptionRow: View {
                 .help("Drag to reorder")
         }
         .contentShape(Rectangle())
+        .dropDestination(for: String.self) { droppedValues, _ in
+            onDrop(droppedValues)
+        } isTargeted: {
+            isDropTargeted = $0
+        }
+        .optionRowInsertionLine(isActive: isDropTargeted)
         .onTapGesture(count: 2) {
             showingPopover = true
         }
