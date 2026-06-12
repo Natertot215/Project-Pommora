@@ -25,6 +25,8 @@ struct PageTypeDetailView: View {
     // Rename alert state.
     @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
+    /// Owns the swappable row-drag mechanic + insertion/highlight state (Task 14).
+    @State private var dragCoordinator = RowDragCoordinator()
     /// Container-delete confirmation target — set only from a Collection group's
     /// menu. Page deletes stay direct (no confirmation); only the container
     /// case routes here, mirroring the sidebar's delete guard.
@@ -188,11 +190,86 @@ struct PageTypeDetailView: View {
             hideColumn: { colID in
                 editView { if !$0.hiddenProperties.contains(colID) { $0.hiddenProperties.append(colID) } }
             },
-            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } }
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
+            dragCoordinator: dragCoordinator,
+            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+                RowDragCoordinator.makeContext(
+                    draggedItems: dragged,
+                    targetGroup: targetGroup,
+                    insertionIndex: insertionIndex,
+                    group: activeView?.group,
+                    sortIsManual: activeView?.sort == nil,
+                    sourceIndices: sourceIndices,
+                    structuralParent: structuralParent)
+            }
         )
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }
+        .task { wireDragCommits() }
+    }
+
+    /// Maps a structural `ResolvedGroup` to its `PageParent` in vault scope —
+    /// Collection groups map straight; Set groups resolve their owning Collection
+    /// by `collectionID` among the vault's Collections.
+    private func structuralParent(_ group: ResolvedGroup) -> PageParent? {
+        switch group.kind {
+        case .structuralCollection(let coll):
+            return .collection(coll, vault: pageType)
+        case .structuralSet(let set):
+            guard
+                let coll = pageTypeManager.pageCollections(in: livePageType)
+                    .first(where: { $0.id == set.collectionID })
+            else { return nil }
+            return .set(set, collection: coll, vault: pageType)
+        default:
+            return nil
+        }
+    }
+
+    /// Wire the coordinator's commit closures to the live managers.
+    private func wireDragCommits() {
+        dragCoordinator.reorder = { offsets, destination, parent in
+            switch parent {
+            case .collection(let coll, _):
+                contentManager.reorderPages(in: coll, fromOffsets: offsets, toOffset: destination)
+            case .set(let set, _, _):
+                contentManager.reorderPages(in: set, fromOffsets: offsets, toOffset: destination)
+            case .vaultRoot(let type):
+                contentManager.reorderPages(
+                    inVault: type, fromOffsets: offsets, toOffset: destination)
+            }
+        }
+        dragCoordinator.move = { pageIDs, source, destination in
+            Task { await moveDraggedPages(pageIDs, from: source, to: destination) }
+        }
+        dragCoordinator.rewriteProperty = { pageIDs, propertyID, value in
+            Task { await rewriteDraggedProperty(pageIDs, propertyID: propertyID, value: value) }
+        }
+    }
+
+    private func moveDraggedPages(_ pageIDs: [String], from source: PageParent, to destination: PageParent) async {
+        for id in pageIDs {
+            guard let page = itemInScope(id)?.page else { continue }
+            do { try await contentManager.movePage(page, from: source, to: destination) } catch {}
+        }
+    }
+
+    private func rewriteDraggedProperty(_ pageIDs: [String], propertyID: String, value: String?) async {
+        let newValue = BucketValueDecoder.propertyValue(
+            bucket: value, propertyID: propertyID, schema: schema)
+        for id in pageIDs {
+            guard let item = itemInScope(id) else { continue }
+            do {
+                try await contentManager.updatePageProperty(
+                    item.page, propertyID: propertyID, newValue: newValue,
+                    vault: pageType, collection: collectionOf(item), set: setOf(item))
+            } catch {}
+        }
+    }
+
+    private func itemInScope(_ id: String) -> ViewItem? {
+        resolvedGroups.flatMap(\.flattenedItems).first { $0.id == id }
     }
 
     /// Applies a `SavedView` transform to the active view on this vault's

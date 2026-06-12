@@ -13,8 +13,9 @@ import SwiftUI
 /// legacy `DetailRow`. The detail view wires every interaction closure to its
 /// private `RowTarget` logic.
 ///
-/// NOT in this task: selection / keyboard (Task 11), drag/drop (Task 14). Rows
-/// render plain; double-click open works through `onDoubleTap`.
+/// Selection / keyboard (Task 11) and row drag/drop (Task 14) are wired here;
+/// double-click open works through `onDoubleTap`. All drag mechanics route
+/// through the injected `RowDragCoordinator` (the controller's swap seam).
 struct CustomTableView: View {
     let groups: [ResolvedGroup]
     let columns: [ResolvedColumn]
@@ -44,6 +45,18 @@ struct CustomTableView: View {
     /// active SavedView's `collapsedGroups` (Task 13). The detail view closes
     /// over its active view + container; the table never touches a manager.
     let persistCollapsed: (_ collapsedIDs: [String]) -> Void
+
+    /// Row drag/drop seam (Task 14). The coordinator owns the swappable drag
+    /// mechanic + the commit closures; `buildDropContext` resolves a drop into a
+    /// planner-ready context using the detail view's scope knowledge (active
+    /// view's group/sort + structural-parent mapping). Both injected by the
+    /// detail view, which owns the manager calls.
+    let dragCoordinator: RowDragCoordinator
+    let buildDropContext:
+        (
+            _ draggedItems: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
+            _ sourceIndices: IndexSet
+        ) -> RowDragCoordinator.DropContext?
 
     /// Disclosure state — collapsed group ids. SEEDED from the active view's
     /// persisted `collapsedGroups` (carried in on `ResolvedGroup.isCollapsed`)
@@ -126,10 +139,20 @@ struct CustomTableView: View {
                 group: group,
                 depth: depth,
                 isExpanded: !collapsed.contains(group.id),
+                isDropTarget: dragCoordinator.highlightedGroupID == group.id,
                 totalWidth: totalWidth,
                 onToggle: { toggle(group.id) },
                 menu: groupMenu
             )
+            // Group rows are drop TARGETS only — never `.draggable`. A drop here
+            // appends to the group's end (move / rewrite / same-container reorder).
+            .dropDestination(for: ViewRowDragPayload.self, isEnabled: true) { payloads, _ in
+                commitDrop(payloads, ontoGroup: group)
+            }
+            .onDropSessionUpdated { session in updateDrop(session, ontoGroup: group) }
+            // Auto-expand a collapsed group on hover-dwell so the drag can target
+            // a row inside it; native spring-loading drives the dwell.
+            .springLoadingBehavior(collapsed.contains(group.id) ? .enabled : .disabled)
         case .item(let item, let visualIndex):
             TableRowView(
                 item: item,
@@ -145,12 +168,139 @@ struct CustomTableView: View {
                 isSelected: selection.selection.contains(item.id),
                 onSelect: { handleSelect($0) }
             )
+            // Only PAGE rows are drag SOURCES. The payload carries the active
+            // selection when the dragged row is selected (native multi-drag bound
+            // to the Task-11 selection set), else just this row.
+            .draggable(dragPayload(for: item))
+            .overlay(alignment: .top) { insertionLine(forItemID: item.id) }
+            // Page rows are also row-level drop targets (between-rows reorder).
+            .dropDestination(for: ViewRowDragPayload.self, isEnabled: true) { payloads, _ in
+                commitDrop(payloads, ontoItem: item)
+            }
+            .onDropSessionUpdated { session in updateDrop(session, ontoItem: item) }
         }
     }
 
     private func toggle(_ id: String) {
         if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         persistCollapsed(Array(collapsed))
+    }
+
+    // MARK: - Drag / drop (Task 14)
+
+    /// The payload for dragging `item`: the full selection when `item` is selected
+    /// (native multi-drag bound to the Task-11 selection), else just this row.
+    private func dragPayload(for item: ViewItem) -> ViewRowDragPayload {
+        if selection.selection.contains(item.id) {
+            // Preserve render order so reorder offsets stay meaningful.
+            let ids = flattenedOrder.filter { selection.selection.contains($0) }
+            return ViewRowDragPayload(pageIDs: ids.isEmpty ? [item.id] : ids)
+        }
+        return ViewRowDragPayload(pageIDs: [item.id])
+    }
+
+    /// Drop landing on a page row → reorder/move/rewrite relative to that row's
+    /// group, inserting at the row's index within its group.
+    private func commitDrop(_ payloads: [ViewRowDragPayload], ontoItem item: ViewItem) {
+        guard let context = dropContext(payloads, ontoItem: item) else { return }
+        dragCoordinator.drop(payload: mergedPayload(payloads), context: context)
+    }
+
+    /// Drop landing on a group header → append to the group's end.
+    private func commitDrop(_ payloads: [ViewRowDragPayload], ontoGroup group: ResolvedGroup) {
+        guard let context = dropContext(payloads, ontoGroup: group) else { return }
+        dragCoordinator.drop(payload: mergedPayload(payloads), context: context)
+    }
+
+    private func updateDrop(_ session: DropSession, ontoItem item: ViewItem) {
+        switch session.phase {
+        case .exiting, .ended, .dataTransferCompleted:
+            dragCoordinator.update(nil)
+        default:
+            let payloads = draggedPayloads(in: session)
+            dragCoordinator.update(dropContext(payloads, ontoItem: item))
+        }
+    }
+
+    private func updateDrop(_ session: DropSession, ontoGroup group: ResolvedGroup) {
+        switch session.phase {
+        case .exiting, .ended, .dataTransferCompleted:
+            dragCoordinator.update(nil)
+        default:
+            let payloads = draggedPayloads(in: session)
+            dragCoordinator.update(dropContext(payloads, ontoGroup: group))
+        }
+    }
+
+    /// Best-effort in-flight payload from the local drag session (same-app drag),
+    /// so the insertion line / highlight resolve before the data fully transfers.
+    private func draggedPayloads(in session: DropSession) -> [ViewRowDragPayload] {
+        guard let local = session.localSession else { return [] }
+        let ids = local.draggedItemIDs(for: String.self)
+        return ids.isEmpty ? [] : [ViewRowDragPayload(pageIDs: ids)]
+    }
+
+    private func mergedPayload(_ payloads: [ViewRowDragPayload]) -> ViewRowDragPayload {
+        ViewRowDragPayload(pageIDs: payloads.flatMap(\.pageIDs))
+    }
+
+    /// Build a planner context for a row-targeted drop.
+    private func dropContext(
+        _ payloads: [ViewRowDragPayload], ontoItem item: ViewItem
+    ) -> RowDragCoordinator.DropContext? {
+        let ids = payloads.flatMap(\.pageIDs)
+        guard let group = enclosingGroup(ofItemID: item.id) else { return nil }
+        let dragged = group.items.filter { ids.contains($0.id) }
+        let draggedAnywhere =
+            dragged.isEmpty ? flattenedViewItems.filter { ids.contains($0.id) } : dragged
+        guard !draggedAnywhere.isEmpty else { return nil }
+        let insertionIndex = group.items.firstIndex(where: { $0.id == item.id }) ?? group.items.count
+        let sourceIndices = IndexSet(
+            draggedAnywhere.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
+        return buildDropContext(draggedAnywhere, group, insertionIndex, sourceIndices)
+    }
+
+    /// Build a planner context for a group-header-targeted drop (append to end).
+    private func dropContext(
+        _ payloads: [ViewRowDragPayload], ontoGroup group: ResolvedGroup
+    ) -> RowDragCoordinator.DropContext? {
+        let ids = payloads.flatMap(\.pageIDs)
+        let dragged = flattenedViewItems.filter { ids.contains($0.id) }
+        guard !dragged.isEmpty else { return nil }
+        let sourceIndices = IndexSet(
+            dragged.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
+        return buildDropContext(dragged, group, group.items.count, sourceIndices)
+    }
+
+    /// The resolved group whose `items` include `id` (searches nested children).
+    private func enclosingGroup(ofItemID id: String) -> ResolvedGroup? {
+        func search(_ group: ResolvedGroup) -> ResolvedGroup? {
+            if group.items.contains(where: { $0.id == id }) { return group }
+            for child in group.children ?? [] {
+                if let found = search(child) { return found }
+            }
+            return nil
+        }
+        for group in groups {
+            if let found = search(group) { return found }
+        }
+        return nil
+    }
+
+    /// The reorder insertion divider drawn above a page row when the coordinator's
+    /// insertion marker targets that row's group + index.
+    @ViewBuilder
+    private func insertionLine(forItemID id: String) -> some View {
+        if let marker = dragCoordinator.insertion,
+            let group = enclosingGroup(ofItemID: id),
+            group.id == marker.groupID,
+            group.items.indices.contains(marker.index),
+            group.items[marker.index].id == id
+        {
+            Rectangle()
+                .fill(.tint)
+                .frame(height: 2)
+        }
     }
 
     // MARK: - Selection / keyboard handlers

@@ -25,6 +25,9 @@ struct PageCollectionDetailView: View {
 
     @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
+    /// Owns the swappable row-drag mechanic + insertion/highlight state (Task 14).
+    /// Commit closures are wired in `.task` so they close over the live managers.
+    @State private var dragCoordinator = RowDragCoordinator()
     /// Container-delete confirmation target — set only from a Set group's menu.
     /// Page deletes stay direct; the Set case routes through the same
     /// two-mode dialog the sidebar uses (Set only vs. Set and Pages).
@@ -208,11 +211,90 @@ struct PageCollectionDetailView: View {
             hideColumn: { colID in
                 editView { if !$0.hiddenProperties.contains(colID) { $0.hiddenProperties.append(colID) } }
             },
-            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } }
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
+            dragCoordinator: dragCoordinator,
+            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+                RowDragCoordinator.makeContext(
+                    draggedItems: dragged,
+                    targetGroup: targetGroup,
+                    insertionIndex: insertionIndex,
+                    group: activeView?.group,
+                    sortIsManual: activeView?.sort == nil,
+                    sourceIndices: sourceIndices,
+                    structuralParent: structuralParent)
+            }
         )
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }
+        .task { wireDragCommits() }
+    }
+
+    /// Maps a structural `ResolvedGroup` to its `PageParent` in collection scope.
+    /// Only Set groups appear here (Collection groups are vault-scope-only); the
+    /// headerless root band has no structural group row.
+    private func structuralParent(_ group: ResolvedGroup) -> PageParent? {
+        if case .structuralSet(let set) = group.kind {
+            return .set(set, collection: collection, vault: vault)
+        }
+        return nil
+    }
+
+    /// Wire the coordinator's commit closures to the live managers. Reorder /
+    /// move / rewrite each route to the same calls the cell + menu paths use.
+    private func wireDragCommits() {
+        dragCoordinator.reorder = { offsets, destination, parent in
+            switch parent {
+            case .collection(let coll, _):
+                contentManager.reorderPages(in: coll, fromOffsets: offsets, toOffset: destination)
+            case .set(let set, _, _):
+                contentManager.reorderPages(in: set, fromOffsets: offsets, toOffset: destination)
+            case .vaultRoot(let type):
+                contentManager.reorderPages(
+                    inVault: type, fromOffsets: offsets, toOffset: destination)
+            }
+        }
+        dragCoordinator.move = { pageIDs, source, destination in
+            Task { await moveDraggedPages(pageIDs, from: source, to: destination) }
+        }
+        dragCoordinator.rewriteProperty = { pageIDs, propertyID, value in
+            Task { await rewriteDraggedProperty(pageIDs, propertyID: propertyID, value: value) }
+        }
+    }
+
+    /// Move dragged pages from `source` to `destination`. Resolves each page from
+    /// the live content cache (the payload is ID-only).
+    private func moveDraggedPages(_ pageIDs: [String], from source: PageParent, to destination: PageParent) async {
+        for id in pageIDs {
+            guard let page = pageInScope(id) else { continue }
+            do { try await contentManager.movePage(page, from: source, to: destination) } catch {}
+        }
+    }
+
+    /// Rewrite a property across dragged pages (group-bucket drop).
+    private func rewriteDraggedProperty(_ pageIDs: [String], propertyID: String, value: String?) async {
+        let newValue = BucketValueDecoder.propertyValue(
+            bucket: value, propertyID: propertyID, schema: schema)
+        for id in pageIDs {
+            guard let item = itemInScope(id) else { continue }
+            let parentSet: PageSet? = {
+                if case .set(let set, _, _) = item.parent { return set }
+                return nil
+            }()
+            do {
+                try await contentManager.updatePageProperty(
+                    item.page, propertyID: propertyID, newValue: newValue,
+                    vault: vault, collection: collection, set: parentSet)
+            } catch {}
+        }
+    }
+
+    private func itemInScope(_ id: String) -> ViewItem? {
+        resolvedGroups.flatMap(\.flattenedItems).first { $0.id == id }
+    }
+
+    private func pageInScope(_ id: String) -> PageMeta? {
+        itemInScope(id)?.page
     }
 
     /// Applies a `SavedView` transform to the active view on this collection's

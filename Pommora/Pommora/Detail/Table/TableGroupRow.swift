@@ -13,6 +13,9 @@ struct TableGroupRow: View {
     /// under its Collection (vault scope).
     let depth: Int
     let isExpanded: Bool
+    /// Highlighted while a row drag hovers this group as a move / rewrite target
+    /// (Task 14). Driven by `RowDragCoordinator.highlightedGroupID`.
+    var isDropTarget: Bool = false
     let totalWidth: CGFloat
     let onToggle: () -> Void
     let menu: (ResolvedGroup) -> AnyView
@@ -43,7 +46,7 @@ struct TableGroupRow: View {
         }
         .buttonStyle(.plain)
         .frame(width: totalWidth, alignment: .leading)
-        .background(.quaternary)
+        .background(isDropTarget ? AnyShapeStyle(.tint.opacity(0.18)) : AnyShapeStyle(.quaternary))
         .contextMenu { menu(group) }
     }
 }
