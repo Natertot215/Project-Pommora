@@ -10,9 +10,13 @@ import Foundation
 /// can bind `views[0]` (or future `views[i]`) without index drift across
 /// saves.
 ///
-/// Per-view config touches at v0.3.1:
-///   - `visibleProperties` / `hiddenProperties` — drives `PropertyVisibilityPane`
-///     + `PropertyColumnBuilder` (Phase G).
+/// Per-view config touches:
+///   - `propertyOrder` / `hiddenProperties` — drives `PropertyVisibilityPane`
+///     + `PropertyColumnBuilder`. `propertyOrder` always leads with the
+///     reserved `_title` id. Legacy `visible_properties` sidecars are decoded
+///     one-time into `["_title"] + legacy`; the key is never re-encoded.
+///   - `columnWidths` / `collapsedGroups` / `cardSize` / `showCover` — layout
+///     state for the Table / Board / Cards renderers (all optional).
 ///   - `type` — only `.table` is rendered; other cases mute in the Layout pane.
 ///
 /// `sort` / `filter` / `group` are reserved Codable stubs at v0.3.1 — fields
@@ -31,8 +35,14 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     var name: String  // "Table" default
     var icon: String?  // SF Symbol; default "tablecells" when minted by ensureDefaultView
     var type: ViewType  // .table at v0.3.1; others muted
-    var visibleProperties: [String]  // ordered property IDs that show as columns
+    var propertyOrder: [String]  // ordered property IDs (always leads with `_title`)
     var hiddenProperties: [String]  // muted-strikethrough in Property Visibility pane
+
+    // Layout state — all optional (absent on legacy / freshly-minted sidecars):
+    var columnWidths: [String: Double]?  // per-column width in points, keyed by property ID
+    var collapsedGroups: [String]?  // collapsed group keys (Board / grouped Table)
+    var cardSize: CardSize?  // Cards / Gallery card sizing
+    var showCover: Bool?  // nil/false = covers hidden (the default)
 
     // Reserved Codable stubs — not consumed at v0.3.1:
     var sort: [SortCriterion]?  // v0.3.1.2
@@ -44,8 +54,12 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         name: String = "Table",
         icon: String? = "tablecells",
         type: ViewType = .table,
-        visibleProperties: [String] = [],
+        propertyOrder: [String] = [],
         hiddenProperties: [String] = [],
+        columnWidths: [String: Double]? = nil,
+        collapsedGroups: [String]? = nil,
+        cardSize: CardSize? = nil,
+        showCover: Bool? = nil,
         sort: [SortCriterion]? = nil,
         filter: FilterGroup? = nil,
         group: GroupConfig? = nil
@@ -54,8 +68,12 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.name = name
         self.icon = icon
         self.type = type
-        self.visibleProperties = visibleProperties
+        self.propertyOrder = propertyOrder
         self.hiddenProperties = hiddenProperties
+        self.columnWidths = columnWidths
+        self.collapsedGroups = collapsedGroups
+        self.cardSize = cardSize
+        self.showCover = showCover
         self.sort = sort
         self.filter = filter
         self.group = group
@@ -63,8 +81,13 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, icon, type
-        case visibleProperties = "visible_properties"
+        case propertyOrder = "property_order"
+        case legacyVisibleProperties = "visible_properties"  // decode-only
         case hiddenProperties = "hidden_properties"
+        case columnWidths = "column_widths"
+        case collapsedGroups = "collapsed_groups"
+        case cardSize = "card_size"
+        case showCover = "show_cover"
         case sort, filter, group
     }
 
@@ -74,8 +97,21 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.name = (try? c.decode(String.self, forKey: .name)) ?? "Table"
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.type = (try? c.decode(ViewType.self, forKey: .type)) ?? .table
-        self.visibleProperties = try c.decodeIfPresent([String].self, forKey: .visibleProperties) ?? []
+        // `property_order` is canonical; a legacy `visible_properties` sidecar
+        // migrates one-time to `["_title"] + legacy`. The legacy key is never
+        // re-encoded, so the next save drops it.
+        if let order = try c.decodeIfPresent([String].self, forKey: .propertyOrder) {
+            self.propertyOrder = order
+        } else if let legacy = try c.decodeIfPresent([String].self, forKey: .legacyVisibleProperties) {
+            self.propertyOrder = [ReservedPropertyID.title] + legacy
+        } else {
+            self.propertyOrder = []
+        }
         self.hiddenProperties = try c.decodeIfPresent([String].self, forKey: .hiddenProperties) ?? []
+        self.columnWidths = try c.decodeIfPresent([String: Double].self, forKey: .columnWidths)
+        self.collapsedGroups = try c.decodeIfPresent([String].self, forKey: .collapsedGroups)
+        self.cardSize = try c.decodeIfPresent(CardSize.self, forKey: .cardSize)
+        self.showCover = try c.decodeIfPresent(Bool.self, forKey: .showCover)
         self.sort = try c.decodeIfPresent([SortCriterion].self, forKey: .sort)
         self.filter = try c.decodeIfPresent(FilterGroup.self, forKey: .filter)
         self.group = try c.decodeIfPresent(GroupConfig.self, forKey: .group)
@@ -87,8 +123,12 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         try c.encode(name, forKey: .name)
         try c.encodeIfPresent(icon, forKey: .icon)
         try c.encode(type, forKey: .type)
-        try c.encode(visibleProperties, forKey: .visibleProperties)
+        try c.encode(propertyOrder, forKey: .propertyOrder)
         try c.encode(hiddenProperties, forKey: .hiddenProperties)
+        try c.encodeIfPresent(columnWidths, forKey: .columnWidths)
+        try c.encodeIfPresent(collapsedGroups, forKey: .collapsedGroups)
+        try c.encodeIfPresent(cardSize, forKey: .cardSize)
+        try c.encodeIfPresent(showCover, forKey: .showCover)
         try c.encodeIfPresent(sort, forKey: .sort)
         try c.encodeIfPresent(filter, forKey: .filter)
         try c.encodeIfPresent(group, forKey: .group)
@@ -105,9 +145,25 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
             name: "Table",
             icon: "tablecells",
             type: .table,
-            visibleProperties: visiblePropertyIDs,
+            propertyOrder: [ReservedPropertyID.title] + visiblePropertyIDs,
             hiddenProperties: []
         )
+    }
+}
+
+/// Card sizing for the Cards / Gallery renderers. `columnsPerRow` is the
+/// grid density each size maps to (smaller card → more columns per row).
+enum CardSize: String, Codable, Equatable, Hashable, Sendable {
+    case small
+    case medium
+    case large
+
+    var columnsPerRow: Int {
+        switch self {
+        case .small: return 8
+        case .medium: return 6
+        case .large: return 4
+        }
     }
 }
 

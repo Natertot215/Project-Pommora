@@ -98,7 +98,7 @@ struct PageTypeDetailView: View {
     }
 
     /// User-defined property columns derived from `livePageType.views[0]` +
-    /// schema. Empty when the active SavedView has no visibleProperties
+    /// schema. Empty when the active SavedView has no propertyOrder
     /// configured — collapses to the legacy Title/Kind/Modified shape.
     private var userPropertyColumns: [PropertyDefinition] {
         guard let view = livePageType.views.first else { return [] }

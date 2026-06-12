@@ -5,7 +5,7 @@ import Foundation
 /// The storage cases carry their concrete entity so the popover body
 /// can render schema-aware content (Edit Properties pane reads the parent
 /// Type's `properties: [PropertyDefinition]`; Property Visibility pane reads
-/// `views[0].visibleProperties`; etc.). Other cases stay case-only — they
+/// `views[0].propertyOrder`; etc.). Other cases stay case-only — they
 /// don't have a schema-bearing entity to populate from. Task 6 (v0.3.1)
 /// gained the associated values; the chrome slice (v0.3.0.5) shipped this
 /// as case-only.

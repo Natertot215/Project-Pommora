@@ -9,7 +9,7 @@ import SwiftUI
 /// locked decision (toggling it off causes UX confusion since it's the
 /// default sort criterion).
 ///
-/// Persistence: writes the active SavedView's `visibleProperties` +
+/// Persistence: writes the active SavedView's `propertyOrder` +
 /// `hiddenProperties` arrays atomically via the manager's
 /// `updateView(_:in:transform:)`. The active SavedView is the container's
 /// `views[0]` at v0.3.1 (single-view-per-container; multi-saved-view +
@@ -56,18 +56,18 @@ struct PropertyVisibilityPane: View {
         let schemaProps = parentTypeProperties()
         // Materialize the rendering order: visible first (in the view's
         // explicit order), then hidden (in schema-declaration order).
-        let visibleOrdered = view.visibleProperties.compactMap { id in
+        let visibleOrdered = view.propertyOrder.compactMap { id in
             schemaProps.first(where: { $0.id == id })
         }
         let hiddenSet = Set(view.hiddenProperties)
         let hiddenOrdered = schemaProps.filter { hiddenSet.contains($0.id) }
         let unaccountedOrdered = schemaProps.filter {
-            !view.visibleProperties.contains($0.id) && !hiddenSet.contains($0.id)
+            !view.propertyOrder.contains($0.id) && !hiddenSet.contains($0.id)
         }
         // The reorderable section: visible + unaccounted (rendered as
         // visible per the existing logic). Dragging amongst these rewrites
-        // visibleProperties to reflect the new order; any unaccounted
-        // property dragged here gets implicitly added to visibleProperties.
+        // propertyOrder to reflect the new order; any unaccounted
+        // property dragged here gets implicitly added to propertyOrder.
         let reorderable = visibleOrdered + unaccountedOrdered
 
         // No ScrollView here — ViewSettingsPane owns the single scroll region.
@@ -109,10 +109,11 @@ struct PropertyVisibilityPane: View {
 
     /// Reorders the visible-section property IDs by moving `droppedID` to
     /// the position of `ontoTargetID`, then persists via `updateView`. The
-    /// new order REPLACES `visibleProperties`; any property that wasn't in
-    /// `visibleProperties` before but is now part of the reorder is
-    /// implicitly added to visibleProperties (which is the intuitive UX
-    /// when dragging an "unaccounted" row into a specific position).
+    /// new order REPLACES the user-property portion of `propertyOrder` (the
+    /// reserved `_title` lead is preserved); any property that wasn't in
+    /// `propertyOrder` before but is now part of the reorder is implicitly
+    /// added (which is the intuitive UX when dragging an "unaccounted" row
+    /// into a specific position).
     private func reorder(
         currentOrder: [String],
         droppedID: String,
@@ -126,7 +127,9 @@ struct PropertyVisibilityPane: View {
         Task {
             do {
                 try await pageTypeManager.updateView(viewID, in: cid) { v in
-                    v.visibleProperties = newOrder
+                    // `newOrder` is the user-property section (no `_title`); keep
+                    // the reserved title lead at the front of `propertyOrder`.
+                    v.propertyOrder = [ReservedPropertyID.title] + newOrder
                 }
                 commitError = nil
             } catch {
@@ -213,19 +216,23 @@ struct PropertyVisibilityPane: View {
         }
     }
 
-    /// Move propertyID between visibleProperties + hiddenProperties.
-    /// When making visible: append to visibleProperties end, remove from hidden.
-    /// When making hidden: remove from visibleProperties, append to hidden.
+    /// Move propertyID between propertyOrder + hiddenProperties.
+    /// When making visible: re-insert into propertyOrder right after the
+    /// reserved `_title` lead, remove from hidden.
+    /// When making hidden: remove from propertyOrder, append to hidden.
     static func applyToggle(_ view: inout SavedView, propertyID: String, currentlyVisible: Bool) {
         if currentlyVisible {
-            view.visibleProperties.removeAll { $0 == propertyID }
+            view.propertyOrder.removeAll { $0 == propertyID }
             if !view.hiddenProperties.contains(propertyID) {
                 view.hiddenProperties.append(propertyID)
             }
         } else {
             view.hiddenProperties.removeAll { $0 == propertyID }
-            if !view.visibleProperties.contains(propertyID) {
-                view.visibleProperties.append(propertyID)
+            if !view.propertyOrder.contains(propertyID) {
+                // Re-insert just after `_title` so an un-hidden property
+                // reappears as the leading user column, not the trailing one.
+                let insertAt = view.propertyOrder.first == ReservedPropertyID.title ? 1 : 0
+                view.propertyOrder.insert(propertyID, at: min(insertAt, view.propertyOrder.count))
             }
         }
     }

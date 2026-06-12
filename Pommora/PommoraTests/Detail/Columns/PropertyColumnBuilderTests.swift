@@ -31,7 +31,7 @@ import Testing
     private var tier3Def: PropertyDefinition { tierDef(id: ReservedPropertyID.tier3, name: "Project", tier: 3) }
 
     private func view(hidden: [String] = []) -> SavedView {
-        SavedView(id: "view_test", visibleProperties: [], hiddenProperties: hidden)
+        SavedView(id: "view_test", propertyOrder: ["_title"], hiddenProperties: hidden)
     }
 
     // MARK: - Tier emission order

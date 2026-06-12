@@ -605,7 +605,7 @@ extension PageTypeManager {
     /// Apply a transform to a SavedView on a PageType or PageCollection
     /// container (looked up by container ID), then persist the parent
     /// sidecar atomically. Used by the View Settings Property Visibility
-    /// pane (Task 12) to write the visibleProperties / hiddenProperties
+    /// pane (Task 12) to write the propertyOrder / hiddenProperties
     /// edits live as the user toggles + drag-reorders rows.
     ///
     /// `containerID` may be either a PageType.id or a PageCollection.id —

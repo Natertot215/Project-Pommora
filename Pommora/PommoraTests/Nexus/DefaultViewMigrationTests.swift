@@ -49,7 +49,7 @@ struct DefaultViewMigrationTests {
         #expect(loaded.views.count == 1)
         #expect(loaded.views[0].type == .table)
         #expect(loaded.views[0].name == "Table")
-        #expect(loaded.views[0].visibleProperties == ["prop_01HA", "prop_01HB"])
+        #expect(loaded.views[0].propertyOrder == ["_title", "prop_01HA", "prop_01HB"])
 
         // Re-decode the sidecar from disk — the migration must persist, not
         // just exist in memory.
@@ -70,7 +70,7 @@ struct DefaultViewMigrationTests {
             name: "My View",
             icon: "star",
             type: .table,
-            visibleProperties: ["prop_only"],
+            propertyOrder: ["_title", "prop_only"],
             hiddenProperties: []
         )
         let pageType = PageType(
@@ -129,7 +129,7 @@ struct DefaultViewMigrationTests {
         #expect(loadedColl.views[0].type == .table)
         // Collection inherits parent's property IDs as the starting visible
         // ordering — locked decision.
-        #expect(loadedColl.views[0].visibleProperties == ["prop_01HSTATUS"])
+        #expect(loadedColl.views[0].propertyOrder == ["_title", "prop_01HSTATUS"])
 
         // Persisted, not just in-memory.
         let reloaded = try PageCollection.load(from: collSidecar)

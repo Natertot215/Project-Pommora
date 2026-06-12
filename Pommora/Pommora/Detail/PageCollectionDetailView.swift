@@ -103,7 +103,7 @@ struct PageCollectionDetailView: View {
     /// User-defined property columns derived from `collection.views[0]` +
     /// parent vault's schema (Collections inherit schema from the parent
     /// PageType per locked decision). Empty when the SavedView has no
-    /// visibleProperties configured — collapses to legacy Title/Kind/Modified.
+    /// propertyOrder configured — collapses to legacy Title/Kind/Modified.
     /// Live vault + collection from the `@Observable` manager (by id) so schema/view
     /// edits re-render the table IMMEDIATELY instead of only after a reselect — the
     /// `vault` + `collection` params are value snapshots that go stale on mutation.

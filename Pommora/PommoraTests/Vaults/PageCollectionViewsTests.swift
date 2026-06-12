@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 /// Codable + round-trip coverage for the `views: [SavedView]` field on
@@ -26,7 +27,7 @@ import Testing
             name: "All",
             icon: "tablecells",
             type: .table,
-            visibleProperties: ["prop_01HA"],
+            propertyOrder: ["_title", "prop_01HA"],
             hiddenProperties: []
         )
     }
@@ -48,13 +49,13 @@ import Testing
     @Test func pageCollectionDecodesMissingViewsAsEmptyArray() throws {
         // Pre-v0.3.1 sidecar shape — no `views` key. Must round-trip as [].
         let json = #"""
-        {
-          "id": "01HPC",
-          "type_id": "01HPT",
-          "modified_at": "2026-03-04T00:00:00Z",
-          "schema_version": 1
-        }
-        """#.data(using: .utf8)!
+            {
+              "id": "01HPC",
+              "type_id": "01HPT",
+              "modified_at": "2026-03-04T00:00:00Z",
+              "schema_version": 1
+            }
+            """#.data(using: .utf8)!
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(PageCollection.self, from: json)

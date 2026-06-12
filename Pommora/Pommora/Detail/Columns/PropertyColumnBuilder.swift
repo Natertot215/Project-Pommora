@@ -23,7 +23,7 @@ struct PropertyColumn: Identifiable, Hashable, Sendable {
     /// `ReservedPropertyID`. User properties use the schema's property ID.
     var id: String {
         switch kind {
-        case .title: return "_title"
+        case .title: return ReservedPropertyID.title
         case .userProperty(let def): return def.id
         case .lastEditedTime: return "_modified_at"
         }
@@ -32,10 +32,10 @@ struct PropertyColumn: Identifiable, Hashable, Sendable {
 
 /// Computes the ordered TableColumn descriptors for a container's active
 /// view. Reserved Title column always leads; reserved Last Edited Time
-/// always trails. User properties appear in between: first the explicitly
-/// `visibleProperties` (in order), then any "unaccounted" schema properties
-/// (in neither visible nor hidden — e.g. freshly created) as visible-by-
-/// default. Only `hiddenProperties` are excluded.
+/// always trails. User properties appear in between: first the explicit
+/// `propertyOrder` (minus the leading `_title`), then any "unaccounted" schema
+/// properties (in neither the order nor hidden — e.g. freshly created) as
+/// visible-by-default. Only `hiddenProperties` are excluded.
 ///
 /// The three tier relation columns (Project / Topic / Area → `_tier3`,
 /// `_tier2`, `_tier1`) are emitted rightmost-before-Modified, in that order,
@@ -45,18 +45,20 @@ struct PropertyColumn: Identifiable, Hashable, Sendable {
 /// ID is in `hiddenProperties`) and only emitted when its def is actually in
 /// `schema` (defensive — a schema without tiers gets no tier columns).
 ///
-/// If `visibleProperties` references a property ID not present in `schema`
+/// If `propertyOrder` references a property ID not present in `schema`
 /// (e.g. property was deleted but the view config wasn't cleaned up), the
 /// ID is silently skipped — defensive parity with quirk #15's "in-memory
 /// state must tolerate stale on-disk references."
 enum PropertyColumnBuilder {
     static func columns(view: SavedView, schema: [PropertyDefinition]) -> [PropertyColumn] {
         var result: [PropertyColumn] = [PropertyColumn(kind: .title)]
-        let lastEditedID = "_modified_at"
+        let lastEditedID = ReservedPropertyID.modifiedAt
         let hiddenSet = Set(view.hiddenProperties)
+        // Drop the reserved `_title` lead — it's emitted separately above.
+        let orderedUserIDs = view.propertyOrder.filter { $0 != ReservedPropertyID.title }
 
-        // Explicitly-visible properties, in the view's saved order.
-        for propID in view.visibleProperties {
+        // Explicitly-ordered properties, in the view's saved order.
+        for propID in orderedUserIDs {
             // Skip the reserved trailer — it's appended separately + locked-
             // always-visible per PropertyVisibilityPane's invariant.
             guard propID != lastEditedID else { continue }
@@ -65,14 +67,16 @@ enum PropertyColumnBuilder {
         }
 
         // "Unaccounted" properties — present in the schema but in NEITHER
-        // visibleProperties nor hiddenProperties (e.g. a freshly-created
+        // propertyOrder nor hiddenProperties (e.g. a freshly-created
         // property, which `addProperty` writes to the schema only). Render
         // them as visible-by-default, matching how PropertyVisibilityPane
         // already treats them, so a new property shows as a column
         // immediately. Reserved IDs never become user-property columns.
-        for def in schema where !view.visibleProperties.contains(def.id)
+        for def in schema
+        where !view.propertyOrder.contains(def.id)
             && !hiddenSet.contains(def.id)
-            && !ReservedPropertyID.isReserved(def.id) {
+            && !ReservedPropertyID.isReserved(def.id)
+        {
             result.append(PropertyColumn(kind: .userProperty(def)))
         }
 

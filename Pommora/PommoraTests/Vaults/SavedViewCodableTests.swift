@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Pommora
 
 /// Codable + round-trip coverage for the upgraded `SavedView` shape and its
@@ -19,13 +20,13 @@ import Testing
             name: "All Books",
             icon: "books.vertical",
             type: .table,
-            visibleProperties: ["prop_01HAUTHOR", "prop_01HYEAR"],
+            propertyOrder: ["_title", "prop_01HAUTHOR", "prop_01HYEAR"],
             hiddenProperties: ["prop_01HISBN"]
         )
         let data = try JSONEncoder().encode(view)
         let s = String(data: data, encoding: .utf8)!
         #expect(s.contains(#""id":"view_01HVIEW""#))
-        #expect(s.contains(#""visible_properties":["prop_01HAUTHOR","prop_01HYEAR"]"#))
+        #expect(s.contains(#""property_order":["_title","prop_01HAUTHOR","prop_01HYEAR"]"#))
         #expect(s.contains(#""hidden_properties":["prop_01HISBN"]"#))
         #expect(s.contains(#""type":"table""#))
 
@@ -35,15 +36,15 @@ import Testing
 
     @Test func decodingMissingReservedStubsKeepsThemNil() throws {
         let json = #"""
-        {
-          "id": "view_01HVIEW",
-          "name": "Table",
-          "icon": "tablecells",
-          "type": "table",
-          "visible_properties": [],
-          "hidden_properties": []
-        }
-        """#.data(using: .utf8)!
+            {
+              "id": "view_01HVIEW",
+              "name": "Table",
+              "icon": "tablecells",
+              "type": "table",
+              "visible_properties": [],
+              "hidden_properties": []
+            }
+            """#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(SavedView.self, from: json)
         #expect(decoded.sort == nil)
         #expect(decoded.filter == nil)
@@ -59,7 +60,7 @@ import Testing
         #expect(decoded.id == "")
         #expect(decoded.name == "Table")
         #expect(decoded.type == .table)
-        #expect(decoded.visibleProperties.isEmpty)
+        #expect(decoded.propertyOrder.isEmpty)
         #expect(decoded.hiddenProperties.isEmpty)
     }
 
