@@ -51,6 +51,11 @@ final class RowDragCoordinator {
     /// live insertion line + group highlight derive from THIS + `session.location`,
     /// never from `draggedItemIDs` (per-row `.draggable` registers no container).
     private(set) var rowFrames: [String: CGRect] = [:]
+    /// Per-CARD frames in the same global space, keyed by `ViewItem.id` — the
+    /// gallery's parallel to `rowFrames`. Separate registry so the grid hit-test
+    /// (`GalleryDropGeometry`, horizontal-midpoint flow order) never collides with
+    /// the table's vertical-midpoint use; a detail view drives only one renderer.
+    private(set) var cardFrames: [String: CGRect] = [:]
     /// Per-group-header frames in the same space, keyed by `ResolvedGroup.id`.
     private(set) var groupFrames: [String: CGRect] = [:]
     /// The page ids of the row(s) currently being dragged — stamped at drag start
@@ -59,6 +64,7 @@ final class RowDragCoordinator {
     private(set) var draggedIDs: [String] = []
 
     func setRowFrame(_ id: String, _ frame: CGRect) { rowFrames[id] = frame }
+    func setCardFrame(_ id: String, _ frame: CGRect) { cardFrames[id] = frame }
     func setGroupFrame(_ id: String, _ frame: CGRect) { groupFrames[id] = frame }
     func beginDrag(_ ids: [String]) { draggedIDs = ids }
 

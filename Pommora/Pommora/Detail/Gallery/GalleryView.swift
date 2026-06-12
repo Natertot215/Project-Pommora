@@ -114,6 +114,12 @@ struct GalleryView: View {
             Spacer()
         }
         .contentShape(Rectangle())
+        .padding(.vertical, PUI.Spacing.xs)
+        .padding(.horizontal, PUI.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(dragCoordinator.highlightedGroupID == group.id ? Color.accentColor.opacity(0.15) : .clear)
+        )
         .contextMenu { groupMenu(group) }
     }
 
@@ -152,10 +158,51 @@ struct GalleryView: View {
             pageMenu: { pageMenu(item) },
             coverMenu: view.showCover == true ? { coverMenu(item) } : nil
         )
-        .draggable(ViewRowDragPayload(pageIDs: dragIDs(for: item)))
+        // Capture this card's GLOBAL frame — the live insertion capsule is
+        // hit-tested from these frames + the (global) drop location, mirroring
+        // the table's `rowFrames` capture (separate `cardFrames` registry).
+        .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+        } action: {
+            dragCoordinator.setCardFrame(item.id, $0)
+        }
+        // The leading-edge insertion capsule + trailing append marker, drawn from
+        // the coordinator's observable insertion state (same source as the table).
+        .overlay(alignment: .leading) { insertionCapsule(forItemID: item.id, in: group) }
+        .overlay(alignment: .trailing) { appendCapsule(forItemID: item.id, in: group) }
+        .draggable(ViewRowDragPayload(pageIDs: dragIDs(for: item))) {
+            // Stamp the dragged identity at drag start — the drop-session payload
+            // is nil mid-flight for per-card `.draggable`, so the hover math reads
+            // `draggedIDs` instead (parity with the table's preview-onAppear stamp).
+            dragPreview(for: item)
+                .onAppear { dragCoordinator.beginDrag(dragIDs(for: item)) }
+        }
         .dropDestination(for: ViewRowDragPayload.self) { payloads, _ in
             handleDrop(payloads, onto: group, at: offset)
         }
+        .onDropSessionUpdated { session in
+            updateDropFromLocation(session, onto: group, elementFrame: dragCoordinator.cardFrames[item.id])
+        }
+    }
+
+    /// A lightweight drag preview that also stamps the dragged identity.
+    private func dragPreview(for item: ViewItem) -> some View {
+        let ids = dragIDs(for: item)
+        return HStack(spacing: PUI.Spacing.sm) {
+            Image(systemName: item.page.frontmatter.icon ?? "doc.text")
+            Text(item.page.title).lineLimit(1)
+            if ids.count > 1 {
+                Text("\(ids.count)")
+                    .font(.caption)
+                    .padding(.horizontal, PUI.Spacing.sm)
+                    .background(.tint, in: Capsule())
+                    .foregroundStyle(.white)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, PUI.Spacing.md)
+        .padding(.vertical, PUI.Spacing.xs)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
     }
 
     /// The drag payload's pages: the full selection when the dragged card is
@@ -181,5 +228,96 @@ struct GalleryView: View {
                 group, insertionIndex, sourceIndices)
         else { return false }
         return dragCoordinator.drop(payload: payload, context: context)
+    }
+
+    // MARK: - Live drop indicator
+
+    /// Drive the insertion marker + group highlight off the drop session's
+    /// LOCATION (not the nil-mid-flight payload), hit-tested in GRID FLOW ORDER
+    /// against the captured card frames. `DropSession.location` is local to the
+    /// firing card, so it's lifted to the shared GLOBAL space via that card's
+    /// captured global frame — exactly the table's `updateDropFromLocation` seam,
+    /// with `GalleryDropGeometry`'s horizontal-midpoint math in place of the
+    /// table's vertical-midpoint math.
+    private func updateDropFromLocation(
+        _ session: DropSession, onto group: ResolvedGroup, elementFrame: CGRect?
+    ) {
+        switch session.phase {
+        case .exiting, .ended, .dataTransferCompleted:
+            dragCoordinator.update(nil)
+            return
+        default:
+            break
+        }
+        guard let elementFrame else {
+            dragCoordinator.update(nil)
+            return
+        }
+        let location = CGPoint(
+            x: elementFrame.minX + session.location.x,
+            y: elementFrame.minY + session.location.y)
+
+        let items = group.flattenedItems
+        let draggedIDs = dragCoordinator.draggedIDs
+        let cards = cardFrames(in: items)
+        let index =
+            GalleryDropGeometry.insertionIndex(location: location, cards: cards)
+            ?? items.count
+        let dragged = items.filter { draggedIDs.contains($0.id) }
+        let sourceIndices = IndexSet(
+            dragged.compactMap { d in items.firstIndex(where: { $0.id == d.id }) })
+        dragCoordinator.update(
+            buildDropContext(
+                dragged.isEmpty ? items : dragged, group, index, sourceIndices))
+    }
+
+    /// The captured card frames for a group's flattened items, in flow order —
+    /// feeds the pure grid-insertion math.
+    private func cardFrames(in items: [ViewItem]) -> [GalleryDropGeometry.CardFrame] {
+        items.enumerated().compactMap { idx, item in
+            guard let frame = dragCoordinator.cardFrames[item.id] else { return nil }
+            return GalleryDropGeometry.CardFrame(id: item.id, frame: frame, indexInGroup: idx)
+        }
+    }
+
+    /// The vertical accent capsule drawn at the LEADING edge of the card the
+    /// coordinator's insertion marker targets (insert-before).
+    @ViewBuilder
+    private func insertionCapsule(forItemID id: String, in group: ResolvedGroup) -> some View {
+        if let marker = dragCoordinator.insertion,
+            marker.groupID == group.id,
+            let targeted = group.flattenedItems[safe: marker.index],
+            targeted.id == id
+        {
+            dropCapsule
+        }
+    }
+
+    /// The trailing-edge capsule for the APPEND case — when the insertion marker
+    /// targets one past the last card, draw at the last card's trailing edge.
+    @ViewBuilder
+    private func appendCapsule(forItemID id: String, in group: ResolvedGroup) -> some View {
+        let items = group.flattenedItems
+        if let marker = dragCoordinator.insertion,
+            marker.groupID == group.id,
+            marker.index == items.count,
+            items.last?.id == id
+        {
+            dropCapsule
+        }
+    }
+
+    private var dropCapsule: some View {
+        Capsule()
+            .fill(.tint)
+            .frame(width: 3)
+            .padding(.vertical, PUI.Spacing.xs)
+    }
+}
+
+extension Array {
+    /// Bounds-safe subscript — nil rather than a trap for an out-of-range index.
+    fileprivate subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
