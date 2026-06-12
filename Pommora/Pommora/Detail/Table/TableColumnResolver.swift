@@ -1,0 +1,162 @@
+import Foundation
+
+/// A fully-resolved table column: the ordered, sized, icon-bearing descriptor
+/// the custom table (Task 9) renders. Produced by `TableColumnResolver` from a
+/// `SavedView` + a PageType's property schema.
+///
+/// Supersedes `PropertyColumn` (from `PropertyColumnBuilder`) for the custom
+/// table; the old builder stays live for the still-native vault table until
+/// Task 19.
+struct ResolvedColumn: Equatable, Hashable, Sendable, Identifiable {
+    /// Column kind — drives default width, header icon, and cell rendering.
+    /// Modeled as an enum + switch (HARD RULE: condensed exhaustive control
+    /// flow) rather than loose booleans/strings.
+    enum Kind: Equatable, Hashable, Sendable {
+        case title
+        case property
+        case tier
+        case modified
+    }
+
+    /// Stable identifier — the reserved ID (`_title` / `_modified_at` /
+    /// `_tierN`) or the user property's schema ID. Drives diffing + width lookup.
+    let id: String
+    let kind: Kind
+    /// Display label for the header cell.
+    let title: String
+    /// SF Symbol for the header cell.
+    let iconName: String
+    /// Resolved column width in points (already clamped to the 60pt minimum).
+    let width: Double
+}
+
+/// Resolves a `SavedView` + property schema into the ordered `[ResolvedColumn]`
+/// the custom table renders. A pure (static) resolver — no actor isolation.
+///
+/// Resolution rules (supersedes `PropertyColumnBuilder`'s title-first /
+/// tiers-trailing layout):
+///   - `propertyOrder` is consumed VERBATIM — Title may sit anywhere; the
+///     resolver does NOT force it first.
+///   - `hiddenProperties` excludes a column, EXCEPT `_title` (never hidden) and
+///     `cover` (never a column at all, regardless of order/hidden state).
+///   - Tiers (`_tier1/2/3`) and `_modified_at` are ordinary hideable columns.
+///   - Unaccounted schema properties (present in the schema but absent from
+///     `propertyOrder` and not hidden) APPEND as visible columns at the end —
+///     parity with `PropertyColumnBuilder`'s "unaccounted append" semantics,
+///     so a freshly-created property shows immediately.
+///   - An order entry referencing an ID absent from the schema is skipped
+///     (defensive parity with the builder's stale-reference tolerance), EXCEPT
+///     the reserved `_title` / `_modified_at` which render without a schema def.
+enum TableColumnResolver {
+    /// The cover sentinel — excluded unconditionally. Not a reserved column id;
+    /// just a guard so no cover column can ever appear.
+    private static let coverID = "cover"
+
+    static func resolve(view: SavedView, schema: [PropertyDefinition]) -> [ResolvedColumn] {
+        let hiddenSet = Set(view.hiddenProperties)
+        var emittedIDs = Set<String>()
+        var result: [ResolvedColumn] = []
+
+        func append(id: String, def: PropertyDefinition?) {
+            guard !emittedIDs.contains(id) else { return }
+            guard let column = makeColumn(id: id, def: def, view: view) else { return }
+            emittedIDs.insert(id)
+            result.append(column)
+        }
+
+        // Pass 1 — the saved order, VERBATIM.
+        for propID in view.propertyOrder {
+            // Cover never yields a column.
+            guard propID != coverID else { continue }
+            // `_title` is never hidden; everything else respects hiddenProperties.
+            if propID != ReservedPropertyID.title, hiddenSet.contains(propID) { continue }
+
+            switch propID {
+            case ReservedPropertyID.title, ReservedPropertyID.modifiedAt:
+                // Reserved columns render without a schema def.
+                append(id: propID, def: nil)
+            default:
+                // User properties + tiers need a schema def; a stale reference
+                // (deleted property) is silently skipped.
+                guard let def = schema.first(where: { $0.id == propID }) else { continue }
+                append(id: propID, def: def)
+            }
+        }
+
+        // Pass 2 — unaccounted schema properties (not in the order, not hidden),
+        // appended visible at the end. Reserved IDs never become user columns.
+        for def in schema
+        where !emittedIDs.contains(def.id)
+            && !hiddenSet.contains(def.id)
+            && !ReservedPropertyID.isReserved(def.id)
+            && def.id != coverID
+        {
+            append(id: def.id, def: def)
+        }
+
+        return result
+    }
+
+    /// Builds one `ResolvedColumn`, mapping ID + schema def → kind, label, icon,
+    /// and width. Returns nil when a non-reserved ID has no usable def.
+    private static func makeColumn(
+        id: String,
+        def: PropertyDefinition?,
+        view: SavedView
+    ) -> ResolvedColumn? {
+        let kind = kind(forID: id)
+        let width = max(60, view.columnWidths?[id] ?? defaultWidth(for: kind))
+
+        switch kind {
+        case .title:
+            return ResolvedColumn(id: id, kind: .title, title: "Name", iconName: "textformat", width: width)
+        case .modified:
+            return ResolvedColumn(
+                id: id, kind: .modified, title: "Modified", iconName: "clock", width: width
+            )
+        case .tier:
+            guard let def else { return nil }
+            return ResolvedColumn(
+                id: id, kind: .tier, title: def.name, iconName: tierIcon(forID: id), width: width
+            )
+        case .property:
+            guard let def else { return nil }
+            return ResolvedColumn(
+                id: id, kind: .property, title: def.name, iconName: def.displayIcon, width: width
+            )
+        }
+    }
+
+    /// Maps an ID + optional schema def to its column kind.
+    private static func kind(forID id: String) -> ResolvedColumn.Kind {
+        switch id {
+        case ReservedPropertyID.title: return .title
+        case ReservedPropertyID.modifiedAt: return .modified
+        case ReservedPropertyID.tier1, ReservedPropertyID.tier2, ReservedPropertyID.tier3:
+            return .tier
+        default: return .property
+        }
+    }
+
+    /// SF Symbol for a tier column's header — mirrors `EditPropertyPane`'s
+    /// per-tier icons (Areas / Topics / Projects).
+    private static func tierIcon(forID id: String) -> String {
+        switch ReservedPropertyID.tierNumber(forID: id) {
+        case 1: return "square.stack.3d.up"
+        case 2: return "folder"
+        default: return "list.bullet.rectangle"
+        }
+    }
+
+    /// Default column width per kind, used when `columnWidths` has no entry.
+    /// Derived from the native vault `Table`'s ideal widths (property 120/ideal,
+    /// Modified 180/ideal); Title leads wider; tiers match user properties.
+    static func defaultWidth(for kind: ResolvedColumn.Kind) -> Double {
+        switch kind {
+        case .title: return 240
+        case .property: return 160
+        case .tier: return 160
+        case .modified: return 180
+        }
+    }
+}
