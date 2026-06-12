@@ -11,7 +11,7 @@ import Foundation
 /// saves.
 ///
 /// Per-view config touches:
-///   - `propertyOrder` / `hiddenProperties` — drives `PropertyVisibilityPane`
+///   - `propertyOrder` / `hiddenProperties` — drives the Layout pane's eye-list
 ///     + `PropertyColumnBuilder`. `propertyOrder` always leads with the
 ///     reserved `_title` id. Legacy `visible_properties` sidecars are decoded
 ///     one-time into `["_title"] + legacy`; the key is never re-encoded.
@@ -43,6 +43,11 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     var collapsedGroups: [String]?  // collapsed group keys (Board / grouped Table)
     var cardSize: CardSize?  // Cards / Gallery card sizing
     var showCover: Bool?  // nil/false = covers hidden (the default)
+    // Per-view banner visibility. DEFAULT semantics: ON when a container banner
+    // exists (nil/true = show the container's banner in this view). The Layout
+    // pane's Display Banner toggle writes `false` to hide it per-view; the
+    // banner is only renderable when the container actually has one.
+    var showBanner: Bool?
 
     // Reserved Codable stubs — not consumed at v0.3.1:
     var sort: [SortCriterion]?  // v0.3.1.2
@@ -60,6 +65,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         collapsedGroups: [String]? = nil,
         cardSize: CardSize? = nil,
         showCover: Bool? = nil,
+        showBanner: Bool? = nil,
         sort: [SortCriterion]? = nil,
         filter: FilterGroup? = nil,
         group: GroupConfig? = nil
@@ -74,6 +80,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.collapsedGroups = collapsedGroups
         self.cardSize = cardSize
         self.showCover = showCover
+        self.showBanner = showBanner
         self.sort = sort
         self.filter = filter
         self.group = group
@@ -88,6 +95,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         case collapsedGroups = "collapsed_groups"
         case cardSize = "card_size"
         case showCover = "show_cover"
+        case showBanner = "show_banner"
         case sort, filter, group
     }
 
@@ -112,6 +120,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.collapsedGroups = try c.decodeIfPresent([String].self, forKey: .collapsedGroups)
         self.cardSize = try c.decodeIfPresent(CardSize.self, forKey: .cardSize)
         self.showCover = try c.decodeIfPresent(Bool.self, forKey: .showCover)
+        self.showBanner = try c.decodeIfPresent(Bool.self, forKey: .showBanner)
         self.sort = try c.decodeIfPresent([SortCriterion].self, forKey: .sort)
         self.filter = try c.decodeIfPresent(FilterGroup.self, forKey: .filter)
         self.group = try c.decodeIfPresent(GroupConfig.self, forKey: .group)
@@ -129,6 +138,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         try c.encodeIfPresent(collapsedGroups, forKey: .collapsedGroups)
         try c.encodeIfPresent(cardSize, forKey: .cardSize)
         try c.encodeIfPresent(showCover, forKey: .showCover)
+        try c.encodeIfPresent(showBanner, forKey: .showBanner)
         try c.encodeIfPresent(sort, forKey: .sort)
         try c.encodeIfPresent(filter, forKey: .filter)
         try c.encodeIfPresent(group, forKey: .group)

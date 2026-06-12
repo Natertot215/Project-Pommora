@@ -59,8 +59,8 @@ enum PropertyColumnBuilder {
 
         // Explicitly-ordered properties, in the view's saved order.
         for propID in orderedUserIDs {
-            // Skip the reserved trailer — it's appended separately + locked-
-            // always-visible per PropertyVisibilityPane's invariant.
+            // Skip the reserved trailer — it's appended separately + kept
+            // always-visible per the view's column invariant.
             guard propID != lastEditedID else { continue }
             guard let def = schema.first(where: { $0.id == propID }) else { continue }
             result.append(PropertyColumn(kind: .userProperty(def)))
@@ -69,7 +69,7 @@ enum PropertyColumnBuilder {
         // "Unaccounted" properties — present in the schema but in NEITHER
         // propertyOrder nor hiddenProperties (e.g. a freshly-created
         // property, which `addProperty` writes to the schema only). Render
-        // them as visible-by-default, matching how PropertyVisibilityPane
+        // them as visible-by-default, matching how the Layout pane's eye-list
         // already treats them, so a new property shows as a column
         // immediately. Reserved IDs never become user-property columns.
         for def in schema

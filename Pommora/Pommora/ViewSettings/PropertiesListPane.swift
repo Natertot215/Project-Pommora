@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// View Settings → Edit Properties → list of every property on the active
-/// Type's schema. Reserved properties (per `ReservedPropertyID.isReserved`)
-/// render with a lock badge + disabled chevron + tooltip; user-defined
-/// properties push to `EditPropertyPane` via the chevron.
+/// View Settings → Edit Properties → schema-only list of the active Type's
+/// USER-DEFINED properties. Reserved/built-in columns (tier relations,
+/// Modified, and the other reserved IDs) are non-editable and so are excluded
+/// from display entirely — their per-view visibility is controlled by the
+/// Layout pane's eye-list, not here. User-defined properties push to
+/// `EditPropertyPane` via the chevron.
 ///
 /// Footer "+ New property" button pushes `PropertyTypePickerPane` so the
 /// user picks a type before naming + configuring (Task 10 routing).
@@ -79,8 +81,13 @@ struct PropertiesListPane: View {
     /// Always extract the stable type ID and re-query the manager.
     private func resolvedProperties() -> [PropertyDefinition] {
         guard let typeID = scopeTypeID() else { return [] }
-        return pageTypeManager.types.first(where: { $0.id == typeID })?
+        let resolved =
+            pageTypeManager.types.first(where: { $0.id == typeID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
+        // Schema-only: reserved/built-in columns (tiers + Modified + the rest)
+        // are non-editable, so they're excluded from this list. Their per-view
+        // visibility lives in the Layout pane's eye-list.
+        return resolved.filter { !ReservedPropertyID.isReserved($0.id) }
     }
 
     private func scopeTypeID() -> String? {

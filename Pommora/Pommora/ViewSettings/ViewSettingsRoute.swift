@@ -10,7 +10,7 @@ import Foundation
 ///   - `.editProperties` (PropertiesListPane)
 ///   - `.propertyTypePicker` (PropertyTypePickerPane)
 ///   - `.editProperty(propertyID:)` (EditPropertyPane)
-///   - `.propertyVisibility` (PropertyVisibilityPane)
+///   - `.layout` (LayoutPane)
 ///
 /// Option editing is NOT a route — the live editor is the inline
 /// `OptionEditPopover` (double-click a chip). The former `.editOption` route
@@ -19,7 +19,7 @@ enum ViewSettingsRoute: Hashable {
     case editProperties
     case propertyTypePicker
     case editProperty(propertyID: String)
-    case propertyVisibility
+    case layout
     case sort
     case filter
     case group
@@ -33,7 +33,7 @@ extension ViewSettingsRoute {
         case .editProperties: return "Edit Properties"
         case .propertyTypePicker: return "New Property"
         case .editProperty: return "Edit Property"
-        case .propertyVisibility: return "Property Visibility"
+        case .layout: return "Layout"
         case .sort: return "Sort"
         case .filter: return "Filter"
         case .group: return "Group"

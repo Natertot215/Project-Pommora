@@ -4,8 +4,8 @@ import SwiftUI
 ///
 /// Storage scopes (PageType / PageCollection)
 /// render `StorageMenuRoot` — a Notion-style root menu with active Edit
-/// Properties + Property Visibility rows plus muted Layout / Sort / Filter /
-/// Group rows pointing at upcoming v0.3.1.x patches. Non-storage scopes
+/// Properties + Layout + Group + Filter + Sort rows plus a muted Templates
+/// row. Non-storage scopes
 /// (Areas / Topics / Projects / Pages / Calendar / none) keep the empty
 /// 300x360pt shell from the v0.3.0.5 chrome slice; their View Settings
 /// surfaces ship in later versions.
@@ -13,7 +13,7 @@ import SwiftUI
 /// NavigationStack drives the per-route push: root menu rows append routes
 /// to `path`; `.navigationDestination(for:)` resolves each route to a
 /// pushed pane (PropertiesListPane / PropertyTypePickerPane /
-/// EditPropertyPane / PropertyVisibilityPane). Option editing is inline via
+/// EditPropertyPane / LayoutPane). Option editing is inline via
 /// `OptionEditPopover`, not a route.
 ///
 /// Liquid Glass background is auto-applied by the toolbar-anchored popover
@@ -68,8 +68,8 @@ struct ViewSettingsPopover: View {
             PropertyTypePickerPane(scope: scope, path: $path)
         case .editProperty(let id):
             EditPropertyPane(scope: scope, propertyID: id, path: $path)
-        case .propertyVisibility:
-            PropertyVisibilityPane(scope: scope, path: $path)
+        case .layout:
+            LayoutPane(scope: scope, path: $path)
         case .sort:
             SortPane(scope: scope, path: $path)
         case .filter:
