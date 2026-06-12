@@ -2,6 +2,10 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
+#### Views — design pass complete (2026-06-11)
+
+The v0.5.0 Views cluster is fully designed: ratified spec (`Planning/06-11-Views-Spec.md`) + a 19-task implementation plan (`Planning/06-11-Views-Plan.md`) hardened through two adversarial agent rounds. Implementation not yet started.
+
 #### Sets — third operational tier (v0.4.1, 2026-06-11)
 
 The Pages-side hierarchy is now **Vault → Collection → Set (optional) → Pages**. A Page Set is a schema-less folder inside a Collection (`_pageset.json` — identity + icon + `page_order`; views / settings / open-in inherit from the Collection), owned by a dedicated `PageSetManager`. Strict three levels — deeper folders stay sidecar-less and roll up into the nearest Set; adoption auto-tags depth-2 folders (supersedes the 2026-05-21 "2-level structural depth" adoption lock). Index schema v13 → v14 (`page_sets` table + nullable `pages.page_set_id`); all in-vault page moves are strip-free; Set delete prompts two modes (pages-up vs trash-whole). Bundled hardening: `ContainerIDHealer` mints fresh ULIDs for Finder-duplicated container sidecars (Collections + Sets). Spec → `Features/Sets.md`; decision → registry #19.

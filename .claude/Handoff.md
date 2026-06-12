@@ -6,47 +6,60 @@
 >
 > *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess, you LOOK, you ASK. You open the file and LOOK AT THE CODE before you assert anything. You ASK ME when unsure.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it."* ASK ME when you're unsure! Honesty is key; confidence must be earned through evidence.
 
-#### Session Summary (2026-06-11 — v0.4.1 Sets FINISHED, pending stress-testing)
+#### Session Summary (2026-06-11 — Views cluster DESIGNED: ratified spec + stress-tested 19-task plan; execution is next)
 
-**Sets shipped end-to-end on branch `sets`, merged to `main` as v0.4.1.** The third operational tier (Vault → Collection → Set (optional) → Pages) went spec → stress-tested plan → 11-task subagent execution (each task a green commit, every agent claim controller-verified with targeted test runs) → docs-as-fact rewrite. 1006 → 1058 tests green. Includes: `PageSet` + `_pageset.json`, dedicated `PageSetManager`, schema v14, depth-2 adoption, `ContainerIDHealer` ULID-collision hardening, sidebar Set rows (expandable, never selectable), set-aware connections/editor/preview write paths, strip-free in-vault moves + whole-Set moves, the renameable "Set" label. Record → `History.md` § "Sets"; spec → `Features/Sets.md`; decision → registry #19. **Status: feature-complete pending Nathan's hands-on stress-testing** — two live-test bugs (selection bleed, invisible new Set) and two code-review finds (set pages unselectable via sidebar lookup, `unlinkTier` nulling `page_set_id`) were fixed same-session; more may surface under real use.
+Session opened on `main` post-v0.4.1 (Sets merged, 1058 tests) with the standing direction "Views design pass, start from the findings ledger." The whole session is design + planning — zero Swift commits; the deliverables are docs, currently uncommitted in the working tree.
+
+Key moments, in order: three exploratory agents (codebase / docs / SwiftUI platform) → a five-round interview locking ~20 decisions → Nathan's Figma screenshots flipped view-switching from roadmap "tabs" to a **toolbar Views dropdown**. Nathan rejected the first plan-mode exit and demanded deeper research; three find-docs/Context7 deep-research agents + two Sonnet codebase audits followed. The decisive SDK ground-truth find: **deployment target is macOS 26.4** (not 15), so the macOS 26 drag-session APIs (`onDropSessionUpdated` continuous location, `dragContainer` multi-drag) are un-gated — the drag stack flipped to native-first with the pure-gesture `visfitness` mechanics as a logged fallback. Custom table confirmed unavoidable (native `Table`: no row reorder, no width readback, Tahoe leak bugs; the Introspect rescue verifiably breaks SwiftUI's renderer; the two-axis-scroll + `pinnedViews` combo is an unfixed platform bug → axis-split nested ScrollViews + `safeAreaInset` column header). **Nuke** adopted for cover thumbnails. The spec was ratified in place (`Planning/06-11-Views-Spec.md`), then `/writing-plans` produced `Planning/06-11-Views-Plan.md` from three citation-grade Sonnet code maps (controller-verified, 35-point line check, 0 false agent claims) — then **two adversarial rounds (3 + 1 agents) surfaced ~14 genuine blockers** (hidden test-file consumers of `visibleProperties`, the `DetailRow`→`ViewItem` type bridge, route-deletion ordering, the self-contradictory cover write path, no headless Nuke-SPM procedure), all folded in. A confirmed pre-existing bug was found en route: `updateView`'s in-memory-first save clobbers `OrderPersister`'s disk-written `page_order` — plan Task 3 fixes it first.
+
+Nathan's voice: *"wrong skill"* (docs-audit invoked before authoring a fresh spec — write it directly); *"Each line of code and location must be cited and confirmed accurate. Verify each agent's claim"*; *"As little hand-rolled mechanism as possible — bias and search for what Apple gives us for free ALWAYS"*; *"send these as background agents to save context and tokens"*; and the execution contract: *"once the plan starts I cannot provide more checkpoints until it's finished unless absolutely necessary, so any diversions or assumptions must be logged."* A round-2 clarification pass then reshaped the design: table = exact Apple defaults (26pt rows, subtler quinary zebra), group headers = native-style disclosure rows (not pinned bands), **Property Visibility moved to a new Layout pane** (Edit Properties is schema-only; tiers + Modified removed from it), cover is a per-view toggle (default OFF) that never appears in any properties UI, card property zones are fully interactive, banner area collapses when unset with a floating Add Banner button, new views are "Untitled View", and the Views toolbar button gets icon-only/labeled display modes.
+
+Left off: HEAD `0137c0a` (sets-cleanup merge); working tree holds the uncommitted doc set — `Planning/06-11-Views-Spec.md` (ratified + round-2 amendments), `Planning/06-11-Views-Plan.md` (new), `Framework.md` (v0.5.0 restated), `Planning/README.md` — plus two `Superseded/` Contexts-Decoupling file deletions from a parallel cleanup (left untouched per quirk 10). Immediate next action: commit the doc set, then dispatch plan Task 1.
 
 #### Lessons Learned
 
-- **An untagged row inside a tagged container INHERITS the container's `.tag`** — "no tag" ≠ non-selectable. Non-selectable rows need a distinct tag that resolves to no selection + `.selectionDisabled(true)` on the label row (not the container — traits propagate to generated child rows). Now in CLAUDE.md quirk #9.
-- **`-only-testing` filters match the TYPE name, not the `@Suite` display string** — a mismatched filter silently no-ops to `TEST SUCCEEDED` with 0 tests. Always confirm non-zero executed counts from the canonical xcresult (console output also masks retry-flicker: a test can fail, pass on retry, and print SUCCEEDED).
-- **Two ULIDs minted in the same millisecond tie on the timestamp prefix** — never assert creation order across quick successive creates; derive order baselines in tests.
-- **`INSERT OR REPLACE` upserts make every omitted column a silent reset** — any call site that upserts a page without threading `page_set_id` erases set membership. When a row gains a column, grep every upsert call site, not just the happy path.
-- **The controller-verifies-every-claim loop earns its cost**: this branch's verification caught a zero-test filter no-op, a Sendable-capture compile failure, a stale schema tripwire, a genuinely flaky order assertion, and a plan reference to a dialog that never existed.
+- **Read `MACOSX_DEPLOYMENT_TARGET` before concluding any platform constraint** — three research agents assumed a macOS 15 floor; the pbxproj says 26.4, which single-handedly eliminated the "system DnD lacks continuous hover location" limitation and flipped the drag architecture. **→ candidate CLAUDE.md quirk**
+- **Plans must enumerate TEST-file consumers of renamed symbols** — `SavedView.visibleProperties` had four test files constructing it by label; the original plan listed only the two source consumers and would have failed its own first green-commit gate.
+- **Adversarial rounds on plans earn their cost** — ~14 real blockers across two rounds, every one a would-be broken commit (route-deletion ordering, type bridges, write-path contradictions); and verify the adversaries too (one "blocker" claimed `PageFrontmatter.createdAt` doesn't exist — it does, line 17).
+- **Mixed write paths are a standing hazard**: `updateView` (in-memory-first whole-struct save) silently clobbers `OrderPersister`'s disk read-modify-write `page_order`. Any new sidecar writer must use disk read-modify-write. **→ candidate CLAUDE.md quirk**
+- `docs-audit-skill` is for auditing existing docs, not a gate before authoring a freshly-ratified spec (Nathan: "wrong skill").
+- Cite ANCHOR LINE TEXT alongside line numbers in plans — line numbers drift task-by-task; two prose ranges in the first plan draft were wrong while the grep-verified anchors held.
 
-#### Next Session (Nathan's standing direction)
+#### Next Session
 
-**Views.** The full design pass for the v0.5.0 Views cluster (Board / List / Cards / Gallery, multi-saved-view tabs, per-view order/sort/Group By/columns, reorder engine). START FROM `Planning/06-11-Views-Spec.md` — the pre-design findings ledger (current SavedView/GroupConfig code facts, roadmap scope, Sets-derived requirements like the property-or-container `GroupConfig` reshape and structural-grouping defaults, platform notes). Also fold in the stress-test feedback from Nathan's v0.4.1 usage.
+1. **Commit the Views doc set** (spec, plan, Framework, Planning README — explicit doc commit per quirk 4), then **dispatch plan Task 1** (SavedView v2) via superpowers:subagent-driven-development. First commit = `SavedViewV2Tests` red → green schema commit.
+2. **Execute the plan under the autonomy protocol**: no Nathan checkpoints — controller verifies every gate hands-on (Task 7 layout spike, Task 11 parity, Task 14 drag feel) and appends every assumption/divergence to the plan's **Deviation Log**. HALT-for-Nathan conditions are enumerated in the plan's protocol section.
+3. Nathan-side, non-blocking: Figma passes for the Layout pane UI and gallery card visuals slot in whenever ready (the plan builds functional stubs/structures meanwhile).
 
 #### Pending Focuses
 
-- Agenda compact-panel surface: hosting decided by the v0.6.0 Agenda UIX work (was undecided post-PreviewWindow-elimination; the PagePreview window pattern is the likely template).
+- Agenda compact-panel surface: hosting decided by the v0.6.0 Agenda UIX work (the PagePreview window pattern is the likely template).
 - Launch-tail indexing contract (documented in `Architecture.md`): Finder-dropped pages arrive via CRUD or forced rebuild, not the launch scan.
-- `LaunchTrace` breadcrumbs (DEBUG-only) live at the container's `tmp/launch-trace.log` — keep until a few clean weeks of launches, then consider removing.
+- `LaunchTrace` breadcrumbs (DEBUG-only) at the container's `tmp/launch-trace.log` — keep until a few clean weeks of launches, then consider removing.
 - Settings full editing UI ships v0.7.0 (post-renumber).
 
 #### Fix Log
 
-- Sidebar set-row selection bleed — untagged rows inherited the collection's tag; fixed with `SelectionTag.set` + `selectionDisabled` (regression-tested).
-- New Set invisible in collection view — view rendered only pages; Sets now render as `DisclosureTableRow` rows with pages as children (empty Set = visible leaf).
-- Set pages unselectable via sidebar lookup — `resolvePage` now searches `pagesBySet` (regression-tested).
-- `unlinkTier` cascade nulled `page_set_id` (INSERT OR REPLACE) + missed the `pagesBySet` cache — both now set-aware.
-
-Outstanding (restored — wiped by the PagesV2 refresh, not yet fixed):
-
-- **Column reorder broken** — drag-reordering table columns; folds into upcoming view-system work.
-- **"Modified" not hideable** in the visibility settings.
-- **Inline-edit lag** — property value inline edit has a noticeable update buffer.
-- **Column layout not persisted** across sessions (+ property columns don't show icons); folds into upcoiming view-system work.
+- **Column reorder broken** — scheduled: Views plan Task 10.
+- **"Modified" not hideable** — scheduled: Views plan Tasks 8/18 (regression-tested in `SavedViewMutationsTests`).
+- **Column layout not persisted** across sessions (+ property columns don't show icons) — scheduled: Views plan Tasks 8/10.
+- **New property values aren't selectable until an app restart** — Views plan Task 18 investigates; fix if the cause is obvious (Nathan-confirmed scope), else stays open.
+- **Inline-edit lag** — property value inline edit has a noticeable update buffer. Explicitly NOT in the Views cluster (cell-editor commit buffer untouched); carried forward.
 - **`AgendaEventManagerError._status` doc-vs-guard mismatch** — decide separately.
 - **Backspace on a checkbox / list item** should auto-delete the syntax — confirmed UNIMPLEMENTED; a feature-add.
-- **Agenda description-cap doc mismatch** — specs claim a 1000-char cap but validators enforce none; decide the intended cap or drop the doc claim.
+- **Agenda description-cap doc mismatch** — specs claim a 1000-char cap; validators enforce none.
 - **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
-- **New property values aren't selectable until an app restart** — adding a value to a property doesn't refresh its picker live; the new option only appears after a relaunch.
-- **Pinned-nav title staleness** — changing a page's title doesn't update its title in the pinned section of the nav dropdown until re-pinned (recents update fine, being constantly refreshed). Likely needs a file-watcher (possibly overkill, or naturally resolved once a watcher lands). Non-issue for now.
-- **Collection reorder limits** (investigated — not a bug): a vault with one collection + no root pages can't reorder it (inherent SwiftUI `.onMove` — needs ≥2 items in the `ForEach`); and a collection can't be dragged past root Pages (an intentional v0.3.0 no-interleave guard in `PageTypeRow.reorder`, line ~317). Enhancement to allow interleaving collections + pages: drop the cross-set guard + add a mixed `reorderDisclosureItems` path that splits the result back into collection-order + page-order.
-- **KNOWN ISSUE; NOTE TO FUTURE** - with the change from relation properties to contexnts, future implementation of tasks + events won't have a way to relate to contexts; we'd cross this bridge when we get there.
+- **Pinned-nav title staleness** — pinned-section titles don't refresh on page rename until re-pinned; likely resolved by a future file watcher. Non-issue for now.
+- **Collection reorder limits** (investigated — not a bug): single-collection vaults can't reorder (`.onMove` needs ≥2 rows); collections can't interleave past root Pages (intentional v0.3.0 guard, `PageTypeRow.reorder` ~:317).
+- **KNOWN ISSUE; NOTE TO FUTURE** — with relation properties replaced by contexts, future tasks + events lack a context-relation path; cross that bridge when reached.
+
+#### Handoff Rules
+
+- **Keep the Fix Log current.** Acknowledged-but-not-yet-fixed issues get a 1–2 sentence entry; remove on resolve.
+- **Maintain this file every session** — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log only. Push spec/decision content to its canonical home.
+
+#### Document pointers
+
+- Roadmap → `Framework.md` · ship log → `History.md` · PRD → `PommoraPRD.md` · branch quirks + hard rules → `CLAUDE.md`
+- Active plan → `Planning/06-11-Views-Plan.md` (spec: `Planning/06-11-Views-Spec.md`; both carry the Deviation Log + autonomy protocol)
+- Per-entity specs → `Features/*.md`
