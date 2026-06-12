@@ -41,6 +41,15 @@ struct CoverAssetStore: Sendable {
     /// 5. Copy file.
     /// 6. Return the nexus-relative path string.
     func store(image source: URL, for entityID: String, in nexus: Nexus) async throws -> String {
+        try storeSync(image: source, for: entityID, in: nexus)
+    }
+
+    /// Synchronous variant of `store` — same steps, no suspension. Used by the
+    /// cover/banner importers so the security-scoped read of the source file
+    /// completes inside the scoped window (a `Task`-driven async copy would let
+    /// the scope close before the read runs). `store` delegates here so the copy
+    /// logic stays single-sourced.
+    func storeSync(image source: URL, for entityID: String, in nexus: Nexus) throws -> String {
         let fm = FileManager.default
 
         // 1. Source must exist.

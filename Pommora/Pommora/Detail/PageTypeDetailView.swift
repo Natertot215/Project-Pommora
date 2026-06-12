@@ -31,6 +31,9 @@ struct PageTypeDetailView: View {
     /// menu. Page deletes stay direct (no confirmation); only the container
     /// case routes here, mirroring the sidebar's delete guard.
     @State private var deleteTarget: RowTarget?
+    /// The page whose cover is being set/changed via the gallery cover menu.
+    @State private var coverTarget: ViewItem?
+    @State private var isPickingCover: Bool = false
 
     /// Bridge between the renderer's `ViewItem` + `ResolvedGroup` currency and
     /// this view's create/rename/delete logic. Private to the detail view.
@@ -41,12 +44,14 @@ struct PageTypeDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            banner
             header
             Divider()
-            table
+            content
             Divider()
             footer
         }
+        .background { coverPickerHost }
         .task(id: pageType.id) {
             // Load Page-Type-root Pages + every PageCollection's content + every
             // Set's pages — vault scope now nests Sets under their Collection in
@@ -97,6 +102,19 @@ struct PageTypeDetailView: View {
             Spacer()
         }
         .padding()
+    }
+
+    /// Container banner — absent unless set, with a floating Add Banner
+    /// affordance in the no-banner state (handled by `ContainerBannerView`).
+    @ViewBuilder
+    private var banner: some View {
+        if let nexus = nexusManager.currentNexus {
+            ContainerBannerView(
+                containerID: livePageType.id,
+                entityID: livePageType.id,
+                bannerPath: livePageType.banner,
+                nexus: nexus)
+        }
     }
 
     // MARK: - Table
@@ -165,6 +183,59 @@ struct PageTypeDetailView: View {
             let props = relationColumns.flatMap { fm.relationIDs(forPropertyID: $0.id) }
             return tiers + props
         }
+    }
+
+    /// Render switch on the active view's renderer kind.
+    @ViewBuilder
+    private var content: some View {
+        switch activeView?.type ?? .table {
+        case .table:
+            table
+        case .gallery:
+            galleryView
+        case .board, .list, .cards:
+            ContentUnavailableView(
+                "View not available",
+                systemImage: "rectangle.on.rectangle.slash",
+                description: Text("This view type isn't rendered yet."))
+        }
+    }
+
+    private var galleryView: some View {
+        GalleryView(
+            groups: resolvedGroups,
+            view: activeView ?? SavedView(id: "view_fallback", type: .gallery),
+            schema: schema,
+            nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(fileURLWithPath: "/")),
+            index: nexusManager.currentIndex,
+            relationResolver: { contextDisplay.resolve($0) },
+            onDoubleTap: handleDoubleTap,
+            commit: { item, def, newValue in commitCell(item, def, newValue) },
+            onRename: { beginRename(.page($0)) },
+            onEditIcon: { item in
+                presentedSheet = .editIcon(
+                    .page(
+                        item.page, vault: pageType,
+                        collection: collectionOf(item), set: setOf(item)))
+            },
+            pageMenu: { AnyView(menuItems(for: .page($0))) },
+            groupMenu: { AnyView(groupMenuItems(for: $0)) },
+            coverMenu: { AnyView(coverMenuItems(for: $0)) },
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
+            dragCoordinator: dragCoordinator,
+            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+                RowDragCoordinator.makeContext(
+                    draggedItems: dragged,
+                    targetGroup: targetGroup,
+                    insertionIndex: insertionIndex,
+                    group: activeView?.group,
+                    sortIsManual: activeView?.sort == nil,
+                    sourceIndices: sourceIndices,
+                    structuralParent: structuralParent)
+            }
+        )
+        .task(id: visibleContextLinkIDs) { await contextDisplay.warm(visibleContextLinkIDs) }
+        .task { wireDragCommits() }
     }
 
     private var table: some View {
@@ -408,6 +479,41 @@ struct PageTypeDetailView: View {
     private func setOf(_ item: ViewItem) -> PageSet? {
         if case .set(let set, _, _) = item.parent { return set }
         return nil
+    }
+
+    // MARK: - Cover
+
+    @ViewBuilder
+    private var coverPickerHost: some View {
+        if let item = coverTarget, let nexus = nexusManager.currentNexus {
+            CoverPicker(
+                page: item.page, vault: pageType,
+                collection: collectionOf(item), set: setOf(item),
+                nexus: nexus, isPresenting: $isPickingCover)
+        }
+    }
+
+    /// Cover-area context menu (gallery) — Set / Change / Remove Cover.
+    @ViewBuilder
+    private func coverMenuItems(for item: ViewItem) -> some View {
+        let hasCover = item.page.frontmatter.cover != nil
+        Button(hasCover ? "Change Cover" : "Set Cover") {
+            coverTarget = item
+            isPickingCover = true
+        }
+        if hasCover {
+            Button("Remove Cover", role: .destructive) { removeCover(item) }
+        }
+    }
+
+    private func removeCover(_ item: ViewItem) {
+        var fm = item.page.frontmatter
+        fm.cover = nil
+        Task {
+            try? await contentManager.updatePageFrontmatter(
+                item.page, frontmatter: fm, vault: pageType,
+                collection: collectionOf(item), set: setOf(item))
+        }
     }
 
     // MARK: - Context menus

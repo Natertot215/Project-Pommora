@@ -32,6 +32,10 @@ struct PageCollectionDetailView: View {
     /// Page deletes stay direct; the Set case routes through the same
     /// two-mode dialog the sidebar uses (Set only vs. Set and Pages).
     @State private var deleteTarget: RowTarget?
+    /// The page whose cover is being set/changed via the gallery cover menu;
+    /// drives the mounted `CoverPicker`'s file importer.
+    @State private var coverTarget: ViewItem?
+    @State private var isPickingCover: Bool = false
 
     /// Bridge between the renderer's `ViewItem` + `ResolvedGroup` currency and
     /// this view's create/rename/delete logic. Private to the detail view.
@@ -42,12 +46,14 @@ struct PageCollectionDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            banner
             header
             Divider()
-            table
+            content
             Divider()
             footer
         }
+        .background { coverPickerHost }
         .task(id: collection.id) {
             // Root pages + every Set's pages — Set rows render in this table
             // above the root zone with their pages as disclosure children,
@@ -107,6 +113,19 @@ struct PageCollectionDetailView: View {
             Spacer()
         }
         .padding()
+    }
+
+    /// Container banner area — absent entirely when no banner is set, except for
+    /// a floating Add Banner affordance (handled inside `ContainerBannerView`).
+    @ViewBuilder
+    private var banner: some View {
+        if let nexus = nexusManager.currentNexus {
+            ContainerBannerView(
+                containerID: liveCollection.id,
+                entityID: liveCollection.id,
+                bannerPath: liveCollection.banner,
+                nexus: nexus)
+        }
     }
 
     /// User-defined property columns derived from `collection.views[0]` +
@@ -186,6 +205,63 @@ struct PageCollectionDetailView: View {
             let props = relationColumns.flatMap { fm.relationIDs(forPropertyID: $0.id) }
             return tiers + props
         }
+    }
+
+    /// Render switch on the active view's renderer kind. `.table` → the custom
+    /// table; `.gallery` → the gallery grid; the remaining kinds mute to a
+    /// placeholder until their renderers ship.
+    @ViewBuilder
+    private var content: some View {
+        switch activeView?.type ?? .table {
+        case .table:
+            table
+        case .gallery:
+            galleryView
+        case .board, .list, .cards:
+            ContentUnavailableView(
+                "View not available",
+                systemImage: "rectangle.on.rectangle.slash",
+                description: Text("This view type isn't rendered yet."))
+        }
+    }
+
+    private var galleryView: some View {
+        GalleryView(
+            groups: resolvedGroups,
+            view: activeView ?? SavedView(id: "view_fallback", type: .gallery),
+            schema: schema,
+            nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(fileURLWithPath: "/")),
+            index: nexusManager.currentIndex,
+            relationResolver: { contextDisplay.resolve($0) },
+            onDoubleTap: handleDoubleTap,
+            commit: { item, def, newValue in commitCell(item, def, newValue) },
+            onRename: { beginRename(.page($0)) },
+            onEditIcon: { item in
+                let parentSet: PageSet? = {
+                    if case .set(let set, _, _) = item.parent { return set }
+                    return nil
+                }()
+                presentedSheet = .editIcon(
+                    .page(item.page, vault: vault, collection: collection, set: parentSet))
+            },
+            pageMenu: { AnyView(menuItems(for: .page($0))) },
+            groupMenu: { AnyView(groupMenuItems(for: $0)) },
+            coverMenu: { AnyView(coverMenuItems(for: $0)) },
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
+            dragCoordinator: dragCoordinator,
+            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+                RowDragCoordinator.makeContext(
+                    draggedItems: dragged,
+                    targetGroup: targetGroup,
+                    insertionIndex: insertionIndex,
+                    group: activeView?.group,
+                    sortIsManual: activeView?.sort == nil,
+                    sourceIndices: sourceIndices,
+                    structuralParent: structuralParent)
+            }
+        )
+        .task(id: visibleContextLinkIDs) { await contextDisplay.warm(visibleContextLinkIDs) }
+        .task { wireDragCommits() }
     }
 
     private var table: some View {
@@ -428,6 +504,50 @@ struct PageCollectionDetailView: View {
     private func setContaining(pageID: String) -> PageSet? {
         pageSetManager.pageSets(in: collection).first { set in
             contentManager.pages(in: set).first { $0.id == pageID } != nil
+        }
+    }
+
+    // MARK: - Cover
+
+    /// Mounts the cover importer for `coverTarget` (the gallery cover menu sets
+    /// it then flips `isPickingCover`). Invisible — purely hosts the fileImporter.
+    @ViewBuilder
+    private var coverPickerHost: some View {
+        if let item = coverTarget, let nexus = nexusManager.currentNexus {
+            let parentSet: PageSet? = {
+                if case .set(let set, _, _) = item.parent { return set }
+                return nil
+            }()
+            CoverPicker(
+                page: item.page, vault: vault, collection: collection, set: parentSet,
+                nexus: nexus, isPresenting: $isPickingCover)
+        }
+    }
+
+    /// Cover-area context menu (gallery) — Set / Change / Remove Cover. Set/Change
+    /// open the importer; Remove writes `cover = nil` via updatePageFrontmatter.
+    @ViewBuilder
+    private func coverMenuItems(for item: ViewItem) -> some View {
+        let hasCover = item.page.frontmatter.cover != nil
+        Button(hasCover ? "Change Cover" : "Set Cover") {
+            coverTarget = item
+            isPickingCover = true
+        }
+        if hasCover {
+            Button("Remove Cover", role: .destructive) { removeCover(item) }
+        }
+    }
+
+    private func removeCover(_ item: ViewItem) {
+        let parentSet: PageSet? = {
+            if case .set(let set, _, _) = item.parent { return set }
+            return nil
+        }()
+        var fm = item.page.frontmatter
+        fm.cover = nil
+        Task {
+            try? await contentManager.updatePageFrontmatter(
+                item.page, frontmatter: fm, vault: vault, collection: collection, set: parentSet)
         }
     }
 

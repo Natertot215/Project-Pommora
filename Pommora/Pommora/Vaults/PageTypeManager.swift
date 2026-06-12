@@ -547,6 +547,50 @@ final class PageTypeManager {
         types[i] = updated
     }
 
+    // MARK: - Banner
+
+    /// Persists a container's banner image path (`banner` on the `_pagetype.json`
+    /// or `_pagecollection.json` sidecar). `path` is the nexus-relative path
+    /// returned by `CoverAssetStore` (or nil to clear the banner). No SQLite
+    /// upsert — `banner` is not indexed.
+    ///
+    /// Uses the Task-3 disk read-modify-write pattern (load the sidecar FRESH,
+    /// set `banner`, save, re-sync the in-memory cache) — NOT setOpenIn's
+    /// in-memory-first save — so a concurrent sibling-order write to the same
+    /// sidecar isn't clobbered. Handles BOTH container kinds, like `updateView`.
+    func setBanner(_ path: String?, forContainer containerID: String) async throws {
+        do {
+            // PageType first.
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+                var updated = try PageType.load(from: meta)
+                updated.banner = path
+                updated.modifiedAt = Date()
+                try updated.save(to: meta)
+                types[i] = updated
+                return
+            }
+            // Else PageCollection lookup.
+            for (typeID, cols) in pageCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    let meta = cols[ci].folderURL.appendingPathComponent(
+                        NexusPaths.pageCollectionSidecarFilename
+                    )
+                    var coll = try PageCollection.load(from: meta)
+                    coll.banner = path
+                    coll.modifiedAt = Date()
+                    try coll.save(to: meta)
+                    pageCollectionsByType[typeID]?[ci] = coll
+                    return
+                }
+            }
+            throw PageTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     /// Reads the persisted Page Type sibling order from `.nexus/state.json`. Returns
     /// nil if no state.json exists or no `vault_order` has been recorded — the
     /// resolver falls back to alphabetic in that case.
