@@ -616,15 +616,23 @@ extension PageTypeManager {
         transform: (inout SavedView) -> Void
     ) async throws {
         do {
+            // Both branches read the sidecar FRESH from disk before applying the
+            // transform, mirroring OrderPersister's read-modify-atomic-write. The
+            // in-memory caches (`types` / `pageCollectionsByType`) can hold a stale
+            // `pageOrder` after a sibling drag-reorder wrote `page_order` straight to
+            // disk; saving the cached struct back would clobber that order. Loading
+            // fresh, transforming, saving, then re-syncing the cache keeps disk and
+            // memory consistent without trampling concurrent sidecar writes.
+            //
             // Try PageType first.
             if let i = types.firstIndex(where: { $0.id == containerID }) {
-                guard let vi = types[i].views.firstIndex(where: { $0.id == viewID }) else {
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+                var updated = try PageType.load(from: meta)
+                guard let vi = updated.views.firstIndex(where: { $0.id == viewID }) else {
                     throw PageTypeManagerError.propertyNotFound
                 }
-                var updated = types[i]
                 transform(&updated.views[vi])
                 updated.modifiedAt = Date()
-                let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
                 try updated.save(to: meta)
                 types[i] = updated
                 return
@@ -632,15 +640,15 @@ extension PageTypeManager {
             // Else PageCollection lookup.
             for (typeID, cols) in pageCollectionsByType {
                 if let ci = cols.firstIndex(where: { $0.id == containerID }) {
-                    var coll = cols[ci]
+                    let meta = cols[ci].folderURL.appendingPathComponent(
+                        NexusPaths.pageCollectionSidecarFilename
+                    )
+                    var coll = try PageCollection.load(from: meta)
                     guard let vi = coll.views.firstIndex(where: { $0.id == viewID }) else {
                         throw PageTypeManagerError.propertyNotFound
                     }
                     transform(&coll.views[vi])
                     coll.modifiedAt = Date()
-                    let meta = coll.folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename
-                    )
                     try coll.save(to: meta)
                     pageCollectionsByType[typeID]?[ci] = coll
                     return
