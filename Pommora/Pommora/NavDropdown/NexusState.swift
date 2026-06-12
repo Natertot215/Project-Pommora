@@ -24,6 +24,11 @@ struct NexusState: Codable, Equatable, Sendable {
     var projectOrder: [String]?
     var vaultOrder: [String]?
 
+    // Last-active SavedView per container (containerID → viewID). Session state:
+    // persisted here rather than in the container sidecar so a tab-click never
+    // churns the sidecar's `modified_at` or its diff.
+    var activeViews: [String: String] = [:]
+
     init() {}
 
     private enum CodingKeys: String, CodingKey {
@@ -36,6 +41,7 @@ struct NexusState: Codable, Equatable, Sendable {
         case topicOrder = "topic_order"
         case projectOrder = "project_order"
         case vaultOrder = "vault_order"
+        case activeViews = "active_views"
     }
 
     init(from decoder: any Decoder) throws {
@@ -51,6 +57,7 @@ struct NexusState: Codable, Equatable, Sendable {
         self.topicOrder = try c.decodeIfPresent([String].self, forKey: .topicOrder)
         self.projectOrder = try c.decodeIfPresent([String].self, forKey: .projectOrder)
         self.vaultOrder = try c.decodeIfPresent([String].self, forKey: .vaultOrder)
+        self.activeViews = try c.decodeIfPresent([String: String].self, forKey: .activeViews) ?? [:]
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -63,5 +70,8 @@ struct NexusState: Codable, Equatable, Sendable {
         try c.encodeIfPresent(topicOrder, forKey: .topicOrder)
         try c.encodeIfPresent(projectOrder, forKey: .projectOrder)
         try c.encodeIfPresent(vaultOrder, forKey: .vaultOrder)
+        if !activeViews.isEmpty {
+            try c.encode(activeViews, forKey: .activeViews)
+        }
     }
 }

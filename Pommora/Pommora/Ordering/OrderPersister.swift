@@ -41,6 +41,12 @@ enum OrderPersister {
         }
     }
 
+    static func setActiveView(_ viewID: String, forContainer containerID: String, in nexus: Nexus) throws {
+        try mutateNexusState(in: nexus) { state in
+            state.activeViews[containerID] = viewID
+        }
+    }
+
     // MARK: - PageCollection / Page-Type-root Pages (sidecar JSON)
 
     static func setPageCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
