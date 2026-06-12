@@ -175,12 +175,10 @@ private struct HeaderCell: View {
     }
 
     private var label: some View {
-        HStack(spacing: PUI.Spacing.xs) {
-            Image(systemName: column.iconName)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        // Plain text header — native NSTableColumn headers show no leading icon.
+        HStack(spacing: 0) {
             Text(column.title)
-                .font(.caption.weight(.semibold))
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)

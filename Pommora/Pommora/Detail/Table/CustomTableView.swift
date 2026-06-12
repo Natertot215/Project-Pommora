@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The production custom table renderer — replaces the native display-only
@@ -134,45 +135,78 @@ struct CustomTableView: View {
 
     private var totalWidth: CGFloat { CGFloat(layout.totalWidth) }
 
+    /// The leading Title column's live width — the inline group rows confine
+    /// their disclosure label to this so it lines up under the "Name" header.
+    /// Falls back to the full content width if no Title column resolves.
+    private var titleColumnWidth: CGFloat {
+        guard let idx = columns.firstIndex(where: { $0.kind == .title }),
+            layout.widths.indices.contains(idx)
+        else { return totalWidth }
+        return CGFloat(layout.widths[idx])
+    }
+
     var body: some View {
-        ScrollView(.horizontal) {
-            VStack(spacing: 0) {
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 0) {
-                        let entries = renderEntries
-                        ForEach(entries) { entry in
-                            row(for: entry)
-                                .id(entry.id)
+        // Capture the outer available size so the scrollable content can be
+        // framed to `max(totalWidth, availableWidth)`: when the columns fit,
+        // content == viewport (no empty right gap, horizontal scroll idle); when
+        // they overflow, content is wider and horizontal scroll engages. The
+        // available height is the floor the stripe background fills down to.
+        GeometryReader { proxy in
+            let availableWidth = proxy.size.width
+            let availableHeight = proxy.size.height
+            let contentWidth = max(totalWidth, availableWidth)
+            ScrollView(.horizontal) {
+                VStack(spacing: 0) {
+                    ScrollView(.vertical) {
+                        LazyVStack(spacing: 0) {
+                            let entries = renderEntries
+                            ForEach(entries) { entry in
+                                row(for: entry)
+                                    .id(entry.id)
+                            }
+                        }
+                        // Required for `scrollPosition.scrollTo(id:)` to resolve
+                        // the per-row `.id("item-…")` (keyboard-nav follow,
+                        // type-select, drag edge-scroll); without it the
+                        // scroll-into-view is dead.
+                        .scrollTargetLayout()
+                        // Fill the vertical viewport so the stripe extends below
+                        // the last data row to the bottom edge. The background
+                        // sizes itself to this container (≥ viewport tall, growing
+                        // with content) and tiles `rowHeight` bands aligned flush
+                        // to the top so they line up with the rows.
+                        .frame(
+                            maxWidth: .infinity, minHeight: availableHeight,
+                            alignment: .top
+                        )
+                        .background(alignment: .top) {
+                            StripeBackground(rowHeight: TableRowView.rowHeight)
                         }
                     }
-                    // Required for `scrollPosition.scrollTo(id:)` to resolve the
-                    // per-row `.id("item-…")` (keyboard-nav follow, type-select,
-                    // drag edge-scroll); without it the scroll-into-view is dead.
-                    .scrollTargetLayout()
+                    .scrollPosition($scrollPosition)
+                    // The scroll viewport's GLOBAL frame — the fixed window the
+                    // edge auto-scroll bands sit at the top/bottom of.
+                    // `DropSession.location` is local to each drop element, so the
+                    // whole live-drag geometry works in `.global`: row/group frames
+                    // are captured in `.global` and the location is lifted to
+                    // global via the firing element's own global frame.
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .global)
+                    } action: {
+                        viewportFrame = $0
+                    }
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        TableHeaderRow(
+                            columns: columns,
+                            layout: layout,
+                            rowHeight: TableRowView.rowHeight,
+                            persistWidth: persistWidth,
+                            persistOrder: persistOrder,
+                            hideColumn: hideColumn)
+                    }
                 }
-                .scrollPosition($scrollPosition)
-                // The scroll viewport's GLOBAL frame — the fixed window the edge
-                // auto-scroll bands sit at the top/bottom of. `DropSession.location`
-                // is local to each drop element, so the whole live-drag geometry
-                // works in `.global`: row/group frames are captured in `.global`
-                // and the location is lifted to global via the firing element's
-                // own global frame.
-                .onGeometryChange(for: CGRect.self) {
-                    $0.frame(in: .global)
-                } action: {
-                    viewportFrame = $0
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    TableHeaderRow(
-                        columns: columns,
-                        layout: layout,
-                        rowHeight: TableRowView.rowHeight,
-                        persistWidth: persistWidth,
-                        persistOrder: persistOrder,
-                        hideColumn: hideColumn)
-                }
+                .frame(width: contentWidth)
             }
-            .frame(width: totalWidth)
         }
         .focusable()
         // Keyboard focus stays live (arrows / type-select) but the whole-pane
@@ -217,7 +251,7 @@ struct CustomTableView: View {
                 depth: depth,
                 isExpanded: !collapsed.contains(group.id),
                 isDropTarget: dragCoordinator.highlightedGroupID == group.id,
-                totalWidth: totalWidth,
+                titleWidth: titleColumnWidth,
                 onToggle: { toggle(group.id) },
                 menu: groupMenu
             )
@@ -239,13 +273,13 @@ struct CustomTableView: View {
             // Auto-expand a collapsed group on hover-dwell so the drag can target
             // a row inside it; native spring-loading drives the dwell.
             .springLoadingBehavior(collapsed.contains(group.id) ? .enabled : .disabled)
-        case .item(let item, let visualIndex):
+        case .item(let item, let indentDepth):
             TableRowView(
                 item: item,
                 columns: columns,
                 widths: layout.widths,
                 schema: schema,
-                visualIndex: visualIndex,
+                indentDepth: indentDepth,
                 index: index,
                 relationResolver: relationResolver,
                 onDoubleTap: onDoubleTap,
@@ -639,14 +673,13 @@ struct CustomTableView: View {
     // MARK: - Flat render entries
 
     /// A flattened, ordered render list — group headers + item rows in display
-    /// order. Item rows carry a RUNNING visual index (global across the whole
-    /// table) so the alternating quinary stripe stays continuous. Collapsed
-    /// groups emit their header but skip their items + child groups.
+    /// order. Collapsed groups emit their header but skip their items + child
+    /// groups. The alternating stripe is no longer per-row (it's the renderer's
+    /// continuous positional `StripeBackground`), so no visual index is carried.
     private var renderEntries: [RenderEntry] {
         var entries: [RenderEntry] = []
-        var visualIndex = 0
         for group in groups {
-            appendGroup(group, depth: 0, into: &entries, visualIndex: &visualIndex)
+            appendGroup(group, depth: 0, into: &entries)
         }
         return entries
     }
@@ -654,8 +687,7 @@ struct CustomTableView: View {
     private func appendGroup(
         _ group: ResolvedGroup,
         depth: Int,
-        into entries: inout [RenderEntry],
-        visualIndex: inout Int
+        into entries: inout [RenderEntry]
     ) {
         // The headerless ungrouped band (collection scope with zero Sets, or the
         // vault-root trailing band) emits its items directly — no group row.
@@ -667,21 +699,23 @@ struct CustomTableView: View {
         // Collapsed groups show the header only.
         guard isHeaderless || !collapsed.contains(group.id) else { return }
 
+        // Items sit one level deeper than their group header (native disclosure
+        // children indent under the parent). The headerless band has no header, so
+        // its items render at the band's own depth.
+        let itemDepth = isHeaderless ? depth : depth + 1
         for item in group.items {
-            entries.append(RenderEntry(id: "item-\(item.id)", kind: .item(item, visualIndex)))
-            visualIndex += 1
+            entries.append(RenderEntry(id: "item-\(item.id)", kind: .item(item, itemDepth)))
         }
         for child in group.children ?? [] {
-            appendGroup(child, depth: depth + 1, into: &entries, visualIndex: &visualIndex)
+            appendGroup(child, depth: depth + 1, into: &entries)
         }
     }
 }
 
 // MARK: - Render entry
 
-/// One flattened render unit — a group header (with indent depth) or an item row
-/// (with its running visual index for stripe parity). Identifiable so the
-/// `ForEach` over the flat list diffs cleanly.
+/// One flattened render unit — a group header (with indent depth) or an item
+/// row. Identifiable so the `ForEach` over the flat list diffs cleanly.
 private struct RenderEntry: Identifiable {
     enum Kind {
         case group(ResolvedGroup, Int)
@@ -690,4 +724,34 @@ private struct RenderEntry: Identifiable {
 
     let id: String
     let kind: Kind
+}
+
+// MARK: - Stripe background
+
+/// The continuous alternating-row background — matching a native `Table`'s
+/// `NSColor.alternatingContentBackgroundColors`. Sizes itself to its host (the
+/// scroll content container, which is at least the viewport tall and grows with
+/// content) and tiles `rowHeight`-tall horizontal bands flush from the top so
+/// they align with the rows: even band = color[0], odd band = color[1]. Painted
+/// in a single `Canvas` pass so it fills the FULL width and height beneath the
+/// transparent data + group rows, including the empty area below the last row.
+private struct StripeBackground: View {
+    let rowHeight: CGFloat
+
+    var body: some View {
+        Canvas { context, size in
+            // Resolve the native alternating colors at draw time (main-actor
+            // safe — the `Canvas` renderer runs on the main actor); the index is
+            // wrapped so a single-element system array can't trap.
+            let bandColors = NSColor.alternatingContentBackgroundColors.map(Color.init(nsColor:))
+            guard rowHeight > 0, !bandColors.isEmpty else { return }
+            let bandCount = Int(ceil(size.height / rowHeight))
+            for band in 0..<max(bandCount, 0) {
+                let color = bandColors[band % bandColors.count]
+                let rect = CGRect(
+                    x: 0, y: CGFloat(band) * rowHeight, width: size.width, height: rowHeight)
+                context.fill(Path(rect), with: .color(color))
+            }
+        }
+    }
 }

@@ -88,6 +88,20 @@ enum TableColumnResolver {
             append(id: def.id, def: def)
         }
 
+        // Pass 3 — the hideable reserved columns (tier links + Modified) are shown
+        // by DEFAULT (parity with the native table, which always renders them) when
+        // not hidden and not already placed by an explicit `propertyOrder`. Users
+        // hide them via the Layout visibility list (→ `hiddenProperties`), which
+        // Pass 1 honors; this only supplies the default-on reserved column set.
+        // Tier order matches the native table: Projects, Topics, Areas (tier3→1),
+        // then Modified last.
+        for id in [
+            ReservedPropertyID.tier3, ReservedPropertyID.tier2, ReservedPropertyID.tier1,
+            ReservedPropertyID.modifiedAt,
+        ] where !emittedIDs.contains(id) && !hiddenSet.contains(id) {
+            append(id: id, def: schema.first(where: { $0.id == id }))
+        }
+
         // Structural guarantee: Title is always present and never hidden,
         // regardless of `propertyOrder` contents (which may be hand-edited or
         // agent-written without `_title`). If neither pass emitted it, build the
@@ -113,7 +127,8 @@ enum TableColumnResolver {
 
         switch kind {
         case .title:
-            return ResolvedColumn(id: id, kind: .title, title: "Name", iconName: "textformat", width: width)
+            return ResolvedColumn(
+                id: id, kind: .title, title: "Title", iconName: "textformat", width: width)
         case .modified:
             return ResolvedColumn(
                 id: id, kind: .modified, title: "Modified", iconName: "clock", width: width

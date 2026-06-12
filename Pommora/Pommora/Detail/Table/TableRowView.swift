@@ -1,22 +1,29 @@
 import AppKit
 import SwiftUI
 
-/// One 26pt fixed-height data row for the custom table — an `HStack` of
-/// fixed-width cells, one per `ResolvedColumn`. Alternating quinary fill
-/// (`PUI.Fill.field`) is striped by VISUAL index (passed in by the renderer),
-/// not `NSColor.alternatingContentBackgroundColors`.
+/// One 22pt fixed-height data row for the custom table — an `HStack` of
+/// fixed-width cells, one per `ResolvedColumn`. The row is TRANSPARENT: the
+/// continuous alternating stripe is painted positionally by the renderer's
+/// `StripeBackground` layer (matching native `NSColor.alternatingContent
+/// BackgroundColors`), not per-row here. The row frame spans the full viewport
+/// width (leading-aligned cells) so the stripe + selection read full-width like
+/// a native `Table` row.
 ///
 /// Per-cell rendering is isolated into private value-typed sub-views (quirk #12
 /// — GRDB `String`-overload pollution); column→definition resolution uses
 /// `first(where:)`, never `contains`.
 struct TableRowView: View {
-    static let rowHeight: CGFloat = 26
+    /// Native-table compact row height (`NSTableView` default ≈ 22pt). Drives
+    /// the renderer's stripe band height so rows align with the background.
+    static let rowHeight: CGFloat = 22
 
     let item: ViewItem
     let columns: [ResolvedColumn]
     let widths: [Double]
     let schema: [PropertyDefinition]
-    let visualIndex: Int
+    /// Outline depth — the Title cell indents by this many levels so pages render
+    /// nested under their group's disclosure (native-outline child indentation).
+    let indentDepth: Int
 
     /// SQLite index threaded for the inline `ContextPicker` (relation cells).
     let index: PommoraIndex?
@@ -39,27 +46,34 @@ struct TableRowView: View {
                     .padding(.horizontal, PUI.Spacing.md)
             }
         }
-        .frame(height: Self.rowHeight)
-        .background(stripeFill)
+        // The row frame spans the full available width (cells stay leading) so
+        // both the selection fill and the positional stripe behind it read
+        // full-width, like a native `Table` row — no per-row stripe here.
+        .frame(maxWidth: .infinity, minHeight: Self.rowHeight, alignment: .leading)
         // Row-local selection chrome (NOT the sidebar's listRowBackground
-        // mechanism — this is a plain row): an accent-tinted fill mirroring the
-        // native Table's focused-selection language.
-        .background(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(.clear))
+        // mechanism — this is a plain row): the native selection color, spanning
+        // the full row width. Transparent when unselected so the renderer's
+        // continuous stripe shows through.
+        .background(selectionFill)
         .contentShape(Rectangle())
         // simultaneousGesture so the title cell's double-click-to-open keeps
         // working; this single-tap drives selection without swallowing it.
         .simultaneousGesture(TapGesture().onEnded { onSelect(item) })
     }
 
-    private var stripeFill: AnyShapeStyle {
-        visualIndex.isMultiple(of: 2) ? AnyShapeStyle(.clear) : PUI.Fill.field
+    /// Full-row selection fill using the native selection color (parity with
+    /// `Table`'s focused-selection language), transparent when unselected.
+    private var selectionFill: AnyShapeStyle {
+        isSelected
+            ? AnyShapeStyle(Color(nsColor: .selectedContentBackgroundColor).opacity(0.85))
+            : AnyShapeStyle(.clear)
     }
 
     @ViewBuilder
     private func cell(for column: ResolvedColumn) -> some View {
         switch column.kind {
         case .title:
-            TitleCell(item: item, onDoubleTap: onDoubleTap, menu: menu)
+            TitleCell(item: item, indent: indentDepth, onDoubleTap: onDoubleTap, menu: menu)
         case .modified:
             ModifiedCell(date: item.page.frontmatter.modifiedAt ?? item.page.frontmatter.createdAt)
         case .tier, .property:
@@ -91,8 +105,13 @@ struct TableRowView: View {
 /// gesture + the per-row context menu (Edit Title / Edit Icon / Pin / Delete).
 private struct TitleCell: View {
     let item: ViewItem
+    /// Outline indent level — pages nested under a group disclosure indent one
+    /// level per depth (native-outline child indentation, ~16pt/level).
+    var indent: Int = 0
     let onDoubleTap: (ViewItem) -> Void
     let menu: (ViewItem) -> AnyView
+
+    private static let indentPerLevel: CGFloat = 16
 
     var body: some View {
         Label {
@@ -105,6 +124,7 @@ private struct TitleCell: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .padding(.leading, CGFloat(indent) * Self.indentPerLevel)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         // simultaneousGesture (not onTapGesture) so double-click-to-open
