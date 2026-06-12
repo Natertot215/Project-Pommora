@@ -139,14 +139,31 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     /// `visiblePropertyIDs` carries the parent Type's `properties.map(\.id)`
     /// so every user-defined column is visible by default; the migration
     /// gives users a sensible starting view they can then customize.
-    static func defaultTable(visiblePropertyIDs: [String]) -> SavedView {
-        SavedView(
+    ///
+    /// `defaultSort` folds the parent Type's legacy `default_sort` sidecar
+    /// field into the minted view's `sort` so the previously-persisted default
+    /// ordering carries forward. `PageType.defaultSort` keeps DECODING but is
+    /// never written again — the SavedView's `sort` is now authoritative.
+    static func defaultTable(
+        visiblePropertyIDs: [String],
+        defaultSort: DefaultSortConfig? = nil
+    ) -> SavedView {
+        let sort = defaultSort.map { config in
+            [
+                SortCriterion(
+                    propertyID: config.propertyID,
+                    direction: config.direction == .ascending ? .ascending : .descending
+                )
+            ]
+        }
+        return SavedView(
             id: "view_\(ULID.generate())",
             name: "Table",
             icon: "tablecells",
             type: .table,
             propertyOrder: [ReservedPropertyID.title] + visiblePropertyIDs,
-            hiddenProperties: []
+            hiddenProperties: [],
+            sort: sort
         )
     }
 }

@@ -55,7 +55,11 @@ struct StorageMenuRoot: View {
                 mutedRow(icon: "doc.on.doc", title: "Templates")
                 mutedRow(icon: "square.stack.3d.down.right", title: "Group")
                 mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
-                mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
+                activeRow(
+                    icon: "arrow.up.arrow.down",
+                    title: "Sort",
+                    route: .sort
+                )
             }
             .padding(.vertical, PUI.Spacing.xs)
         } footer: {
@@ -290,15 +294,15 @@ struct StorageMenuRoot: View {
 }
 
 #if DEBUG
-    #Preview("Storage menu — PageType") {
-        StorageMenuRoot(
-            scope: .pageType(
-                PageType(
-                    id: "01HPT", title: "Notes", icon: "note.text",
-                    properties: [], views: [], modifiedAt: Date()
-                )
-            ),
-            path: .constant([])
-        )
-    }
+#Preview("Storage menu — PageType") {
+    StorageMenuRoot(
+        scope: .pageType(
+            PageType(
+                id: "01HPT", title: "Notes", icon: "note.text",
+                properties: [], views: [], modifiedAt: Date()
+            )
+        ),
+        path: .constant([])
+    )
+}
 #endif

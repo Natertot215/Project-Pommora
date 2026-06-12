@@ -86,7 +86,10 @@ final class PageTypeManager {
                 // defensive-on-load pattern).
                 if pageType.views.isEmpty {
                     pageType.views = [
-                        SavedView.defaultTable(visiblePropertyIDs: pageType.properties.map(\.id))
+                        SavedView.defaultTable(
+                            visiblePropertyIDs: pageType.properties.map(\.id),
+                            defaultSort: pageType.defaultSort
+                        )
                     ]
                     try? pageType.save(to: metaURL)
                 }
@@ -153,7 +156,10 @@ final class PageTypeManager {
                         // visible-property ordering as the starting set.
                         if collection.views.isEmpty {
                             collection.views = [
-                                SavedView.defaultTable(visiblePropertyIDs: parentPropertyIDs)
+                                SavedView.defaultTable(
+                                    visiblePropertyIDs: parentPropertyIDs,
+                                    defaultSort: pageType.defaultSort
+                                )
                             ]
                             try? collection.save(to: collMetaURL)
                         }

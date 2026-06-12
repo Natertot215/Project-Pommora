@@ -70,6 +70,8 @@ struct ViewSettingsPopover: View {
             EditPropertyPane(scope: scope, propertyID: id, path: $path)
         case .propertyVisibility:
             PropertyVisibilityPane(scope: scope, path: $path)
+        case .sort:
+            SortPane(scope: scope, path: $path)
         }
     }
 }

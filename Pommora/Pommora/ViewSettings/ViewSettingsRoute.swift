@@ -20,6 +20,7 @@ enum ViewSettingsRoute: Hashable {
     case propertyTypePicker
     case editProperty(propertyID: String)
     case propertyVisibility
+    case sort
 }
 
 extension ViewSettingsRoute {
@@ -31,6 +32,7 @@ extension ViewSettingsRoute {
         case .propertyTypePicker: return "New Property"
         case .editProperty: return "Edit Property"
         case .propertyVisibility: return "Property Visibility"
+        case .sort: return "Sort"
         }
     }
 }

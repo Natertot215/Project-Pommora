@@ -21,6 +21,7 @@ struct PageCollectionDetailView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
+    @Environment(ActiveViewStore.self) private var activeViewStore
 
     @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
@@ -133,9 +134,13 @@ struct PageCollectionDetailView: View {
         liveVault.resolvedProperties(tierConfig: tierConfigManager.config)
     }
 
-    /// The active SavedView. Single-view today.
-    // TODO(Task 12): ActiveViewStore — resolve the active view instead of `.first`.
-    private var activeView: SavedView? { liveCollection.views.first }
+    /// The active SavedView — resolved through `ActiveViewStore` (the
+    /// per-container last-active view persisted across sessions), falling back
+    /// to the first view when the store has no record yet.
+    private var activeView: SavedView? {
+        let activeID = activeViewStore.activeViewID(for: liveCollection.id)
+        return liveCollection.views.first(where: { $0.id == activeID }) ?? liveCollection.views.first
+    }
 
     /// Resolved, sized, icon-bearing columns for the custom table.
     private var columns: [ResolvedColumn] {
