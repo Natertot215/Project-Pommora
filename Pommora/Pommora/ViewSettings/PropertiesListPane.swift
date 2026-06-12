@@ -8,7 +8,7 @@ import SwiftUI
 /// `EditPropertyPane` via the chevron.
 ///
 /// Footer "+ New property" button pushes `PropertyTypePickerPane` so the
-/// user picks a type before naming + configuring (Task 10 routing).
+/// user picks a type before naming + configuring.
 ///
 /// Schema ownership: properties live on the PageType. For Collection
 /// scopes the pane resolves the parent Type via the manager (PageTypeManager

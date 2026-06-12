@@ -4,10 +4,10 @@ import SwiftUI
 /// on the inner vertical scroll view (see `CustomTableView`) so it stays fixed
 /// vertically while panning horizontally with the body in column alignment.
 ///
-/// Each header cell = the `ResolvedColumn`'s icon + title, fixed to the live
-/// column width (`ColumnLayout.widths`). Task 10 adds three interactions on the
-/// header: a trailing resize handle (persisted on end), a press-drag reorder
-/// (floating preview + persisted order), and a "Hide Column" context menu.
+/// Each header cell = the `ResolvedColumn`'s title, fixed to the live column
+/// width (`ColumnLayout.widths`). Supports three interactions: a trailing resize
+/// handle (persisted on end), a press-drag reorder (floating preview + persisted
+/// order), and a "Hide Column" context menu.
 ///
 /// All persistence routes through closures the detail view supplies — the
 /// header never touches a manager (parity with `CustomTableView`'s closure
@@ -141,8 +141,8 @@ struct TableHeaderRow: View {
     }
 }
 
-/// One header cell — isolated as a plain value-typed sub-view (quirk #12) so the
-/// per-column rendering + its gestures stay out of the parent `@ViewBuilder`.
+/// One header cell — isolated as a plain value-typed sub-view so the per-column
+/// rendering + its gestures stay out of the parent `@ViewBuilder`.
 /// Owns the resize handle (trailing), the press-drag reorder gesture, and the
 /// "Hide Column" context menu; reports back to `TableHeaderRow` via closures.
 private struct HeaderCell: View {

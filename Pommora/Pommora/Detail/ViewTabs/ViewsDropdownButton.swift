@@ -5,8 +5,8 @@ import SwiftUI
 ///
 /// Mirrors `ViewSettingsButton`: statically positioned at ContentView level
 /// with a reactive `scope` param, a `.popover(arrowEdge: .bottom)`, and the
-/// FULL Nexus environment injected at the popover boundary (quirk #15 — macOS
-/// popovers present detached from the ancestor env chain).
+/// FULL Nexus environment injected at the popover boundary (macOS popovers
+/// present detached from the ancestor env chain).
 ///
 /// Two display modes, toggled via a right-click context menu and persisted
 /// through `NexusState.viewsButtonStyle` (`OrderPersister.setViewsButtonStyle`):

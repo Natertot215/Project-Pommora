@@ -49,14 +49,6 @@ struct ComponentLibraryView: View {
             WindowsGallery()
         case .pickers:
             PickersGallery()
-        case .detailViews:
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    TableLayoutSpike()
-                    ViewsDropdownRowGallery()
-                }
-                .padding()
-            }
         case .none:
             ContentUnavailableView(
                 "Pick a category",

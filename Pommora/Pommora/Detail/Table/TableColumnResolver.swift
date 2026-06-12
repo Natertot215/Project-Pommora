@@ -34,7 +34,9 @@ struct ResolvedColumn: Equatable, Hashable, Sendable, Identifiable {
 ///     resolver does NOT force it first.
 ///   - `hiddenProperties` excludes a column, EXCEPT `_title` (never hidden) and
 ///     `cover` (never a column at all, regardless of order/hidden state).
-///   - Tiers (`_tier1/2/3`) and `_modified_at` are ordinary hideable columns.
+///   - Tiers (`_tier1/2/3`) + `_modified_at` are DEFAULT-ON: appended unless
+///     hidden or already placed by `propertyOrder` (native-table parity). Users
+///     hide them via the Layout visibility list (→ `hiddenProperties`).
 ///   - Unaccounted schema properties (present in the schema but absent from
 ///     `propertyOrder` and not hidden) APPEND as visible columns at the end,
 ///     so a freshly-created property shows immediately.

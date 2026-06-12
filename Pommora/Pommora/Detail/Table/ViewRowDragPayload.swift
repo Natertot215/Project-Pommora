@@ -2,7 +2,7 @@ import CoreTransferable
 import Foundation
 import UniformTypeIdentifiers
 
-/// Carried during a custom-table row drag (Task 14). Holds just the dragged
+/// Carried during a custom-table row drag. Holds just the dragged
 /// pages' ULIDs — `GroupDropPlanner` resolves the actual move/reorder/rewrite
 /// from the drop target, so no source-zone metadata crosses the drag boundary
 /// (ID-only keeps the payload `Sendable` with no view types leaking through).

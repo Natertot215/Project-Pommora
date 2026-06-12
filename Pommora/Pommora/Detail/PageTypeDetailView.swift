@@ -25,7 +25,7 @@ struct PageTypeDetailView: View {
     // Rename alert state.
     @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
-    /// Owns the swappable row-drag mechanic + insertion/highlight state (Task 14).
+    /// Owns the row-drag mechanic + insertion/highlight state.
     @State private var dragCoordinator = RowDragCoordinator()
     /// Container-delete confirmation target — set only from a Collection group's
     /// menu. Page deletes stay direct (no confirmation); only the container
@@ -337,7 +337,7 @@ struct PageTypeDetailView: View {
     }
 
     /// Applies a `SavedView` transform to the active view on this vault's
-    /// sidecar via the disk-safe `updateView` (Task 3). The container is the
+    /// sidecar via the disk-safe `updateView`. The container is the
     /// live PageType; the active view is `activeView` (single-view today).
     private func editView(_ transform: @escaping (inout SavedView) -> Void) {
         guard let viewID = activeView?.id else { return }

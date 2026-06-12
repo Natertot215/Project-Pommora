@@ -25,8 +25,8 @@ struct PageCollectionDetailView: View {
 
     @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
-    /// Owns the swappable row-drag mechanic + insertion/highlight state (Task 14).
-    /// Commit closures are wired in `.task` so they close over the live managers.
+    /// Owns the row-drag mechanic + insertion/highlight state. Commit closures
+    /// are wired in `.task` so they close over the live managers.
     @State private var dragCoordinator = RowDragCoordinator()
     /// Container-delete confirmation target — set only from a Set group's menu.
     /// Page deletes stay direct; the Set case routes through the same
@@ -373,7 +373,7 @@ struct PageCollectionDetailView: View {
     }
 
     /// Applies a `SavedView` transform to the active view on this collection's
-    /// sidecar via the disk-safe `updateView` (Task 3). The container is the
+    /// sidecar via the disk-safe `updateView`. The container is the
     /// live PageCollection; the active view is `activeView` (single-view today).
     private func editView(_ transform: @escaping (inout SavedView) -> Void) {
         guard let viewID = activeView?.id else { return }

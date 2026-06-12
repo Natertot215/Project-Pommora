@@ -8,17 +8,17 @@ import SwiftUI
 /// renderer's continuous alternating stripe shows through — an inline row, NOT a
 /// full-width band.
 ///
-/// These rows SCROLL with the content (no `pinnedViews`) — round-2 direction
-/// mirrored from `TableLayoutSpike`. The headerless ungrouped band renders no
-/// `TableGroupRow` at all (the renderer emits its item rows directly).
+/// These rows SCROLL with the content (no `pinnedViews`). The headerless
+/// ungrouped band renders no `TableGroupRow` at all (the renderer emits its
+/// item rows directly).
 struct TableGroupRow: View {
     let group: ResolvedGroup
     /// Visual indentation depth — 0 for a Collection group, 1 for a Set nested
     /// under its Collection (vault scope).
     let depth: Int
     let isExpanded: Bool
-    /// Highlighted while a row drag hovers this group as a move / rewrite target
-    /// (Task 14). Driven by `RowDragCoordinator.highlightedGroupID`.
+    /// Highlighted while a row drag hovers this group as a move / rewrite target.
+    /// Driven by `RowDragCoordinator.highlightedGroupID`.
     var isDropTarget: Bool = false
     /// The leading Title column's live width — the disclosure label is confined
     /// to this width (left-aligned, depth-indented) so it lines up under the

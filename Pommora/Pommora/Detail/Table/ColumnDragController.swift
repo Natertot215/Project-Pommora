@@ -1,12 +1,10 @@
 import Foundation
 
-/// Pure column-drag math for the custom table's header drag-reorder. The only
-/// testable core of Task 10's reorder interaction — given the live column
-/// geometry (x-offsets/widths via prefix sums) and the drag's x-location,
-/// it returns the insertion index in `propertyOrder` and the reordered array.
-///
-/// Kept free of actor isolation + UI types (`Sendable`, value-only) so it unit-
-/// tests without disk or SwiftUI; the gesture wiring lives on `TableHeaderRow`.
+/// Pure column-drag math for the custom table's header drag-reorder — given the
+/// live column geometry (x-offsets/widths via prefix sums) and the drag's
+/// x-location, returns the insertion index in `propertyOrder` and the reordered
+/// array. Free of actor isolation + UI types (`Sendable`, value-only) so it
+/// unit-tests without disk or SwiftUI; gesture wiring lives on `TableHeaderRow`.
 enum ColumnDragController {
     /// The target insertion index for a column dragged to `dragX` (a content-x
     /// coordinate in the same space as the column prefix sums).

@@ -1,21 +1,15 @@
 import SwiftUI
 
-/// The single swap seam for table row dragging. The controller's feel-gate may
-/// replace these INTERNALS with a pure-gesture mechanic without touching
-/// `CustomTableView` — the view only ever talks to this surface:
+/// Observable store that owns the table row-drag mechanic. Separates visual
+/// state from commit logic so `CustomTableView` stays pure of planner details:
 ///
-///   - in:  visual drop state via `update(_:)` (drives the insertion line +
-///          group highlight the view renders from `insertion` / `highlightedGroupID`);
-///   - out: a planned + committed drop via `drop(payload:context:)`, which runs
-///          `GroupDropPlanner` and dispatches the resulting plan to the matching
-///          commit closure the detail view injected.
+///   - `update(_:)` — receives a resolved `DropContext` on hover and updates
+///     `insertion` / `highlightedGroupID` for the view to render live feedback.
+///   - `drop(payload:context:)` — runs `GroupDropPlanner` on commit and
+///     dispatches the resulting plan to the injected commit closures.
 ///
-/// Native stack (this build): page rows are `.draggable`, wrapped in
-/// `dragContainer(for:)` + `dragContainerSelection`; rows + group rows are
-/// `dropDestination(for: ViewRowDragPayload.self, …)`; `onDropSessionUpdated`
-/// feeds `update(_:)`. The payload is ID-only, so all the structural context a
-/// plan needs is resolved by the VIEW (which knows the render tree) into a
-/// `DropContext` and handed in here.
+/// Page rows use `.draggable` + `dropDestination`; the payload is ID-only so
+/// all structural context is resolved by the view and passed in via `DropContext`.
 @MainActor
 @Observable
 final class RowDragCoordinator {

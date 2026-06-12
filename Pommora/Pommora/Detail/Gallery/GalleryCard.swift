@@ -159,8 +159,8 @@ struct GalleryCard: View {
 
 /// One property row inside a gallery card, reusing the table's
 /// `PropertyCellEditor` (popover commit-on-dismiss). Isolated as a plain-value
-/// sub-view (quirk #12 — keeps the relation-vs-scalar value selection out of the
-/// parent @ViewBuilder, avoiding GRDB String-overload ambiguity).
+/// sub-view — keeps the relation-vs-scalar value selection out of the parent
+/// `@ViewBuilder`, avoiding GRDB `String` overload ambiguity.
 private struct GalleryZoneCell: View {
     let item: ViewItem
     let definition: PropertyDefinition

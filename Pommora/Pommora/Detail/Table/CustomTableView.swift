@@ -2,20 +2,17 @@ import AppKit
 import SwiftUI
 
 /// The production custom table renderer — replaces the native display-only
-/// `Table` in both detail views. Built on the Task-7 layout architecture
-/// (`TableLayoutSpike`): a single `ScrollView(.horizontal)` owns horizontal
-/// panning, a width-framed pane keeps columns from compressing, an inner
-/// `ScrollView(.vertical)` owns body scrolling, and the column header is mounted
-/// via `.safeAreaInset(edge:.top)` on the inner scroll so it pins vertically and
-/// pans horizontally with the body. NO `pinnedViews` anywhere — group disclosure
-/// rows scroll with the content.
+/// `Table` in both detail views. Built on an axis-split nested `ScrollView`
+/// architecture: a `ScrollView(.horizontal)` owns horizontal panning; a
+/// width-framed pane prevents column compression; an inner `ScrollView(.vertical)`
+/// owns body scrolling; the column header mounts via `.safeAreaInset(edge:.top)`
+/// so it pins vertically and pans horizontally in column alignment. Group
+/// disclosure rows scroll with the content (no `pinnedViews`).
 ///
 /// Inputs are `ViewItem` + `ResolvedGroup` (the pipeline currency). The detail
 /// view wires every interaction closure to its private `RowTarget` logic.
-///
-/// Selection / keyboard (Task 11) and row drag/drop (Task 14) are wired here;
-/// double-click open works through `onDoubleTap`. All drag mechanics route
-/// through the injected `RowDragCoordinator` (the controller's swap seam).
+/// Selection, keyboard nav, and row drag/drop are wired here; double-click opens
+/// through `onDoubleTap`. Drag mechanics route through `RowDragCoordinator`.
 struct CustomTableView: View {
     let groups: [ResolvedGroup]
     let columns: [ResolvedColumn]
@@ -32,7 +29,7 @@ struct CustomTableView: View {
     /// Per-group container context menu (Collection / Set disclosure rows).
     let groupMenu: (ResolvedGroup) -> AnyView
 
-    /// Header-interaction persistence (Task 10) — each closes over the detail
+    /// Header-interaction persistence closures — each closes over the detail
     /// view's active view + container so the header never touches a manager:
     ///   - `persistWidth` — write a column's final width after a resize ends.
     ///   - `persistOrder` — write a reordered `propertyOrder` after a drop.
@@ -41,15 +38,14 @@ struct CustomTableView: View {
     let persistOrder: (_ newOrder: [String]) -> Void
     let hideColumn: (_ colID: String) -> Void
     /// Persists the full collapsed-group id set after a chevron toggle into the
-    /// active SavedView's `collapsedGroups` (Task 13). The detail view closes
-    /// over its active view + container; the table never touches a manager.
+    /// active SavedView's `collapsedGroups`. The detail view closes over its
+    /// active view + container; the table never touches a manager.
     let persistCollapsed: (_ collapsedIDs: [String]) -> Void
 
-    /// Row drag/drop seam (Task 14). The coordinator owns the swappable drag
-    /// mechanic + the commit closures; `buildDropContext` resolves a drop into a
-    /// planner-ready context using the detail view's scope knowledge (active
-    /// view's group/sort + structural-parent mapping). Both injected by the
-    /// detail view, which owns the manager calls.
+    /// Row drag/drop coordinator. Owns the drag mechanic + commit closures;
+    /// `buildDropContext` resolves a drop into a planner-ready context using the
+    /// detail view's scope knowledge (active view's group/sort + structural-parent
+    /// mapping). Both injected by the detail view, which owns the manager calls.
     let dragCoordinator: RowDragCoordinator
     let buildDropContext:
         (
@@ -60,12 +56,12 @@ struct CustomTableView: View {
     /// Disclosure state — collapsed group ids. SEEDED from the active view's
     /// persisted `collapsedGroups` (carried in on `ResolvedGroup.isCollapsed`)
     /// and kept in sync as `groups` recomputes; each toggle persists the full
-    /// set back through `persistCollapsed` (Task 13). Keyed by stable id, so it
+    /// set back through `persistCollapsed`. Keyed by stable id, so it
     /// survives the frequent `groups` recompute.
     @State private var collapsed: Set<String> = []
 
-    /// Net-new selection + keyboard-nav state (Task 11). Self-contained here;
-    /// persisting active-view selection is out of scope (Task 12).
+    /// Selection + keyboard-nav state. Self-contained here; active-view selection
+    /// is intentionally not persisted.
     @State private var selection = TableSelectionModel()
     /// Live modifier mask, tracked via `onModifierKeysChanged` so a row's tap
     /// closure can resolve plain / ⌘ / ⇧ at click time.
@@ -296,10 +292,9 @@ struct CustomTableView: View {
                 dragCoordinator.setRowFrame(item.id, $0)
             }
             // Only PAGE rows are drag SOURCES. The payload carries the active
-            // selection when the dragged row is selected (native multi-drag bound
-            // to the Task-11 selection set), else just this row. `beginDrag`
-            // stamps the dragged identity for the hover math (the drop-session
-            // payload is nil mid-flight for per-row `.draggable`).
+            // selection when the dragged row is selected, else just this row.
+            // `beginDrag` stamps the dragged identity for the hover math (the
+            // drop-session payload is nil mid-flight for per-row `.draggable`).
             .draggable(dragPayload(for: item)) {
                 // A lightweight drag preview that ALSO stamps the dragged identity
                 // for the location-driven hover math (the drop-session payload is
@@ -324,7 +319,7 @@ struct CustomTableView: View {
         persistCollapsed(Array(collapsed))
     }
 
-    // MARK: - Drag / drop (Task 14)
+    // MARK: - Drag / drop
 
     /// The drag preview chip — the dragged page's icon + title, plus a count badge
     /// when a multi-row selection is in flight.
@@ -348,8 +343,8 @@ struct CustomTableView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
     }
 
-    /// The payload for dragging `item`: the full selection when `item` is selected
-    /// (native multi-drag bound to the Task-11 selection), else just this row.
+    /// The payload for dragging `item`: the full selection when `item` is selected,
+    /// else just this row.
     private func dragPayload(for item: ViewItem) -> ViewRowDragPayload {
         if selection.selection.contains(item.id) {
             // Preserve render order so reorder offsets stay meaningful.

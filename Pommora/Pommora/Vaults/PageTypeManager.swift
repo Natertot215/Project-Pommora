@@ -77,13 +77,11 @@ final class PageTypeManager {
                     var pageType = try? PageType.load(from: metaURL)
                 else { continue }
 
-                // Default-view migration (Task 5, Phase A — v0.3.1). If the
-                // PageType has no saved views, mint a Table view that exposes
-                // every user-defined property as a column. Idempotent — the
-                // `views.isEmpty` gate is the only mutation trigger. Best-
-                // effort save: failures fall through and the next loadAll
-                // tries again (no user data lost; matches quirk #15's
-                // defensive-on-load pattern).
+                // Default-view migration: if the PageType has no saved views,
+                // mint a Table view exposing every user-defined property as a
+                // column. Idempotent — the `views.isEmpty` gate is the only
+                // mutation trigger. Best-effort: failures fall through and the
+                // next loadAll retries (no user data lost).
                 if pageType.views.isEmpty {
                     pageType.views = [
                         SavedView.defaultTable(
@@ -656,8 +654,8 @@ extension PageTypeManager {
     /// Apply a transform to a SavedView on a PageType or PageCollection
     /// container (looked up by container ID), then persist the parent
     /// sidecar atomically. Used by the View Settings Property Visibility
-    /// pane (Task 12) to write the propertyOrder / hiddenProperties
-    /// edits live as the user toggles + drag-reorders rows.
+    /// pane to write the propertyOrder / hiddenProperties edits live as
+    /// the user toggles + drag-reorders rows.
     ///
     /// `containerID` may be either a PageType.id or a PageCollection.id —
     /// we search both. Throws if neither resolves or the view isn't found.
@@ -868,9 +866,9 @@ extension PageTypeManager {
     /// Apply an in-place transform to a PropertyDefinition's per-config
     /// fields. Validates against the rest of the schema, persists the
     /// parent PageType sidecar atomically, and upserts into the SQLite
-    /// index. Used by the View Settings Edit Property pane (Task 11) to
-    /// live-save option-list / displayAs / dateFormat / numberFormat /
-    /// accept / icon changes without bespoke per-field manager methods.
+    /// index. Used by the View Settings Edit Property pane to live-save
+    /// option-list / displayAs / dateFormat / numberFormat / accept / icon
+    /// changes without bespoke per-field manager methods.
     func updateProperty(
         id propertyID: String,
         in typeID: String,

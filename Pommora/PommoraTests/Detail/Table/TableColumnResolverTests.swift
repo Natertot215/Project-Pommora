@@ -4,11 +4,18 @@ import Testing
 @testable import Pommora
 
 /// Covers `TableColumnResolver.resolve(view:schema:)` — the width- and
-/// icon-bearing column resolver for the custom table. It consumes
-/// `propertyOrder` VERBATIM (Title may sit
-/// anywhere), respects `hiddenProperties` (tiers + `_modified_at` hideable,
-/// `_title` never), appends unaccounted schema properties, never yields a cover
-/// column, and resolves each column's icon + clamped width.
+/// icon-bearing column resolver for the custom table. Resolver contract:
+///   - `propertyOrder` consumed VERBATIM; Title may sit anywhere.
+///   - `hiddenProperties` excludes columns (`_title` is never hidden).
+///   - Tiers + `_modified_at` are DEFAULT-ON (Pass 3 appends them unless hidden
+///     or already placed by `propertyOrder` — parity with the native table).
+///   - Unaccounted schema properties append visible at the end.
+///   - Cover never yields a column.
+///
+/// Tests that isolate a behavior other than the default-on injection pass
+/// `hidden: [ReservedPropertyID.modifiedAt]` explicitly so the fixture
+/// emits only what the test is checking. The "Pass 3" section covers the
+/// default-on contract directly.
 @Suite("TableColumnResolver") struct TableColumnResolverTests {
 
     // MARK: - Fixtures
@@ -43,7 +50,10 @@ import Testing
     @Test func consumesPropertyOrderVerbatim() {
         let schema = [userProp()]
         let columns = TableColumnResolver.resolve(
-            view: view(order: ["prop_user", ReservedPropertyID.title]),
+            view: view(
+                order: ["prop_user", ReservedPropertyID.title],
+                hidden: [ReservedPropertyID.modifiedAt]
+            ),
             schema: schema
         )
         #expect(columns.map(\.id) == ["prop_user", "_title"])
@@ -52,7 +62,10 @@ import Testing
     @Test func titleNeedNotBeFirst() {
         let schema = [userProp(id: "a", name: "A"), userProp(id: "b", name: "B")]
         let columns = TableColumnResolver.resolve(
-            view: view(order: ["a", ReservedPropertyID.title, "b"]),
+            view: view(
+                order: ["a", ReservedPropertyID.title, "b"],
+                hidden: [ReservedPropertyID.modifiedAt]
+            ),
             schema: schema
         )
         #expect(columns.map(\.id) == ["a", "_title", "b"])
@@ -98,7 +111,7 @@ import Testing
     @Test func titleInjectedAtFrontWhenAbsentFromOrder() {
         let schema = [userProp(id: "a", name: "A")]
         let columns = TableColumnResolver.resolve(
-            view: view(order: ["a"]),
+            view: view(order: ["a"], hidden: [ReservedPropertyID.modifiedAt]),
             schema: schema
         )
         // Title is structurally guaranteed at the FRONT even though
@@ -110,7 +123,7 @@ import Testing
 
     @Test func titleIsOnlyColumnWhenOrderOmitsTitleAndSchemaEmpty() {
         let columns = TableColumnResolver.resolve(
-            view: view(order: []),
+            view: view(order: [], hidden: [ReservedPropertyID.modifiedAt]),
             schema: []
         )
         #expect(columns.map(\.id) == [ReservedPropertyID.title])
@@ -122,7 +135,10 @@ import Testing
     @Test func unaccountedPropertiesAppendVisibleAtEnd() {
         let schema = [userProp(id: "known"), userProp(id: "fresh", name: "Fresh")]
         let columns = TableColumnResolver.resolve(
-            view: view(order: [ReservedPropertyID.title, "known"]),
+            view: view(
+                order: [ReservedPropertyID.title, "known"],
+                hidden: [ReservedPropertyID.modifiedAt]
+            ),
             schema: schema
         )
         #expect(columns.map(\.id) == ["_title", "known", "fresh"])
@@ -142,7 +158,10 @@ import Testing
     @Test func coverNeverYieldsColumn() {
         let schema = [userProp()]
         let columns = TableColumnResolver.resolve(
-            view: view(order: [ReservedPropertyID.title, "cover", "prop_user"]),
+            view: view(
+                order: [ReservedPropertyID.title, "cover", "prop_user"],
+                hidden: [ReservedPropertyID.modifiedAt]
+            ),
             schema: schema
         )
         #expect(!columns.contains { $0.id == "cover" })
@@ -233,12 +252,51 @@ import Testing
         #expect(columns.first { $0.id == ReservedPropertyID.modifiedAt }?.kind == .modified)
     }
 
+    // MARK: - Pass 3: default-on reserved columns
+
+    @Test func modifiedColumnIsDefaultOnWhenNotInOrder() {
+        let columns = TableColumnResolver.resolve(
+            view: view(order: [ReservedPropertyID.title]),
+            schema: []
+        )
+        // Pass 3 appends `_modified_at` by default (native-table parity).
+        #expect(columns.last?.id == ReservedPropertyID.modifiedAt)
+        #expect(columns.last?.kind == .modified)
+    }
+
+    @Test func tierColumnIsDefaultOnWhenSchemaDefExists() {
+        let columns = TableColumnResolver.resolve(
+            view: view(order: [ReservedPropertyID.title], hidden: [ReservedPropertyID.modifiedAt]),
+            schema: [tier1Def]
+        )
+        #expect(columns.contains { $0.id == ReservedPropertyID.tier1 })
+    }
+
+    @Test func tierColumnDoesNotInjectWithoutSchemaDef() {
+        let columns = TableColumnResolver.resolve(
+            view: view(order: [ReservedPropertyID.title], hidden: [ReservedPropertyID.modifiedAt]),
+            schema: []
+        )
+        #expect(!columns.contains { $0.id == ReservedPropertyID.tier1 })
+        #expect(!columns.contains { $0.id == ReservedPropertyID.tier2 })
+        #expect(!columns.contains { $0.id == ReservedPropertyID.tier3 })
+    }
+
+    @Test func hiddenModifiedSuppressesDefaultOn() {
+        let columns = TableColumnResolver.resolve(
+            view: view(order: [ReservedPropertyID.title], hidden: [ReservedPropertyID.modifiedAt]),
+            schema: []
+        )
+        #expect(!columns.contains { $0.id == ReservedPropertyID.modifiedAt })
+    }
+
     // MARK: - ColumnLayout geometry
 
     @Test func columnLayoutComputesPrefixSumsAndTotal() {
         let columns = TableColumnResolver.resolve(
             view: view(
                 order: [ReservedPropertyID.title, "prop_user"],
+                hidden: [ReservedPropertyID.modifiedAt],
                 widths: [ReservedPropertyID.title: 100, "prop_user": 200]
             ),
             schema: [userProp()]
@@ -253,6 +311,7 @@ import Testing
         let columns = TableColumnResolver.resolve(
             view: view(
                 order: [ReservedPropertyID.title, "prop_user"],
+                hidden: [ReservedPropertyID.modifiedAt],
                 widths: [ReservedPropertyID.title: 100, "prop_user": 200]
             ),
             schema: [userProp()]

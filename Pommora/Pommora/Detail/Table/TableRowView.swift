@@ -9,8 +9,8 @@ import SwiftUI
 /// width (leading-aligned cells) so the stripe + selection read full-width like
 /// a native `Table` row.
 ///
-/// Per-cell rendering is isolated into private value-typed sub-views (quirk #12
-/// — GRDB `String`-overload pollution); column→definition resolution uses
+/// Per-cell rendering is isolated into private value-typed sub-views to prevent
+/// GRDB `String` overload pollution; column→definition resolution uses
 /// `first(where:)`, never `contains`.
 struct TableRowView: View {
     /// Native-table compact row height (`NSTableView` default ≈ 22pt). Drives
@@ -87,8 +87,8 @@ struct TableRowView: View {
         }
     }
 
-    /// Column → schema definition via `first(where:)` (quirk #12: never
-    /// `contains`). Tier columns resolve through the same merged schema.
+    /// Column → schema definition via `first(where:)`, never `contains`. Tier
+    /// columns resolve through the same merged schema.
     private func definition(for column: ResolvedColumn) -> PropertyDefinition? {
         schema.first(where: { $0.id == column.id })
     }
@@ -128,7 +128,7 @@ private struct TitleCell: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         // simultaneousGesture (not onTapGesture) so double-click-to-open
-        // coexists with future row selection (Task 11) instead of blocking it.
+        // coexists with row selection without blocking it.
         .simultaneousGesture(TapGesture(count: 2).onEnded { onDoubleTap(item) })
         .contextMenu { menu(item) }
     }
@@ -184,9 +184,9 @@ private struct ModifiedCell: View {
 
 // MARK: - Property / tier cell host
 
-/// Hosts the existing `PropertyCellEditor` (editor-on-demand, popover
-/// commit-on-dismiss) unchanged. Isolated as a value-typed sub-view (quirk #12)
-/// so the relation-vs-scalar value selection stays out of the parent builder.
+/// Hosts `PropertyCellEditor` (editor-on-demand, popover commit-on-dismiss) as
+/// an isolated value-typed sub-view so the relation-vs-scalar selection stays
+/// out of the parent `@ViewBuilder`.
 private struct PropertyCellHost: View {
     let item: ViewItem
     let definition: PropertyDefinition?

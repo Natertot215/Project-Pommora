@@ -2,7 +2,7 @@ import SwiftUI
 
 /// View Settings → Layout — per-view layout controls for the ACTIVE SavedView.
 ///
-/// Sections (round-2 functional stub; visual pass later):
+/// Sections:
 ///   - **Display Banner** — per-view toggle. DEFAULT ON when the container has a
 ///     banner (`showBanner` nil/true shows it); writing `false` hides the
 ///     container banner in this view only. The row is disabled when the
@@ -18,8 +18,7 @@ import SwiftUI
 ///     later pass).
 ///
 /// Every read/write resolves the active view by stable ID off the live
-/// `PageTypeManager` + `ActiveViewStore` and persists through `updateView`
-/// (mirrors `GroupPane` / `SortPane` after Task 17).
+/// `PageTypeManager` + `ActiveViewStore` and persists through `updateView`.
 struct LayoutPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]

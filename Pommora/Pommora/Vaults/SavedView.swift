@@ -28,8 +28,8 @@ import Foundation
 ///
 /// Decode is defensive: every field flows through `decodeIfPresent` with a
 /// safe default so a stale empty `{}` from the pre-v0.3.1 stub decodes as a
-/// sane placeholder. Task 5's `loadAll` default-view migration replaces any
-/// container whose `views` is empty with a freshly-minted Table view.
+/// sane placeholder. `loadAll`'s default-view migration replaces any container
+/// whose `views` is empty with a freshly-minted Table view.
 struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     var id: String  // "view_<ULID>"
     var name: String  // "Table" default
@@ -145,7 +145,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     }
 
     /// Default Table view minted by `loadAll` migrations when a container's
-    /// `views` array is empty (per quirk #15 defensive-on-load pattern).
+    /// `views` array is empty — defensive on load (idempotent, best-effort).
     /// `visiblePropertyIDs` carries the parent Type's `properties.map(\.id)`
     /// so every user-defined column is visible by default; the migration
     /// gives users a sensible starting view they can then customize.
@@ -278,8 +278,7 @@ struct SortCriterion: Codable, Equatable, Hashable, Sendable {
 
 // `SortDirection` is declared once at `Pommora/Index/IndexQuery.swift`
 // (shared with the index-query layer); we extended its conformance list with
-// Codable + Equatable + Hashable as part of Task 3 so it can serve both
-// surfaces without redeclaring.
+// Codable + Equatable + Hashable so it can serve both surfaces without redeclaring.
 
 /// Group of filter rules combined by `match` (all = AND, any = OR). AND-only
 /// at v0.3.1.3 ship; OR-mode promised at v0.5.0.

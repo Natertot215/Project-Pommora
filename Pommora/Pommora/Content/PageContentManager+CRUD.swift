@@ -939,7 +939,7 @@ extension PageContentManager {
         }
     }
 
-    // MARK: - Update single property value (Task 13 — v0.3.1)
+    // MARK: - Update single property value
 
     /// Atomic single-property value write on a Page's frontmatter. Reads the
     /// current PageFile from disk, mutates `properties[propertyID]`, updates
