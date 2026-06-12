@@ -95,6 +95,28 @@ import Testing
         #expect(columns.contains { $0.id == ReservedPropertyID.title })
     }
 
+    @Test func titleInjectedAtFrontWhenAbsentFromOrder() {
+        let schema = [userProp(id: "a", name: "A")]
+        let columns = TableColumnResolver.resolve(
+            view: view(order: ["a"]),
+            schema: schema
+        )
+        // Title is structurally guaranteed at the FRONT even though
+        // `property_order` omits it entirely.
+        #expect(columns.first?.id == ReservedPropertyID.title)
+        #expect(columns.first?.kind == .title)
+        #expect(columns.map(\.id) == [ReservedPropertyID.title, "a"])
+    }
+
+    @Test func titleIsOnlyColumnWhenOrderOmitsTitleAndSchemaEmpty() {
+        let columns = TableColumnResolver.resolve(
+            view: view(order: []),
+            schema: []
+        )
+        #expect(columns.map(\.id) == [ReservedPropertyID.title])
+        #expect(columns.first?.kind == .title)
+    }
+
     // MARK: - Unaccounted append
 
     @Test func unaccountedPropertiesAppendVisibleAtEnd() {

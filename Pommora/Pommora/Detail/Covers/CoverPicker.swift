@@ -61,17 +61,16 @@ struct CoverPicker: View {
             return  // copy failed inside the scoped window; nothing to persist
         }
 
-        // The new asset is stored — delete the replaced cover file so the
-        // per-entity assets folder doesn't grow unbounded.
-        store.delete(relativePath: previousCover, for: page.id, in: nexus)
-
         // Scope-free async hop: persist the nexus-relative path onto `cover`.
+        // The replaced cover file is deleted ONLY AFTER the write succeeds, so a
+        // failed write never leaves `cover` pointing at a deleted file.
         var fm = page.frontmatter
         fm.cover = relativePath
         Task {
             do {
                 try await contentManager.updatePageFrontmatter(
                     page, frontmatter: fm, vault: vault, collection: collection, set: set)
+                store.delete(relativePath: previousCover, for: page.id, in: nexus)
             } catch {
                 // pendingError on the manager surfaces a toast.
             }

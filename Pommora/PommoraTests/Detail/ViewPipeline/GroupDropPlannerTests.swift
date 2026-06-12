@@ -262,4 +262,49 @@ struct ReorderByIDTests {
             current: ["a", "b", "c"], movingIDs: ["b"], before: "zzz")
         #expect(result == ["a", "c", "b"])
     }
+
+    /// Drop a single dragged row onto its OWN top-half: anchor == the moving id.
+    /// The effective anchor resolves to the first non-moving id at/after `c`'s
+    /// index (`d`), so `c` lands before `d` — i.e. a no-op equal to `current`.
+    /// Previously `c` teleported to the end (`[a, b, d, e, c]`) and persisted.
+    @Test("Anchor in movingIDs (single drop-on-self) is an in-place no-op")
+    func anchorInMovingSingleIsNoOp() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c", "d", "e"], movingIDs: ["c"], before: "c")
+        #expect(result == ["a", "b", "c", "d", "e"])
+    }
+
+    /// Multi-drag dropped onto one of its own members: drag [b, d], anchor `b`.
+    /// Effective anchor = first non-moving at/after index 1 = `c`, so the block
+    /// inserts before `c` → [a, b, d, c, e].
+    @Test("Anchor in movingIDs (multi-drag) resolves to next non-moving id")
+    func anchorInMovingMultiResolves() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c", "d", "e"], movingIDs: ["b", "d"], before: "b")
+        #expect(result == ["a", "b", "d", "c", "e"])
+    }
+
+    /// A stray moving id not in `current` is filtered; the real members still move.
+    @Test("Stray movingID not in current is filtered, others still move")
+    func strayMovingIDFiltered() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c"], movingIDs: ["zzz", "c"], before: "a")
+        #expect(result == ["c", "a", "b"])
+    }
+
+    /// A duplicate id in movingIDs must not double-insert the moving block.
+    @Test("Duplicate movingIDs do not double-insert")
+    func duplicateMovingIDsDefensive() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c"], movingIDs: ["c", "c"], before: "a")
+        #expect(result == ["c", "a", "b"])
+    }
+
+    /// Moving the entire container onto its own first member stays stable/sane.
+    @Test("movingIDs == entire current stays stable")
+    func movingEntireContainerStable() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c"], movingIDs: ["a", "b", "c"], before: "a")
+        #expect(result == ["a", "b", "c"])
+    }
 }

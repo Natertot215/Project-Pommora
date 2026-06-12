@@ -536,11 +536,20 @@ struct PageCollectionDetailView: View {
             if case .set(let set, _, _) = item.parent { return set }
             return nil
         }()
+        let previousCover = item.page.frontmatter.cover
         var fm = item.page.frontmatter
         fm.cover = nil
         Task {
-            try? await contentManager.updatePageFrontmatter(
-                item.page, frontmatter: fm, vault: vault, collection: collection, set: parentSet)
+            do {
+                try await contentManager.updatePageFrontmatter(
+                    item.page, frontmatter: fm, vault: vault, collection: collection, set: parentSet)
+                // Delete the cleared cover file ONLY AFTER the `cover = nil`
+                // write succeeds, so a failed write never leaves `cover`
+                // pointing at a deleted file.
+                if let nexus = nexusManager.currentNexus {
+                    CoverAssetStore().delete(relativePath: previousCover, for: item.page.id, in: nexus)
+                }
+            } catch {}
         }
     }
 

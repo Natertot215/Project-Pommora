@@ -393,13 +393,31 @@ final class PageContentManager {
     ) -> [String] {
         let moving = Set(movingIDs)
         guard !moving.isEmpty else { return current }
-        let ordered = movingIDs.filter { current.contains($0) }
+        let currentSet = Set(current)
+        // De-duplicate while preserving order so a defensive duplicate id never
+        // double-inserts the moving block.
+        var seen = Set<String>()
+        let ordered = movingIDs.filter { current.contains($0) && seen.insert($0).inserted }
         let remaining = current.filter { !moving.contains($0) }
+
+        // Resolve the effective insertion anchor to a NON-moving id: when
+        // `anchorID` is itself a moving id (drop onto the selection's own
+        // top-half / own member), insertion would otherwise fall through to
+        // append-at-end. Use the first non-moving id at-or-after the anchor's
+        // index in `current` (nil → append).
+        let effectiveAnchor: String?
+        if let anchorID, currentSet.contains(anchorID),
+            let anchorIndex = current.firstIndex(of: anchorID)
+        {
+            effectiveAnchor = current[anchorIndex...].first { !moving.contains($0) }
+        } else {
+            effectiveAnchor = nil
+        }
 
         var result: [String] = []
         var inserted = false
         for id in remaining {
-            if !inserted, id == anchorID {
+            if !inserted, id == effectiveAnchor {
                 result.append(contentsOf: ordered)
                 inserted = true
             }

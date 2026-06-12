@@ -38,6 +38,34 @@ enum SavedViewMutations {
         }
     }
 
+    /// Scrubs every dangling reference to a now-deleted schema `propertyID`
+    /// from a single view's config so the resolvers never see an id without a
+    /// backing definition. The single source for delete-time view cleanup —
+    /// `PageTypeManager.deleteProperty` maps this across all of a container's
+    /// views.
+    ///
+    /// - Drops `sort` criteria whose `propertyID` matches (clearing `sort` to
+    ///   nil when nothing remains, so the Sort pane shows "unsorted" honestly).
+    /// - Resets `group` to `.structural` when it groups by the deleted property
+    ///   (otherwise every page collapses into one "No Value" bucket).
+    /// - Removes the id from `propertyOrder` and `hiddenProperties`.
+    /// - Drops the id's entry from `columnWidths`.
+    ///
+    /// `collapsedGroups` is intentionally LEFT untouched — those are group
+    /// *keys* (a property's values), not property ids.
+    static func scrubDeletedProperty(_ view: inout SavedView, propertyID: String) {
+        if var sort = view.sort {
+            sort.removeAll { $0.propertyID == propertyID }
+            view.sort = sort.isEmpty ? nil : sort
+        }
+        if case .property(let grouping) = view.group, grouping.propertyID == propertyID {
+            view.group = .structural
+        }
+        view.propertyOrder.removeAll { $0 == propertyID }
+        view.hiddenProperties.removeAll { $0 == propertyID }
+        view.columnWidths?.removeValue(forKey: propertyID)
+    }
+
     /// The Cover sentinel — mirrors `TableColumnResolver.coverID` /
     /// `ViewSettingsProperties.coverID`; cover is never listed in the
     /// visibility eye-list (it's toggled by the Display Banner / cover affordances,

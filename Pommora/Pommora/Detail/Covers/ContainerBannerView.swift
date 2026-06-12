@@ -93,11 +93,14 @@ struct ContainerBannerView: View {
         } catch {
             return
         }
-        // The new asset is stored — delete the replaced banner file.
-        store.delete(relativePath: previousBanner, for: entityID, in: nexus)
         let containerID = containerID
         Task {
-            do { try await pageTypeManager.setBanner(relativePath, forContainer: containerID) } catch {}
+            do {
+                try await pageTypeManager.setBanner(relativePath, forContainer: containerID)
+                // Delete the replaced banner file ONLY AFTER the write succeeds,
+                // so a failed write never leaves `banner` pointing at a deleted file.
+                store.delete(relativePath: previousBanner, for: entityID, in: nexus)
+            } catch {}
         }
     }
 }

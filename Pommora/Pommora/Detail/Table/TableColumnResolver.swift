@@ -88,6 +88,16 @@ enum TableColumnResolver {
             append(id: def.id, def: def)
         }
 
+        // Structural guarantee: Title is always present and never hidden,
+        // regardless of `propertyOrder` contents (which may be hand-edited or
+        // agent-written without `_title`). If neither pass emitted it, build the
+        // reserved Title column (def nil) and insert it at the FRONT.
+        if !emittedIDs.contains(ReservedPropertyID.title),
+            let titleColumn = makeColumn(id: ReservedPropertyID.title, def: nil, view: view)
+        {
+            result.insert(titleColumn, at: 0)
+        }
+
         return result
     }
 

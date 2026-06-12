@@ -807,11 +807,13 @@ extension PageTypeManager {
     /// Renames `viewID` in place (filename-as-title doesn't apply to views —
     /// the name lives in the sidecar's `views[i].name`).
     func renameView(_ viewID: String, in containerID: String, to newName: String) async throws {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
         try await mutateViews(in: containerID) { views in
             guard let idx = views.firstIndex(where: { $0.id == viewID }) else {
                 throw PageTypeManagerError.propertyNotFound
             }
-            views[idx].name = newName
+            views[idx].name = trimmed
         }
     }
 
@@ -916,6 +918,15 @@ extension PageTypeManager {
         do { try PerTypeSchemaService.deleteProperty(id: propertyID, in: typeID, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
+        }
+        // Scrub the now-dangling property id from every SavedView of this
+        // container so a view grouped/sorted by it doesn't collapse into one
+        // "No Value" bucket or silently un-sort. Disk-safe: routes through the
+        // same fresh-from-disk read-modify-write as the other view mutations.
+        try await mutateViews(in: typeID) { views in
+            for i in views.indices {
+                SavedViewMutations.scrubDeletedProperty(&views[i], propertyID: propertyID)
+            }
         }
     }
 
