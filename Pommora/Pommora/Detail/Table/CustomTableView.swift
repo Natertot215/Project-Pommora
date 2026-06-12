@@ -40,12 +40,16 @@ struct CustomTableView: View {
     let persistWidth: (_ colID: String, _ width: Double) -> Void
     let persistOrder: (_ newOrder: [String]) -> Void
     let hideColumn: (_ colID: String) -> Void
+    /// Persists the full collapsed-group id set after a chevron toggle into the
+    /// active SavedView's `collapsedGroups` (Task 13). The detail view closes
+    /// over its active view + container; the table never touches a manager.
+    let persistCollapsed: (_ collapsedIDs: [String]) -> Void
 
-    /// Disclosure state — collapsed group ids. Seeds expanded (every group open);
-    /// survives the frequent `groups` recompute since it's keyed by stable id.
-    /// This local toggle is the live collapse truth today; persisting it back to
-    /// the SavedView's `collapsedGroups` (and seeding from `ResolvedGroup.isCollapsed`)
-    /// is Task 12's ActiveViewStore wiring.
+    /// Disclosure state — collapsed group ids. SEEDED from the active view's
+    /// persisted `collapsedGroups` (carried in on `ResolvedGroup.isCollapsed`)
+    /// and kept in sync as `groups` recomputes; each toggle persists the full
+    /// set back through `persistCollapsed` (Task 13). Keyed by stable id, so it
+    /// survives the frequent `groups` recompute.
     @State private var collapsed: Set<String> = []
 
     /// Net-new selection + keyboard-nav state (Task 11). Self-contained here;
@@ -96,6 +100,22 @@ struct CustomTableView: View {
         .onKeyPress(characters: .alphanumerics) { handleTypeSelect($0.characters) }
         .onChange(of: flattenedOrder) { selection.order = $1 }
         .task { selection.order = flattenedOrder }
+        // Seed collapse state from the active view's persisted `collapsedGroups`
+        // (carried in via `ResolvedGroup.isCollapsed`). Re-seeds if the persisted
+        // set changes out-of-band (e.g. another surface writes the view).
+        .task(id: persistedCollapsedIDs) { collapsed = persistedCollapsedIDs }
+    }
+
+    /// The collapsed ids the resolver baked in from the SavedView's
+    /// `collapsedGroups` — the seed + live-sync source for local `collapsed`.
+    private var persistedCollapsedIDs: Set<String> {
+        var ids: Set<String> = []
+        func walk(_ group: ResolvedGroup) {
+            if group.isCollapsed { ids.insert(group.id) }
+            for child in group.children ?? [] { walk(child) }
+        }
+        for group in groups { walk(group) }
+        return ids
     }
 
     @ViewBuilder
@@ -130,6 +150,7 @@ struct CustomTableView: View {
 
     private func toggle(_ id: String) {
         if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+        persistCollapsed(Array(collapsed))
     }
 
     // MARK: - Selection / keyboard handlers

@@ -53,8 +53,16 @@ struct StorageMenuRoot: View {
                     route: .propertyVisibility
                 )
                 mutedRow(icon: "doc.on.doc", title: "Templates")
-                mutedRow(icon: "square.stack.3d.down.right", title: "Group")
-                mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
+                activeRow(
+                    icon: "square.stack.3d.down.right",
+                    title: "Group",
+                    route: .group
+                )
+                activeRow(
+                    icon: "line.3.horizontal.decrease.circle",
+                    title: "Filter",
+                    route: .filter
+                )
                 activeRow(
                     icon: "arrow.up.arrow.down",
                     title: "Sort",

@@ -72,6 +72,10 @@ struct ViewSettingsPopover: View {
             PropertyVisibilityPane(scope: scope, path: $path)
         case .sort:
             SortPane(scope: scope, path: $path)
+        case .filter:
+            FilterPane(scope: scope, path: $path)
+        case .group:
+            GroupPane(scope: scope, path: $path)
         }
     }
 }

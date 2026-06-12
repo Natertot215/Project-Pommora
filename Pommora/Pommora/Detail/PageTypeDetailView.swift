@@ -187,7 +187,8 @@ struct PageTypeDetailView: View {
             persistOrder: { newOrder in editView { $0.propertyOrder = newOrder } },
             hideColumn: { colID in
                 editView { if !$0.hiddenProperties.contains(colID) { $0.hiddenProperties.append(colID) } }
-            }
+            },
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } }
         )
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
