@@ -74,8 +74,13 @@ struct CustomTableView: View {
     /// Type-select buffer + its reset deadline (chars accumulate, ~0.5s idle clears).
     @State private var typeBuffer = ""
     @State private var typeBufferStamp = Date.distantPast
-    /// Vertical scroll anchor — drives scroll-into-view on keyboard moves.
+    /// Vertical scroll anchor — drives scroll-into-view on keyboard moves AND the
+    /// drag edge auto-scroll nudge.
     @State private var scrollPosition = ScrollPosition()
+    /// The vertical scroll viewport's GLOBAL frame — captured on the scroll
+    /// content so the edge auto-scroll nudge knows where the top/bottom proximity
+    /// bands sit relative to the (global) drop location.
+    @State private var viewportFrame: CGRect = .zero
     @FocusState private var tableFocused: Bool
 
     private var totalWidth: CGFloat { CGFloat(layout.totalWidth) }
@@ -93,6 +98,17 @@ struct CustomTableView: View {
                     }
                 }
                 .scrollPosition($scrollPosition)
+                // The scroll viewport's GLOBAL frame — the fixed window the edge
+                // auto-scroll bands sit at the top/bottom of. `DropSession.location`
+                // is local to each drop element, so the whole live-drag geometry
+                // works in `.global`: row/group frames are captured in `.global`
+                // and the location is lifted to global via the firing element's
+                // own global frame.
+                .onGeometryChange(for: CGRect.self) {
+                    $0.frame(in: .global)
+                } action: {
+                    viewportFrame = $0
+                }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     TableHeaderRow(
                         columns: columns,
@@ -144,12 +160,21 @@ struct CustomTableView: View {
                 onToggle: { toggle(group.id) },
                 menu: groupMenu
             )
+            // Capture this group header's GLOBAL frame so the hover math can
+            // highlight it as a move / rewrite target off the (global) drop location.
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
+                dragCoordinator.setGroupFrame(group.id, $0)
+            }
             // Group rows are drop TARGETS only — never `.draggable`. A drop here
             // appends to the group's end (move / rewrite / same-container reorder).
             .dropDestination(for: ViewRowDragPayload.self, isEnabled: true) { payloads, _ in
                 commitDrop(payloads, ontoGroup: group)
             }
-            .onDropSessionUpdated { session in updateDrop(session, ontoGroup: group) }
+            .onDropSessionUpdated { session in
+                updateDropFromLocation(session, elementFrame: dragCoordinator.groupFrames[group.id])
+            }
             // Auto-expand a collapsed group on hover-dwell so the drag can target
             // a row inside it; native spring-loading drives the dwell.
             .springLoadingBehavior(collapsed.contains(group.id) ? .enabled : .disabled)
@@ -168,16 +193,34 @@ struct CustomTableView: View {
                 isSelected: selection.selection.contains(item.id),
                 onSelect: { handleSelect($0) }
             )
+            // Capture this row's GLOBAL frame — the live insertion line position is
+            // hit-tested from these frames + the (global) drop location.
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
+                dragCoordinator.setRowFrame(item.id, $0)
+            }
             // Only PAGE rows are drag SOURCES. The payload carries the active
             // selection when the dragged row is selected (native multi-drag bound
-            // to the Task-11 selection set), else just this row.
-            .draggable(dragPayload(for: item))
+            // to the Task-11 selection set), else just this row. `beginDrag`
+            // stamps the dragged identity for the hover math (the drop-session
+            // payload is nil mid-flight for per-row `.draggable`).
+            .draggable(dragPayload(for: item)) {
+                // A lightweight drag preview that ALSO stamps the dragged identity
+                // for the location-driven hover math (the drop-session payload is
+                // nil mid-flight for per-row `.draggable`). The preview's appearance
+                // coincides with drag start.
+                dragPreview(for: item)
+                    .onAppear { dragCoordinator.beginDrag(dragPayload(for: item).pageIDs) }
+            }
             .overlay(alignment: .top) { insertionLine(forItemID: item.id) }
             // Page rows are also row-level drop targets (between-rows reorder).
             .dropDestination(for: ViewRowDragPayload.self, isEnabled: true) { payloads, _ in
                 commitDrop(payloads, ontoItem: item)
             }
-            .onDropSessionUpdated { session in updateDrop(session, ontoItem: item) }
+            .onDropSessionUpdated { session in
+                updateDropFromLocation(session, elementFrame: dragCoordinator.rowFrames[item.id])
+            }
         }
     }
 
@@ -187,6 +230,28 @@ struct CustomTableView: View {
     }
 
     // MARK: - Drag / drop (Task 14)
+
+    /// The drag preview chip — the dragged page's icon + title, plus a count badge
+    /// when a multi-row selection is in flight.
+    @ViewBuilder
+    private func dragPreview(for item: ViewItem) -> some View {
+        let ids = dragPayload(for: item).pageIDs
+        HStack(spacing: PUI.Spacing.sm) {
+            Image(systemName: item.page.frontmatter.icon ?? "doc.text")
+            Text(item.page.title).lineLimit(1)
+            if ids.count > 1 {
+                Text("\(ids.count)")
+                    .font(.caption)
+                    .padding(.horizontal, PUI.Spacing.sm)
+                    .background(.tint, in: Capsule())
+                    .foregroundStyle(.white)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, PUI.Spacing.md)
+        .padding(.vertical, PUI.Spacing.xs)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+    }
 
     /// The payload for dragging `item`: the full selection when `item` is selected
     /// (native multi-drag bound to the Task-11 selection), else just this row.
@@ -212,32 +277,98 @@ struct CustomTableView: View {
         dragCoordinator.drop(payload: mergedPayload(payloads), context: context)
     }
 
-    private func updateDrop(_ session: DropSession, ontoItem item: ViewItem) {
+    /// Drive the insertion line + group highlight off the drop session's LOCATION,
+    /// hit-tested against the captured row/group frames — NOT off `draggedItemIDs`
+    /// (nil for per-row `.draggable`). `DropSession.location` is local to the
+    /// firing element, so it's lifted to the shared GLOBAL space using that
+    /// element's captured global frame. Edge auto-scroll is nudged from the same
+    /// global location.
+    private func updateDropFromLocation(_ session: DropSession, elementFrame: CGRect?) {
         switch session.phase {
         case .exiting, .ended, .dataTransferCompleted:
             dragCoordinator.update(nil)
+            return
         default:
-            let payloads = draggedPayloads(in: session)
-            dragCoordinator.update(dropContext(payloads, ontoItem: item))
+            break
         }
-    }
 
-    private func updateDrop(_ session: DropSession, ontoGroup group: ResolvedGroup) {
-        switch session.phase {
-        case .exiting, .ended, .dataTransferCompleted:
+        // Lift the element-local drop point into the global space the registry
+        // is captured in. Without the firing element's frame we can't place it.
+        guard let elementFrame else {
             dragCoordinator.update(nil)
-        default:
-            let payloads = draggedPayloads(in: session)
-            dragCoordinator.update(dropContext(payloads, ontoGroup: group))
+            return
+        }
+        let location = CGPoint(
+            x: elementFrame.minX + session.location.x,
+            y: elementFrame.minY + session.location.y)
+        autoScrollIfNearEdge(globalY: location.y)
+
+        // The dragged identity is known from the drag-start stamp, not the
+        // session payload. Resolve it to the active ViewItems for the planner.
+        let draggedIDs = dragCoordinator.draggedIDs
+        let dragged = flattenedViewItems.filter { draggedIDs.contains($0.id) }
+        guard !dragged.isEmpty else {
+            dragCoordinator.update(nil)
+            return
+        }
+
+        // 1) Is the location over a page row? Hit-test that row's enclosing group
+        //    and compute the vertical-midpoint insertion index within it.
+        if let item = rowUnder(location),
+            let group = enclosingGroup(ofItemID: item.id)
+        {
+            let rows = rowFrames(in: group)
+            let index =
+                RowDragGeometry.insertionIndex(locationY: location.y, rows: rows)
+                ?? (group.items.firstIndex(where: { $0.id == item.id }) ?? group.items.count)
+            let sourceIndices = IndexSet(
+                dragged.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
+            dragCoordinator.update(buildDropContext(dragged, group, index, sourceIndices))
+            return
+        }
+
+        // 2) Otherwise, is the location over a group header? → append to its end
+        //    (move / rewrite / same-container reorder, exactly as the drop path).
+        if let group = groupUnder(location) {
+            let sourceIndices = IndexSet(
+                dragged.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
+            dragCoordinator.update(
+                buildDropContext(dragged, group, group.items.count, sourceIndices))
+            return
+        }
+
+        dragCoordinator.update(nil)
+    }
+
+    /// The captured row frames for a group's items, in render order — feeds the
+    /// pure vertical-midpoint insertion math.
+    private func rowFrames(in group: ResolvedGroup) -> [RowDragGeometry.RowFrame] {
+        group.items.enumerated().compactMap { idx, item in
+            guard let frame = dragCoordinator.rowFrames[item.id] else { return nil }
+            return RowDragGeometry.RowFrame(id: item.id, frame: frame, indexInGroup: idx)
         }
     }
 
-    /// Best-effort in-flight payload from the local drag session (same-app drag),
-    /// so the insertion line / highlight resolve before the data fully transfers.
-    private func draggedPayloads(in session: DropSession) -> [ViewRowDragPayload] {
-        guard let local = session.localSession else { return [] }
-        let ids = local.draggedItemIDs(for: String.self)
-        return ids.isEmpty ? [] : [ViewRowDragPayload(pageIDs: ids)]
+    /// The page row whose captured frame contains `location`, if any.
+    private func rowUnder(_ location: CGPoint) -> ViewItem? {
+        flattenedViewItems.first(where: { item in
+            dragCoordinator.rowFrames[item.id]?.contains(location) ?? false
+        })
+    }
+
+    /// The group header whose captured frame contains `location`, if any.
+    private func groupUnder(_ location: CGPoint) -> ResolvedGroup? {
+        func search(_ group: ResolvedGroup) -> ResolvedGroup? {
+            if dragCoordinator.groupFrames[group.id]?.contains(location) ?? false { return group }
+            for child in group.children ?? [] {
+                if let found = search(child) { return found }
+            }
+            return nil
+        }
+        for group in groups {
+            if let found = search(group) { return found }
+        }
+        return nil
     }
 
     private func mergedPayload(_ payloads: [ViewRowDragPayload]) -> ViewRowDragPayload {
@@ -356,6 +487,51 @@ struct CustomTableView: View {
     private func scrollToItem(_ id: String) {
         scrollPosition.scrollTo(id: "item-\(id)", anchor: .center)
     }
+
+    /// Edge auto-scroll during a row drag. macOS 26's `ScrollView` does NOT
+    /// natively auto-scroll for a custom `.draggable`/`dropDestination` payload
+    /// (native auto-scroll only kicks in for `List`/`Table` row reordering), so
+    /// this nudges the scroll edge when the drag's global Y sits inside a
+    /// `Self.edgeBand`-tall band at the viewport's top or bottom. The nudge moves
+    /// the scroll position toward that edge by `Self.edgeNudge`; repeated update
+    /// callbacks (the drop session fires continuously while hovering) keep it
+    /// scrolling as long as the cursor dwells in the band.
+    private func autoScrollIfNearEdge(globalY: Double) {
+        guard viewportFrame.height > 0 else { return }
+        // Find the nearest row to the relevant edge and bring it into view — a
+        // reliable nudge that doesn't depend on reading the live content offset
+        // (which `ScrollPosition` doesn't expose once positioned by id).
+        let topBand = viewportFrame.minY...(viewportFrame.minY + Self.edgeBand)
+        let bottomBand = (viewportFrame.maxY - Self.edgeBand)...viewportFrame.maxY
+        if topBand.contains(globalY) {
+            nudgeToward(.top)
+        } else if bottomBand.contains(globalY) {
+            nudgeToward(.bottom)
+        }
+    }
+
+    /// Scroll the row just beyond the given edge into view — the edge auto-scroll
+    /// step. `viewTable`-space row frames let us pick the row whose midpoint sits
+    /// just outside the viewport on that side and scroll it to center.
+    private func nudgeToward(_ edge: Edge) {
+        let frames = flattenedViewItems.compactMap { item -> (String, CGRect)? in
+            guard let f = dragCoordinator.rowFrames[item.id] else { return nil }
+            return (item.id, f)
+        }
+        guard !frames.isEmpty else {
+            scrollPosition.scrollTo(edge: edge)
+            return
+        }
+        // Bring the currently-topmost (or bottommost) captured row a little further
+        // into view — only rows near the visible window have live frames, so this
+        // advances the scroll one step toward the edge each callback.
+        let sorted = frames.sorted { $0.1.midY < $1.1.midY }
+        let targetID = edge == .top ? sorted.first?.0 : sorted.last?.0
+        if let targetID { scrollPosition.scrollTo(id: "item-\(targetID)", anchor: .center) }
+    }
+
+    /// The top/bottom proximity band (pt) that triggers the edge auto-scroll.
+    private static let edgeBand: CGFloat = 28
 
     private func item(forID id: String) -> ViewItem? {
         flattenedViewItems.first(where: { $0.id == id })

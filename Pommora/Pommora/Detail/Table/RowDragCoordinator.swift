@@ -43,6 +43,25 @@ final class RowDragCoordinator {
         let index: Int
     }
 
+    // MARK: - Live drag geometry (drives the hover preview off `session.location`)
+
+    /// Per-row frames in the table's named coordinate space (`.named("viewTable")`),
+    /// keyed by `ViewItem.id`. Captured by each rendered row via `onGeometryChange`
+    /// and read back in `onDropSessionUpdated` to hit-test the drop location. The
+    /// live insertion line + group highlight derive from THIS + `session.location`,
+    /// never from `draggedItemIDs` (per-row `.draggable` registers no container).
+    private(set) var rowFrames: [String: CGRect] = [:]
+    /// Per-group-header frames in the same space, keyed by `ResolvedGroup.id`.
+    private(set) var groupFrames: [String: CGRect] = [:]
+    /// The page ids of the row(s) currently being dragged — stamped at drag start
+    /// so the hover math can exclude source rows / size a count. Independent of the
+    /// drop-session payload (which is nil mid-flight for per-row `.draggable`).
+    private(set) var draggedIDs: [String] = []
+
+    func setRowFrame(_ id: String, _ frame: CGRect) { rowFrames[id] = frame }
+    func setGroupFrame(_ id: String, _ frame: CGRect) { groupFrames[id] = frame }
+    func beginDrag(_ ids: [String]) { draggedIDs = ids }
+
     // MARK: - Drop context (resolved by the view from the render tree)
 
     /// Everything `GroupDropPlanner` needs that only the view can resolve. The
@@ -86,6 +105,7 @@ final class RowDragCoordinator {
     func clear() {
         insertion = nil
         highlightedGroupID = nil
+        draggedIDs = []
     }
 
     // MARK: - Commit
