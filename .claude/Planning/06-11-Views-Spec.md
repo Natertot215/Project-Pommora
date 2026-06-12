@@ -1,36 +1,53 @@
-## Views — Ratified Spec
+## Views — Spec (solution-neutral)
 
-**Status:** ratified design for the Views cluster (2026-06-11) — supersedes this file's earlier pre-design findings ledger. Consolidates the interview-locked decisions, the platform/SDK research (verified against the macOS 26.5 SDK on this machine and the Xcode 26 toolchain), and the codebase audits. The implementation plan is written separately from this spec.
+**Status:** the design intent for the Views cluster, rewritten **solution-neutral** (2026-06-12) after the first implementation — a hand-rolled SwiftUI table — was abandoned on hands-on review. This file captures WHAT Views must be and do; it deliberately does NOT prescribe the renderer technology. The renderer is an open design choice for the retry (see the post-mortem in `Handoff.md` and the reusable inventory in `Views-Salvage-Manifest.md`). A fresh design pass + implementation plan come after this spec is reviewed.
 
-**Verified ground facts this spec builds on:** deployment target is **macOS 26.4** (all pbxproj configurations) — every macOS 26 API below is usable un-gated. `PageMeta.frontmatter` carries the full properties dict + tiers + dates, so the view pipeline runs in-memory with zero extra disk reads. `PropertyCellEditor` is already display-first with popover editors (editor-on-demand), reusable as-is.
+### Guiding Principles
+
+- **Native-first is non-negotiable.** Every behavior the platform provides for free — disclosure/outline groups, column resize + reorder + width persistence, row selection, keyboard navigation, drag-to-reorder, alternating row backgrounds, focus handling — MUST come from the platform's own table/outline machinery. **Do not reimplement a native control from primitives.** Custom UI is allowed ONLY where the platform verifiably cannot deliver a specific required behavior, and only for that behavior. (The first attempt failed precisely by rebuilding a native macOS table by hand; that is out of bounds.)
+- **It must look and feel like a real native macOS table** — indistinguishable from the system control, not an approximation. If it doesn't read as native at first glance, the approach is wrong.
+- **Files stay canonical + portable.** All view configuration persists in on-disk sidecars as a clean, stack-independent shape; the on-disk data model below is the contract and survives any renderer choice.
+- **Instant reflection.** Editing a property value re-runs the active sort / filter / grouping immediately — no manual refresh, no restart.
+- **Reuse existing machinery.** Cell editors, chips, the page-open router, icon picker, and the managers already exist and are reused, not re-created.
 
 ### Scope
 
-- **Table + Gallery ship fully.** Board / List / Cards remain `ViewType` enum cases the data model carries; their UI comes in later passes.
-- Ships with them: multi-saved-views per container with a toolbar dropdown switcher, per-view sort / filter / group / column config, the per-view reorder engine, page cover images + container banners, and the merged Edit Properties pane (Property Visibility pane retired).
-- Out of scope here: page-editor rendering of the cover banner (a MarkdownPM session), Board/List/Cards UI, multi-level sort chains, nested filter groups, FTS5 wiring (same release bucket, separate infra work).
+- **Table + Gallery ship fully.** Board / List / Cards remain view-type cases the data model carries; their UI comes later.
+- Ships with them: multiple saved views per container with a toolbar dropdown switcher; per-view sort / filter / group / column configuration; per-view manual reorder; per-page cover images + per-container banners; and a merged Edit Properties / Layout settings model (the standalone Property Visibility pane is retired).
+- Out of scope here: page-editor rendering of the cover/banner (a later editor session), Board/List/Cards UI, multi-level sort chains, nested filter groups, full-text search wiring.
 
-### Decision Ledger (interview, 2026-06-11)
+### Design Decisions (desires + intent)
 
-1. **Custom table renderer** — a visual 1-1 duplicate of native macOS `Table`. Native `Table` is retired from detail views: SDK-verified it still has no row reorder and no column-width readback, has active Tahoe memory-leak bugs, and the Introspect rescue breaks SwiftUI's own rendering.
-2. **Title column**: movable to any position, never hideable. `_modified_at` becomes hideable (sort no longer depends on column visibility).
-3. **Gallery card sizes** S / M / L = exactly 8 / 6 / 4 cards per row.
-4. **Cover** = reserved `cover` frontmatter field (nexus-relative path). Cover DISPLAY is a per-view toggle (`show_cover`, default OFF); toggled on with no cover set, cards show an empty fill. **The cover field never appears in any properties UI** (not Edit Properties, not visibility lists, not the inspector). Access: gallery view settings, right-clicking a card's visible cover area (Set / Change / Remove), and — later MarkdownPM session — inline on the page. No cover access from table view. **Banner** = `banner` field on `_pagetype.json` / `_pagecollection.json`: when unset, the banner area does not exist at all; when set, a full-width image area renders above the container title (header zone grows taller) in every view type, hideable per view (`show_banner`). Add Banner = a small floating button that appears only when no banner is set (the fullscreen page add-icon pattern) → file picker. Image files are copied into `.nexus//assets//<entityID>//`.
-5. **Grouping**: `GroupConfig` is discriminated structural-or-property. Defaults — Vault views group by Collection (table: Sets nested inside the Collection disclosure; gallery: Collection sections only, each card carrying a Set label chip), Collection views group by Set + an ungrouped root band. Property grouping replaces and flattens structural grouping. Sort applies within groups.
-6. **Both group-drop behaviors ship**: drop into a property group rewrites that property value in frontmatter; drop into a structural group performs a real file move.
-7. **Manual order is the shared container order** (the sidebar mirrors it) — view reorders write through the managers to the owning container sidecar. Manual reorder is available only when sort = Manual. Sorts / filters / groups are pure view-level overlays that never touch file locations.
-8. **Sort**: one active sort per view — Manual, Title A→Z / Z→A, Created, Recent, or any property asc//desc; select//status compare by schema option order. Stored as the existing `[SortCriterion]?` array (UI restricts to one) so multi-sort needs no migration.
-9. **Filters**: flat rule list + Match All//Any (existing `FilterGroup` shape), conservative per-type operators. Edited in the View Settings popover, whose content is active-view-scoped.
-10. **View switching = toolbar Views dropdown** (not tabs — supersedes the roadmap's earlier phrasing): rows of icon + view title with a muted right-side type label (**"Table", "Gallery | Small"** — pipe + full size word) that is itself a disclosure opening an inline type switcher; "New View" footer mints **"Untitled View"** (type Table); rename / duplicate / delete via row context menu (≥1 view guard). The toolbar button itself has two display modes — icon-only (65×36pt) or liquid-glass icon + active-view title — toggled via right-click on the button, persisted in `state.json`. Last-active view per container persists in `state.json`.
-11. **A new Layout pane holds per-view display config** (exact UI pending a Figma pass): Display Banner toggle, Card Size (gallery), the **Property Visibility** list (per-view eye toggles + drag order over ALL columns — user properties, the tier columns, and Modified; `_title` pinned non-hideable; cover never listed), and a muted "Wrap Text" row (table; functional wrapping is a later pass). **Edit Properties is schema-only** — tier columns and Modified are removed from its list (non-editable), and it carries no visibility toggles. The standalone Property Visibility pane is retired.
-12. **Per-view persistence in `SavedView`** (sidecar): property order + hidden set, sort, filter, group, column widths (written on resize-end), collapsed group IDs, card size, cover/banner display toggles.
-13. **Type-switchable in place** — same `SavedView`, change `type`, shared config follows.
-14. **Inline editing**: table rows rename via context menu (no click-to-edit Title cells); cards rename via double-click ON THE TITLE TEXT (double-click anywhere else opens the page; single click selects); clicking an icon edits the icon — standard across both view types; the saved view's own name + icon edit inline on the dropdown rows. **Card property zones are fully interactive** — values assignable and removable on the card via the same popover editors as table cells. Property edits reflect instantly in active sort/group/filter (the pipeline recomputes from `@Observable` manager state).
-15. **Native-first bias**: prefer what Apple gives us for free over hand-rolled mechanics, always — custom only where the SDK verifiably can't deliver.
+1. **The table is a native macOS table** in look and behavior: native-style disclosure group rows (the real ones, not styled bands), resizable + reorderable columns with widths persisted across sessions, row selection with the standard focus/selection language, full keyboard navigation, and drag-to-reorder. How this is achieved is an implementation choice bound by the native-first principle.
+2. **Title column**: movable to any position, never hideable. The Modified column IS hideable (sorting must not depend on a column being visible).
+3. **Gallery card sizes** Small / Medium / Large = exactly **8 / 6 / 4** cards per row.
+4. **Covers + banners:**
+   - **Cover** = a per-page image (a reserved frontmatter field, nexus-relative path). Cover DISPLAY is a per-view toggle, **default OFF**; toggled on with no cover set, cards show an empty fill. **The cover field never appears in any properties UI** (not Edit Properties, not the visibility list, not the inspector). Access points: gallery view settings, right-clicking a card's visible cover area (Set / Change / Remove), and — later — inline on the page editor. No cover access from the table view.
+   - **Banner** = a per-container image (on the vault / collection sidecar). When unset, the banner area does not exist at all; when set, a full-width image renders above the container title (the header zone grows taller), in every view type, and is hideable per view. **Add Banner is a hover-revealed floating button that appears only when no banner is set** — it must follow the SAME affordance as the page "Add Icon" button (a faint ghost button, not a colored link).
+   - Chosen image files are copied into a nexus-internal assets folder (per-entity), so covers/banners are self-contained and portable.
+5. **Grouping** is either **structural** (by the natural container) or **by a property**:
+   - Structural defaults — Vault views group by Collection (table: Sets nested inside the Collection disclosure; gallery: one section level per Collection, each card carrying a Set label chip). Collection views group by Set, plus an ungrouped root band; zero Sets ⇒ one flat headerless band.
+   - Property grouping replaces structural grouping and flattens it into buckets (in the property's natural option order), plus a "no value" bucket.
+   - Sort applies within each group.
+6. **Both group-drop behaviors ship**: dropping a row into a property group rewrites that property's value in the page's frontmatter; dropping into a structural group performs a real file move (Collection / Set).
+7. **Manual order is the shared container order** — the same order the sidebar mirrors. A view reorder writes through to the owning container's sidecar; it is NOT a view-local override. Manual reorder is available only when the active sort is "Manual." Sort / filter / group are pure view-level overlays that never move files. **A view-config write must never silently undo a manual reorder** (the two write paths must not clobber each other).
+8. **Sort**: one active sort per view — Manual, Title A→Z / Z→A, Created, Recent, or any property ascending / descending; select & status sort by their schema option order (not alphabetic). Stored extensibly so multi-sort is a future additive change.
+9. **Filters**: a flat list of rules + Match All / Any, with conservative per-type operators (matrix below). Editing happens in the View Settings popover, scoped to the active view.
+10. **View switching = a toolbar Views dropdown** (a clearly SEPARATE toolbar button, not merged into the settings capsule; not tabs). Rows show the view icon + name with a muted right-side type label (e.g. **"Table"**, **"Gallery | Small"** — pipe + full size word); the type label is itself an inline type switcher (Table + Gallery active now; Board/List/Cards shown muted). A "New View" footer mints **"Untitled View"** (defaults to Table). Rename / duplicate / delete via row context menu, with a guard that at least one view always remains. The toolbar button itself has two display modes — icon-only or icon + active-view title — toggled via right-click and persisted. The last-active view per container persists across sessions.
+11. **A Layout pane holds per-view display config**: a Display Banner toggle, Card Size (gallery), the **Property Visibility** list (per-view eye toggles + drag-to-reorder over ALL columns — user properties, the tier columns, and Modified; Title pinned and non-hideable; cover never listed), and a muted "Wrap Text" row (table; functional wrapping is a later pass). **Edit Properties is schema-only** — the tier columns and Modified are removed from its list (they're non-editable), and it carries no visibility toggles. The standalone Property Visibility pane is retired (its function moves into Layout).
+12. **Per-view configuration persists in the view's sidecar entry**: column order + hidden set, sort, filter, group, column widths (written when a resize ends), collapsed group ids, card size, and the cover/banner display toggles.
+13. **Type-switchable in place** — the same saved view can change its `type`; shared config carries across.
+14. **Inline editing & interaction:**
+    - Table rows rename via the context menu (no click-to-edit on the Title cell). Cards rename via double-click ON THE TITLE TEXT; double-click anywhere else on a card opens the page; a single click selects. Clicking an icon edits the icon — consistent across both view types. The saved view's own name + icon edit inline on the dropdown rows.
+    - **Card property zones are fully interactive** — values can be assigned and removed directly on the card using the same editors as table cells.
+    - Property edits reflect INSTANTLY in the active sort / group / filter.
+15. **Page icons render correctly** — icons may be SF Symbols OR emoji/custom glyphs; every surface that shows a page icon must render both (no broken-glyph fallback).
 
-### On-Disk Schema
+### On-Disk Data Model
 
-**SavedView v2** (snake_case, all new fields `decodeIfPresent`):
+The persisted shape is renderer-independent and portable. (This is the design contract; field names are the on-disk vocabulary, not an implementation detail.)
+
+**Saved view** (one per entry in a container's `views[]`, snake_case, all newer fields optional/`decodeIfPresent`):
 
 ```json
 {
@@ -42,83 +59,67 @@
   "hidden_properties": ["prop_<ulid>"],
   "sort": [{ "property_id": "_modified_at", "direction": "descending" }],
   "filter": { "match": "all | any", "rules": [{ "property_id": "...", "op": "...", "value": "..." }] },
-  "group": { "kind": "structural" },
+  "group": { "kind": "structural | property | flat", "property_id": "...", "order": ["..."] },
   "column_widths": { "_title": 240.0 },
-  "collapsed_groups": ["<containerULID or option value or _ungrouped>"],
+  "collapsed_groups": ["<containerULID | option value | _ungrouped>"],
   "card_size": "small | medium | large",
   "show_cover": false,
   "show_banner": true
 }
 ```
 
-- `property_order` replaces the two-array model: ONE ordered list of all column ids (including `_title`, tiers, `_modified_at`) + the `hidden_properties` set. Legacy `visible_properties` decodes once (`property_order = ["_title"] + legacy`, decode-only key per the `vault_id` precedent); unaccounted schema properties append at resolution time. `ReservedPropertyID` gains `title = "_title"`.
-- **GroupConfig** is a tagged object (the `RelationTarget` convention): `{"kind":"structural"}` | `{"kind":"property","property_id":"...","order":[...]}` | `{"kind":"flat"}`. Swift cases `.structural` / `.property` / `.flat` (not `.none` — avoids `Optional.none` ambiguity). `group == nil` ⇒ the structural default. Stable group ids: container ULID / option value / `"true"`//`"false"` / `"_ungrouped"`.
-- **Sort presets** encode as reserved property ids (the `DefaultSortConfig` vocabulary): Title → `_title`, Created → `_id` ascending (ULID = creation order), Recent → `_modified_at` descending. `PageType.defaultSort` folds into the minted default view's `sort`, keeps decoding, is never written again.
-- **Filter operators** (evaluation-layer enum; unknown `op` = rule no-op): number `is / is_not / greater_than / less_than / is_empty / is_not_empty`; checkbox `is`; date / datetime / lastEditedTime `is / on_or_after / on_or_before / is_empty / is_not_empty`; select / status `is / is_not / is_empty / is_not_empty`; multiSelect `contains / does_not_contain / is_empty / is_not_empty`; relation (tier links) `contains / does_not_contain / is_empty / is_not_empty` (the roadmap's "linked to / not linked to"); url `is / contains / is_empty / is_not_empty`; file `is_empty / is_not_empty`.
-- **Cover**: `cover: String?` on `PageFrontmatter` (`CodingKeys` addition keeps `modeledKeys` + YAML round-trip safety automatic). **Banner**: `banner: String?` on both container sidecars. Paths are nexus-relative (`.nexus/assets/<entityID>/<file>`), the `FileRef` convention.
-- **Assets**: `NexusPaths.assetsDir` → `.nexus//assets//<entityID>//`; `CoverAssetStore` reuses `AttachmentManager`'s copy / collision / size-guard logic with an image accept list.
-- **Active view**: `active_views: [containerID: viewID]` on `NexusState` (`state.json`, `decodeIfPresent`, no version bump), runtime-surfaced by an `@Observable ActiveViewStore` on `NexusEnvironment`. Missing entry → first view.
-- **No SQLite changes.** Views are sidecar-only.
+- **`property_order`** is ONE ordered list of all column ids (including `_title`, tiers, `_modified_at`) paired with the **`hidden_properties`** set — replacing any older visible/hidden split. Schema properties not yet in the order are appended at resolution; reserved Title (`_title`) is structurally guaranteed (a stored order may omit it, and the resolver must still produce it).
+- **`group`** is a tagged object: structural (group by the natural container) / property (group by `property_id`, optional explicit bucket `order`) / flat (no grouping). Missing ⇒ structural default. Unknown shapes degrade leniently (never poison the sidecar decode). Group ids are stable (container id / option value / `"true"`/`"false"` / `"_ungrouped"`) so collapse state survives.
+- **Sort presets** map to reserved ids: Title → `_title`, Created → creation order, Recent → modified-descending. Any prior per-type default sort folds into the minted default view's sort.
+- **Filter operators** (unknown op = the rule no-ops, never excludes): number `is / is_not / greater_than / less_than / is_empty / is_not_empty`; checkbox `is`; date / datetime / last-edited `is / on_or_after / on_or_before / is_empty / is_not_empty`; select / status `is / is_not / is_empty / is_not_empty`; multiSelect `contains / does_not_contain / is_empty / is_not_empty`; relation/tier links `contains / does_not_contain / is_empty / is_not_empty`; url `is / contains / is_empty / is_not_empty`; file `is_empty / is_not_empty`.
+- **Cover** = a reserved `cover` field on page frontmatter; **banner** = a `banner` field on the container sidecar. Both are nexus-relative paths into a per-entity assets folder. Foreign frontmatter must be preserved on every write.
+- **Active view** = a `{ containerID: viewID }` map in the per-nexus state file (session state, not the sidecar — a view-switch must not churn the sidecar). Missing entry ⇒ first view.
+- **No index/database schema changes** — views are sidecar-only.
 
-### View Pipeline
+### The View Pipeline (logical model)
 
-One pure, unit-tested pipeline feeds every renderer: **fetch (manager arrays = manual order) → filter → group → sort within groups → `[ResolvedGroup]`**. Lives in `Detail//ViewPipeline//` (`ViewItem`, `ViewItemSource`, `FilterEvaluator`, `SortComparator`, `GroupResolver`, `ResolvedGroup`, `GroupDropPlanner`) with no SwiftUI imports.
+A single transformation feeds whichever renderer is used: **fetch (in manual/container order) → filter → group → sort within groups → a list of resolved groups**. It is pure data-in/data-out, runs in memory off the already-loaded page data (so any property edit recomputes instantly with no extra reads), and is independently testable. Drop intent (reorder vs structural-move vs property-rewrite) is likewise a pure decision over the same model. This pipeline is renderer-agnostic and is the same regardless of how the table is built.
 
-- Runs in-memory off the `@Observable` caches (`pagesByCollection` / `pagesBySet` / `pagesByTypeRoot`) — instant recompute on any property edit (decision 14). `IndexQuery` is not in this path (it lacks a per-Set target and option-order sorting; it remains the surface for pickers and future embedded views).
-- Mutations route through existing manager APIs: reorder → `reorderPages(in:fromOffsets:toOffset:)` (collection / set / vault-root overloads), structural drop → `movePage(_:from:to:)`, property drop → `updatePageProperty(...)` (ungrouped bucket writes `nil`).
-- Set label chips resolve synchronously via a new `PageSetManager.set(containing: page.url)` URL-prefix helper (frontmatter doesn't carry set membership).
-- **Prerequisite fix — the order-clobber race**: `reorderPages` updates `PageContentManager` caches + writes `page_order` via `OrderPersister` (disk read-modify-write), but `PageTypeManager.pageCollectionsByType` keeps a stale copy that the next `updateView` (whole-struct save) writes back. `updateView` converts to disk read-modify-write before any v2 persistence ships — width and collapse writes would otherwise silently undo reorders.
+### Table — desired look & behavior
 
-### Table Renderer
+The table must be a native macOS table (per the principles). Behaviors it must have:
 
-- **Layout** (the two-axis `ScrollView` + `pinnedViews` combination is a confirmed, unfixed platform bug): outer `ScrollView(.horizontal)` holding a pane of `frame(width: totalWidth)`; inner `ScrollView(.vertical)` + `LazyVStack(spacing: 0)`; **group headers render as native-style disclosure rows that scroll with content** (chevron + the grouping value's label — the way native Table disclosure rows read; not pinned bands); only the column header is fixed, mounted via `.safeAreaInset(edge: .top)` on the inner scroll view — fixed vertically, pans horizontally in column alignment with zero offset-sync code. **Spike gates** (half-session, before committing): group headers pin correctly beneath the safeAreaInset header; diagonal-trackpad feel across the nested axes; vertical-scroller placement. Designated fallback: two synced ScrollViews via `onScrollGeometryChange` + `ScrollPosition`.
-- **Columns**: `TableColumnResolver` (evolves `PropertyColumnBuilder`'s defensive semantics) maps `property_order` + schema → resolved columns + widths. Resize = `DragGesture` on a trailing handle, snapshot-plus-translation with min-width clamp, live width in an `@Observable` store, sidecar commit on `.onEnded`; `pointerStyle(.columnResize)`. Column drag-reorder = `DragGesture` over the header row (insertion index from prefix-sum width math; headers animate live, body snaps on drop).
-- **Rows**: **26pt fixed-height** `HStack`s of exact-width cells — the exact default Apple table design, except alternating rows use the subtler quinary fill (`PUI.Fill.field`) instead of Apple's lighter grey. Cells reuse `PropertyCellEditor` / `PropertyCellDisplay` unchanged (display-first + popover editors, commit-on-dismiss; checkbox and status-box stay direct-toggle). Hover = one container-level `onContinuousHover` + row-height math. Rename via context menu; icon click → IconPicker (decision 14). Column headers: drag to re-arrange, right-click → Hide Column (`_title` exempt).
-- **Selection + keyboard** (net-new; today's Table has no selection binding): `Set<RowID>` + anchor; plain / ⌘ / ⇧ click via `onModifierKeysChanged` tracking; `.focusable()` container + `onMoveCommand` arrows + `onKeyPress` type-select. Double-click opens via `PageOpenRouter.routeOpen` (the existing first-click-selects, second-click-opens composition: `TapGesture(count: 2)` + `simultaneousGesture` single-tap).
-- **Group sections**: header rows carry the disclosure caret, count, drop target, and the container affordances today's Collection//Set rows provide (Open / Edit Title / Edit Icon / Delete with the existing confirmation dialogs) — these migrate to headers, not disappear. Collapse = `if`-gated section content, persisted per decision 12.
-- **Must-not-regress checklist** (from the UI audit): double-click routing per `openIn` mode; Title-cell context menus (Edit Title / Edit Icon / Pin / Delete + container dialogs); per-type cell editor behaviors; popover commit semantics; collection-root-only manual drag (Sets non-draggable as items); rename alert; IconPickerSheet; footer ghost-trail crumb; the `.task` context-resolver warm-up; vault detail additionally warms Set page loads.
+- **Native-style disclosure group rows** that read exactly like the platform's outline disclosure rows (triangle + the grouping value's label + item count), scrolling with the content — NOT heavy filled bands. They carry the container affordances today's Collection/Set rows provide (Open / Edit Title / Edit Icon / Delete with the existing confirmation dialogs) and persist their collapsed state.
+- **Columns**: resizable (widths persist), reorderable to any position (including before Title), right-click a header to Hide Column (Title exempt). A fixed column header.
+- **Rows**: standard native row height and the native alternating-row treatment (a subtle, restrained fill). Cells reuse the existing property editors (display-first, popover-on-demand; checkboxes/status toggle directly). Rename via context menu; icon-click edits the icon. Page icons render SF-Symbol-or-emoji correctly.
+- **Selection + keyboard**: single / ⌘ / ⇧ selection with the native selection language; arrow-key navigation, type-select, and Return/double-click to open via the existing page-open router (honoring the container's open-in mode). **Selecting a row must NOT highlight the whole pane** — selection chrome is per-row, native.
+- **Must-not-regress** (from the current detail view): double-click routing per open-in mode; Title-cell context menus (Edit Title / Edit Icon / Pin / Delete + container dialogs); per-type cell-editor behaviors + popover commit semantics; collection-root-only manual drag (Sets are not draggable as items); the rename alert; the icon picker; the footer crumb; and the context-resolver warm-up on appear.
 
-### Gallery Renderer
+### Gallery — desired look & behavior
 
-- `LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing:, alignment: .top), count: cardSize))` per section; sections per `ResolvedGroup` with the same pinned headers and collapse behavior as the table.
-- **Card anatomy**: cover area only when the view's `show_cover` is on (fixed aspect, `scaledToFill` + clipped; empty fill when no cover is set) → header (icon + title) → property zones — chips (select / multiSelect / status / tier relations, + the Set label chip at vault scope), meta (dates / lastEdited / number / checkbox), links (url) — ordered within zones by `property_order`, showing non-hidden properties, **fully interactive** (the table cells' popover editors; assign + remove values on the card). Card heights are deterministic per size. Exact visual treatment lands with Nathan's Figma pass; the zone partition is componentized so visuals slot in.
-- Hover = per-card local `@State` (`onHover`), scale + shadow; single click selects, double-click on the title text renames, double-click elsewhere opens via `PageOpenRouter`; right-click = the page context menu; right-click the visible cover area = Set / Change / Remove Cover.
-- Chips reuse `PropertyChip` / `ContextChip` / `PropertyCheckbox` / `StatusCheckbox`.
+- A responsive card grid at 8 / 6 / 4 columns per Small / Medium / Large; one section per resolved group, with the same disclosure/collapse behavior as the table.
+- **Card anatomy**: cover area only when the view's cover display is on (fixed aspect, fill + clip; empty fill when no cover set) → header (icon + title) → property zones — chips (select / multiSelect / status / tier relations, + the Set label chip at vault scope), meta (dates / last-edited / number / checkbox), links (url) — ordered by the view's property order, showing non-hidden properties, and **fully interactive** (the same editors as table cells; assign + remove on the card). Exact visual treatment lands with a Figma pass; the zone partition is componentized so visuals slot in.
+- Hover gives a subtle scale/shadow; single click selects, double-click on the title renames, double-click elsewhere opens; right-click = the page context menu; right-click the visible cover area = Set / Change / Remove Cover. Reuses the existing chip components. (The gallery is a real grid and was not the part that failed — it largely carries forward.)
 
-### Drag & Drop
+### Drag & Drop (behaviors)
 
-- **Primary stack = the macOS 26 system drag session APIs** (floor-verified, un-gated; native-first per decision 15): `.draggable` sources + `dropDestination(for:isEnabled:action:)` receiving `DropSession`, with **`onDropSessionUpdated` providing continuous hover `location`** to drive the insertion line / gap and group-header highlight; `onDragSessionUpdated` for drag-side state; `dragContainer` + `dragContainerSelection` for native multi-select drags with `dragPreviewsFormation(.stack)` previews; `springLoadingBehavior` for hover-expanding collapsed groups. Payloads are ID-only `Codable + Transferable` structs.
-- Table rows use gap / insertion-line style; gallery cards use live reflow. Group headers and section bodies are drop targets; `GroupDropPlanner` resolves intent — same-container reorder (only when sort = Manual), structural move, or property rewrite.
-- Edge auto-scroll during drag is verified in the table spike; if the system stack doesn't provide it in a plain `ScrollView`, the hand-rolled `ScrollPosition` nudge loop fills in.
-- **Fallback** (only if the system stack can't hit the wanted feel): a pure-`DragGesture` coordinator vendoring the mechanics of `visfitness//reorderable` (MIT, active; frame registry / hysteresis / origin compensation / auto-scroll), with `globulus//swiftui-reorderable-foreach` as the system-DnD swap-pattern reference. The drag layer is isolated behind one coordinator so the stacks are swappable.
-- The same upgraded mechanics apply to the settings reorder surfaces (Edit Properties order, select//status option editors) — replacing their current minimal `.draggable(String)` reorder.
-- Keep drop targets out of `List` (unfixed macOS bug: `dropDestination` inside `List` never fires).
-
-### Views Dropdown + View Settings
-
-- **Views dropdown**: a window-toolbar button beside the existing ViewSettings slider button (same `primaryAction` capsule + `.glassEffect()` + popover pattern; static button, reactive scope param). ONE popover, fully custom rows on the `ChipDropdownPanel` surface; the right-side type label is its own button toggling an **inline expansion** (type options — Table + Gallery active; Board/List/Cards muted) inside the same panel — no nested popovers (fragile on macOS). System menus can't render this design (NSMenu styling limits) — custom rows are required. View name + icon edit inline on the row (decision 14). Components stage in ComponentLibrary `.detailViews`.
-- **View Settings popover** becomes active-view-scoped. Panes: **Edit Properties** (schema-only per decision 11), **Layout** (Display Banner + Card Size + Property Visibility + muted Wrap Text; the existing vault-scoped open-in selector renames to "Open Pages In"), **Sort** (single picker), **Filter** (rule list + match toggle), **Group** (Default / property picker / Remove grouping). `PropertyVisibilityPane` is retired; pane writes go through `updateView` (post-fix).
+- Rows reorder by drag with a clear, live drop indicator (insertion line / gap for the table; live reflow for the gallery). Multi-selected rows drag together. Use the platform's native drag-reorder where the chosen control provides it; only fall back to custom drag mechanics for a specific behavior the platform can't deliver.
+- Group headers and section bodies are drop targets; the drop's intent resolves to a same-container reorder (only when sort = Manual), a structural file move, or a property rewrite.
+- Auto-scroll near the edges during a drag.
+- The same drag-reorder quality applies to the settings reorder surfaces (the property-order / option-list editors).
 
 ### Covers + Banners
 
-- Thumbnail pipeline = **Nuke** (`ImagePipeline` + `ImageRequest.ThumbnailOptions`, `LazyImage`): `file://` fast path, downsampled decode, in-flight coalescing, and a cross-launch disk cache of decoded thumbnails — strictly more than a hand-built loader, Swift 6-native (MIT). QuickLook thumbnails are the later upgrade path for non-image covers.
-- Add Cover (cards) and Add Banner (container detail header) follow the Add Icon hover-button pattern → `fileImporter([.image])`, wrapping the copy in `startAccessingSecurityScopedResource` (source may sit outside the granted nexus), destination `CoverAssetStore`.
+- Thumbnails load efficiently — downsampled decode, in-flight coalescing, and a cross-launch cache of decoded thumbnails (an established image pipeline rather than a hand-built loader; the specific library is an implementation choice).
+- Add Cover (cards) and Add Banner (container header) follow the page "Add Icon" hover-button pattern → an image file picker; the chosen file is copied into the per-entity assets folder (the copy must complete within the file-access grant before the async write). Replacing or removing a cover/banner deletes the orphaned asset after the write succeeds.
 
-### Dependencies
+### Views Dropdown + View Settings
 
-- **Nuke** (new SPM dependency, MIT) — thumbnail pipeline.
-- No other additions: SwiftUIX (not Swift 6, monolith), SwiftUI-Introspect (Table rescue is a trap), AdvancedCollectionTableView (drag bugs) all evaluated and rejected; qusc/SwiftUI-Popover, the NSTrackingArea gist, and the WWDC23 focus-cookbook are pattern references, not dependencies; `visfitness//reorderable` + `globulus//swiftui-reorderable-foreach` are designated fallback patterns, not dependencies.
+- **Views dropdown**: a clearly separate window-toolbar button (its own pill, a visual peer of the settings capsule). One popover of custom rows; the type label is an inline expander (no nested popovers); view name + icon edit inline on the row. System menus can't render this — custom rows are required.
+- **View Settings popover** is active-view-scoped, with panes: **Edit Properties** (schema-only), **Layout** (Display Banner + Card Size + Property Visibility + muted Wrap Text; the vault-scoped open-in selector is labeled "Open Pages In"), **Sort** (single picker), **Filter** (rule list + match toggle), **Group** (Default / property picker / Remove grouping). All four panes resolve and write the ACTIVE view.
 
-### Phases (no dates)
+### Open Implementation Questions (for the design pass)
 
-0. Schema v2 + GroupConfig + pipeline (pure, tested) + order-clobber fix + ActiveViewStore.
-1. Layout spike → custom table, flat (interaction-checklist parity + persisted widths).
-2. Sort + Filter panes wired.
-3. Grouping (structural defaults, property group-by, collapse persistence, header affordances).
-4. Drag (system-stack rows / groups / multi-select; column reorder; settings surfaces).
-5. Gallery + covers + banners (Nuke, assets store, Add Cover).
-6. Views dropdown + merged Edit Properties + retirements (`DetailRow`, `DetailRowDragPayload`, `PropertyVisibilityPane`, native `Table` bodies).
+- Which native control backs the table (the obvious candidate is the platform's outline/table view wrapped for SwiftUI — Pommora already wraps native AppKit views elsewhere), and how the resolved-groups pipeline feeds it.
+- Whether the gallery's existing grid carries forward as-is.
+- The thumbnail image pipeline choice.
+- These are settled in a short brainstorm before the implementation plan — not in this spec.
 
 ### Deferred
 
-Board / List / Cards UI; multi-level sort; nested filter groups; page-editor cover banner (MarkdownPM); a "columns = Sets" Board variant; `IndexQuery` `.pageSet` target + option-order SQL (only needed when embedded views arrive); macOS 27's reorder-container family (absent from the 26.5 SDK — re-evaluate when the floor moves).
+Board / List / Cards UI; multi-level sort; nested filter groups; page-editor rendering of the cover/banner; a "columns = Sets" Board variant; embedded-view query support.
