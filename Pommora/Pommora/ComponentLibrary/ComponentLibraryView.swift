@@ -49,6 +49,8 @@ struct ComponentLibraryView: View {
             WindowsGallery()
         case .pickers:
             PickersGallery()
+        case .detailViews:
+            TableLayoutSpike()
         case .none:
             ContentUnavailableView(
                 "Pick a category",
