@@ -32,6 +32,20 @@ final class PageSetManager {
         pageSetsByCollection[collection.id] ?? []
     }
 
+    /// The PageSet whose folder is the direct parent of `pageURL`, or nil when
+    /// the Page lives in a Collection root (no Set). Matches the page's parent
+    /// folder against each known Set's `folderURL` (standardized so a symlink /
+    /// trailing-slash difference doesn't miss a match).
+    func set(containing pageURL: URL) -> PageSet? {
+        let parent = pageURL.deletingLastPathComponent().standardizedFileURL
+        for sets in pageSetsByCollection.values {
+            if let match = sets.first(where: { $0.folderURL.standardizedFileURL == parent }) {
+                return match
+            }
+        }
+        return nil
+    }
+
     // MARK: - Load
 
     /// Discovers PageSets as DIRECT child folders of each PageCollection.
