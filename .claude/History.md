@@ -2,9 +2,9 @@
 
 Changelog — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; locked decisions + registry in `Guidelines/Paradigm-Decisions.md`; editor internals in `Features/PageEditor.md`. This file records *what shipped*, not the decision registry or implementation internals — when an entry would enumerate locked decisions or file-level detail, it points to the canonical doc instead.
 
-#### Views — design pass complete (2026-06-11)
+#### Views — Table + Gallery cluster shipped (v0.5.0, 2026-06-12)
 
-The v0.5.0 Views cluster is fully designed: ratified spec (`Planning/06-11-Views-Spec.md`) + a 19-task implementation plan (`Planning/06-11-Views-Plan.md`) hardened through two adversarial agent rounds. Implementation not yet started.
+The 19-task Views cluster shipped. SavedView v2 (`property_order` + hidden set, discriminated GroupConfig, column widths, collapsed groups, card size, cover/banner display toggles) feeds a pure in-memory pipeline (filter → group → sort) into two renderers: a custom SwiftUI **Table** (26pt quinary-zebra rows, disclosure-row groups, resizable/reorderable/hideable columns, selection + keyboard, macOS 26 drag-session reorder/move/property-rewrite with a live insertion preview) and a **Gallery** (8/6/4 grid, interactive cards, Nuke-backed covers, live drop indicator). Page covers (per-page frontmatter) + container banners (per-sidecar) store in `.nexus/assets/`; a toolbar Views dropdown drives multi-view CRUD with last-active-view persistence in `state.json`. Sort / Filter / Group / Layout View-Settings panes ship; Edit Properties is now schema-only. **Native `Table`, `DetailRow`, and `PropertyColumnBuilder` are retired.** Spec-as-fact → `Features/Views.md`; decision → registry #20.
 
 #### Sets — third operational tier (v0.4.1, 2026-06-11)
 

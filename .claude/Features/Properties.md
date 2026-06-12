@@ -112,9 +112,11 @@ Pages carry property values in `.md` frontmatter. Agenda Tasks / Events keep a `
 
 Status + Relation both use a tagged-object on-disk shape (`$status` / `$rel`) so external agents can identify the value type from any single file without consulting the schema sidecar — satisfies the agent-legibility load-bearing constraint (`Architecture.md`). Select stays bare-string and Multi-select stays bare-array because their shapes are unambiguous (no other type collides at the value layer).
 
-Cross-property references in the schema use IDs: `default_sort.property_id`, `views[i].group_by.property_id` (deferred), `views[i].filter[i].property_id` (deferred).
+Cross-property references in the schema use IDs: `default_sort.property_id`, `views[i].group.property_id`, `views[i].filter.rules[i].property_id` (→ [[Views]]). `_title` is reserved as the title column id in `property_order` (movable, never hideable).
 
-**Reserved property IDs.** Built-in property IDs use a fixed prefix scheme so the schema editor can block collisions and external agents can identify them at a glance: `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`. The schema editor blocks user-defined properties from using these IDs.
+**Reserved property IDs.** Built-in property IDs use a fixed prefix scheme so the schema editor can block collisions and external agents can identify them at a glance: `_id`, `_created_at`, `_modified_at`, `_status`, `_type`, `_title`, `_tier1`, `_tier2`, `_tier3`. The schema editor blocks user-defined properties from using these IDs.
+
+**The `cover` field is not a property.** A page's cover is a root `cover` frontmatter field (nexus-relative image path), never surfaced in any properties UI — not Edit Properties, not the Layout visibility list, not the inspector. It's a per-view Gallery display concern only (→ [[Views]] § "Covers + Banners").
 
 **Property `name` uniqueness within a Type** is enforced (case-insensitive) at name-write time — for display sanity, not identity. Two properties in the same Type can't share a display name.
 
@@ -318,14 +320,17 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level. The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
 
-| Section | Contents | Status |
-|---|---|---|
-| **Edit Properties** | Schema CRUD pane (Notion-format: icon+title row + Type + Options with chevron-push to per-option EditOptionPane + Duplicate/Delete footer). Per-type config: Select/Multi-Select drag-only options; Status `.box`/`.select`/`.chip` display variant + 3 group sections; Date "Display Date" (4 formats: Short/Full with ordinals, DD/MM/YYYY, MM/DD/YYYY — no Default) + "Display Time" (None/12h/24h); File/URL no per-type config (rename-only). Shared with VaultSettingsSheet + TypeSettingsSheet via extracted `Pommora/Properties/Editor/` module. | Shipped |
-| **Property Visibility** | Per-view; show/hide columns + drag-reorder. Click-to-toggle with strikethrough on hidden. `_modified_at` always visible. | Shipped |
-| **Layout** | Per-view; one of Table / Board / List / Cards / Gallery (Table active; other renderers deferred). | Table shipped; others deferred |
-| **Sort** | Per-view; multi-criterion, lands with saved views. Option ordering itself is drag-only at the property level (not view-level Sort) per Edit Property pane. | Deferred |
-| **Filter** | Per-view; operators equals / not-equals / contains / empty / not-empty; AND- and OR-grouped, wired to `IndexQuery`. | Deferred |
-| **Group By** | Per-view; single property; pairs with Board view. | Deferred |
+The popover is active-view-scoped (resolved via `ActiveViewStore`). Full pane spec → [[Views]] § "View Settings Panes".
+
+| Section | Contents |
+|---|---|
+| **Edit Properties** | **Schema-only** CRUD pane (Notion-format: icon+title row + Type + Options + Duplicate/Delete footer). Per-type config as before. Tier columns and Modified are removed from its list (non-editable), and it carries no visibility toggles. |
+| **Layout** | Per-view: Display Banner toggle, Card Size (gallery), the **Property Visibility** eye-list (show/hide + drag-order over user properties + tier columns + Modified; `_title` non-hideable, cover never listed), and a muted Wrap Text row. The vault-scoped open-in selector ("Open Pages In") sits here. |
+| **Sort** | Per-view single picker — Manual / Title A→Z / Z→A / Created / Recent / any property asc·desc. |
+| **Filter** | Per-view flat rule list + Match All/Any, conservative per-type operators. |
+| **Group** | Per-view — Default (structural) / property picker / Remove Grouping. |
+
+The standalone Property Visibility pane was retired into Layout (registry decision #20).
 
 **Schema fields beyond the catalog basics** (on `PropertyDefinition` unless noted):
 
@@ -348,9 +353,9 @@ A per-Type default sort lives on the Type sidecar (`default_sort: { property_id,
 
 ##### 3. Vault / Type Views (saved views)
 
-Multiple saved views per Vault / Type, Notion-database-views model. Each view carries its own View Settings (Sort / Group By / Filter / Layout / Property Visibility) and a path to the schema settings (Vault / Type Settings is accessible from any view).
+Multiple saved views per Vault / Type, Notion-database-views model. Each view carries its own config (Sort / Filter / Group / Layout, property order + hidden set) and a path to the schema settings (Vault / Type Settings is accessible from any view).
 
-View definitions persist in the per-kind sidecar as `views[]`. Single-view-per-container today (popover binds to `views[0]`). Multi-saved-view support + view-tabs row beneath the detail-view title, and the non-Table renderer types (Board / List / Cards / Gallery), are deferred.
+View definitions persist in the per-kind sidecar as `views[]` (SavedView v2). Multi-view CRUD + a toolbar Views dropdown switcher ship; Table and Gallery render, Board / List / Cards are muted. Full spec → [[Views]].
 
 ##### Settings scaffold integration
 
@@ -378,7 +383,7 @@ Persists in the Type's per-kind sidecar as a top-level `default_sort: { property
 
 ##### Hidden-property-used-for-sort-or-group-by = auto-show
 
-If a hidden property is selected as the sort or Group By criterion (both deferred), it auto-unhides. Precedence beats visibility.
+If a hidden property is selected as the sort or grouping criterion, it auto-unhides. Precedence beats visibility.
 
 ---
 
@@ -413,7 +418,7 @@ Three orderings, three layers:
 
 #### Built-in tier columns in Table views
 
-The three tier relations (Areas / Topics / Projects) surface in a Table view as pre-configured relation columns at the RIGHTMOST content positions — after every user-property column and immediately before the trailing Last Edited Time column. Order is Project, then Topic, then Area (`_tier3`, `_tier2`, `_tier1`). They render through `ContextChip` like any relation column and are reorderable + hideable like any column (hidden via Property Visibility). A schema without tiers (e.g. a Type that doesn't carry them) gets no tier columns.
+The three tier relations (Areas / Topics / Projects) surface in a Table view as pre-configured relation columns at the RIGHTMOST content positions — after every user-property column and immediately before the trailing Last Edited Time column. Order is Project, then Topic, then Area (`_tier3`, `_tier2`, `_tier1`). They render through `ContextChip` like any relation column and are reorderable + hideable like any column (via the Layout pane's visibility list → [[Views]]). A schema without tiers (e.g. a Type that doesn't carry them) gets no tier columns.
 
 ---
 
