@@ -24,6 +24,12 @@ struct TableRowView: View {
     let commit: (PropertyDefinition, PropertyValue?) -> Void
     let menu: (ViewItem) -> AnyView
 
+    /// Whether this row sits in the current selection (drives the accent chrome).
+    let isSelected: Bool
+    /// Single-click select — the view resolves plain/⌘/⇧ from the live modifier
+    /// mask and routes it through `TableSelectionModel`.
+    let onSelect: (ViewItem) -> Void
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(Array(columns.enumerated()), id: \.element.id) { idx, column in
@@ -33,7 +39,19 @@ struct TableRowView: View {
             }
         }
         .frame(height: Self.rowHeight)
-        .background(visualIndex.isMultiple(of: 2) ? AnyShapeStyle(.clear) : PUI.Fill.field)
+        .background(stripeFill)
+        // Row-local selection chrome (NOT the sidebar's listRowBackground
+        // mechanism — this is a plain row): an accent-tinted fill mirroring the
+        // native Table's focused-selection language.
+        .background(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(.clear))
+        .contentShape(Rectangle())
+        // simultaneousGesture so the title cell's double-click-to-open keeps
+        // working; this single-tap drives selection without swallowing it.
+        .simultaneousGesture(TapGesture().onEnded { onSelect(item) })
+    }
+
+    private var stripeFill: AnyShapeStyle {
+        visualIndex.isMultiple(of: 2) ? AnyShapeStyle(.clear) : PUI.Fill.field
     }
 
     @ViewBuilder

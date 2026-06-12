@@ -48,6 +48,19 @@ struct CustomTableView: View {
     /// is Task 12's ActiveViewStore wiring.
     @State private var collapsed: Set<String> = []
 
+    /// Net-new selection + keyboard-nav state (Task 11). Self-contained here;
+    /// persisting active-view selection is out of scope (Task 12).
+    @State private var selection = TableSelectionModel()
+    /// Live modifier mask, tracked via `onModifierKeysChanged` so a row's tap
+    /// closure can resolve plain / ⌘ / ⇧ at click time.
+    @State private var modifiers: EventModifiers = []
+    /// Type-select buffer + its reset deadline (chars accumulate, ~0.5s idle clears).
+    @State private var typeBuffer = ""
+    @State private var typeBufferStamp = Date.distantPast
+    /// Vertical scroll anchor — drives scroll-into-view on keyboard moves.
+    @State private var scrollPosition = ScrollPosition()
+    @FocusState private var tableFocused: Bool
+
     private var totalWidth: CGFloat { CGFloat(layout.totalWidth) }
 
     var body: some View {
@@ -58,9 +71,11 @@ struct CustomTableView: View {
                         let entries = renderEntries
                         ForEach(entries) { entry in
                             row(for: entry)
+                                .id(entry.id)
                         }
                     }
                 }
+                .scrollPosition($scrollPosition)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     TableHeaderRow(
                         columns: columns,
@@ -73,6 +88,14 @@ struct CustomTableView: View {
             }
             .frame(width: totalWidth)
         }
+        .focusable()
+        .focused($tableFocused)
+        .onModifierKeysChanged { _, new in modifiers = new }
+        .onMoveCommand { direction in handleMove(direction) }
+        .onKeyPress(.return) { handleReturn() }
+        .onKeyPress(characters: .alphanumerics) { handleTypeSelect($0.characters) }
+        .onChange(of: flattenedOrder) { selection.order = $1 }
+        .task { selection.order = flattenedOrder }
     }
 
     @ViewBuilder
@@ -98,13 +121,92 @@ struct CustomTableView: View {
                 relationResolver: relationResolver,
                 onDoubleTap: onDoubleTap,
                 commit: { def, value in commit(item, def, value) },
-                menu: pageMenu
+                menu: pageMenu,
+                isSelected: selection.selection.contains(item.id),
+                onSelect: { handleSelect($0) }
             )
         }
     }
 
     private func toggle(_ id: String) {
         if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+    }
+
+    // MARK: - Selection / keyboard handlers
+
+    /// Resolve the click kind from the live modifier mask, then mutate selection.
+    private func handleSelect(_ item: ViewItem) {
+        tableFocused = true
+        let kind: TableSelectionModel.ClickKind
+        if modifiers.contains(.command) {
+            kind = .toggle
+        } else if modifiers.contains(.shift) {
+            kind = .range
+        } else {
+            kind = .plain
+        }
+        selection.click(item.id, kind: kind)
+    }
+
+    private func handleMove(_ direction: MoveCommandDirection) {
+        let dir: TableSelectionModel.MoveDirection
+        switch direction {
+        case .up: dir = .up
+        case .down: dir = .down
+        default: return
+        }
+        if let moved = selection.move(dir, extend: modifiers.contains(.shift)) {
+            scrollToItem(moved)
+        }
+    }
+
+    private func handleReturn() -> KeyPress.Result {
+        guard let id = selection.openTargetID, let item = item(forID: id) else { return .ignored }
+        onDoubleTap(item)
+        return .handled
+    }
+
+    private func handleTypeSelect(_ chars: String) -> KeyPress.Result {
+        let now = Date()
+        // Reset the buffer if the last keystroke was more than ~0.5s ago.
+        if now.timeIntervalSince(typeBufferStamp) > 0.5 { typeBuffer = "" }
+        typeBufferStamp = now
+        typeBuffer += chars
+        guard
+            let id = selection.typeSelectTarget(
+                prefix: typeBuffer,
+                title: { item(forID: $0)?.page.title })
+        else { return .ignored }
+        selection.click(id, kind: .plain)
+        scrollToItem(id)
+        return .handled
+    }
+
+    private func scrollToItem(_ id: String) {
+        scrollPosition.scrollTo(id: "item-\(id)", anchor: .center)
+    }
+
+    private func item(forID id: String) -> ViewItem? {
+        flattenedViewItems.first(where: { $0.id == id })
+    }
+
+    // MARK: - Flattened item order
+
+    /// The linear id sequence in EXACT render order — collapsed groups contribute
+    /// no items, matching `renderEntries`. Drives ⇧-range, arrow nav, type-select.
+    private var flattenedOrder: [String] { flattenedViewItems.map(\.id) }
+
+    private var flattenedViewItems: [ViewItem] {
+        var items: [ViewItem] = []
+        for group in groups { appendItems(group, into: &items) }
+        return items
+    }
+
+    private func appendItems(_ group: ResolvedGroup, into items: inout [ViewItem]) {
+        let isHeaderless = group.kind == .ungrouped && group.title.isEmpty
+        guard isHeaderless || !collapsed.contains(group.id) else { return }
+        items.append(contentsOf: group.items)
+        for child in group.children ?? [] { appendItems(child, into: &items) }
     }
 
     // MARK: - Flat render entries
