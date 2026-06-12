@@ -46,7 +46,10 @@ struct TableGroupRow: View {
         }
         .buttonStyle(.plain)
         .frame(width: totalWidth, alignment: .leading)
-        .background(isDropTarget ? AnyShapeStyle(.tint.opacity(0.18)) : AnyShapeStyle(.quaternary))
+        // Flat native-outline disclosure row — no fill. Only the functional
+        // drop-target tint paints a background; otherwise it stays transparent
+        // and blends with the content like an `NSOutlineView` group header.
+        .background(isDropTarget ? AnyShapeStyle(.tint.opacity(0.18)) : AnyShapeStyle(.clear))
         .contextMenu { menu(group) }
     }
 }

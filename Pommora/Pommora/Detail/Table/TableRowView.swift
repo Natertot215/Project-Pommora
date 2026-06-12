@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// One 26pt fixed-height data row for the custom table — an `HStack` of
@@ -100,7 +101,7 @@ private struct TitleCell: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         } icon: {
-            Image(systemName: item.page.frontmatter.icon ?? "doc.text")
+            PageIconGlyph(icon: item.page.frontmatter.icon)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -110,6 +111,40 @@ private struct TitleCell: View {
         // coexists with future row selection (Task 11) instead of blocking it.
         .simultaneousGesture(TapGesture(count: 2).onEnded { onDoubleTap(item) })
         .contextMenu { menu(item) }
+    }
+}
+
+// MARK: - Page icon glyph
+
+/// Renders a page's frontmatter icon, tolerating BOTH SF Symbol names and
+/// arbitrary glyph strings (emoji / custom text). `Image(systemName:)` draws a
+/// broken placeholder for a non-symbol value, so a string that isn't a valid
+/// SF Symbol falls back to a plain `Text` glyph. A nil icon uses the default
+/// `doc.text` symbol. (No shared emoji-aware icon view exists in the codebase;
+/// the page header + sidebar rows assume symbol-only icons.)
+private struct PageIconGlyph: View {
+    let icon: String?
+
+    var body: some View {
+        switch resolved {
+        case .symbol(let name):
+            Image(systemName: name)
+        case .glyph(let text):
+            Text(text)
+        }
+    }
+
+    private enum Resolved {
+        case symbol(String)
+        case glyph(String)
+    }
+
+    private var resolved: Resolved {
+        guard let icon, !icon.isEmpty else { return .symbol("doc.text") }
+        if NSImage(systemSymbolName: icon, accessibilityDescription: nil) != nil {
+            return .symbol(icon)
+        }
+        return .glyph(icon)
     }
 }
 

@@ -58,7 +58,10 @@ struct CoverPicker: View {
         do {
             relativePath = try store.storeSync(image: source, for: page.id, in: nexus)
         } catch {
-            return  // copy failed inside the scoped window; nothing to persist
+            // Copy failed inside the scoped window; surface via the manager's
+            // pendingError so SidebarToast shows it (same toast path as the write).
+            contentManager.pendingError = error
+            return
         }
 
         // Scope-free async hop: persist the nexus-relative path onto `cover`.

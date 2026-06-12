@@ -54,7 +54,8 @@ struct ViewsDropdownButton: View {
         case .icon:
             Image(systemName: "rectangle.grid.1x2")
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 65, height: 36)
+                .padding(.horizontal, 12)
+                .frame(height: 36)
                 .contentShape(Rectangle())
         case .title:
             HStack(spacing: 6) {

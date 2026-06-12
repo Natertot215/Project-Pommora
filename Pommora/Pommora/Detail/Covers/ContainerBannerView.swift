@@ -59,10 +59,18 @@ struct ContainerBannerView: View {
             Button {
                 isImporting = true
             } label: {
-                Label("Add Banner", systemImage: "photo")
-                    .font(.caption)
+                HStack(spacing: 4) {
+                    Image(systemName: "plus.app")
+                        .font(.system(size: 14))
+                    Text("Add Banner")
+                        .font(.caption)
+                }
+                .foregroundStyle(.tertiary)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
+            .help("Add a banner")
+            .accessibilityLabel("Add banner")
             .opacity(isHovering ? 1 : 0)
             Spacer()
         }
@@ -91,6 +99,9 @@ struct ContainerBannerView: View {
         do {
             relativePath = try store.storeSync(image: source, for: entityID, in: nexus)
         } catch {
+            // Copy failed inside the scoped window; surface via the manager's
+            // pendingError so SidebarToast shows it (same toast path as setBanner).
+            pageTypeManager.pendingError = error
             return
         }
         let containerID = containerID

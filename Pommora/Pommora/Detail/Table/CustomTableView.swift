@@ -175,6 +175,10 @@ struct CustomTableView: View {
             .frame(width: totalWidth)
         }
         .focusable()
+        // Keyboard focus stays live (arrows / type-select) but the whole-pane
+        // blue focus ring is suppressed — per-row selection accent is the only
+        // selection signal. (macOS 14+ API.)
+        .focusEffectDisabled()
         .focused($tableFocused)
         .onModifierKeysChanged { _, new in modifiers = new }
         .onMoveCommand { direction in handleMove(direction) }

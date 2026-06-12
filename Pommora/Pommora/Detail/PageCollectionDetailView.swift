@@ -81,15 +81,21 @@ struct PageCollectionDetailView: View {
             if case .set(let set) = target {
                 Button("Delete Set Only") {
                     Task {
-                        do { try await pageSetManager.deletePageSet(set, mode: .setOnly) } catch
-                        { /* pendingError set by manager; toast surfaces */  }
+                        do {
+                            try await pageSetManager.deletePageSet(set, mode: .setOnly)
+                            // Rehomed Pages land in the Collection root on disk + in
+                            // the index; refresh the content cache so they surface now.
+                            await contentManager.loadAll(for: collection)
+                        } catch { /* pendingError set by manager; toast surfaces */  }
                         deleteTarget = nil
                     }
                 }
                 Button("Delete Set and Pages", role: .destructive) {
                     Task {
-                        do { try await pageSetManager.deletePageSet(set, mode: .withPages) } catch
-                        { /* pendingError set by manager; toast surfaces */  }
+                        do {
+                            try await pageSetManager.deletePageSet(set, mode: .withPages)
+                            await contentManager.loadAll(for: collection)
+                        } catch { /* pendingError set by manager; toast surfaces */  }
                         deleteTarget = nil
                     }
                 }
