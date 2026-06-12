@@ -113,12 +113,15 @@ import Testing
     }
 
     @Test func groupConfigRoundTripWithOrder() throws {
-        let cfg = GroupConfig(
-            propertyID: "prop_01HSTATUS",
-            order: ["upcoming", "in_progress", "done"]
+        let cfg = GroupConfig.property(
+            PropertyGrouping(
+                propertyID: "prop_01HSTATUS",
+                order: ["upcoming", "in_progress", "done"]
+            )
         )
         let data = try JSONEncoder().encode(cfg)
         let s = String(data: data, encoding: .utf8)!
+        #expect(s.contains(#""kind":"property""#))
         #expect(s.contains(#""property_id":"prop_01HSTATUS""#))
         #expect(s.contains(#""order":["upcoming","in_progress","done"]"#))
 
@@ -127,7 +130,9 @@ import Testing
     }
 
     @Test func groupConfigOrderOmittedWhenNil() throws {
-        let cfg = GroupConfig(propertyID: "prop_01HSTATUS", order: nil)
+        let cfg = GroupConfig.property(
+            PropertyGrouping(propertyID: "prop_01HSTATUS", order: nil)
+        )
         let data = try JSONEncoder().encode(cfg)
         let s = String(data: data, encoding: .utf8)!
         #expect(!s.contains("\"order\""))

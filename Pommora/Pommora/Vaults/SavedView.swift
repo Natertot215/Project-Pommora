@@ -223,15 +223,84 @@ enum MatchMode: String, Codable, Equatable, Hashable, Sendable {
     case any
 }
 
-/// Group-by config. Single property at v0.3.1.4 (may defer to v0.5.0 with
-/// Board view). `order` overrides default group ordering (option order for
-/// Select/Status; chronological for Date; etc.).
-struct GroupConfig: Codable, Equatable, Hashable, Sendable {
+/// Property-grouping payload for `GroupConfig.property`. `order` overrides the
+/// default group ordering (option order for Select/Status; chronological for
+/// Date; etc.); omitted on encode when nil.
+struct PropertyGrouping: Codable, Equatable, Hashable, Sendable {
     var propertyID: String
     var order: [String]?
 
     enum CodingKeys: String, CodingKey {
         case propertyID = "property_id"
         case order
+    }
+}
+
+/// Group-by config — a discriminated value over three grouping modes:
+///   - `.structural` — group by the natural container (Collection / Set).
+///   - `.property` — group by a property's value (`PropertyGrouping`).
+///   - `.flat` — no grouping.
+///
+/// Serialized as a tagged object on a `kind` discriminator
+/// (`{"kind":"structural"}` / `{"kind":"property","property_id":…,"order":…}` /
+/// `{"kind":"flat"}`). Decode is **lenient**: `GroupConfig` is read as part of
+/// the whole `SavedView` sidecar, so a malformed or unknown shape must never
+/// throw (a throw poisons the entire sidecar decode). The legacy v0.3.1 stub
+/// `{"property_id":…}` (no `kind`) keeps decoding as `.property`; any unknown
+/// `kind` falls back to `.structural`.
+enum GroupConfig: Codable, Equatable, Hashable, Sendable {
+    case structural
+    case property(PropertyGrouping)
+    case flat
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case propertyID = "property_id"
+        case order
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try? c.decodeIfPresent(String.self, forKey: .kind)
+        switch kind {
+        case "structural":
+            self = .structural
+        case "flat":
+            self = .flat
+        case "property":
+            self = .property(Self.decodeProperty(from: c))
+        case nil:
+            // Legacy v0.3.1 stub: a bare `{"property_id":…}` with no `kind`.
+            if c.contains(.propertyID) {
+                self = .property(Self.decodeProperty(from: c))
+            } else {
+                self = .structural
+            }
+        default:
+            // Unknown discriminator — lenient fallback (never throw).
+            self = .structural
+        }
+    }
+
+    private static func decodeProperty(
+        from c: KeyedDecodingContainer<CodingKeys>
+    ) -> PropertyGrouping {
+        let propertyID = (try? c.decode(String.self, forKey: .propertyID)) ?? ""
+        let order = try? c.decodeIfPresent([String].self, forKey: .order)
+        return PropertyGrouping(propertyID: propertyID, order: order ?? nil)
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .structural:
+            try c.encode("structural", forKey: .kind)
+        case .flat:
+            try c.encode("flat", forKey: .kind)
+        case .property(let grouping):
+            try c.encode("property", forKey: .kind)
+            try c.encode(grouping.propertyID, forKey: .propertyID)
+            try c.encodeIfPresent(grouping.order, forKey: .order)
+        }
     }
 }
