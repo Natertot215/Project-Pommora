@@ -12,7 +12,7 @@ import Foundation
 ///
 /// Per-view config touches:
 ///   - `propertyOrder` / `hiddenProperties` — drives the Layout pane's eye-list
-///     + `PropertyColumnBuilder`. `propertyOrder` always leads with the
+///     + `TableColumnResolver`. `propertyOrder` always leads with the
 ///     reserved `_title` id. Legacy `visible_properties` sidecars are decoded
 ///     one-time into `["_title"] + legacy`; the key is never re-encoded.
 ///   - `columnWidths` / `collapsedGroups` / `cardSize` / `showCover` — layout

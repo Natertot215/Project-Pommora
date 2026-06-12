@@ -9,9 +9,8 @@ import SwiftUI
 /// pans horizontally with the body. NO `pinnedViews` anywhere — group disclosure
 /// rows scroll with the content.
 ///
-/// Inputs are `ViewItem` + `ResolvedGroup` (the pipeline currency), never the
-/// legacy `DetailRow`. The detail view wires every interaction closure to its
-/// private `RowTarget` logic.
+/// Inputs are `ViewItem` + `ResolvedGroup` (the pipeline currency). The detail
+/// view wires every interaction closure to its private `RowTarget` logic.
 ///
 /// Selection / keyboard (Task 11) and row drag/drop (Task 14) are wired here;
 /// double-click open works through `onDoubleTap`. All drag mechanics route

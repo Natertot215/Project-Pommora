@@ -3,9 +3,9 @@ import Testing
 
 @testable import Pommora
 
-/// Covers `TableColumnResolver.resolve(view:schema:)` — the modern, width- and
-/// icon-bearing column resolver that supersedes `PropertyColumnBuilder` for the
-/// custom table (Task 9). It consumes `propertyOrder` VERBATIM (Title may sit
+/// Covers `TableColumnResolver.resolve(view:schema:)` — the width- and
+/// icon-bearing column resolver for the custom table. It consumes
+/// `propertyOrder` VERBATIM (Title may sit
 /// anywhere), respects `hiddenProperties` (tiers + `_modified_at` hideable,
 /// `_title` never), appends unaccounted schema properties, never yields a cover
 /// column, and resolves each column's icon + clamped width.
@@ -95,7 +95,7 @@ import Testing
         #expect(columns.contains { $0.id == ReservedPropertyID.title })
     }
 
-    // MARK: - Unaccounted append (PropertyColumnBuilder parity)
+    // MARK: - Unaccounted append
 
     @Test func unaccountedPropertiesAppendVisibleAtEnd() {
         let schema = [userProp(id: "known"), userProp(id: "fresh", name: "Fresh")]

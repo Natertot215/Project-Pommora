@@ -1,12 +1,8 @@
 import Foundation
 
 /// A fully-resolved table column: the ordered, sized, icon-bearing descriptor
-/// the custom table (Task 9) renders. Produced by `TableColumnResolver` from a
+/// the custom table renders. Produced by `TableColumnResolver` from a
 /// `SavedView` + a PageType's property schema.
-///
-/// Supersedes `PropertyColumn` (from `PropertyColumnBuilder`) for the custom
-/// table; the old builder stays live for the still-native vault table until
-/// Task 19.
 struct ResolvedColumn: Equatable, Hashable, Sendable, Identifiable {
     /// Column kind — drives default width, header icon, and cell rendering.
     /// Modeled as an enum + switch (HARD RULE: condensed exhaustive control
@@ -33,20 +29,18 @@ struct ResolvedColumn: Equatable, Hashable, Sendable, Identifiable {
 /// Resolves a `SavedView` + property schema into the ordered `[ResolvedColumn]`
 /// the custom table renders. A pure (static) resolver — no actor isolation.
 ///
-/// Resolution rules (supersedes `PropertyColumnBuilder`'s title-first /
-/// tiers-trailing layout):
+/// Resolution rules:
 ///   - `propertyOrder` is consumed VERBATIM — Title may sit anywhere; the
 ///     resolver does NOT force it first.
 ///   - `hiddenProperties` excludes a column, EXCEPT `_title` (never hidden) and
 ///     `cover` (never a column at all, regardless of order/hidden state).
 ///   - Tiers (`_tier1/2/3`) and `_modified_at` are ordinary hideable columns.
 ///   - Unaccounted schema properties (present in the schema but absent from
-///     `propertyOrder` and not hidden) APPEND as visible columns at the end —
-///     parity with `PropertyColumnBuilder`'s "unaccounted append" semantics,
+///     `propertyOrder` and not hidden) APPEND as visible columns at the end,
 ///     so a freshly-created property shows immediately.
 ///   - An order entry referencing an ID absent from the schema is skipped
-///     (defensive parity with the builder's stale-reference tolerance), EXCEPT
-///     the reserved `_title` / `_modified_at` which render without a schema def.
+///     (defensive stale-reference tolerance), EXCEPT the reserved `_title` /
+///     `_modified_at` which render without a schema def.
 enum TableColumnResolver {
     /// The cover sentinel — excluded unconditionally. Not a reserved column id;
     /// just a guard so no cover column can ever appear.
