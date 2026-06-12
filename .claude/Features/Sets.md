@@ -34,7 +34,7 @@ SQLite schema v14: `page_sets` table (FK to `page_collections`, `ON DELETE CASCA
 - **Two-zone reorder** inside a Collection's disclosure: sets zone / pages zone; cross-zone drags rejected.
 - **Context menu:** New Page / Rename / Change Icon / Move to… / Delete.
 - **Breadcrumb:** `Vault › Collection › Set › Page` — the Set segment is plain text, non-clickable.
-- **Collection detail view** shows root pages + each Set's pages as a flat concatenation (structural grouping ships with the Views cluster); the footer add menu offers New Page + New Set.
+- **Collection detail view** shows root pages plus each Set's pages under its own scrolling disclosure group header (structural grouping, shipped with the Views cluster); collection-scope Sets render as group rows, with the loose root pages in a headerless band. The footer add menu offers New Page + New Set.
 - **PagePreview** opens set pages — `PageRef` carries an optional set ID (legacy refs decode); editor / preview / inspector write paths are set-aware (a save never re-points `page_set_id`).
 
 ---

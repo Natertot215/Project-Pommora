@@ -49,6 +49,22 @@ extension DetailRow {
     }
 }
 
+// MARK: - Page pin helpers (custom-table rows)
+
+extension PageMeta {
+    /// Pin wire-record for this page. Single source for the `ViewItem`-driven
+    /// custom table rows (mirrors `DetailRow.stateRef` for the legacy table).
+    var stateRef: EntityStateRef { EntityStateRef(kind: .page, id: id, title: title) }
+
+    @MainActor var isPinned: Bool {
+        AppGlobals.pinnedManager?.contains(stateRef) ?? false
+    }
+
+    @MainActor func togglePin() {
+        AppGlobals.pinnedManager?.toggle(stateRef)
+    }
+}
+
 // MARK: - Row construction
 
 extension DetailRow {
