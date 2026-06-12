@@ -171,11 +171,31 @@ struct PageTypeDetailView: View {
             onDoubleTap: handleDoubleTap,
             commit: { item, def, newValue in commitCell(item, def, newValue) },
             pageMenu: { AnyView(menuItems(for: .page($0))) },
-            groupMenu: { AnyView(groupMenuItems(for: $0)) }
+            groupMenu: { AnyView(groupMenuItems(for: $0)) },
+            persistWidth: { colID, width in
+                editView {
+                    var widths = $0.columnWidths ?? [:]
+                    widths[colID] = width
+                    $0.columnWidths = widths
+                }
+            },
+            persistOrder: { newOrder in editView { $0.propertyOrder = newOrder } },
+            hideColumn: { colID in
+                editView { if !$0.hiddenProperties.contains(colID) { $0.hiddenProperties.append(colID) } }
+            }
         )
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }
+    }
+
+    /// Applies a `SavedView` transform to the active view on this vault's
+    /// sidecar via the disk-safe `updateView` (Task 3). The container is the
+    /// live PageType; the active view is `activeView` (single-view today).
+    private func editView(_ transform: @escaping (inout SavedView) -> Void) {
+        guard let viewID = activeView?.id else { return }
+        let containerID = livePageType.id
+        Task { try? await pageTypeManager.updateView(viewID, in: containerID, transform: transform) }
     }
 
     /// Persists a single property edit. The page's collection comes from its

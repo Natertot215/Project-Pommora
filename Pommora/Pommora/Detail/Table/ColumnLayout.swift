@@ -40,4 +40,15 @@ import Observation
         guard widths.indices.contains(index) else { return }
         widths[index] = max(60, width)
     }
+
+    /// Left-edge x-offset of every column, in render order — the prefix sums the
+    /// header drag-reorder math (`ColumnDragController.insertionIndex`) consumes
+    /// to map a drag location onto a target insertion index.
+    var offsets: [Double] {
+        var running = 0.0
+        return widths.map { width in
+            defer { running += width }
+            return running
+        }
+    }
 }

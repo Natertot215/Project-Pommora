@@ -32,6 +32,15 @@ struct CustomTableView: View {
     /// Per-group container context menu (Collection / Set disclosure rows).
     let groupMenu: (ResolvedGroup) -> AnyView
 
+    /// Header-interaction persistence (Task 10) — each closes over the detail
+    /// view's active view + container so the header never touches a manager:
+    ///   - `persistWidth` — write a column's final width after a resize ends.
+    ///   - `persistOrder` — write a reordered `propertyOrder` after a drop.
+    ///   - `hideColumn`   — append a column id to `hiddenProperties`.
+    let persistWidth: (_ colID: String, _ width: Double) -> Void
+    let persistOrder: (_ newOrder: [String]) -> Void
+    let hideColumn: (_ colID: String) -> Void
+
     /// Disclosure state — collapsed group ids. Seeds expanded (every group open);
     /// survives the frequent `groups` recompute since it's keyed by stable id.
     /// This local toggle is the live collapse truth today; persisting it back to
@@ -54,8 +63,12 @@ struct CustomTableView: View {
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     TableHeaderRow(
-                        columns: columns, widths: layout.widths,
-                        rowHeight: TableRowView.rowHeight)
+                        columns: columns,
+                        layout: layout,
+                        rowHeight: TableRowView.rowHeight,
+                        persistWidth: persistWidth,
+                        persistOrder: persistOrder,
+                        hideColumn: hideColumn)
                 }
             }
             .frame(width: totalWidth)
