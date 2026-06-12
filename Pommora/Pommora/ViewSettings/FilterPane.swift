@@ -195,13 +195,19 @@ enum ViewSettingsProperties {
     /// Filterable properties: every schema property (Cover excluded) + the three
     /// tier relations + the reserved Recent (modified) date. `FilterEvaluator`
     /// honors tier rules and date rules, so both are offered.
+    ///
+    /// A USER property typed `.lastEditedTime` is excluded — that case carries no
+    /// readable stored value, so its date operators can't be satisfied (pass-all
+    /// no-op). The reserved Recent column is exempt: it's the special-cased
+    /// `_modified_at` ID, the one entry that actually resolves a modified Date.
     static func filterable(
         scope: ViewSettingsScope,
         manager: PageTypeManager,
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
         schema(scope: scope, manager: manager, tierConfig: tierConfig).filter { def in
-            def.id != coverID
+            guard def.id != coverID else { return false }
+            return def.type != .lastEditedTime || def.id == ReservedPropertyID.modifiedAt
         }
     }
 

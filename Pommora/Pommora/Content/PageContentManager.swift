@@ -86,9 +86,9 @@ final class PageContentManager {
         -> (vault: PageType, collection: PageCollection?, set: PageSet?)?
     {
         if let index = indexUpdater?.index,
-           let result = resolveParentFromIndex(
-               pageID: page.id, pageTypeManager: pageTypeManager,
-               pageSetManager: pageSetManager, index: index)
+            let result = resolveParentFromIndex(
+                pageID: page.id, pageTypeManager: pageTypeManager,
+                pageSetManager: pageSetManager, index: index)
         {
             return result
         }
@@ -102,18 +102,20 @@ final class PageContentManager {
         pageID: String, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?,
         index: PommoraIndex
     ) -> (vault: PageType, collection: PageCollection?, set: PageSet?)? {
-        guard let row = try? index.dbQueue.read({ db in
-            try Row.fetchOne(
-                db, sql: "SELECT page_type_id, page_collection_id, page_set_id FROM pages WHERE id = ?",
-                arguments: [pageID])
-        }) else { return nil }
+        guard
+            let row = try? index.dbQueue.read({ db in
+                try Row.fetchOne(
+                    db, sql: "SELECT page_type_id, page_collection_id, page_set_id FROM pages WHERE id = ?",
+                    arguments: [pageID])
+            })
+        else { return nil }
         let typeID: String = row["page_type_id"]
         let collectionID: String? = row["page_collection_id"]
         let setID: String? = row["page_set_id"]
         guard let vault = pageTypeManager.types.first(where: { $0.id == typeID })
         else { return nil }
         if let collID = collectionID,
-           let coll = pageTypeManager.pageCollections(in: vault).first(where: { $0.id == collID })
+            let coll = pageTypeManager.pageCollections(in: vault).first(where: { $0.id == collID })
         {
             let set = setID.flatMap { sid in
                 pageSetManager?.pageSets(in: coll).first { $0.id == sid }
@@ -355,6 +357,82 @@ final class PageContentManager {
         pagesByTypeRoot[pageType.id] = arr
         do {
             try OrderPersister.setPageOrder(arr.map(\.id), inVault: pageType, nexus: nexus)
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    // MARK: - Reorder by id (group-subset-safe)
+
+    /// Reorders Pages within `parent` by MOVING IDS + an ANCHOR id, resolving the
+    /// stored-array offsets internally. The view's drag path computes indices in
+    /// the FILTERED / BUCKETED group subset, which can differ from this stored
+    /// container array under property-grouping or an active filter — so it hands
+    /// off ids instead of offsets, and this overload rebuilds the order against
+    /// the canonical stored array.
+    ///
+    /// `movingIDs` are placed (in their given order) immediately BEFORE
+    /// `anchorID`; `anchorID == nil` appends them at the container's end. Ids not
+    /// present in the stored array are ignored. Persists to the parent sidecar.
+    func reorderPages(in parent: PageParent, movingIDs: [String], before anchorID: String?) {
+        let current = storedPages(in: parent)
+        let newOrderIDs = Self.reorderedIDs(
+            current: current.map(\.id), movingIDs: movingIDs, before: anchorID)
+        guard newOrderIDs != current.map(\.id) else { return }
+        let byID = Dictionary(current.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let result = newOrderIDs.compactMap { byID[$0] }
+        writeStoredPages(result, in: parent)
+    }
+
+    /// Pure id-space reorder: place `movingIDs` (in given order) immediately
+    /// BEFORE `anchorID` within `current`, or append them when `anchorID` is nil
+    /// / absent. Ids not in `current` are dropped. The reorder-by-id commit's
+    /// container-space translation lives here so it's unit-testable without disk.
+    static func reorderedIDs(
+        current: [String], movingIDs: [String], before anchorID: String?
+    ) -> [String] {
+        let moving = Set(movingIDs)
+        guard !moving.isEmpty else { return current }
+        let ordered = movingIDs.filter { current.contains($0) }
+        let remaining = current.filter { !moving.contains($0) }
+
+        var result: [String] = []
+        var inserted = false
+        for id in remaining {
+            if !inserted, id == anchorID {
+                result.append(contentsOf: ordered)
+                inserted = true
+            }
+            result.append(id)
+        }
+        if !inserted { result.append(contentsOf: ordered) }
+        return result
+    }
+
+    /// The stored container array for a `PageParent` (the canonical order, not a
+    /// group subset).
+    private func storedPages(in parent: PageParent) -> [PageMeta] {
+        switch parent {
+        case .collection(let coll, _): return pagesByCollection[coll.id] ?? []
+        case .set(let set, _, _): return pagesBySet[set.id] ?? []
+        case .vaultRoot(let type): return pagesByTypeRoot[type.id] ?? []
+        }
+    }
+
+    /// Commit a reordered container array in memory + persist to the parent sidecar.
+    private func writeStoredPages(_ pages: [PageMeta], in parent: PageParent) {
+        do {
+            switch parent {
+            case .collection(let coll, _):
+                pagesByCollection[coll.id] = pages
+                try OrderPersister.setPageOrder(pages.map(\.id), in: coll)
+            case .set(let set, _, _):
+                pagesBySet[set.id] = pages
+                try OrderPersister.setPageOrder(pages.map(\.id), in: set)
+            case .vaultRoot(let type):
+                pagesByTypeRoot[type.id] = pages
+                try OrderPersister.setPageOrder(pages.map(\.id), inVault: type, nexus: nexus)
+            }
         } catch {
             self.pendingError = error
         }

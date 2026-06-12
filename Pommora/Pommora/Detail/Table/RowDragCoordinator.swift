@@ -22,9 +22,12 @@ final class RowDragCoordinator {
 
     // MARK: - Commit closures (injected by the detail view)
 
-    /// Reorder within a container: `(sourceOffsets, destinationOffset, parent)`.
-    /// The detail view routes to the matching `reorderPages` overload by parent.
-    var reorder: (IndexSet, Int, PageParent) -> Void = { _, _, _ in }
+    /// Reorder within a container: `(movingIDs, anchorID, parent)` — the moving
+    /// page ids and the page id the drop lands BEFORE (nil = append). The detail
+    /// view routes to the matching id-based `reorderPages` overload by parent,
+    /// which resolves stored-array offsets internally (so a reorder inside a
+    /// property bucket / filtered subset stays correct).
+    var reorder: ([String], String?, PageParent) -> Void = { _, _, _ in }
     /// Move pages to a different structural container: `(pageIDs, source, destination)`.
     var move: ([String], PageParent, PageParent) -> Void = { _, _, _ in }
     /// Rewrite a property on pages: `(pageIDs, propertyID, value)` (nil = clear).
@@ -45,7 +48,7 @@ final class RowDragCoordinator {
 
     // MARK: - Live drag geometry (drives the hover preview off `session.location`)
 
-    /// Per-row frames in the table's named coordinate space (`.named("viewTable")`),
+    /// Per-row frames in the shared GLOBAL coordinate space (`.global`),
     /// keyed by `ViewItem.id`. Captured by each rendered row via `onGeometryChange`
     /// and read back in `onDropSessionUpdated` to hit-test the drop location. The
     /// live insertion line + group highlight derive from THIS + `session.location`,
@@ -80,6 +83,11 @@ final class RowDragCoordinator {
         let sourceIndices: IndexSet
         /// The target group's stable id — drives the insertion-line / highlight.
         let targetGroupID: String
+        /// The page id the drop lands BEFORE within the target group, or nil to
+        /// append. Routed to the id-based reorder commit so it translates to the
+        /// manager's stored-array offsets (group subset can differ from the full
+        /// container under property-grouping / an active filter).
+        let anchorID: String?
     }
 
     // MARK: - Hover update (insertion line + highlight)
@@ -121,8 +129,12 @@ final class RowDragCoordinator {
     func drop(payload: ViewRowDragPayload, context: DropContext) -> Bool {
         defer { clear() }
         switch plan(for: context) {
-        case .reorder(let offsets, let destination):
-            reorder(offsets, destination, context.source.parent)
+        case .reorder:
+            // The planner's offsets index the group SUBSET; route the moving ids
+            // + anchor through the id-based reorder commit, which resolves the
+            // manager's stored-array offsets (correct under property-grouping /
+            // an active filter where the subset ≠ the full container).
+            reorder(context.source.pageIDs, context.anchorID, context.source.parent)
             return true
         case .move(let destination):
             move(payload.pageIDs, context.source.parent, destination)
@@ -157,6 +169,7 @@ final class RowDragCoordinator {
         draggedItems: [ViewItem],
         targetGroup: ResolvedGroup,
         insertionIndex: Int,
+        anchorID: String?,
         group: GroupConfig?,
         sortIsManual: Bool,
         sourceIndices: IndexSet,
@@ -170,7 +183,9 @@ final class RowDragCoordinator {
 
         guard
             let sourceGroup = context(for: firstSource, group: group),
-            let targetGroupContext = context(for: targetGroup, structuralParent: structuralParent)
+            let targetGroupContext = context(
+                for: targetGroup, structuralParent: structuralParent,
+                ungroupedFallback: firstSource.parent)
         else { return nil }
 
         let source = GroupDropPlanner.Source(
@@ -187,7 +202,8 @@ final class RowDragCoordinator {
             sortIsManual: sortIsManual,
             groupPropertyID: groupPropertyID,
             sourceIndices: sourceIndices,
-            targetGroupID: targetGroup.id)
+            targetGroupID: targetGroup.id,
+            anchorID: anchorID)
     }
 
     /// A dragged page's group context — its property bucket when property-grouped,
@@ -205,7 +221,8 @@ final class RowDragCoordinator {
     /// structural group resolves its `PageParent` via the injected resolver.
     private static func context(
         for resolved: ResolvedGroup,
-        structuralParent: (ResolvedGroup) -> PageParent?
+        structuralParent: (ResolvedGroup) -> PageParent?,
+        ungroupedFallback: PageParent
     ) -> GroupDropPlanner.GroupContext? {
         switch resolved.kind {
         case .propertyBucket(let value):
@@ -214,10 +231,10 @@ final class RowDragCoordinator {
             guard let parent = structuralParent(resolved) else { return nil }
             return .structural(parent)
         case .ungrouped:
-            // The headerless / no-container band: route to the source's own
-            // structural parent so an in-band drop reads as a same-container
-            // reorder (no group entity to move into).
-            return nil
+            // The headerless / no-container band has no group entity to move
+            // into: route to the source's own structural parent so an in-band
+            // drop reads as a same-container reorder.
+            return .structural(ungroupedFallback)
         }
     }
 

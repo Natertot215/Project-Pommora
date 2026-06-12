@@ -220,3 +220,46 @@ struct GroupDropPlannerTests {
         #expect(plan == .none)
     }
 }
+
+/// Container-space correctness for the reorder commit (HIGH #2). The view's drag
+/// path computes indices in the FILTERED / BUCKETED group subset; the commit
+/// hands off moving ids + an anchor id, and `PageContentManager.reorderedIDs`
+/// translates that into the canonical STORED-array order. These exercise the
+/// case the index-based path corrupted: a reorder inside a property bucket whose
+/// subset ≠ the full container.
+@Suite("ReorderByID")
+struct ReorderByIDTests {
+
+    /// Full container [a, b, c, d, e]; the "todo" bucket the user sees is only
+    /// [a, c, e]. Dragging `e` before `c` (a within-bucket move) must reorder the
+    /// FULL container to [a, e, b, c, d] — `e` lands before `c`, untouched
+    /// non-bucket rows (`b`, `d`) keep their absolute positions. The old
+    /// index-based path would have moved a different element.
+    @Test("Within-bucket reorder maps to stored-array order, not the subset")
+    func withinBucketReorderUsesStoredOrder() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c", "d", "e"], movingIDs: ["e"], before: "c")
+        #expect(result == ["a", "b", "e", "c", "d"])
+    }
+
+    @Test("Nil anchor appends moving ids at the container end")
+    func nilAnchorAppends() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c"], movingIDs: ["a"], before: nil)
+        #expect(result == ["b", "c", "a"])
+    }
+
+    @Test("Multi-drag preserves the moving ids' given order at the anchor")
+    func multiDragKeepsOrder() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c", "d"], movingIDs: ["d", "b"], before: "a")
+        #expect(result == ["d", "b", "a", "c"])
+    }
+
+    @Test("An absent anchor falls through to append")
+    func absentAnchorAppends() {
+        let result = PageContentManager.reorderedIDs(
+            current: ["a", "b", "c"], movingIDs: ["b"], before: "zzz")
+        #expect(result == ["a", "c", "b"])
+    }
+}

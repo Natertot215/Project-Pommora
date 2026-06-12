@@ -223,11 +223,12 @@ struct PageTypeDetailView: View {
             coverMenu: { AnyView(coverMenuItems(for: $0)) },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
                 RowDragCoordinator.makeContext(
                     draggedItems: dragged,
                     targetGroup: targetGroup,
                     insertionIndex: insertionIndex,
+                    anchorID: anchorID,
                     group: activeView?.group,
                     sortIsManual: activeView?.sort == nil,
                     sourceIndices: sourceIndices,
@@ -242,7 +243,6 @@ struct PageTypeDetailView: View {
         CustomTableView(
             groups: resolvedGroups,
             columns: columns,
-            layout: ColumnLayout(columns: columns),
             schema: schema,
             index: nexusManager.currentIndex,
             relationResolver: { contextDisplay.resolve($0) },
@@ -263,11 +263,12 @@ struct PageTypeDetailView: View {
             },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
                 RowDragCoordinator.makeContext(
                     draggedItems: dragged,
                     targetGroup: targetGroup,
                     insertionIndex: insertionIndex,
+                    anchorID: anchorID,
                     group: activeView?.group,
                     sortIsManual: activeView?.sort == nil,
                     sourceIndices: sourceIndices,
@@ -300,16 +301,8 @@ struct PageTypeDetailView: View {
 
     /// Wire the coordinator's commit closures to the live managers.
     private func wireDragCommits() {
-        dragCoordinator.reorder = { offsets, destination, parent in
-            switch parent {
-            case .collection(let coll, _):
-                contentManager.reorderPages(in: coll, fromOffsets: offsets, toOffset: destination)
-            case .set(let set, _, _):
-                contentManager.reorderPages(in: set, fromOffsets: offsets, toOffset: destination)
-            case .vaultRoot(let type):
-                contentManager.reorderPages(
-                    inVault: type, fromOffsets: offsets, toOffset: destination)
-            }
+        dragCoordinator.reorder = { movingIDs, anchorID, parent in
+            contentManager.reorderPages(in: parent, movingIDs: movingIDs, before: anchorID)
         }
         dragCoordinator.move = { pageIDs, source, destination in
             Task { await moveDraggedPages(pageIDs, from: source, to: destination) }
@@ -507,8 +500,14 @@ struct PageTypeDetailView: View {
     }
 
     private func removeCover(_ item: ViewItem) {
+        let previousCover = item.page.frontmatter.cover
         var fm = item.page.frontmatter
         fm.cover = nil
+        // Delete the cleared cover file so the per-page assets folder doesn't
+        // leak the orphaned image.
+        if let nexus = nexusManager.currentNexus {
+            CoverAssetStore().delete(relativePath: previousCover, for: item.page.id, in: nexus)
+        }
         Task {
             try? await contentManager.updatePageFrontmatter(
                 item.page, frontmatter: fm, vault: pageType,

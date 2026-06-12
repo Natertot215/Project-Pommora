@@ -249,11 +249,12 @@ struct PageCollectionDetailView: View {
             coverMenu: { AnyView(coverMenuItems(for: $0)) },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
                 RowDragCoordinator.makeContext(
                     draggedItems: dragged,
                     targetGroup: targetGroup,
                     insertionIndex: insertionIndex,
+                    anchorID: anchorID,
                     group: activeView?.group,
                     sortIsManual: activeView?.sort == nil,
                     sourceIndices: sourceIndices,
@@ -268,7 +269,6 @@ struct PageCollectionDetailView: View {
         CustomTableView(
             groups: resolvedGroups,
             columns: columns,
-            layout: ColumnLayout(columns: columns),
             schema: schema,
             index: nexusManager.currentIndex,
             relationResolver: { contextDisplay.resolve($0) },
@@ -289,11 +289,12 @@ struct PageCollectionDetailView: View {
             },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, sourceIndices in
+            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
                 RowDragCoordinator.makeContext(
                     draggedItems: dragged,
                     targetGroup: targetGroup,
                     insertionIndex: insertionIndex,
+                    anchorID: anchorID,
                     group: activeView?.group,
                     sortIsManual: activeView?.sort == nil,
                     sourceIndices: sourceIndices,
@@ -319,16 +320,8 @@ struct PageCollectionDetailView: View {
     /// Wire the coordinator's commit closures to the live managers. Reorder /
     /// move / rewrite each route to the same calls the cell + menu paths use.
     private func wireDragCommits() {
-        dragCoordinator.reorder = { offsets, destination, parent in
-            switch parent {
-            case .collection(let coll, _):
-                contentManager.reorderPages(in: coll, fromOffsets: offsets, toOffset: destination)
-            case .set(let set, _, _):
-                contentManager.reorderPages(in: set, fromOffsets: offsets, toOffset: destination)
-            case .vaultRoot(let type):
-                contentManager.reorderPages(
-                    inVault: type, fromOffsets: offsets, toOffset: destination)
-            }
+        dragCoordinator.reorder = { movingIDs, anchorID, parent in
+            contentManager.reorderPages(in: parent, movingIDs: movingIDs, before: anchorID)
         }
         dragCoordinator.move = { pageIDs, source, destination in
             Task { await moveDraggedPages(pageIDs, from: source, to: destination) }

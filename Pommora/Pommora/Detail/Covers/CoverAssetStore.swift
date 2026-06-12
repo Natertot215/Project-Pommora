@@ -40,6 +40,9 @@ struct CoverAssetStore: Sendable {
     /// 4. Collision-safe filename (suffix `-2`, `-3`, … preserving extension).
     /// 5. Copy file.
     /// 6. Return the nexus-relative path string.
+    ///
+    /// Used by `CoverAssetStoreTests` (the async copy-logic surface); production
+    /// importers call `storeSync` to stay inside the security-scoped window.
     func store(image source: URL, for entityID: String, in nexus: Nexus) async throws -> String {
         try storeSync(image: source, for: entityID, in: nexus)
     }
@@ -81,6 +84,29 @@ struct CoverAssetStore: Sendable {
 
         // 6. Nexus-relative POSIX path.
         return ".nexus/assets/\(entityID)/\(finalName)"
+    }
+
+    // MARK: - Delete
+
+    /// Deletes a previously-stored cover/banner asset at `relativePath` (the
+    /// nexus-relative POSIX path `store`/`storeSync` returned) — called on cover/
+    /// banner REPLACE or REMOVE so `.nexus/assets/<id>/` doesn't grow unbounded.
+    ///
+    /// Guarded: only deletes when the resolved file lives under THIS entity's
+    /// `assetsDir(for: entityID)` (never an arbitrary path). A nil/empty path,
+    /// an out-of-scope path, or a missing file is a silent no-op. Cover/banner
+    /// paths are per-entity, so there's no shared-file hazard.
+    func delete(relativePath: String?, for entityID: String, in nexus: Nexus) {
+        guard let relativePath, !relativePath.isEmpty else { return }
+        let fm = FileManager.default
+        let assetsDir = NexusPaths.assetsDir(for: entityID, in: nexus).standardizedFileURL
+        let fileURL = nexus.rootURL.appendingPathComponent(relativePath).standardizedFileURL
+
+        // Containment guard — the file must sit inside this entity's assets dir.
+        let dirPrefix = assetsDir.path + "/"
+        guard fileURL.path.hasPrefix(dirPrefix) else { return }
+        guard fm.fileExists(atPath: fileURL.path) else { return }
+        try? fm.removeItem(at: fileURL)
     }
 
     // MARK: - Private helpers

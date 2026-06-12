@@ -52,12 +52,18 @@ struct CoverPicker: View {
         let scoped = source.startAccessingSecurityScopedResource()
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
 
+        let store = CoverAssetStore()
+        let previousCover = page.frontmatter.cover
         let relativePath: String
         do {
-            relativePath = try CoverAssetStore().storeSync(image: source, for: page.id, in: nexus)
+            relativePath = try store.storeSync(image: source, for: page.id, in: nexus)
         } catch {
             return  // copy failed inside the scoped window; nothing to persist
         }
+
+        // The new asset is stored — delete the replaced cover file so the
+        // per-entity assets folder doesn't grow unbounded.
+        store.delete(relativePath: previousCover, for: page.id, in: nexus)
 
         // Scope-free async hop: persist the nexus-relative path onto `cover`.
         var fm = page.frontmatter

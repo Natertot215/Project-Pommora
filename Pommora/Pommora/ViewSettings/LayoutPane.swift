@@ -106,20 +106,7 @@ struct LayoutPane: View {
         let hiddenOrdered = columns.filter { hiddenSet.contains($0.id) }
 
         ForEach(reorderable, id: \.id) { def in
-            VisibilityRow(
-                definition: def,
-                isVisible: true,
-                onToggle: { Task { await toggle(def.id, currentlyVisible: true) } }
-            )
-            .draggable(def.id)
-            .dropDestination(for: String.self) { droppedIDs, _ in
-                guard let droppedID = droppedIDs.first else { return false }
-                return reorder(
-                    currentOrder: reorderable.map(\.id),
-                    droppedID: droppedID,
-                    ontoTargetID: def.id
-                )
-            }
+            reorderableRow(def, in: reorderable)
         }
         ForEach(hiddenOrdered, id: \.id) { def in
             VisibilityRow(
@@ -127,6 +114,36 @@ struct LayoutPane: View {
                 isVisible: false,
                 onToggle: { Task { await toggle(def.id, currentlyVisible: false) } }
             )
+        }
+    }
+
+    /// One visible-section row. The pinned Title row is locked — it gets no
+    /// drag handle and nothing may drop onto it (the reorder helper keeps
+    /// `_title` front-pinned, so a drop here would be a no-op affordance). All
+    /// other rows carry the full drag + drop reorder modifiers.
+    @ViewBuilder
+    private func reorderableRow(
+        _ def: PropertyDefinition,
+        in reorderable: [PropertyDefinition]
+    ) -> some View {
+        let row = VisibilityRow(
+            definition: def,
+            isVisible: true,
+            onToggle: { Task { await toggle(def.id, currentlyVisible: true) } }
+        )
+        if def.id == ReservedPropertyID.title {
+            row
+        } else {
+            row
+                .draggable(def.id)
+                .dropDestination(for: String.self) { droppedIDs, _ in
+                    guard let droppedID = droppedIDs.first else { return false }
+                    return reorder(
+                        currentOrder: reorderable.map(\.id),
+                        droppedID: droppedID,
+                        ontoTargetID: def.id
+                    )
+                }
         }
     }
 

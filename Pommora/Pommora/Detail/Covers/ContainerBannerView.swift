@@ -85,12 +85,16 @@ struct ContainerBannerView: View {
         let scoped = source.startAccessingSecurityScopedResource()
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
 
+        let store = CoverAssetStore()
+        let previousBanner = bannerPath
         let relativePath: String
         do {
-            relativePath = try CoverAssetStore().storeSync(image: source, for: entityID, in: nexus)
+            relativePath = try store.storeSync(image: source, for: entityID, in: nexus)
         } catch {
             return
         }
+        // The new asset is stored — delete the replaced banner file.
+        store.delete(relativePath: previousBanner, for: entityID, in: nexus)
         let containerID = containerID
         Task {
             do { try await pageTypeManager.setBanner(relativePath, forContainer: containerID) } catch {}

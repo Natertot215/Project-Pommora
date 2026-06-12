@@ -18,7 +18,6 @@ import SwiftUI
 struct CustomTableView: View {
     let groups: [ResolvedGroup]
     let columns: [ResolvedColumn]
-    let layout: ColumnLayout
     let schema: [PropertyDefinition]
 
     let index: PommoraIndex?
@@ -54,7 +53,7 @@ struct CustomTableView: View {
     let buildDropContext:
         (
             _ draggedItems: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
-            _ sourceIndices: IndexSet
+            _ anchorID: String?, _ sourceIndices: IndexSet
         ) -> RowDragCoordinator.DropContext?
 
     /// Disclosure state — collapsed group ids. SEEDED from the active view's
@@ -82,6 +81,57 @@ struct CustomTableView: View {
     @State private var viewportFrame: CGRect = .zero
     @FocusState private var tableFocused: Bool
 
+    /// Live column geometry — OWNED here (not rebuilt by the parent every body
+    /// recompute, which would clobber an in-flight resize). Seeded from `columns`
+    /// at init and re-seeded only when the column identity/order changes (see
+    /// `.onChange(of: columnIdentities)`); the persisted-width re-seed survives
+    /// because the resolved columns carry their persisted widths.
+    @State private var layout: ColumnLayout
+
+    init(
+        groups: [ResolvedGroup],
+        columns: [ResolvedColumn],
+        schema: [PropertyDefinition],
+        index: PommoraIndex?,
+        relationResolver: @escaping (String) -> (icon: String, title: String)?,
+        onDoubleTap: @escaping (ViewItem) -> Void,
+        commit: @escaping (ViewItem, PropertyDefinition, PropertyValue?) -> Void,
+        pageMenu: @escaping (ViewItem) -> AnyView,
+        groupMenu: @escaping (ResolvedGroup) -> AnyView,
+        persistWidth: @escaping (_ colID: String, _ width: Double) -> Void,
+        persistOrder: @escaping (_ newOrder: [String]) -> Void,
+        hideColumn: @escaping (_ colID: String) -> Void,
+        persistCollapsed: @escaping (_ collapsedIDs: [String]) -> Void,
+        dragCoordinator: RowDragCoordinator,
+        buildDropContext:
+            @escaping (
+                _ draggedItems: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
+                _ anchorID: String?, _ sourceIndices: IndexSet
+            ) -> RowDragCoordinator.DropContext?
+    ) {
+        self.groups = groups
+        self.columns = columns
+        self.schema = schema
+        self.index = index
+        self.relationResolver = relationResolver
+        self.onDoubleTap = onDoubleTap
+        self.commit = commit
+        self.pageMenu = pageMenu
+        self.groupMenu = groupMenu
+        self.persistWidth = persistWidth
+        self.persistOrder = persistOrder
+        self.hideColumn = hideColumn
+        self.persistCollapsed = persistCollapsed
+        self.dragCoordinator = dragCoordinator
+        self.buildDropContext = buildDropContext
+        _layout = State(initialValue: ColumnLayout(columns: columns))
+    }
+
+    /// The column identity/order signature — re-seeding the layout keys off this,
+    /// so a width-resize (which never changes identity/order) can't trigger a
+    /// clobbering rebuild mid-gesture.
+    private var columnIdentities: [String] { columns.map(\.id) }
+
     private var totalWidth: CGFloat { CGFloat(layout.totalWidth) }
 
     var body: some View {
@@ -95,6 +145,10 @@ struct CustomTableView: View {
                                 .id(entry.id)
                         }
                     }
+                    // Required for `scrollPosition.scrollTo(id:)` to resolve the
+                    // per-row `.id("item-…")` (keyboard-nav follow, type-select,
+                    // drag edge-scroll); without it the scroll-into-view is dead.
+                    .scrollTargetLayout()
                 }
                 .scrollPosition($scrollPosition)
                 // The scroll viewport's GLOBAL frame — the fixed window the edge
@@ -127,6 +181,10 @@ struct CustomTableView: View {
         .onKeyPress(.return) { handleReturn() }
         .onKeyPress(characters: .alphanumerics) { handleTypeSelect($0.characters) }
         .onChange(of: flattenedOrder) { selection.order = $1 }
+        // Re-seed the owned layout only when the column set/order changes — a
+        // width-only resize keeps the same identities, so the live geometry
+        // (mid-resize widths) survives a parent body recompute.
+        .onChange(of: columnIdentities) { layout = ColumnLayout(columns: columns) }
         .task { selection.order = flattenedOrder }
         // Seed collapse state from the active view's persisted `collapsedGroups`
         // (carried in via `ResolvedGroup.isCollapsed`). Re-seeds if the persisted
@@ -317,12 +375,23 @@ struct CustomTableView: View {
             let group = enclosingGroup(ofItemID: item.id)
         {
             let rows = rowFrames(in: group)
-            let index =
-                RowDragGeometry.insertionIndex(locationY: location.y, rows: rows)
-                ?? (group.items.firstIndex(where: { $0.id == item.id }) ?? group.items.count)
+            // Past the last CAPTURED row, append at the true container end — the
+            // frame registry only holds on-screen rows (LazyVStack virtualization),
+            // so the last captured index can sit mid-group when trailing rows are
+            // scrolled out.
+            let index: Int
+            if let last = rows.last, location.y >= last.frame.maxY {
+                index = group.items.count
+            } else {
+                index =
+                    RowDragGeometry.insertionIndex(locationY: location.y, rows: rows)
+                    ?? (group.items.firstIndex(where: { $0.id == item.id }) ?? group.items.count)
+            }
             let sourceIndices = IndexSet(
                 dragged.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
-            dragCoordinator.update(buildDropContext(dragged, group, index, sourceIndices))
+            dragCoordinator.update(
+                buildDropContext(dragged, group, index, anchorID(in: group, at: index), sourceIndices)
+            )
             return
         }
 
@@ -332,7 +401,7 @@ struct CustomTableView: View {
             let sourceIndices = IndexSet(
                 dragged.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
             dragCoordinator.update(
-                buildDropContext(dragged, group, group.items.count, sourceIndices))
+                buildDropContext(dragged, group, group.items.count, nil, sourceIndices))
             return
         }
 
@@ -387,7 +456,9 @@ struct CustomTableView: View {
         let insertionIndex = group.items.firstIndex(where: { $0.id == item.id }) ?? group.items.count
         let sourceIndices = IndexSet(
             draggedAnywhere.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
-        return buildDropContext(draggedAnywhere, group, insertionIndex, sourceIndices)
+        return buildDropContext(
+            draggedAnywhere, group, insertionIndex, anchorID(in: group, at: insertionIndex),
+            sourceIndices)
     }
 
     /// Build a planner context for a group-header-targeted drop (append to end).
@@ -399,7 +470,13 @@ struct CustomTableView: View {
         guard !dragged.isEmpty else { return nil }
         let sourceIndices = IndexSet(
             dragged.compactMap { d in group.items.firstIndex(where: { $0.id == d.id }) })
-        return buildDropContext(dragged, group, group.items.count, sourceIndices)
+        return buildDropContext(dragged, group, group.items.count, nil, sourceIndices)
+    }
+
+    /// The page id a drop at `index` within `group.items` lands BEFORE — the
+    /// reorder anchor — or nil when `index` is the container end (append).
+    private func anchorID(in group: ResolvedGroup, at index: Int) -> String? {
+        group.items.indices.contains(index) ? group.items[index].id : nil
     }
 
     /// The resolved group whose `items` include `id` (searches nested children).
@@ -491,8 +568,8 @@ struct CustomTableView: View {
     /// natively auto-scroll for a custom `.draggable`/`dropDestination` payload
     /// (native auto-scroll only kicks in for `List`/`Table` row reordering), so
     /// this nudges the scroll edge when the drag's global Y sits inside a
-    /// `Self.edgeBand`-tall band at the viewport's top or bottom. The nudge moves
-    /// the scroll position toward that edge by `Self.edgeNudge`; repeated update
+    /// `Self.edgeBand`-tall band at the viewport's top or bottom. Each nudge
+    /// brings the nearest off-edge captured row into view; repeated update
     /// callbacks (the drop session fires continuously while hovering) keep it
     /// scrolling as long as the cursor dwells in the band.
     private func autoScrollIfNearEdge(globalY: Double) {
@@ -510,8 +587,8 @@ struct CustomTableView: View {
     }
 
     /// Scroll the row just beyond the given edge into view — the edge auto-scroll
-    /// step. `viewTable`-space row frames let us pick the row whose midpoint sits
-    /// just outside the viewport on that side and scroll it to center.
+    /// step. The `.global`-space row frames let us pick the row whose midpoint
+    /// sits just outside the viewport on that side and scroll it to center.
     private func nudgeToward(_ edge: Edge) {
         let frames = flattenedViewItems.compactMap { item -> (String, CGRect)? in
             guard let f = dragCoordinator.rowFrames[item.id] else { return nil }

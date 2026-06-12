@@ -42,7 +42,7 @@ struct GalleryView: View {
     let buildDropContext:
         (
             _ draggedItems: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
-            _ sourceIndices: IndexSet
+            _ anchorID: String?, _ sourceIndices: IndexSet
         ) -> RowDragCoordinator.DropContext?
 
     @State private var collapsed: Set<String> = []
@@ -208,7 +208,12 @@ struct GalleryView: View {
     /// The drag payload's pages: the full selection when the dragged card is
     /// selected (parity with the table's multi-drag), else just this card.
     private func dragIDs(for item: ViewItem) -> [String] {
-        if selection.selection.contains(item.id) { return Array(selection.selection) }
+        if selection.selection.contains(item.id) {
+            // Preserve render (flow) order so reorder offsets stay meaningful —
+            // `selection.selection` is an unordered Set.
+            let ids = flattenedOrder.filter { selection.selection.contains($0) }
+            return ids.isEmpty ? [item.id] : ids
+        }
         return [item.id]
     }
 
@@ -217,17 +222,24 @@ struct GalleryView: View {
     private func handleDrop(_ payloads: [ViewRowDragPayload], onto group: ResolvedGroup, at insertionIndex: Int) -> Bool
     {
         guard let payload = payloads.first else { return false }
-        let draggedItems = group.flattenedItems.filter { payload.pageIDs.contains($0.id) }
+        let items = group.flattenedItems
+        let draggedItems = items.filter { payload.pageIDs.contains($0.id) }
         let sourceIndices = IndexSet(
-            group.flattenedItems.enumerated()
+            items.enumerated()
                 .filter { payload.pageIDs.contains($0.element.id) }
                 .map(\.offset))
         guard
             let context = buildDropContext(
-                draggedItems.isEmpty ? group.flattenedItems : draggedItems,
-                group, insertionIndex, sourceIndices)
+                draggedItems.isEmpty ? items : draggedItems,
+                group, insertionIndex, anchorID(in: items, at: insertionIndex), sourceIndices)
         else { return false }
         return dragCoordinator.drop(payload: payload, context: context)
+    }
+
+    /// The page id a drop at `index` within the group's flattened `items` lands
+    /// BEFORE — the reorder anchor — or nil at the container end (append).
+    private func anchorID(in items: [ViewItem], at index: Int) -> String? {
+        items.indices.contains(index) ? items[index].id : nil
     }
 
     // MARK: - Live drop indicator
@@ -260,15 +272,24 @@ struct GalleryView: View {
         let items = group.flattenedItems
         let draggedIDs = dragCoordinator.draggedIDs
         let cards = cardFrames(in: items)
-        let index =
-            GalleryDropGeometry.insertionIndex(location: location, cards: cards)
-            ?? items.count
+        // Past the last CAPTURED card, append at the true container end — the card
+        // frame registry only holds on-screen cards (LazyVGrid virtualization), so
+        // the last captured index can sit mid-group when trailing cards scroll out.
+        let index: Int
+        if let last = cards.last, location.y >= last.frame.maxY {
+            index = items.count
+        } else {
+            index =
+                GalleryDropGeometry.insertionIndex(location: location, cards: cards)
+                ?? items.count
+        }
         let dragged = items.filter { draggedIDs.contains($0.id) }
         let sourceIndices = IndexSet(
             dragged.compactMap { d in items.firstIndex(where: { $0.id == d.id }) })
         dragCoordinator.update(
             buildDropContext(
-                dragged.isEmpty ? items : dragged, group, index, sourceIndices))
+                dragged.isEmpty ? items : dragged, group, index,
+                anchorID(in: items, at: index), sourceIndices))
     }
 
     /// The captured card frames for a group's flattened items, in flow order —
