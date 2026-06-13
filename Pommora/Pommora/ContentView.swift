@@ -84,50 +84,71 @@ struct ContentView: View {
     @ViewBuilder
     private var primaryActionCapsule: some View {
         if let env = nexusEnvironment {
-            let vaultMgr = env.vaultManager
-            let tierConfigMgr = env.tierConfigManager
-            let contentMgr = env.contentManager
             let lookup = SidebarLookupBundle(
-                content: contentMgr,
-                pageType: vaultMgr,
+                content: env.contentManager,
+                pageType: env.vaultManager,
                 area: env.areaManager,
                 topic: env.topicManager,
                 project: env.projectManager
             )
+            // Views + view-settings buttons are deliberately NOT here. They're
+            // container-specific (vault / collection only) and render as an
+            // in-content overlay on the detail (`detailViewControls`) — out of the
+            // NSToolbar so they carry no system "Icon & Text" toggle. Nav-dropdown
+            // + inspector stay global toolbar items.
+            HStack(spacing: 0) {
+                NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                    sidebarSelection = sel
+                }
+                Button {
+                    withAnimation(.smooth(duration: 0.25)) {
+                        inspectorPresented.toggle()
+                    }
+                } label: {
+                    Image(systemName: "sidebar.trailing")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 22, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .keyboardShortcut("0", modifiers: [.option, .command])
+                .help("Toggle Inspector (⌥⌘0)")
+            }
+            .glassEffect()
+        }
+    }
+
+    /// Whether the per-view controls (views dropdown + view-settings) should
+    /// surface — only for the two container detail views that own SavedViews.
+    private var showsViewControls: Bool {
+        switch currentViewSettingsScope {
+        case .pageType, .pageCollection: return true
+        default: return false
+        }
+    }
+
+    /// The detached, container-gated view controls — rendered as an in-content
+    /// overlay at the detail's top-trailing rather than as NSToolbar items (no
+    /// system "Icon & Text" toggle; ready to sit under the banner in a later pass).
+    @ViewBuilder
+    private func detailViewControls(_ env: NexusEnvironment) -> some View {
+        if showsViewControls {
             HStack(spacing: 8) {
                 ViewsDropdownButton(
                     scope: currentViewSettingsScope,
-                    pageTypeManager: vaultMgr,
+                    pageTypeManager: env.vaultManager,
                     activeViewStore: env.activeViewStore
                 )
                 .glassEffect()
-
-                HStack(spacing: 0) {
-                    ViewSettingsButton(
-                        scope: currentViewSettingsScope,
-                        pageTypeManager: vaultMgr,
-                        tierConfigManager: tierConfigMgr,
-                        pageContentManager: contentMgr
-                    )
-                    NavDropdownButton(asSegment: true, lookup: lookup) { sel in
-                        sidebarSelection = sel
-                    }
-
-                    Button {
-                        withAnimation(.smooth(duration: 0.25)) {
-                            inspectorPresented.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "sidebar.trailing")
-                            .font(.system(size: 12, weight: .medium))
-                            .frame(width: 22, height: 16)
-                            .contentShape(Rectangle())
-                    }
-                    .keyboardShortcut("0", modifiers: [.option, .command])
-                    .help("Toggle Inspector (⌥⌘0)")
-                }
+                ViewSettingsButton(
+                    scope: currentViewSettingsScope,
+                    pageTypeManager: env.vaultManager,
+                    tierConfigManager: env.tierConfigManager,
+                    pageContentManager: env.contentManager
+                )
                 .glassEffect()
             }
+            .padding(.top, 8)
+            .padding(.trailing, 12)
         }
     }
 
@@ -311,6 +332,9 @@ struct ContentView: View {
                 justCreatedID: $justCreatedID
             )
             .injectNexusEnvironment(env)
+            .overlay(alignment: .topTrailing) {
+                detailViewControls(env)
+            }
         } else {
             Color.clear
         }
