@@ -46,9 +46,10 @@ enum GroupDropPlanner {
 
     /// The committable outcome — an exhaustive closed set the caller switches on.
     enum Plan: Equatable, Sendable {
-        /// Manual-sort reorder within the SAME container. `IndexSet` are the
-        /// source offsets, `Int` the destination offset (`Array.move` shape).
-        case reorder(IndexSet, Int)
+        /// Manual-sort reorder within the SAME container. The commit translates
+        /// the moving ids + insertion anchor to the stored-array order, so the
+        /// plan itself carries no offsets.
+        case reorder
         /// Drop into a different STRUCTURAL group → a real file move.
         case move(to: PageParent)
         /// Drop into a PROPERTY bucket → rewrite `id` to the bucket's `value`
@@ -64,14 +65,11 @@ enum GroupDropPlanner {
     ///   may a same-container drop reorder.
     /// - `groupPropertyID`: the active group's property id, needed to know WHICH
     ///   property a property-bucket drop rewrites. Nil when not property-grouped.
-    /// - `sourceIndices`: the source rows' offsets within the target container's
-    ///   item list, for the reorder index space (caller computes from render order).
     static func plan(
         source: Source,
         target: Target,
         sortIsManual: Bool,
-        groupPropertyID: String?,
-        sourceIndices: IndexSet
+        groupPropertyID: String?
     ) -> Plan {
         // Only page rows are drag sources — everything else is invalid.
         guard source.isPageRows, !source.pageIDs.isEmpty else { return .none }
@@ -83,14 +81,14 @@ enum GroupDropPlanner {
             guard let propertyID = groupPropertyID else { return .none }
             // Same bucket as the source: a reorder if manual, else a no-op.
             if case .property(let sourceValue) = source.group, sourceValue == value {
-                return sortIsManual ? .reorder(sourceIndices, target.insertionIndex) : .none
+                return sortIsManual ? .reorder : .none
             }
             return .rewriteProperty(id: propertyID, value: value)
 
         case .structural(let destination):
             // Same structural container as the source → reorder (manual only).
             if case .structural = source.group, source.parent == destination {
-                return sortIsManual ? .reorder(sourceIndices, target.insertionIndex) : .none
+                return sortIsManual ? .reorder : .none
             }
             // Different structural container → a real file move.
             return .move(to: destination)

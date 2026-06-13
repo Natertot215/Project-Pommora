@@ -38,6 +38,23 @@ extension PageParent {
         }
     }
 
+    /// The enclosing PageSet, nil outside a Set.
+    var set: PageSet? {
+        switch self {
+        case .set(let set, _, _): return set
+        case .collection, .vaultRoot: return nil
+        }
+    }
+
+    /// The enclosing PageCollection, nil at the vault root.
+    var collection: PageCollection? {
+        switch self {
+        case .collection(let coll, _): return coll
+        case .set(_, let coll, _): return coll
+        case .vaultRoot: return nil
+        }
+    }
+
     /// Persisted display order for direct child Pages at this location.
     var pageOrder: [String]? {
         switch self {

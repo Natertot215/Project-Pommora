@@ -43,7 +43,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: nil, sourceIndices: IndexSet([0]))
+            sortIsManual: true, groupPropertyID: nil)
 
         #expect(plan == .none)
     }
@@ -61,7 +61,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: nil, sourceIndices: IndexSet())
+            sortIsManual: true, groupPropertyID: nil)
 
         #expect(plan == .none)
     }
@@ -81,9 +81,9 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: nil, sourceIndices: IndexSet([0]))
+            sortIsManual: true, groupPropertyID: nil)
 
-        #expect(plan == .reorder(IndexSet([0]), 2))
+        #expect(plan == .reorder)
     }
 
     @Test("Same container but sort != nil → reorder blocked → .none")
@@ -99,7 +99,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: false, groupPropertyID: nil, sourceIndices: IndexSet([0]))
+            sortIsManual: false, groupPropertyID: nil)
 
         #expect(plan == .none)
     }
@@ -117,9 +117,9 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: "status", sourceIndices: IndexSet([3]))
+            sortIsManual: true, groupPropertyID: "status")
 
-        #expect(plan == .reorder(IndexSet([3]), 1))
+        #expect(plan == .reorder)
     }
 
     // MARK: - Move: different structural group
@@ -139,7 +139,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: nil, sourceIndices: IndexSet([0]))
+            sortIsManual: true, groupPropertyID: nil)
 
         #expect(plan == .move(to: destParent))
     }
@@ -159,7 +159,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: false, groupPropertyID: nil, sourceIndices: IndexSet())
+            sortIsManual: false, groupPropertyID: nil)
 
         #expect(plan == .move(to: destParent))
     }
@@ -179,7 +179,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: "status", sourceIndices: IndexSet([0]))
+            sortIsManual: true, groupPropertyID: "status")
 
         #expect(plan == .rewriteProperty(id: "status", value: "done"))
     }
@@ -197,7 +197,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: "status", sourceIndices: IndexSet([0]))
+            sortIsManual: true, groupPropertyID: "status")
 
         #expect(plan == .rewriteProperty(id: "status", value: nil))
     }
@@ -215,7 +215,7 @@ struct GroupDropPlannerTests {
 
         let plan = GroupDropPlanner.plan(
             source: source, target: target,
-            sortIsManual: true, groupPropertyID: nil, sourceIndices: IndexSet([0]))
+            sortIsManual: true, groupPropertyID: nil)
 
         #expect(plan == .none)
     }

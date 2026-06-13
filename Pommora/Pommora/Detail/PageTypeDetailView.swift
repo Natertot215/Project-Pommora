@@ -233,24 +233,14 @@ struct PageTypeDetailView: View {
                 presentedSheet = .editIcon(
                     .page(
                         item.page, vault: pageType,
-                        collection: collectionOf(item), set: setOf(item)))
+                        collection: item.parent.collection, set: item.parent.set))
             },
             pageMenu: { AnyView(menuItems(for: .page($0))) },
             groupMenu: { AnyView(groupMenuItems(for: $0)) },
             coverMenu: { AnyView(coverMenuItems(for: $0)) },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
-                RowDragCoordinator.makeContext(
-                    draggedItems: dragged,
-                    targetGroup: targetGroup,
-                    insertionIndex: insertionIndex,
-                    anchorID: anchorID,
-                    group: activeView?.group,
-                    sortIsManual: activeView?.sort == nil,
-                    sourceIndices: sourceIndices,
-                    structuralParent: structuralParent)
-            }
+            buildDropContext: buildDropContext
         )
         .task(id: visibleContextLinkIDs) { await contextDisplay.warm(visibleContextLinkIDs) }
         .task { wireDragCommits() }
@@ -281,23 +271,30 @@ struct PageTypeDetailView: View {
             },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
-                RowDragCoordinator.makeContext(
-                    draggedItems: dragged,
-                    targetGroup: targetGroup,
-                    insertionIndex: insertionIndex,
-                    anchorID: anchorID,
-                    group: activeView?.group,
-                    sortIsManual: activeView?.sort == nil,
-                    sourceIndices: sourceIndices,
-                    structuralParent: structuralParent)
-            }
+            buildDropContext: buildDropContext
         )
         .id(tableIdentity)
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }
         .task { wireDragCommits() }
+    }
+
+    /// Resolves the planner `DropContext` for a drop — shared by the table and
+    /// gallery renderers (identical inputs, single source). Folds in the active
+    /// view's group config + manual-sort flag, which only this view knows.
+    private func buildDropContext(
+        _ dragged: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
+        _ anchorID: String?
+    ) -> RowDragCoordinator.DropContext? {
+        RowDragCoordinator.makeContext(
+            draggedItems: dragged,
+            targetGroup: targetGroup,
+            insertionIndex: insertionIndex,
+            anchorID: anchorID,
+            group: activeView?.group,
+            sortIsManual: activeView?.sort == nil,
+            structuralParent: structuralParent)
     }
 
     /// Maps a structural `ResolvedGroup` to its `PageParent` in vault scope —
@@ -346,7 +343,7 @@ struct PageTypeDetailView: View {
             do {
                 try await contentManager.updatePageProperty(
                     item.page, propertyID: propertyID, newValue: newValue,
-                    vault: pageType, collection: collectionOf(item), set: setOf(item))
+                    vault: pageType, collection: item.parent.collection, set: item.parent.set)
             } catch {}
         }
     }
@@ -367,27 +364,14 @@ struct PageTypeDetailView: View {
     /// Persists a single property edit. The page's collection comes from its
     /// stamped parent — no re-lookup needed.
     private func commitCell(_ item: ViewItem, _ def: PropertyDefinition, _ newValue: PropertyValue?) {
-        let parentCollection: PageCollection?
-        let parentSet: PageSet?
-        switch item.parent {
-        case .collection(let coll, _):
-            parentCollection = coll
-            parentSet = nil
-        case .set(let set, let coll, _):
-            parentCollection = coll
-            parentSet = set
-        case .vaultRoot:
-            parentCollection = nil
-            parentSet = nil
-        }
         Task {
             try? await contentManager.updatePageProperty(
                 item.page,
                 propertyID: def.id,
                 newValue: newValue,
                 vault: pageType,
-                collection: parentCollection,
-                set: parentSet
+                collection: item.parent.collection,
+                set: item.parent.set
             )
         }
     }
@@ -475,22 +459,9 @@ struct PageTypeDetailView: View {
         // The item's stamped parent carries the exact ref, so route directly.
         PageOpenRouter.routeOpen(
             item.page, vault: item.parent.vault,
-            collection: collectionOf(item), set: setOf(item),
+            collection: item.parent.collection, set: item.parent.set,
             selection: &selection,
             openPreview: { openPagePreview($0) })
-    }
-
-    private func collectionOf(_ item: ViewItem) -> PageCollection? {
-        switch item.parent {
-        case .collection(let coll, _): return coll
-        case .set(_, let coll, _): return coll
-        case .vaultRoot: return nil
-        }
-    }
-
-    private func setOf(_ item: ViewItem) -> PageSet? {
-        if case .set(let set, _, _) = item.parent { return set }
-        return nil
     }
 
     // MARK: - Cover
@@ -500,7 +471,7 @@ struct PageTypeDetailView: View {
         if let item = coverTarget, let nexus = nexusManager.currentNexus {
             CoverPicker(
                 page: item.page, vault: pageType,
-                collection: collectionOf(item), set: setOf(item),
+                collection: item.parent.collection, set: item.parent.set,
                 nexus: nexus, isPresenting: $isPickingCover)
         }
     }
@@ -526,7 +497,7 @@ struct PageTypeDetailView: View {
             do {
                 try await contentManager.updatePageFrontmatter(
                     item.page, frontmatter: fm, vault: pageType,
-                    collection: collectionOf(item), set: setOf(item))
+                    collection: item.parent.collection, set: item.parent.set)
                 // Delete the cleared cover file ONLY AFTER the `cover = nil`
                 // write succeeds, so a failed write never leaves `cover`
                 // pointing at a deleted file.
@@ -547,7 +518,7 @@ struct PageTypeDetailView: View {
             Button("Edit Title") { beginRename(target) }
             Button("Edit Icon") {
                 presentedSheet = .editIcon(
-                    .page(item.page, vault: pageType, collection: collectionOf(item), set: setOf(item)))
+                    .page(item.page, vault: pageType, collection: item.parent.collection, set: item.parent.set))
             }
             Button(pinned ? "Unpin Page" : "Pin Page") { item.page.togglePin() }
             Divider()

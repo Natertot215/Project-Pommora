@@ -1,12 +1,12 @@
 import CoreGraphics
 
-/// Pure grid hit-testing + insertion math for the gallery's card drag — the
-/// grid-flow analogue of `RowDragGeometry`'s vertical-midpoint logic. Given the
+/// Pure grid hit-testing + insertion math for the gallery's card drag. Given the
 /// live card frames in a shared coordinate space and the drop session's global
 /// location, it resolves where in the flattened FLOW SEQUENCE a drop would land:
 /// find the card the cursor is over (or nearest to), then split on its
 /// HORIZONTAL midpoint — leading half inserts before the card, trailing half
-/// after it. Past the last card appends.
+/// after it. Past the last card appends. The outline table resolves the same
+/// question natively via `ViewOutlineTable.Coordinator.dropTarget`.
 ///
 /// Kept free of actor isolation + SwiftUI types (`Sendable`, value-only) so it
 /// unit-tests without disk or UI; the drag wiring lives on `GalleryView`.

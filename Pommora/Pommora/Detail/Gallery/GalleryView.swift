@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Gallery renderer — parity sibling of `CustomTableView`. Consumes the
+/// The Gallery renderer — parity sibling of `ViewOutlineTable`. Consumes the
 /// same `[ResolvedGroup]` pipeline currency + the same interaction closures the
 /// detail view wires for the table, so the two renderers share every commit
 /// path (cell edits, drag, menus, collapse persistence).
@@ -42,7 +42,7 @@ struct GalleryView: View {
     let buildDropContext:
         (
             _ draggedItems: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
-            _ anchorID: String?, _ sourceIndices: IndexSet
+            _ anchorID: String?
         ) -> RowDragCoordinator.DropContext?
 
     @State private var collapsed: Set<String> = []
@@ -159,8 +159,8 @@ struct GalleryView: View {
             coverMenu: view.showCover == true ? { coverMenu(item) } : nil
         )
         // Capture this card's GLOBAL frame — the live insertion capsule is
-        // hit-tested from these frames + the (global) drop location, mirroring
-        // the table's `rowFrames` capture (separate `cardFrames` registry).
+        // hit-tested from these frames + the (global) drop location (the
+        // coordinator's `cardFrames` registry).
         .onGeometryChange(for: CGRect.self) {
             $0.frame(in: .global)
         } action: {
@@ -224,14 +224,10 @@ struct GalleryView: View {
         guard let payload = payloads.first else { return false }
         let items = group.flattenedItems
         let draggedItems = items.filter { payload.pageIDs.contains($0.id) }
-        let sourceIndices = IndexSet(
-            items.enumerated()
-                .filter { payload.pageIDs.contains($0.element.id) }
-                .map(\.offset))
         guard
             let context = buildDropContext(
                 draggedItems.isEmpty ? items : draggedItems,
-                group, insertionIndex, anchorID(in: items, at: insertionIndex), sourceIndices)
+                group, insertionIndex, anchorID(in: items, at: insertionIndex))
         else { return false }
         return dragCoordinator.drop(payload: payload, context: context)
     }
@@ -284,12 +280,10 @@ struct GalleryView: View {
                 ?? items.count
         }
         let dragged = items.filter { draggedIDs.contains($0.id) }
-        let sourceIndices = IndexSet(
-            dragged.compactMap { d in items.firstIndex(where: { $0.id == d.id }) })
         dragCoordinator.update(
             buildDropContext(
                 dragged.isEmpty ? items : dragged, group, index,
-                anchorID(in: items, at: index), sourceIndices))
+                anchorID(in: items, at: index)))
     }
 
     /// The captured card frames for a group's flattened items, in flow order —

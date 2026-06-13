@@ -278,7 +278,9 @@ enum GroupResolver {
     }
 
     /// The single grouping key for an item's value (nil = no value → ungrouped).
-    private static func bucketKey(_ item: ViewItem, propertyID: String) -> String? {
+    /// Shared with `RowDragCoordinator` so a drag's source-bucket resolution and
+    /// group membership stay one source of truth.
+    static func bucketKey(_ item: ViewItem, propertyID: String) -> String? {
         switch item.page.frontmatter.properties[propertyID] {
         case .select(let s), .status(let s): return s
         case .checkbox(let b): return b ? "true" : "false"

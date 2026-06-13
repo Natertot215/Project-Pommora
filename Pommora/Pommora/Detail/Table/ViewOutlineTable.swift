@@ -49,7 +49,7 @@ struct ViewOutlineTable: NSViewRepresentable {
     let buildDropContext:
         (
             _ draggedItems: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
-            _ anchorID: String?, _ sourceIndices: IndexSet
+            _ anchorID: String?
         ) -> RowDragCoordinator.DropContext?
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
@@ -102,14 +102,17 @@ struct ViewOutlineTable: NSViewRepresentable {
         coordinator.parent = self
         guard let outline = scroll.documentView as? NSOutlineView else { return }
 
-        // Reconcile the column SET only when a property is added or deleted (the
-        // full set is column-complete; hiding is NOT a set change). Order + width
-        // live in the resolved `columns` and persist to the per-view SavedView sidecar
-        // (via the header `mouseDown` capture); `ensureColumns` re-applies them on a
-        // rebuild — and the Title column is never removed, so it can't survive a
-        // teardown and duplicate.
-        let liveIDs = Set(outline.tableColumns.map { $0.identifier.rawValue })
-        if liveIDs != Set(columns.map(\.id)) {
+        // Reconcile the columns whenever the resolved layout's id + kind + title
+        // changes — a property added / deleted (set change), renamed (title), or
+        // retyped (kind). Hiding is NOT a layout change (that's `isHidden` below),
+        // and a pure width change is excluded from the signature so a user resize
+        // doesn't trigger a header rebuild. `ensureColumns` adds/removes columns,
+        // refreshes header titles in place, and nils the reload signature so the
+        // next `reload` re-creates each cell with the new schema. The Title column
+        // is never removed, so it can't survive a teardown and duplicate. Order +
+        // width persist to the per-view SavedView sidecar (via the header
+        // `mouseDown` capture) and `ensureColumns` re-applies them on a rebuild.
+        if coordinator.columnLayoutChanged(columns) {
             coordinator.ensureColumns(outline)
         }
         // Hide / show via isHidden (not add/remove) so a hidden column keeps its
@@ -130,10 +133,16 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// reference-typed `OutlineNode`s.
         private var nodes: [OutlineNode] = []
 
-        /// Hash of the last-loaded row structure + content (EXCLUDING collapse
-        /// state) — guards `reload` from re-running `reloadData` on a collapse
-        /// toggle, which would fight the native fold animation.
+        /// Hash of the last-loaded row structure + content + column layout
+        /// (EXCLUDING collapse state) — guards `reload` from re-running `reloadData`
+        /// on a collapse toggle, which would fight the native fold animation.
         private var lastSignature: String?
+
+        /// Hash of the column layout (id + kind + title) last reconciled into the
+        /// native header by `ensureColumns` — guards `updateNSView` from re-running
+        /// `ensureColumns` unless a property is added / deleted / renamed / retyped.
+        /// A pure width change is excluded (it persists silently, no header work).
+        private var lastColumnSignature: String?
 
         /// Guards the column + collapse handlers from firing during a programmatic
         /// update (an `ensureColumns` add/remove, or a reload's expansion callbacks),
@@ -149,6 +158,13 @@ struct ViewOutlineTable: NSViewRepresentable {
         }
 
         // MARK: Column setup
+
+        /// Whether the resolved column layout (id + kind + title, NOT width) differs
+        /// from what `ensureColumns` last reconciled — the `updateNSView` gate for a
+        /// header rebuild. A width-only change returns false (no header work).
+        func columnLayoutChanged(_ columns: [ResolvedColumn]) -> Bool {
+            Self.columnSignature(of: columns) != lastColumnSignature
+        }
 
         /// Reconciles the native columns to the FULL resolved set WITHOUT a teardown:
         /// adds a column for a new property (in resolved = sidecar order), removes one
@@ -197,9 +213,11 @@ struct ViewOutlineTable: NSViewRepresentable {
             }) {
                 outline.outlineTableColumn = titleColumn
             }
-            // A column-set change must force the next reload (the signature guard
-            // would otherwise skip it when only the row structure is unchanged).
+            // A column change must force the next reload (the signature guard would
+            // otherwise skip it when only the row structure is unchanged), and record
+            // the reconciled layout so `updateNSView` skips redundant ensureColumns.
             lastSignature = nil
+            lastColumnSignature = Self.columnSignature(of: desired)
         }
 
         /// Applies the active view's hidden set as native `column.isHidden`. A hidden
@@ -228,11 +246,14 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// headerless ungrouped band splices its items in as top-level rows (no
         /// disclosure header), matching the old renderer.
         func reload(_ outline: NSOutlineView) {
-            // Skip the reload when the row structure + content is unchanged and only
-            // the collapse state differs. Reloading on a collapse toggle re-seeds
-            // expansion and fights the native fold animation (the "whole screen
-            // janks" symptom), because persisting the toggle re-renders this view.
-            let signature = Self.signature(of: parent.groups)
+            // Skip the reload when the row structure + content AND the column layout
+            // are unchanged and only the collapse state differs. Reloading on a
+            // collapse toggle re-seeds expansion and fights the native fold animation
+            // (the "whole screen janks" symptom), because persisting the toggle
+            // re-renders this view. The column hash is folded in so a property
+            // rename / type change (same row structure) still forces `reloadData()`,
+            // re-creating each cell's hosted content with the new schema + editor.
+            let signature = Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns)
             guard signature != lastSignature else { return }
             lastSignature = signature
 
@@ -286,6 +307,23 @@ struct ViewOutlineTable: NSViewRepresentable {
                 for child in group.children ?? [] { walk(child) }
             }
             for group in groups { walk(group) }
+            return String(hasher.finalize())
+        }
+
+        /// A hash of the resolved column SCHEMA — id + kind + title only, ORDER- and
+        /// width-INDEPENDENT (sorted by id before hashing). Width is excluded so a
+        /// user column-resize doesn't force a full `reloadData()` / header rebuild
+        /// (it persists silently and re-applies on rebuild); order is excluded so a
+        /// user column-reorder (handled natively) doesn't either. A property add /
+        /// delete (id-set), rename (title), or type change (kind) DOES change it —
+        /// the trigger to refresh stale headers + cell editors.
+        private static func columnSignature(of columns: [ResolvedColumn]) -> String {
+            var hasher = Hasher()
+            for column in columns.sorted(by: { $0.id < $1.id }) {
+                hasher.combine(column.id)
+                hasher.combine(column.kind)
+                hasher.combine(column.title)
+            }
             return String(hasher.finalize())
         }
 
@@ -471,11 +509,9 @@ struct ViewOutlineTable: NSViewRepresentable {
             else { return false }
             let dragged = parent.groups.flatMap(\.flattenedItems).filter { ids.contains($0.id) }
             guard !dragged.isEmpty else { return false }
-            let sourceIndices = IndexSet(
-                dragged.compactMap { d in target.group.items.firstIndex(where: { $0.id == d.id }) })
             guard
                 let context = parent.buildDropContext(
-                    dragged, target.group, target.insertionIndex, target.anchorID, sourceIndices)
+                    dragged, target.group, target.insertionIndex, target.anchorID)
             else { return false }
             return parent.dragCoordinator.drop(
                 payload: ViewRowDragPayload(pageIDs: ids), context: context)

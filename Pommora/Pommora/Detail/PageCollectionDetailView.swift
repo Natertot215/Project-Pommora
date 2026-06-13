@@ -143,12 +143,6 @@ struct PageCollectionDetailView: View {
     /// `vault` + `collection` params are value snapshots that go stale on mutation.
     /// Collections inherit the parent Type's schema, so the schema reads from the
     /// live vault; the visible columns read from the live collection's view.
-    /// Live vault + collection from the `@Observable` manager (by id) so schema /
-    /// view edits re-render IMMEDIATELY instead of only after a reselect — the
-    /// `vault` + `collection` params are value snapshots that go stale on
-    /// mutation. Collections inherit the parent Type's schema, so the schema
-    /// reads from the live vault; the visible columns read from the live
-    /// collection's view.
     private var liveVault: PageType {
         pageTypeManager.types.first { $0.id == vault.id } ?? vault
     }
@@ -260,29 +254,15 @@ struct PageCollectionDetailView: View {
             commit: { item, def, newValue in commitCell(item, def, newValue) },
             onRename: { beginRename(.page($0)) },
             onEditIcon: { item in
-                let parentSet: PageSet? = {
-                    if case .set(let set, _, _) = item.parent { return set }
-                    return nil
-                }()
                 presentedSheet = .editIcon(
-                    .page(item.page, vault: vault, collection: collection, set: parentSet))
+                    .page(item.page, vault: vault, collection: collection, set: item.parent.set))
             },
             pageMenu: { AnyView(menuItems(for: .page($0))) },
             groupMenu: { AnyView(groupMenuItems(for: $0)) },
             coverMenu: { AnyView(coverMenuItems(for: $0)) },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
-                RowDragCoordinator.makeContext(
-                    draggedItems: dragged,
-                    targetGroup: targetGroup,
-                    insertionIndex: insertionIndex,
-                    anchorID: anchorID,
-                    group: activeView?.group,
-                    sortIsManual: activeView?.sort == nil,
-                    sourceIndices: sourceIndices,
-                    structuralParent: structuralParent)
-            }
+            buildDropContext: buildDropContext
         )
         .task(id: visibleContextLinkIDs) { await contextDisplay.warm(visibleContextLinkIDs) }
         .task { wireDragCommits() }
@@ -313,23 +293,30 @@ struct PageCollectionDetailView: View {
             },
             persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
             dragCoordinator: dragCoordinator,
-            buildDropContext: { dragged, targetGroup, insertionIndex, anchorID, sourceIndices in
-                RowDragCoordinator.makeContext(
-                    draggedItems: dragged,
-                    targetGroup: targetGroup,
-                    insertionIndex: insertionIndex,
-                    anchorID: anchorID,
-                    group: activeView?.group,
-                    sortIsManual: activeView?.sort == nil,
-                    sourceIndices: sourceIndices,
-                    structuralParent: structuralParent)
-            }
+            buildDropContext: buildDropContext
         )
         .id(tableIdentity)
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }
         .task { wireDragCommits() }
+    }
+
+    /// Resolves the planner `DropContext` for a drop — shared by the table and
+    /// gallery renderers (identical inputs, single source). Folds in the active
+    /// view's group config + manual-sort flag, which only this view knows.
+    private func buildDropContext(
+        _ dragged: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
+        _ anchorID: String?
+    ) -> RowDragCoordinator.DropContext? {
+        RowDragCoordinator.makeContext(
+            draggedItems: dragged,
+            targetGroup: targetGroup,
+            insertionIndex: insertionIndex,
+            anchorID: anchorID,
+            group: activeView?.group,
+            sortIsManual: activeView?.sort == nil,
+            structuralParent: structuralParent)
     }
 
     /// Maps a structural `ResolvedGroup` to its `PageParent` in collection scope.
@@ -371,14 +358,10 @@ struct PageCollectionDetailView: View {
             bucket: value, propertyID: propertyID, schema: schema)
         for id in pageIDs {
             guard let item = itemInScope(id) else { continue }
-            let parentSet: PageSet? = {
-                if case .set(let set, _, _) = item.parent { return set }
-                return nil
-            }()
             do {
                 try await contentManager.updatePageProperty(
                     item.page, propertyID: propertyID, newValue: newValue,
-                    vault: vault, collection: collection, set: parentSet)
+                    vault: vault, collection: collection, set: item.parent.set)
             } catch {}
         }
     }
@@ -403,10 +386,6 @@ struct PageCollectionDetailView: View {
     /// Persists a single property edit. Set membership comes from the item's
     /// stamped parent — no re-lookup needed.
     private func commitCell(_ item: ViewItem, _ def: PropertyDefinition, _ newValue: PropertyValue?) {
-        let parentSet: PageSet? = {
-            if case .set(let set, _, _) = item.parent { return set }
-            return nil
-        }()
         Task {
             try? await contentManager.updatePageProperty(
                 item.page,
@@ -414,7 +393,7 @@ struct PageCollectionDetailView: View {
                 newValue: newValue,
                 vault: vault,
                 collection: collection,
-                set: parentSet
+                set: item.parent.set
             )
         }
     }
@@ -422,13 +401,9 @@ struct PageCollectionDetailView: View {
     private func handleDoubleTap(_ item: ViewItem) {
         // Open-in routing: this view knows its vault + collection, so the direct
         // variant skips parent resolution. Set pages carry their Set into the ref.
-        let parentSet: PageSet? = {
-            if case .set(let set, _, _) = item.parent { return set }
-            return nil
-        }()
         PageOpenRouter.routeOpen(
             item.page, vault: vault, collection: collection,
-            set: parentSet, selection: &selection,
+            set: item.parent.set, selection: &selection,
             openPreview: { openPagePreview($0) })
     }
 
@@ -532,12 +507,8 @@ struct PageCollectionDetailView: View {
     @ViewBuilder
     private var coverPickerHost: some View {
         if let item = coverTarget, let nexus = nexusManager.currentNexus {
-            let parentSet: PageSet? = {
-                if case .set(let set, _, _) = item.parent { return set }
-                return nil
-            }()
             CoverPicker(
-                page: item.page, vault: vault, collection: collection, set: parentSet,
+                page: item.page, vault: vault, collection: collection, set: item.parent.set,
                 nexus: nexus, isPresenting: $isPickingCover)
         }
     }
@@ -557,17 +528,14 @@ struct PageCollectionDetailView: View {
     }
 
     private func removeCover(_ item: ViewItem) {
-        let parentSet: PageSet? = {
-            if case .set(let set, _, _) = item.parent { return set }
-            return nil
-        }()
         let previousCover = item.page.frontmatter.cover
         var fm = item.page.frontmatter
         fm.cover = nil
         Task {
             do {
                 try await contentManager.updatePageFrontmatter(
-                    item.page, frontmatter: fm, vault: vault, collection: collection, set: parentSet)
+                    item.page, frontmatter: fm, vault: vault, collection: collection,
+                    set: item.parent.set)
                 // Delete the cleared cover file ONLY AFTER the `cover = nil`
                 // write succeeds, so a failed write never leaves `cover`
                 // pointing at a deleted file.
@@ -585,15 +553,11 @@ struct PageCollectionDetailView: View {
     @ViewBuilder
     private func menuItems(for target: RowTarget) -> some View {
         if case .page(let item) = target {
-            let parentSet: PageSet? = {
-                if case .set(let set, _, _) = item.parent { return set }
-                return nil
-            }()
             let pinned = item.page.isPinned
             Button("Edit Title") { beginRename(target) }
             Button("Edit Icon") {
                 presentedSheet = .editIcon(
-                    .page(item.page, vault: vault, collection: collection, set: parentSet))
+                    .page(item.page, vault: vault, collection: collection, set: item.parent.set))
             }
             Button(pinned ? "Unpin Page" : "Pin Page") { item.page.togglePin() }
             Divider()

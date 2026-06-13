@@ -50,17 +50,17 @@ struct PropertyCellEditor: View {
             )
         } else if definition.type == .checkbox {
             // Cell IS the toggle — tap flips immediately, no popover. Rendered
-            // with the reusable PropertyCheckbox; a simultaneousGesture ensures
-            // the tap fires even when Table's row-selection would swallow it.
+            // with the reusable PropertyCheckbox; the simultaneousGesture below
+            // is the cell's only tap affordance (it commits the flip).
             let checked: Bool = {
                 if case .checkbox(let b) = value { return b }
                 return false
             }()
             PropertyCheckbox(
                 // set is inert — the simultaneousGesture below is the single
-                // commit path (it survives Table row-selection, and routing
-                // the toggle through it avoids a double write). Display state
-                // comes from `get`, which reflects the committed value.
+                // commit path (routing the toggle through it avoids a double
+                // write). Display state comes from `get`, which reflects the
+                // committed value.
                 isChecked: Binding(get: { checked }, set: { _ in }),
                 color: checked ? .green : .default,
                 icon: "checkmark",

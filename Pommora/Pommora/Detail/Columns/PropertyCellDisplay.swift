@@ -312,13 +312,9 @@ struct PropertyCellDisplay: View {
     private var lastEditedCell: some View {
         // The cell receives the resolved Date via the value parameter as a
         // `.datetime` (call sites adapt the file's modified_at into a
-        // PropertyValue.datetime so the dispatcher renders uniformly).
-        if case .datetime(let d) = value {
-            Text(relativeText(d))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        } else if case .date(let d) = value {
+        // PropertyValue.datetime so the dispatcher renders uniformly); a `.date`
+        // value renders identically.
+        if let d = dateValue {
             Text(relativeText(d))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)

@@ -3,11 +3,11 @@ import Testing
 
 @testable import Pommora
 
-/// Covers `GalleryDropGeometry`'s pure grid hit-test + insertion math — the
-/// grid-flow analogue of `RowDragGeometryTests`. `insertionIndex` maps a drop
-/// session's global location onto an insertion index within a group's ordered
-/// cards via the nearest card's HORIZONTAL midpoint (leading half → before,
-/// trailing half → after); past the last card appends. No disk, no UI.
+/// Covers `GalleryDropGeometry`'s pure grid hit-test + insertion math.
+/// `insertionIndex` maps a drop session's global location onto an insertion
+/// index within a group's ordered cards via the nearest card's HORIZONTAL
+/// midpoint (leading half → before, trailing half → after); past the last card
+/// appends. No disk, no UI.
 @Suite("GalleryDropGeometryTests") struct GalleryDropGeometryTests {
 
     // A 2-row grid of 100x100 cards, 3 per row, 10pt gaps:
