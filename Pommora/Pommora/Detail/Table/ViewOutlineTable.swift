@@ -5,7 +5,7 @@ import SwiftUI
 /// `NSViewRepresentable` over a view-based `NSOutlineView`. Replaces the hand-rolled
 /// SwiftUI table: disclosure folding, column resize / reorder, alternating row fills,
 /// and keyboard navigation are native AppKit, while the per-view column layout
-/// (order / width / visibility) persists to the SavedView sidecar. Each cell hosts
+/// (order / width / visibility) persists to the per-view SavedView sidecar. Each cell hosts
 /// the existing SwiftUI cell content (`ViewTableCellContent` / `ViewGroupHeaderCell`)
 /// via `NSHostingView`, so the chrome is native while cell rendering stays SwiftUI.
 ///
@@ -30,10 +30,10 @@ struct ViewOutlineTable: NSViewRepresentable {
     let groupMenu: (ResolvedGroup) -> AnyView
 
     // Layout persists to the per-view SavedView sidecar (portable + deterministic).
-    // AppKit autosave can't reliably restore column ORDER for programmatically-added
-    // columns across the per-view rebuild, so the resolver bakes order + width into
-    // `columns` and these write a genuine user drag back; `ensureColumns` re-applies
-    // on the next rebuild, so a view switch / relaunch restores the arrangement.
+    // The resolver bakes order + width into `columns`, and these write a genuine user
+    // drag back to the sidecar (captured by the header `mouseDown`); `ensureColumns`
+    // re-applies them on the next rebuild, so a view switch / relaunch restores the
+    // arrangement.
     let persistWidth: (_ colID: String, _ width: Double) -> Void
     let persistOrder: (_ newOrder: [String]) -> Void
     /// Column ids the active view hides — applied as native `isHidden` so a hidden
@@ -94,16 +94,6 @@ struct ViewOutlineTable: NSViewRepresentable {
         scroll.hasHorizontalScroller = true
         scroll.drawsBackground = false
 
-        // Persist genuine user resizes / reorders to the sidecar. Programmatic column
-        // edits run under `isApplyingUpdate`, and the handlers also no-op when the
-        // value already matches the resolved one — so there are no echoes to chase.
-        NotificationCenter.default.addObserver(
-            coordinator, selector: #selector(Coordinator.columnDidResize(_:)),
-            name: NSTableView.columnDidResizeNotification, object: outline)
-        NotificationCenter.default.addObserver(
-            coordinator, selector: #selector(Coordinator.columnDidMove(_:)),
-            name: NSTableView.columnDidMoveNotification, object: outline)
-
         return scroll
     }
 
@@ -113,15 +103,17 @@ struct ViewOutlineTable: NSViewRepresentable {
         guard let outline = scroll.documentView as? NSOutlineView else { return }
 
         // Reconcile the column SET only when a property is added or deleted (the
-        // full set is column-complete; hiding is NOT a set change). Width + order are
-        // AppKit-autosaved, so a plain resize / reorder never re-enters here — and the
-        // Title column is never removed, so it can't survive a teardown and duplicate.
+        // full set is column-complete; hiding is NOT a set change). Order + width
+        // live in the resolved `columns` and persist to the per-view SavedView sidecar
+        // (via the header `mouseDown` capture); `ensureColumns` re-applies them on a
+        // rebuild — and the Title column is never removed, so it can't survive a
+        // teardown and duplicate.
         let liveIDs = Set(outline.tableColumns.map { $0.identifier.rawValue })
         if liveIDs != Set(columns.map(\.id)) {
             coordinator.ensureColumns(outline)
         }
         // Hide / show via isHidden (not add/remove) so a hidden column keeps its
-        // autosaved width + position and restores intact when shown again.
+        // width + position and restores intact when shown again.
         coordinator.applyColumnVisibility(outline)
         coordinator.reload(outline)
     }
@@ -148,21 +140,12 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// which would otherwise echo back as a spurious persist.
         private var isApplyingUpdate = false
 
-        /// Coalesces the stream of live resize notifications into one persist after
-        /// the drag settles (a per-notification write would churn the sidecar).
-        private var pendingWidths: [String: Double] = [:]
-        private var widthFlush: DispatchWorkItem?
-
         /// Native compact row height; the per-column maximum width.
         private static let rowHeight: CGFloat = 24
         private static let maxColumnWidth: CGFloat = 1000
 
         init(parent: ViewOutlineTable) {
             self.parent = parent
-        }
-
-        deinit {
-            NotificationCenter.default.removeObserver(self)
         }
 
         // MARK: Column setup
@@ -420,32 +403,6 @@ struct ViewOutlineTable: NSViewRepresentable {
             }
         }
 
-        /// A genuine user resize → persist the settled width to the sidecar. Skipped
-        /// during programmatic column edits, and a no-op when the width already equals
-        /// the resolved (persisted) one — so an add can't echo a redundant write.
-        @objc func columnDidResize(_ notification: Notification) {
-            guard !isApplyingUpdate,
-                let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn
-            else { return }
-            let id = column.identifier.rawValue
-            let newWidth = Double(column.width)
-            guard let resolved = parent.columns.first(where: { $0.id == id }),
-                abs(resolved.width - newWidth) > 0.5
-            else { return }
-            scheduleWidthPersist(id, newWidth)
-        }
-
-        /// A genuine user reorder → persist the new column order to the sidecar.
-        /// Skipped during programmatic edits, and a no-op when the visual order
-        /// already matches the resolved one (so an index shift from a removal, which
-        /// lands on the order the sidecar already holds, doesn't rewrite it).
-        @objc func columnDidMove(_ notification: Notification) {
-            guard !isApplyingUpdate, let outline = outlineView else { return }
-            let newOrder = outline.tableColumns.map { $0.identifier.rawValue }
-            guard newOrder != parent.columns.map(\.id) else { return }
-            parent.persistOrder(newOrder)
-        }
-
         /// Persists the live column order to the sidecar when it differs from the
         /// resolved order. `NSOutlineView` commits a user column reorder to
         /// `tableColumns` but does NOT post `columnDidMoveNotification`, so the
@@ -464,28 +421,16 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// the single dragged column, so this normally persists exactly one width.
         func persistLiveColumnWidths() {
             guard !isApplyingUpdate, let outline = outlineView else { return }
+            let resolvedWidths = Dictionary(
+                parent.columns.map { ($0.id, $0.width) }, uniquingKeysWith: { first, _ in first })
             for column in outline.tableColumns {
                 let id = column.identifier.rawValue
                 let liveWidth = Double(column.width)
-                guard let resolved = parent.columns.first(where: { $0.id == id }),
-                    abs(resolved.width - liveWidth) > 0.5
+                guard let resolvedWidth = resolvedWidths[id],
+                    abs(resolvedWidth - liveWidth) > 0.5
                 else { continue }
                 parent.persistWidth(id, liveWidth)
             }
-        }
-
-        /// Debounced width persist — writes the final width once the resize settles.
-        private func scheduleWidthPersist(_ id: String, _ width: Double) {
-            pendingWidths[id] = width
-            widthFlush?.cancel()
-            let work = DispatchWorkItem { [weak self] in
-                guard let self else { return }
-                for (colID, value) in self.pendingWidths { self.parent.persistWidth(colID, value) }
-                self.pendingWidths.removeAll()
-                self.widthFlush = nil
-            }
-            widthFlush = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
         }
 
         // MARK: Drag & drop
