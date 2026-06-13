@@ -27,6 +27,10 @@ struct GalleryView: View {
 
     let relationResolver: (String) -> (icon: String, title: String)?
     let onDoubleTap: (ViewItem) -> Void
+    /// Double-click a structural group's header → open its detail view (Collections
+    /// only; Sets have none, so the closure no-ops there). Single-click toggles the
+    /// section — see `header(for:)`. Mirrors the table's `onOpenGroup`.
+    let onOpenGroup: (ResolvedGroup) -> Void
     let commit: (ViewItem, PropertyDefinition, PropertyValue?) -> Void
     let onRename: (ViewItem) -> Void
     let onEditIcon: (ViewItem) -> Void
@@ -101,14 +105,11 @@ struct GalleryView: View {
     private func header(for group: ResolvedGroup) -> some View {
         let isCollapsed = collapsed.contains(group.id)
         return HStack(spacing: PUI.Spacing.sm) {
-            Button {
-                toggleCollapse(group.id)
-            } label: {
-                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            // Chevron is now a plain indicator; the whole header is the hit target
+            // (the disclosure triangle / chevron toggles, but so does the title).
+            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
             Text(group.title)
                 .font(.headline)
             Spacer()
@@ -120,11 +121,17 @@ struct GalleryView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(dragCoordinator.highlightedGroupID == group.id ? Color.accentColor.opacity(0.15) : .clear)
         )
+        // Whole-header single-click toggles the section; double-click opens a
+        // Collection (Sets no-op) — parity with the table's group rows.
+        .onTapGesture(count: 2) { onOpenGroup(group) }
+        .onTapGesture { toggleCollapse(group.id) }
         .contextMenu { groupMenu(group) }
     }
 
     private func toggleCollapse(_ id: String) {
-        if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+        withAnimation(.snappy) {
+            if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+        }
         persistCollapsed(Array(collapsed))
     }
 

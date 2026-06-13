@@ -219,6 +219,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             index: nexusManager.currentIndex,
             relationResolver: { contextDisplay.resolve($0) },
             onDoubleTap: handleDoubleTap,
+            onOpenGroup: openGroup,
             commit: { item, def, newValue in commitCell(item, def, newValue) },
             onRename: { beginRename(.page($0)) },
             onEditIcon: { item in
@@ -246,6 +247,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             index: nexusManager.currentIndex,
             relationResolver: { contextDisplay.resolve($0) },
             onDoubleTap: handleDoubleTap,
+            onOpenGroup: openGroup,
             commit: { item, def, newValue in commitCell(item, def, newValue) },
             pageMenu: { AnyView(menuItems(for: .page($0))) },
             groupMenu: { AnyView(groupMenuItems(for: $0)) },
@@ -420,6 +422,15 @@ struct ViewSurface<Scope: DetailScope>: View {
     }
 
     // MARK: - Interaction
+
+    /// Opens a structural group's detail view on double-click — Collections open
+    /// their detail; Sets have none, so this no-ops. Shared by the table + gallery
+    /// so the group-open behavior lives in one place (layout-agnostic).
+    private func openGroup(_ group: ResolvedGroup) {
+        if case .structuralCollection(let coll) = group.kind {
+            selection = .collection(coll)
+        }
+    }
 
     private func handleDoubleTap(_ item: ViewItem) {
         // Open-in routing: rows here mix vault-root, collection, and set pages.

@@ -25,6 +25,10 @@ struct ViewOutlineTable: NSViewRepresentable {
     let index: PommoraIndex?
     let relationResolver: (String) -> (icon: String, title: String)?
     let onDoubleTap: (ViewItem) -> Void
+    /// Double-click on a structural group's row. Collections open their detail
+    /// view; Sets have none, so the closure no-ops there. (Single-click toggles
+    /// the disclosure — see `handleSingleClick`.)
+    let onOpenGroup: (ResolvedGroup) -> Void
     let commit: (ViewItem, PropertyDefinition, PropertyValue?) -> Void
     let pageMenu: (ViewItem) -> AnyView
     let groupMenu: (ResolvedGroup) -> AnyView
@@ -77,6 +81,7 @@ struct ViewOutlineTable: NSViewRepresentable {
         outline.dataSource = coordinator
         outline.delegate = coordinator
         outline.target = coordinator
+        outline.action = #selector(Coordinator.handleSingleClick(_:))
         outline.doubleAction = #selector(Coordinator.handleDoubleClick(_:))
         // Native row drag — only item rows are draggable (the data source returns
         // nil for group headers); `.move` is the only local operation.
@@ -425,6 +430,32 @@ struct ViewOutlineTable: NSViewRepresentable {
 
         // MARK: Actions
 
+        /// Single-click toggles a group's disclosure when the click lands in the
+        /// title area. The native triangle already toggles on its own, so a click
+        /// on or left of it is left alone (no double-fire). Item rows do nothing on
+        /// a single click. `animator()` gives the same fold the triangle does; the
+        /// reload signature excludes collapse state, so the persist round-trip never
+        /// re-seeds expansion mid-animation.
+        @objc func handleSingleClick(_ sender: Any?) {
+            guard let outline = outlineView else { return }
+            let row = outline.clickedRow
+            guard row >= 0, let node = outline.item(atRow: row) as? OutlineNode,
+                case .group = node.payload
+            else { return }
+            let point = outline.convert(
+                outline.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
+            guard point.x > outline.frameOfOutlineCell(atRow: row).maxX else { return }
+            if outline.isItemExpanded(node) {
+                outline.animator().collapseItem(node)
+            } else {
+                outline.animator().expandItem(node)
+            }
+        }
+
+        /// Double-click opens: an item routes through `onDoubleTap`; a group routes
+        /// through `onOpenGroup` (a Collection opens its detail view; a Set no-ops).
+        /// Disclosure toggling is the single-click job, so a group is never toggled
+        /// here.
         @objc func handleDoubleClick(_ sender: Any?) {
             guard let outline = outlineView else { return }
             let row = outline.clickedRow
@@ -432,12 +463,8 @@ struct ViewOutlineTable: NSViewRepresentable {
             switch node.payload {
             case .item(let viewItem):
                 parent.onDoubleTap(viewItem)
-            case .group:
-                if outline.isItemExpanded(node) {
-                    outline.collapseItem(node)
-                } else {
-                    outline.expandItem(node)
-                }
+            case .group(let group):
+                parent.onOpenGroup(group)
             }
         }
 
