@@ -446,6 +446,34 @@ struct ViewOutlineTable: NSViewRepresentable {
             parent.persistOrder(newOrder)
         }
 
+        /// Persists the live column order to the sidecar when it differs from the
+        /// resolved order. `NSOutlineView` commits a user column reorder to
+        /// `tableColumns` but does NOT post `columnDidMoveNotification`, so the
+        /// header view calls this directly once its modal drag-tracking loop returns.
+        func persistLiveColumnOrder() {
+            guard !isApplyingUpdate, let outline = outlineView else { return }
+            let newOrder = outline.tableColumns.map { $0.identifier.rawValue }
+            guard newOrder != parent.columns.map(\.id) else { return }
+            parent.persistOrder(newOrder)
+        }
+
+        /// Persists any user-resized column widths that differ from the resolved
+        /// widths. `NSOutlineView` does not reliably post `columnDidResizeNotification`
+        /// for a user resize either, so the header view calls this after its tracking
+        /// loop, alongside the order capture. `.noColumnAutoresizing` keeps a resize to
+        /// the single dragged column, so this normally persists exactly one width.
+        func persistLiveColumnWidths() {
+            guard !isApplyingUpdate, let outline = outlineView else { return }
+            for column in outline.tableColumns {
+                let id = column.identifier.rawValue
+                let liveWidth = Double(column.width)
+                guard let resolved = parent.columns.first(where: { $0.id == id }),
+                    abs(resolved.width - liveWidth) > 0.5
+                else { continue }
+                parent.persistWidth(id, liveWidth)
+            }
+        }
+
         /// Debounced width persist — writes the final width once the resize settles.
         private func scheduleWidthPersist(_ id: String, _ width: Double) {
             pendingWidths[id] = width
@@ -666,6 +694,18 @@ private final class HostingCell: NSTableCellView {
 /// it for the non-hideable Title column.
 private final class ColumnHeaderView: NSTableHeaderView {
     weak var coordinator: ViewOutlineTable.Coordinator?
+
+    /// `NSTableHeaderView.mouseDown` runs column drag-reorder + resize as a
+    /// synchronous modal tracking loop. `NSOutlineView` does NOT post
+    /// `columnDidMoveNotification` / `columnDidResizeNotification` for a user
+    /// gesture, so once the loop returns (mouse released, move/resize committed to
+    /// `tableColumns`) we persist the live order + widths directly. A no-op
+    /// (plain click) is filtered by the coordinator's echo guards.
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
+        coordinator?.persistLiveColumnOrder()
+        coordinator?.persistLiveColumnWidths()
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)
