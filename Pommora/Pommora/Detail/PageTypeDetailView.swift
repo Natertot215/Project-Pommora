@@ -240,7 +240,7 @@ struct PageTypeDetailView: View {
     }
 
     private var table: some View {
-        CustomTableView(
+        ViewOutlineTable(
             groups: resolvedGroups,
             columns: columns,
             schema: schema,
