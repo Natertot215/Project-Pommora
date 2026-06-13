@@ -20,25 +20,29 @@ struct ContextsSection: View {
 
     var body: some View {
         Section(isExpanded: $expanded) {
+            // Display order is Projects → Topics → Areas (most-specific first);
+            // the tier1/2/3 data model is unchanged — this is render order only.
             TierDisclosureRow(
-                label: settingsManager.settings.labels.sidebarSections.areas,
-                createLabel: "Area",
-                onCreate: { createArea() }
+                // Reuses the existing entity label pair — no new settings key
+                // (second-pass ruling; sidebarSections gains nothing).
+                label: settingsManager.settings.labels.project.plural,
+                createLabel: settingsManager.settings.labels.project.singular,
+                onCreate: { createProject() }
             ) {
-                ForEach(areaManager.areas) { area in
-                    AreaRow(
-                        area: area,
+                ForEach(projectManager.projects) { project in
+                    ProjectRow(
+                        project: project,
                         selection: $selection,
                         editingID: $editingID,
                         justCreatedID: $justCreatedID,
                         presentedSheet: $presentedSheet,
                         confirmingDelete: $confirmingDelete
                     )
-                    .tag(SelectionTag.area(area.id))
+                    .tag(SelectionTag.project(project.id))
                 }
                 .onMove { source, destination in
                     withAnimation(.snappy) {
-                        areaManager.reorderAreas(fromOffsets: source, toOffset: destination)
+                        projectManager.reorderProjects(fromOffsets: source, toOffset: destination)
                     }
                 }
             }
@@ -65,26 +69,24 @@ struct ContextsSection: View {
                 }
             }
             TierDisclosureRow(
-                // Reuses the existing entity label pair — no new settings key
-                // (second-pass ruling; sidebarSections gains nothing).
-                label: settingsManager.settings.labels.project.plural,
-                createLabel: settingsManager.settings.labels.project.singular,
-                onCreate: { createProject() }
+                label: settingsManager.settings.labels.sidebarSections.areas,
+                createLabel: "Area",
+                onCreate: { createArea() }
             ) {
-                ForEach(projectManager.projects) { project in
-                    ProjectRow(
-                        project: project,
+                ForEach(areaManager.areas) { area in
+                    AreaRow(
+                        area: area,
                         selection: $selection,
                         editingID: $editingID,
                         justCreatedID: $justCreatedID,
                         presentedSheet: $presentedSheet,
                         confirmingDelete: $confirmingDelete
                     )
-                    .tag(SelectionTag.project(project.id))
+                    .tag(SelectionTag.area(area.id))
                 }
                 .onMove { source, destination in
                     withAnimation(.snappy) {
-                        projectManager.reorderProjects(fromOffsets: source, toOffset: destination)
+                        areaManager.reorderAreas(fromOffsets: source, toOffset: destination)
                     }
                 }
             }
