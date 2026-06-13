@@ -33,30 +33,30 @@
 
 ### New files (this branch creates them)
 
-| File | Responsibility |
-|---|---|
-| `Detail/ViewPipeline/ViewItem.swift` | Value-type page row for the pipeline (id, title, modifiedAt, icon, frontmatter, parentID, setLabel) |
-| `Detail/ViewPipeline/ResolvedGroup.swift` | One group from GroupResolver (id, title, kind, items, isCollapsed) |
-| `Detail/ViewPipeline/FilterEvaluator.swift` | Per-type filter operator matrix |
-| `Detail/ViewPipeline/ViewSortComparator.swift` | Sort comparator factory (renamed from SortComparator to avoid Foundation collision) |
-| `Detail/ViewPipeline/GroupResolver.swift` | Structural / property / flat grouping engine |
-| `Detail/ViewPipeline/ViewItemSource.swift` | Stamps parent + setLabel on ViewItems from manager caches |
-| `Detail/ViewPipeline/GroupDropPlanner.swift` | Pure drop-intent decision: .reorder / .move / .rewriteProperty / .none |
-| `Detail/ActiveViewStore.swift` | @Observable; reads/writes `state.json` activeViews + viewsButtonStyle |
-| `Detail/Covers/CoverAssetStore.swift` | Copy-into-assets, 500MB cap, containment guard, delete |
-| `Detail/OutlineTable/OutlineItem.swift` | AnyObject class tree node (group + leaf); feeds NSOutlineViewDataSource |
-| `Detail/OutlineTable/OutlineTableView.swift` | NSViewRepresentable wrapping NSOutlineView + NSScrollView |
-| `Detail/OutlineTable/OutlineTableCoordinator.swift` | @MainActor class; NSOutlineViewDataSource + Delegate; drag; column notifications |
-| `Detail/OutlineTable/HostingCell.swift` | NSTableCellView subclass hosting NSHostingView<AnyView>; reuse-safe configure() |
-| `Detail/OutlineTable/GroupHeaderCell.swift` | NSTableCellView for group header rows (title + count label) |
-| `Detail/OutlineTable/TableColumnResolver.swift` | Resolves active SavedView's property_order → [OutlineColumn] (id, title, width, SF symbol) |
-| `Detail/ViewTabs/ViewsDropdownButton.swift` | Toolbar pill: popover of saved views; inline rename/duplicate/delete/type-switch |
-| `Detail/ViewSettings/StorageMenuRoot.swift` | Routing enum for view-settings pane |
-| `Detail/ViewSettings/SortPane.swift` | Sort picker (Manual, Title, Created, Recent, property asc/desc) |
-| `Detail/ViewSettings/FilterPane.swift` | Filter rule list + match toggle |
-| `Detail/ViewSettings/GroupPane.swift` | Group picker (Default / property / Remove grouping) |
-| `Detail/ViewSettings/LayoutPane.swift` | Banner toggle + property visibility eye-toggles + drag-to-reorder |
-| `Vaults/SavedViewMutations.swift` | Toggle semantics: hide/un-hide, cover excluded, scrubDeletedProperty |
+| File                                                | Responsibility                                                                                      |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `Detail/ViewPipeline/ViewItem.swift`                | Value-type page row for the pipeline (id, title, modifiedAt, icon, frontmatter, parentID, setLabel) |
+| `Detail/ViewPipeline/ResolvedGroup.swift`           | One group from GroupResolver (id, title, kind, items, isCollapsed)                                  |
+| `Detail/ViewPipeline/FilterEvaluator.swift`         | Per-type filter operator matrix                                                                     |
+| `Detail/ViewPipeline/ViewSortComparator.swift`      | Sort comparator factory (renamed from SortComparator to avoid Foundation collision)                 |
+| `Detail/ViewPipeline/GroupResolver.swift`           | Structural / property / flat grouping engine                                                        |
+| `Detail/ViewPipeline/ViewItemSource.swift`          | Stamps parent + setLabel on ViewItems from manager caches                                           |
+| `Detail/ViewPipeline/GroupDropPlanner.swift`        | Pure drop-intent decision: .reorder / .move / .rewriteProperty / .none                              |
+| `Detail/ActiveViewStore.swift`                      | @Observable; reads/writes `state.json` activeViews + viewsButtonStyle                               |
+| `Detail/Covers/CoverAssetStore.swift`               | Copy-into-assets, 500MB cap, containment guard, delete                                              |
+| `Detail/OutlineTable/OutlineItem.swift`             | AnyObject class tree node (group + leaf); feeds NSOutlineViewDataSource                             |
+| `Detail/OutlineTable/OutlineTableView.swift`        | NSViewRepresentable wrapping NSOutlineView + NSScrollView                                           |
+| `Detail/OutlineTable/OutlineTableCoordinator.swift` | @MainActor class; NSOutlineViewDataSource + Delegate; drag; column notifications                    |
+| `Detail/OutlineTable/HostingCell.swift`             | NSTableCellView subclass hosting NSHostingView<AnyView>; reuse-safe configure()                     |
+| `Detail/OutlineTable/GroupHeaderCell.swift`         | NSTableCellView for group header rows (title + count label)                                         |
+| `Detail/OutlineTable/TableColumnResolver.swift`     | Resolves active SavedView's property_order → [OutlineColumn] (id, title, width, SF symbol)          |
+| `Detail/ViewTabs/ViewsDropdownButton.swift`         | Toolbar pill: popover of saved views; inline rename/duplicate/delete/type-switch                    |
+| `Detail/ViewSettings/StorageMenuRoot.swift`         | Routing enum for view-settings pane                                                                 |
+| `Detail/ViewSettings/SortPane.swift`                | Sort picker (Manual, Title, Created, Recent, property asc/desc)                                     |
+| `Detail/ViewSettings/FilterPane.swift`              | Filter rule list + match toggle                                                                     |
+| `Detail/ViewSettings/GroupPane.swift`               | Group picker (Default / property / Remove grouping)                                                 |
+| `Detail/ViewSettings/LayoutPane.swift`              | Banner toggle + property visibility eye-toggles + drag-to-reorder                                   |
+| `Vaults/SavedViewMutations.swift`                   | Toggle semantics: hide/un-hide, cover excluded, scrubDeletedProperty                                |
 
 ### Modified files
 
