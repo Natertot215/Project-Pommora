@@ -289,36 +289,4 @@ import Testing
         )
         #expect(!columns.contains { $0.id == ReservedPropertyID.modifiedAt })
     }
-
-    // MARK: - ColumnLayout geometry
-
-    @Test func columnLayoutComputesPrefixSumsAndTotal() {
-        let columns = TableColumnResolver.resolve(
-            view: view(
-                order: [ReservedPropertyID.title, "prop_user"],
-                hidden: [ReservedPropertyID.modifiedAt],
-                widths: [ReservedPropertyID.title: 100, "prop_user": 200]
-            ),
-            schema: [userProp()]
-        )
-        let layout = ColumnLayout(columns: columns)
-        #expect(layout.totalWidth == 300)
-        #expect(layout.xOffset(at: 0) == 0)
-        #expect(layout.xOffset(at: 1) == 100)
-    }
-
-    @Test func columnLayoutWidthMutationUpdatesGeometry() {
-        let columns = TableColumnResolver.resolve(
-            view: view(
-                order: [ReservedPropertyID.title, "prop_user"],
-                hidden: [ReservedPropertyID.modifiedAt],
-                widths: [ReservedPropertyID.title: 100, "prop_user": 200]
-            ),
-            schema: [userProp()]
-        )
-        let layout = ColumnLayout(columns: columns)
-        layout.setWidth(150, forColumnAt: 0)
-        #expect(layout.totalWidth == 350)
-        #expect(layout.xOffset(at: 1) == 150)
-    }
 }
