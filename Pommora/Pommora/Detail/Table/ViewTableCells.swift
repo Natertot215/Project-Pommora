@@ -78,7 +78,6 @@ struct ViewGroupHeaderCell: View {
     var body: some View {
         Label {
             Text(group.title)
-                .fontWeight(.semibold)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } icon: {

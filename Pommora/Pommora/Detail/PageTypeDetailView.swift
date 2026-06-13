@@ -142,10 +142,27 @@ struct PageTypeDetailView: View {
         return livePageType.views.first(where: { $0.id == activeID }) ?? livePageType.views.first
     }
 
-    /// Resolved, sized, icon-bearing columns for the custom table.
+    /// The FULL ordered column set (hidden columns included). The table hides via
+    /// native `isHidden` rather than dropping a column, so a hidden column keeps its
+    /// width + position — resolve with an empty hidden set to get every column; the
+    /// real hidden set travels separately as `hiddenColumnIDs`.
     private var columns: [ResolvedColumn] {
-        guard let view = activeView else { return [] }
+        guard var view = activeView else { return [] }
+        view.hiddenProperties = []
         return TableColumnResolver.resolve(view: view, schema: schema)
+    }
+
+    /// The active view's hidden column ids — applied as `isHidden` by the table.
+    private var hiddenColumnIDs: Set<String> {
+        Set(activeView?.hiddenProperties ?? [])
+    }
+
+    /// SwiftUI identity for the table, unique per (vault, view). On a vault/view
+    /// switch the `.id` changes, so the outline is rebuilt and `ensureColumns`
+    /// re-applies THAT view's saved order/width from its sidecar — a single reused
+    /// outline would otherwise keep the previous view's column arrangement.
+    private var tableIdentity: String {
+        "viewoutline.\(livePageType.id).\(activeView?.id ?? "default")"
     }
 
     /// The full pipeline output, recomputed on every observed cache change so the
@@ -258,6 +275,7 @@ struct PageTypeDetailView: View {
                 }
             },
             persistOrder: { newOrder in editView { $0.propertyOrder = newOrder } },
+            hiddenColumnIDs: hiddenColumnIDs,
             hideColumn: { colID in
                 editView { if !$0.hiddenProperties.contains(colID) { $0.hiddenProperties.append(colID) } }
             },
@@ -275,6 +293,7 @@ struct PageTypeDetailView: View {
                     structuralParent: structuralParent)
             }
         )
+        .id(tableIdentity)
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }

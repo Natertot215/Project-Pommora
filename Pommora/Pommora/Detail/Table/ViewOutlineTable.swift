@@ -2,18 +2,22 @@ import AppKit
 import SwiftUI
 
 /// Production table renderer for the Vault + Collection detail views — a thin
-/// `NSViewRepresentable` over a view-based `NSOutlineView`. Replaces the
-/// hand-rolled SwiftUI table: disclosure folding, column resize / reorder /
-/// width-persistence, alternating row fills, selection, and keyboard navigation
-/// are all native AppKit behavior. Each cell hosts the existing SwiftUI cell
-/// content (`ViewTableCellContent` / `ViewGroupHeaderCell`) via `NSHostingView`,
-/// so the column chrome is native while cell rendering stays SwiftUI.
+/// `NSViewRepresentable` over a view-based `NSOutlineView`. Replaces the hand-rolled
+/// SwiftUI table: disclosure folding, column resize / reorder, alternating row fills,
+/// and keyboard navigation are native AppKit, while the per-view column layout
+/// (order / width / visibility) persists to the SavedView sidecar. Each cell hosts
+/// the existing SwiftUI cell content (`ViewTableCellContent` / `ViewGroupHeaderCell`)
+/// via `NSHostingView`, so the chrome is native while cell rendering stays SwiftUI.
 ///
 /// Inputs mirror the pipeline currency (`[ResolvedGroup]` tree + `[ResolvedColumn]`)
-/// and the detail view's interaction closures — a drop-in for the old renderer.
-/// Row drag-drop is wired natively in a follow-up pass (`dragCoordinator` /
-/// `buildDropContext` are carried for that step).
+/// and the detail view's interaction closures. Native row drag-drop routes the
+/// outline's drag-source + drop delegates into the shared `RowDragCoordinator` /
+/// `GroupDropPlanner` (reorder / move / rewrite).
 struct ViewOutlineTable: NSViewRepresentable {
+    /// Private pasteboard type for in-app row drags — an ID-only payload; the
+    /// planner resolves reorder vs. move vs. property-rewrite from the drop target.
+    static let rowDragType = NSPasteboard.PasteboardType("com.pommora.view-row")
+
     let groups: [ResolvedGroup]
     let columns: [ResolvedColumn]
     let schema: [PropertyDefinition]
@@ -25,12 +29,22 @@ struct ViewOutlineTable: NSViewRepresentable {
     let pageMenu: (ViewItem) -> AnyView
     let groupMenu: (ResolvedGroup) -> AnyView
 
+    // Layout persists to the per-view SavedView sidecar (portable + deterministic).
+    // AppKit autosave can't reliably restore column ORDER for programmatically-added
+    // columns across the per-view rebuild, so the resolver bakes order + width into
+    // `columns` and these write a genuine user drag back; `ensureColumns` re-applies
+    // on the next rebuild, so a view switch / relaunch restores the arrangement.
     let persistWidth: (_ colID: String, _ width: Double) -> Void
     let persistOrder: (_ newOrder: [String]) -> Void
+    /// Column ids the active view hides — applied as native `isHidden` so a hidden
+    /// column keeps its width + position instead of being torn out and re-added at a
+    /// default width. Never includes the Title.
+    let hiddenColumnIDs: Set<String>
     let hideColumn: (_ colID: String) -> Void
     let persistCollapsed: (_ collapsedIDs: [String]) -> Void
 
-    // Drag wiring — carried now, consumed when native row drag-drop lands.
+    // Drag wiring — the coordinator's commit closures (reorder / move / rewrite)
+    // and the view-resolved drop-context builder, consumed by the drop delegates.
     let dragCoordinator: RowDragCoordinator
     let buildDropContext:
         (
@@ -64,9 +78,14 @@ struct ViewOutlineTable: NSViewRepresentable {
         outline.delegate = coordinator
         outline.target = coordinator
         outline.doubleAction = #selector(Coordinator.handleDoubleClick(_:))
+        // Native row drag — only item rows are draggable (the data source returns
+        // nil for group headers); `.move` is the only local operation.
+        outline.registerForDraggedTypes([ViewOutlineTable.rowDragType])
+        outline.setDraggingSourceOperationMask(.move, forLocal: true)
 
         coordinator.outlineView = outline
-        coordinator.rebuildColumns(outline)
+        coordinator.ensureColumns(outline)
+        coordinator.applyColumnVisibility(outline)
         coordinator.reload(outline)
 
         let scroll = NSScrollView()
@@ -75,6 +94,9 @@ struct ViewOutlineTable: NSViewRepresentable {
         scroll.hasHorizontalScroller = true
         scroll.drawsBackground = false
 
+        // Persist genuine user resizes / reorders to the sidecar. Programmatic column
+        // edits run under `isApplyingUpdate`, and the handlers also no-op when the
+        // value already matches the resolved one — so there are no echoes to chase.
         NotificationCenter.default.addObserver(
             coordinator, selector: #selector(Coordinator.columnDidResize(_:)),
             name: NSTableView.columnDidResizeNotification, object: outline)
@@ -90,12 +112,17 @@ struct ViewOutlineTable: NSViewRepresentable {
         coordinator.parent = self
         guard let outline = scroll.documentView as? NSOutlineView else { return }
 
-        // Rebuild columns only when their identity/order changed — a width-only
-        // resize keeps the same ids, so the live geometry survives an update.
-        let currentIDs = outline.tableColumns.map { $0.identifier.rawValue }
-        if currentIDs != columns.map(\.id) {
-            coordinator.rebuildColumns(outline)
+        // Reconcile the column SET only when a property is added or deleted (the
+        // full set is column-complete; hiding is NOT a set change). Width + order are
+        // AppKit-autosaved, so a plain resize / reorder never re-enters here — and the
+        // Title column is never removed, so it can't survive a teardown and duplicate.
+        let liveIDs = Set(outline.tableColumns.map { $0.identifier.rawValue })
+        if liveIDs != Set(columns.map(\.id)) {
+            coordinator.ensureColumns(outline)
         }
+        // Hide / show via isHidden (not add/remove) so a hidden column keeps its
+        // autosaved width + position and restores intact when shown again.
+        coordinator.applyColumnVisibility(outline)
         coordinator.reload(outline)
     }
 
@@ -116,18 +143,13 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// toggle, which would fight the native fold animation.
         private var lastSignature: String?
 
-        /// Guards the notification handlers from firing during programmatic
-        /// reloads (which would echo back as spurious persists).
+        /// Guards the column + collapse handlers from firing during a programmatic
+        /// update (an `ensureColumns` add/remove, or a reload's expansion callbacks),
+        /// which would otherwise echo back as a spurious persist.
         private var isApplyingUpdate = false
 
-        /// Held TRUE across a column rebuild AND the following runloop tick, so the
-        /// `columnDidMove` notifications AppKit posts asynchronously when columns are
-        /// removed don't echo back as a `persistOrder` that wipes the saved layout
-        /// (the "hiding a property resets order + sizing" bug).
-        private var isRebuildingColumns = false
-
-        /// Coalesces the stream of resize notifications into one persist after the
-        /// drag settles (a raw per-notification write would churn the sidecar).
+        /// Coalesces the stream of live resize notifications into one persist after
+        /// the drag settles (a per-notification write would churn the sidecar).
         private var pendingWidths: [String: Double] = [:]
         private var widthFlush: DispatchWorkItem?
 
@@ -145,63 +167,75 @@ struct ViewOutlineTable: NSViewRepresentable {
 
         // MARK: Column setup
 
-        /// Tears down and rebuilds the native columns from the resolved set, then
-        /// points the disclosure (outline) column at the Title column wherever it
-        /// sits in the order. Called on first build + whenever the column identity
-        /// or order changes.
-        func rebuildColumns(_ outline: NSOutlineView) {
-            isRebuildingColumns = true
-            // Reset on the NEXT runloop tick (not synchronously) so any column move/
-            // resize notifications AppKit posts asynchronously from this rebuild stay
-            // suppressed — otherwise they echo back as a persistOrder/persistWidth
-            // that wipes the saved column layout.
-            defer { DispatchQueue.main.async { [weak self] in self?.isRebuildingColumns = false } }
+        /// Reconciles the native columns to the FULL resolved set WITHOUT a teardown:
+        /// adds a column for a new property (in resolved = sidecar order), removes one
+        /// for a DELETED property, and refreshes header titles in place. Hiding is NOT
+        /// a removal — that is `applyColumnVisibility` (native `isHidden`). Order +
+        /// width come from the resolver (the sidecar's `propertyOrder`/`columnWidths`),
+        /// so adding in that order restores the saved arrangement on a rebuild.
+        ///
+        /// The Title column is always present and never removed — the fix for the
+        /// duplicated-Title bug: `NSOutlineView` refuses to release the disclosure
+        /// (`outlineTableColumn`) column even when detached, so the old total-teardown
+        /// left it alive and the re-add produced a SECOND Title. Never removing it
+        /// makes the duplicate structurally impossible.
+        func ensureColumns(_ outline: NSOutlineView) {
+            // Suppress the resize/move handlers while we mutate columns programmatically.
+            isApplyingUpdate = true
+            defer { isApplyingUpdate = false }
+            let desired = parent.columns
+            let desiredIDs = Set(desired.map(\.id))
 
-            // Detach the outline (disclosure) column BEFORE clearing. AppKit keeps
-            // `outlineTableColumn` alive across `removeTableColumn`, so leaving it
-            // set lets the old Title column survive the rebuild and reappear as a
-            // duplicate once the fresh Title column is re-added (the duplicated-
-            // Title bug after an async column change, e.g. tier columns loading).
-            outline.outlineTableColumn = nil
-            // Total teardown — re-read `tableColumns` each step so NO column survives
-            // (not even a former outline column AppKit might retain). A snapshot loop
-            // can leave one behind, which then duplicates on re-add. The bound guards
-            // the main thread against any column that declines removal.
-            var safety = 0
-            while let last = outline.tableColumns.last, safety < 128 {
-                outline.removeTableColumn(last)
-                safety += 1
+            // Remove only columns whose PROPERTY left the schema (deleted) — never for
+            // a hide, never the Title. `tableColumns` is a snapshot, so removing while
+            // iterating it is safe.
+            for column in outline.tableColumns
+            where !desiredIDs.contains(column.identifier.rawValue) {
+                outline.removeTableColumn(column)
             }
-
-            // Re-add the resolved columns, deduped by identifier: two NSTableColumns
-            // sharing an id both resolve to the same kind and render the same cell
-            // (the duplicated-Title symptom), so each id is added at most once.
-            var addedIDs = Set<String>()
-            for resolved in parent.columns where addedIDs.insert(resolved.id).inserted {
-                let column = NSTableColumn(identifier: .init(resolved.id))
-                column.title = resolved.title
-                column.width = CGFloat(resolved.width)
-                column.minWidth = 60
-                column.maxWidth = Self.maxColumnWidth
-                outline.addTableColumn(column)
+            // Add new columns; refresh the header label on existing ones (a property
+            // rename changes the title without changing the id).
+            for resolved in desired {
+                let id = NSUserInterfaceItemIdentifier(resolved.id)
+                if let existing = outline.tableColumns.first(where: { $0.identifier == id }) {
+                    if existing.title != resolved.title { existing.title = resolved.title }
+                } else {
+                    let column = NSTableColumn(identifier: id)
+                    column.title = resolved.title
+                    column.minWidth = 60
+                    column.maxWidth = Self.maxColumnWidth
+                    column.width = CGFloat(resolved.width)
+                    outline.addTableColumn(column)
+                }
             }
-            let titleColumn = outline.tableColumns.first { column in
-                self.column(for: column)?.kind == .title
+            // The disclosure column is the Title column (always present).
+            if let titleColumn = outline.tableColumns.first(where: {
+                self.column(for: $0)?.kind == .title
+            }) {
+                outline.outlineTableColumn = titleColumn
             }
-            outline.outlineTableColumn = titleColumn ?? outline.tableColumns.first
-
-            // A column change must force the next reload (the signature guard would
-            // otherwise skip it when only the row structure is unchanged).
+            // A column-set change must force the next reload (the signature guard
+            // would otherwise skip it when only the row structure is unchanged).
             lastSignature = nil
+        }
 
-            #if DEBUG
-            if outline.tableColumns.count != parent.columns.count {
-                print(
-                    "[ViewOutlineTable] COLUMN MISMATCH resolved=\(parent.columns.count) "
-                        + "actual=\(outline.tableColumns.count): "
-                        + outline.tableColumns.map(\.identifier.rawValue).joined(separator: ","))
+        /// Applies the active view's hidden set as native `column.isHidden`. A hidden
+        /// column stays in the table — AppKit keeps autosaving its width + position —
+        /// so a hide → show round-trip restores it intact instead of rebuilding it at
+        /// a default width. The Title (disclosure) column is never hidden. Forces the
+        /// next reload only when a visibility actually flipped (so collapse toggles,
+        /// which never touch visibility, still skip the reload and stay jank-free).
+        func applyColumnVisibility(_ outline: NSOutlineView) {
+            var changed = false
+            for column in outline.tableColumns {
+                let isTitle = self.column(for: column)?.kind == .title
+                let hidden = !isTitle && parent.hiddenColumnIDs.contains(column.identifier.rawValue)
+                if column.isHidden != hidden {
+                    column.isHidden = hidden
+                    changed = true
+                }
             }
-            #endif
+            if changed { lastSignature = nil }
         }
 
         // MARK: Node tree
@@ -221,9 +255,9 @@ struct ViewOutlineTable: NSViewRepresentable {
 
             // `expandItem` (in applyExpansion) fires its expand/collapse delegate
             // callbacks synchronously on macOS, so a synchronous reset is safe — the
-            // callbacks all run while `isApplyingUpdate` is still true and are
-            // suppressed. (If that ever became async, this would need the same
-            // next-tick reset that `isRebuildingColumns` uses.)
+            // callbacks all run while `isApplyingUpdate` is still true, which keeps
+            // `persistCollapsedState` from echoing the programmatic expansion back as
+            // a persist.
             isApplyingUpdate = true
             defer { isApplyingUpdate = false }
 
@@ -368,7 +402,7 @@ struct ViewOutlineTable: NSViewRepresentable {
             parent.persistCollapsed(collapsed)
         }
 
-        // MARK: Actions & notifications
+        // MARK: Actions
 
         @objc func handleDoubleClick(_ sender: Any?) {
             guard let outline = outlineView else { return }
@@ -386,34 +420,33 @@ struct ViewOutlineTable: NSViewRepresentable {
             }
         }
 
+        /// A genuine user resize → persist the settled width to the sidecar. Skipped
+        /// during programmatic column edits, and a no-op when the width already equals
+        /// the resolved (persisted) one — so an add can't echo a redundant write.
         @objc func columnDidResize(_ notification: Notification) {
-            guard !isApplyingUpdate, !isRebuildingColumns,
+            guard !isApplyingUpdate,
                 let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn
             else { return }
             let id = column.identifier.rawValue
             let newWidth = Double(column.width)
-            // Persist only a GENUINE user resize. A rebuild re-adds columns at their
-            // resolved (already-persisted) widths, which echoes a resize notification;
-            // if the width already matches the resolved value it's an echo, not a
-            // drag, and writing it back would churn — or wipe — the saved layout.
             guard let resolved = parent.columns.first(where: { $0.id == id }),
                 abs(resolved.width - newWidth) > 0.5
             else { return }
             scheduleWidthPersist(id, newWidth)
         }
 
+        /// A genuine user reorder → persist the new column order to the sidecar.
+        /// Skipped during programmatic edits, and a no-op when the visual order
+        /// already matches the resolved one (so an index shift from a removal, which
+        /// lands on the order the sidecar already holds, doesn't rewrite it).
         @objc func columnDidMove(_ notification: Notification) {
-            guard !isApplyingUpdate, !isRebuildingColumns, let outline = outlineView else { return }
+            guard !isApplyingUpdate, let outline = outlineView else { return }
             let newOrder = outline.tableColumns.map { $0.identifier.rawValue }
-            // Persist only a GENUINE user reorder. A rebuild re-adds columns in the
-            // resolved order, echoing a move notification; if the visual order already
-            // matches the resolved order it's an echo, not a drag, so writing it back
-            // would overwrite the saved propertyOrder with the default layout.
             guard newOrder != parent.columns.map(\.id) else { return }
             parent.persistOrder(newOrder)
         }
 
-        /// Debounced width persist — the final width after the resize settles.
+        /// Debounced width persist — writes the final width once the resize settles.
         private func scheduleWidthPersist(_ id: String, _ width: Double) {
             pendingWidths[id] = width
             widthFlush?.cancel()
@@ -421,9 +454,123 @@ struct ViewOutlineTable: NSViewRepresentable {
                 guard let self else { return }
                 for (colID, value) in self.pendingWidths { self.parent.persistWidth(colID, value) }
                 self.pendingWidths.removeAll()
+                self.widthFlush = nil
             }
             widthFlush = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+        }
+
+        // MARK: Drag & drop
+
+        /// Drag source — only item (page) rows are draggable; group headers return
+        /// nil. The pasteboard carries the page id; the planner resolves the rest.
+        func outlineView(
+            _ outlineView: NSOutlineView, pasteboardWriterForItem item: Any
+        ) -> (any NSPasteboardWriting)? {
+            guard let node = item as? OutlineNode, case .item(let viewItem) = node.payload
+            else { return nil }
+            let pbItem = NSPasteboardItem()
+            pbItem.setString(viewItem.id, forType: ViewOutlineTable.rowDragType)
+            return pbItem
+        }
+
+        /// Validate a drop — accept `.move` wherever the proposed position maps to a
+        /// real page slot (within / onto a group, or inside the root band), else [].
+        func outlineView(
+            _ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo,
+            proposedItem item: Any?, proposedChildIndex index: Int
+        ) -> NSDragOperation {
+            guard !draggedPageIDs(from: info).isEmpty,
+                dropTarget(proposedItem: item, childIndex: index) != nil
+            else { return [] }
+            return .move
+        }
+
+        /// Commit a drop — resolve the destination group + insertion anchor, build
+        /// the planner context the detail view owns, and run it through the shared
+        /// `RowDragCoordinator` (reorder / move / rewrite, same path as the gallery).
+        func outlineView(
+            _ outlineView: NSOutlineView, acceptDrop info: any NSDraggingInfo,
+            item: Any?, childIndex index: Int
+        ) -> Bool {
+            let ids = draggedPageIDs(from: info)
+            guard !ids.isEmpty, let target = dropTarget(proposedItem: item, childIndex: index)
+            else { return false }
+            let dragged = parent.groups.flatMap(\.flattenedItems).filter { ids.contains($0.id) }
+            guard !dragged.isEmpty else { return false }
+            let sourceIndices = IndexSet(
+                dragged.compactMap { d in target.group.items.firstIndex(where: { $0.id == d.id }) })
+            guard
+                let context = parent.buildDropContext(
+                    dragged, target.group, target.insertionIndex, target.anchorID, sourceIndices)
+            else { return false }
+            return parent.dragCoordinator.drop(
+                payload: ViewRowDragPayload(pageIDs: ids), context: context)
+        }
+
+        /// The page ids carried on the drag pasteboard (one per dragged row).
+        private func draggedPageIDs(from info: any NSDraggingInfo) -> [String] {
+            info.draggingPasteboard.pasteboardItems?
+                .compactMap { $0.string(forType: ViewOutlineTable.rowDragType) } ?? []
+        }
+
+        /// Maps an `NSOutlineView` drop position onto a planner-ready target: the
+        /// destination `ResolvedGroup`, the insertion index WITHIN its `items`, and
+        /// the anchor page id the drop lands before (nil = append). Returns nil for a
+        /// position with no valid page slot (e.g. between collection headers).
+        private func dropTarget(proposedItem item: Any?, childIndex index: Int)
+            -> (group: ResolvedGroup, insertionIndex: Int, anchorID: String?)?
+        {
+            if let node = item as? OutlineNode {
+                switch node.payload {
+                case .group(let group):
+                    // Drop ON the header → append (move into the container). Drop
+                    // BETWEEN children → clamp into the items region (child-group
+                    // headers sit after items, so an over-range index appends).
+                    guard index != NSOutlineViewDropOnItemIndex else {
+                        return (group, group.items.count, nil)
+                    }
+                    let clamped = min(max(index, 0), group.items.count)
+                    return (group, clamped, anchorID(in: group, at: clamped))
+                case .item(let viewItem):
+                    // Drop ON a row → insert before it within its enclosing group.
+                    guard let group = enclosingGroup(ofItemID: viewItem.id),
+                        let i = group.items.firstIndex(where: { $0.id == viewItem.id })
+                    else { return nil }
+                    return (group, i, viewItem.id)
+                }
+            }
+            // Root-level drop: the ungrouped band's items render as the trailing
+            // top-level rows (after the collection group nodes). Map an index inside
+            // that region; reject one that falls among the group headers.
+            guard let band = parent.groups.first(where: { $0.kind == .ungrouped }) else { return nil }
+            let topGroupNodeCount = nodes.reduce(into: 0) { count, node in
+                if case .group = node.payload { count += 1 }
+            }
+            let local = index - topGroupNodeCount
+            guard local >= 0, local <= band.items.count else { return nil }
+            return (band, local, anchorID(in: band, at: local))
+        }
+
+        /// The page id a drop at `index` within `group.items` lands BEFORE (the
+        /// reorder anchor), or nil when `index` is the append slot.
+        private func anchorID(in group: ResolvedGroup, at index: Int) -> String? {
+            group.items.indices.contains(index) ? group.items[index].id : nil
+        }
+
+        /// The resolved group whose `items` contain `id`, searching nested children.
+        private func enclosingGroup(ofItemID id: String) -> ResolvedGroup? {
+            func search(_ group: ResolvedGroup) -> ResolvedGroup? {
+                if group.items.contains(where: { $0.id == id }) { return group }
+                for child in group.children ?? [] {
+                    if let found = search(child) { return found }
+                }
+                return nil
+            }
+            for group in parent.groups {
+                if let found = search(group) { return found }
+            }
+            return nil
         }
 
         // MARK: Helpers
